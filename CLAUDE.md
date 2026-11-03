@@ -1,6 +1,13 @@
 # sqlearn
 
-SQL learning project. (The project-init toolkit that was built here now lives in `../project-kit`.)
+A scikit-learn-style ML library (pipelines, transformers, encoders) where every
+step compiles to SQL and runs on DuckDB, so a whole pipeline can execute as one
+query. Independent of scikit-learn. Nothing is built yet; see
+`docs/architecture/overview.md` for the direction and `docs/adr/` for decisions.
+
+- Python packaging uses **uv**: `uv add`, `uv run`. Never use pip or a bare `python` (ADR 0001).
+- Steps are SQL executed by DuckDB, with no Python-side data processing (ADR 0002).
+- The API follows scikit-learn conventions. Any departure needs its own ADR (ADR 0003).
 
 ## Commit conventions
 
