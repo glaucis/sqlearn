@@ -41,9 +41,9 @@ the steps after it (decisions, spec, plan, build).
 - [x] 7. Absorb the war room, `sqlearn-ecosystem/sqlearn-private` (full).
 - [x] 8. Absorb the six commits `sqlearn-ecosystem/sqlearn` has beyond
   `sqlearn_000` (light).
-- [ ] 9. Absorb `sql_learn_test` (light, two agents).
-- [ ] 10. Absorb `sql_learn_27.08.2026` and `sql_learn` (light).
-- [ ] 11. Absorb `sqlearn` of September and October (light, two agents).
+- [x] 9. Absorb `sql_learn_test` (light, two agents).
+- [x] 10. Absorb `sql_learn_27.08.2026` and `sql_learn` (light).
+- [x] 11. Absorb `sqlearn` of September and October (light, two agents).
 - [ ] 12. Combine **What we know so far** into answers for the four open
   questions; this closes the drain and unblocks the decisions in issue #8.
 
@@ -58,9 +58,9 @@ the steps after it (decisions, spec, plan, build).
 | April planning repo | ROOT `sqlearn-ecosystem_old/sqlearn-private` (GitHub `glaucis/sqlearn-private`, Apr 9–24, 593 commits), 411 files | full | merged | [review](sqlearn-private-april/review.md), [batch notes](sqlearn-private-april/notes/) | `_old_sqlearn/`: an exact copy of v0.4 |
 | War room | ROOT `sqlearn-ecosystem/sqlearn-private` (GitHub `glaucis/sqlearn-private`, Apr 26 – Jun 13, 410 commits), 218 docs | full | merged | [review](sqlearn-private-war-room/review.md), [batch notes](sqlearn-private-war-room/notes/) | most ideas and long rules skimmed |
 | `sqlearn_000`, later commits | ROOT `sqlearn-ecosystem/sqlearn` (same first commit, 82 commits against 76) | light | merged | [review, Later commits](sqlearn_000/review.md#later-commits) | the 76 commits already reviewed |
-| `sql_learn_test` | ROOT `sql_learn_test` (Aug 21–24, 59 commits), 85 files | light | mapped | `sql_learn_test/` | |
-| `sql_learn` | ROOT `sql_learn_27.08.2026` (Aug 26, 47 commits, 8 files) and ROOT `sql_learn` (Aug 27–30, 68 commits, 75 files), separate histories | light | mapped | `sql_learn/` | |
-| `sqlearn`, autumn | ROOT `sqlearn` (Sep 30 – Oct 4, 316 commits), 270 files, mostly agent records | light | mapped | `sqlearn-autumn/` | |
+| `sql_learn_test` | ROOT `sql_learn_test` (Aug 21–24, 59 commits), 85 files | light | merged | [review](sql_learn_test/review.md), [batch notes](sql_learn_test/notes/) | agent-only syntheses and most research reports read in part |
+| `sql_learn` | ROOT `sql_learn_27.08.2026` (Aug 26, 47 commits, 8 files) and ROOT `sql_learn` (Aug 27–30, 68 commits, 75 files), separate histories | light | merged | [review](sql_learn/review.md), [batch notes](sql_learn/notes/) | task-tracker scripts and half the agent files skimmed |
+| `sqlearn`, autumn | ROOT `sqlearn` (Sep 30 – Oct 4, 316 commits), 270 files, mostly agent records | light | merged | [review](sqlearn-autumn/review.md), [batch notes](sqlearn-autumn/notes/) | most records and agent files skimmed |
 
 Generated folders, data files and `.env` files are skipped everywhere. Some
 files on ROOT are cloud-only (iCloud): reading one starts a download and can
@@ -109,74 +109,87 @@ notes file to write, with its sections and the **Files covered** checklist.
 
 ## What we know so far
 
-From `ducklearn`, `Tomosius/sqlearn`, sqlearn v0.4, the April planning repo,
-`sqlearn_000` and the war room, oldest first. Evidence, not decisions; the
-decisions are made in issue #8.
+From all ten attempts: `ducklearn`, `Tomosius/sqlearn`, sqlearn v0.4, the April
+planning repo, `sqlearn_000`, the war room, `sql_learn_test`, the two
+`sql_learn` restarts and the autumn `sqlearn`, oldest first. Evidence, not
+decisions; the decisions are made in issue #8. DuckDB facts are checked on
+2.0.0 and listed in each review.
 
-- **How fit runs.** Every attempt learned a later step's statistics from the
-  raw or stage input, so `Impute` then `Scale` scaled un-imputed data. The
-  defect was designed in from the first document, diagnosed in writing on
-  17 March, and kept; `Tomosius/sqlearn` substituted only non-learning steps
-  into later aggregates, and v0.4 lost even that. The April planning repo
-  wrote the defect down as the rule and added a test requiring five learning
-  steps to fit in one query. The war room kept it too (measured: standard
-  deviation 1.6997 its way, 1.4720 staged), though its row filters do reach
-  fit. The boundary rule has to be
-  "a learning step reads a value an earlier step changed", covering set
-  queries (`DISTINCT`) as well as aggregates. A staged fit can still be one
-  query with `WITH` clauses (checked on DuckDB 2.0.0; the idea was on file
-  since March). Fit must see the same row-level steps as transform, through
-  one composer, and nothing in transform may query data. Per-fold
-  `FILTER (WHERE fold != k)` aggregates give every cross-validation fold's
-  statistics in one scan (designed in full in the April repo), equal to the
-  subset's for `AVG`, `STDDEV_POP`,
-  `MEDIAN`, `QUANTILE_CONT` and `MODE … ORDER BY` (checked on DuckDB 2.0.0).
-- **Learned state.** Normally Python values inlined as SQL literals, saved as
-  JSON (v0.4, `sqlearn_000`) or pickle only (`Tomosius/sqlearn`). Failures:
-  `None` meaning both "not fitted" and "learned NULL", keys split on `__` (where
-  `Tomosius/sqlearn`'s `(step, parameter)` tuples worked), stale keys after a
-  refit, selectors and custom classes that could not be saved, float literals
-  never checked (DuckDB reads `44.2` as `DECIMAL(3,1)` and `1e-20` as `DOUBLE`).
-  Cross-validation overwrote each fold's state on the shared step objects, so
-  fitted state must live apart from them. A `DECIMAL` precision mode does not
-  work: DuckDB's aggregates of `DECIMAL` return `DOUBLE`. The war room first
-  kept "not learned" (an error) apart from "learned NULL" (a value). No attempt
-  handled NaN, which DuckDB keeps apart from NULL: one NaN makes `AVG` NaN and
-  `MEDIAN` silently wrong. Learned state as a relation was designed once, for
-  cross-validation: a `stats` CTE joined with `CROSS JOIN`, and per-fold DuckDB
-  tables as a cache.
-- **SQL representation.** Every attempt used sqlglot, chosen for
-  "multi-database from day one". Costs: version pins, type-checker noise, AST
-  aliasing bugs, a dialect that changed NULL ordering. Portability was never
-  tested beyond parsing; the April repo admits transpilation is "syntactic,
-  not semantic". Its federated spec, the only multi-engine design, reaches
-  other sources through DuckDB `ATTACH`. The war room specified five engines
-  natively, refused aliases whose meaning differs (`STDDEV` is sample in
-  DuckDB, population in MySQL), made DuckDB optional and ran nothing; its
-  portable rewrites gave wrong answers with NULLs on DuckDB.
+- **How fit runs.** Every attempt that designed a fit learned a later step's
+  statistics from the raw or stage input, so `Impute` then `Scale` scaled
+  un-imputed data. It was designed in from the first document, diagnosed in
+  writing on 17 March and kept; the April repo wrote it down as the rule and
+  tested for it; the war room kept it (standard deviation 1.6997 its way,
+  1.4720 staged). `Tomosius/sqlearn` substituted only non-learning steps into
+  later aggregates, and v0.4 lost even that. The boundary rule has to be "a
+  learning step reads a value an earlier step changed", covering set queries
+  (`DISTINCT`) as well as aggregates. A staged fit can be one query: each
+  stage's learned values in a `WITH` clause gives scikit-learn's answer, and
+  DuckDB materialises a stage read more than once (24 stages in 0.01 s).
+  Never mark the stages `NOT MATERIALIZED` (out of memory at 12) and never
+  chain lazy relation objects (the work doubles with each step). Row filters
+  must reach fit as they reach transform (the war room's rule), `where=` on a
+  learning step means fit scope (`FILTER (WHERE …)`), and nothing in transform
+  may query data. Per-fold `FILTER (WHERE fold != k)` aggregates give every
+  cross-validation fold's statistics in one scan, equal to the subset's for
+  `AVG`, `STDDEV_POP`, `MEDIAN`, `QUANTILE_CONT` and `MODE … ORDER BY`.
+- **Learned state.** Usually Python values inlined as SQL literals, saved as
+  JSON or pickle. Failures: `None` meaning both "not fitted" and "learned
+  NULL" (the war room first kept them apart, with `NotLearnedError`); keys
+  split on `__` (structured `(step, parameter)` keys worked); stale keys after
+  a refit; selectors and custom classes that could not be saved; folds
+  overwriting state on shared step objects, so fitted state must live apart
+  from the steps; lazy relations as state, which silently refit; float
+  literals never checked (DuckDB reads `44.2` as `DECIMAL(3,1)`, and `inf` and
+  `nan` are not literals). A `DECIMAL` precision mode does not work: DuckDB's
+  aggregates of `DECIMAL` return `DOUBLE`. With several threads DuckDB's sums,
+  means and standard deviations differ in the last digits from run to run;
+  at one thread they repeat exactly. No attempt handled NaN, which DuckDB
+  keeps apart from NULL: NaN equals NaN, sorts above every number, makes `AVG`
+  NaN and `MEDIAN` silently wrong, and passes through `COALESCE`.
+- **SQL representation.** Most attempts used sqlglot, chosen for
+  "multi-database from day one"; `sql_learn_test` rejected it and the
+  restarts after it used plain SQL. Costs: version pins, type-checker noise,
+  AST aliasing bugs, a dialect that changed NULL ordering. Portability was
+  never tested beyond parsing; two repositories admit transpilation is
+  "syntactic, not semantic" (`STDDEV` is sample in DuckDB, population in
+  MySQL). The war room's portable rewrites gave wrong answers with NULLs. The
+  only multi-engine designs reach other engines natively or through DuckDB
+  `ATTACH`; none ran. Identifiers need quoting: DuckDB lists its own keywords
+  (`duckdb_keywords()`, 75 reserved), and hand-typed lists drifted.
 - **Validation.** No attempt ever compared a whole pipeline with scikit-learn's
   (`Pipeline([SimpleImputer(), StandardScaler()])` would have caught the fit
-  defect every time). Early attempts used scikit-learn as the reference with a
-  fixed tolerance; v0.4 and `sqlearn_000` wrote a strong method (exact
-  references, bounds set from measurement) and never enforced it; the April
-  repo specified the fullest version (primary-source references, ULP
-  cascade, bundled data, gates) and built none of it. `sqlearn_000`'s last
-  commits add a size rule (every run on two small, two medium and two large
-  datasets) and an `anomaly` flag for a reference library that misses its own
-  precision. Parity
-  tests were few, hand-tuned, sometimes correlation-only, sometimes skipped,
-  and loosened to hide known mismatches. Tests that assert a known divergence
-  with its reason, and snapshots that fail when missing, are worth keeping.
-- **API.** `ducklearn` and `Tomosius/sqlearn` kept scikit-learn's names with
-  `get_params`, `set_params` and `clone`; the April repo's NAMING-REVIEW
-  declared `learn`/`apply` "settled", v0.4 and `sqlearn_000` used them, and
-  bridges back were added. ADR 0003 stands. Every attempt took `y` as a
-  column name and `fit` a data source, and never excluded the target from the
-  default columns: departures that need an ADR.
-- **Process.** Bursts of building, then stalls. Plans, standards, skills and
-  tooling outgrew the product; status was kept by hand in several places and
-  drifted. A separate review sweep after a burst found real bugs every time it
-  was run. Docs with hand-typed numbers were wrong. The April repo produced
-  593 commits and no code; about two thirds were about the process. The war
-  room produced 410 commits and no code, and scope swung by conversation. A
-  deterministic checker stopped document drift where agent reviewers had not.
+  defect every time); `sql_learn_test` named the gap: parity per method can
+  pass while `fit_transform` is wrong. Two methods compete: exact references
+  (mpmath or `Decimal` at 50 digits, `Fraction`) with error bounds measured in
+  ULPs (v0.4, April repo, `sqlearn_000`, the autumn `sqlearn`'s `sweep.py`),
+  and a live scikit-learn as the oracle with tolerances measured from noise
+  (`sql_learn_test`); they answer different questions and the strongest
+  designs used both, with an `anomaly` flag for a reference library that
+  misses its own precision. Neither was ever enforced as a gate. Parity tests
+  were few, hand-tuned, sometimes correlation-only, sometimes skipped, and
+  loosened to hide known mismatches. Useful rules: datasets bundled or
+  generated, never downloaded; small and large fixtures, because a `ddof`
+  error is 15% at n = 4 and 5e-6 at n = 100,000; every run on small, medium
+  and large data; tests that assert a known divergence with its reason;
+  snapshots that fail when missing; a hash gate against quietly weakened
+  tests; invariants rather than second implementations as oracles; a reference
+  that is truly independent (`statistics.NormalDist` is the same algorithm as
+  the AS 241 it would check). DuckDB has no `erf` and no normal quantile.
+- **API.** `ducklearn`, `Tomosius/sqlearn` and `sql_learn_test` kept
+  scikit-learn's names, with `get_params`, `set_params` and `clone`;
+  `sql_learn_test` made the API identical to scikit-learn's and the live
+  scikit-learn its oracle. The April repo declared `learn`/`apply`
+  "settled", v0.4, `sqlearn_000` and the war room used them, and bridges back
+  were added. ADR 0003 stands. Most attempts took `y` as a column name and
+  `fit` a data source, and none excluded the target from the default columns:
+  departures that need an ADR.
+- **Process.** Of about 2,000 commits across the ten attempts, a minority
+  touched library code; four repositories wrote none (the April repo 593
+  commits, the war room 410, the autumn `sqlearn` 316, both `sql_learn`
+  restarts). Bursts, then stalls; no attempt recorded why it stopped. Plans,
+  standards, skills, agent rosters and trackers outgrew the product; status
+  kept by hand in several places drifted; scope swung by conversation.
+  Deterministic tools (a checker script, rumdl, typos, hash gates) stopped
+  drift where agent reviewers and prose rules had not. A separate review sweep
+  after a burst of building found real bugs every time it was run.
