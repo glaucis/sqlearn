@@ -15,7 +15,9 @@ related: [task-12]
 ---
 ```
 
-It never overwrites a field you set yourself. A doc is sent to the model again only when its body changes. Docs that look like they contain a secret (`sk-ant-…`, `AKIA…`, private keys) are never sent; they are marked `skipped`.
+It also adds an `mdindex: [type=…, tags=…]` line recording which fields it wrote, with a short hash of each value. It updates those fields when the doc changes, but never touches a field you set or edited yourself, or any multi-line (block-style) value. Because this record lives in the file, it survives a fresh clone or a deleted `state.json`.
+
+Never tagged: `CLAUDE.md` and `AGENTS.md` anywhere, root `README.md`/`CHANGELOG.md`/`LICENSE.md`/`CONTRIBUTING.md`, anything gitignored, symlinks, non-UTF-8 files, and tool folders at any depth (`node_modules`, `.venv`, `vendor`, `.github`, `.git`, caches…). Windows line endings and a UTF-8 BOM are kept as they are. A doc is sent to the model again only when its body changes. Docs that look like they contain a secret (`sk-ant-…`, `AKIA…`, private keys) are never sent; they are marked `skipped`.
 
 ## Setup
 
@@ -30,7 +32,7 @@ The key can also come from the `ANTHROPIC_API_KEY` environment variable, which t
 
 | Command | Does |
 |---|---|
-| `mdindex init [path]` | Turn on for a project: config, QMD collection, tag all docs, first index |
+| `mdindex init [--detach] [path]` | Turn on for a project: QMD collection, config, tag all docs, first index (`--detach`: tag in the background) |
 | `mdindex sync [path]` | Tag changed docs, then `qmd update` + `qmd embed` |
 | `mdindex sync --pending [path]` | Same, only for docs queued by the hooks |
 | `mdindex tag <file>…` | Tag specific files now |

@@ -44,7 +44,8 @@ class DocModelTests(unittest.TestCase):
     def test_set_fields_adds_frontmatter_to_plain_doc(self):
         doc = mdindex.read_doc("# T\n")
         doc, _ = mdindex.set_fields(doc, {"type": "bug", "tags": ["x"]}, {})
-        self.assertEqual(mdindex.render_doc(doc), "---\ntype: bug\ntags: [x]\n---\n# T\n")
+        marker = f"mdindex: [type={mdindex._own_hash('bug')}, tags={mdindex._own_hash(['x'])}]"
+        self.assertEqual(mdindex.render_doc(doc), f"---\ntype: bug\ntags: [x]\n{marker}\n---\n# T\n")
 
     def test_string_with_colon_is_quoted_and_reparsed(self):
         doc, _ = mdindex.set_fields(mdindex.read_doc("x\n"), {"summary": 'a: b "c"'}, {})

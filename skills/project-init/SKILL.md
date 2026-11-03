@@ -74,8 +74,8 @@ Ask about each module with its own `AskUserQuestion` call, in this order. Each q
 - **Before installing, check both of these:**
   - `command -v mdindex && command -v qmd`. If either is missing, tell the user it must be installed first (`./install.sh` from the toolkit repo, and `npm install -g @tobilu/qmd`) and treat the answer as "Later".
   - `security find-generic-password -s mdindex-anthropic >/dev/null 2>&1 || test -n "$ANTHROPIC_API_KEY"`. If neither has a key, ask the user to run `! security add-generic-password -s mdindex-anthropic -a "$USER" -w` and paste their key at the prompt. Never ask for the key in chat, and never write it to a file.
-- **Install:** `mdindex init`
-- **Verify:** `mdindex status` shows `untagged: 0`, or a `.mdindex/log` explains why not. Report the collection name.
+- **Install:** `mdindex init --detach`. This registers the project and tags existing docs in the background, so a large first run can't hit a command timeout.
+- **Verify:** `mdindex status` prints the collection name and a `docs:` count. `untagged` drops to 0 as the background run finishes; any errors are in `.mdindex/log`. Report the collection name and say tagging continues in the background.
 - **Ignore:** add `.mdindex/state.json`, `.mdindex/pending`, `.mdindex/lock` and `.mdindex/log` to `.gitignore`. `.mdindex/config.json` is committed.
 
 ### d. Matt Pocock engineering setup: tickets, ADRs, glossary

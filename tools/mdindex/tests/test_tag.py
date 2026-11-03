@@ -27,7 +27,7 @@ class TagTests(TempProject):
         self.assertEqual(doc.body, "# Use Postgres\n\nWe pick Postgres.\n")
         entry = self.state["files"]["docs/adr/0002.md"]
         self.assertEqual(entry["hash"], mdindex.body_hash(doc.body))
-        self.assertEqual(entry["owned"]["type"], "adr")
+        self.assertEqual(mdindex.owned_from_doc(doc)["type"], "adr")
 
     def test_tag_unchanged_when_hash_matches(self):
         p = self.write("a.md", "body\n")
