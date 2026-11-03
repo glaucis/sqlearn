@@ -139,5 +139,13 @@ class TagTests(TempProject):
                 mdindex.request_tags("x.md", "b", self.cfg)
 
 
+
+class PromptTests(unittest.TestCase):
+    def test_system_prompt_asks_for_paths_as_written(self):
+        p = mdindex._system_prompt(mdindex.DEFAULT_CONFIG["types"])
+        self.assertIn("repo-relative path", p)
+        self.assertIn("exactly as written", p)
+
+
 if __name__ == "__main__":
     unittest.main()

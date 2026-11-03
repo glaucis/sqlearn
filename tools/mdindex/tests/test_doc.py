@@ -87,5 +87,22 @@ class ProjectTests(TempProject):
         self.assertEqual(mdindex.load_state(self.root), {"files": {}})
 
 
+
+class AlwaysExcludedTests(TempProject):
+    def test_agent_and_repo_files_never_included(self):
+        cfg = dict(mdindex.DEFAULT_CONFIG, exclude=[])  # even a config with no excludes
+        for rel in ["CLAUDE.md", "AGENTS.md", "README.md", "CHANGELOG.md", "LICENSE.md",
+                    "CONTRIBUTING.md", "pkg/CLAUDE.md", "src/AGENTS.md"]:
+            self.assertFalse(mdindex.is_included(rel, cfg), rel)
+        self.assertTrue(mdindex.is_included("docs/adr/README.md", cfg))
+        self.assertTrue(mdindex.is_included("notes/claude-notes.md", cfg))
+
+    def test_iter_docs_skips_claude_md(self):
+        self.write("CLAUDE.md", "x")
+        self.write("docs/a.md", "a")
+        docs = mdindex.iter_docs(self.root, mdindex.DEFAULT_CONFIG)
+        self.assertEqual([p.relative_to(self.root).as_posix() for p in docs], ["docs/a.md"])
+
+
 if __name__ == "__main__":
     unittest.main()

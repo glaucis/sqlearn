@@ -194,7 +194,16 @@ def _matches(rel: str, patterns: list[str]) -> bool:
     return False
 
 
+# Never tagged, whatever the project config says: agent instructions and repo
+# files whose rendering a frontmatter block would break.
+ALWAYS_EXCLUDE_NAMES = {"CLAUDE.md", "AGENTS.md"}
+ALWAYS_EXCLUDE_ROOT = {"README.md", "CHANGELOG.md", "LICENSE.md", "CONTRIBUTING.md"}
+
+
 def is_included(rel: str, config: dict) -> bool:
+    name = rel.rsplit("/", 1)[-1]
+    if name in ALWAYS_EXCLUDE_NAMES or rel in ALWAYS_EXCLUDE_ROOT:
+        return False
     return _matches(rel, config["include"]) and not _matches(rel, config["exclude"])
 
 
@@ -263,8 +272,9 @@ def _system_prompt(types: list[str]) -> str:
         f"type: exactly one of: {', '.join(types)}. Use note when nothing else fits.\n"
         "tags: 2-6 short lowercase topic keywords (single words or kebab-case).\n"
         "summary: one sentence, at most 160 characters, saying what the document is about.\n"
-        "related: IDs of other items the document mentions, such as ADR-0003 or task-12; "
-        "empty list if none. Do not invent IDs."
+        "related: other documents or items this one refers to, each copied exactly as written in "
+        "the text: a repo-relative path (docs/adr/0003-use-duckdb.md) or an explicit ID "
+        "(ADR-0003, task-12). Never shorten, renumber, or guess. Empty list if none."
     )
 
 
