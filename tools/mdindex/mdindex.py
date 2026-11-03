@@ -345,3 +345,203 @@ def tag_file(root: Path, path: Path, config: dict, state: dict) -> str:
     _write_atomic(path, render_doc(new_doc))
     state["files"][rel] = {"hash": h, "owned": owned, "skipped": None}
     return "tagged"
+
+
+# ---------------------------------------------------------------- commands
+
+LOCK_STALE_SECONDS = 10 * 60
+
+
+def run_qmd(args: list[str]) -> None:
+    import subprocess
+    exe = os.environ.get("MDINDEX_QMD", "qmd")
+    try:
+        r = subprocess.run([exe, *args], capture_output=True, text=True)
+    except OSError as e:
+        raise MdindexError(f"qmd not runnable ({exe}): {e}") from None
+    if r.returncode != 0:
+        raise MdindexError(f"qmd {' '.join(args)} failed ({r.returncode}): {(r.stderr or r.stdout).strip()[:300]}")
+
+
+def _log(root: Path, msg: str) -> None:
+    import datetime
+    ts = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+    with open(root / MD_DIR / "log", "a", encoding="utf-8") as f:
+        f.write(f"{ts} {' '.join(msg.split())}\n")
+
+
+def acquire_lock(root: Path) -> bool:
+    import time
+    lock = root / MD_DIR / "lock"
+    for _ in range(2):
+        try:
+            fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        except FileExistsError:
+            try:
+                if time.time() - lock.stat().st_mtime > LOCK_STALE_SECONDS:
+                    lock.unlink()
+                    continue
+            except FileNotFoundError:
+                continue
+            return False
+        with os.fdopen(fd, "w") as f:
+            f.write(str(os.getpid()))
+        return True
+    return False
+
+
+def release_lock(root: Path) -> None:
+    try:
+        (root / MD_DIR / "lock").unlink()
+    except FileNotFoundError:
+        pass
+
+
+def _collection_name(root: Path) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", root.name.lower()).strip("-") or "docs"
+
+
+def cmd_init(root: Path) -> int:
+    root = Path(root).resolve()
+    md = root / MD_DIR
+    if (md / "config.json").exists():
+        print("already initialised")
+        return 0
+    md.mkdir(exist_ok=True)
+    cfg = dict(DEFAULT_CONFIG, collection=_collection_name(root))
+    (md / "config.json").write_text(json.dumps(cfg, indent=2) + "\n", encoding="utf-8")
+    save_state(root, {"files": {}})
+    run_qmd(["collection", "add", str(root), "--name", cfg["collection"], "--mask", "**/*.md"])
+    print(f"initialised mdindex for {root} (collection {cfg['collection']})")
+    return cmd_sync(root)
+
+
+def _read_pending(root: Path) -> list[str]:
+    try:
+        lines = (root / MD_DIR / "pending").read_text(encoding="utf-8").splitlines()
+    except FileNotFoundError:
+        return []
+    return list(dict.fromkeys(l.strip() for l in lines if l.strip()))
+
+
+def cmd_sync(root: Path, pending_only: bool = False) -> int:
+    root = Path(root).resolve()
+    if not acquire_lock(root):
+        return 0
+    try:
+        config = load_config(root)
+        state = load_state(root)
+        if pending_only:
+            rels = _read_pending(root)
+            (root / MD_DIR / "pending").write_text("", encoding="utf-8")
+            paths = [root / r for r in rels if is_included(r, config) and (root / r).is_file()]
+        else:
+            paths = iter_docs(root, config)
+        counts: dict[str, int] = {}
+        for p in paths:
+            rel = p.relative_to(root).as_posix()
+            try:
+                result = tag_file(root, p, config, state)
+            except Exception as e:  # never let one doc break the sync
+                result = "error"
+                _log(root, f"{rel}: {e}")
+            counts[result] = counts.get(result, 0) + 1
+        live = {p.relative_to(root).as_posix() for p in iter_docs(root, config)}
+        state["files"] = {k: v for k, v in state["files"].items() if k in live}
+        save_state(root, state)
+        try:
+            run_qmd(["update"])
+            run_qmd(["embed"])
+        except MdindexError as e:
+            _log(root, str(e))
+        if counts:
+            print(", ".join(f"{k}: {v}" for k, v in sorted(counts.items())))
+        return 0
+    except Exception as e:
+        _log(root, f"sync failed: {e}")
+        return 0
+    finally:
+        release_lock(root)
+
+
+def cmd_status(root: Path) -> int:
+    root = Path(root).resolve()
+    config = load_config(root)
+    state = load_state(root)
+    c = {"tagged": 0, "untagged": 0, "changed": 0, "skipped": 0}
+    docs = iter_docs(root, config)
+    for p in docs:
+        rel = p.relative_to(root).as_posix()
+        entry = state["files"].get(rel)
+        if entry and entry.get("skipped"):
+            c["skipped"] += 1
+        elif not entry:
+            c["untagged"] += 1
+        elif entry.get("hash") != body_hash(read_doc(p.read_text(encoding="utf-8", errors="replace")).body):
+            c["changed"] += 1
+        else:
+            c["tagged"] += 1
+    print(f"collection: {config['collection']}")
+    print(f"docs: {len(docs)}")
+    for k in ("tagged", "untagged", "changed", "skipped"):
+        print(f"{k}: {c[k]}")
+    return 0
+
+
+def cmd_tag(files: list[str]) -> int:
+    rc = 0
+    for f in files:
+        p = Path(f).resolve()
+        root = find_root(p.parent)
+        if root is None:
+            print(f"{f}: not inside an mdindex project", file=sys.stderr)
+            rc = 1
+            continue
+        config, state = load_config(root), load_state(root)
+        try:
+            print(f"{f}: {tag_file(root, p, config, state)}")
+        except MdindexError as e:
+            print(f"{f}: {e}", file=sys.stderr)
+            rc = 1
+        save_state(root, state)
+    return rc
+
+
+def _project_root(path: str) -> Path | None:
+    root = find_root(Path(path))
+    if root is None:
+        print(f"{path}: not an mdindex project (run `mdindex init` there first)", file=sys.stderr)
+    return root
+
+
+def main(argv: list[str]) -> int:
+    import argparse
+    ap = argparse.ArgumentParser(prog="mdindex", description=__doc__)
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    for name in ("init", "status"):
+        s = sub.add_parser(name)
+        s.add_argument("path", nargs="?", default=".")
+    s = sub.add_parser("sync")
+    s.add_argument("--pending", action="store_true")
+    s.add_argument("path", nargs="?", default=".")
+    s = sub.add_parser("tag")
+    s.add_argument("files", nargs="+")
+    args = ap.parse_args(argv)
+    try:
+        if args.cmd == "init":
+            return cmd_init(Path(args.path))
+        if args.cmd == "tag":
+            return cmd_tag(args.files)
+        root = _project_root(args.path)
+        if root is None:
+            return 1
+        if args.cmd == "status":
+            return cmd_status(root)
+        return cmd_sync(root, pending_only=args.pending)
+    except MdindexError as e:
+        print(f"mdindex: {e}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
