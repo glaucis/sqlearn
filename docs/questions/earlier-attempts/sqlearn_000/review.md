@@ -342,3 +342,37 @@ Sources: `sqlearn_000:pyproject.toml` (dependencies and groups),
 `sqlearn_000:uv.lock` (versions). The repo itself was MIT
 (`sqlearn_000:LICENSE`); this one is Apache-2.0
 ([ADR 0004](../../../adr/0004-apache-2-licence.md)).
+
+## Later commits
+
+The local copy (ROOT `sqlearn-ecosystem/sqlearn`) has six commits on 30 April
+beyond the 76 reviewed above, read with `git log` and `git diff` only
+(step 8 of [the plan](../README.md)).
+
+- **The code was wiped for the redesign.** `ff880ba` ("reset implementation
+  for v0.1.0 redesign") deletes the source, tests, validators, reports, plans
+  and `LESSONS.md`: 37,526 lines out, the whole of what this review describes.
+  The war room's multi-dialect redesign replaced it.
+- **Only validation scaffolding was rebuilt** (`bed78e7`, `335e12c`,
+  `d11ce71`, `bdc93f1`), and no validator was written: the results file is a
+  header only. As designed in `validators/README.md`:
+  - `canonical` (mpmath at 50 digits) is one reference among the named
+    libraries (numpy, scipy, scikit-learn, pandas, polars, statsmodels, R,
+    DuckDB), so "faithful to the maths" and "matches what users expect" are
+    separate rows;
+  - one result per step × dataset × DuckDB type × reference, with worst
+    absolute, relative and ULP error against a precision floor derived from
+    the operation and type;
+  - an `anomaly` flag for a reference library that misses its own
+    algorithm's precision, distinct from pass or fail;
+  - a "2-2-2" rule enforced in code: every run covers two small (up to 5,000
+    rows), two medium (20,000 to 50,000) and two large (200,000 or more)
+    datasets, because cancellation and engine effects only show at size;
+  - the exact reference subsampled to 10,000 rows above 50,000, with the
+    sample size recorded;
+  - per-feature JSON history (append-only), a current-state CSV and a
+    rendered Markdown page, all written by one helper.
+- **Against this repository's rules:** the datasets are downloaded from
+  Kaggle, UCI, scikit-learn and HuggingFace (`datasets/download.py`), which
+  ADR 0006 forbids; tests use synthetic data and only the validators use real
+  data.

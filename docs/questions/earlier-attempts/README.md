@@ -39,7 +39,7 @@ the steps after it (decisions, spec, plan, build).
 - [x] 6. Absorb the April planning repo,
   `sqlearn-ecosystem_old/sqlearn-private`, without `_old_sqlearn` (full).
 - [ ] 7. Absorb the war room, `sqlearn-ecosystem/sqlearn-private` (full).
-- [ ] 8. Absorb the six commits `sqlearn-ecosystem/sqlearn` has beyond
+- [x] 8. Absorb the six commits `sqlearn-ecosystem/sqlearn` has beyond
   `sqlearn_000` (light).
 - [ ] 9. Absorb `sql_learn_test` (light, two agents).
 - [ ] 10. Absorb `sql_learn_27.08.2026` and `sql_learn` (light).
@@ -57,7 +57,7 @@ the steps after it (decisions, spec, plan, build).
 | `Tomosius/sqlearn` | ROOT `sqlearn-desktop` (no git, 378 files) and ROOT `test/sqlearn` (GitHub `Tomosius/sqlearn`, Mar 13 – Apr 9, 271 commits) | full | merged | [review](tomosius-sqlearn/review.md), [batch notes](tomosius-sqlearn/notes/) | `test/sqlearn`'s 297 cloud-only files; it shares 92% of its local files with `sqlearn-desktop` |
 | April planning repo | ROOT `sqlearn-ecosystem_old/sqlearn-private` (GitHub `glaucis/sqlearn-private`, Apr 9–24, 593 commits), 411 files | full | merged | [review](sqlearn-private-april/review.md), [batch notes](sqlearn-private-april/notes/) | `_old_sqlearn/`: an exact copy of v0.4 |
 | War room | ROOT `sqlearn-ecosystem/sqlearn-private` (GitHub `glaucis/sqlearn-private`, Apr 26 – Jun 13, 410 commits), 218 docs | full | mapped | `sqlearn-private-war-room/` | |
-| `sqlearn_000`, later commits | ROOT `sqlearn-ecosystem/sqlearn` (same first commit, 82 commits against 76) | light | mapped | `sqlearn_000/` | the 76 commits already reviewed |
+| `sqlearn_000`, later commits | ROOT `sqlearn-ecosystem/sqlearn` (same first commit, 82 commits against 76) | light | merged | [review, Later commits](sqlearn_000/review.md#later-commits) | the 76 commits already reviewed |
 | `sql_learn_test` | ROOT `sql_learn_test` (Aug 21–24, 59 commits), 85 files | light | mapped | `sql_learn_test/` | |
 | `sql_learn` | ROOT `sql_learn_27.08.2026` (Aug 26, 47 commits, 8 files) and ROOT `sql_learn` (Aug 27–30, 68 commits, 75 files), separate histories | light | mapped | `sql_learn/` | |
 | `sqlearn`, autumn | ROOT `sqlearn` (Sep 30 – Oct 4, 316 commits), 270 files, mostly agent records | light | mapped | `sqlearn-autumn/` | |
@@ -152,7 +152,10 @@ issue #8.
   fixed tolerance; v0.4 and `sqlearn_000` wrote a strong method (exact
   references, bounds set from measurement) and never enforced it; the April
   repo specified the fullest version (primary-source references, ULP
-  cascade, bundled data, gates) and built none of it. Parity
+  cascade, bundled data, gates) and built none of it. `sqlearn_000`'s last
+  commits add a size rule (every run on two small, two medium and two large
+  datasets) and an `anomaly` flag for a reference library that misses its own
+  precision. Parity
   tests were few, hand-tuned, sometimes correlation-only, sometimes skipped,
   and loosened to hide known mismatches. Tests that assert a known divergence
   with its reason, and snapshots that fail when missing, are worth keeping.
