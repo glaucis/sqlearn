@@ -657,9 +657,11 @@ reflow = true
 ```toml
 [tool.typos.files]
 # Hidden folders are read, so the hooks and Claude's settings are checked;
-# git's objects and the lockfile are not.
+# git's objects and the lockfile are not. The tools' caches are excluded
+# because typos applies .gitignore only inside a git repository, and the
+# hook runs it on an export that has none.
 ignore-hidden = false
-extend-exclude = [".git/", "uv.lock", ".codegraph/"]
+extend-exclude = [".git/", "uv.lock", ".codegraph/", ".ruff_cache/", ".rumdl_cache/", ".mypy_cache/"]
 
 [tool.typos.default]
 # British prose and American identifiers both pass at `en`.

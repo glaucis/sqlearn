@@ -17,6 +17,10 @@ STAND_IN = """#!/usr/bin/env bash
   echo "uv_env=${UV_PROJECT_ENVIRONMENT-}"
   echo "uv_no_sync=${UV_NO_SYNC-}"
 } >> "$FAKE_JUST_LOG"
+if [ -n "${FAKE_JUST_NOISE-}" ]; then
+  echo "noise on stdout"
+  echo "noise on stderr" >&2
+fi
 if [ -n "${FAKE_JUST_ASSERT-}" ]; then
   eval "$FAKE_JUST_ASSERT" >> "$FAKE_JUST_LOG" 2>&1
 fi
@@ -48,15 +52,18 @@ def make_repo(base: Path, tmp_path: Path):
     home = tmp_path / "home"
     home.mkdir(exist_ok=True)
     log = tmp_path / "just.log"
+    ambient = {
+        k: v
+        for k, v in os.environ.items()
+        if not k.startswith(("GIT_", "UV_", "FAKE_JUST_"))
+    }
     env = {
-        **os.environ,
+        **ambient,
         "HOME": str(home),
         "GIT_CONFIG_NOSYSTEM": "1",
         "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}",
         "FAKE_JUST_LOG": str(log),
     }
-    for name in ("GIT_INDEX_FILE", "GIT_DIR", "GIT_WORK_TREE", "FAKE_JUST_EXIT"):
-        env.pop(name, None)
     git(repo, "init", "-b", "main", env=env)
     git(repo, "config", "user.name", "Test", env=env)
     git(repo, "config", "user.email", "test@example.com", env=env)
@@ -94,6 +101,25 @@ def test_a_passing_recipe_lets_the_commit_land(scratch):
     assert "args=pre-commit" in log.read_text()
 
 
+def test_a_passing_commit_prints_nothing(scratch):
+    """A passing commit shows nothing of the hook, whatever the recipe prints."""
+    repo, env, _ = scratch
+    (repo / "a.txt").write_text("a-new\n")
+    git(repo, "add", "a.txt", env=env)
+    done = git(
+        repo,
+        "commit",
+        "-q",
+        "-m",
+        "chore: edit",
+        env={**env, "FAKE_JUST_NOISE": "1"},
+        check=False,
+    )
+    assert done.returncode == 0, done.stderr
+    assert done.stdout == ""
+    assert done.stderr == ""
+
+
 def test_a_failing_recipe_refuses_the_commit(scratch):
     """A failing recipe refuses the commit and the hook names the cure."""
     repo, env, _ = scratch
@@ -105,12 +131,13 @@ def test_a_failing_recipe_refuses_the_commit(scratch):
         "commit",
         "-m",
         "chore: edit",
-        env={**env, "FAKE_JUST_EXIT": "1"},
+        env={**env, "FAKE_JUST_EXIT": "1", "FAKE_JUST_NOISE": "1"},
         check=False,
     )
     assert done.returncode != 0
     assert head(repo, env) == before
     assert "just fmt" in done.stderr
+    assert "noise on stderr" in done.stderr
 
 
 def test_the_checks_read_the_index_not_the_working_tree(scratch):
@@ -185,7 +212,10 @@ def test_the_hook_runs_under_a_path_with_spaces(tmp_path):
     git(repo, "add", "a.txt", env=env)
     done = git(repo, "commit", "-m", "chore: edit", env=env, check=False)
     assert done.returncode == 0, done.stderr
-    assert "args=pre-commit" in log.read_text()
+    text = log.read_text()
+    assert "args=pre-commit" in text
+    uv_env = next(line for line in text.splitlines() if line.startswith("uv_env="))
+    assert Path(uv_env.removeprefix("uv_env=")).resolve() == repo.resolve() / ".venv"
 
 
 def test_the_hook_runs_in_a_linked_worktree(scratch, tmp_path):

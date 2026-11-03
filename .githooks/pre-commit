@@ -16,9 +16,6 @@ root=$(git rev-parse --show-toplevel) || exit 1
 work=$(mktemp -d) || exit 1
 trap 'rm -rf "$work"' EXIT
 tmp="$work/tree"
-# The export has no .git, so typos would read rumdl's cache folder if it sat
-# inside the export: keep it beside the export instead.
-export RUMDL_CACHE_DIR="$work/rumdl-cache"
 
 # git sets GIT_INDEX_FILE for a partial commit; checkout-index reads it.
 if ! (cd "$root" && git checkout-index -a --prefix="$tmp/"); then
@@ -26,8 +23,11 @@ if ! (cd "$root" && git checkout-index -a --prefix="$tmp/"); then
     exit 1
 fi
 
-if ! (cd "$tmp" && UV_PROJECT_ENVIRONMENT="$root/.venv" UV_NO_SYNC=1 just pre-commit); then
+# A passing commit prints nothing: keep the recipe's output until it fails.
+out="$work/just.out"
+if ! (cd "$tmp" && UV_PROJECT_ENVIRONMENT="$root/.venv" UV_NO_SYNC=1 just pre-commit) >"$out" 2>&1; then
     {
+        cat "$out"
         echo
         echo "pre-commit: the commit is refused; the recipe named above failed."
         echo "Run that recipe alone with: just <recipe>"
