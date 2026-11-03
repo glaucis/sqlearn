@@ -1,9 +1,9 @@
 ---
 type: architecture
-tags: [sqlearn, duckdb, project-plan, sub-projects, scikit-learn]
-summary: "Map of the sqlearn project: its purpose, agreed constraints, and the nine parts (foundation through benchmarks) with their order of work."
-related: [docs/adr/0003-scikit-learn-style-api.md, docs/adr/0002-sql-on-duckdb-execution-engine.md, docs/adr/0005-runtime-dependencies.md, docs/adr/0004-apache-2-licence.md, docs/adr/0006-local-and-offline.md, docs/questions/applications-home.md, docs/adr/0009-sphinx-documentation-site.md, docs/questions/site-hosting.md]
-mdindex: [type=4ca303, tags=dfd8db, summary=284974, related=3e6a0f]
+tags: [overview, sqlearn, duckdb, roadmap, scikit-learn, project-parts]
+summary: "Overview of the sqlearn project: its purpose, agreed constraints, the nine parts to be built, and the order of work, nothing built yet."
+related: [docs/adr/0003-scikit-learn-style-api.md, docs/adr/0002-sql-on-duckdb-execution-engine.md, docs/adr/0005-runtime-dependencies.md, docs/adr/0004-apache-2-licence.md, docs/adr/0006-local-and-offline.md, docs/adr/0009-sphinx-documentation-site.md, docs/adr/0001-uv-for-python-packaging.md, docs/adr/0007-python-3-12-floor.md]
+mdindex: [type=4ca303, tags=4f0378, summary=fb7069, related=914b44]
 ---
 # Overview
 
@@ -274,13 +274,11 @@ How the work runs, and where each kind of document goes:
 
 ## 5. Earlier attempts
 
-This plan was first written in an earlier repository, now
-`glaucis/sqlearn_tomosius` (private): its
-[`BLUEPRINT.md`](https://github.com/glaucis/sqlearn_tomosius/blob/main/BLUEPRINT.md)
-and its foundation spec,
-[`docs/superpowers/specs/2026-10-01-foundation-design.md`](https://github.com/glaucis/sqlearn_tomosius/blob/main/docs/superpowers/specs/2026-10-01-foundation-design.md),
-which holds the detail behind [specs/foundation.md](../specs/foundation.md).
-Other earlier repositories in the organisation: `sqlearn_000`, `sqlearn_old`,
-`sqlearn-private`, `sqlearn-private-old`, `sql_learn_wrong`. They are sources
-to learn from, not dependencies; nothing here links into them except this
-section and the foundation spec.
+This plan was first written in earlier repositories of the organisation
+(`sqlearn_tomosius`, `sqlearn_000`, `sqlearn_old`, `sqlearn-private`,
+`sqlearn-private-old`, `sql_learn_wrong`). Everything this repository uses from
+them has been carried over: the blueprint into this overview, the ADRs and the
+questions, and the foundation spec into
+[specs/foundation.md](../specs/foundation.md). Nothing here depends on them, and
+they are due to be deleted. `sqlearn_000` (SQL-compiled preprocessing) is to be
+read for anything worth keeping before the library core is designed.
