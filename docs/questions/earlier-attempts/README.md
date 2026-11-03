@@ -34,7 +34,7 @@ the steps after it (decisions, spec, plan, build).
   Eleven projects; order (oldest first) and skips confirmed by Tomas on
   2026-11-03.
 - [x] 4. Absorb `ducklearn` (light).
-- [ ] 5. Absorb `Tomosius/sqlearn`: `sqlearn-desktop`, plus the git history of
+- [x] 5. Absorb `Tomosius/sqlearn`: `sqlearn-desktop`, plus the git history of
   `test/sqlearn` (full).
 - [ ] 6. Absorb the April planning repo,
   `sqlearn-ecosystem_old/sqlearn-private`, without `_old_sqlearn` (full).
@@ -54,7 +54,7 @@ the steps after it (decisions, spec, plan, build).
 | `sqlearn_000` | GitHub `glaucis/sqlearn_000` | full | merged | [review](sqlearn_000/review.md) | `sqlearn-private`, which it quotes |
 | sqlearn v0.4 | ROOT `sqlearn-ecosystem_old/sqlearn` (Apr 10–12, 236 commits) | full | merged | [review](sqlearn-v04/review.md), [exploration helpers](sqlearn-v04/exploration-helpers.md), [batch notes](sqlearn-v04/notes/) | two standards files; long plans read by heading; 139 test files skimmed |
 | `ducklearn` | ROOT `ducklearn` (Mar 13, no git): 14 design docs | light | merged | [review](ducklearn/review.md), [batch notes](ducklearn/notes/) | |
-| `Tomosius/sqlearn` | ROOT `sqlearn-desktop` (no git, 378 files) and ROOT `test/sqlearn` (GitHub `Tomosius/sqlearn`, Mar 13 – Apr 9, 271 commits) | full | mapped | `tomosius-sqlearn/` | `test/sqlearn`'s 297 cloud-only files; it shares 92% of its local files with `sqlearn-desktop` |
+| `Tomosius/sqlearn` | ROOT `sqlearn-desktop` (no git, 378 files) and ROOT `test/sqlearn` (GitHub `Tomosius/sqlearn`, Mar 13 – Apr 9, 271 commits) | full | merged | [review](tomosius-sqlearn/review.md), [batch notes](tomosius-sqlearn/notes/) | `test/sqlearn`'s 297 cloud-only files; it shares 92% of its local files with `sqlearn-desktop` |
 | April planning repo | ROOT `sqlearn-ecosystem_old/sqlearn-private` (GitHub `glaucis/sqlearn-private`, Apr 9–24, 593 commits), 411 files | full | mapped | `sqlearn-private-april/` | `_old_sqlearn/`: an exact copy of v0.4 |
 | War room | ROOT `sqlearn-ecosystem/sqlearn-private` (GitHub `glaucis/sqlearn-private`, Apr 26 – Jun 13, 410 commits), 218 docs | full | mapped | `sqlearn-private-war-room/` | |
 | `sqlearn_000`, later commits | ROOT `sqlearn-ecosystem/sqlearn` (same first commit, 82 commits against 76) | light | mapped | `sqlearn_000/` | the 76 commits already reviewed |
@@ -109,31 +109,48 @@ notes file to write, with its sections and the **Files covered** checklist.
 
 ## What we know so far
 
-From `ducklearn`, `sqlearn_000` and sqlearn v0.4. Evidence, not decisions; the
-decisions are made in issue #8.
+From `ducklearn`, `Tomosius/sqlearn`, `sqlearn_000` and sqlearn v0.4, oldest
+first. Evidence, not decisions; the decisions are made in issue #8.
 
-- **How fit runs.** Every attempt so far learned a later step's statistics from
-  the raw or stage input, so `Impute` then `Scale` scaled un-imputed data. The
-  boundary rule has to be "a learning step reads a value an earlier step
-  changed". A staged fit can still be one query with `WITH` clauses (checked on
-  DuckDB 2.0.0). Fit must see the same row-level steps as transform, through one
-  composer, and nothing in transform may query data. ducklearn's per-fold
+- **How fit runs.** Every attempt learned a later step's statistics from the
+  raw or stage input, so `Impute` then `Scale` scaled un-imputed data. The
+  defect was designed in from the first document, diagnosed in writing on
+  17 March, and kept; `Tomosius/sqlearn` substituted only non-learning steps
+  into later aggregates, and v0.4 lost even that. The boundary rule has to be
+  "a learning step reads a value an earlier step changed", covering set
+  queries (`DISTINCT`) as well as aggregates. A staged fit can still be one
+  query with `WITH` clauses (checked on DuckDB 2.0.0; the idea was on file
+  since March). Fit must see the same row-level steps as transform, through
+  one composer, and nothing in transform may query data. Per-fold
   `FILTER (WHERE fold != k)` aggregates give every cross-validation fold's
-  statistics in one scan (checked on DuckDB 2.0.0).
-- **Learned state.** Both kept it as Python values inlined as SQL literals and
-  saved as JSON. Failures: `None` meaning both "not fitted" and "learned
-  NULL", keys split on `__`, selectors and custom classes that could not be
-  saved, float literals never checked. Tables were never considered.
-- **SQL representation.** Both used sqlglot from the start. Costs: version
-  pins, type-checker noise, AST aliasing bugs, a dialect that changed NULL
-  ordering. Portability was never tested beyond parsing.
-- **Validation.** Both wrote a strong method (exact references, bounds set from
-  measurement) and never enforced it: validators outside the gate, parity
-  tests that skipped, hand-picked or correlation-only tolerances, datasets
-  downloaded over the network. ducklearn's method was weaker still: scikit-learn
-  as the reference with one fixed `atol=1e-10`.
-- **API.** ducklearn kept scikit-learn's names; v0.4 and `sqlearn_000` renamed
-  them and then added bridges back. ADR 0003 stands. Every attempt took `y` as
-  a column name and `fit` a data source: departures that need an ADR.
-- **Process.** Plans and standards outgrew the product, and nobody updated
-  them.
+  statistics in one scan, equal to the subset's for `AVG`, `STDDEV_POP`,
+  `MEDIAN`, `QUANTILE_CONT` and `MODE … ORDER BY` (checked on DuckDB 2.0.0).
+- **Learned state.** Normally Python values inlined as SQL literals, saved as
+  JSON (v0.4, `sqlearn_000`) or pickle only (`Tomosius/sqlearn`). Failures:
+  `None` meaning both "not fitted" and "learned NULL", keys split on `__`
+  (where `Tomosius/sqlearn`'s `(step, parameter)` tuples worked), stale keys
+  after a refit, selectors and custom classes that could not be saved, float
+  literals never checked. Learned state as a relation was designed once, for
+  cross-validation: a `stats` CTE joined with `CROSS JOIN`, and per-fold
+  DuckDB tables as a cache.
+- **SQL representation.** Every attempt used sqlglot, chosen for
+  "multi-database from day one". Costs: version pins, type-checker noise, AST
+  aliasing bugs, a dialect that changed NULL ordering. Portability was never
+  tested beyond parsing.
+- **Validation.** No attempt ever compared a whole pipeline with scikit-learn's
+  (`Pipeline([SimpleImputer(), StandardScaler()])` would have caught the fit
+  defect every time). Early attempts used scikit-learn as the reference with a
+  fixed tolerance; v0.4 and `sqlearn_000` wrote a strong method (exact
+  references, bounds set from measurement) and never enforced it. Parity
+  tests were few, hand-tuned, sometimes correlation-only, sometimes skipped,
+  and loosened to hide known mismatches. Tests that assert a known divergence
+  with its reason, and snapshots that fail when missing, are worth keeping.
+- **API.** `ducklearn` and `Tomosius/sqlearn` kept scikit-learn's names with
+  `get_params`, `set_params` and `clone`; v0.4 and `sqlearn_000` renamed them
+  and then added bridges back. ADR 0003 stands. Every attempt took `y` as a
+  column name and `fit` a data source, and never excluded the target from the
+  default columns: departures that need an ADR.
+- **Process.** Bursts of building, then stalls. Plans, standards, skills and
+  tooling outgrew the product; status was kept by hand in several places and
+  drifted. A separate review sweep after a burst found real bugs every time it
+  was run. Docs with hand-typed numbers were wrong.
