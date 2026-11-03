@@ -63,6 +63,8 @@ message that follows Conventional Commits passes; a warning is shown and never
 refuses a commit; a broken rule refuses it. A merge, revert, cherry-pick or
 rebase in progress passes, since git wrote that message. Where commitlint is
 not found, the commit is refused with the cure, `brew install commitlint`.
+A `fixup!` or `squash!` subject is refused by design, since the rules ignore
+nothing; reword it, or fold it in before committing.
 
 Never skip either hook with `--no-verify`.
 

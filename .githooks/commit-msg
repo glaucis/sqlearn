@@ -22,9 +22,29 @@ for marker in MERGE_HEAD CHERRY_PICK_HEAD REVERT_HEAD rebase-merge rebase-apply;
 done
 
 # 2. Clean the message: the diff below a scissors line (git commit -v), then
-#    comment lines.
+#    comment lines. The comment character is core.commentChar ("auto" is `#`).
+cc=$(git config --get core.commentChar 2>/dev/null || true)
+case "$cc" in
+    "" | auto) cc="#" ;;
+esac
+cc=${cc:0:1}
+# A subject that starts with the comment character would be kept by `-m` but
+# deleted here, so the hook would check a different message from git's.
+IFS= read -r first <"$msgfile" || true
+case "$first" in
+    "$cc"*)
+        {
+            echo "commit-msg: refused: a commit subject may not start with '$cc',"
+            echo "the comment character: git would drop or keep the line"
+            echo "depending on how the message was given. Start the subject with"
+            echo "a type, as in: type(scope): subject"
+        } >&2
+        exit 1
+        ;;
+esac
+ccre=$(printf '%s' "$cc" | sed -e 's/[][\\.*^$\/]/\\&/g')
 clean="$work/message"
-LC_ALL=C sed -E -e '/^# -+ >8 -+$/,$d' -e '/^#/d' "$msgfile" >"$clean"
+LC_ALL=C sed -E -e "/^$ccre -+ >8 -+\$/,\$d" -e "/^$ccre/d" "$msgfile" >"$clean"
 
 # 3. commitlint handed nothing prints its usage and exits as if it had crashed.
 if ! LC_ALL=C grep -q '[^[:space:]]' "$clean"; then

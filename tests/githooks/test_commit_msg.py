@@ -93,7 +93,6 @@ def test_a_good_message_lands(scratch):
         "wip: add x",
     ],
 )
-@needs_commitlint
 def test_a_rule_at_level_two_refuses(scratch, message):
     """Each level-2 rule refuses the commit and says so."""
     repo, env = scratch
@@ -134,7 +133,7 @@ def test_an_empty_message_is_refused(scratch):
     done = commit(repo, env, "", "--allow-empty-message")
     assert done.returncode != 0
     assert head(repo, env) == before
-    assert "empty" in done.stderr
+    assert "the commit message is empty" in done.stderr
 
 
 @needs_commitlint
@@ -155,6 +154,19 @@ def test_a_merge_with_gits_own_message_lands(scratch):
     assert subject.startswith("Merge branch")
 
 
+def scissors_message(path, char):
+    """Write a valid subject, comment lines and a scissors section that would refuse."""
+    path.write_text(
+        "feat: add the thing\n"
+        "\n"
+        f"{char} Please enter the commit message.\n"
+        f"{char} ------------------------ >8 ------------------------\n"
+        f"{char} Do not modify or remove the line above.\n"
+        "diff --git a/a.txt b/a.txt\n"
+        "BREAKING CHANGE: x is gone\n"
+    )
+
+
 @needs_commitlint
 def test_the_scissors_section_is_ignored(scratch, tmp_path):
     """Comment lines and a scissors section below the subject are not checked."""
@@ -162,23 +174,46 @@ def test_the_scissors_section_is_ignored(scratch, tmp_path):
     (repo / "a.txt").write_text("changed\n")
     git(repo, "add", "a.txt", env=env)
     message = tmp_path / "message.txt"
-    message.write_text(
-        "feat: add the thing\n"
-        "\n"
-        "# Please enter the commit message.\n"
-        "# ------------------------ >8 ------------------------\n"
-        "# Do not modify or remove the line above.\n"
-        "diff --git a/a.txt b/a.txt\n"
-        "+Updated stuff.\n"
+    scissors_message(message, "#")
+    done = git(
+        repo, "commit", "-F", str(message), "--cleanup=scissors", env=env, check=False
     )
+    assert done.returncode == 0, done.stderr
+
+
+@needs_commitlint
+def test_a_subject_starting_with_the_comment_character_is_refused(scratch):
+    """A subject git would keep but the hook would strip is refused."""
+    repo, env = scratch
+    before = head(repo, env)
+    (repo / "a.txt").write_text("changed\n")
+    git(repo, "add", "a.txt", env=env)
     done = git(
         repo,
         "commit",
-        "-F",
-        str(message),
-        "--cleanup=scissors",
+        "-m",
+        "# Updated stuff.",
+        "-m",
+        "docs: fine",
         env=env,
         check=False,
+    )
+    assert done.returncode != 0
+    assert head(repo, env) == before
+    assert "may not start with '#'" in done.stderr
+
+
+@needs_commitlint
+def test_the_comment_character_follows_core_commentchar(scratch, tmp_path):
+    """With core.commentChar set, its scissors section is the one ignored."""
+    repo, env = scratch
+    git(repo, "config", "core.commentChar", ";", env=env)
+    (repo / "a.txt").write_text("changed\n")
+    git(repo, "add", "a.txt", env=env)
+    message = tmp_path / "message.txt"
+    scissors_message(message, ";")
+    done = git(
+        repo, "commit", "-F", str(message), "--cleanup=scissors", env=env, check=False
     )
     assert done.returncode == 0, done.stderr
 
