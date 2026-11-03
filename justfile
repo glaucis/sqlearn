@@ -3,7 +3,7 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 # The Python versions the package is tested on
 matrix := "3.12 3.13 3.14"
 
-# MathJax 4 and its font package, from the npm registry, with sha512 integrities
+# MathJax 4 and its font package (released together, one version), from the npm registry, with sha512 integrities
 mathjax_version := "4.1.3"
 mathjax_integrity := "sha512-BN/8Pkgn7G1pIDYJqd9md+JHsE/jydSYbyOZnSdSA0WziuVO8mRxdYiWFumkVVly/8U+hm9DpIIoWuvySverzw=="
 font_integrity := "sha512-gzAB3dFHilHX1l5x2xUqRL+1jDQt3Fyza1DkEMVXWC4E8SvsGdlgEza47HYi2WhVcgfkvf4zgUGzuhbq3Pjlew=="
@@ -127,8 +127,13 @@ fetch-mathjax:
     #!/usr/bin/env bash
     set -euo pipefail
     dest=docs/_static/mathjax
-    [ -f "$dest/tex-chtml.js" ] && exit 0
-    tmp=$(mktemp -d)
+    stamp=$(printf '%s\n' "{{ mathjax_version }}" "{{ mathjax_integrity }}" "{{ font_integrity }}")
+    if [ -f "$dest/.pinned" ] && [ "$(cat "$dest/.pinned")" = "$stamp" ]; then
+        echo "MathJax {{ mathjax_version }} is already in $dest, skipped"
+        exit 0
+    fi
+    # Inside docs/_static, so the final move stays on one filesystem.
+    tmp=$(mktemp -d docs/_static/.mathjax.XXXXXX)
     trap 'rm -rf "$tmp"' EXIT
     fetch() {
         curl --fail --location --silent --show-error --output "$tmp/$1.tgz" \
@@ -145,11 +150,13 @@ fetch-mathjax:
     fetch font @mathjax/mathjax-newcm-font mathjax-newcm-font "{{ font_integrity }}"
     test -f "$tmp/mathjax/tex-chtml.js"
     test -d "$tmp/font/chtml/woff2"
-    rm -rf "$dest"
-    mkdir -p "$dest/fonts/mathjax-newcm-font"
-    cp "$tmp/mathjax/tex-chtml.js" "$tmp/mathjax/LICENSE" "$dest/"
-    cp -R "$tmp/mathjax/input" "$tmp/mathjax/ui" "$tmp/mathjax/a11y" "$dest/"
-    cp -R "$tmp/font/chtml" "$dest/fonts/mathjax-newcm-font/"
+    out="$tmp/out"
+    mkdir -p "$out/fonts/mathjax-newcm-font"
+    cp "$tmp/mathjax/tex-chtml.js" "$tmp/mathjax/LICENSE" "$out/"
+    cp -R "$tmp/mathjax/input" "$tmp/mathjax/ui" "$tmp/mathjax/a11y" "$out/"
+    cp -R "$tmp/font/chtml" "$out/fonts/mathjax-newcm-font/"
+    printf '%s\n' "$stamp" > "$out/.pinned"
+    rm -rf "$dest" && mv "$out" "$dest"
 
 # Build the site, then run the doctests, warnings as errors
 [group('docs')]
