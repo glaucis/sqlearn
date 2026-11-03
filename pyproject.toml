@@ -166,8 +166,11 @@ extend-exclude = [".git/", "uv.lock", ".codegraph/", ".ruff_cache/", ".rumdl_cac
 # British prose and American identifiers both pass at `en`.
 locale = "en"
 # The docs index writes a line of short hashes into each Markdown file's front
-# matter; they are not words.
-extend-ignore-re = ["(?m)^mdindex: \\[.*\\]$"]
+# matter; they are not words. Nor are the short commit hashes the reviews of
+# earlier attempts cite.
+extend-ignore-re = ["(?m)^mdindex: \\[.*\\]$", "\\b[0-9a-f]{7,12}\\b"]
 
 [tool.typos.default.extend-words]
 # A word typos mistakes for a misspelling goes here once, mapped to itself.
+# Tree-structured Parzen Estimator, a hyperparameter search method.
+TPE = "TPE"

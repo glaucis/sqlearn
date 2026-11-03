@@ -33,7 +33,7 @@ the steps after it (decisions, spec, plan, build).
   `/Users/tomas/Desktop/Desktop - Tomas’s MacBook Air/toosiaus_ducks_learnas`.
   Eleven projects; order (oldest first) and skips confirmed by Tomas on
   2026-11-03.
-- [ ] 4. Absorb `ducklearn` (light).
+- [x] 4. Absorb `ducklearn` (light).
 - [ ] 5. Absorb `Tomosius/sqlearn`: `sqlearn-desktop`, plus the git history of
   `test/sqlearn` (full).
 - [ ] 6. Absorb the April planning repo,
@@ -53,7 +53,7 @@ the steps after it (decisions, spec, plan, build).
 |---|---|---|---|---|---|
 | `sqlearn_000` | GitHub `glaucis/sqlearn_000` | full | merged | [review](sqlearn_000/review.md) | `sqlearn-private`, which it quotes |
 | sqlearn v0.4 | ROOT `sqlearn-ecosystem_old/sqlearn` (Apr 10–12, 236 commits) | full | merged | [review](sqlearn-v04/review.md), [exploration helpers](sqlearn-v04/exploration-helpers.md), [batch notes](sqlearn-v04/notes/) | two standards files; long plans read by heading; 139 test files skimmed |
-| `ducklearn` | ROOT `ducklearn` (Mar 13, no git): 14 design docs | light | mapped | `ducklearn/` | |
+| `ducklearn` | ROOT `ducklearn` (Mar 13, no git): 14 design docs | light | merged | [review](ducklearn/review.md), [batch notes](ducklearn/notes/) | |
 | `Tomosius/sqlearn` | ROOT `sqlearn-desktop` (no git, 378 files) and ROOT `test/sqlearn` (GitHub `Tomosius/sqlearn`, Mar 13 – Apr 9, 271 commits) | full | mapped | `tomosius-sqlearn/` | `test/sqlearn`'s 297 cloud-only files; it shares 92% of its local files with `sqlearn-desktop` |
 | April planning repo | ROOT `sqlearn-ecosystem_old/sqlearn-private` (GitHub `glaucis/sqlearn-private`, Apr 9–24, 593 commits), 411 files | full | mapped | `sqlearn-private-april/` | `_old_sqlearn/`: an exact copy of v0.4 |
 | War room | ROOT `sqlearn-ecosystem/sqlearn-private` (GitHub `glaucis/sqlearn-private`, Apr 26 – Jun 13, 410 commits), 218 docs | full | mapped | `sqlearn-private-war-room/` | |
@@ -109,15 +109,17 @@ notes file to write, with its sections and the **Files covered** checklist.
 
 ## What we know so far
 
-From `sqlearn_000` and sqlearn v0.4. Evidence, not decisions; the decisions
-are made in issue #8.
+From `ducklearn`, `sqlearn_000` and sqlearn v0.4. Evidence, not decisions; the
+decisions are made in issue #8.
 
-- **How fit runs.** Both attempts learned a later step's statistics from the
-  raw or stage input, so `Impute` then `Scale` scaled un-imputed data. The
+- **How fit runs.** Every attempt so far learned a later step's statistics from
+  the raw or stage input, so `Impute` then `Scale` scaled un-imputed data. The
   boundary rule has to be "a learning step reads a value an earlier step
   changed". A staged fit can still be one query with `WITH` clauses (checked on
-  DuckDB 2.0.0). Fit must see the same row-level steps as transform, through
-  one composer, and nothing in transform may query data.
+  DuckDB 2.0.0). Fit must see the same row-level steps as transform, through one
+  composer, and nothing in transform may query data. ducklearn's per-fold
+  `FILTER (WHERE fold != k)` aggregates give every cross-validation fold's
+  statistics in one scan (checked on DuckDB 2.0.0).
 - **Learned state.** Both kept it as Python values inlined as SQL literals and
   saved as JSON. Failures: `None` meaning both "not fitted" and "learned
   NULL", keys split on `__`, selectors and custom classes that could not be
@@ -128,8 +130,10 @@ are made in issue #8.
 - **Validation.** Both wrote a strong method (exact references, bounds set from
   measurement) and never enforced it: validators outside the gate, parity
   tests that skipped, hand-picked or correlation-only tolerances, datasets
-  downloaded over the network.
-- **API.** Both renamed scikit-learn's methods and then added bridges back.
-  ADR 0003 stands.
+  downloaded over the network. ducklearn's method was weaker still: scikit-learn
+  as the reference with one fixed `atol=1e-10`.
+- **API.** ducklearn kept scikit-learn's names; v0.4 and `sqlearn_000` renamed
+  them and then added bridges back. ADR 0003 stands. Every attempt took `y` as
+  a column name and `fit` a data source: departures that need an ADR.
 - **Process.** Plans and standards outgrew the product, and nobody updated
   them.
