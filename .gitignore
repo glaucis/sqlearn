@@ -9,3 +9,20 @@ __pycache__/
 .*.mdindex-tmp-*
 .claude/worktrees/
 .worktrees/
+# What the build writes: the package, the site, and the pages it generates
+dist/
+docs/_build/
+docs/examples/
+docs/reference/generated/
+docs/_static/mathjax/
+# The test matrix's environments, one per Python version
+.venvs/
+# Tool caches and reports
+.ruff_cache/
+.mypy_cache/
+.rumdl_cache/
+.coverage
+.coverage.*
+htmlcov/
+# Notebooks are generated; lessons are stored as text
+*.ipynb
