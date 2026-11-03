@@ -53,18 +53,22 @@ recipe and the cure: `just fmt` for formatting, `uv lock` for the lockfile,
 on disk, so another agent's unfinished file in the same working tree refuses
 nothing. It runs no tests; `just test` is yours to run before a commit. A
 failure HEAD already carries refuses every commit on its branch but the one
-that mends it. Where `just` is not found, the commit is refused.
+that mends it. Where `just` is not found, the commit is refused with the cure,
+`brew install just uv`. A checkout with no `.venv` is refused too, since the
+hook would have nothing to run the checks with; the cure is `just setup` in
+that checkout.
 
 ## The commit-message hook
 
 `.githooks/commit-msg` checks the message with commitlint against
-`commitlint.config.mjs` at the root, the one place the rules are kept. A
-message that follows Conventional Commits passes; a warning is shown and never
-refuses a commit; a broken rule refuses it. A merge, revert, cherry-pick or
-rebase in progress passes, since git wrote that message. Where commitlint is
-not found, the commit is refused with the cure, `brew install commitlint`.
-A `fixup!` or `squash!` subject is refused by design, since the rules ignore
-nothing; reword it, or fold it in before committing.
+`commitlint.config.mjs` at the root, the one place the rules are kept. A message
+that follows Conventional Commits passes; a warning is shown and never refuses a
+commit; a broken rule refuses it. A merge, revert, cherry-pick or rebase in
+progress passes, since git wrote that message. That includes an interactive
+rebase: a `reword`, and any commit made at an `edit` stop, is not checked. Where
+commitlint is not found, the commit is refused with the cure,
+`brew install commitlint`. A `fixup!` or `squash!` subject is refused by design,
+since the rules ignore nothing; reword it, or fold it in before committing.
 
 Never skip either hook with `--no-verify`.
 

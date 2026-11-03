@@ -727,6 +727,7 @@ docs/_build/
 docs/examples/
 docs/reference/generated/
 docs/_static/mathjax/
+docs/_static/.mathjax.*
 # The test matrix's environments, one per Python version
 .venvs/
 # Tool caches and reports
@@ -1131,8 +1132,10 @@ numpydoc_show_class_members = False
 
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", "_inventories/python.inv"),
+    # DuckDB's current/ has no objects.inv, so the URL names the release.
+    # Keep it at the major version of the duckdb floor in pyproject.toml.
     "duckdb": (
-        "https://duckdb.org/docs/current/clients/python/reference/",
+        "https://duckdb.org/docs/2.0/clients/python/reference/",
         "_inventories/duckdb.inv",
     ),
 }
@@ -1167,6 +1170,11 @@ bibtex_bibfiles = ["references.bib"]
   resolved from the local inventory, nitpicky; an excluded folder and the empty
   bibliography raised no warning; and `-b doctest` ran the package's Examples,
   exiting 1 when the expected output was wrong.
+- **Links into the off-site folders become GitHub links.** Pages on the site
+  link to `specs/`, `plans/`, `questions/` and `agents/`, which are not on it.
+  `conf.py` rewrites those links, on `doctree-read`, to GitHub `blob/main` (a
+  file) or `tree/main` (a folder) addresses, once the target is checked to
+  exist; a link whose target is missing is left alone, so Sphinx still warns.
 - **To verify in the plan**: that the front matter mdindex writes (`type`,
   `tags`, `summary`, `related`, `mdindex`) raises no warning in MyST under
   `-W`, on the ADRs and the architecture pages, which are on the site.
@@ -1219,11 +1227,15 @@ from it too. **Checked**: `tex-chtml.js` in `mathjax` 4.1.3 names
 `cdn.jsdelivr.net` for its font package and for `speech-rule-engine`, and the
 font package unpacks to 49 MB, so the recipe copies only what the CHTML output
 loads. **To verify in the plan**: which files that is, the configuration, and
-what MathJax's speech feature loads. The acceptance test is the `grep` of §2,
-criterion 3, and a formula that renders with the network off. Should MathJax 4
-need something from elsewhere whatever its configuration, MathJax 3.2.2
-(Apache-2.0), which Sphinx still configures through `mathjax3_config`, is the
-fallback (**to verify in the plan** that its package carries its own fonts).
+what MathJax's speech feature loads. The speech options are off, but the context
+menu can still turn speech on, so `mathjax4_config` also points the loader's
+`sre` path at the local copy's absent `sre/` folder: a request then stays local
+and fails, and none reaches `cdn.jsdelivr.net`. The acceptance test is the
+`grep` of §2, criterion 3, and a formula that renders with the network off.
+Should MathJax 4 need something from elsewhere whatever its configuration,
+MathJax 3.2.2 (Apache-2.0), which Sphinx still configures through
+`mathjax3_config`, is the fallback (**to verify in the plan** that its package
+carries its own fonts).
 
 **Inventories.** intersphinx reads Python's and DuckDB's `objects.inv` from
 `docs/_inventories/`, committed. `just fetch-inventories` refreshes them, and
