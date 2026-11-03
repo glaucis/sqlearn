@@ -36,7 +36,7 @@ the steps after it (decisions, spec, plan, build).
 - [x] 4. Absorb `ducklearn` (light).
 - [x] 5. Absorb `Tomosius/sqlearn`: `sqlearn-desktop`, plus the git history of
   `test/sqlearn` (full).
-- [ ] 6. Absorb the April planning repo,
+- [x] 6. Absorb the April planning repo,
   `sqlearn-ecosystem_old/sqlearn-private`, without `_old_sqlearn` (full).
 - [ ] 7. Absorb the war room, `sqlearn-ecosystem/sqlearn-private` (full).
 - [ ] 8. Absorb the six commits `sqlearn-ecosystem/sqlearn` has beyond
@@ -55,7 +55,7 @@ the steps after it (decisions, spec, plan, build).
 | sqlearn v0.4 | ROOT `sqlearn-ecosystem_old/sqlearn` (Apr 10–12, 236 commits) | full | merged | [review](sqlearn-v04/review.md), [exploration helpers](sqlearn-v04/exploration-helpers.md), [batch notes](sqlearn-v04/notes/) | two standards files; long plans read by heading; 139 test files skimmed |
 | `ducklearn` | ROOT `ducklearn` (Mar 13, no git): 14 design docs | light | merged | [review](ducklearn/review.md), [batch notes](ducklearn/notes/) | |
 | `Tomosius/sqlearn` | ROOT `sqlearn-desktop` (no git, 378 files) and ROOT `test/sqlearn` (GitHub `Tomosius/sqlearn`, Mar 13 – Apr 9, 271 commits) | full | merged | [review](tomosius-sqlearn/review.md), [batch notes](tomosius-sqlearn/notes/) | `test/sqlearn`'s 297 cloud-only files; it shares 92% of its local files with `sqlearn-desktop` |
-| April planning repo | ROOT `sqlearn-ecosystem_old/sqlearn-private` (GitHub `glaucis/sqlearn-private`, Apr 9–24, 593 commits), 411 files | full | mapped | `sqlearn-private-april/` | `_old_sqlearn/`: an exact copy of v0.4 |
+| April planning repo | ROOT `sqlearn-ecosystem_old/sqlearn-private` (GitHub `glaucis/sqlearn-private`, Apr 9–24, 593 commits), 411 files | full | merged | [review](sqlearn-private-april/review.md), [batch notes](sqlearn-private-april/notes/) | `_old_sqlearn/`: an exact copy of v0.4 |
 | War room | ROOT `sqlearn-ecosystem/sqlearn-private` (GitHub `glaucis/sqlearn-private`, Apr 26 – Jun 13, 410 commits), 218 docs | full | mapped | `sqlearn-private-war-room/` | |
 | `sqlearn_000`, later commits | ROOT `sqlearn-ecosystem/sqlearn` (same first commit, 82 commits against 76) | light | mapped | `sqlearn_000/` | the 76 commits already reviewed |
 | `sql_learn_test` | ROOT `sql_learn_test` (Aug 21–24, 59 commits), 85 files | light | mapped | `sql_learn_test/` | |
@@ -109,48 +109,61 @@ notes file to write, with its sections and the **Files covered** checklist.
 
 ## What we know so far
 
-From `ducklearn`, `Tomosius/sqlearn`, `sqlearn_000` and sqlearn v0.4, oldest
-first. Evidence, not decisions; the decisions are made in issue #8.
+From `ducklearn`, `Tomosius/sqlearn`, sqlearn v0.4, the April planning repo and
+`sqlearn_000`, oldest first. Evidence, not decisions; the decisions are made in
+issue #8.
 
 - **How fit runs.** Every attempt learned a later step's statistics from the
   raw or stage input, so `Impute` then `Scale` scaled un-imputed data. The
   defect was designed in from the first document, diagnosed in writing on
   17 March, and kept; `Tomosius/sqlearn` substituted only non-learning steps
-  into later aggregates, and v0.4 lost even that. The boundary rule has to be
+  into later aggregates, and v0.4 lost even that. The April planning repo
+  wrote the defect down as the rule and added a test requiring five learning
+  steps to fit in one query. The boundary rule has to be
   "a learning step reads a value an earlier step changed", covering set
   queries (`DISTINCT`) as well as aggregates. A staged fit can still be one
   query with `WITH` clauses (checked on DuckDB 2.0.0; the idea was on file
   since March). Fit must see the same row-level steps as transform, through
   one composer, and nothing in transform may query data. Per-fold
   `FILTER (WHERE fold != k)` aggregates give every cross-validation fold's
-  statistics in one scan, equal to the subset's for `AVG`, `STDDEV_POP`,
+  statistics in one scan (designed in full in the April repo), equal to the
+  subset's for `AVG`, `STDDEV_POP`,
   `MEDIAN`, `QUANTILE_CONT` and `MODE … ORDER BY` (checked on DuckDB 2.0.0).
 - **Learned state.** Normally Python values inlined as SQL literals, saved as
   JSON (v0.4, `sqlearn_000`) or pickle only (`Tomosius/sqlearn`). Failures:
-  `None` meaning both "not fitted" and "learned NULL", keys split on `__`
-  (where `Tomosius/sqlearn`'s `(step, parameter)` tuples worked), stale keys
-  after a refit, selectors and custom classes that could not be saved, float
-  literals never checked. Learned state as a relation was designed once, for
-  cross-validation: a `stats` CTE joined with `CROSS JOIN`, and per-fold
-  DuckDB tables as a cache.
+  `None` meaning both "not fitted" and "learned NULL", keys split on `__` (where
+  `Tomosius/sqlearn`'s `(step, parameter)` tuples worked), stale keys after a
+  refit, selectors and custom classes that could not be saved, float literals
+  never checked (DuckDB reads `44.2` as `DECIMAL(3,1)` and `1e-20` as `DOUBLE`).
+  Cross-validation overwrote each fold's state on the shared step objects, so
+  fitted state must live apart from them. A `DECIMAL` precision mode does not
+  work: DuckDB's aggregates of `DECIMAL` return `DOUBLE`. Learned state as a
+  relation was designed once, for cross-validation: a `stats` CTE joined with
+  `CROSS JOIN`, and per-fold DuckDB tables as a cache.
 - **SQL representation.** Every attempt used sqlglot, chosen for
   "multi-database from day one". Costs: version pins, type-checker noise, AST
   aliasing bugs, a dialect that changed NULL ordering. Portability was never
-  tested beyond parsing.
+  tested beyond parsing; the April repo admits transpilation is "syntactic,
+  not semantic". Its federated spec, the only multi-engine design, reaches
+  other sources through DuckDB `ATTACH`.
 - **Validation.** No attempt ever compared a whole pipeline with scikit-learn's
   (`Pipeline([SimpleImputer(), StandardScaler()])` would have caught the fit
   defect every time). Early attempts used scikit-learn as the reference with a
   fixed tolerance; v0.4 and `sqlearn_000` wrote a strong method (exact
-  references, bounds set from measurement) and never enforced it. Parity
+  references, bounds set from measurement) and never enforced it; the April
+  repo specified the fullest version (primary-source references, ULP
+  cascade, bundled data, gates) and built none of it. Parity
   tests were few, hand-tuned, sometimes correlation-only, sometimes skipped,
   and loosened to hide known mismatches. Tests that assert a known divergence
   with its reason, and snapshots that fail when missing, are worth keeping.
 - **API.** `ducklearn` and `Tomosius/sqlearn` kept scikit-learn's names with
-  `get_params`, `set_params` and `clone`; v0.4 and `sqlearn_000` renamed them
-  and then added bridges back. ADR 0003 stands. Every attempt took `y` as a
+  `get_params`, `set_params` and `clone`; the April repo's NAMING-REVIEW
+  declared `learn`/`apply` "settled", v0.4 and `sqlearn_000` used them, and
+  bridges back were added. ADR 0003 stands. Every attempt took `y` as a
   column name and `fit` a data source, and never excluded the target from the
   default columns: departures that need an ADR.
 - **Process.** Bursts of building, then stalls. Plans, standards, skills and
   tooling outgrew the product; status was kept by hand in several places and
   drifted. A separate review sweep after a burst found real bugs every time it
-  was run. Docs with hand-typed numbers were wrong.
+  was run. Docs with hand-typed numbers were wrong. The April repo produced
+  593 commits and no code; about two thirds were about the process.
