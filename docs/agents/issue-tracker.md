@@ -1,9 +1,9 @@
 ---
 type: guide
-tags: [github, issue-tracker, gh-cli, triage, wayfinding]
-summary: "Explains how this repo uses GitHub issues via the gh CLI for creating, linking, blocking, triaging, and closing issues and wayfinding maps."
-related: [docs/agents/issue-tracker.md]
-mdindex: [type=83ca68, tags=4c8726, summary=8e63d5, related=b97220]
+tags: [github, issue-tracker, gh-cli, triage, wayfinder]
+summary: "Explains how this repo uses GitHub issues via the gh CLI for creating, linking, labelling, triaging, and closing issues and wayfinding tickets."
+related: [mattpocock/skills]
+mdindex: [type=83ca68, tags=f162a8, summary=baa778, related=0adc57]
 ---
 # Issue tracker: GitHub
 

@@ -1,8 +1,8 @@
 ---
 type: question
-tags: [benchmarks, performance, scope, methodology]
-summary: "Open question on which libraries, machine, and data sizes the project benchmarks should compare."
-mdindex: [type=1f5087, tags=a5c667, summary=38a4e4, related=3d8346]
+tags: [benchmarks, scope, performance, methodology]
+summary: "Open question on which libraries, machine, and data sizes the project's benchmarks should compare."
+mdindex: [type=1f5087, tags=b8b6e8, summary=2423f7, related=3d8346]
 related: [docs/architecture/overview.md]
 ---
 # What do the benchmarks compare, and on what machine?

@@ -1,8 +1,8 @@
 ---
 type: guide
 tags: [triage, labels, issue-tracker, workflow]
-summary: "Maps the five canonical triage roles used by the skills to this repo's issue tracker label strings."
-mdindex: [type=83ca68, tags=a29366, summary=11b04e]
+summary: "Maps the five canonical triage roles used by agent skills to this repo's actual issue tracker label strings."
+mdindex: [type=83ca68, tags=a29366, summary=4b9ba8]
 ---
 # Triage Labels
 

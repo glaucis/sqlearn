@@ -1,3 +1,10 @@
+---
+type: architecture
+tags: [python, versions, support-policy, duckdb, matrix]
+summary: "Defines sqlearn's Python version support policy, the floor of 3.12, and where supported versions are declared and tested."
+related: [docs/adr/0007-python-3-12-floor.md, pyproject.toml, justfile, ".python-version"]
+mdindex: [type=4ca303, tags=2d7385, summary=6a2b30, related=910dcd]
+---
 # Python versions
 
 The support policy:

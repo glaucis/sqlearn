@@ -1,9 +1,9 @@
 ---
 type: architecture
-tags: [overview, sqlearn, duckdb, roadmap, scikit-learn, project-parts]
-summary: "Overview of the sqlearn project: its purpose, agreed constraints, the nine parts to be built, and the order of work, nothing built yet."
-related: [docs/adr/0003-scikit-learn-style-api.md, docs/adr/0002-sql-on-duckdb-execution-engine.md, docs/adr/0005-runtime-dependencies.md, docs/adr/0004-apache-2-licence.md, docs/adr/0006-local-and-offline.md, docs/adr/0009-sphinx-documentation-site.md, docs/adr/0001-uv-for-python-packaging.md, docs/adr/0007-python-3-12-floor.md]
-mdindex: [type=4ca303, tags=4f0378, summary=fb7069, related=914b44]
+tags: [overview, sqlearn, duckdb, scikit-learn, roadmap, constraints]
+summary: "Project map for sqlearn, a DuckDB-based scikit-learn alternative: its purpose, agreed constraints, the nine parts, and order of work."
+related: [docs/adr/0003-scikit-learn-style-api.md, docs/adr/0002-sql-on-duckdb-execution-engine.md, docs/adr/0005-runtime-dependencies.md, docs/adr/0004-apache-2-licence.md, docs/adr/0006-local-and-offline.md, docs/questions/README.md, docs/questions/applications-home.md, docs/adr/0009-sphinx-documentation-site.md]
+mdindex: [type=4ca303, tags=d179bd, summary=d5f450, related=0c2995]
 ---
 # Overview
 
@@ -11,7 +11,7 @@ The map of the whole project, written before the first line of product code.
 It says what the parts are, how they relate, and in what order they are
 built. Each part gets its own spec in `docs/specs/` when its turn comes.
 
-Status, 2026-11-03: nothing is built. This is the plan.
+Status, 2026-11-03: the foundation (3.1) is built; everything else is the plan.
 
 Three kinds of statement, marked where it matters:
 

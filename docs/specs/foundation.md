@@ -1,9 +1,9 @@
 ---
 type: spec
-tags: [foundation, repository-skeleton, tooling, sphinx, git-hooks, versioning]
-summary: "Spec for sqlearn's repository skeleton: layout, packaging and versioning, quality gates, git hooks, documentation site and conventions (part 3.1)."
-related: [docs/architecture/overview.md, docs/plans/2026-11-03-foundation.md, docs/adr/0004-apache-2-licence.md, docs/adr/0011-curriculum-levels.md, docs/adr/README.md, docs/questions/site-hosting.md, docs/architecture/workflow.md, docs/architecture/python-versions.md]
-mdindex: [type=d4f02e, tags=614dc5, summary=3cd7f9, related=9f2a57]
+tags: [foundation, repository-skeleton, layout, tooling, docs-site, git-hooks]
+summary: "Spec for sqlearn's repository skeleton: layout, packaging, quality gates, git hooks, docs toolchain, and conventions (part 3.1)."
+related: [docs/architecture/overview.md, docs/plans/2026-11-03-foundation.md, docs/adr/README.md, docs/adr/0004-apache-2-licence.md, docs/adr/0011-curriculum-levels.md, docs/questions/site-hosting.md]
+mdindex: [type=d4f02e, tags=2cd405, summary=27c017, related=f6906d]
 ---
 # Foundation
 
@@ -666,6 +666,9 @@ extend-exclude = [".git/", "uv.lock", ".codegraph/", ".ruff_cache/", ".rumdl_cac
 [tool.typos.default]
 # British prose and American identifiers both pass at `en`.
 locale = "en"
+# The docs index writes a line of short hashes into each Markdown file's front
+# matter; they are not words.
+extend-ignore-re = ["(?m)^mdindex: \\[.*\\]$"]
 
 [tool.typos.default.extend-words]
 # A word typos mistakes for a misspelling goes here once, mapped to itself.
@@ -763,7 +766,7 @@ changes in the `justfile`, never in the hook (§9). The foundation's set:
 | `setup` | `git config core.hooksPath .githooks`, then `uv sync --locked`: run once per clone (§9, §10) | now |
 | `fmt-python` | `ruff check --fix-only`, then `ruff format`: the safe fixes and the formatting. `--fix-only` exits 0 whatever it leaves, so `fmt` goes on to the Markdown and `check` refuses the rest | now |
 | `fmt-markdown` | `rumdl fmt .`: wraps the Markdown prose at 80 columns (§7.6) | now |
-| `fmt` | `fmt-python`, then `fmt-markdown`: run before every commit. With its two parts, the only recipes that edit files | now |
+| `fmt` | `fmt-python`, then `fmt-markdown`: run before every commit. With its two parts, the only recipes that reformat your files | now |
 | `lint-python` | `ruff check` and `ruff format --check` | now |
 | `check-types` | `ty check` | now |
 | `check-types-mypy` | `mypy`: strict, over `src/` | now |
@@ -1358,7 +1361,7 @@ after "Commit conventions":
   the commit when it fails; the commit-msg hook runs commitlint. `just test` is
   yours to run before you commit. Never `--no-verify`. Run `just fmt` before
   you commit: it wraps the Markdown at 80 columns and formats the Python, and
-  its two parts are the only recipes that edit files.
+  its two parts are the only recipes that reformat your files.
 - **Before you say any work is done, `just verify` passes**, and a reviewer's
   verdict says whether it ran and passed.
 - **`just --list` names every recipe.** When a composite fails, `just` names

@@ -4,6 +4,11 @@ kernelspec:
   name: python3
   display_name: Python 3
   language: python
+type: guide
+tags: [documentation, markdown, restructuredtext, myst, style]
+summary: "Explains how docs and Markdown are written: Markdown vs reStructuredText rules, British English, 80-column wrapping, math, and text notebooks."
+related: [docs/specs/foundation.md, docs/adr/0010-british-prose-american-identifiers.md, docs/adr/0006-local-and-offline.md, pyproject.toml, docs/_static/mathjax]
+mdindex: [type=83ca68, tags=0634b9, summary=3c2987, related=32f0f2]
 ---
 
 # Writing the documentation

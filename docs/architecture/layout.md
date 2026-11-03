@@ -1,3 +1,10 @@
+---
+type: architecture
+tags: [repository-layout, directory-structure, docs, tests, examples]
+summary: "Describes the sqlearn repository's directory tree, the reasons for its layout, and where tests, examples, and generated outputs belong."
+related: [docs/specs/foundation.md]
+mdindex: [type=4ca303, tags=a1a8d0, summary=338ffa, related=8dbe55]
+---
 # The repository's layout
 
 What is where, and why. [The foundation spec](../specs/foundation.md) holds

@@ -1,9 +1,9 @@
 ---
 type: task
-tags: [foundation, repository-skeleton, uv, hatchling, justfile, git-hooks]
-summary: "Implementation plan to build sqlearn's repo skeleton: installable package, just-driven quality gates, git hooks, and an offline Sphinx site."
-related: [docs/specs/foundation.md, docs/adr/0001, docs/adr/0005, docs/adr/0006, docs/adr/0010, CLAUDE.md]
-mdindex: [type=0ebb42, tags=6a96c2, summary=e98e8a, related=fdbb1f]
+tags: [foundation, packaging, uv, hatch-vcs, just, git-hooks]
+summary: "Implementation plan for sqlearn's repository skeleton: installable package, just recipes, git hooks, and an offline Sphinx site, split into tasks."
+related: [docs/specs/foundation.md, docs/adr/0001-use-uv.md, docs/adr/0005-duckdb-only-runtime-dependency.md, docs/adr/0006-offline-docs-build.md, docs/adr/0010-british-english-prose.md, CLAUDE.md]
+mdindex: [type=0ebb42, tags=1374fc, summary=8cdb73, related=31198d]
 ---
 # Foundation Implementation Plan
 

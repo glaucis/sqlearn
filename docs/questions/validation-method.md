@@ -1,8 +1,8 @@
 ---
 type: question
-tags: [validation, precision, numerical-methods, reference-implementation]
-summary: "Open questions on how library results are validated against exact reference implementations: precision, iterative algorithms, and presentation."
-mdindex: [type=1f5087, tags=fef04e, summary=72f344]
+tags: [validation, precision, numerical-methods, reference-implementation, documentation]
+summary: "Open questions on how library validation works: exact reference precision, handling iterative algorithms, and presenting the error table."
+mdindex: [type=1f5087, tags=b67955, summary=301387]
 related: [docs/architecture/overview.md]
 ---
 # How exactly does validation work?

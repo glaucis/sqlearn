@@ -1,8 +1,8 @@
 ---
 type: adr
-tags: [curriculum, learning-site, urls, machine-learning, levels]
-summary: "ADR fixing the learning site to three curriculum levels (Beginner, Intermediate, Advanced) at permanent /learn/ URLs."
-mdindex: [type=0fc814, tags=b2c1ea, summary=26f175, related=3d8346]
+tags: [curriculum, learning-site, url-structure, machine-learning, levels]
+summary: "Records the decision to organize the learning site into three fixed-URL curriculum levels: Beginner, Intermediate, Advanced."
+mdindex: [type=0fc814, tags=252d62, summary=5f4a8b, related=3d8346]
 related: [docs/architecture/overview.md]
 ---
 # 0011: Three curriculum levels with fixed URLs

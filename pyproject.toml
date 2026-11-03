@@ -165,6 +165,9 @@ extend-exclude = [".git/", "uv.lock", ".codegraph/", ".ruff_cache/", ".rumdl_cac
 [tool.typos.default]
 # British prose and American identifiers both pass at `en`.
 locale = "en"
+# The docs index writes a line of short hashes into each Markdown file's front
+# matter; they are not words.
+extend-ignore-re = ["(?m)^mdindex: \\[.*\\]$"]
 
 [tool.typos.default.extend-words]
 # A word typos mistakes for a misspelling goes here once, mapped to itself.

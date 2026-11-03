@@ -1,3 +1,10 @@
+---
+type: guide
+tags: [testing, pytest, coverage, hooks, ruff]
+summary: "Describes how tests are written, tiered into fast and slow runs, and how hook tests and coverage are handled."
+related: [docs/architecture/layout.md, tests/githooks/test_pre_commit.py, tests/githooks/test_commit_msg.py, pyproject.toml]
+mdindex: [type=83ca68, tags=9d4110, summary=f54802, related=d953d5]
+---
 # Testing
 
 How the tests are written and run. The settings are in `pyproject.toml`.

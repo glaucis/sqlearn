@@ -4,11 +4,12 @@ An alternative to the scikit-learn ecosystem whose computation runs as SQL
 inside DuckDB, so it works on data larger than memory and a whole pipeline can
 execute as one query. Independent of scikit-learn. With it come documentation,
 a learning site, and later two local applications (data exploration, a
-node-based workflow editor). Nothing is built yet.
+node-based workflow editor). The foundation (package skeleton, checks, hooks,
+site) is built; no library code yet.
 
 - **The map:** `docs/architecture/overview.md` (the parts and their order).
   **How work runs:** `docs/architecture/workflow.md`. **Decisions:**
-  `docs/adr/`. **Next:** the foundation, `docs/specs/foundation.md` (draft).
+  `docs/adr/`. **Next:** the library core (part 3.2 of the overview).
 
 Rules from the ADRs:
 
@@ -21,8 +22,7 @@ Rules from the ADRs:
   a permissive licence (0004, 0005).
 - Nothing needs the network: no telemetry, no cloud, data never leaves the
   machine (0006).
-- Python 3.12 is the floor (0007). Tasks run through `just` once the `justfile`
-  exists (0008).
+- Python 3.12 is the floor (0007). Every task runs through `just` (0008).
 - British English in prose, American spelling in identifiers (0010).
 
 Superpowers skills save specs to `docs/specs/` and plans to `docs/plans/`
@@ -55,6 +55,24 @@ commit both of these into it, without being asked:
    ```
 
 2. The section above in the repo's own `CLAUDE.md`.
+
+## Checks
+
+- **Once per clone, run `just setup`.** It installs the git hooks and syncs
+  the environment.
+- **Before every commit, `just check` and `just test` pass.** The pre-commit
+  hook runs `just pre-commit` over the files going into the commit and refuses
+  the commit when it fails; the commit-msg hook runs commitlint. `just test` is
+  yours to run before you commit. Never `--no-verify`. Run `just fmt` before
+  you commit: it wraps the Markdown at 80 columns and formats the Python, and
+  its two parts are the only recipes that reformat your files.
+- **Before you say any work is done, `just verify` passes**, and a reviewer's
+  verdict says whether it ran and passed.
+- **`just --list` names every recipe.** When a composite fails, `just` names
+  the recipe that failed: run that one alone.
+- **The conventions are in `docs/architecture/`**: the layout, the Python
+  versions, how documentation and tests are written. Read the page for the
+  work in hand.
 
 ## Project tools
 

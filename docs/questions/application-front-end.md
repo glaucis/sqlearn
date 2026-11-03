@@ -1,9 +1,9 @@
 ---
 type: question
-tags: [front-end, frameworks, svelte, react, vue, applications]
-summary: "Open question on which front-end framework (Svelte, React, or Vue) the locally served browser applications should use."
+tags: [front-end, svelte, react, vue, applications]
+summary: "Open question on which front-end framework the browser applications should use, with Svelte, React, and Vue as candidates."
 related: [docs/architecture/overview.md, docs/adr/0006-local-and-offline.md, docs/adr/0009-sphinx-documentation-site.md]
-mdindex: [type=1f5087, tags=a121bc, summary=591ce4, related=74f902]
+mdindex: [type=1f5087, tags=8cf69d, summary=fb9ca1, related=74f902]
 ---
 # Which front end do the applications use?
 

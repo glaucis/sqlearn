@@ -1,3 +1,10 @@
+---
+type: guide
+tags: [setup, git-hooks, just, uv, commitlint]
+summary: "How to set up a clone, what the just recipes do, and how the pre-commit and commit-msg git hooks behave."
+related: [docs/adr/0001-uv-for-python-packaging.md, docs/adr/0008-just-task-runner.md, commitlint.config.mjs, docs/specs/foundation.md]
+mdindex: [type=83ca68, tags=191ee2, summary=e0806e, related=9cf2f2]
+---
 # Setting up
 
 How to get a working clone, the recipes it gives you, and what the two git
@@ -34,7 +41,7 @@ every clone. uv is the only package tool
 Two rhythms:
 
 - **Every commit.** `just fmt`, then `just check` and `just test`. `just fmt`
-  and its two parts are the only recipes that edit files.
+  and its two parts are the only recipes that reformat your files.
 - **Review, merge and release.** `just verify` runs `check`, mypy, the tests
   on every Python in the matrix, the hook tests, the docstring validation and
   the docs build.
