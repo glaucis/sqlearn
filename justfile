@@ -103,9 +103,18 @@ upgrade-dependencies:
 # Download Python's and DuckDB's intersphinx inventories into docs/_inventories
 [group('docs')]
 fetch-inventories:
+    #!/usr/bin/env bash
+    set -euo pipefail
     mkdir -p docs/_inventories
-    curl --fail --location --silent --show-error --output docs/_inventories/python.inv https://docs.python.org/3/objects.inv
-    curl --fail --location --silent --show-error --output docs/_inventories/duckdb.inv https://duckdb.org/docs/2.0/clients/python/reference/objects.inv
+    tmp=$(mktemp -d)
+    trap 'rm -rf "$tmp"' EXIT
+    fetch() {
+        curl --fail --location --silent --show-error --output "$tmp/$1.inv" "$2"
+        uv run --locked python -m sphinx.ext.intersphinx "$tmp/$1.inv" >/dev/null
+        mv "$tmp/$1.inv" "docs/_inventories/$1.inv"
+    }
+    fetch python https://docs.python.org/3/objects.inv
+    fetch duckdb https://duckdb.org/docs/2.0/clients/python/reference/objects.inv
 
 # Build the site, then run the doctests, warnings as errors
 [group('docs')]

@@ -1,6 +1,10 @@
 """Sphinx configuration for the sqlearn site."""
 
-import logging
+from pathlib import Path
+from posixpath import dirname, join, normpath
+
+from docutils import nodes
+from sphinx.addnodes import pending_xref
 
 import sqlearn
 
@@ -51,6 +55,8 @@ numpydoc_show_class_members = False
 
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", "_inventories/python.inv"),
+    # DuckDB's current/ has no objects.inv, so the URL names the release.
+    # Keep it at the major version of the duckdb floor in pyproject.toml.
     "duckdb": (
         "https://duckdb.org/docs/2.0/clients/python/reference/",
         "_inventories/duckdb.inv",
@@ -77,28 +83,58 @@ nb_execution_raise_on_error = True
 bibtex_bibfiles = ["references.bib"]
 
 
-# Pages on the site link to folders that are not on it (specs, questions,
-# agents), so MyST cannot resolve those links. Drop exactly those warnings and
-# keep every other unresolved MyST link an error.
-_OFF_SITE = ("specs/", "questions/", "agents/")
+# Pages on the site link to docs/ folders that are not on it. Those links
+# become links to the files on GitHub. The repository's address, in one place.
+REPOSITORY = "https://github.com/glaucis/sqlearn"
+BRANCH = "main"
+OFF_SITE = ("specs", "plans", "questions", "agents")
+_DOCS = Path(__file__).parent
 
 
-class _OffSiteLinks(logging.Filter):
-    """Reject MyST's unresolved-link warnings that name an off-site folder."""
+def _off_site_uri(node: pending_xref) -> str | None:
+    """Return the GitHub address a link into an off-site folder should have."""
+    target = node["reftarget"]
+    if node.get("refdomain") == "doc":
+        # A document link: Sphinx has dropped the suffix and made the path
+        # relative to docs/.
+        path = normpath(target)
+        suffixes = (".md", ".rst")
+        found = [p for p in (path + s for s in suffixes) if (_DOCS / p).is_file()]
+        if not found:
+            return None
+        kind, path = "blob", found[0]
+    elif node.get("refdomain") is None and target.endswith("/"):
+        # A folder link, relative to the page it is written on.
+        path = normpath(join(dirname(node["refdoc"]), target))
+        if not (_DOCS / path).is_dir():
+            return None
+        kind = "tree"
+    else:
+        return None
+    if path.split("/", 1)[0] not in OFF_SITE:
+        return None
+    uri = f"{REPOSITORY}/{kind}/{BRANCH}/docs/{path}"
+    if node.get("reftargetid"):
+        uri += f"#{node['reftargetid']}"
+    return uri
 
-    def filter(self, record: logging.LogRecord) -> bool:
-        if getattr(record, "subtype", None) != "xref_missing":
-            return True
-        return not any(
-            f"'{folder}" in record.getMessage() for folder in _OFF_SITE
-        ) and ("'../agents/'" not in record.getMessage())
+
+def _link_off_site(app, doctree) -> None:
+    """Replace MyST links into off-site folders with GitHub links.
+
+    A link whose target does not exist is left alone, so Sphinx warns.
+    """
+    for node in list(doctree.findall(pending_xref)):
+        if node.get("reftype") != "myst":
+            continue
+        uri = _off_site_uri(node)
+        if uri is None:
+            continue
+        reference = nodes.reference("", "", refuri=uri, internal=False)
+        reference.extend(child.deepcopy() for child in node.children)
+        node.replace_self(reference)
 
 
 def setup(app) -> None:
-    """Install the filter on Sphinx's warning handlers."""
-
-    def install(_app) -> None:
-        for handler in logging.getLogger("sphinx").handlers:
-            handler.addFilter(_OffSiteLinks())
-
-    app.connect("builder-inited", install)
+    """Register the off-site link handler."""
+    app.connect("doctree-read", _link_off_site)
