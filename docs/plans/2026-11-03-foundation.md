@@ -104,17 +104,22 @@ In `tests/src/sqlearn/test_init.py`, each with a one-line docstring:
 ```python
 def test_the_package_imports():
     import sqlearn
+
     assert sqlearn.__name__ == "sqlearn"
+
 
 def test_the_version_is_a_string():
     import sqlearn
     from importlib.metadata import version
+
     assert isinstance(sqlearn.__version__, str)
     assert sqlearn.__version__
     assert sqlearn.__version__ == version("sqlearn")
 
+
 def test_the_package_ships_py_typed():
     from importlib.resources import files
+
     assert files("sqlearn").joinpath("py.typed").is_file()
 ```
 
