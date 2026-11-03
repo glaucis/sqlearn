@@ -97,7 +97,21 @@ build-package:
 [group('maintain')]
 upgrade-dependencies:
     uv lock --upgrade
+    just fetch-inventories
     just verify
+
+# Download Python's and DuckDB's intersphinx inventories into docs/_inventories
+[group('docs')]
+fetch-inventories:
+    mkdir -p docs/_inventories
+    curl --fail --location --silent --show-error --output docs/_inventories/python.inv https://docs.python.org/3/objects.inv
+    curl --fail --location --silent --show-error --output docs/_inventories/duckdb.inv https://duckdb.org/docs/2.0/clients/python/reference/objects.inv
+
+# Build the site, then run the doctests, warnings as errors
+[group('docs')]
+build-docs:
+    uv run --locked sphinx-build -W --keep-going -b html docs docs/_build/html
+    uv run --locked sphinx-build -W --keep-going -b doctest docs docs/_build/doctest
 
 # Remove build output, the matrix environments and tool caches
 [group('maintain')]
@@ -115,4 +129,4 @@ pre-commit: check check-lockfile
 
 # Run every check, for review, merge and release
 [group('check')]
-verify: check check-types-mypy test-python-versions test-hooks check-docstrings
+verify: check check-types-mypy test-python-versions test-hooks check-docstrings build-docs
