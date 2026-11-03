@@ -7,8 +7,9 @@ related: [docs/architecture/overview.md]
 ---
 # How exactly does validation work?
 
-Validation ([overview 3.8](../architecture/overview.md)) compares every library's result against an exact
-reference implementation. Three points are open:
+Validation ([overview 3.8](../architecture/overview.md)) compares every
+library's result against an exact reference implementation. Three points are
+open:
 
 - **Precision:** `fractions.Fraction` or `decimal`, and at what precision.
 - **Iterative algorithms:** the rule where no closed form exists (models fitted
@@ -17,4 +18,5 @@ reference implementation. Three points are open:
   numerical analyst.
 
 Decided by Tomas, in the validation spec. The first validation page is part of
-the library core's vertical slice, so these are settled with [3.2](../architecture/overview.md).
+the library core's vertical slice, so these are settled with
+[3.2](../architecture/overview.md).

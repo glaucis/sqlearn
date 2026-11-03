@@ -1003,9 +1003,9 @@ A bash script, committed executable, installed with the pre-commit hook by
 4. **It finds commitlint** on `PATH`, then in npm's global prefix. Where it is
    not found the commit is refused, saying the message has not been looked at
    and giving the cure: `brew install commitlint`.
-5. **It finds the rules** from its own path (`.githooks/../commitlint.config.mjs`),
-   so a commit typed from a subfolder or a worktree finds them. A missing file
-   refuses the commit.
+5. **It finds the rules** from its own path
+   (`.githooks/../commitlint.config.mjs`), so a commit typed from a subfolder or
+   a worktree finds them. A missing file refuses the commit.
 6. **It runs commitlint with `--strict`**, for its exit codes: 0 is a pass, 2 a
    pass with warnings, 3 a refusal, and anything else is commitlint failing to
    run, never a verdict on the message. The four get different words, since

@@ -24,7 +24,7 @@ leaves the machine.
 
 - Example datasets are bundled, or fetched only by an explicit call whose name
   says it fetches.
-- The applications ([overview 3.6](../architecture/overview.md), 3.7) run as local servers on the user's
-  machine.
+- The applications ([overview 3.6](../architecture/overview.md), 3.7) run as
+  local servers on the user's machine.
 - The documentation can be downloaded and used without the internet; the site
   bundles MathJax and builds without network access.

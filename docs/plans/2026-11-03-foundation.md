@@ -157,21 +157,19 @@ locked duckdb is 2.x, keep it and note the version in the commit body. Run
 
 - [ ] **Step 5: Check what duckdb gives the type checkers (§17, item 4)**
 
-Run: `uv run --locked python -c "import duckdb, pathlib; p = pathlib.Path(duckdb.__file__).parent; print(sorted(x.name for x in p.iterdir() if x.suffix in {'.pyi', '.typed'} or x.name == 'py.typed'))"`
+Run:
+`uv run --locked python -c "import duckdb, pathlib; p = pathlib.Path(duckdb.__file__).parent; print(sorted(x.name for x in p.iterdir() if x.suffix in {'.pyi', '.typed'} or x.name == 'py.typed'))"`
 Typed: nothing to do. Untyped: add the narrowest override (a
 `[[tool.mypy.overrides]]` for `duckdb` with `ignore_missing_imports`, or ty's
 equivalent) with a comment giving the reason, and say so in the commit body.
 
 - [ ] **Step 6: Run the tests and the checks that apply**
 
-Run: `uv sync --locked && uv run --locked pytest -m "" -q`
-Expected: 5 passed.
-Run: `uv run --locked pytest -q`
-Expected: 4 passed, 1 deselected.
-Run: `uv run --locked ruff check && uv run --locked ruff format --check && uv run --locked mypy && uv run --locked ty check`
-Expected: all exit 0.
-Run: `uv run --locked numpydoc lint src/sqlearn/__init__.py`
-Expected: exit 0.
+Run: `uv sync --locked && uv run --locked pytest -m "" -q` Expected: 5 passed.
+Run: `uv run --locked pytest -q` Expected: 4 passed, 1 deselected. Run:
+`uv run --locked ruff check && uv run --locked ruff format --check && uv run --locked mypy && uv run --locked ty check`
+Expected: all exit 0. Run:
+`uv run --locked numpydoc lint src/sqlearn/__init__.py` Expected: exit 0.
 
 - [ ] **Step 7: Commit**
 
@@ -215,7 +213,8 @@ comment above it (its `just --list` description) and a `[group]`: `setup`,
 - `test-all`: `uv run --locked pytest --cov -m ""`.
 - `test-python-versions`: for each `v` in `matrix`,
   `UV_PROJECT_ENVIRONMENT=.venvs/py$v uv run --locked --python $v pytest -m "" --ignore=tests/githooks`.
-- `check-docstrings`: `uv run --locked numpydoc lint $(git ls-files 'src/*.py')`.
+- `check-docstrings`:
+  `uv run --locked numpydoc lint $(git ls-files 'src/*.py')`.
 - `clean`: `rm -rf` exactly the build outputs, `.venvs/` and caches of §7.8;
   never `.venv/` or a worktree.
 - `upgrade-dependencies`: `uv lock --upgrade`, then `just verify`
@@ -225,17 +224,15 @@ comment above it (its `just --list` description) and a `[group]`: `setup`,
 
 - [ ] **Step 2: Verify the recipes**
 
-Run: `just --list`
-Expected: every recipe above, each with its description, under its group.
-Run: `just lint-python check-types check-types-mypy check-lockfile test test-all check-docstrings build-package`
-Expected: all exit 0; `dist/` holds one `.tar.gz` and one `.whl`.
-Run: `just test-python-versions`
-Expected: 5 passed on each of 3.12, 3.13 and 3.14; `.venv` still 3.12
-(`uv run --locked python -V`).
-Run: `echo 'import os' >> src/sqlearn/__init__.py; just check; echo $?; git checkout src/sqlearn/__init__.py`
+Run: `just --list` Expected: every recipe above, each with its description,
+under its group. Run:
+`just lint-python check-types check-types-mypy check-lockfile test test-all check-docstrings build-package`
+Expected: all exit 0; `dist/` holds one `.tar.gz` and one `.whl`. Run:
+`just test-python-versions` Expected: 5 passed on each of 3.12, 3.13 and 3.14;
+`.venv` still 3.12 (`uv run --locked python -V`). Run:
+`echo 'import os' >> src/sqlearn/__init__.py; just check; echo $?; git checkout src/sqlearn/__init__.py`
 Expected: `just` names `lint-python` as the recipe that failed; exit non-zero.
-(`lint-markdown` and `check-spelling` may fail on today's docs: that is
-Task 3.)
+(`lint-markdown` and `check-spelling` may fail on today's docs: that is Task 3.)
 
 - [ ] **Step 3: Commit**
 
@@ -262,22 +259,21 @@ tool checks of §17, items 2 and 3.
 
 - [ ] **Step 1: Confirm rumdl and typos read their settings (§17, item 2)**
 
-Run: `uv run --locked rumdl config`
-Expected: `line-length`, `blockquotes` and `reflow` shown with
-`[from pyproject.toml]`.
-Run: `uv run --locked typos --dump-config - | grep -E 'locale|extend-exclude' -A3`
+Run: `uv run --locked rumdl config` Expected: `line-length`, `blockquotes` and
+`reflow` shown with `[from pyproject.toml]`. Run:
+`uv run --locked typos --dump-config - | grep -E 'locale|extend-exclude' -A3`
 Expected: `locale = "en"` and the three exclusions of §7.7.
 
 - [ ] **Step 2: Compare rumdl with markdownlint-cli2 once (§17, item 3)**
 
-Write a config outside the repository
-(`$TMPDIR/mdl/.markdownlint-cli2.jsonc`) with MD013 alone at
-`line_length: 80`, `code_blocks: false`, `tables: false`, and run
+Write a config outside the repository (`$TMPDIR/mdl/.markdownlint-cli2.jsonc`)
+with MD013 alone at `line_length: 80`, `code_blocks: false`, `tables: false`,
+and run
 `npx --yes markdownlint-cli2 --config "$TMPDIR/mdl/.markdownlint-cli2.jsonc" $(git ls-files '*.md')`
-and `uv run --locked rumdl check --config 'MD013.reflow = false' .`.
-Drop block-quote lines from both and compare by file and line.
-Expected: the same findings. If they differ, stop and report the difference
-to Tomas: the spec's fallback (markdownlint-cli2 replaces rumdl) is his call.
+and `uv run --locked rumdl check --config 'MD013.reflow = false' .`. Drop
+block-quote lines from both and compare by file and line. Expected: the same
+findings. If they differ, stop and report the difference to Tomas: the spec's
+fallback (markdownlint-cli2 replaces rumdl) is his call.
 
 - [ ] **Step 3: Format, on its own commit**
 
@@ -335,9 +331,10 @@ git commit -m "docs: fix the findings the Markdown and spelling checks report"
 `fetch-inventories` downloads `https://docs.python.org/3/objects.inv` and the
 DuckDB Python reference's `objects.inv` (the base URL in §11.2's
 `intersphinx_mapping` plus `objects.inv`) into `docs/_inventories/`, with
-`curl --fail --location`. If DuckDB 2.x moved its Python reference, use the
-new base URL in both `conf.py` and the recipe. Run `just fetch-inventories`.
-Expected: two non-empty files; `uv run --locked python -m sphinx.ext.intersphinx docs/_inventories/duckdb.inv | grep DuckDBPyConnection`
+`curl --fail --location`. If DuckDB 2.x moved its Python reference, use the new
+base URL in both `conf.py` and the recipe. Run `just fetch-inventories`.
+Expected: two non-empty files;
+`uv run --locked python -m sphinx.ext.intersphinx docs/_inventories/duckdb.inv | grep DuckDBPyConnection`
 prints at least one line.
 
 - [ ] **Step 2: Write the pages and `conf.py`**
@@ -362,15 +359,14 @@ matter.
 
 - [ ] **Step 4: Check §2, criterion 3, less MathJax**
 
-Run: `uv run --locked python -c "import re,pathlib; h=pathlib.Path('docs/_build/html/index.html').read_text(); print(re.findall(r'class=\"nav-link[^\"]*\"[^>]*href=\"([^\"]+)\"', h))"`
-Expected: the seven links in order, and no `More` in the bar.
-Run: `ls docs/_build/html/learn/{beginner,intermediate,advanced}/index.html docs/_build/html/adr/index.html`
-Expected: all four exist; `adr/index.html` links every `0*.html`.
-Run: `grep -c "$(uv run --locked python -c 'import sqlearn; print(sqlearn.__version__)')" docs/_build/html/examples/show_version.html`
-Expected: at least 1.
-Run: `git status --short`
-Expected: nothing new outside what this task created; the build outputs are
-ignored.
+Run:
+`uv run --locked python -c "import re,pathlib; h=pathlib.Path('docs/_build/html/index.html').read_text(); print(re.findall(r'class=\"nav-link[^\"]*\"[^>]*href=\"([^\"]+)\"', h))"`
+Expected: the seven links in order, and no `More` in the bar. Run:
+`ls docs/_build/html/learn/{beginner,intermediate,advanced}/index.html docs/_build/html/adr/index.html`
+Expected: all four exist; `adr/index.html` links every `0*.html`. Run:
+`grep -c "$(uv run --locked python -c 'import sqlearn; print(sqlearn.__version__)')" docs/_build/html/examples/show_version.html`
+Expected: at least 1. Run: `git status --short` Expected: nothing new outside
+what this task created; the build outputs are ignored.
 
 - [ ] **Step 5: Commit**
 
@@ -398,8 +394,9 @@ git commit -m "feat(site): build the skeleton site with its seven sections"
 - [ ] **Step 1: Pin MathJax (§17, item 6)**
 
 Find the latest 4.x of `mathjax` and its `@mathjax/mathjax-newcm-font`
-(`npm view mathjax@4 version`, `npm view <pkg>@<v> dist.tarball dist.integrity`).
-Pin both versions and sha512 integrities in `justfile` variables.
+(`npm view mathjax@4 version`,
+`npm view <pkg>@<v> dist.tarball dist.integrity`). Pin both versions and sha512
+integrities in `justfile` variables.
 
 - [ ] **Step 2: Write `fetch-mathjax`**
 
@@ -419,16 +416,15 @@ mystnb` front matter, kernel `python3`) with one `{code-cell}` printing
 
 - [ ] **Step 4: Verify offline (§2, criterion 3)**
 
-Run: `just clean && just build-docs`
-Expected: exit 0.
-Run: `grep -rlE '<(script|link)[^>]+(src|href)="https?://' --include='*.html' docs/_build/html`
-Expected: no output.
-Run: `grep -rhoE 'https?://[^"'"'"' )]+' docs/_build/html/_static/mathjax | sort -u`
-Expected: no URL MathJax would fetch at runtime (licence and comment URLs
-are fine; a CDN host in loader code is not).
-Then open `docs/_build/html/architecture/writing.html` with the network off
-(Wi-Fi off, or `uv run --locked python -m http.server -d docs/_build/html`
-with the browser offline) and confirm the formula renders. If MathJax 4 cannot be made
+Run: `just clean && just build-docs` Expected: exit 0. Run:
+`grep -rlE '<(script|link)[^>]+(src|href)="https?://' --include='*.html' docs/_build/html`
+Expected: no output. Run:
+`grep -rhoE 'https?://[^"'"'"' )]+' docs/_build/html/_static/mathjax | sort -u`
+Expected: no URL MathJax would fetch at runtime (licence and comment URLs are
+fine; a CDN host in loader code is not). Then open
+`docs/_build/html/architecture/writing.html` with the network off (Wi-Fi off, or
+`uv run --locked python -m http.server -d docs/_build/html` with the browser
+offline) and confirm the formula renders. If MathJax 4 cannot be made
 self-contained, fall back to MathJax 3.2.2 (§11.3) and confirm it carries its
 own fonts.
 
@@ -447,9 +443,9 @@ git commit -m "feat(site): bundle MathJax so the site reads offline"
 
 - Create: `docs/architecture/setup.md`, `layout.md`, `python-versions.md`,
   `testing.md`
-- Modify: `docs/architecture/writing.md` (its prose), `docs/architecture/index.md`
-  (`toctree`: `overview`, `workflow`, `setup`, `layout`, `python-versions`,
-  `writing`, `testing`, `../adr/index`)
+- Modify: `docs/architecture/writing.md` (its prose),
+  `docs/architecture/index.md` (`toctree`: `overview`, `workflow`, `setup`,
+  `layout`, `python-versions`, `writing`, `testing`, `../adr/index`)
 
 **Interfaces:**
 
@@ -542,8 +538,9 @@ Expected: FAIL, the hook file does not exist.
 - [ ] **Step 3: Write `.githooks/pre-commit`**
 
 Bash, `set -u`, §9's four steps. Root from `git rev-parse --show-toplevel`;
-export with `GIT_INDEX_FILE` honoured (git sets it; `git checkout-index -a
---prefix="$tmp/"` reads it); `trap` removes the temp folder; run
+export with `GIT_INDEX_FILE` honoured (git sets it;
+`git checkout-index -a --prefix="$tmp/"` reads it); `trap` removes the temp
+folder; run
 `(cd "$tmp" && UV_PROJECT_ENVIRONMENT="$root/.venv" UV_NO_SYNC=1 just pre-commit)`.
 On failure print the cures of §9 step 3 to stderr and exit 1. Quote every
 expansion. `chmod +x`.
@@ -559,9 +556,9 @@ Expected: all pass.
 Run: `just setup`, then
 `echo 'import os' >> src/sqlearn/__init__.py && git add src/sqlearn/__init__.py && git commit -m "test: break lint"; echo $?`
 Expected: refused, naming `lint-python`. Then
-`git checkout HEAD -- src/sqlearn/__init__.py`.
-Run: `time just check && time just test`
-Expected: each under 10 seconds (§2, criterion 7).
+`git checkout HEAD -- src/sqlearn/__init__.py`. Run:
+`time just check && time just test` Expected: each under 10 seconds (§2,
+criterion 7).
 
 - [ ] **Step 6: Commit (through the hook itself)**
 
@@ -587,8 +584,9 @@ git commit -m "feat(hooks): refuse a commit whose files fail just check"
 
 - [ ] **Step 1: Confirm commitlint's behaviour (§17, item 8)**
 
-In a scratch folder with the config: `echo 'feat: add x' | commitlint --config commitlint.config.mjs --strict; echo $?` gives 0;
-`echo 'Feat: Add x.' | …` gives 3; `echo 'feat: Add x' | …` gives 2;
+In a scratch folder with the config:
+`echo 'feat: add x' | commitlint --config commitlint.config.mjs --strict; echo $?`
+gives 0; `echo 'Feat: Add x.' | …` gives 3; `echo 'feat: Add x' | …` gives 2;
 `echo 'feat!: drop x' | …` gives 3 (no footer).
 
 - [ ] **Step 2: Write the tests**
@@ -627,8 +625,8 @@ spaces and non-ASCII characters. Tests, each with a one-line docstring:
 - `test_rules_that_fail_to_load_are_a_tooling_failure`: config replaced with
   `export default {`; refused, stderr holds `could not check this message` and
   `Rewording it will not help`.
-- `test_empty_rules_are_a_tooling_failure`: config `export default { rules: {} };`;
-  stderr holds `could not check this message`.
+- `test_empty_rules_are_a_tooling_failure`: config
+  `export default { rules: {} };`; stderr holds `could not check this message`.
 - `test_the_hook_is_committed_executable`: mode `100755`.
 
 - [ ] **Step 3: Run them to see them fail**
@@ -643,8 +641,8 @@ Bash, `set -u`, §10.2's seven steps in order. The rules path is
 `LC_ALL=C sed -E -e '/^# -+ >8 -+$/,$d' -e '/^#/d'`. Find commitlint with
 `command -v`, then `"$(npm prefix -g)/bin/commitlint"` if npm exists. Run
 `PATH="$(dirname "$lint"):$PATH" "$lint" --config "$rules" --strict --no-color < "$clean"`
-and branch on 0, 2, 3 (checking for `[empty-rules]`), and anything else,
-with §10.2's words. `chmod +x`.
+and branch on 0, 2, 3 (checking for `[empty-rules]`), and anything else, with
+§10.2's words. `chmod +x`.
 
 - [ ] **Step 5: Run them to see them pass**
 
@@ -653,7 +651,8 @@ Expected: all pass, both files.
 
 - [ ] **Step 6: Check it here (§2, criterion 5, second part)**
 
-Run: `echo >> README.md && git add README.md && git commit -m "Updated stuff."; echo $?`
+Run:
+`echo >> README.md && git add README.md && git commit -m "Updated stuff."; echo $?`
 Expected: refused by commitlint. Then `git checkout HEAD -- README.md`.
 
 - [ ] **Step 7: Commit (through both hooks)**
@@ -692,11 +691,11 @@ Expected: as there.
 
 - [ ] **Step 4: Criterion 4**
 
-Run §2 criterion 4's commands verbatim.
-Expected: `0.0.1`; `License-Expression: Apache-2.0`; `Requires: duckdb`;
-`py.typed` present under `/tmp/sqlearn-pip/lib/python3.12/site-packages/sqlearn/`.
-Repeat without the tag in a third clone; expected `0.1.devN+g<hash>`.
-Run: `cd /tmp/sqlearn-done && just build-package && uv venv --python 3.12 /tmp/sqlearn-sdist && uv pip install --python /tmp/sqlearn-sdist dist/*.tar.gz && /tmp/sqlearn-sdist/bin/python -c 'import sqlearn; print(sqlearn.__version__)'`
+Run §2 criterion 4's commands verbatim. Expected: `0.0.1`;
+`License-Expression: Apache-2.0`; `Requires: duckdb`; `py.typed` present under
+`/tmp/sqlearn-pip/lib/python3.12/site-packages/sqlearn/`. Repeat without the tag
+in a third clone; expected `0.1.devN+g<hash>`. Run:
+`cd /tmp/sqlearn-done && just build-package && uv venv --python 3.12 /tmp/sqlearn-sdist && uv pip install --python /tmp/sqlearn-sdist dist/*.tar.gz && /tmp/sqlearn-sdist/bin/python -c 'import sqlearn; print(sqlearn.__version__)'`
 Expected: a version, not an error: the sdist installs without git.
 
 - [ ] **Step 5: Criteria 5 to 7**

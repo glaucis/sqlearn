@@ -185,8 +185,9 @@ application, from code and from notebooks.
 **Done when:** for the module, when its spec says so; for the application,
 when a user can open a dataset and explore it without writing code.
 
-**Depends on:** 3.2 for the data model; the application on the module. Front
-end open: [questions/application-front-end.md](../questions/application-front-end.md).
+**Depends on:** 3.2 for the data model; the application on the module. Front end
+open:
+[questions/application-front-end.md](../questions/application-front-end.md).
 
 ### 3.7 Workflow editor
 

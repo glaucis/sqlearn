@@ -7,7 +7,8 @@ mdindex: [type=1f5087, tags=a121bc, summary=591ce4, related=74f902]
 ---
 # Which front end do the applications use?
 
-The applications ([overview 3.6 and 3.7](../architecture/overview.md)) are browser front ends served locally
+The applications ([overview 3.6 and 3.7](../architecture/overview.md)) are
+browser front ends served locally
 ([ADR 0006](../adr/0006-local-and-offline.md)).
 
 Candidates: Svelte (Tomas's candidate), React, Vue.

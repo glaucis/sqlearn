@@ -12,12 +12,17 @@ node-based workflow editor). Nothing is built yet.
 
 Rules from the ADRs:
 
-- Python packaging uses **uv**: `uv add`, `uv run`. Never use pip or a bare `python` (0001).
+- Python packaging uses **uv**: `uv add`, `uv run`. Never use pip or a bare
+  `python` (0001).
 - Computation is SQL executed by DuckDB; Python is the glue (0002).
-- The API follows scikit-learn conventions; any departure needs its own ADR (0003).
-- The only runtime dependency is `duckdb`; any other needs a written reason and a permissive licence (0004, 0005).
-- Nothing needs the network: no telemetry, no cloud, data never leaves the machine (0006).
-- Python 3.12 is the floor (0007). Tasks run through `just` once the `justfile` exists (0008).
+- The API follows scikit-learn conventions; any departure needs its own ADR
+  (0003).
+- The only runtime dependency is `duckdb`; any other needs a written reason and
+  a permissive licence (0004, 0005).
+- Nothing needs the network: no telemetry, no cloud, data never leaves the
+  machine (0006).
+- Python 3.12 is the floor (0007). Tasks run through `just` once the `justfile`
+  exists (0008).
 - British English in prose, American spelling in identifiers (0010).
 
 Superpowers skills save specs to `docs/specs/` and plans to `docs/plans/`
@@ -53,21 +58,33 @@ commit both of these into it, without being asked:
 
 ## Project tools
 
-- **CodeGraph:** code map in `.codegraph/`, updates on save. Use `codegraph_explore` before grep or reading files. Off: `codegraph uninit`.
-- **Docs layout:** `docs/adr/` (decisions), `docs/architecture/` (how it works), `docs/specs/` (what to build), `docs/plans/` (how to build it), `docs/questions/` (open questions). New decision → new ADR. Answered question → move the answer into the right doc.
-- **Docs index:** docs are tagged automatically (frontmatter `type`, `tags`, `summary`, `related`) and searchable with `qmd query "<question>" -c sqlearn`. Search here before grepping docs. Status: `mdindex status`. Off: delete `.mdindex/` and run `qmd collection remove sqlearn`.
-- **Matt Pocock setup:** see `docs/agents/` for the issue tracker and the domain doc rules.
+- **CodeGraph:** code map in `.codegraph/`, updates on save. Use
+  `codegraph_explore` before grep or reading files. Off: `codegraph uninit`.
+- **Docs layout:** `docs/adr/` (decisions), `docs/architecture/` (how it works),
+  `docs/specs/` (what to build), `docs/plans/` (how to build it),
+  `docs/questions/` (open questions). New decision → new ADR. Answered question
+  → move the answer into the right doc.
+- **Docs index:** docs are tagged automatically (frontmatter `type`, `tags`,
+  `summary`, `related`) and searchable with `qmd query "<question>" -c sqlearn`.
+  Search here before grepping docs. Status: `mdindex status`. Off: delete
+  `.mdindex/` and run `qmd collection remove sqlearn`.
+- **Matt Pocock setup:** see `docs/agents/` for the issue tracker and the domain
+  doc rules.
 
 ## Agent skills
 
 ### Issue tracker
 
-Issues are tracked in GitHub Issues for glaucis/sqlearn, managed with the `gh` CLI. See `docs/agents/issue-tracker.md`.
+Issues are tracked in GitHub Issues for glaucis/sqlearn, managed with the `gh`
+CLI. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
-Uses the five default triage labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+Uses the five default triage labels: `needs-triage`, `needs-info`,
+`ready-for-agent`, `ready-for-human`, `wontfix`. See
+`docs/agents/triage-labels.md`.
 
 ### Domain docs
 
-Single-context: one `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+Single-context: one `GLOSSARY.md` and `docs/adr/` at the repo root. See
+`docs/agents/domain.md`.

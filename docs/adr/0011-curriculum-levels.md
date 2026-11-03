@@ -12,9 +12,9 @@ Status: accepted (decided 2026-10-01 in the earlier attempt; carried over
 
 ## Context
 
-The learning site ([overview 3.5](../architecture/overview.md)) teaches machine learning in one sequence. Its
-structure and URLs have to be fixed before the first lesson, so no link ever
-breaks.
+The learning site ([overview 3.5](../architecture/overview.md)) teaches machine
+learning in one sequence. Its structure and URLs have to be fixed before the
+first lesson, so no link ever breaks.
 
 ## Decision
 

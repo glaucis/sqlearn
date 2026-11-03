@@ -7,7 +7,8 @@ related: [docs/architecture/overview.md]
 ---
 # What do the benchmarks compare, and on what machine?
 
-Benchmarks ([overview 3.9](../architecture/overview.md)) compare speed, memory and sizes past memory. Open:
+Benchmarks ([overview 3.9](../architecture/overview.md)) compare speed, memory
+and sizes past memory. Open:
 
 - Which libraries are compared (scikit-learn, pandas, Polars, Spark, others).
 - On what machine; the machine is described alongside the committed results.
