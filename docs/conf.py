@@ -63,7 +63,31 @@ intersphinx_mapping = {
     ),
 }
 
-# mathjax_path and mathjax4_config point at the local copy, §11.3.
+# MathJax comes from docs/_static/mathjax (`just fetch-mathjax`), never a CDN.
+# MathJax's own files are found from the script's address, [mathjax]. Its font
+# package is looked up under the loader's "fonts" path, which points at the
+# copy in fonts/. The speech, braille and explorer features would fetch
+# speech-rule-engine's mathmaps from a CDN, so they are off, both as options
+# and as the menu settings that override them.
+mathjax_path = "mathjax/tex-chtml.js"
+mathjax4_config = {
+    "loader": {"paths": {"fonts": "[mathjax]/fonts"}},
+    "options": {
+        "enableSpeech": False,
+        "enableBraille": False,
+        "enableExplorer": False,
+        "enableEnrichment": False,
+        "enableComplexity": False,
+        "menuOptions": {
+            "settings": {
+                "enrich": False,
+                "speech": False,
+                "braille": False,
+                "collapsible": False,
+            },
+        },
+    },
+}
 
 sphinx_gallery_conf = {
     "examples_dirs": "../examples",

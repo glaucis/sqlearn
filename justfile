@@ -3,6 +3,11 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 # The Python versions the package is tested on
 matrix := "3.12 3.13 3.14"
 
+# MathJax 4 and its font package, from the npm registry, with sha512 integrities
+mathjax_version := "4.1.3"
+mathjax_integrity := "sha512-BN/8Pkgn7G1pIDYJqd9md+JHsE/jydSYbyOZnSdSA0WziuVO8mRxdYiWFumkVVly/8U+hm9DpIIoWuvySverzw=="
+font_integrity := "sha512-gzAB3dFHilHX1l5x2xUqRL+1jDQt3Fyza1DkEMVXWC4E8SvsGdlgEza47HYi2WhVcgfkvf4zgUGzuhbq3Pjlew=="
+
 # List the recipes
 default:
     @just --list
@@ -116,9 +121,39 @@ fetch-inventories:
     fetch python https://docs.python.org/3/objects.inv
     fetch duckdb https://duckdb.org/docs/2.0/clients/python/reference/objects.inv
 
+# Copy MathJax's CHTML output and its fonts into docs/_static/mathjax
+[group('docs')]
+fetch-mathjax:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    dest=docs/_static/mathjax
+    [ -f "$dest/tex-chtml.js" ] && exit 0
+    tmp=$(mktemp -d)
+    trap 'rm -rf "$tmp"' EXIT
+    fetch() {
+        curl --fail --location --silent --show-error --output "$tmp/$1.tgz" \
+            "https://registry.npmjs.org/$2/-/$3-{{ mathjax_version }}.tgz"
+        actual=sha512-$(openssl dgst -sha512 -binary "$tmp/$1.tgz" | base64 | tr -d '\n')
+        if [ "$actual" != "$4" ]; then
+            echo "$2: integrity $actual does not match $4" >&2
+            exit 1
+        fi
+        mkdir "$tmp/$1"
+        tar -xzf "$tmp/$1.tgz" -C "$tmp/$1" --strip-components=1
+    }
+    fetch mathjax mathjax mathjax "{{ mathjax_integrity }}"
+    fetch font @mathjax/mathjax-newcm-font mathjax-newcm-font "{{ font_integrity }}"
+    test -f "$tmp/mathjax/tex-chtml.js"
+    test -d "$tmp/font/chtml/woff2"
+    rm -rf "$dest"
+    mkdir -p "$dest/fonts/mathjax-newcm-font"
+    cp "$tmp/mathjax/tex-chtml.js" "$tmp/mathjax/LICENSE" "$dest/"
+    cp -R "$tmp/mathjax/input" "$tmp/mathjax/ui" "$tmp/mathjax/a11y" "$dest/"
+    cp -R "$tmp/font/chtml" "$dest/fonts/mathjax-newcm-font/"
+
 # Build the site, then run the doctests, warnings as errors
 [group('docs')]
-build-docs:
+build-docs: fetch-mathjax
     uv run --locked sphinx-build -W --keep-going -b html docs docs/_build/html
     uv run --locked sphinx-build -W --keep-going -b doctest docs docs/_build/doctest
 
