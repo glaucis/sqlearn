@@ -1,0 +1,168 @@
+[build-system]
+requires = ["hatchling>=1.33.0", "hatch-vcs>=0.5.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sqlearn"
+dynamic = ["version"]
+description = "Machine learning computed inside DuckDB, on data larger than memory."
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.12"
+authors = [{ name = "Tomas Pecukevicius", email = "pecukevicius@gmail.com" }]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed",
+]
+dependencies = [
+    # The engine every computation runs in, and the one runtime dependency.
+    "duckdb>=2.0.0",
+]
+
+[dependency-groups]
+test = ["pytest>=9.2.0", "pytest-cov>=7.1.0"]
+lint = ["mypy>=2.4.1", "ruff>=0.17.3", "rumdl>=0.3.2", "ty>=0.0.96", "typos>=1.51.1"]
+docs = [
+    "ipykernel>=7.4.0",
+    "myst-nb>=1.4.0",
+    "numpydoc>=1.11.0",
+    "pydata-sphinx-theme>=0.24.0",
+    "sphinx>=9.1.1",
+    "sphinx-gallery>=0.22.1",
+    "sphinxcontrib-bibtex>=2.7.0",
+]
+
+[tool.uv]
+# `uv sync` installs every group; none is ever published.
+default-groups = ["test", "lint", "docs"]
+# The series that wrote the lockfile; an older uv is refused.
+required-version = ">=0.13"
+# The version comes from git, so the installed package is rebuilt when the
+# commit or the tags change.
+cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true } }]
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.targets.sdist]
+# The package's source; hatchling adds pyproject.toml, README.md and LICENSE.
+only-include = ["src"]
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+    "E", "W",           # pycodestyle
+    "F",                # pyflakes
+    "I",                # import order, which the formatter leaves alone
+    "B",                # likely bugs
+    "BLE",              # `except Exception` needs a noqa and a reason
+    "UP",               # the floor's syntax
+    "SIM", "C4", "PIE", # simpler equivalents
+    "PT",               # pytest's idioms
+    "RUF",              # ruff's own, RUF100 among them: no stale noqa
+    "N",                # naming
+    "PYI",              # typing hygiene, which ty's guide pairs with ANN
+    "T20",              # no print in the library
+    "D",                # docstrings, on the numpy convention
+    "ANN",              # every parameter and return annotated, ANN401 included
+]
+# A composite assertion with a message of its own reads as well as two.
+ignore = ["PT018"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.lint.per-file-ignores]
+# Tests: no annotations, and a docstring on every test, its form left free.
+"tests/**" = ["ANN", "D2", "D3", "D4"]
+# Gallery scripts: a reStructuredText title for a docstring, imports between
+# text blocks, and output printed for the reader.
+"examples/**" = ["ANN", "D", "E402", "T20"]
+"docs/**" = ["ANN", "D"]
+
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.ty.src]
+include = ["src", "tests", "examples", "docs"]
+
+[tool.ty.rules]
+# ty's own approximation of a strict mode.
+missing-type-argument = "error"
+dynamic-function-decorator-return = "error"
+unsound-return-statement = "error"
+possibly-unresolved-reference = "warn"
+
+[tool.ty.terminal]
+# A warning fails the run, whatever ty's default becomes.
+error-on-warning = true
+
+[tool.mypy]
+strict = true
+python_version = "3.12"
+files = ["src"]
+warn_unreachable = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = [
+    "-q",
+    "--strict-markers",
+    "--strict-config",
+    "--import-mode=importlib",
+    "-m", "not slow",
+]
+markers = ["slow: the larger-than-memory tier; test-all and test-python-versions run it"]
+xfail_strict = true
+# A warning is an error: a deprecation is found the day it appears, not at the next major.
+filterwarnings = ["error"]
+
+[tool.coverage.run]
+source_pkgs = ["sqlearn"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
+# No fail_under: the core spec sets the floor, measured on the full suite.
+
+[tool.numpydoc_validation]
+# Every check but the extended summary and See Also, which not every object needs.
+checks = ["all", "ES01", "SA01"]
+# Private names are not validated.
+exclude = ['\._']
+
+[tool.rumdl]
+# MD013 alone: prose wraps at 80 columns. Another rule joins with its reason.
+enable = ["MD013"]
+
+[tool.rumdl.MD013]
+line-length = 80
+code-blocks = false
+tables = false
+# Block quotes hold text quoted as found, so they are left alone.
+blockquotes = false
+# `rumdl fmt` rewraps a paragraph holding a line over the limit. `reflow-mode`
+# stays unset: an invalid value silently resets the whole rule to its defaults.
+reflow = true
+
+[tool.typos.files]
+# Hidden folders are read, so the hooks and Claude's settings are checked;
+# git's objects and the lockfile are not.
+ignore-hidden = false
+extend-exclude = [".git/", "uv.lock", ".codegraph/"]
+
+[tool.typos.default]
+# British prose and American identifiers both pass at `en`.
+locale = "en"
+
+[tool.typos.default.extend-words]
+# A word typos mistakes for a misspelling goes here once, mapped to itself.
