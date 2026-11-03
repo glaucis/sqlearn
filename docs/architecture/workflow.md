@@ -1,0 +1,62 @@
+---
+type: architecture
+tags: [workflow, process, agents, skills, docs-layout]
+summary: "Describes how work flows from spec to merge, where each document type lives, and which agents and skills are used."
+mdindex: [type=4ca303, tags=e7ae13, summary=f7f178]
+---
+# How work runs
+
+How a part of [the overview](overview.md) goes from idea to merged code, where
+each kind of document goes, and which agents and skills do the work.
+
+## From idea to merge
+
+1. **Spec.** Every part becomes a spec through `superpowers:brainstorming`,
+   saved in `docs/specs/`. Tomas approves it.
+2. **Plan.** The spec becomes a plan through `superpowers:writing-plans`,
+   saved in `docs/plans/`.
+3. **Branch.** The plan runs on its own branch, in a worktree
+   (`superpowers:using-git-worktrees`), through
+   `superpowers:subagent-driven-development`: an implementer and a reviewer
+   per task, then a final review.
+4. **Merge.** Tomas approves the merge
+   (`superpowers:finishing-a-development-branch`).
+
+Small work outside a plan runs on `main`, done by one agent.
+
+## Where things go
+
+| What | Where |
+|---|---|
+| Decisions that shape the system | `docs/adr/`, one file each, `NNNN-short-title.md` |
+| How the system works now | `docs/architecture/` |
+| What to build: one spec per part or feature | `docs/specs/` |
+| How to build it: implementation plans | `docs/plans/` |
+| Open questions | `docs/questions/`; answered, the answer moves to the right doc |
+| Bugs, requests and tasks | GitHub Issues on `glaucis/sqlearn` ([docs/agents/issue-tracker.md](../agents/issue-tracker.md)) |
+| Domain vocabulary | `GLOSSARY.md` at the root, created when the first term is settled ([docs/agents/domain.md](../agents/domain.md)) |
+
+The superpowers skills default to `docs/superpowers/specs/` and
+`docs/superpowers/plans/`. In this repository they use `docs/specs/` and
+`docs/plans/` instead.
+
+## Agents and skills
+
+What exists today, installed for the user rather than in this repository:
+
+- **Method:** the superpowers skills (brainstorming, writing-plans,
+  subagent-driven-development, test-driven-development,
+  systematic-debugging, code review, verification-before-completion).
+- **Planning and tickets:** the Matt Pocock skills (`/to-spec`, `/to-tickets`,
+  `/triage`, `/grill-with-docs`, `/domain-modeling`), configured in
+  [`docs/agents/`](../agents/).
+- **Commits:** the `commit-message` skill, with the rules in `CLAUDE.md`.
+- **DuckDB:** the `duckdb-skills` (query, read files, search the DuckDB docs).
+- **Finding things:** CodeGraph for code, the docs index (`qmd`) for docs.
+- **Agent types:** the built-in general-purpose, Explore and Plan agents.
+
+The rule for adding more (proposed): an agent is created when a kind of work
+recurs and needs its own rules; a skill when a method has to be written down to
+be repeated. Agents and skills that belong to sqlearn are committed under
+`.claude/`. The candidates are listed in
+[questions/agents-and-skills.md](../questions/agents-and-skills.md).

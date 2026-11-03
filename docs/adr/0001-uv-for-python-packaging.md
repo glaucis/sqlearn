@@ -2,8 +2,7 @@
 type: adr
 tags: [python, packaging, uv, tooling, dependencies]
 summary: "ADR 0001 records the decision to use uv for Python dependencies, virtual environments, locking, and running commands in sqlearn."
-related: [pyproject.toml, uv.lock]
-mdindex: [type=0fc814, tags=dea084, summary=b9dba2, related=755197]
+mdindex: [type=0fc814, tags=dea084, summary=b9dba2]
 ---
 # 0001: uv for Python packaging
 

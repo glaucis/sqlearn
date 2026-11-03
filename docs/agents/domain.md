@@ -2,8 +2,7 @@
 type: guide
 tags: [domain-docs, glossary, adr, agents, conventions]
 summary: "Explains how engineering skills should consume the repo's glossary and ADR domain documentation when exploring the codebase."
-related: [GLOSSARY.md, GLOSSARY-MAP.md, docs/adr/, src/<context>/docs/adr/, ADR-0007]
-mdindex: [type=83ca68, tags=71030c, summary=321644, related=ede9d9]
+mdindex: [type=83ca68, tags=71030c, summary=321644]
 ---
 # Domain Docs
 

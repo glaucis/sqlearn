@@ -1,13 +1,27 @@
 # sqlearn
 
-A scikit-learn-style ML library (pipelines, transformers, encoders) where every
-step compiles to SQL and runs on DuckDB, so a whole pipeline can execute as one
-query. Independent of scikit-learn. Nothing is built yet; see
-`docs/architecture/overview.md` for the direction and `docs/adr/` for decisions.
+An alternative to the scikit-learn ecosystem whose computation runs as SQL
+inside DuckDB, so it works on data larger than memory and a whole pipeline can
+execute as one query. Independent of scikit-learn. With it come documentation,
+a learning site, and later two local applications (data exploration, a
+node-based workflow editor). Nothing is built yet.
 
-- Python packaging uses **uv**: `uv add`, `uv run`. Never use pip or a bare `python` (ADR 0001).
-- Steps are SQL executed by DuckDB, with no Python-side data processing (ADR 0002).
-- The API follows scikit-learn conventions. Any departure needs its own ADR (ADR 0003).
+- **The map:** `docs/architecture/overview.md` (the parts and their order).
+  **How work runs:** `docs/architecture/workflow.md`. **Decisions:**
+  `docs/adr/`. **Next:** the foundation, `docs/specs/foundation.md` (draft).
+
+Rules from the ADRs:
+
+- Python packaging uses **uv**: `uv add`, `uv run`. Never use pip or a bare `python` (0001).
+- Computation is SQL executed by DuckDB; Python is the glue (0002).
+- The API follows scikit-learn conventions; any departure needs its own ADR (0003).
+- The only runtime dependency is `duckdb`; any other needs a written reason and a permissive licence (0004, 0005).
+- Nothing needs the network: no telemetry, no cloud, data never leaves the machine (0006).
+- Python 3.12 is the floor (0007). Tasks run through `just` once the `justfile` exists (0008).
+- British English in prose, American spelling in identifiers (0010).
+
+Superpowers skills save specs to `docs/specs/` and plans to `docs/plans/`
+here, not `docs/superpowers/`.
 
 ## Commit conventions
 
@@ -40,7 +54,7 @@ commit both of these into it, without being asked:
 ## Project tools
 
 - **CodeGraph:** code map in `.codegraph/`, updates on save. Use `codegraph_explore` before grep or reading files. Off: `codegraph uninit`.
-- **Docs layout:** `docs/adr/` (decisions), `docs/architecture/` (how it works), `docs/specs/` (what to build), `docs/questions/` (open questions). New decision → new ADR. Answered question → move the answer into the right doc.
+- **Docs layout:** `docs/adr/` (decisions), `docs/architecture/` (how it works), `docs/specs/` (what to build), `docs/plans/` (how to build it), `docs/questions/` (open questions). New decision → new ADR. Answered question → move the answer into the right doc.
 - **Docs index:** docs are tagged automatically (frontmatter `type`, `tags`, `summary`, `related`) and searchable with `qmd query "<question>" -c sqlearn`. Search here before grepping docs. Status: `mdindex status`. Off: delete `.mdindex/` and run `qmd collection remove sqlearn`.
 - **Matt Pocock setup:** see `docs/agents/` for the issue tracker and the domain doc rules.
 

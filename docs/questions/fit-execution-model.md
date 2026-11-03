@@ -1,8 +1,9 @@
 ---
 type: question
-tags: [fit, execution-model, sql, pipeline, duckdb]
-summary: "Open questions on how fit executes: one query versus ordered aggregates, where learned state lives, and what the single-SQL promise covers."
-mdindex: [type=1f5087, tags=2d58d7, summary=d914af]
+tags: [fit, execution-model, pipeline, sql, duckdb]
+summary: "Open questions on how fit executes across pipeline steps: one query or ordered aggregates, where learned state lives, and what one-query promise covers."
+mdindex: [type=1f5087, tags=0b2585, summary=318dcc, related=3d8346]
+related: [docs/architecture/overview.md]
 ---
 # How does `fit` execute?
 
@@ -20,3 +21,8 @@ Open points:
   generated SQL, or in DuckDB tables?
 - What does "one massive SQL" promise users exactly: `transform` only, or
   `fit` as well?
+
+Proposed in [the overview](../architecture/overview.md) (3.2): the user writes
+steps in order and sees results when asked; how much of a pipeline runs as one
+query is the library's concern, never the user's. The core's spec answers the
+points above within that rule.
