@@ -7,8 +7,8 @@ related: [docs/questions/scikit-learn-api-survey.md, docs/questions/fit-executio
 
 # What does `sqlearn_000` teach the library core?
 
-`sqlearn_000` (GitHub `glaucis/sqlearn_000`, private, MIT) is one of the
-earlier attempts named in [overview §5](../architecture/overview.md). This page
+`sqlearn_000` (GitHub `glaucis/sqlearn_000`, private, MIT) is one of the earlier
+attempts named in [overview §5](../../../architecture/overview.md). This page
 reads it from its source, tests, docs and history, at commit `a4fc0d6` (76
 commits, 2026-04-28 to 2026-04-30). Citations take the form
 `sqlearn_000:path:Lnn` or a short SHA. The specs it implemented lived in a
@@ -263,7 +263,7 @@ in the code repo.
 
 Evidence only; the decisions are Tomas's.
 
-### [scikit-learn API survey](scikit-learn-api-survey.md)
+### [scikit-learn API survey](../../scikit-learn-api-survey.md)
 
 - The old repo departed from scikit-learn (`learn`/`apply`, verb class names,
   a fitted copy returned) with no recorded reason in this repo. Its own
@@ -278,7 +278,7 @@ Evidence only; the decisions are Tomas's.
 - Column pass-through needs one rule for every step, as `ColumnTransformer`'s
   `remainder` makes explicit in scikit-learn; the old repo had none.
 
-### [How `fit` executes](fit-execution-model.md)
+### [How `fit` executes](../../fit-execution-model.md)
 
 - One-query fit was never attempted: one query per aggregate, by design
   (`duckdb.py:L289-L291`).
@@ -294,7 +294,7 @@ Evidence only; the decisions are Tomas's.
 - One-query transform worked as nested subqueries, with flattening left to
   DuckDB; no performance or larger-than-memory test exists.
 
-### [Multi-engine support](multi-engine-support.md)
+### [Multi-engine support](../../multi-engine-support.md)
 
 - sqlglot was the internal representation from day one. It gave structural
   tests and safe identifier quoting.
@@ -311,7 +311,7 @@ Evidence only; the decisions are Tomas's.
 - The repo stopped at a "multi-dialect redesign" (`a4fc0d6`); its content is
   in the private repository and unread here.
 
-### [Validation method](validation-method.md)
+### [Validation method](../../validation-method.md)
 
 - **Precision:** `mpmath` at 50 digits for transcendentals and sums,
   `Fraction` for selection and interpolation; `Fraction` is exact and so
@@ -341,4 +341,4 @@ Evidence only; the decisions are Tomas's.
 Sources: `sqlearn_000:pyproject.toml` (dependencies and groups),
 `sqlearn_000:uv.lock` (versions). The repo itself was MIT
 (`sqlearn_000:LICENSE`); this one is Apache-2.0
-([ADR 0004](../adr/0004-apache-2-licence.md)).
+([ADR 0004](../../../adr/0004-apache-2-licence.md)).
