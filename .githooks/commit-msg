@@ -68,6 +68,8 @@ if [ -z "$lint" ]; then
     echo "commit-msg: refused: commitlint was not found, so this message"
     echo "has not been looked at."
     echo "Install it with: brew install commitlint"
+    echo "If it is installed, the git client's PATH may lack Homebrew's bin"
+    echo "folder (/opt/homebrew/bin)."
   } >&2
   exit 1
 fi

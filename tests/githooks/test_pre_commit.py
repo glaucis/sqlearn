@@ -72,6 +72,7 @@ def make_repo(base: Path, tmp_path: Path):
     (repo / ".githooks").mkdir()
     shutil.copy(HOOK, repo / ".githooks" / "pre-commit")
     (repo / ".githooks" / "pre-commit").chmod(0o755)
+    (repo / ".venv").mkdir()
     (repo / "a.txt").write_text("a-head\n")
     (repo / "b.txt").write_text("b-head\n")
     git(repo, "add", "-A", env=env)
@@ -224,6 +225,7 @@ def test_the_hook_runs_in_a_linked_worktree(scratch, tmp_path):
     linked = tmp_path / "linked"
     git(repo, "worktree", "add", "-b", "side", str(linked), env=env)
     log.unlink(missing_ok=True)
+    (linked / ".venv").mkdir()
     (linked / "a.txt").write_text("a-side\n")
     git(linked, "add", "a.txt", env=env)
     done = git(linked, "commit", "-m", "chore: edit", env=env, check=False)
@@ -265,6 +267,20 @@ def test_no_just_refuses_with_the_cure(scratch, tmp_path):
     )
     assert done.returncode != 0
     assert "brew install just uv" in done.stderr
+
+
+def test_a_checkout_without_an_environment_is_refused_with_the_cure(scratch):
+    """With no .venv the commit is refused, naming `just setup`, and just is not run."""
+    repo, env, log = scratch
+    (repo / ".venv").rmdir()
+    before = head(repo, env)
+    (repo / "a.txt").write_text("a-new\n")
+    git(repo, "add", "a.txt", env=env)
+    done = git(repo, "commit", "-m", "chore: edit", env=env, check=False)
+    assert done.returncode != 0
+    assert head(repo, env) == before
+    assert "just setup" in done.stderr
+    assert not log.exists()
 
 
 def test_the_hook_is_committed_executable():

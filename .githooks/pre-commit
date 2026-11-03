@@ -8,11 +8,25 @@ if ! command -v just >/dev/null 2>&1; then
   {
     echo "pre-commit: 'just' was not found on PATH."
     echo "Install the tools with: brew install just uv"
+    echo "If they are installed, the git client's PATH may lack Homebrew's bin"
+    echo "folder (/opt/homebrew/bin)."
   } >&2
   exit 1
 fi
 
 root=$(git rev-parse --show-toplevel) || exit 1
+
+# core.hooksPath is shared by every checkout of the repository, and a checkout
+# made after setup has no environment: refuse that plainly rather than let uv
+# create an empty one and the first tool fail to start.
+if [ ! -d "$root/.venv" ]; then
+  {
+    echo "pre-commit: this checkout has no environment ($root/.venv)."
+    echo "Run 'just setup' in it, then commit again."
+  } >&2
+  exit 1
+fi
+
 work=$(mktemp -d) || exit 1
 trap 'rm -rf "$work"' EXIT
 tmp="$work/tree"
