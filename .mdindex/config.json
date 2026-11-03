@@ -1,0 +1,22 @@
+{
+  "collection": "sqlearn",
+  "include": [
+    "**/*.md"
+  ],
+  "exclude": [
+    "raw/**"
+  ],
+  "types": [
+    "adr",
+    "spec",
+    "architecture",
+    "guide",
+    "bug",
+    "idea",
+    "question",
+    "task",
+    "note"
+  ],
+  "model": "claude-haiku-5-5",
+  "max_chars": 12000
+}

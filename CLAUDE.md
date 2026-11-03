@@ -29,3 +29,24 @@ commit both of these into it, without being asked:
    ```
 
 2. The section above in the repo's own `CLAUDE.md`.
+
+## Project tools
+
+- **CodeGraph:** code map in `.codegraph/`, updates on save. Use `codegraph_explore` before grep or reading files. Off: `codegraph uninit`.
+- **Docs layout:** `docs/adr/` (decisions), `docs/architecture/` (how it works), `docs/specs/` (what to build), `docs/questions/` (open questions). New decision → new ADR. Answered question → move the answer into the right doc.
+- **Docs index:** docs are tagged automatically (frontmatter `type`, `tags`, `summary`, `related`) and searchable with `qmd query "<question>" -c sqlearn`. Search here before grepping docs. Status: `mdindex status`. Off: delete `.mdindex/` and run `qmd collection remove sqlearn`.
+- **Matt Pocock setup:** see `docs/agents/` for the issue tracker and the domain doc rules.
+
+## Agent skills
+
+### Issue tracker
+
+Issues are tracked in GitHub Issues for glaucis/sqlearn, managed with the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Uses the five default triage labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: one `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.

@@ -5,3 +5,5 @@
 .mdindex/log
 .superpowers/
 __pycache__/
+.mdindex/pending.*.work
+.*.mdindex-tmp-*
