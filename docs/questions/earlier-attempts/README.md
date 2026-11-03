@@ -29,12 +29,22 @@ the steps after it (decisions, spec, plan, build).
 
 - [x] 1. Absorb `sqlearn_000` (before the map existed).
 - [x] 2. Absorb sqlearn v0.4 (`sqlearn-ecosystem_old/sqlearn`).
-- [ ] 3. Map the folder of attempts:
+- [x] 3. Map the folder of attempts (called ROOT below):
   `/Users/tomas/Desktop/Desktop - Tomas’s MacBook Air/toosiaus_ducks_learnas`.
-  Adds one row per attempt below, with a tier, and one numbered absorb step
-  per attempt here. Tomas confirms the order and the skips.
-- [ ] 4. … absorb steps, added by step 3, one per attempt, in the agreed order.
-- [ ] Last. Combine **What we know so far** into answers for the four open
+  Eleven projects; order (oldest first) and skips confirmed by Tomas on
+  2026-11-03.
+- [ ] 4. Absorb `ducklearn` (light).
+- [ ] 5. Absorb `Tomosius/sqlearn`: `sqlearn-desktop`, plus the git history of
+  `test/sqlearn` (full).
+- [ ] 6. Absorb the April planning repo,
+  `sqlearn-ecosystem_old/sqlearn-private`, without `_old_sqlearn` (full).
+- [ ] 7. Absorb the war room, `sqlearn-ecosystem/sqlearn-private` (full).
+- [ ] 8. Absorb the six commits `sqlearn-ecosystem/sqlearn` has beyond
+  `sqlearn_000` (light).
+- [ ] 9. Absorb `sql_learn_test` (light, two agents).
+- [ ] 10. Absorb `sql_learn_27.08.2026` and `sql_learn` (light).
+- [ ] 11. Absorb `sqlearn` of September and October (light, two agents).
+- [ ] 12. Combine **What we know so far** into answers for the four open
   questions; this closes the drain and unblocks the decisions in issue #8.
 
 ## Attempts
@@ -42,7 +52,19 @@ the steps after it (decisions, spec, plan, build).
 | Attempt | Source | Tier | Status | Review | Not read |
 |---|---|---|---|---|---|
 | `sqlearn_000` | GitHub `glaucis/sqlearn_000` | full | merged | [review](sqlearn_000/review.md) | `sqlearn-private`, which it quotes |
-| sqlearn v0.4 | `toosiaus_ducks_learnas/sqlearn-ecosystem_old/sqlearn` | full | merged | [review](sqlearn-v04/review.md), [exploration helpers](sqlearn-v04/exploration-helpers.md), [batch notes](sqlearn-v04/notes/) | two standards files; long plans read by heading; 139 test files skimmed |
+| sqlearn v0.4 | ROOT `sqlearn-ecosystem_old/sqlearn` (Apr 10–12, 236 commits) | full | merged | [review](sqlearn-v04/review.md), [exploration helpers](sqlearn-v04/exploration-helpers.md), [batch notes](sqlearn-v04/notes/) | two standards files; long plans read by heading; 139 test files skimmed |
+| `ducklearn` | ROOT `ducklearn` (Mar 13, no git): 14 design docs | light | mapped | `ducklearn/` | |
+| `Tomosius/sqlearn` | ROOT `sqlearn-desktop` (no git, 378 files) and ROOT `test/sqlearn` (GitHub `Tomosius/sqlearn`, Mar 13 – Apr 9, 271 commits) | full | mapped | `tomosius-sqlearn/` | `test/sqlearn`'s 297 cloud-only files; it shares 92% of its local files with `sqlearn-desktop` |
+| April planning repo | ROOT `sqlearn-ecosystem_old/sqlearn-private` (GitHub `glaucis/sqlearn-private`, Apr 9–24, 593 commits), 411 files | full | mapped | `sqlearn-private-april/` | `_old_sqlearn/`: an exact copy of v0.4 |
+| War room | ROOT `sqlearn-ecosystem/sqlearn-private` (GitHub `glaucis/sqlearn-private`, Apr 26 – Jun 13, 410 commits), 218 docs | full | mapped | `sqlearn-private-war-room/` | |
+| `sqlearn_000`, later commits | ROOT `sqlearn-ecosystem/sqlearn` (same first commit, 82 commits against 76) | light | mapped | `sqlearn_000/` | the 76 commits already reviewed |
+| `sql_learn_test` | ROOT `sql_learn_test` (Aug 21–24, 59 commits), 85 files | light | mapped | `sql_learn_test/` | |
+| `sql_learn` | ROOT `sql_learn_27.08.2026` (Aug 26, 47 commits, 8 files) and ROOT `sql_learn` (Aug 27–30, 68 commits, 75 files), separate histories | light | mapped | `sql_learn/` | |
+| `sqlearn`, autumn | ROOT `sqlearn` (Sep 30 – Oct 4, 316 commits), 270 files, mostly agent records | light | mapped | `sqlearn-autumn/` | |
+
+Generated folders, data files and `.env` files are skipped everywhere. Some
+files on ROOT are cloud-only (iCloud): reading one starts a download and can
+hang, so the map script skipped them by their `dataless` flag.
 
 **Tier:** **full** (unique and substantial: batches as below), **light**
 (mostly documents, or a short-lived start: one agent reads its docs and
