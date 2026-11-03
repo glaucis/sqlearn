@@ -104,6 +104,34 @@ def test_a_rule_at_level_two_refuses(scratch, message):
 
 
 @needs_commitlint
+@pytest.mark.parametrize(
+    ("message", "rule"),
+    [
+        (" feat: add x", "header-trim"),
+        ("feat: add x ", "header-trim"),
+        ("feat(" + "s" * 25 + "): add x", "scope-max-length"),
+        ("feat: add x\nBody directly under the header.\n", "body-leading-blank"),
+    ],
+)
+def test_a_rule_refuses_and_is_named(scratch, tmp_path, message, rule):
+    """A verbatim message that breaks one rule is refused, and the rule is named."""
+    repo, env = scratch
+    before = head(repo, env)
+    with (repo / "a.txt").open("a") as handle:
+        handle.write("more\n")
+    git(repo, "add", "a.txt", env=env)
+    file = tmp_path / "message.txt"
+    file.write_text(message)
+    done = git(
+        repo, "commit", "-F", str(file), "--cleanup=verbatim", env=env, check=False
+    )
+    assert done.returncode != 0
+    assert head(repo, env) == before
+    assert REFUSED in done.stderr
+    assert rule in done.stderr
+
+
+@needs_commitlint
 def test_a_warning_lets_the_commit_land(scratch):
     """A warning is shown and the commit lands."""
     repo, env = scratch
