@@ -1,0 +1,1 @@
+{"type": "adr", "tags": ["Database", "storage", "database"], "summary": "Decision to use Postgres for storage.", "related": ["ADR-0001"]}

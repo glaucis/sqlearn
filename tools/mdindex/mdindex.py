@@ -211,3 +211,137 @@ def iter_docs(root: Path, config: dict) -> list[Path]:
             if is_included(rel, config):
                 out.append(p)
     return sorted(out)
+
+
+# ---------------------------------------------------------------- tagging
+
+API_URL = "https://api.anthropic.com/v1/messages"
+API_VERSION = "2026-10-21"
+KEYCHAIN_SERVICE = "mdindex-anthropic"
+
+_SECRET_RES = [
+    re.compile(r"sk-ant-[A-Za-z0-9_-]+"),
+    re.compile(r"AKIA[0-9A-Z]{16}"),
+    re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
+]
+
+_TAG_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "type": {"type": "string"},
+        "tags": {"type": "array", "items": {"type": "string"}},
+        "summary": {"type": "string"},
+        "related": {"type": "array", "items": {"type": "string"}},
+    },
+    "required": ["type", "tags", "summary", "related"],
+    "additionalProperties": False,
+}
+
+
+def get_api_key() -> str:
+    key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+    if key:
+        return key
+    import subprocess
+    try:
+        r = subprocess.run(["security", "find-generic-password", "-s", KEYCHAIN_SERVICE, "-w"],
+                           capture_output=True, text=True, timeout=10)
+        if r.returncode == 0 and r.stdout.strip():
+            return r.stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        pass
+    raise MdindexError(f"no API key: set ANTHROPIC_API_KEY or add Keychain item {KEYCHAIN_SERVICE}")
+
+
+def contains_secret(body: str) -> bool:
+    return any(r.search(body) for r in _SECRET_RES)
+
+
+def _system_prompt(types: list[str]) -> str:
+    return (
+        "You classify one markdown document from a software project so it can be found later.\n"
+        f"type: exactly one of: {', '.join(types)}. Use note when nothing else fits.\n"
+        "tags: 2-6 short lowercase topic keywords (single words or kebab-case).\n"
+        "summary: one sentence, at most 160 characters, saying what the document is about.\n"
+        "related: IDs of other items the document mentions, such as ADR-0003 or task-12; "
+        "empty list if none. Do not invent IDs."
+    )
+
+
+def request_tags(rel: str, body: str, config: dict) -> dict:
+    fake = os.environ.get("MDINDEX_FAKE_RESPONSE")
+    if fake:
+        return json.loads(Path(fake).read_text(encoding="utf-8"))
+    import urllib.error
+    import urllib.request
+    payload = {
+        "model": config["model"],
+        "max_tokens": 1024,
+        "thinking": {"type": "disabled"},
+        "output_config": {"effort": "low", "format": {"type": "json_schema", "schema": _TAG_SCHEMA}},
+        "system": _system_prompt(config["types"]),
+        "messages": [{"role": "user",
+                      "content": f"Path: {rel}\n\n<document>\n{body[:config['max_chars']]}\n</document>"}],
+    }
+    req = urllib.request.Request(API_URL, data=json.dumps(payload).encode("utf-8"), method="POST", headers={
+        "content-type": "application/json",
+        "x-api-key": get_api_key(),
+        "anthropic-version": API_VERSION,
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            data = json.loads(resp.read())
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode("utf-8", "replace")[:300]
+        raise MdindexError(f"API HTTP {e.code}: {detail}") from None
+    except (urllib.error.URLError, TimeoutError, OSError) as e:
+        raise MdindexError(f"API unreachable: {e}") from None
+    if data.get("stop_reason") == "refusal":
+        raise MdindexError("API refused to tag this document")
+    text = next((b.get("text") for b in data.get("content", []) if b.get("type") == "text"), None)
+    if not text:
+        raise MdindexError(f"API returned no text (stop_reason={data.get('stop_reason')})")
+    try:
+        return json.loads(text)
+    except ValueError:
+        raise MdindexError("API returned invalid JSON") from None
+
+
+def validate_tags(raw: dict, types: list[str]) -> dict:
+    out: dict = {}
+    t = str(raw.get("type", "")).strip().lower()
+    out["type"] = t if t in types else "note"
+    tags: list[str] = []
+    for x in raw.get("tags") or []:
+        x = str(x).strip().lower()
+        if x and x not in tags:
+            tags.append(x)
+    if tags:
+        out["tags"] = tags[:6]
+    summary = " ".join(str(raw.get("summary") or "").split())
+    if summary:
+        out["summary"] = summary[:160]
+    related = [str(x).strip() for x in (raw.get("related") or []) if str(x).strip()]
+    if related:
+        out["related"] = related[:8]
+    return out
+
+
+def tag_file(root: Path, path: Path, config: dict, state: dict) -> str:
+    rel = path.relative_to(root).as_posix()
+    original = path.read_bytes()
+    doc = read_doc(original.decode("utf-8", "replace"))
+    h = body_hash(doc.body)
+    entry = state["files"].get(rel)
+    if entry and entry.get("hash") == h:
+        return "unchanged"
+    if contains_secret(doc.body):
+        state["files"][rel] = {"hash": h, "owned": (entry or {}).get("owned", {}), "skipped": "secret"}
+        return "skipped-secret"
+    tags = validate_tags(request_tags(rel, doc.body, config), config["types"])
+    if path.read_bytes() != original:
+        return "skipped-changed"
+    new_doc, owned = set_fields(doc, tags, (entry or {}).get("owned", {}))
+    _write_atomic(path, render_doc(new_doc))
+    state["files"][rel] = {"hash": h, "owned": owned, "skipped": None}
+    return "tagged"
