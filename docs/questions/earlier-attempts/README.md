@@ -44,7 +44,7 @@ the steps after it (decisions, spec, plan, build).
 - [x] 9. Absorb `sql_learn_test` (light, two agents).
 - [x] 10. Absorb `sql_learn_27.08.2026` and `sql_learn` (light).
 - [x] 11. Absorb `sqlearn` of September and October (light, two agents).
-- [ ] 12. Combine **What we know so far** into answers for the four open
+- [x] 12. Combine **What we know so far** into answers for the four open
   questions; this closes the drain and unblocks the decisions in issue #8.
 
 ## Attempts

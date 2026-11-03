@@ -1,9 +1,9 @@
 ---
 type: note
-tags: [sqlearn, process, records, agents, retrospective]
-summary: "Retrospective of the sqlearn autumn 2026 batch B: records, agents, hooks and history of a process-focused repository with no library built."
-related: [records/TEMPLATE.md, records/archived/bug_controller-poly-sql_20261003-081239.md, records/idea_orchestrator_20261002-020643.md, records/archived/bug_controller-poly-sql_20261003-065108.md, records/archived/bug_scout-reflow_20261001-220845.md, ".claude/agents/orchestrator.md", ".claude/settings.json", ".claude/hooks/session-start.sh"]
-mdindex: [type=edb465, tags=6b2d10, summary=d225d9, related=d19112]
+tags: [sqlearn, process, records, agents, retrospective, rehearsal]
+summary: "Retrospective on the sqlearn autumn 2026 run: its records folder, agent and hook setup, and commit history, showing that process work dominated and no library w"
+related: [records/TEMPLATE.md, records/archived/bug_controller-poly-sql_20261003-081239.md, records/idea_orchestrator_20261002-020643.md, records/archived/bug_controller-poly-sql_20261003-065108.md, CLAUDE.md, ".claude/agents/orchestrator.md", ".claude/agents/opus.md", ".claude/agents/sonnet.md"]
+mdindex: [type=edb465, tags=b32e31, summary=d67a96, related=af5469]
 ---
 # Batch B: records and process (sqlearn, autumn 2026)
 
