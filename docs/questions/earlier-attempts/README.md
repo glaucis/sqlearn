@@ -38,7 +38,7 @@ the steps after it (decisions, spec, plan, build).
   `test/sqlearn` (full).
 - [x] 6. Absorb the April planning repo,
   `sqlearn-ecosystem_old/sqlearn-private`, without `_old_sqlearn` (full).
-- [ ] 7. Absorb the war room, `sqlearn-ecosystem/sqlearn-private` (full).
+- [x] 7. Absorb the war room, `sqlearn-ecosystem/sqlearn-private` (full).
 - [x] 8. Absorb the six commits `sqlearn-ecosystem/sqlearn` has beyond
   `sqlearn_000` (light).
 - [ ] 9. Absorb `sql_learn_test` (light, two agents).
@@ -56,7 +56,7 @@ the steps after it (decisions, spec, plan, build).
 | `ducklearn` | ROOT `ducklearn` (Mar 13, no git): 14 design docs | light | merged | [review](ducklearn/review.md), [batch notes](ducklearn/notes/) | |
 | `Tomosius/sqlearn` | ROOT `sqlearn-desktop` (no git, 378 files) and ROOT `test/sqlearn` (GitHub `Tomosius/sqlearn`, Mar 13 – Apr 9, 271 commits) | full | merged | [review](tomosius-sqlearn/review.md), [batch notes](tomosius-sqlearn/notes/) | `test/sqlearn`'s 297 cloud-only files; it shares 92% of its local files with `sqlearn-desktop` |
 | April planning repo | ROOT `sqlearn-ecosystem_old/sqlearn-private` (GitHub `glaucis/sqlearn-private`, Apr 9–24, 593 commits), 411 files | full | merged | [review](sqlearn-private-april/review.md), [batch notes](sqlearn-private-april/notes/) | `_old_sqlearn/`: an exact copy of v0.4 |
-| War room | ROOT `sqlearn-ecosystem/sqlearn-private` (GitHub `glaucis/sqlearn-private`, Apr 26 – Jun 13, 410 commits), 218 docs | full | mapped | `sqlearn-private-war-room/` | |
+| War room | ROOT `sqlearn-ecosystem/sqlearn-private` (GitHub `glaucis/sqlearn-private`, Apr 26 – Jun 13, 410 commits), 218 docs | full | merged | [review](sqlearn-private-war-room/review.md), [batch notes](sqlearn-private-war-room/notes/) | most ideas and long rules skimmed |
 | `sqlearn_000`, later commits | ROOT `sqlearn-ecosystem/sqlearn` (same first commit, 82 commits against 76) | light | merged | [review, Later commits](sqlearn_000/review.md#later-commits) | the 76 commits already reviewed |
 | `sql_learn_test` | ROOT `sql_learn_test` (Aug 21–24, 59 commits), 85 files | light | mapped | `sql_learn_test/` | |
 | `sql_learn` | ROOT `sql_learn_27.08.2026` (Aug 26, 47 commits, 8 files) and ROOT `sql_learn` (Aug 27–30, 68 commits, 75 files), separate histories | light | mapped | `sql_learn/` | |
@@ -109,9 +109,9 @@ notes file to write, with its sections and the **Files covered** checklist.
 
 ## What we know so far
 
-From `ducklearn`, `Tomosius/sqlearn`, sqlearn v0.4, the April planning repo and
-`sqlearn_000`, oldest first. Evidence, not decisions; the decisions are made in
-issue #8.
+From `ducklearn`, `Tomosius/sqlearn`, sqlearn v0.4, the April planning repo,
+`sqlearn_000` and the war room, oldest first. Evidence, not decisions; the
+decisions are made in issue #8.
 
 - **How fit runs.** Every attempt learned a later step's statistics from the
   raw or stage input, so `Impute` then `Scale` scaled un-imputed data. The
@@ -119,7 +119,9 @@ issue #8.
   17 March, and kept; `Tomosius/sqlearn` substituted only non-learning steps
   into later aggregates, and v0.4 lost even that. The April planning repo
   wrote the defect down as the rule and added a test requiring five learning
-  steps to fit in one query. The boundary rule has to be
+  steps to fit in one query. The war room kept it too (measured: standard
+  deviation 1.6997 its way, 1.4720 staged), though its row filters do reach
+  fit. The boundary rule has to be
   "a learning step reads a value an earlier step changed", covering set
   queries (`DISTINCT`) as well as aggregates. A staged fit can still be one
   query with `WITH` clauses (checked on DuckDB 2.0.0; the idea was on file
@@ -137,15 +139,21 @@ issue #8.
   never checked (DuckDB reads `44.2` as `DECIMAL(3,1)` and `1e-20` as `DOUBLE`).
   Cross-validation overwrote each fold's state on the shared step objects, so
   fitted state must live apart from them. A `DECIMAL` precision mode does not
-  work: DuckDB's aggregates of `DECIMAL` return `DOUBLE`. Learned state as a
-  relation was designed once, for cross-validation: a `stats` CTE joined with
-  `CROSS JOIN`, and per-fold DuckDB tables as a cache.
+  work: DuckDB's aggregates of `DECIMAL` return `DOUBLE`. The war room first
+  kept "not learned" (an error) apart from "learned NULL" (a value). No attempt
+  handled NaN, which DuckDB keeps apart from NULL: one NaN makes `AVG` NaN and
+  `MEDIAN` silently wrong. Learned state as a relation was designed once, for
+  cross-validation: a `stats` CTE joined with `CROSS JOIN`, and per-fold DuckDB
+  tables as a cache.
 - **SQL representation.** Every attempt used sqlglot, chosen for
   "multi-database from day one". Costs: version pins, type-checker noise, AST
   aliasing bugs, a dialect that changed NULL ordering. Portability was never
   tested beyond parsing; the April repo admits transpilation is "syntactic,
   not semantic". Its federated spec, the only multi-engine design, reaches
-  other sources through DuckDB `ATTACH`.
+  other sources through DuckDB `ATTACH`. The war room specified five engines
+  natively, refused aliases whose meaning differs (`STDDEV` is sample in
+  DuckDB, population in MySQL), made DuckDB optional and ran nothing; its
+  portable rewrites gave wrong answers with NULLs on DuckDB.
 - **Validation.** No attempt ever compared a whole pipeline with scikit-learn's
   (`Pipeline([SimpleImputer(), StandardScaler()])` would have caught the fit
   defect every time). Early attempts used scikit-learn as the reference with a
@@ -169,4 +177,6 @@ issue #8.
   tooling outgrew the product; status was kept by hand in several places and
   drifted. A separate review sweep after a burst found real bugs every time it
   was run. Docs with hand-typed numbers were wrong. The April repo produced
-  593 commits and no code; about two thirds were about the process.
+  593 commits and no code; about two thirds were about the process. The war
+  room produced 410 commits and no code, and scope swung by conversation. A
+  deterministic checker stopped document drift where agent reviewers had not.
