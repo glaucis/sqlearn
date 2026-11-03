@@ -1,0 +1,7 @@
+.codegraph/
+.mdindex/state.json
+.mdindex/pending
+.mdindex/lock
+.mdindex/log
+.superpowers/
+__pycache__/
