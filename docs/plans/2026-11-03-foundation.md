@@ -158,6 +158,7 @@ locked duckdb is 2.x, keep it and note the version in the commit body. Run
 - [ ] **Step 5: Check what duckdb gives the type checkers (§17, item 4)**
 
 Run:
+<!-- markdownlint-disable-next-line MD013 -->
 `uv run --locked python -c "import duckdb, pathlib; p = pathlib.Path(duckdb.__file__).parent; print(sorted(x.name for x in p.iterdir() if x.suffix in {'.pyi', '.typed'} or x.name == 'py.typed'))"`
 Typed: nothing to do. Untyped: add the narrowest override (a
 `[[tool.mypy.overrides]]` for `duckdb` with `ignore_missing_imports`, or ty's
@@ -167,6 +168,7 @@ equivalent) with a comment giving the reason, and say so in the commit body.
 
 Run: `uv sync --locked && uv run --locked pytest -m "" -q` Expected: 5 passed.
 Run: `uv run --locked pytest -q` Expected: 4 passed, 1 deselected. Run:
+<!-- markdownlint-disable-next-line MD013 -->
 `uv run --locked ruff check && uv run --locked ruff format --check && uv run --locked mypy && uv run --locked ty check`
 Expected: all exit 0. Run:
 `uv run --locked numpydoc lint src/sqlearn/__init__.py` Expected: exit 0.
@@ -226,10 +228,12 @@ comment above it (its `just --list` description) and a `[group]`: `setup`,
 
 Run: `just --list` Expected: every recipe above, each with its description,
 under its group. Run:
+<!-- markdownlint-disable-next-line MD013 -->
 `just lint-python check-types check-types-mypy check-lockfile test test-all check-docstrings build-package`
 Expected: all exit 0; `dist/` holds one `.tar.gz` and one `.whl`. Run:
 `just test-python-versions` Expected: 5 passed on each of 3.12, 3.13 and 3.14;
 `.venv` still 3.12 (`uv run --locked python -V`). Run:
+<!-- markdownlint-disable-next-line MD013 -->
 `echo 'import os' >> src/sqlearn/__init__.py; just check; echo $?; git checkout src/sqlearn/__init__.py`
 Expected: `just` names `lint-python` as the recipe that failed; exit non-zero.
 (`lint-markdown` and `check-spelling` may fail on today's docs: that is Task 3.)
@@ -269,6 +273,7 @@ Expected: `locale = "en"` and the three exclusions of §7.7.
 Write a config outside the repository (`$TMPDIR/mdl/.markdownlint-cli2.jsonc`)
 with MD013 alone at `line_length: 80`, `code_blocks: false`, `tables: false`,
 and run
+<!-- markdownlint-disable-next-line MD013 -->
 `npx --yes markdownlint-cli2 --config "$TMPDIR/mdl/.markdownlint-cli2.jsonc" $(git ls-files '*.md')`
 and `uv run --locked rumdl check --config 'MD013.reflow = false' .`. Drop
 block-quote lines from both and compare by file and line. Expected: the same
@@ -334,6 +339,7 @@ DuckDB Python reference's `objects.inv` (the base URL in §11.2's
 `curl --fail --location`. If DuckDB 2.x moved its Python reference, use the new
 base URL in both `conf.py` and the recipe. Run `just fetch-inventories`.
 Expected: two non-empty files;
+<!-- markdownlint-disable-next-line MD013 -->
 `uv run --locked python -m sphinx.ext.intersphinx docs/_inventories/duckdb.inv | grep DuckDBPyConnection`
 prints at least one line.
 
@@ -360,10 +366,12 @@ matter.
 - [ ] **Step 4: Check §2, criterion 3, less MathJax**
 
 Run:
+<!-- markdownlint-disable-next-line MD013 -->
 `uv run --locked python -c "import re,pathlib; h=pathlib.Path('docs/_build/html/index.html').read_text(); print(re.findall(r'class=\"nav-link[^\"]*\"[^>]*href=\"([^\"]+)\"', h))"`
 Expected: the seven links in order, and no `More` in the bar. Run:
 `ls docs/_build/html/learn/{beginner,intermediate,advanced}/index.html docs/_build/html/adr/index.html`
 Expected: all four exist; `adr/index.html` links every `0*.html`. Run:
+<!-- markdownlint-disable-next-line MD013 -->
 `grep -c "$(uv run --locked python -c 'import sqlearn; print(sqlearn.__version__)')" docs/_build/html/examples/show_version.html`
 Expected: at least 1. Run: `git status --short` Expected: nothing new outside
 what this task created; the build outputs are ignored.
@@ -554,6 +562,7 @@ Expected: all pass.
   part)**
 
 Run: `just setup`, then
+<!-- markdownlint-disable-next-line MD013 -->
 `echo 'import os' >> src/sqlearn/__init__.py && git add src/sqlearn/__init__.py && git commit -m "test: break lint"; echo $?`
 Expected: refused, naming `lint-python`. Then
 `git checkout HEAD -- src/sqlearn/__init__.py`. Run:
@@ -640,6 +649,7 @@ Bash, `set -u`, §10.2's seven steps in order. The rules path is
 `"$(cd "$(dirname "$0")/.." && pwd)/commitlint.config.mjs"`. Strip with
 `LC_ALL=C sed -E -e '/^# -+ >8 -+$/,$d' -e '/^#/d'`. Find commitlint with
 `command -v`, then `"$(npm prefix -g)/bin/commitlint"` if npm exists. Run
+<!-- markdownlint-disable-next-line MD013 -->
 `PATH="$(dirname "$lint"):$PATH" "$lint" --config "$rules" --strict --no-color < "$clean"`
 and branch on 0, 2, 3 (checking for `[empty-rules]`), and anything else, with
 §10.2's words. `chmod +x`.
@@ -652,6 +662,7 @@ Expected: all pass, both files.
 - [ ] **Step 6: Check it here (§2, criterion 5, second part)**
 
 Run:
+<!-- markdownlint-disable-next-line MD013 -->
 `echo >> README.md && git add README.md && git commit -m "Updated stuff."; echo $?`
 Expected: refused by commitlint. Then `git checkout HEAD -- README.md`.
 
@@ -695,6 +706,7 @@ Run §2 criterion 4's commands verbatim. Expected: `0.0.1`;
 `License-Expression: Apache-2.0`; `Requires: duckdb`; `py.typed` present under
 `/tmp/sqlearn-pip/lib/python3.12/site-packages/sqlearn/`. Repeat without the tag
 in a third clone; expected `0.1.devN+g<hash>`. Run:
+<!-- markdownlint-disable-next-line MD013 -->
 `cd /tmp/sqlearn-done && just build-package && uv venv --python 3.12 /tmp/sqlearn-sdist && uv pip install --python /tmp/sqlearn-sdist dist/*.tar.gz && /tmp/sqlearn-sdist/bin/python -c 'import sqlearn; print(sqlearn.__version__)'`
 Expected: a version, not an error: the sdist installs without git.
 

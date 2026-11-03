@@ -17,6 +17,7 @@ operations.
 - **Read an issue**:
   `gh issue view <number> --json number,title,body,labels,comments`.
 - **List issues**:
+  <!-- markdownlint-disable-next-line MD013 -->
   `gh issue list --state open --json number,title,body,labels,comments --jq '[.[] | {number, title, body, labels: [.labels[].name], comments: [.comments[].body]}]'`
   with appropriate `--label` and `--state` filters.
 - **Make an issue a sub-issue of a parent**:
@@ -30,6 +31,7 @@ operations.
   UI-visible representation. Add an edge with
   `gh issue create --blocked-by <n>,<n> ...` or
   `gh issue edit <child> --add-blocked-by <blocker>` (`gh` 2.94+). Older `gh`:
+  <!-- markdownlint-disable-next-line MD013 -->
   `gh api --method POST repos/<owner>/<repo>/issues/<child>/dependencies/blocked_by -F issue_id=<blocker-db-id>`,
   where `<blocker-db-id>` is the blocker's numeric **database id**
   (`gh api repos/<owner>/<repo>/issues/<n> --jq .id`, _not_ the `#number` or
@@ -69,6 +71,7 @@ the `gh pr` equivalents:
   (off a TTY, `--comments` prints only the comments, not the body), and
   `gh pr diff <number>` for the diff.
 - **List external PRs for triage**:
+  <!-- markdownlint-disable-next-line MD013 -->
   `gh api --paginate 'repos/{owner}/{repo}/pulls?state=open' --jq '.[] | select(.author_association | IN("OWNER","MEMBER","COLLABORATOR") | not) | {number, title, author: .user.login, author_association, labels: [.labels[].name]}'`.
 - **Comment / label / close**: `gh pr comment`,
   `gh pr edit --add-label`/`--remove-label`, `gh pr close`.
