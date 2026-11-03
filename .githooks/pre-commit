@@ -5,11 +5,11 @@
 set -u
 
 if ! command -v just >/dev/null 2>&1; then
-    {
-        echo "pre-commit: 'just' was not found on PATH."
-        echo "Install the tools with: brew install just uv"
-    } >&2
-    exit 1
+  {
+    echo "pre-commit: 'just' was not found on PATH."
+    echo "Install the tools with: brew install just uv"
+  } >&2
+  exit 1
 fi
 
 root=$(git rev-parse --show-toplevel) || exit 1
@@ -19,25 +19,25 @@ tmp="$work/tree"
 
 # git sets GIT_INDEX_FILE for a partial commit; checkout-index reads it.
 if ! (cd "$root" && git checkout-index -a --prefix="$tmp/"); then
-    echo "pre-commit: could not export the index." >&2
-    exit 1
+  echo "pre-commit: could not export the index." >&2
+  exit 1
 fi
 
 # A passing commit prints nothing: keep the recipe's output until it fails.
 out="$work/just.out"
 if ! (cd "$tmp" && UV_PROJECT_ENVIRONMENT="$root/.venv" UV_NO_SYNC=1 just pre-commit) >"$out" 2>&1; then
-    {
-        cat "$out"
-        echo
-        echo "pre-commit: the commit is refused; the recipe named above failed."
-        echo "Run that recipe alone with: just <recipe>"
-        echo "Cures:"
-        echo "  just fmt    fixes the formatting"
-        echo "  uv lock     brings the lockfile up to date"
-        echo "  uv sync     installs a tool the environment lacks"
-        echo "The checks read the files going into this commit (the index), not"
-        echo "the files on disk: stage your fix before committing again."
-    } >&2
-    exit 1
+  {
+    cat "$out"
+    echo
+    echo "pre-commit: the commit is refused; the recipe named above failed."
+    echo "Run that recipe alone with: just <recipe>"
+    echo "Cures:"
+    echo "  just fmt    fixes the formatting"
+    echo "  uv lock     brings the lockfile up to date"
+    echo "  uv sync     installs a tool the environment lacks"
+    echo "The checks read the files going into this commit (the index), not"
+    echo "the files on disk: stage your fix before committing again."
+  } >&2
+  exit 1
 fi
 exit 0

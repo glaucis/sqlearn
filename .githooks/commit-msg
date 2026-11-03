@@ -5,8 +5,8 @@ set -u
 
 msgfile=${1:-}
 if [ -z "$msgfile" ] || [ ! -f "$msgfile" ]; then
-    echo "commit-msg: git gave no message file, so nothing was checked." >&2
-    exit 1
+  echo "commit-msg: git gave no message file, so nothing was checked." >&2
+  exit 1
 fi
 
 work=$(mktemp -d) || exit 1
@@ -16,31 +16,31 @@ trap 'rm -rf "$work"' EXIT
 #    subject is not `type: subject`, and a refusal would strand the operation.
 gitdir=$(git rev-parse --absolute-git-dir 2>/dev/null) || gitdir=$(git rev-parse --git-dir) || exit 1
 for marker in MERGE_HEAD CHERRY_PICK_HEAD REVERT_HEAD rebase-merge rebase-apply; do
-    if [ -e "$gitdir/$marker" ]; then
-        exit 0
-    fi
+  if [ -e "$gitdir/$marker" ]; then
+    exit 0
+  fi
 done
 
 # 2. Clean the message: the diff below a scissors line (git commit -v), then
 #    comment lines. The comment character is core.commentChar ("auto" is `#`).
 cc=$(git config --get core.commentChar 2>/dev/null || true)
 case "$cc" in
-    "" | auto) cc="#" ;;
+  "" | auto) cc="#" ;;
 esac
 cc=${cc:0:1}
 # A subject that starts with the comment character would be kept by `-m` but
 # deleted here, so the hook would check a different message from git's.
 IFS= read -r first <"$msgfile" || true
 case "$first" in
-    "$cc"*)
-        {
-            echo "commit-msg: refused: a commit subject may not start with '$cc',"
-            echo "the comment character: git would drop or keep the line"
-            echo "depending on how the message was given. Start the subject with"
-            echo "a type, as in: type(scope): subject"
-        } >&2
-        exit 1
-        ;;
+  "$cc"*)
+    {
+      echo "commit-msg: refused: a commit subject may not start with '$cc',"
+      echo "the comment character: git would drop or keep the line"
+      echo "depending on how the message was given. Start the subject with"
+      echo "a type, as in: type(scope): subject"
+    } >&2
+    exit 1
+    ;;
 esac
 ccre=$(printf '%s' "$cc" | sed -e 's/[][\\.*^$\/]/\\&/g')
 clean="$work/message"
@@ -48,39 +48,39 @@ LC_ALL=C sed -E -e "/^$ccre -+ >8 -+\$/,\$d" -e "/^$ccre/d" "$msgfile" >"$clean"
 
 # 3. commitlint handed nothing prints its usage and exits as if it had crashed.
 if ! LC_ALL=C grep -q '[^[:space:]]' "$clean"; then
-    {
-        echo "commit-msg: refused: the commit message is empty."
-        echo "Write a message of the form: type(scope): subject"
-    } >&2
-    exit 1
+  {
+    echo "commit-msg: refused: the commit message is empty."
+    echo "Write a message of the form: type(scope): subject"
+  } >&2
+  exit 1
 fi
 
 # 4. Find commitlint: PATH first, then npm's global prefix.
 lint=$(command -v commitlint || true)
 if [ -z "$lint" ] && command -v npm >/dev/null 2>&1; then
-    prefix=$(npm prefix -g 2>/dev/null || true)
-    if [ -n "$prefix" ] && [ -x "$prefix/bin/commitlint" ]; then
-        lint="$prefix/bin/commitlint"
-    fi
+  prefix=$(npm prefix -g 2>/dev/null || true)
+  if [ -n "$prefix" ] && [ -x "$prefix/bin/commitlint" ]; then
+    lint="$prefix/bin/commitlint"
+  fi
 fi
 if [ -z "$lint" ]; then
-    {
-        echo "commit-msg: refused: commitlint was not found, so this message"
-        echo "has not been looked at."
-        echo "Install it with: brew install commitlint"
-    } >&2
-    exit 1
+  {
+    echo "commit-msg: refused: commitlint was not found, so this message"
+    echo "has not been looked at."
+    echo "Install it with: brew install commitlint"
+  } >&2
+  exit 1
 fi
 
 # 5. Find the rules from this script's own path, so that a commit typed from a
 #    subfolder or a linked worktree finds them.
 rules="$(cd "$(dirname "$0")/.." && pwd)/commitlint.config.mjs"
 if [ ! -f "$rules" ]; then
-    {
-        echo "commit-msg: refused: the rules file is missing: $rules"
-        echo "Restore it with: git checkout HEAD -- commitlint.config.mjs"
-    } >&2
-    exit 1
+  {
+    echo "commit-msg: refused: the rules file is missing: $rules"
+    echo "Restore it with: git checkout HEAD -- commitlint.config.mjs"
+  } >&2
+  exit 1
 fi
 
 # 6. Run commitlint with --strict, for its exit codes. 7. Its own directory goes
@@ -88,51 +88,51 @@ fi
 #    beside it.
 out="$work/commitlint.out"
 PATH="$(dirname "$lint"):$PATH" "$lint" --config "$rules" --strict --no-color \
-    <"$clean" >"$out" 2>&1
+  <"$clean" >"$out" 2>&1
 status=$?
 
 tooling_failure() {
-    {
-        cat "$out"
-        echo
-        echo "commit-msg: refused: commitlint could not check this message, so"
-        echo "nothing has judged it. $1"
-        echo "  commitlint: $lint ($(PATH="$(dirname "$lint"):$PATH" "$lint" --version 2>&1 | head -n 1))"
-        echo "  node:       $(PATH="$(dirname "$lint"):$PATH" node --version 2>&1 | head -n 1)"
-        echo "  rules:      $rules"
-        echo "Rewording it will not help: fix the tool or the rules file."
-    } >&2
-    exit 1
+  {
+    cat "$out"
+    echo
+    echo "commit-msg: refused: commitlint could not check this message, so"
+    echo "nothing has judged it. $1"
+    echo "  commitlint: $lint ($(PATH="$(dirname "$lint"):$PATH" "$lint" --version 2>&1 | head -n 1))"
+    echo "  node:       $(PATH="$(dirname "$lint"):$PATH" node --version 2>&1 | head -n 1)"
+    echo "  rules:      $rules"
+    echo "Rewording it will not help: fix the tool or the rules file."
+  } >&2
+  exit 1
 }
 
 case "$status" in
-    0)
-        exit 0
-        ;;
-    2)
-        {
-            cat "$out"
-            echo
-            echo "commit-msg: accepted: those are warnings, and a"
-            echo "warning never refuses a commit."
-        } >&2
-        exit 0
-        ;;
-    3)
-        if grep -q '\[empty-rules\]' "$out"; then
-            tooling_failure "The rules file defines no rules."
-        fi
-        {
-            cat "$out"
-            echo
-            echo "commit-msg: refused: the message does not follow the commit conventions."
-            echo "Each ✖ line is a rule the message broke, and the commit is refused"
-            echo "until it is fixed; each ⚠ line is a warning only. The rules are in"
-            echo "commitlint.config.mjs at the repository root."
-        } >&2
-        exit 1
-        ;;
-    *)
-        tooling_failure "commitlint exited with status $status."
-        ;;
+  0)
+    exit 0
+    ;;
+  2)
+    {
+      cat "$out"
+      echo
+      echo "commit-msg: accepted: those are warnings, and a"
+      echo "warning never refuses a commit."
+    } >&2
+    exit 0
+    ;;
+  3)
+    if grep -q '\[empty-rules\]' "$out"; then
+      tooling_failure "The rules file defines no rules."
+    fi
+    {
+      cat "$out"
+      echo
+      echo "commit-msg: refused: the message does not follow the commit conventions."
+      echo "Each ✖ line is a rule the message broke, and the commit is refused"
+      echo "until it is fixed; each ⚠ line is a warning only. The rules are in"
+      echo "commitlint.config.mjs at the repository root."
+    } >&2
+    exit 1
+    ;;
+  *)
+    tooling_failure "commitlint exited with status $status."
+    ;;
 esac
