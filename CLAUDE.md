@@ -9,7 +9,9 @@ site) is built; no library code yet.
 
 - **The map:** `docs/architecture/overview.md` (the parts and their order).
   **How work runs:** `docs/architecture/workflow.md`. **Decisions:**
-  `docs/adr/`. **Next:** the library core (part 3.2 of the overview).
+  `docs/adr/`. **Next:** the library core (part 3.2 of the overview):
+  first absorb the earlier attempts, following the plan and progress in
+  `docs/questions/earlier-attempts/README.md`; then issue #8.
 
 Rules from the ADRs:
 
