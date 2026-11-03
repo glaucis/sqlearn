@@ -1,6 +1,6 @@
 # sqlearn
 
-Workspace for sqlearn. Currently hosts the project-init toolkit (`tools/`, `skills/`, `install.sh`) while it is built and tested.
+SQL learning project. (The project-init toolkit that was built here now lives in `../project-kit`.)
 
 ## Commit conventions
 
