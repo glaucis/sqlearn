@@ -507,6 +507,46 @@ def cmd_tag(files: list[str]) -> int:
     return rc
 
 
+def _spawn_detached(args: list[str]) -> None:
+    import subprocess
+    subprocess.Popen([sys.executable, str(Path(__file__).resolve()), *args],
+                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                     start_new_session=True)
+
+
+def cmd_hook(event: str, stdin_text: str) -> int:
+    """Claude Code hook entry point. Always returns 0 and prints nothing."""
+    try:
+        data = json.loads(stdin_text)
+        cwd = Path(data.get("cwd") or os.getcwd())
+        if event == "post-tool-use":
+            fp = (data.get("tool_input") or {}).get("file_path")
+            if not fp or not str(fp).endswith(".md"):
+                return 0
+            p = Path(fp) if os.path.isabs(fp) else cwd / fp
+            p = p.resolve()
+            root = find_root(p.parent)
+            if root is None:
+                return 0
+            rel = p.relative_to(root).as_posix()
+            if not is_included(rel, load_config(root)):
+                return 0
+            with open(root / MD_DIR / "pending", "a", encoding="utf-8") as f:
+                f.write(rel + "\n")
+        elif event in ("stop", "session-start"):
+            root = find_root(cwd)
+            if root is None:
+                return 0
+            if event == "stop":
+                if _read_pending(root):
+                    _spawn_detached(["sync", "--pending", str(root)])
+            else:
+                _spawn_detached(["sync", str(root)])
+    except Exception:
+        pass
+    return 0
+
+
 def _project_root(path: str) -> Path | None:
     root = find_root(Path(path))
     if root is None:
@@ -515,6 +555,8 @@ def _project_root(path: str) -> Path | None:
 
 
 def main(argv: list[str]) -> int:
+    if argv[:1] == ["hook"]:  # fast path for hooks: no argparse, never non-zero, never prints
+        return cmd_hook(argv[1] if len(argv) > 1 else "", sys.stdin.read())
     import argparse
     ap = argparse.ArgumentParser(prog="mdindex", description=__doc__)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -526,6 +568,8 @@ def main(argv: list[str]) -> int:
     s.add_argument("path", nargs="?", default=".")
     s = sub.add_parser("tag")
     s.add_argument("files", nargs="+")
+    s = sub.add_parser("hook", help="Claude Code hook entry point (reads hook JSON on stdin)")
+    s.add_argument("event", choices=["post-tool-use", "stop", "session-start"])
     args = ap.parse_args(argv)
     try:
         if args.cmd == "init":
