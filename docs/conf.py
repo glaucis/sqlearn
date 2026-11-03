@@ -68,10 +68,13 @@ intersphinx_mapping = {
 # package is looked up under the loader's "fonts" path, which points at the
 # copy in fonts/. The speech, braille and explorer features would fetch
 # speech-rule-engine's mathmaps from a CDN, so they are off, both as options
-# and as the menu settings that override them.
+# and as the menu settings that override them. The menu can still turn speech
+# on, and the loader would then name a CDN for speech-rule-engine: its path
+# points at the local copy's absent sre/ folder, so the request stays local and
+# simply fails.
 mathjax_path = "mathjax/tex-chtml.js"
 mathjax4_config = {
-    "loader": {"paths": {"fonts": "[mathjax]/fonts"}},
+    "loader": {"paths": {"fonts": "[mathjax]/fonts", "sre": "[mathjax]/sre"}},
     "options": {
         "enableSpeech": False,
         "enableBraille": False,

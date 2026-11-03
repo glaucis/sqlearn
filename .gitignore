@@ -15,6 +15,7 @@ docs/_build/
 docs/examples/
 docs/reference/generated/
 docs/_static/mathjax/
+docs/_static/.mathjax.*
 # The test matrix's environments, one per Python version
 .venvs/
 # Tool caches and reports
