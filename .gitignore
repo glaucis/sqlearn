@@ -7,3 +7,5 @@
 __pycache__/
 .mdindex/pending.*.work
 .*.mdindex-tmp-*
+.claude/worktrees/
+.worktrees/

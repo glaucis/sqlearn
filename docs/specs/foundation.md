@@ -1,20 +1,21 @@
 ---
 type: spec
-tags: [foundation, repository-layout, tooling, documentation, git-hooks, versioning]
-summary: "Spec for sqlearn's repository skeleton: layout, packaging, quality gates, git hooks, docs toolchain, and conventions, with acceptance criteria."
-related: ["../architecture/overview.md", "../adr/README.md", "../questions/site-hosting.md", "../adr/0004-apache-2-licence.md", "../adr/0011-curriculum-levels.md"]
-mdindex: [type=d4f02e, tags=6ffc41, summary=ed0207, related=8aec34]
+tags: [foundation, repository-skeleton, tooling, sphinx, git-hooks, versioning]
+summary: "Spec for sqlearn's repository skeleton: layout, packaging and versioning, quality gates, git hooks, documentation site and conventions (part 3.1)."
+related: [docs/architecture/overview.md, docs/plans/2026-11-03-foundation.md, docs/adr/0004-apache-2-licence.md, docs/adr/0011-curriculum-levels.md, docs/adr/README.md, docs/questions/site-hosting.md, docs/architecture/workflow.md, docs/architecture/python-versions.md]
+mdindex: [type=d4f02e, tags=614dc5, summary=3cd7f9, related=9f2a57]
 ---
 # Foundation
 
 Part 3.1 of [the overview](../architecture/overview.md): the repository
 skeleton every later part is built in.
 
-Status: draft, for Tomas's review. Adapted on 2026-11-03 from the earlier
+Status: approved by Tomas on 2026-11-03. Adapted that day from the earlier
 attempt's foundation spec, which Tomas approved section by section on
 2026-10-01. Everything that spec decided carries over unless §19 says
-otherwise; this file is now complete on its own, and nothing here depends on
-the earlier repository.
+otherwise; this file is complete on its own, and nothing here depends on the
+earlier repository. Plan:
+[plans/2026-11-03-foundation.md](../plans/2026-11-03-foundation.md).
 
 How to read it:
 
