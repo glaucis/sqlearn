@@ -75,7 +75,7 @@ def _declared_static(name: str, position: int, used: str, exc: BaseException) ->
         f"learned.{used}, which is only known after learning. A step that "
         "needs learned values to write its SQL is dynamic.\n"
         "Fix: remove static=True (sqlearn will then detect it), or set "
-        "static=False."
+        "dynamic=True."
     )
 
 

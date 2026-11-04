@@ -113,7 +113,8 @@ class Step:
     Override `learn` to compute values (SQL aggregates, per column) and `apply`
     to build the output (an expression per column, using what was learned). A
     step whose output columns do not depend on learned values is static;
-    otherwise it is dynamic. Leave `static` as None to have sqlearn find out.
+    otherwise it is dynamic. Leave `static` and `dynamic` as None to have
+    sqlearn find out.
 
     Parameters
     ----------
@@ -128,6 +129,9 @@ class Step:
     ----------
     static : bool or None
         Declared class; None means classify by trying `apply`.
+    dynamic : bool or None
+        Declared dynamic when True, trusted as `static` is; declaring both
+        `static` and `dynamic` as True is refused.
     creates : DuckDBPyType or None
         The type of the columns a dynamic step creates.
     changes_rows : bool
@@ -145,6 +149,7 @@ class Step:
     """
 
     static: ClassVar[bool | None] = None
+    dynamic: ClassVar[bool | None] = None
     creates: ClassVar[DuckDBPyType | None] = None
     changes_rows: ClassVar[bool] = False
 
@@ -282,12 +287,12 @@ def _key(step: Step) -> tuple[type, tuple[tuple[str, str], ...]]:
 def classify(step: Step, schema: Schema) -> Literal["static", "dynamic"]:
     """Say whether a step is static or dynamic.
 
-    The declared ``static`` is trusted. Otherwise ``apply`` is called on the
-    first input column with placeholders for what ``learn`` returns: getting
-    one expression back means static; a failure (DuckDB raises ``TypeError``
-    when a placeholder is looped over or tested) or named columns back means
-    the output depends on learned values, so dynamic. Answers are cached per
-    class and settings in `KINDS`.
+    The declared ``static`` or ``dynamic`` is trusted. Otherwise ``apply`` is
+    called on the first input column with placeholders for what ``learn``
+    returns: getting one expression back means static; a failure (DuckDB
+    raises ``TypeError`` when a placeholder is looped over or tested)
+    or named columns back means the output depends on learned values, so
+    dynamic. Answers are cached per class and settings in `KINDS`.
 
     Parameters
     ----------
@@ -309,6 +314,8 @@ def classify(step: Step, schema: Schema) -> Literal["static", "dynamic"]:
     >>> classify(sq.Step(), [("a", INTEGER)])
     'static'
     """
+    if step.dynamic:
+        return "dynamic"
     if step.static is not None:
         return "static" if step.static else "dynamic"
     key = _key(step)

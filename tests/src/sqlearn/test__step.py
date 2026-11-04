@@ -146,3 +146,18 @@ def test_output_names():
     assert list(output_names("scale", "a", e, True, None)) == ["a_scale"]
     assert list(output_names("scale", "a", e, True, "z")) == ["a_z"]
     assert list(output_names("onehot", "a", {"x": e, "y": e}, True, "z")) == ["x", "y"]
+
+
+def test_a_declared_dynamic_step_is_trusted_without_calling_apply():
+    """``dynamic = True`` is believed as ``static = True`` is: no inspection."""
+    calls = []
+
+    class Declared(sq.Step):
+        dynamic = True
+
+        def apply(self, x, learned):
+            calls.append(1)
+            return x
+
+    assert classify(Declared(), [("a", INTEGER)]) == "dynamic"
+    assert calls == []

@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 
 from duckdb.sqltypes import DuckDBPyType
 
+from sqlearn._errors import StepError
 from sqlearn._selectors import Schema, Selector, _Cols, to_selector
 from sqlearn._step import Step, classify
 
@@ -138,6 +139,13 @@ def plan(steps: Sequence[tuple[str, Step]], schema: Schema) -> Plan:
     rows = _Column(None, None, 0, frozenset())
     result = Plan()
     for i, (step_name, step) in enumerate(steps):
+        if step.static and step.dynamic:
+            msg = (
+                f"{step_name} (step {i + 1}) declares both static=True and "
+                "dynamic=True, which contradict each other. "
+                "Fix: declare one, or neither (sqlearn will then detect it)."
+            )
+            raise StepError(msg, step=step_name, position=i + 1)
         dynamic = classify(step, _known(columns)) == "dynamic"
         read = _read(step, columns)
         learn = max((c.ready for c in [*read, rows]), default=0)

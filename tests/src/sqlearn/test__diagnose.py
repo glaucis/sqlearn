@@ -44,7 +44,7 @@ def test_declared_static_but_needs_values(people):
         "learned.cities, which is only known after learning. A step that "
         "needs learned values to write its SQL is dynamic.\n"
         "Fix: remove static=True (sqlearn will then detect it), or set "
-        "static=False."
+        "dynamic=True."
     )
 
 
@@ -54,10 +54,13 @@ def test_bad_sql_in_apply_names_the_step(people):
     with pytest.raises(sq.StepError) as err:
         pipe.learn(people)
     assert (err.value.step, err.value.position) == ("bad", 2)
-    text = str(err.value)
-    assert text.startswith("bad (step 2) builds SQL that DuckDB refuses: ")
-    assert "no_such_function" in text
-    assert "Fix: check that the step's learn and apply suit the columns" in text
+    first, fix = str(err.value).split("\n", 1)
+    assert first.startswith("bad (step 2) builds SQL that DuckDB refuses: ")
+    assert "no_such_function" in first
+    assert fix.endswith(
+        "\nFix: check that the step's learn and apply suit the columns it is given."
+    )
+    assert isinstance(err.value.__cause__, duckdb.Error)
 
 
 def test_a_missing_column_names_column_and_step(people):
@@ -66,12 +69,19 @@ def test_a_missing_column_names_column_and_step(people):
     with pytest.raises(sq.StepError) as err:
         pipe.learn(people)
     assert (err.value.step, err.value.position) == ("gap", 1)
-    text = str(err.value)
-    assert text.startswith(
-        "gap (step 1) reads column 'no_such_column', which is not in the data "
-        "reaching it."
+    assert (
+        str(err.value)
+        .split("\n")[0]
+        .startswith(
+            "gap (step 1) reads column 'no_such_column', which is not in the data "
+            "reaching it. DuckDB says: "
+        )
     )
-    assert "Fix: read only columns that reach the step" in text
+    assert str(err.value).endswith(
+        "Fix: read only columns that reach the step, or add an earlier step "
+        "that makes the column."
+    )
+    assert isinstance(err.value.__cause__, duckdb.Error)
 
 
 def test_a_python_error_in_apply_names_the_step(people):
@@ -80,8 +90,10 @@ def test_a_python_error_in_apply_names_the_step(people):
     with pytest.raises(sq.StepError) as err:
         pipe.learn(people)
     assert (err.value.step, err.value.position) == ("oops", 1)
-    assert str(err.value).startswith(
-        "oops (step 1) failed in its apply() with ValueError: cannot do this."
+    assert str(err.value) == (
+        "oops (step 1) failed in its apply() with ValueError: cannot do this.\n"
+        "Fix: correct the step's code; sqlearn calls it with SQL expressions, "
+        "not numbers."
     )
     assert isinstance(err.value.__cause__, ValueError)
 
@@ -96,6 +108,10 @@ def test_a_failure_while_running_is_traced_by_its_stage_name():
     text = str(err.value)
     assert text.startswith("total (step 2) fails while running: ")
     assert "Could not convert string 'abc'" in text
+    assert text.endswith(
+        "\nFix: check that the step's learn and apply suit the values in the data."
+    )
+    assert isinstance(err.value.__cause__, duckdb.Error)
 
 
 def test_a_builtin_failure_is_an_internal_error(people):
@@ -107,13 +123,23 @@ def test_a_builtin_failure_is_an_internal_error(people):
     pipe = sq.Pipeline([("fake", FakeBuiltin(cols="age"))])
     with pytest.raises(sq.InternalError) as err:
         pipe.learn(people)
-    text = str(err.value)
-    assert "sqlearn's bug" in text
-    assert "fake (step 1)" in text
-    assert "boom" in text
-    assert f"sqlearn {sq.__version__}" in text
-    assert f"duckdb {duckdb.__version__}" in text
-    assert f"Python {platform.python_version()}" in text
+    lines = str(err.value).split("\n")
+    assert lines[0] == (
+        "fake (step 1) is a built-in step (sqlearn.preprocessing.fake."
+        "FakeBuiltin) and it failed: boom"
+    )
+    assert lines[1] == (
+        "This is sqlearn's bug, not a mistake in your pipeline. Please report "
+        "it at https://github.com/glaucis/sqlearn/issues with the SQL and "
+        "versions below."
+    )
+    assert lines[2] == "SQL:"
+    assert lines[3] == "(not composed: the step failed first)"
+    assert lines[4] == (
+        f"Versions: sqlearn {sq.__version__}, duckdb {duckdb.__version__}, "
+        f"Python {platform.python_version()}"
+    )
+    assert len(lines) == 5
 
 
 def test_a_builtin_sql_refusal_reports_the_sql(people):
@@ -154,3 +180,21 @@ def test_diagnose_without_a_step_still_explains():
     err = diagnose(duckdb.Error("odd"), [("a", sq.Step())], lambda message: None)
     assert isinstance(err, sq.SqlearnError)
     assert "odd" in str(err)
+
+
+def test_a_builtin_failing_while_running_is_an_internal_error():
+    """A built-in step's run-time DuckDB error is sqlearn's bug, SQL attached."""
+    words = connection().sql("SELECT * FROM (VALUES ('1'), ('abc')) t(a)")
+    builtin = type(
+        "RunsBadly",
+        (FailsWhileRunning,),
+        {"__module__": "sqlearn.preprocessing.fake"},
+    )
+    with pytest.raises(sq.InternalError) as err:
+        sq.Pipeline([("fake", builtin())]).learn(words)
+    text = str(err.value)
+    assert text.startswith("fake (step 1) is a built-in step (")
+    assert "sqlearn's bug" in text
+    assert "WITH" in text
+    assert "Could not convert string 'abc'" in text
+    assert isinstance(err.value.__cause__, duckdb.Error)

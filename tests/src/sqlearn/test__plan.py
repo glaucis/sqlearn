@@ -1,5 +1,6 @@
 """Tests of the run planner: which run each step learns in, and what it reads."""
 
+import pytest
 from duckdb.sqltypes import DOUBLE, INTEGER, VARCHAR
 from steps_for_tests import MyEncoder, MyScale, Prefix, dynamic_step, static_step
 
@@ -202,3 +203,23 @@ def test_an_empty_pipeline_feeds_from_run_0():
     """No steps: the data is fed as it is, in run 0."""
     p = plan([], [("a", INTEGER)])
     assert (p.learn_run, p.feed_run, p.depends_on) == ([], 0, [])
+
+
+def test_a_declared_dynamic_step_is_planned_as_dynamic():
+    """A step declaring ``dynamic = True`` makes the steps after it wait."""
+    kind = type("Declared", (sq.Step,), {"dynamic": True, "creates": INTEGER})
+    p = plan([("d", kind(cols="city")), ("s", MyScale(cols="age"))], SCHEMA)
+    assert (p.learn_run[0], p.apply_run[0]) == (0, 1)
+
+
+def test_declaring_static_and_dynamic_is_refused():
+    """The two declarations contradict each other, so the step is named."""
+    kind = type("Both", (sq.Step,), {"static": True, "dynamic": True})
+    with pytest.raises(sq.StepError) as err:
+        plan([("one", sq.Step()), ("both", kind(cols="age"))], SCHEMA)
+    assert (err.value.step, err.value.position) == ("both", 2)
+    assert str(err.value) == (
+        "both (step 2) declares both static=True and dynamic=True, which "
+        "contradict each other. Fix: declare one, or neither (sqlearn will "
+        "then detect it)."
+    )
