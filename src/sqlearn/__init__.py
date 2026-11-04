@@ -26,6 +26,8 @@ from sqlearn._expr import (
     median,
     stddev_pop,
 )
+from sqlearn._output import Output, out_csv, out_json, out_parquet
+from sqlearn._pipeline import Pipeline, make_pipeline
 from sqlearn._selectors import cols, numeric, string
 from sqlearn._step import Learned, Step
 
@@ -33,6 +35,8 @@ __all__ = [
     "DefaultsUsedWarning",
     "InternalError",
     "Learned",
+    "Output",
+    "Pipeline",
     "SqlearnError",
     "SqlearnWarning",
     "Step",
@@ -45,8 +49,12 @@ __all__ = [
     "distinct_values",
     "get_config",
     "is_missing",
+    "make_pipeline",
     "median",
     "numeric",
+    "out_csv",
+    "out_json",
+    "out_parquet",
     "set_config",
     "stddev_pop",
     "string",

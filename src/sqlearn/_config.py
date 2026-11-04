@@ -8,8 +8,7 @@ from typing import TYPE_CHECKING
 import duckdb
 
 if TYPE_CHECKING:
-    # Task 8 creates this module; its type-ignore is then removed.
-    from sqlearn._output import Output  # type: ignore[import-not-found]  # ty: ignore[unresolved-import]
+    from sqlearn._output import Output
 
 __all__ = ["Config", "connection", "get_config", "set_config"]
 

@@ -22,7 +22,7 @@ class StepError(SqlearnError):
     step : str
         The name of the step.
     position : int
-        The step's position in the pipeline, counting from zero.
+        The step's position in the pipeline, counting from 1.
 
     Examples
     --------

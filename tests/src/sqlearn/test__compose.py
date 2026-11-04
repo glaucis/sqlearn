@@ -11,6 +11,7 @@ from sqlearn._compose import (
     Run,
     Stage,
     build,
+    copy_sql,
     describe,
     execute,
     stage_name,
@@ -173,3 +174,70 @@ def test_produce_needs_a_way_to_remake_a_learning_stage(con):
         execute(con, "t", [stage], produce=True)
     with pytest.raises(sq.SqlearnError, match="not mapped"):
         execute(con, "t", [stage], produce=False)
+
+
+def test_a_second_learning_step_learns_from_the_first_applied(con):
+    """Step 2's learn stage reads step 1's output through placeholders."""
+    first = step_stage(1, "scale", MyScale(), SCHEMA, SOURCE)
+    second = step_stage(2, "again", MyScale(), SCHEMA, first.name)
+    source = "SELECT * FROM t WHERE age IS NOT NULL"
+    values, _, run = execute(con, source, [first, second], produce=False)
+    assert len(run.statements) == 1
+    assert '"l01_scale"."v0"' in run.statements[0]
+    # Scaled values have mean 0 and population sd 1.
+    assert values["s02_again"]["mean"]["age"] == pytest.approx(0.0)
+    assert values["s02_again"]["scale"]["age"] == pytest.approx(1.0)
+
+
+def test_one_statement_and_two_give_equal_rows(con):
+    """`build` (one statement) and a learn-and-produce run agree."""
+    stages = impute_then_scale(SCHEMA)
+    _, rel, run = produce(con, "t", stages)
+    assert len(run.statements) == 2
+    one = [r[0] for r in con.sql(build("t", stages)).fetchall()]
+    assert one == pytest.approx([r[0] for r in rel.fetchall()])
+
+
+def test_remaking_without_a_learned_value_is_refused():
+    """A learned value missing for a column names the stage and column."""
+    known = {"mean": {"age": 10.0}, "scale": {}}
+    with pytest.raises(sq.SqlearnError, match=r"s01_scale.*'scale'.*'age'"):
+        step_stage(1, "scale", MyScale(), SCHEMA, SOURCE, values=known)
+
+
+def test_the_learn_statement_must_give_one_row():
+    """A learn statement returning no row is sqlearn's bug, said so."""
+
+    class NoRows:
+        """A connection whose every query returns no row."""
+
+        def sql(self, sql):
+            """Return an empty relation."""
+            return duckdb.sql("SELECT 1 WHERE false")
+
+    stages = impute_then_scale(SCHEMA)
+    with pytest.raises(sq.InternalError, match="one row"):
+        execute(NoRows(), "t", stages, produce=False)  # ty: ignore[invalid-argument-type]
+
+
+def test_learning_from_no_rows_names_the_step(con):
+    """A learn stage over no rows raises a StepError for its step."""
+    stages = impute_then_scale(SCHEMA)
+    with pytest.raises(sq.StepError, match=r"scale \(step 2\).*no rows") as err:
+        execute(con, "SELECT * FROM t WHERE false", stages, produce=False)
+    assert (err.value.step, err.value.position) == ("scale", 2)
+
+
+def test_given_columns_replace_the_selector():
+    """Columns fixed at learn are used instead of resolving the selector."""
+    schema = [("age", DOUBLE), ("extra", DOUBLE)]
+    known = {"mean": {"age": 10.0}, "scale": {"age": 2.0}}
+    stage = step_stage(1, "scale", MyScale(), schema, SOURCE, known, columns=["age"])
+    assert str(stage.columns["extra"]) == '"source"."extra"'
+
+
+def test_copy_writes_only_the_three_formats():
+    """A file format other than parquet, csv or json is refused."""
+    assert copy_sql("SELECT 1", "a.csv", "csv").endswith("(FORMAT csv)")
+    with pytest.raises(sq.SqlearnError, match="xlsx"):
+        copy_sql("SELECT 1", "a.xlsx", "xlsx")

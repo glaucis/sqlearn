@@ -9,14 +9,14 @@ later step learns from an earlier step's output. Every identifier written goes
 through `quote` (ADR 0015).
 """
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from functools import partial
 
 import duckdb
 from duckdb import Expression
 
-from sqlearn._errors import SqlearnError, StepError
+from sqlearn._errors import InternalError, SqlearnError, StepError
 from sqlearn._expr import quote
 from sqlearn._selectors import Schema
 from sqlearn._step import Learned, Step, output_names
@@ -25,7 +25,9 @@ __all__ = [
     "SOURCE",
     "Run",
     "Stage",
+    "apply_sql",
     "build",
+    "copy_sql",
     "describe",
     "execute",
     "stage_name",
@@ -34,6 +36,9 @@ __all__ = [
 
 SOURCE = "source"
 """The name of the first stage, which holds the data a run reads."""
+
+_ROWS = "n"
+"""The column of a learn stage counting the rows it learned from."""
 
 Values = dict[str, dict[str, object]]
 """What one step learned: learned name, then column, to value (as the store)."""
@@ -88,6 +93,10 @@ class Stage:
     remake : callable or None
         Builds this stage again from learned values (`Values`), with them as
         constants; None when the stage learns nothing.
+    step : str
+        The name of the step the stage belongs to, for messages.
+    position : int
+        The step's position in the pipeline, counting from 1.
 
     Examples
     --------
@@ -108,6 +117,8 @@ class Stage:
         repr=False,
         compare=False,
     )
+    step: str = ""
+    position: int = 0
 
     @property
     def learn_name(self) -> str:
@@ -156,6 +167,7 @@ def step_stage(
     values: Mapping[str, Mapping[str, object]] | None = None,
     *,
     applies: bool = True,
+    columns: Sequence[str] | None = None,
 ) -> Stage:
     """Build a step's stage from its `learn` and `apply`.
 
@@ -168,7 +180,7 @@ def step_stage(
     Parameters
     ----------
     position : int
-        The step's position in the pipeline, counting from zero.
+        The step's position in the pipeline, counting from 1.
     step_name : str
         The step's name.
     step : Step
@@ -182,6 +194,9 @@ def step_stage(
     applies : bool, default True
         False for a dynamic step learning in this run: its output is not
         known yet, so its columns pass through.
+    columns : sequence of str, optional
+        The columns the step works on, as fixed when it learned; by default
+        the step's selector is resolved against `schema`.
 
     Returns
     -------
@@ -192,6 +207,8 @@ def step_stage(
     ------
     StepError
         If two output columns share a name (DuckDB names ignore case).
+    SqlearnError
+        If `values` lacks a value the step learns for one of its columns.
 
     Examples
     --------
@@ -204,39 +221,39 @@ def step_stage(
     ...
     ...     def apply(self, x, learned):
     ...         return x - learned.mean
-    >>> stage = step_stage(0, "centre", Centre(), [("a", DOUBLE)], SOURCE)
+    >>> stage = step_stage(1, "centre", Centre(), [("a", DOUBLE)], SOURCE)
     >>> str(stage.columns["a"])
-    '("source"."a" - "l00_centre"."v0")'
+    '("source"."a" - "l01_centre"."v0")'
     >>> stage.learned
     {'v0': ('a', 'mean')}
     """
     name = stage_name(position, step_name)
     learn_name = stage_name(position, step_name, learn=True)
-    columns = {c: duckdb.ColumnExpression(previous, c) for c, _ in schema}
+    exprs = {c: duckdb.ColumnExpression(previous, c) for c, _ in schema}
+    chosen = step.inputs(schema) if columns is None else list(columns)
     learn: dict[str, Expression] = {}
     learned: dict[str, tuple[str, str]] = {}
     per_column: dict[str, Learned] = {}
-    for c in step.inputs(schema):
+    for c in chosen:
+        aggregates = step.learn(exprs[c])
         if values is None:
             names: dict[str, str] = {}
-            for key, aggregate in step.learn(columns[c]).items():
+            for key, aggregate in aggregates.items():
                 internal = f"v{len(learn)}"
                 learn[internal] = aggregate
                 learned[internal] = (c, key)
                 names[key] = internal
             per_column[c] = Learned.placeholders(learn_name, names)
         else:
-            per_column[c] = Learned.values(
-                {k: v[c] for k, v in values.items() if c in v},
-            )
+            per_column[c] = Learned.values(_known(name, c, aggregates, values))
     out: list[tuple[str, Expression]] = []
     for c, _ in schema:
         if c not in per_column or not applies:
-            out.append((c, columns[c]))
+            out.append((c, exprs[c]))
             continue
         if step.keep:
-            out.append((c, columns[c]))
-        result = step.apply(columns[c], per_column[c])
+            out.append((c, exprs[c]))
+        result = step.apply(exprs[c], per_column[c])
         out.extend(output_names(step_name, c, result, step.keep, step.suffix).items())
     clash = _clash([n for n, _ in out])
     if clash is not None:
@@ -254,8 +271,27 @@ def step_stage(
         learn=learn or None,
         reads=[learn_name] if learn and applies else [],
         learned=learned,
-        remake=partial(remake, applies=applies) if learn else None,
+        remake=partial(remake, applies=applies, columns=chosen) if learn else None,
+        step=step_name,
+        position=position,
     )
+
+
+def _known(
+    stage: str,
+    column: str,
+    aggregates: Mapping[str, Expression],
+    values: Mapping[str, Mapping[str, object]],
+) -> dict[str, object]:
+    """Pick one column's learned values, refusing one that is missing."""
+    for key in aggregates:
+        if column not in values.get(key, {}):
+            msg = (
+                f"stage {stage!r} has no learned value {key!r} for column "
+                f"{column!r}; the values do not match what the step learns."
+            )
+            raise SqlearnError(msg)
+    return {k: v[column] for k, v in values.items() if column in v}
 
 
 def _clash(names: list[str]) -> str | None:
@@ -269,6 +305,29 @@ def _clash(names: list[str]) -> str | None:
 
 def _items(items: Mapping[str, Expression]) -> str:
     return ", ".join(f"{e} AS {quote(k)}" for k, e in items.items())
+
+
+def apply_sql(stage: Stage) -> str:
+    """Return the SQL text of a stage's data stage, as the store keeps it.
+
+    Parameters
+    ----------
+    stage : Stage
+        The stage, usually built with its learned values as constants.
+
+    Returns
+    -------
+    str
+        The select list of the data stage.
+
+    Examples
+    --------
+    >>> import duckdb
+    >>> from sqlearn._compose import Stage, apply_sql
+    >>> apply_sql(Stage("s01_double", {"a": duckdb.ColumnExpression("a") * 2}))
+    'SELECT ("a" * 2) AS "a"'
+    """
+    return f"SELECT {_items(stage.columns)}"
 
 
 def _check(stage: Stage) -> None:
@@ -298,9 +357,11 @@ def _chain(source_sql: str, stages: list[Stage], every_learn: bool) -> list[str]
         _check(stage)
         if stage.learn and (every_learn or stage.learn_name in read):
             # MATERIALIZED, never NOT MATERIALIZED: the one row is computed once.
+            # The row count beside the values tells "no rows" from NULL values.
             ctes.append(
                 f"{quote(stage.learn_name)} AS MATERIALIZED "
-                f"(SELECT {_items(stage.learn)} FROM {quote(previous)})",
+                f"(SELECT {_items(stage.learn)}, count(*) AS {quote(_ROWS)} "
+                f"FROM {quote(previous)})",
             )
         joins = "".join(f" CROSS JOIN {quote(r)}" for r in stage.reads)
         ctes.append(
@@ -353,10 +414,50 @@ def _learn_sql(source_sql: str, stages: list[Stage]) -> str:
     learning = [s for s in stages if s.learn]
     picks = ", ".join(
         f"{quote(s.learn_name)}.{quote(k)} AS {quote(f'r{i}')}"
-        for i, (s, k) in enumerate((s, k) for s in learning for k in s.learn or {})
+        for i, (s, k) in enumerate(
+            (s, k) for s in learning for k in [_ROWS, *(s.learn or {})]
+        )
     )
     sources = " CROSS JOIN ".join(quote(s.learn_name) for s in learning)
     return "WITH " + ",\n".join(ctes) + f"\nSELECT {picks} FROM {sources}"
+
+
+_FORMATS = ("parquet", "csv", "json")
+
+
+def copy_sql(query: str, path: str, file_format: str) -> str:
+    """Return the statement writing a query's rows to a file (``COPY ... TO``).
+
+    Parameters
+    ----------
+    query : str
+        The query whose rows are written.
+    path : str
+        The file to write; quoted as a string literal.
+    file_format : {"parquet", "csv", "json"}
+        The file format.
+
+    Returns
+    -------
+    str
+        The ``COPY`` statement.
+
+    Raises
+    ------
+    SqlearnError
+        If `file_format` is not one of the three.
+
+    Examples
+    --------
+    >>> from sqlearn._compose import copy_sql
+    >>> copy_sql("SELECT 1", "it's.csv", "csv")
+    "COPY (SELECT 1) TO 'it''s.csv' (FORMAT csv)"
+    """
+    if file_format not in _FORMATS:
+        msg = f"cannot write {file_format!r} files; the formats are {_FORMATS}."
+        raise SqlearnError(msg)
+    literal = "'" + path.replace("'", "''") + "'"
+    return f"COPY ({query}) TO {literal} (FORMAT {file_format})"
 
 
 def describe(
@@ -431,6 +532,10 @@ def execute(
     ------
     SqlearnError
         If `produce` is asked for and a learning stage cannot be remade.
+    StepError
+        If a step learns from no rows.
+    InternalError
+        If the learn statement does not return exactly one row.
 
     Examples
     --------
@@ -444,11 +549,11 @@ def execute(
     ...
     ...     def apply(self, x, learned):
     ...         return x - learned.mean
-    >>> stage = step_stage(0, "centre", Centre(), [("a", DOUBLE)], SOURCE)
+    >>> stage = step_stage(1, "centre", Centre(), [("a", DOUBLE)], SOURCE)
     >>> source = "SELECT * FROM (VALUES (1.0), (3.0)) t(a)"
     >>> values, rel, run = execute(duckdb.connect(), source, [stage], produce=True)
     >>> values
-    {'s00_centre': {'mean': {'a': 2.0}}}
+    {'s01_centre': {'mean': {'a': 2.0}}}
     >>> rel.fetchall(), len(run.statements)
     ([(-1.0,), (1.0,)], 2)
     """
@@ -466,8 +571,23 @@ def execute(
     if learning:
         sql = _learn_sql(source_sql, stages)
         run.statements.append(sql)
-        row = iter(con.sql(sql).fetchall()[0])
+        rows = con.sql(sql).fetchall()
+        if len(rows) != 1:
+            msg = (
+                f"the learn statement returned {len(rows)} rows, not one row. "
+                "This is a bug in sqlearn: please report it with the statement "
+                f"below.\n{sql}"
+            )
+            raise InternalError(msg)
+        row = iter(rows[0])
         for s in learning:
+            if next(row) == 0:
+                msg = (
+                    f"{s.step} (step {s.position}) learned from no rows: the data "
+                    "reaching it is empty, so there is nothing to learn. "
+                    "Fix: pass data with at least one row."
+                )
+                raise StepError(msg, step=s.step, position=s.position)
             mine: Values = {}
             for k in s.learn or {}:
                 column, name = s.learned[k]
