@@ -1,9 +1,9 @@
 ---
 type: architecture
-tags: [overview, sqlearn, duckdb, scikit-learn, roadmap, constraints]
-summary: "Project map for sqlearn, a DuckDB-based scikit-learn alternative: its purpose, agreed constraints, the nine parts, and order of work."
-related: [docs/adr/0003-scikit-learn-style-api.md, docs/adr/0002-sql-on-duckdb-execution-engine.md, docs/adr/0005-runtime-dependencies.md, docs/adr/0004-apache-2-licence.md, docs/adr/0006-local-and-offline.md, docs/questions/README.md, docs/questions/applications-home.md, docs/adr/0009-sphinx-documentation-site.md]
-mdindex: [type=4ca303, tags=d179bd, summary=d5f450, related=0c2995]
+tags: [overview, sqlearn, duckdb, roadmap, scikit-learn, project-structure]
+summary: "Project-wide map of sqlearn: its purpose, agreed constraints, the nine parts and their dependencies, and the order of work."
+related: [docs/adr/0003-scikit-learn-style-api.md, docs/adr/0002-sql-on-duckdb-execution-engine.md, docs/adr/0005-runtime-dependencies.md, docs/adr/0004-apache-2-licence.md, docs/adr/0006-local-and-offline.md, docs/adr/0009-sphinx-documentation-site.md, docs/adr/0001-uv-for-python-packaging.md, docs/adr/0007-python-3-12-floor.md]
+mdindex: [type=4ca303, tags=ddebfa, summary=f8335e, related=914b44]
 ---
 # Overview
 
@@ -115,9 +115,11 @@ them. CI and the site deploy join when the repository is public.
 
 ### 3.2 Library core
 
-**What:** the contracts everything else is built on: the estimator API (fit,
-transform, predict, and what a parameter is), the data model over DuckDB
-relations, the pipeline, and how an algorithm is expressed in SQL.
+**What:** the contracts everything else is built on: the API (`learn` and
+`apply` for steps, `train` and `predict` for models:
+[ADR 0013](../adr/0013-learn-apply-train-predict.md); and what a parameter is),
+the data model over DuckDB relations, the pipeline, and how an algorithm is
+expressed in SQL.
 
 Two requirements come from the later applications and are cheapest met here:
 
@@ -128,7 +130,8 @@ Two requirements come from the later applications and are cheapest met here:
 
 The user writes steps in order and sees results when asked, as in
 scikit-learn; how much of a pipeline runs as one query is the library's
-concern, never the user's (proposed). See
+concern, never the user's: learning runs once per dynamic step
+([ADR 0012](../adr/0012-static-and-dynamic-steps.md)). See
 [questions/fit-execution-model.md](../questions/fit-execution-model.md) and
 [questions/scikit-learn-api-survey.md](../questions/scikit-learn-api-survey.md).
 

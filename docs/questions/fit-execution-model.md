@@ -1,31 +1,22 @@
 ---
 type: question
-tags: [fit, execution-model, sql, pipeline, duckdb]
-summary: "Open questions on how fit executes in a SQL-based pipeline: one query or per-step aggregates, where learned state lives, and the scope of the one-query promise."
-mdindex: [type=1f5087, tags=2d58d7, summary=db75b6, related=81cf72]
-related: [docs/architecture/overview.md, docs/questions/earlier-attempts/README.md]
+tags: [learned-state, fit, execution-model, duckdb, sql, cross-validation]
+summary: "Open question on where learned state is kept once learning has run, and how it is saved; how learning runs is decided in ADR 0012."
+mdindex: [type=1f5087, tags=f635d0, related=5dc381]
+related: [docs/adr/0012-static-and-dynamic-steps.md, docs/questions/earlier-attempts/README.md]
 ---
-# How does `fit` execute?
+# Where is learned state kept?
 
-`transform` is a SQL expression applied to rows, so a pipeline's transforms
-compose naturally into one query. `fit` is different: it learns statistics
-(means, category lists, quantiles) with aggregate queries, and a later step's
-statistics can depend on an earlier step's output. For example, a scaler after
-an imputer must see the imputed values.
+How learning runs is decided in
+[ADR 0012](../adr/0012-static-and-dynamic-steps.md): static steps chain into
+one SQL tree, learning runs once per dynamic step, and inside a run a static
+step's learned values are referenced, never written in as literals. `apply` is
+one query.
 
-Open points:
-
-- Can a whole pipeline's `fit` be one query, or does it take one aggregate
-  query per step, run in order?
-- Where is learned state kept: in Python attributes, as values embedded in the
-  generated SQL, or in DuckDB tables?
-- What does "one massive SQL" promise users exactly: `transform` only, or
-  `fit` as well?
-
-Proposed in [the overview](../architecture/overview.md) (3.2): the user writes
-steps in order and sees results when asked; how much of a pipeline runs as one
-query is the library's concern, never the user's. The core's spec answers the
-points above within that rule.
+Still open: once a run ends, where are the learned values kept (Python
+attributes, values written into the `apply` SQL, DuckDB tables), how are they
+saved and loaded, and how are they kept apart from the step objects so that
+cross-validation folds and refits cannot overwrite each other?
 
 ## What the earlier attempts show
 
