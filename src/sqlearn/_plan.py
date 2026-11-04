@@ -65,8 +65,21 @@ def _reads_unknown(selector: Selector, column: _Column, known: set[str]) -> bool
     return column.dtype is None or selector.may_match(column.dtype)
 
 
+def _consumes(step: Step, column: _Column) -> bool:
+    # A read column is certainly consumed when it is known by name, or when
+    # the step reads every column, or its selector must match the whole group.
+    if column.name is not None or step.cols is None:
+        return True
+    selector = to_selector(step.cols)
+    if isinstance(selector, _Cols) or column.dtype is None:
+        return False
+    return selector._must(column.dtype)
+
+
 def _known(columns: list[_Column]) -> Schema:
-    return [(c.name, c.dtype) for c in columns if c.name is not None and c.dtype]
+    return [
+        (c.name, c.dtype) for c in columns if c.name is not None and c.dtype is not None
+    ]
 
 
 def _read(step: Step, columns: list[_Column]) -> list[_Column]:
@@ -152,10 +165,15 @@ def _write(
     deps: frozenset[int],
     dynamic: bool,
 ) -> list[_Column]:
+    # Columns are compared by identity (`_Column` has eq=False on purpose):
+    # two unknown groups may hold equal fields yet be different columns.
     chosen = {id(c) for c in read}
     out: list[_Column] = []
     for c in columns:
         if id(c) not in chosen or step.keep:
+            out.append(c)
+        elif dynamic and not _consumes(step, c):
+            # The step may read only part of an unknown group: the rest stays.
             out.append(c)
         elif not dynamic:
             out.append(_Column(c.name, c.dtype, ready, deps))

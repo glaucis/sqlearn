@@ -139,6 +139,42 @@ def test_a_dynamic_step_removes_its_input():
     assert p.learn_run == [0, 1]
 
 
+def test_a_dynamic_step_leaves_new_columns_it_may_not_read():
+    """A dynamic step reading part of an unknown group leaves the rest."""
+    p = runs(
+        dynamic_step("x"),
+        dynamic_step(Prefix("x_a"), creates=VARCHAR),
+        static_step(sq.numeric()),
+    )
+    assert (p.learn_run, p.depends_on[2]) == ([0, 1, 1], frozenset({0}))
+
+
+def test_a_dynamic_step_leaves_new_columns_of_any_type():
+    """New columns of undeclared type may not all be read by a type selector."""
+    p = runs(
+        dynamic_step("x", creates=None),
+        dynamic_step(sq.numeric(), creates=INTEGER),
+        static_step(sq.string()),
+    )
+    assert (p.learn_run, p.depends_on[2]) == ([0, 1, 1], frozenset({0}))
+
+
+def test_a_dynamic_step_consumes_new_columns_it_must_read():
+    """A selector that must match the new type consumes the whole group."""
+    p = runs(
+        dynamic_step("x"),
+        dynamic_step(sq.numeric(), creates=VARCHAR),
+        static_step(sq.numeric()),
+    )
+    assert (p.learn_run, p.depends_on[2]) == ([0, 1, 0], frozenset())
+
+
+def test_a_dynamic_step_by_name_leaves_new_columns():
+    """Naming one new column does not consume the others."""
+    p = runs(dynamic_step("x"), dynamic_step(["x_red"]), static_step(["x_blue"]))
+    assert p.depends_on[2] == frozenset({0, 1})
+
+
 def test_a_dynamic_step_may_keep_its_input():
     """With ``keep=True`` the input stays, as it was."""
     p = runs(dynamic_step("city", keep=True), static_step(["city"]))
