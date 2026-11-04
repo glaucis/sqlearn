@@ -17,7 +17,7 @@ import duckdb
 
 from sqlearn._config import connection
 from sqlearn._errors import DefaultsUsedWarning, SqlearnError
-from sqlearn._inputs import Source, read
+from sqlearn._inputs import Source, _release_later, read
 from sqlearn._model import Model, _numpy, _unregister, target_values
 from sqlearn._output import Output
 from sqlearn._pipeline import Pipeline, _source_sql
@@ -303,7 +303,7 @@ class Search:
             },
         )
         rel = con.table(name)
-        weakref.finalize(rel, _unregister, con, name)
+        weakref.finalize(rel, _release_later, con, name)
         return rel
 
     def predict(self, data: object, out: str | Output | None = None) -> Any:  # noqa: ANN401  (the form `out` names)

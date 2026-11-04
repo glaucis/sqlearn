@@ -15,6 +15,7 @@ from typing import Any
 import duckdb
 
 from sqlearn._errors import SqlearnError
+from sqlearn._inputs import _release_later
 
 __all__ = [
     "FEEDS",
@@ -405,7 +406,7 @@ def received(
         .project(duckdb.ColumnExpression("prediction"))
     )
     # Release the registration (and the arrays) once the relation is gone.
-    weakref.finalize(rel, _unregister, con, name)
+    weakref.finalize(rel, _release_later, con, name)
     return rel
 
 

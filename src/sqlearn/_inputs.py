@@ -31,6 +31,29 @@ _connection_tokens: weakref.WeakKeyDictionary[duckdb.DuckDBPyConnection, int] = 
     weakref.WeakKeyDictionary()
 )
 _token_ids = itertools.count()
+_pending: list[tuple[weakref.ref[duckdb.DuckDBPyConnection], str]] = []
+"""Registrations whose owner is gone, unregistered at the next `read`."""
+
+
+def _release_later(con: duckdb.DuckDBPyConnection, name: str) -> None:
+    """Queue a registration for release; what every finaliser calls.
+
+    The garbage collector may run a finaliser in the middle of a query, when
+    the connection refuses any call. So a finaliser never touches the
+    connection: it only queues the name, and the next `read` (the start of
+    every public call) unregisters it.
+    """
+    _pending.append((weakref.ref(con), name))
+
+
+def _release_pending() -> None:
+    """Unregister every queued registration whose connection is still open."""
+    while _pending:
+        ref, name = _pending.pop()
+        con = ref()
+        if con is not None:
+            with contextlib.suppress(duckdb.Error):
+                con.unregister(name)
 
 
 class _Frame(Protocol):
@@ -167,21 +190,17 @@ def _read_frame(frame: _Frame) -> Source:
     source = Source(relation, ("frame", rows, digest, _names_and_types(schema)), schema)
     # Release the registration (and so the reference to the frame) once the
     # source is dropped: the store never keeps the user's data alive.
-    weakref.finalize(source, con.unregister, name)
+    weakref.finalize(source, _release_later, con, name)
     return source
 
 
-def _drop_view(con: duckdb.DuckDBPyConnection, name: str) -> None:
-    with contextlib.suppress(duckdb.Error):
-        con.execute(f"DROP VIEW IF EXISTS {quote(name)}")
-
-
 def _read_relation(data: duckdb.DuckDBPyRelation) -> Source:
-    """Read a relation through a view on its own connection.
+    """Read a relation through a temporary view registered on the connection.
 
-    The view keeps the relation's own scans (a Python frame found by name)
-    alive, and lets sqlearn's connection read it by name. A relation of
-    another connection cannot be seen there, so it is refused.
+    The registration keeps the relation's own scans (a Python frame found by
+    name) alive and lets sqlearn read it by name; being temporary, it is never
+    written to the user's database, and works on a read-only one. A relation
+    of another connection cannot be registered there, so it is refused.
     """
     try:
         key = (
@@ -198,12 +217,10 @@ def _read_relation(data: duckdb.DuckDBPyRelation) -> Source:
         )
         raise SqlearnError(msg) from exc
     name = f"_sqlearn_relation_{next(_frame_ids)}"
-    data.create_view(name, replace=False)
     con = connection()
     try:
-        relation = con.table(name)
-    except duckdb.CatalogException as exc:
-        data.query("_sqlearn_self", f"DROP VIEW {quote(name)}")
+        con.register(name, data)
+    except duckdb.InvalidInputException as exc:
         msg = (
             "The relation passed belongs to another DuckDB connection than "
             "the one sqlearn computes in. sqlearn runs every query on one "
@@ -212,8 +229,9 @@ def _read_relation(data: duckdb.DuckDBPyRelation) -> Source:
             "or pass a table name, a file or a pandas frame."
         )
         raise SqlearnError(msg) from exc
+    relation = con.table(name)
     source = Source(relation, key, _schema(relation))
-    weakref.finalize(source, _drop_view, con, name)
+    weakref.finalize(source, _release_later, con, name)
     return source
 
 
@@ -247,6 +265,7 @@ def read(data: object) -> Source:
     >>> source.key[0], source.relation.fetchall()
     ('relation', [(1,)])
     """
+    _release_pending()
     if isinstance(data, duckdb.DuckDBPyRelation):
         return _read_relation(data)
     if isinstance(data, (str, Path)):

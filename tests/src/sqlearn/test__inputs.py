@@ -2,6 +2,7 @@
 
 import gc
 import os
+import sys
 import weakref
 
 import duckdb
@@ -107,7 +108,7 @@ def test_equal_tables_on_two_connections_learn_their_own_values():
 
 
 def test_a_relation_is_read_through_a_view_released_with_the_source():
-    """A relation becomes a view on its connection, dropped with the source."""
+    """A relation becomes a temporary view, dropped at the call after the source."""
     rel = _config.connection().sql("SELECT 1 AS a")
     source = read(rel)
     views = [v for v in _views() if v.startswith("_sqlearn_relation_")]
@@ -115,7 +116,47 @@ def test_a_relation_is_read_through_a_view_released_with_the_source():
     assert source.relation.sql_query() == f'SELECT * FROM "{views[0]}"'
     del source
     gc.collect()
+    _next_call()
     assert not any(v.startswith("_sqlearn_relation_") for v in _views())
+
+
+def test_a_relation_never_leaves_a_view_in_a_database_file(tmp_path):
+    """The view is temporary: none is stored, even while the source is alive."""
+    path = str(tmp_path / "user.db")
+    con = duckdb.connect(path)
+    con.execute("CREATE TABLE t AS SELECT range::DOUBLE AS x FROM range(10)")
+    _config.set_config(connection=con)
+    rel = con.sql("SELECT * FROM t WHERE x > 1")
+    pipe = sq.Pipeline([("s", sq.Scale())]).learn(rel)
+    out = pipe.apply(rel)
+    con.execute("CHECKPOINT")
+    stored = con.sql(
+        "SELECT view_name FROM duckdb_views() WHERE NOT temporary AND NOT internal"
+    )
+    assert stored.fetchall() == []
+    assert len(out.fetchall()) == 8
+    con.close()
+    again = duckdb.connect(path)
+    assert (
+        again.sql("SELECT view_name FROM duckdb_views() WHERE NOT internal").fetchall()
+        == []
+    )
+    again.close()
+
+
+def test_a_read_only_database_accepts_a_relation(tmp_path):
+    """Reading a relation writes nothing to the user's database."""
+    path = str(tmp_path / "user.db")
+    con = duckdb.connect(path)
+    con.execute("CREATE TABLE t AS SELECT range::DOUBLE AS x FROM range(10)")
+    con.close()
+    con = duckdb.connect(path, read_only=True)
+    _config.set_config(connection=con)
+    pipe = sq.Pipeline([("s", sq.Scale())]).learn(
+        con.sql("SELECT * FROM t WHERE x > 1")
+    )
+    assert pipe["s"].mean_ == {"x": 5.5}
+    con.close()
 
 
 def test_a_relation_of_another_connection_is_refused():
@@ -234,6 +275,13 @@ def _views():
     return [r[0] for r in rows.fetchall()]
 
 
+def _next_call():
+    """Make a public call that registers nothing: it releases what is pending."""
+    con = _config.connection()
+    con.execute("CREATE OR REPLACE TABLE _next AS SELECT 1.0 AS x")
+    sq.Pipeline([("s", sq.Scale())]).learn("_next")
+
+
 def test_a_dropped_source_releases_its_frame():
     """The registered view and the reference to the frame go with the source."""
     df = pd.DataFrame({"a": [1, 2]})
@@ -242,10 +290,57 @@ def test_a_dropped_source_releases_its_frame():
     assert any(v.startswith("_sqlearn_frame_") for v in _views())
     del source
     gc.collect()
+    _next_call()
     assert not any(v.startswith("_sqlearn_frame_") for v in _views())
     del df
     gc.collect()
     assert ref() is None
+
+
+class _Model:
+    """A model that predicts 0 for every row."""
+
+    def fit(self, x, y):
+        """Learn nothing."""
+        return self
+
+    def predict(self, x):
+        """Predict 0."""
+        return [0] * len(x)
+
+
+def test_a_finaliser_never_calls_the_connection(monkeypatch):
+    """With the collector firing all the time, nothing is raised, and nothing
+    stays registered or alive after the next call."""
+    raised = []
+    monkeypatch.setattr(sys, "unraisablehook", raised.append)
+    refs = []
+    threshold = gc.get_threshold()
+    gc.set_threshold(1, 1, 1)
+    try:
+        for _ in range(3):
+            df = pd.DataFrame({"city": ["a", "b"], "x": [1.0, 2.0], "city_a": [0, 1]})
+            refs.append(weakref.ref(df))
+            pipe = sq.Pipeline([("oh", sq.OneHot(["city"])), ("model", _Model())])
+            try:
+                pipe.train(df, target="city_a")
+            except sq.StepError as exc:  # its traceback holds the source in a cycle
+                assert "city_a" in str(exc)  # noqa: PT017
+            del df
+            big = pd.DataFrame({"x": range(200_000), "y": [0, 1] * 100_000})
+            big["c"] = big["y"].astype(str)  # scanning text calls into Python
+            steps = [("s", sq.Scale()), ("o", sq.Ordinal()), ("model", _Model())]
+            pipe = sq.Pipeline(steps)
+            pipe.train(big, target="y").predict(big).fetchall()
+            sq.Pipeline([("s", sq.Scale())]).learn(big).apply(big).fetchall()
+            del big, pipe
+    finally:
+        gc.set_threshold(*threshold)
+    gc.collect()
+    _next_call()
+    assert raised == []
+    assert not any(v.startswith("_sqlearn_") for v in _views())
+    assert all(r() is None for r in refs)
 
 
 def test_a_frame_is_not_copied_in_the_normal_case(monkeypatch):
