@@ -1,7 +1,7 @@
 ---
 type: adr
 tags: [api, apply, output, lazy, numpy, arrow, pandas, models]
-summary: "Records that results are lazy by default: apply returns a DuckDB relation, out= turns it into what the user wants to see or save, and feed= sets the form handed to a model, chosen per model by default."
+summary: "Records that results are lazy by default: apply returns a DuckDB relation, out= turns it into what the user wants to see or save, and feed= sets the form handed to a model, numpy by default."
 related: [docs/adr/0005-runtime-dependencies.md, docs/adr/0013-learn-apply-train-predict.md, docs/adr/0017-models-from-other-libraries.md, docs/adr/0022-one-search-with-pluggable-methods.md]
 ---
 # 0023: Lazy results, `out=` and `feed=`
@@ -42,13 +42,12 @@ session, as scikit-learn's `set_config(transform_output=...)` does; `out=` on
 a call overrides it.
 
 **`feed=`: what a model is given.** Data becomes eager only when it is handed to
-the model. The form is chosen per model, from the same table of known models as
-the default search spaces
-([ADR 0022](0022-one-search-with-pluggable-methods.md)), and the user can
-override it:
+the model. The default is numpy for every model; the user can override it.
+Choosing the form per model automatically is left for later: one parameter
+keeps that change invisible to users.
 
 ```python
-pipe.train("big.parquet", target="churned")  # numpy for LogisticRegression
+pipe.train("big.parquet", target="churned")  # numpy
 pipe.train("big.parquet", target="churned", feed="arrow")  # the user's choice
 ```
 
@@ -58,11 +57,27 @@ pipe.train("big.parquet", target="churned", feed="arrow")  # the user's choice
 | Arrow table | all of it, columnar, no conversion | LightGBM and others that take Arrow |
 | Arrow stream | one batch at a time | models that learn piece by piece |
 
+**`feed` travels with the model.** `sq.Model(estimator, feed=...)` wraps an
+outside model and carries sqlearn's settings for it; a plain model is
+`sq.Model(model)` with `feed="numpy"`. In a search over several models each
+candidate keeps its own:
+
+```python
+params = {
+    "model": [LogisticRegression(), sq.Model(LGBMClassifier(), feed="arrow")],
+    "model__C": [0.1, 1, 10],  # only where the model has C
+}
+```
+
+`feed` is not a search parameter, which would try every model with every form.
+A session-wide mapping by model class (`sq.set_config(feed={...})`) may come
+later.
+
 ## Consequences
 
 - sqlearn still depends only on `duckdb`.
 - The slice uses only numpy, for scikit-learn's `LogisticRegression`; Arrow
   and batches are built after it
   ([issue #21](https://github.com/glaucis/sqlearn/issues/21)).
-- A model with no entry in the table is fed numpy, and a wrong guess is fixed
-  with `feed=`.
+- Models that would take Arrow better still get numpy unless the user says
+  otherwise.
