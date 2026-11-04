@@ -114,6 +114,11 @@ def count(x: Expression) -> Expression:
 def distinct_values(x: Expression) -> Expression:
     """Return the sorted list of the distinct values of `x`.
 
+    NULL is not a value; with no value at all the list is empty. The values
+    are counted in a hash table (``histogram``), so the memory this takes
+    grows with the number of distinct values, not with the number of rows:
+    a column of a few categories is learned from data larger than memory.
+
     Parameters
     ----------
     x : duckdb.Expression
@@ -122,16 +127,17 @@ def distinct_values(x: Expression) -> Expression:
     Returns
     -------
     duckdb.Expression
-        ``list_sort(list_distinct(list(x)))``.
+        ``COALESCE(list_sort(map_keys(histogram(x))), [])``.
 
     Examples
     --------
     >>> import duckdb
     >>> import sqlearn as sq
     >>> str(sq.distinct_values(duckdb.ColumnExpression("age")))
-    'list_sort(list_distinct(list("age")))'
+    'COALESCE(list_sort(map_keys(histogram("age"))), [])'
     """
-    return _call("list_sort", _call("list_distinct", _call("list", x)))
+    keys = _call("list_sort", _call("map_keys", _call("histogram", x)))
+    return duckdb.CoalesceOperator(keys, duckdb.ConstantExpression([]))
 
 
 def is_missing(x: Expression) -> Expression:
