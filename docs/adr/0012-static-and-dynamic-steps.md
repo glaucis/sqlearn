@@ -69,6 +69,5 @@ How a step's class is decided:
 - Learning stages are left to DuckDB's default or marked `MATERIALIZED`; never
   `NOT MATERIALIZED`, and never built by chaining lazy relation objects, whose
   cost doubles with each step.
-- Where learned values are kept once a run ends, and how they are saved, is a
-  separate decision
-  ([questions/fit-execution-model.md](../questions/fit-execution-model.md)).
+- Where learned values are kept once a run ends is a separate decision
+  ([ADR 0014](0014-learning-store.md)).

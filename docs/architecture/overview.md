@@ -1,9 +1,9 @@
 ---
 type: architecture
-tags: [overview, sqlearn, duckdb, roadmap, scikit-learn, project-structure]
+tags: [sqlearn, duckdb, roadmap, scikit-learn, project-structure]
 summary: "Project-wide map of sqlearn: its purpose, agreed constraints, the nine parts and their dependencies, and the order of work."
-related: [docs/adr/0003-scikit-learn-style-api.md, docs/adr/0002-sql-on-duckdb-execution-engine.md, docs/adr/0005-runtime-dependencies.md, docs/adr/0004-apache-2-licence.md, docs/adr/0006-local-and-offline.md, docs/adr/0009-sphinx-documentation-site.md, docs/adr/0001-uv-for-python-packaging.md, docs/adr/0007-python-3-12-floor.md]
-mdindex: [type=4ca303, tags=ddebfa, summary=f8335e, related=914b44]
+related: [docs/adr/0003-scikit-learn-style-api.md, docs/adr/0002-sql-on-duckdb-execution-engine.md, docs/questions/README.md, docs/adr/0004-apache-2-licence.md, docs/adr/0005-runtime-dependencies.md, docs/adr/0006-local-and-offline.md, docs/questions/applications-home.md, docs/adr/0009-sphinx-documentation-site.md]
+mdindex: [type=4ca303, tags=e5733c, summary=f8335e, related=6f5013]
 ---
 # Overview
 
@@ -131,8 +131,9 @@ Two requirements come from the later applications and are cheapest met here:
 The user writes steps in order and sees results when asked, as in
 scikit-learn; how much of a pipeline runs as one query is the library's
 concern, never the user's: learning runs once per dynamic step
-([ADR 0012](../adr/0012-static-and-dynamic-steps.md)). See
-[questions/fit-execution-model.md](../questions/fit-execution-model.md) and
+([ADR 0012](../adr/0012-static-and-dynamic-steps.md)), and learned values are
+kept in a store while the program runs, so nothing is learned twice
+([ADR 0014](../adr/0014-learning-store.md)). See also
 [questions/scikit-learn-api-survey.md](../questions/scikit-learn-api-survey.md).
 
 Proven by one vertical slice: one transformer, one model, one metric, end to

@@ -1,27 +1,29 @@
 ---
 type: question
-tags: [learned-state, fit, execution-model, duckdb, sql, cross-validation]
-summary: "Open question on where learned state is kept once learning has run, and how it is saved; how learning runs is decided in ADR 0012."
-mdindex: [type=1f5087, tags=f635d0, related=5dc381]
-related: [docs/adr/0012-static-and-dynamic-steps.md, docs/questions/earlier-attempts/README.md]
+tags: [learning, fit, execution-model, static-steps, dynamic-steps, learned-state]
+summary: "Answered: how learning runs (ADR 0012), the verbs (ADR 0013) and where learned state lives (ADR 0014); kept for its evidence until the earlier-attempt reviews are retired."
+mdindex: [type=1f5087, tags=a75939, related=fa6ef0]
+related: [docs/adr/0012-static-and-dynamic-steps.md, docs/adr/0013-learn-apply-train-predict.md, docs/adr/0014-learning-store.md, ADR-0012, ADR-0013, ADR-0014, "issue #20", earlier-attempts/README.md]
 ---
-# Where is learned state kept?
+# How does learning run? (answered)
 
-How learning runs is decided in
-[ADR 0012](../adr/0012-static-and-dynamic-steps.md): static steps chain into
-one SQL tree, learning runs once per dynamic step, and inside a run a static
-step's learned values are referenced, never written in as literals. `apply` is
-one query.
+Answered on 2026-11-04:
 
-Still open: once a run ends, where are the learned values kept (Python
-attributes, values written into the `apply` SQL, DuckDB tables), how are they
-saved and loaded, and how are they kept apart from the step objects so that
-cross-validation folds and refits cannot overwrite each other?
+- how learning runs, and what static and dynamic steps are:
+  [ADR 0012](../adr/0012-static-and-dynamic-steps.md);
+- the verbs `learn`, `apply`, `train` and `predict`:
+  [ADR 0013](../adr/0013-learn-apply-train-predict.md);
+- where learned values live, and when they are reused:
+  [ADR 0014](../adr/0014-learning-store.md). Saving them to a file is a later
+  idea ([issue #20](https://github.com/glaucis/sqlearn/issues/20)).
+
+The evidence below stays until the earlier-attempt reviews are retired; this
+file is deleted with them ([the plan](earlier-attempts/README.md)).
 
 ## What the earlier attempts show
 
 Evidence from the ten earlier attempts ([the map](earlier-attempts/README.md),
-with each review's citations); the decision is still open.
+with each review's citations); now decided in the ADRs above.
 
 - **Batching every learning step's aggregates over one input is wrong.**
   Every attempt that designed a fit did it, so `Impute` then `Scale` scaled
