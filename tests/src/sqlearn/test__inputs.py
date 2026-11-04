@@ -1,0 +1,127 @@
+"""Tests of reading inputs and keying them for the store."""
+
+import os
+
+import duckdb
+import pandas as pd
+import pytest
+
+from sqlearn import SqlearnError, _config
+from sqlearn._inputs import read
+
+
+def _write(path, text, mtime_ns=None):
+    path.write_text(text)
+    if mtime_ns is not None:
+        os.utime(path, ns=(mtime_ns, mtime_ns))
+
+
+def test_a_file_key_changes_when_the_file_changes(tmp_path):
+    """Rewriting a file with other content and a later mtime changes the key."""
+    path = tmp_path / "d.csv"
+    _write(path, "a\n1\n", 1_000_000_000)
+    first = read(path)
+    assert first.relation.fetchall() == [(1,)]
+    _write(path, "a\n1\n2\n", 2_000_000_000)
+    second = read(str(path))
+    assert first.key[0] == "file"
+    assert first.key != second.key
+    assert second.relation.fetchall() == [(1,), (2,)]
+    assert [name for name, _ in first.schema] == ["a"]
+    assert hash(first.key) is not None
+
+
+def test_a_glob_reads_all_matches_in_order(tmp_path):
+    """A glob reads every match, sorted by path."""
+    _write(tmp_path / "b.csv", "a\n2\n")
+    _write(tmp_path / "a.csv", "a\n1\n")
+    source = read(str(tmp_path / "*.csv"))
+    assert source.relation.fetchall() == [(1,), (2,)]
+    assert len(source.key[1]) == 2
+
+
+def test_a_glob_matching_nothing_is_named(tmp_path):
+    """A pattern with no match raises an error naming it."""
+    pattern = str(tmp_path / "*.parquet")
+    with pytest.raises(SqlearnError, match=r"\*\.parquet"):
+        read(pattern)
+
+
+def test_parquet_and_json_are_read(tmp_path):
+    """Parquet and JSON files are read, whatever the case of the suffix."""
+    con = _config.connection()
+    con.sql("SELECT 1 AS a").write_parquet(str(tmp_path / "p.PARQUET"))
+    _write(tmp_path / "j.json", '[{"a": 5}]')
+    assert read(tmp_path / "p.PARQUET").relation.fetchall() == [(1,)]
+    assert read(tmp_path / "j.json").relation.fetchall() == [(5,)]
+
+
+def test_a_table_name_is_keyed_by_row_count():
+    """A table name reads that table; adding a row changes the key."""
+    con = _config.connection()
+    con.execute("CREATE TABLE t AS SELECT 1 AS a")
+    first = read("t")
+    con.execute("INSERT INTO t VALUES (2)")
+    second = read("t")
+    assert first.key[0] == "table"
+    assert first.key != second.key
+    assert second.relation.fetchall() == [(1,), (2,)]
+
+
+def test_a_relation_is_keyed_by_its_sql_and_rows():
+    """A relation is keyed by its SQL text and row count."""
+    rel = _config.connection().sql("SELECT 1 AS a")
+    source = read(rel)
+    assert source.key[0] == "relation"
+    assert source.key[2] == 1
+    assert source.relation is rel
+
+
+def test_an_edited_frame_gets_a_new_key():
+    """Changing one value changes the frame's key; equal frames agree."""
+    df = pd.DataFrame({"age": [1, 2, 3], "city": ["a", "b", "c"]})
+    first = read(df)
+    assert first.key == read(df.copy()).key
+    df.loc[0, "age"] = 999
+    assert first.key[0] == "frame"
+    assert read(df).key != first.key
+
+
+def test_reordered_rows_get_a_new_key():
+    """The same rows in another order give another key."""
+    df = pd.DataFrame({"age": [1, 2, 3]})
+    assert read(df).key != read(df.iloc[::-1].reset_index(drop=True)).key
+    assert read(df).relation.fetchall() == [(1,), (2,), (3,)]
+
+
+def test_two_frames_do_not_collide():
+    """Two frames read one after the other keep their own data."""
+    a = read(pd.DataFrame({"x": [1]}))
+    b = read(pd.DataFrame({"x": [2]}))
+    assert a.relation.fetchall() == [(1,)]
+    assert b.relation.fetchall() == [(2,)]
+
+
+def test_a_polars_frame_is_refused_with_the_reason():
+    """Polars is refused, pointing to the spec."""
+    pl = pytest.importorskip("polars")
+    with pytest.raises(SqlearnError, match=r"after the core.*§7"):
+        read(pl.DataFrame({"a": [1]}))
+
+
+def test_anything_else_lists_what_is_accepted():
+    """An unsupported object raises an error listing accepted inputs."""
+    with pytest.raises(SqlearnError, match="accepted"):
+        read(42)
+
+
+def test_a_missing_table_is_named():
+    """A name that is no table raises an error naming it."""
+    with pytest.raises(SqlearnError, match="nowhere"):
+        read("nowhere")
+
+
+def test_relation_type_is_duckdb():
+    """The source's relation is a DuckDB relation."""
+    source = read(pd.DataFrame({"a": [1]}))
+    assert isinstance(source.relation, duckdb.DuckDBPyRelation)
