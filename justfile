@@ -208,6 +208,12 @@ check: lint-python check-types lint-markdown check-spelling check-mirror
 [group('check')]
 pre-commit: check check-lockfile
 
+# Run every test and every validation runner, writing their results as JSON under validation/
+[group('test')]
+validate:
+    uv run --locked pytest -m "" -q -p validation._tests_report --ignore=tests/githooks
+    uv run --locked python -m validation
+
 # Run every check, for review, merge and release
 [group('check')]
-verify: check check-types-mypy test-python-versions test-hooks check-docstrings build-docs
+verify: check check-types-mypy test-python-versions test-hooks check-docstrings validate build-docs

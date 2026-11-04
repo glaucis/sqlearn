@@ -122,7 +122,7 @@ warn_unreachable = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["tests/src/sqlearn"]  # the shared helper steps_for_tests
+pythonpath = [".", "tests/src/sqlearn"]  # validation/, and the shared helper steps_for_tests
 addopts = [
     "-q",
     "--strict-markers",
