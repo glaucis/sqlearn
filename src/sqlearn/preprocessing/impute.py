@@ -7,81 +7,18 @@ from duckdb import Expression
 from duckdb.sqltypes import DuckDBPyType
 
 from sqlearn._errors import SqlearnError, StepError
-from sqlearn._expr import avg, is_missing, median
+from sqlearn._expr import avg, const, is_missing, median
 from sqlearn._selectors import Schema, Selector, numeric
 from sqlearn._step import Learned, Step
+from sqlearn.preprocessing._missing import (
+    present,
+    refuse_all_missing,
+    refuse_infinite,
+)
 
 __all__ = ["Impute"]
 
 _STRATEGIES = ("median", "mean")
-
-
-def present(x: Expression) -> Expression:
-    """Return `x` as DOUBLE, or NULL where it is missing (NULL or NaN).
-
-    Aggregates skip NULL, so wrapping a column in this makes an aggregate run
-    over the non-missing values only.
-
-    Parameters
-    ----------
-    x : duckdb.Expression
-        The column.
-
-    Returns
-    -------
-    duckdb.Expression
-        ``CASE WHEN is_missing(x) THEN NULL ELSE x::DOUBLE END``.
-
-    Examples
-    --------
-    >>> import duckdb
-    >>> from sqlearn.preprocessing.impute import present
-    >>> rel = duckdb.sql("SELECT * FROM (VALUES (1), (NULL)) t(a)")
-    >>> rel.select(present(duckdb.ColumnExpression("a"))).fetchall()
-    [(1.0,), (None,)]
-    """
-    return duckdb.CaseExpression(
-        is_missing(x),
-        duckdb.ConstantExpression(None),
-    ).otherwise(x.cast("DOUBLE"))
-
-
-def refuse_all_missing(x: Expression, learned: Learned, name: str) -> None:
-    """Refuse a column whose learned `name` is NULL: it had no value to learn.
-
-    The refusal is a `StepError` without step or position (0); the pipeline
-    adds them.
-
-    Parameters
-    ----------
-    x : duckdb.Expression
-        The column.
-    learned : Learned
-        The values learned for the column.
-    name : str
-        The learned value that is NULL when every value was missing.
-
-    Raises
-    ------
-    StepError
-        If the learned value is the constant NULL.
-
-    Examples
-    --------
-    >>> import duckdb
-    >>> from sqlearn._step import Learned
-    >>> from sqlearn.preprocessing.impute import refuse_all_missing
-    >>> x = duckdb.ColumnExpression("a")
-    >>> refuse_all_missing(x, Learned.values({"mean": 1.0}), "mean")
-    """
-    if str(getattr(learned, name)) == "NULL":
-        column = x.get_name()
-        msg = (
-            f"cannot learn from column {column!r}: every value is missing, so "
-            "there is nothing to learn from. Fix: drop the column, or "
-            "exclude it with cols=."
-        )
-        raise StepError(msg, step="", position=0)
 
 
 class Impute(Step):
@@ -192,7 +129,8 @@ class Impute(Step):
         Returns
         -------
         mapping of str to duckdb.Expression
-            ``value``: the median or mean of the non-missing values.
+            ``value``: the median or mean of the non-missing values; and
+            ``infinite``: infinity where the column holds any, else 0.
 
         Examples
         --------
@@ -200,10 +138,17 @@ class Impute(Step):
         >>> import sqlearn as sq
         >>> learned = sq.Impute(strategy="mean").learn(duckdb.ColumnExpression("a"))
         >>> list(learned)
-        ['value']
+        ['value', 'infinite']
         """
         aggregate = median if self.strategy == "median" else avg
-        return {"value": aggregate(present(x))}
+        infinite = duckdb.CaseExpression(
+            duckdb.FunctionExpression("isinf", x.cast("DOUBLE")),
+            const(float("inf")),
+        ).otherwise(const(0.0))
+        return {
+            "value": aggregate(present(x)),
+            "infinite": duckdb.FunctionExpression("max", infinite),
+        }
 
     def apply(self, x: Expression, learned: Learned) -> Expression:
         """Replace the missing values with the learned one.
@@ -223,7 +168,7 @@ class Impute(Step):
         Raises
         ------
         StepError
-            If every value of the column was missing.
+            If every value of the column was missing, or any is infinite.
 
         Examples
         --------
@@ -231,10 +176,11 @@ class Impute(Step):
         >>> import sqlearn as sq
         >>> from sqlearn._step import Learned
         >>> x = duckdb.ColumnExpression("a")
-        >>> expr = sq.Impute().apply(x, Learned.values({"value": 2.5}))
+        >>> expr = sq.Impute().apply(x, Learned.values({"value": 2.5, "infinite": 0.0}))
         >>> "2.5" in str(expr)
         True
         """
         refuse_all_missing(x, learned, "value")
+        refuse_infinite(x, learned, "infinite")
         value = duckdb.CaseExpression(is_missing(x), learned.value)
         return value.otherwise(x.cast("DOUBLE"))

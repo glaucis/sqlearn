@@ -130,3 +130,39 @@ def test_settings_and_declaration():
     undeclared = type("Undeclared", (sq.Impute,), {"static": None})()
     assert classify(undeclared, [("a", DOUBLE)]) == "static"
     assert sq.Impute.static is True
+
+
+def test_reserved_word_and_space_names_work_and_are_named_in_errors():
+    """Columns called ``order`` and ``my col`` fill, and are named when refused."""
+    frame = pd.DataFrame({"order": [1.0, np.nan, 3.0], "my col": [2.0, 4.0, np.nan]})
+    got = sq.Pipeline([("fill", sq.Impute())]).learn(frame).apply(frame, out="pandas")
+    assert got["order"].tolist() == [1.0, 2.0, 3.0]
+    assert got["my col"].tolist() == [2.0, 4.0, 3.0]
+    dead = pd.DataFrame({"order": [np.nan, np.nan], "my col": [np.nan, np.nan]})
+    with pytest.raises(sq.StepError, match=r"fill \(step 1\).*'order'"):
+        sq.Pipeline([("fill", sq.Impute(cols="order"))]).learn(dead)
+    with pytest.raises(sq.StepError, match=r"fill \(step 1\).*'my col'"):
+        sq.Pipeline([("fill", sq.Impute(cols="my col"))]).learn(dead)
+
+
+def test_all_null_column_without_nan():
+    """A column of real NULLs (not NaN) is refused, naming it."""
+    rel = connection().sql("SELECT NULL::DOUBLE AS dead, 1.0 AS ok")
+    with pytest.raises(sq.StepError, match=r"fill \(step 1\).*'dead'"):
+        sq.Pipeline([("fill", sq.Impute())]).learn(rel)
+
+
+def test_integer_nulls_are_filled():
+    """A real NULL in an integer column is filled with the median, as DOUBLE."""
+    rel = connection().sql("SELECT * FROM (VALUES (1), (NULL), (5), (9)) t(n)")
+    pipe = sq.Pipeline([("fill", sq.Impute())]).learn(rel)
+    assert pipe.apply(rel).fetchall() == [(1.0,), (5.0,), (5.0,), (9.0,)]
+
+
+@pytest.mark.parametrize("strategy", ["median", "mean"])
+def test_infinity_is_refused(strategy):
+    """A column holding infinity is refused (the median would hide it)."""
+    frame = pd.DataFrame({"a": [1.0, np.inf, 3.0, np.nan, 2.0]})
+    pipe = sq.Pipeline([("fill", sq.Impute(strategy=strategy))])
+    with pytest.raises(sq.StepError, match=r"fill \(step 1\).*'a'.*infinity"):
+        pipe.learn(frame)

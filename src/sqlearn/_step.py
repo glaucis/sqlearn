@@ -44,6 +44,7 @@ class Learned:
 
     def __init__(self, items: Mapping[str, object]) -> None:
         self._items = dict(items)
+        self._raw: dict[str, object] = {}
         self.accessed: list[str] = []
 
     @classmethod
@@ -93,12 +94,43 @@ class Learned:
         >>> str(Learned.values({"mean": 2}).mean)
         '2'
         """
-        return cls(
+        learned = cls(
             {
                 k: v if isinstance(v, list) else duckdb.ConstantExpression(v)
                 for k, v in values.items()
             },
         )
+        learned._raw = dict(values)
+        return learned
+
+    def raw(self, name: str) -> object:
+        """Return a learned value as the Python object it was fetched as.
+
+        Reading it is not recorded in `accessed`. Use it to check a value
+        (None, NaN, infinity) without depending on how DuckDB prints it.
+
+        Parameters
+        ----------
+        name : str
+            The learned name.
+
+        Returns
+        -------
+        object
+            The Python value when built with `Learned.values`; else the
+            expression (a placeholder), which is not yet a number.
+
+        Examples
+        --------
+        >>> from sqlearn._step import Learned
+        >>> Learned.values({"mean": None}).raw("mean") is None
+        True
+        >>> Learned.placeholders("l01_s", {"mean": "v0"}).raw("mean") is None
+        False
+        """
+        if name in self._raw:
+            return self._raw[name]
+        return self._items[name]
 
     def __getattr__(self, name: str) -> object:
         if name.startswith("_") or name not in self._items:

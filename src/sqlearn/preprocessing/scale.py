@@ -8,7 +8,11 @@ from duckdb import Expression
 from sqlearn._expr import avg, const, stddev_pop
 from sqlearn._selectors import Selector, numeric
 from sqlearn._step import Learned, Step
-from sqlearn.preprocessing.impute import present, refuse_all_missing
+from sqlearn.preprocessing._missing import (
+    present,
+    refuse_all_missing,
+    refuse_infinite,
+)
 
 __all__ = ["Scale"]
 
@@ -106,7 +110,7 @@ class Scale(Step):
         Raises
         ------
         StepError
-            If every value of the column was missing.
+            If every value of the column was missing, or any is infinite.
 
         Examples
         --------
@@ -119,4 +123,6 @@ class Scale(Step):
         True
         """
         refuse_all_missing(x, learned, "mean")
+        refuse_infinite(x, learned, "mean")
+        refuse_infinite(x, learned, "scale")
         return (x.cast("DOUBLE") - learned.mean) / learned.scale

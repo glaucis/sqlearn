@@ -93,7 +93,10 @@ def _make_stage(
     try:
         return step_stage(position, name, step, *args, **kwargs)
     except StepError as exc:
-        raise _placed(exc, name, position) from exc
+        placed = _placed(exc, name, position)
+        if placed is exc:
+            raise
+        raise placed from exc
     except Exception as exc:
         err = diagnose(exc, steps, lambda _: position)
         if err is exc:
@@ -113,7 +116,10 @@ def _matched(step: Step, schema: Schema, name: str, position: int) -> list[str]:
     try:
         chosen = step.inputs(schema)
     except StepError as exc:
-        raise _placed(exc, name, position) from exc
+        placed = _placed(exc, name, position)
+        if placed is exc:
+            raise
+        raise placed from exc
     if step.cols is not None and not chosen:
         names = ", ".join(repr(c) for c, _ in schema)
         msg = (

@@ -189,6 +189,7 @@ check-mirror:
         fi
         case "$dir" in
             preprocessing|preprocessing/*|metrics|metrics/*)
+                case "$name" in _*) continue ;; esac
                 val="validation/sqlearn/${sub}validate_${name}.py"
                 if [ ! -f "$val" ]; then
                     echo "missing: $val (for $f)"
