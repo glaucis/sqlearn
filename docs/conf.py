@@ -28,6 +28,16 @@ extensions = [
 
 # Every cross-reference resolves, from the first build.
 nitpicky = True
+# Types that docstrings name and the reference does not list: the internal
+# selector, config and search-method classes, DuckDB's private type module,
+# and the part of a type such as "dict[str, list]" that numpydoc splits at its
+# comma.
+nitpick_ignore_regex = [
+    ("py:class", r"sqlearn\._.*"),
+    ("py:class", r"sqlearn\.model_selection\.methods\..*"),
+    ("py:class", r"dict\[str"),
+    ("py:class", r"_duckdb\..*"),
+]
 # In docs/ but not on the site: specs, plans, open questions and the agents'
 # configuration; the folders' one-line READMEs; the build output; and
 # notebooks, which are generated, since lessons are stored as text.
@@ -51,6 +61,7 @@ html_theme_options = {
 }
 
 autosummary_generate = True
+templates_path = ["_templates"]
 numpydoc_show_class_members = False
 
 intersphinx_mapping = {

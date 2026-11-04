@@ -13,6 +13,9 @@ Status: approved by Tomas on 2026-11-04. Written from the design talk of that
 day; every decision it rests on is in ADRs 0012–0025. Where this spec
 makes a call of its own, it says "(spec's call)".
 
+Built: see [the plan](../plans/2026-11-04-library-core.md). The rulings made
+while building are in the branch's history.
+
 ## 1. Purpose
 
 sqlearn prepares data in DuckDB, as SQL, so it works on data larger than
@@ -115,7 +118,11 @@ class Scale(sq.Step):
   (spec's call).
 - `sq.avg`, `sq.stddev_pop`, `sq.median` and the like are thin wrappers that
   build DuckDB expression objects. The slice needs those its steps use; more
-  come with the steps that need them.
+  come with the steps that need them. `sq.avg` is the compensated mean
+  (DuckDB's `favg`). `sq.median` is an exact median computed by sorting, so it
+  spills to disk: DuckDB's own `median` does not
+  ([issue #27](https://github.com/glaucis/sqlearn/issues/27) tracks the sort's
+  reach).
 - Steps that change rows (filters, sampling) are not in the slice; the contract
   leaves room for them ([ADR 0012](../adr/0012-static-and-dynamic-steps.md)).
 
@@ -187,11 +194,12 @@ Per [ADR 0018](../adr/0018-runs-follow-the-chains-between-steps.md):
   learning.
 - **A run** is one chained SQL tree. When a run must both learn values and
   produce data (the run that feeds the model learns `Scale`), it executes as
-  two statements: its learn stages are written to temporary one-row tables,
-  then the data query reads them. DuckDB reads the data as often as it would
-  inside one `WITH` query, which also reads it once to learn and once to
-  apply, and the learned values come back as constants for the store. A run
-  that only learns is one statement (spec's call).
+  two statements: one `WITH` query returns every learn stage of the run as one
+  row, which is fetched, then the data query is built with those values as
+  constants. DuckDB reads the data as often as it would inside one `WITH`
+  query, which also reads it once to learn and once to apply, and the learned
+  values are in hand for the store. A run that only learns is one statement
+  (spec's call).
 - The model counts as a reader: the data handed to it is produced by the run
   after the last dynamic step it depends on.
 - A step whose columns are not known (all columns, or an undeclared user step)
@@ -290,7 +298,9 @@ Per [ADR 0023](../adr/0023-lazy-results-out-and-feed.md):
   names steps after their class.
 - A pipeline without a model has `learn` and `apply`; one that ends in a model
   has `train` and `predict`
-  ([ADR 0013](../adr/0013-learn-apply-train-predict.md)).
+  ([ADR 0013](../adr/0013-learn-apply-train-predict.md)). `learn` and `apply`
+  refuse a pipeline that ends in a model, and say to use `train` and
+  `predict`.
 - The model is any object with scikit-learn's `fit` and `predict`
   ([ADR 0017](../adr/0017-models-from-other-libraries.md)). `train` learns the
   preparation (or finds it in the store), applies it, hands the result with the

@@ -25,7 +25,8 @@ def avg(x: Expression) -> Expression:
     Builds DuckDB's ``favg``, which sums with Kahan's compensation: on
     100,000 values it lands on the double nearest the exact mean, where the
     plain ``avg`` drifted by 119 ULPs (``validation/``, ruling 18). The
-    result is DOUBLE.
+    result is DOUBLE. It is NaN, not infinity, when the data holds an infinity
+    or the sum overflows. It prints as ``favg``, not ``avg``.
 
     Parameters
     ----------

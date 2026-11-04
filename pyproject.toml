@@ -38,8 +38,11 @@ lint = ["mypy>=2.4.1", "ruff>=0.17.3", "rumdl>=0.3.2", "ty>=0.0.96", "typos>=1.5
 docs = [
     "ipykernel>=7.4.0",
     "myst-nb>=1.4.0",
+    "numpy>=2.5.4",
     "numpydoc>=1.11.0",
+    "pandas>=3.1.0",
     "pydata-sphinx-theme>=0.24.0",
+    "scikit-learn>=1.9.1",
     "sphinx>=9.1.1",
     "sphinx-gallery>=0.22.1",
     "sphinxcontrib-bibtex>=2.7.0",

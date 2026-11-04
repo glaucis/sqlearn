@@ -2329,8 +2329,11 @@ dependencies = [
 docs = [
     { name = "ipykernel" },
     { name = "myst-nb" },
+    { name = "numpy" },
     { name = "numpydoc" },
+    { name = "pandas" },
     { name = "pydata-sphinx-theme" },
+    { name = "scikit-learn" },
     { name = "sphinx", version = "9.1.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
     { name = "sphinx", version = "9.2.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13'" },
     { name = "sphinx-gallery" },
@@ -2359,8 +2362,11 @@ requires-dist = [{ name = "duckdb", specifier = ">=2.0.0" }]
 docs = [
     { name = "ipykernel", specifier = ">=7.4.0" },
     { name = "myst-nb", specifier = ">=1.4.0" },
+    { name = "numpy", specifier = ">=2.5.4" },
     { name = "numpydoc", specifier = ">=1.11.0" },
+    { name = "pandas", specifier = ">=3.1.0" },
     { name = "pydata-sphinx-theme", specifier = ">=0.24.0" },
+    { name = "scikit-learn", specifier = ">=1.9.1" },
     { name = "sphinx", specifier = ">=9.1.1" },
     { name = "sphinx-gallery", specifier = ">=0.22.1" },
     { name = "sphinxcontrib-bibtex", specifier = ">=2.7.0" },
