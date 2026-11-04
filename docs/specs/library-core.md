@@ -9,8 +9,8 @@ related: [docs/architecture/overview.md, docs/adr/0012-static-and-dynamic-steps.
 Part 3.2 of [the overview](../architecture/overview.md): the contracts every
 later part is built on, proven by one vertical slice.
 
-Status: draft for Tomas's approval, 2026-11-04. Written from the design talk of
-that day; every decision it rests on is in ADRs 0012–0023. Where this spec
+Status: approved by Tomas on 2026-11-04. Written from the design talk of that
+day; every decision it rests on is in ADRs 0012–0025. Where this spec
 makes a call of its own, it says "(spec's call)".
 
 ## 1. Purpose

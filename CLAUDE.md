@@ -11,7 +11,8 @@ site) is built; no library code yet.
   **How work runs:** `docs/architecture/workflow.md`. **Decisions:**
   `docs/adr/`. **Next:** the library core (part 3.2 of the overview),
   tracked in issue #8: the earlier attempts are absorbed and the core's
-  decisions made (ADRs 0012–0017); the core spec (#16) comes next.
+  decisions made (ADRs 0012–0025); the core spec is approved
+  (`docs/specs/library-core.md`); its plan (#17) comes next.
 
 Rules from the ADRs:
 
