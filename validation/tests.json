@@ -1010,6 +1010,12 @@
     },
     {
       "area": "sqlearn/_inputs",
+      "name": "tests/src/sqlearn/test__inputs.py::test_a_connection_token_is_never_given_twice",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_inputs",
       "name": "tests/src/sqlearn/test__inputs.py::test_a_dropped_source_releases_its_frame",
       "outcome": "passed",
       "tier": "fast"
@@ -1058,7 +1064,7 @@
     },
     {
       "area": "sqlearn/_inputs",
-      "name": "tests/src/sqlearn/test__inputs.py::test_a_relation_is_keyed_by_its_sql_and_rows",
+      "name": "tests/src/sqlearn/test__inputs.py::test_a_relation_is_keyed_by_its_connection_sql_and_rows",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1095,6 +1101,12 @@
     {
       "area": "sqlearn/_inputs",
       "name": "tests/src/sqlearn/test__inputs.py::test_anything_else_lists_what_is_accepted",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_inputs",
+      "name": "tests/src/sqlearn/test__inputs.py::test_equal_tables_on_two_connections_learn_their_own_values",
       "outcome": "passed",
       "tier": "fast"
     },

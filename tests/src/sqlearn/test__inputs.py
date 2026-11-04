@@ -8,9 +8,11 @@ import duckdb
 import pandas as pd
 import pytest
 
+import sqlearn as sq
 from sqlearn import SqlearnError, _config
 from sqlearn import _inputs as inputs
 from sqlearn._inputs import read
+from sqlearn._store import STORE
 
 
 def _write(path, text, mtime_ns=None):
@@ -71,14 +73,37 @@ def test_a_table_name_is_keyed_by_row_count():
     assert second.relation.fetchall() == [(1,), (2,)]
 
 
-def test_a_relation_is_keyed_by_its_sql_and_rows():
-    """A relation is keyed by its SQL text and row count."""
-    rel = _config.connection().sql("SELECT 1 AS a")
+def test_a_relation_is_keyed_by_its_connection_sql_and_rows():
+    """A relation is keyed by its connection, SQL text and row count."""
+    con = _config.connection()
+    rel = con.sql("SELECT 1 AS a")
     source = read(rel)
     assert source.key[0] == "relation"
-    assert source.key[1] == rel.sql_query()
-    assert source.key[2] == 1
+    assert source.key[1] == inputs._connection_token(con)
+    assert source.key[2] == rel.sql_query()
+    assert source.key[3] == 1
     assert source.relation.fetchall() == [(1,)]
+
+
+def test_a_connection_token_is_never_given_twice():
+    """Two connections get different tokens, and one keeps its own."""
+    a, b = duckdb.connect(), duckdb.connect()
+    assert inputs._connection_token(a) != inputs._connection_token(b)
+    assert inputs._connection_token(a) == inputs._connection_token(a)
+
+
+def test_equal_tables_on_two_connections_learn_their_own_values():
+    """Same table name, same row count, other connection: learned anew (ADR 0014)."""
+    a, b = duckdb.connect(), duckdb.connect()
+    a.execute("CREATE TABLE t AS SELECT * FROM (VALUES (1.0), (2.0), (3.0)) v(x)")
+    b.execute("CREATE TABLE t AS SELECT * FROM (VALUES (10.0), (20.0), (60.0)) v(x)")
+    _config.set_config(connection=a)
+    first = sq.Pipeline([("fill", sq.Impute(strategy="mean"))]).learn(a.table("t"))
+    assert first["fill"].value_ == {"x": 2.0}
+    _config.set_config(connection=b)
+    second = sq.Pipeline([("fill", sq.Impute(strategy="mean"))]).learn(b.table("t"))
+    assert second["fill"].value_ == {"x": 30.0}
+    assert STORE.learns["fill"] == 2
 
 
 def test_a_relation_is_read_through_a_view_released_with_the_source():

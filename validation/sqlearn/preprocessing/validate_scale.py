@@ -4,7 +4,7 @@ The mean's canonical value is exact (a `Fraction`); the standard deviation's
 is the square root of the exact variance at 50 digits with mpmath (ADR
 0016). The divisor counts a standard deviation of 0 as 1, as sqlearn and
 scikit-learn do; every reference's answer goes through the same rule so the
-comparison stays like for like. Beside sqlearn: DuckDB's ``avg`` and
+comparison stays like for like. Beside sqlearn: DuckDB's ``favg`` and
 ``stddev_pop`` alone and at one thread, numpy's ``nanmean`` and ``nanstd``,
 scikit-learn's ``StandardScaler`` and pandas (``ddof=0``).
 """
@@ -19,9 +19,10 @@ from validation import _cases
 # Set from the first measurement (ADR 0016): the smallest power of two at or
 # above the worst ULP error sqlearn showed, at least 1. Loosening a bound
 # needs a written reason here, never a quiet edit. First measured: mean 119
-# ULPs and standard deviation 12 ULPs, both on the large set (DuckDB's `avg`
-# and `stddev_pop` alone show the same).
-BOUNDS = {"mean": 128, "scale": 16}
+# ULPs with DuckDB's plain `avg`; tightened to 1 when the mean moved to the
+# compensated `favg` (ruling 18), worst then 1 ULP (medium set). Standard
+# deviation: 12 ULPs on the large set (`stddev_pop` alone shows the same).
+BOUNDS = {"mean": 1, "scale": 16}
 
 FORMULAS = {
     "mean": "mean",
@@ -50,8 +51,8 @@ def _answers(data: _cases.Dataset, values: list[float], what: str) -> dict:
     if what == "mean":
         return {
             "sqlearn": lambda: _sqlearn(data, "mean"),
-            "duckdb": lambda: _cases.duckdb_alone("avg", values, threads=None),
-            "duckdb, 1 thread": lambda: _cases.duckdb_alone("avg", values, threads=1),
+            "duckdb": lambda: _cases.duckdb_alone("favg", values, threads=None),
+            "duckdb, 1 thread": lambda: _cases.duckdb_alone("favg", values, threads=1),
             "numpy": lambda: np.nanmean(_cases.as_nan(data.values)),
             "scikit-learn": lambda: _sklearn(data, "mean"),
             "pandas": lambda: pd.Series(_cases.as_nan(data.values)).mean(),

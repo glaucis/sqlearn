@@ -27,6 +27,10 @@ _ACCEPTED = (
     "a DuckDB relation, or a pandas DataFrame"
 )
 _frame_ids = itertools.count()
+_connection_tokens: weakref.WeakKeyDictionary[duckdb.DuckDBPyConnection, int] = (
+    weakref.WeakKeyDictionary()
+)
+_token_ids = itertools.count()
 
 
 class _Frame(Protocol):
@@ -68,6 +72,20 @@ def _schema(relation: duckdb.DuckDBPyRelation) -> Schema:
 
 def _row_count(relation: duckdb.DuckDBPyRelation) -> int:
     return int(relation.count("*").fetchall()[0][0])
+
+
+def _connection_token(con: duckdb.DuckDBPyConnection) -> int:
+    """Return the number given to `con` on first sight, never given to another.
+
+    A table or relation is known by its connection (ADR 0014). `id(con)` is
+    not enough: once a connection is closed and collected, a new one can get
+    the same id while the store still holds keys made with it. A counter
+    never repeats, and the weak mapping does not keep a connection alive.
+    """
+    token = _connection_tokens.get(con)
+    if token is None:
+        token = _connection_tokens[con] = next(_token_ids)
+    return token
 
 
 def _fingerprint(name: str) -> tuple[int, int]:
@@ -117,7 +135,7 @@ def _read_table(name: str) -> Source:
     except duckdb.CatalogException as exc:
         msg = f"{name!r} is not a file or a table on the connection. Pass {_ACCEPTED}."
         raise SqlearnError(msg) from exc
-    key = ("table", id(con), name, _row_count(relation))
+    key = ("table", _connection_token(con), name, _row_count(relation))
     return Source(relation, key, _schema(relation))
 
 
@@ -152,7 +170,12 @@ def _read_relation(data: duckdb.DuckDBPyRelation) -> Source:
     another connection cannot be seen there, so it is refused.
     """
     try:
-        key = ("relation", data.sql_query(), _row_count(data))
+        key = (
+            "relation",
+            _connection_token(connection()),
+            data.sql_query(),
+            _row_count(data),
+        )
     except duckdb.Error as exc:
         msg = (
             f"DuckDB cannot read the relation passed: {exc}\n"

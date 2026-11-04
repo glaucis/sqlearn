@@ -53,7 +53,7 @@ def test_sql_is_avg_case():
     y = duckdb.ColumnExpression("y")
     p = duckdb.ColumnExpression("p")
     text = str(sq.accuracy.expression(y, p))
-    assert text.startswith("avg((CASE WHEN")
+    assert text.startswith("favg((CASE WHEN")
     assert "ELSE" in text
 
 

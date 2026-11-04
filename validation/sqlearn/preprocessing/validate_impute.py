@@ -2,7 +2,7 @@
 
 Each dataset's fill value is compared with the canonical value (ADR 0016):
 the exact median or mean as a `Fraction`, both rational. Beside sqlearn:
-DuckDB's ``median`` and ``avg`` alone and at one thread, numpy's
+DuckDB's ``median`` and ``favg`` alone and at one thread, numpy's
 ``nanmedian`` and ``nanmean``, scikit-learn's ``SimpleImputer`` and pandas.
 """
 
@@ -16,11 +16,12 @@ from validation import _cases
 # Set from the first measurement (ADR 0016): the smallest power of two at or
 # above the worst ULP error sqlearn showed, at least 1. Loosening a bound
 # needs a written reason here, never a quiet edit. First measured: median 0
-# ULPs everywhere; mean 119 ULPs on the large set (DuckDB's `avg` sums in
-# plain order, as sqlearn's mean does; its compensated `favg` measured 0).
-BOUNDS = {"median": 1, "mean": 128}
+# ULPs everywhere; mean 119 ULPs on the large set with DuckDB's plain `avg`,
+# tightened to 1 when the mean moved to the compensated `favg` (ruling 18),
+# worst then 1 ULP (medium set).
+BOUNDS = {"median": 1, "mean": 1}
 
-DUCKDB = {"median": "median", "mean": "avg"}
+DUCKDB = {"median": "median", "mean": "favg"}
 NUMPY = {"median": np.nanmedian, "mean": np.nanmean}
 EXACT = {"median": _cases.exact_median, "mean": _cases.exact_mean}
 

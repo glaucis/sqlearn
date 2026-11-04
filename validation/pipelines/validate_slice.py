@@ -32,9 +32,9 @@ from validation import _cases
 # Set from the first measurement (ADR 0016): the smallest power of two at or
 # above the worst ULP difference measured, at least 1. Loosening it needs a
 # written reason here, never a quiet edit. First measured: 3,100 units of
-# 2^-52 in the large set's age column, from the learned mean (see
-# validate_scale.py: sqlearn's mean is 119 ULPs off there, scikit-learn's 0).
-BOUND = 4096
+# 2^-52 in the large set's age column, from a mean 119 ULPs off; tightened
+# to 128 when the mean moved to `favg` (ruling 18), worst then 84.
+BOUND = 128
 
 COMPARED_WITH = (
     "scikit-learn Pipeline(ColumnTransformer(SimpleImputer(median), "

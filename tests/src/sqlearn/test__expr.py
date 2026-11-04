@@ -11,7 +11,7 @@ NAN = float("nan")
 def test_printed_sql_of_each_form():
     """Each expression form prints as the DuckDB SQL the compositor relies on."""
     x = duckdb.ColumnExpression("age")
-    assert str(sq.avg(x)) == 'avg("age")'
+    assert str(sq.avg(x)) == 'favg("age")'
     assert str(sq.stddev_pop(x)) == 'stddev_pop("age")'
     assert str(sq.median(x)) == '__sqlearn_median("age")'
     assert str(sq.count(x)) == 'count("age")'

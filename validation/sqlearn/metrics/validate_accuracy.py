@@ -65,7 +65,7 @@ def _duckdb(
     rel = _cases.table(con, "data", {y_col: y, p_col: p}, kind)
     quoted = [_quote(y_col), _quote(p_col)]
     return rel.aggregate(
-        f"avg(CASE WHEN {quoted[0]} = {quoted[1]} THEN 1.0 ELSE 0.0 END)"
+        f"favg(CASE WHEN {quoted[0]} = {quoted[1]} THEN 1.0 ELSE 0.0 END)"
     ).fetchall()[0][0]
 
 

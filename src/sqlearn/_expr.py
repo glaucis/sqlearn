@@ -20,7 +20,12 @@ def _call(name: str, *args: Expression) -> Expression:
 
 
 def avg(x: Expression) -> Expression:
-    """Return the mean of `x`.
+    """Return the mean of `x`, summed with compensation.
+
+    Builds DuckDB's ``favg``, which sums with Kahan's compensation: on
+    100,000 values it lands on the double nearest the exact mean, where the
+    plain ``avg`` drifted by 119 ULPs (``validation/``, ruling 18). The
+    result is DOUBLE.
 
     Parameters
     ----------
@@ -30,16 +35,16 @@ def avg(x: Expression) -> Expression:
     Returns
     -------
     duckdb.Expression
-        ``avg(x)``.
+        ``favg(x)``.
 
     Examples
     --------
     >>> import duckdb
     >>> import sqlearn as sq
     >>> str(sq.avg(duckdb.ColumnExpression("age")))
-    'avg("age")'
+    'favg("age")'
     """
-    return _call("avg", x)
+    return _call("favg", x)
 
 
 def stddev_pop(x: Expression) -> Expression:
