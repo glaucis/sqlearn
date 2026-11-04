@@ -1,9 +1,9 @@
 ---
 type: architecture
-tags: [overview, sqlearn, duckdb, scikit-learn, roadmap, constraints]
-summary: "Project-wide map of sqlearn: purpose, agreed constraints, the eight parts and their dependencies, written before product code."
-related: [docs/adr/0003-scikit-learn-style-api.md, docs/adr/0002-sql-on-duckdb-execution-engine.md, docs/questions/README.md, docs/adr/0004-apache-2-licence.md, docs/adr/0005-runtime-dependencies.md, docs/adr/0006-local-and-offline.md, docs/questions/applications-home.md, docs/adr/0009-sphinx-documentation-site.md]
-mdindex: [type=4ca303, tags=d179bd, summary=5681fc, related=6f5013]
+tags: [sqlearn, duckdb, roadmap, scikit-learn, parts]
+summary: "Project map of sqlearn: its purpose, agreed constraints, the parts from foundation to validation, and their build order."
+related: [docs/adr/0003-scikit-learn-style-api.md, docs/adr/0002-sql-on-duckdb-execution-engine.md, docs/adr/0004-apache-2-licence.md, docs/adr/0005-runtime-dependencies.md, docs/adr/0006-local-and-offline.md, docs/questions/applications-home.md, docs/adr/0001-uv-for-python-packaging.md, docs/adr/0007-python-3-12-floor.md]
+mdindex: [type=4ca303, tags=83b516, summary=39d7b0, related=c3fc8f]
 ---
 # Overview
 
@@ -125,8 +125,10 @@ Two requirements come from the later applications and are cheapest met here:
 
 - every step declares its parameters, inputs and outputs as data, so that a
   node editor can present it without special cases;
-- a pipeline is a graph that serialises to a file and back, so that what the
-  editor draws and what the code runs are one object.
+- a pipeline is a graph, so that what the editor draws and what the code runs
+  are one object. Saving it to a file and back, and exporting a trained
+  pipeline as standalone code, are later ideas
+  ([issue #24](https://github.com/glaucis/sqlearn/issues/24)).
 
 The user writes steps in order and sees results when asked, as in
 scikit-learn; how much of a pipeline runs as one query is the library's
@@ -148,8 +150,8 @@ come from other libraries for now
 ([ADR 0017](../adr/0017-models-from-other-libraries.md)).
 
 **Done when:** the slice runs, its tests pass against a reference
-implementation (dev-only dependencies are allowed in tests), a pipeline
-round-trips through its serialised form, and the contract is documented.
+implementation (dev-only dependencies are allowed in tests), and the contract
+is documented.
 
 **Depends on:** 3.1.
 
