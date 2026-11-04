@@ -220,6 +220,14 @@ class Search:
         StepError
             As for `Pipeline.train`.
 
+        Notes
+        -----
+        A change to a DuckDB table or relation in place that keeps its row
+        count and columns (an ``UPDATE``, or rows deleted and as many
+        inserted) is not noticed: the values learned before are reused. Pass
+        the changed data under a new name, or as a file or a pandas frame, to
+        have it learned again.
+
         Examples
         --------
         >>> import pandas as pd

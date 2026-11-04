@@ -12,4 +12,5 @@ How to use sqlearn: the chapters that explain its API and its habits.
 :maxdepth: 1
 
 writing-a-step
+inputs-and-the-store
 ```

@@ -395,6 +395,14 @@ class Pipeline:
             If a step's selector matches no column, an output takes a name in
             use, or a step learns from no rows.
 
+        Notes
+        -----
+        A change to a DuckDB table or relation in place that keeps its row
+        count and columns (an ``UPDATE``, or rows deleted and as many
+        inserted) is not noticed: the values learned before are reused. Pass
+        the changed data under a new name, or as a file or a pandas frame, to
+        have it learned again.
+
         Examples
         --------
         >>> import sqlearn as sq
@@ -666,6 +674,14 @@ class Pipeline:
             is not built.
         StepError
             As for `learn`.
+
+        Notes
+        -----
+        A change to a DuckDB table or relation in place that keeps its row
+        count and columns (an ``UPDATE``, or rows deleted and as many
+        inserted) is not noticed: the values learned before are reused. Pass
+        the changed data under a new name, or as a file or a pandas frame, to
+        have it learned again.
 
         Examples
         --------
