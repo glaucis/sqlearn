@@ -17,8 +17,10 @@ StepKey = tuple[
     DataKey,
     FoldKey | None,
     tuple[tuple[str, type, str, tuple[object, ...]], ...],
+    tuple[str, ...],
 ]
-"""The data, the fold, and ``(name, class, dotted path, settings)`` per step."""
+"""The data, the fold, ``(name, class, dotted path, settings)`` per step, and
+the columns the step reads."""
 
 _PLAIN = (str, int, float, bool, bytes, type(None))
 
@@ -38,11 +40,14 @@ def step_key(
     steps: Sequence[tuple[str, Step]],
     index: int,
     depends_on: frozenset[int],
+    inputs: Sequence[str] = (),
 ) -> StepKey:
     """Build the store key of one step (ADR 0024).
 
-    The key holds the data, the fold, and the name, class and settings of the
-    step and of every step it depends on, in pipeline order. The class is the
+    The key holds the data, the fold, the name, class and settings of the
+    step and of every step it depends on, in pipeline order, and the columns
+    the step's selector resolved to, so a step reading other columns never
+    finds another's entry. The class is the
     class object itself (so a redefined class gets a new key) beside its dotted
     path. Settings are sorted by name; plain values are kept with their type
     (so ``True`` and ``1`` differ), selectors and models by their ``repr``,
@@ -60,6 +65,8 @@ def step_key(
         The position of the step the key is for.
     depends_on : frozenset of int
         The positions of the steps whose output it reads.
+    inputs : sequence of str, default ()
+        The columns the step's selector resolved to, in order.
 
     Returns
     -------
@@ -86,7 +93,7 @@ def step_key(
         )
         for i in sorted({index, *depends_on})
     )
-    return (data, fold, chain)
+    return (data, fold, chain, tuple(inputs))
 
 
 @dataclass(frozen=True)
@@ -136,7 +143,7 @@ class Store:
     --------
     >>> from sqlearn._store import Entry, Store
     >>> store = Store()
-    >>> key = (("t",), None, (("scale", object, "o.Scale", ()),))
+    >>> key = (("t",), None, (("scale", object, "o.Scale", ()),), ("a",))
     >>> store.put(key, Entry({}, [], ""))
     >>> len(store), store.learns["scale"]
     (1, 1)
@@ -162,7 +169,7 @@ class Store:
         Examples
         --------
         >>> from sqlearn._store import Store
-        >>> Store().get((("t",), None, ())) is None
+        >>> Store().get((("t",), None, (), ())) is None
         True
         """
         return self._entries.get(key)
@@ -182,7 +189,8 @@ class Store:
         --------
         >>> from sqlearn._store import Entry, Store
         >>> store = Store()
-        >>> store.put((("t",), None, (("s", object, "o.S", ()),)), Entry({}, [], ""))
+        >>> key = (("t",), None, (("s", object, "o.S", ()),), ())
+        >>> store.put(key, Entry({}, [], ""))
         >>> store.learns
         Counter({'s': 1})
         """

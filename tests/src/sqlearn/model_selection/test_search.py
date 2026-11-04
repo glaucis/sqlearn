@@ -423,3 +423,34 @@ def test_a_model_predicting_the_wrong_shape_is_refused():
         sq.Search(slice_pipe(Wide()), params={}).train(
             customers(rows=100), target="churned"
         )
+
+
+def test_settings_changing_a_later_steps_inputs_score_as_if_alone():
+    """Each setting's later steps learn on their own inputs, never stale."""
+    rng = np.random.default_rng(0)
+    rows = 200
+    df = pd.DataFrame(
+        {
+            "city": rng.choice(["a", "b"], rows),
+            "region": rng.choice(["n", "s"], rows),
+            "plan": rng.choice(["x", "y", "z"], rows),
+            "y": rng.integers(0, 2, rows),
+        }
+    )
+
+    def pipe():
+        return sq.Pipeline(
+            [
+                ("onehot", sq.OneHot(cols=["city"])),
+                ("ordinal", sq.Ordinal(cols=sq.string())),
+                ("model", LogisticRegression()),
+            ]
+        )
+
+    grid = {"onehot__cols": [["city", "region"], ["city"]]}
+    both = sq.Search(pipe(), params=grid, folds=sq.KFold(3)).train(df, target="y")
+    city = json.dumps({"onehot__cols": ["city"]})
+    got = [r for r in both.results_.fetchall() if r[0] == city]
+    STORE.clear()
+    alone = sq.Search(pipe(), params={"onehot__cols": [["city"]]}, folds=sq.KFold(3))
+    assert got == alone.train(df, target="y").results_.fetchall()

@@ -66,6 +66,16 @@ def _reads_unknown(selector: Selector, column: _Column, known: set[str]) -> bool
     return column.dtype is None or selector.may_match(column.dtype)
 
 
+def _may_read(step: Step, gone: _Column, known: set[str]) -> bool:
+    """Whether a step's selector could have matched a column taken away."""
+    if step.cols is None:
+        return True
+    selector = to_selector(step.cols)
+    if isinstance(selector, _Cols) and gone.name is not None:
+        return gone.name in selector.names
+    return _reads_unknown(selector, gone, known)
+
+
 def _consumes(step: Step, column: _Column) -> bool:
     # A read column is certainly consumed when it is known by name, or when
     # the step reads every column, or its selector must match the whole group.
@@ -105,7 +115,10 @@ def plan(steps: Sequence[tuple[str, Step]], schema: Schema) -> Plan:
     a step reads them when it names a column not yet known, when its selector
     may match their declared type (any type when ``creates`` is None), or when
     it works on every column (then it depends on every earlier step). A step
-    that changes rows is read by every later step (ADR 0024).
+    that changes rows is read by every later step (ADR 0024). A column a
+    dynamic step takes away decides what a later step reads too: a step whose
+    selector could have matched it (by name, by kind, or every column)
+    depends on the step that took it away, and on what that step depends on.
 
     Parameters
     ----------
@@ -137,6 +150,9 @@ def plan(steps: Sequence[tuple[str, Step]], schema: Schema) -> Plan:
     # The rows themselves, read by every step: a step that changes them
     # makes every later step wait for it and depend on it.
     rows = _Column(None, None, 0, frozenset())
+    # The columns dynamic steps took away, each carrying its remover's
+    # dependencies: their absence decides what a later selector matches.
+    removed: list[_Column] = []
     result = Plan()
     for i, (step_name, step) in enumerate(steps):
         if step.static and step.dynamic:
@@ -149,7 +165,9 @@ def plan(steps: Sequence[tuple[str, Step]], schema: Schema) -> Plan:
         dynamic = classify(step, _known(columns)) == "dynamic"
         read = _read(step, columns)
         learn = max((c.ready for c in [*read, rows]), default=0)
-        deps = frozenset().union(*(c.deps for c in [*read, rows]))
+        names = {name for name, _ in _known(columns)}
+        absent = [c for c in removed if _may_read(step, c, names)]
+        deps = frozenset().union(*(c.deps for c in [*read, rows, *absent]))
         if step.cols is None:
             deps = frozenset(range(i))
         ready = learn + 1 if dynamic else learn
@@ -157,7 +175,8 @@ def plan(steps: Sequence[tuple[str, Step]], schema: Schema) -> Plan:
         result.learn_run.append(learn)
         result.apply_run.append(ready)
         result.depends_on.append(deps)
-        columns = _write(step, step_name, columns, read, ready, mine, dynamic)
+        columns, gone = _write(step, step_name, columns, read, ready, mine, dynamic)
+        removed.extend(gone)
         if step.changes_rows:
             rows = _Column(None, None, ready, mine)
     result.feed_run = max((c.ready for c in [*columns, rows]), default=0)
@@ -172,11 +191,13 @@ def _write(
     ready: int,
     deps: frozenset[int],
     dynamic: bool,
-) -> list[_Column]:
+) -> tuple[list[_Column], list[_Column]]:
+    """Return the columns after the step, and those it took away."""
     # Columns are compared by identity (`_Column` has eq=False on purpose):
     # two unknown groups may hold equal fields yet be different columns.
     chosen = {id(c) for c in read}
     out: list[_Column] = []
+    gone: list[_Column] = []
     for c in columns:
         if id(c) not in chosen or step.keep:
             out.append(c)
@@ -185,9 +206,11 @@ def _write(
             out.append(c)
         elif not dynamic:
             out.append(_Column(c.name, c.dtype, ready, deps))
+        else:
+            gone.append(_Column(c.name, c.dtype, ready, deps))
         if id(c) in chosen and step.keep and not dynamic:
             name = None if c.name is None else f"{c.name}_{step.suffix or step_name}"
             out.append(_Column(name, c.dtype, ready, deps))
     if dynamic and read:
         out.append(_Column(None, step.creates, ready, deps))
-    return out
+    return out, gone

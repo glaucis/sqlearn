@@ -107,3 +107,12 @@ def test_a_change_two_hops_up_reaches_the_last_key():
         return step_key(DATA, None, steps, 2, frozenset({0, 1}))
 
     assert key("mean") != key("median")
+
+
+def test_the_resolved_inputs_are_in_the_key():
+    """The same step reading other columns does not share a key."""
+    steps = [("x", _V(1))]
+    one = step_key(DATA, None, steps, 0, frozenset(), inputs=["plan"])
+    two = step_key(DATA, None, steps, 0, frozenset(), inputs=["region", "plan"])
+    assert one != two
+    assert one == step_key(DATA, None, steps, 0, frozenset(), inputs=["plan"])

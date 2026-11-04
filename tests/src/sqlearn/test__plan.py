@@ -161,13 +161,17 @@ def test_a_dynamic_step_leaves_new_columns_of_any_type():
 
 
 def test_a_dynamic_step_consumes_new_columns_it_must_read():
-    """A selector that must match the new type consumes the whole group."""
+    """A selector that must match the new type consumes the whole group.
+
+    Nothing is left for the last step to wait for; it still depends on the
+    steps that took the numbers away, as they decide what it matches.
+    """
     p = runs(
         dynamic_step("x"),
         dynamic_step(sq.numeric(), creates=VARCHAR),
         static_step(sq.numeric()),
     )
-    assert (p.learn_run, p.depends_on[2]) == ([0, 1, 0], frozenset())
+    assert (p.learn_run, p.depends_on[2]) == ([0, 1, 0], frozenset({0, 1}))
 
 
 def test_a_dynamic_step_by_name_leaves_new_columns():
@@ -223,3 +227,35 @@ def test_declaring_static_and_dynamic_is_refused():
         "contradict each other. Fix: declare one, or neither (sqlearn will "
         "then detect it)."
     )
+
+
+def test_a_step_that_could_read_a_removed_column_depends_on_its_remover():
+    """A column taken away decides what a later step reads (ADR 0024)."""
+    p = runs(dynamic_step("city"), static_step(sq.string()))
+    assert (p.learn_run, p.depends_on[1]) == ([0, 0], frozenset({0}))
+    by_name = runs(dynamic_step("city"), static_step(["x", "city"]))
+    assert 0 in by_name.depends_on[1]
+    every = runs(dynamic_step("city"), static_step(None))
+    assert 0 in every.depends_on[1]
+
+
+def test_a_step_that_cannot_read_a_removed_column_does_not_depend_on_it():
+    """A removed column of another type or name leaves a step independent."""
+    p = runs(
+        dynamic_step("city", creates=VARCHAR),
+        static_step(sq.numeric()),
+        static_step(["x"]),
+    )
+    assert p.depends_on[1:] == [frozenset(), frozenset()]
+
+
+def test_a_removed_column_carries_its_removers_dependencies():
+    """The remover's own dependencies come along with it."""
+    p = runs(
+        static_step(["city"], changes_rows=True),
+        dynamic_step("x"),
+        static_step(["y"]),
+    )
+    assert p.depends_on[2] == frozenset({0})
+    q = runs(static_step(["city"]), dynamic_step("city"), static_step(sq.string()))
+    assert q.depends_on[2] == frozenset({0, 1})

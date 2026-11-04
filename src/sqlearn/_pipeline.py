@@ -400,23 +400,18 @@ class Pipeline:
         steps: list[tuple[str, Step]],
         fold: FoldKey | None = None,
     ) -> tuple[Plan, list[tuple[int, Run]], list[Entry]]:
-        """Learn the steps missing from the store.
+        """Learn the steps missing from the store, run by run.
 
         `fold` is the fold whose training rows `source` holds, for the keys.
-        Returns the plan, the runs executed (with their numbers) and every
-        step's entry.
+        A step's key holds the columns it reads, known in its run once the
+        runs before have learned. Returns the plan, the runs executed (with
+        their numbers) and every step's entry.
         """
         the_plan = plan(steps, source.schema)
-        keys = [
-            step_key(source.key, fold, steps, i, the_plan.depends_on[i])
-            for i in range(len(steps))
-        ]
-        entries: list[Entry | None] = [STORE.get(k) for k in keys]
+        entries: list[Entry | None] = [None] * len(steps)
         runs: list[tuple[int, Run]] = []
-        for r in sorted(
-            {the_plan.learn_run[i] for i, e in enumerate(entries) if e is None}
-        ):
-            run = self._learn_run(con, source, steps, the_plan, r, entries, keys)
+        for r in sorted(set(the_plan.learn_run)):
+            run = self._learn_run(con, source, steps, the_plan, r, entries, fold)
             if run.statements:
                 runs.append((r, run))
         return the_plan, runs, [e for e in entries if e is not None]
@@ -443,20 +438,22 @@ class Pipeline:
         the_plan: Plan,
         run: int,
         entries: list[Entry | None],
-        keys: list[StepKey],
+        fold: FoldKey | None,
     ) -> Run:
-        """Learn the steps of one run missing from the store, and store them."""
+        """Find the steps of one run in the store; learn and store the rest.
+
+        Each step learning in this run is keyed with the columns its selector
+        matches in the data reaching it, then looked up.
+        """
         source_sql = source.relation.sql_query()
-        misses = [
-            i
-            for i, e in enumerate(entries)
-            if e is None and the_plan.learn_run[i] == run
-        ]
+        last = max(i for i, r in enumerate(the_plan.learn_run) if r == run)
         schema = source.schema
         previous = SOURCE
         stages: list[Stage] = []
         built: dict[int, tuple[Schema, str, list[str]]] = {}
-        for i in range(max(misses) + 1):
+        keys: dict[int, StepKey] = {}
+        upto: dict[int, int] = {}
+        for i in range(last + 1):
             name, step = steps[i]
             position = i + 1
             dynamic = the_plan.apply_run[i] > the_plan.learn_run[i]
@@ -468,25 +465,37 @@ class Pipeline:
                     schema = [c for c in schema if c[0] not in gone]
                 continue
             entry = entries[i]
+            if entry is None:
+                # It learns in this run (earlier runs filled their entries).
+                matched = _matched(step, schema, name, position)
+                keys[i] = step_key(
+                    source.key, fold, steps, i, the_plan.depends_on[i], matched
+                )
+                entry = entries[i] = STORE.get(keys[i])
+                if entry is None:
+                    built[i] = (schema, previous, matched)
             if entry is not None:
                 stage = _make_stage(
                     steps, position, schema, previous, entry.values,
                     columns=entry.columns,
                 )  # fmt: skip
             else:
-                matched = _matched(step, schema, name, position)
-                built[i] = (schema, previous, matched)
                 stage = _make_stage(
                     steps, position, schema, previous,
-                    columns=matched, applies=not dynamic,
+                    columns=built[i][2], applies=not dynamic,
                 )  # fmt: skip
             stages.append(stage)
+            upto[i] = len(stages)
             previous = stage.name
             if entry is None and dynamic:
                 if not step.keep:
                     schema = [c for c in schema if c[0] not in built[i][2]]
             else:
                 schema = _bind(con, source_sql, stages, steps, position)
+        misses = sorted(built)
+        if not misses:
+            return Run()
+        stages = stages[: upto[misses[-1]]]
         try:
             values, _, done = execute(con, source_sql, stages, produce=False)
         except duckdb.Error as exc:

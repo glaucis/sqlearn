@@ -227,7 +227,9 @@ Per [ADR 0014](../adr/0014-learning-store.md) and
   values, the columns its selector matched, and its `apply` SQL.
 - Key: the data, the fold, the step's settings, and the settings of the steps
   whose output it reads, followed back through the graph of columns; a step
-  that changes rows is read by every step after it
+  that changes rows is read by every step after it; a step whose selector
+  could have matched a column an earlier dynamic step took away depends on
+  that step; and the columns the step's selector resolved to
   ([ADR 0024](../adr/0024-store-keys-follow-what-a-step-reads.md)).
 - The data part, by kind of input:
 

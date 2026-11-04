@@ -40,6 +40,11 @@ over 2 imputer settings and 5 folds it learns 10 times instead of 5.
   every later step sees, so every later step depends on it.
 - A step whose inputs are not known depends on everything before it, as in
   ADR 0018.
+- A column an earlier dynamic step takes away decides what a later selector
+  matches, so a step whose selector could have matched it (by name, by kind,
+  or every column) depends on that step and on what that step depends on.
+- The key also holds the columns the step's selector resolved to on the data
+  reaching it, so a step reading other columns never finds another's entry.
 
 A grid search, which knows every setting up front, loops **fold first**: for
 each fold it prepares the data once, hands it to every model and setting, and

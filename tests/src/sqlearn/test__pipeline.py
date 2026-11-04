@@ -628,3 +628,23 @@ def test_predict_refuses_a_connection_not_keeping_order():
     con.execute("SET preserve_insertion_order = false")
     with pytest.raises(sq.SqlearnError, match="preserve_insertion_order"):
         pipe.predict(frame)
+
+
+def test_a_column_removed_upstream_is_in_a_later_steps_key():
+    """A later step whose inputs changed upstream learns again, never stale."""
+    df = pd.DataFrame(
+        {"city": ["a", "b", "a"], "region": ["n", "s", "s"], "plan": ["x", "y", "z"]}
+    )
+
+    def pipe(cols):
+        return sq.Pipeline(
+            [("onehot", sq.OneHot(cols=cols)), ("ordinal", sq.Ordinal(sq.string()))]
+        )
+
+    pipe(["city", "region"]).learn(df)
+    second = pipe(["city"]).learn(df)
+    assert list(second["ordinal"].categories_) == ["region", "plan"]
+    got = second.apply(df).fetchall()
+    STORE.clear()
+    assert got == pipe(["city"]).learn(df).apply(df).fetchall()
+    assert all(isinstance(v, int) for row in got for v in row)
