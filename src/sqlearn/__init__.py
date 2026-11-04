@@ -27,12 +27,15 @@ from sqlearn._expr import (
     stddev_pop,
 )
 from sqlearn._selectors import cols, numeric, string
+from sqlearn._step import Learned, Step
 
 __all__ = [
     "DefaultsUsedWarning",
     "InternalError",
+    "Learned",
     "SqlearnError",
     "SqlearnWarning",
+    "Step",
     "StepError",
     "__version__",
     "avg",

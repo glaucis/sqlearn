@@ -1,0 +1,37 @@
+"""Small steps shared by the tests of several modules."""
+
+from duckdb.sqltypes import INTEGER
+
+import sqlearn as sq
+
+
+class MyScale(sq.Step):
+    """Centre and scale numeric columns (undeclared: classified as static)."""
+
+    def __init__(self, cols=sq.numeric(), keep=False, suffix=None):  # noqa: B008
+        """Set the settings."""
+        self.cols, self.keep, self.suffix = cols, keep, suffix
+
+    def learn(self, x):
+        """Learn what the step needs."""
+        return {"mean": sq.avg(x), "scale": sq.stddev_pop(x)}
+
+    def apply(self, x, learned):
+        """Apply what was learned."""
+        return (x - learned.mean) / learned.scale
+
+
+class MyEncoder(sq.Step):
+    """One-hot encode text columns (undeclared: classified as dynamic)."""
+
+    def __init__(self, cols=("city",), keep=False, suffix=None):
+        """Set the settings."""
+        self.cols, self.keep, self.suffix = cols, keep, suffix
+
+    def learn(self, x):
+        """Learn what the step needs."""
+        return {"cities": sq.distinct_values(x)}
+
+    def apply(self, x, learned):
+        """Apply what was learned."""
+        return {f"city_{c}": (x == sq.const(c)).cast(INTEGER) for c in learned.cities}
