@@ -94,6 +94,8 @@ convention = "numpy"
 # text blocks, and output printed for the reader.
 "examples/**" = ["ANN", "D", "E402", "T20"]
 "docs/**" = ["ANN", "D"]
+# Validations against the references: written like tests.
+"validation/**" = ["ANN", "D2", "D3", "D4"]
 
 [tool.ruff.format]
 docstring-code-format = true
@@ -139,7 +141,8 @@ branch = true
 [tool.coverage.report]
 show_missing = true
 skip_empty = true
-# No fail_under: the core spec sets the floor, measured on the full suite.
+# The floor the core spec sets (section 13), measured on the full suite.
+fail_under = 95
 
 [tool.numpydoc_validation]
 # Every check but the extended summary and See Also, which not every object needs.

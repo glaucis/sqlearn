@@ -170,9 +170,38 @@ clean:
     rm -rf dist docs/_build docs/examples docs/reference/generated docs/_static/mathjax
     rm -rf .venvs .ruff_cache .mypy_cache .rumdl_cache .coverage .coverage.* htmlcov
 
+# Check that every module has its test, and every step and metric its validation
+[group('check')]
+check-mirror:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    missing=0
+    while IFS= read -r f; do
+        rel=${f#src/sqlearn/}
+        dir=$(dirname "$rel")
+        name=$(basename "$rel" .py)
+        [ "$name" = "__init__" ] && continue
+        [ "$dir" = "." ] && sub="" || sub="$dir/"
+        test="tests/src/sqlearn/${sub}test_${name}.py"
+        if [ ! -f "$test" ]; then
+            echo "missing: $test (for $f)"
+            missing=1
+        fi
+        case "$dir" in
+            preprocessing|preprocessing/*|metrics|metrics/*)
+                val="validation/sqlearn/${sub}validate_${name}.py"
+                if [ ! -f "$val" ]; then
+                    echo "missing: $val (for $f)"
+                    missing=1
+                fi
+                ;;
+        esac
+    done < <(find src/sqlearn -name '*.py' | sort)
+    exit $missing
+
 # Run the checks that run on every commit
 [group('check')]
-check: lint-python check-types lint-markdown check-spelling
+check: lint-python check-types lint-markdown check-spelling check-mirror
 
 # Run what the pre-commit hook runs
 [group('check')]
