@@ -69,7 +69,7 @@ def test_null_is_refused_naming_the_column(column):
     """Null is refused naming the column."""
     frame = pd.DataFrame({"y": [1, 2], "prediction": [1, 2]})
     frame[column] = pd.Series([1, None], dtype="Int64")
-    with pytest.raises(sq.SqlearnError, match=column):
+    with pytest.raises(sq.SqlearnError, match=rf"column '{column}'"):
         sq.accuracy.compute(rel(frame), "y")
 
 
@@ -82,4 +82,27 @@ def test_empty_relation_is_refused():
         },
     )
     with pytest.raises(sq.SqlearnError, match="no rows"):
+        sq.accuracy.compute(rel(frame), "y")
+
+
+@pytest.mark.parametrize("column", ["y", "prediction"])
+def test_nan_is_refused_naming_the_column(column):
+    """Nan is refused naming the column."""
+    y, p = ("'NaN'::DOUBLE", "2.0") if column == "y" else ("2.0", "'NaN'::DOUBLE")
+    sql = f"SELECT * FROM (VALUES (1.0, 1.0), ({y}, {p})) t(y, prediction)"
+    with pytest.raises(sq.SqlearnError, match=rf"column '{column}' has 1 NaN"):
+        sq.accuracy.compute(connection().sql(sql), "y")
+
+
+def test_missing_column_is_refused():
+    """Missing column is refused."""
+    frame = pd.DataFrame({"y": [1], "prediction": [1]})
+    with pytest.raises(sq.SqlearnError, match=r"column 'nope' is not in"):
+        sq.accuracy.compute(rel(frame), "nope")
+
+
+def test_incomparable_types_are_refused():
+    """Incomparable types are refused."""
+    frame = pd.DataFrame({"y": ["a", "b"], "prediction": [1, 2]})
+    with pytest.raises(sq.SqlearnError, match=r"column 'y' \(VARCHAR\)"):
         sq.accuracy.compute(rel(frame), "y")

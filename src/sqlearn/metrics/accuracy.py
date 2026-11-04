@@ -11,6 +11,12 @@ from sqlearn._expr import avg, const, count
 
 __all__ = ["Metric", "accuracy"]
 
+_FLOATS = frozenset({"FLOAT", "DOUBLE"})
+
+
+def _isnan(x: Expression) -> Expression:
+    return duckdb.FunctionExpression("isnan", x)
+
 
 @dataclass(frozen=True)
 class Metric:
@@ -71,12 +77,42 @@ class Metric:
         >>> sq.accuracy.compute(rel, "y")
         0.5
         """
+        names = list(rel.columns)
+        types = {n: str(t) for n, t in zip(names, rel.types, strict=True)}
+        for column in (target, prediction):
+            if column not in types:
+                msg = (
+                    f"{self.name} cannot be computed: column {column!r} is "
+                    f"not in the relation (columns: {names}). Pass the name "
+                    "of an existing column."
+                )
+                raise SqlearnError(msg)
         y = ColumnExpression(target)
         p = ColumnExpression(prediction)
-        row = rel.aggregate(
-            [count(const(1)), count(y), count(p), self.expression(y, p)],
-        ).fetchall()[0]
-        total, y_seen, p_seen, score = row
+        floats = [c for c in (target, prediction) if types[c] in _FLOATS]
+        nans = [
+            count(duckdb.CaseExpression(_isnan(ColumnExpression(c)), const(1)))
+            for c in floats
+        ]
+        try:
+            row = rel.aggregate(
+                [
+                    count(const(1)),
+                    count(y),
+                    count(p),
+                    self.expression(y, p),
+                    *nans,
+                ],
+            ).fetchall()[0]
+        except duckdb.Error as exc:
+            msg = (
+                f"{self.name} cannot be computed: DuckDB cannot compare "
+                f"column {target!r} ({types[target]}) with column "
+                f"{prediction!r} ({types[prediction]}): {exc} Cast one "
+                "column so both hold the same kind of label."
+            )
+            raise SqlearnError(msg) from exc
+        total, y_seen, p_seen, score, *nan_counts = row
         if total == 0:
             msg = (
                 f"{self.name} cannot be computed: the relation has no rows. "
@@ -90,6 +126,14 @@ class Metric:
                     f"{self.name} cannot be computed: column {column!r} has "
                     f"{total - seen} NULL of {total} rows. A missing label "
                     "has no right answer; drop or fill those rows first."
+                )
+                raise SqlearnError(msg)
+        for column, n_nan in zip(floats, nan_counts, strict=True):
+            if n_nan:
+                msg = (
+                    f"{self.name} cannot be computed: column {column!r} has "
+                    f"{n_nan} NaN of {total} rows. A NaN label has no right "
+                    "answer; drop or fill those rows first."
                 )
                 raise SqlearnError(msg)
         return float(score)
