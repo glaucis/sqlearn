@@ -1,5 +1,6 @@
 """Reading inputs: turn what the user passes into a relation and a data key."""
 
+import contextlib
 import glob
 import itertools
 import os
@@ -138,6 +139,46 @@ def _read_frame(frame: _Frame) -> Source:
     return source
 
 
+def _drop_view(con: duckdb.DuckDBPyConnection, name: str) -> None:
+    with contextlib.suppress(duckdb.Error):
+        con.execute(f"DROP VIEW IF EXISTS {quote(name)}")
+
+
+def _read_relation(data: duckdb.DuckDBPyRelation) -> Source:
+    """Read a relation through a view on its own connection.
+
+    The view keeps the relation's own scans (a Python frame found by name)
+    alive, and lets sqlearn's connection read it by name. A relation of
+    another connection cannot be seen there, so it is refused.
+    """
+    try:
+        key = ("relation", data.sql_query(), _row_count(data))
+    except duckdb.Error as exc:
+        msg = (
+            f"DuckDB cannot read the relation passed: {exc}\n"
+            "Fix: check that the tables and files it reads still exist."
+        )
+        raise SqlearnError(msg) from exc
+    name = f"_sqlearn_relation_{next(_frame_ids)}"
+    data.create_view(name, replace=False)
+    con = connection()
+    try:
+        relation = con.table(name)
+    except duckdb.CatalogException as exc:
+        data.query("_sqlearn_self", f"DROP VIEW {quote(name)}")
+        msg = (
+            "The relation passed belongs to another DuckDB connection than "
+            "the one sqlearn computes in. sqlearn runs every query on one "
+            "connection, so it cannot read it. Fix: call "
+            "sq.set_config(connection=con) with the relation's connection, "
+            "or pass a table name, a file or a pandas frame."
+        )
+        raise SqlearnError(msg) from exc
+    source = Source(relation, key, _schema(relation))
+    weakref.finalize(source, _drop_view, con, name)
+    return source
+
+
 def read(data: object) -> Source:
     """Read an input as a relation, keyed so the store knows when it changes.
 
@@ -156,8 +197,9 @@ def read(data: object) -> Source:
     Raises
     ------
     SqlearnError
-        If a path or glob matches nothing, a table is missing, or the input
-        is of a kind not accepted.
+        If a path or glob matches nothing, a table is missing, a relation
+        belongs to another connection or cannot be read, or the input is of
+        a kind not accepted.
 
     Examples
     --------
@@ -168,8 +210,7 @@ def read(data: object) -> Source:
     ('relation', [(1,)])
     """
     if isinstance(data, duckdb.DuckDBPyRelation):
-        key = ("relation", data.sql_query(), _row_count(data))
-        return Source(data, key, _schema(data))
+        return _read_relation(data)
     if isinstance(data, (str, Path)):
         text = str(data)
         if Path(text).suffix.lower() in _READERS:

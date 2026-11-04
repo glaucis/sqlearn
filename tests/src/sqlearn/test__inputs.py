@@ -76,8 +76,51 @@ def test_a_relation_is_keyed_by_its_sql_and_rows():
     rel = _config.connection().sql("SELECT 1 AS a")
     source = read(rel)
     assert source.key[0] == "relation"
+    assert source.key[1] == rel.sql_query()
     assert source.key[2] == 1
-    assert source.relation is rel
+    assert source.relation.fetchall() == [(1,)]
+
+
+def test_a_relation_is_read_through_a_view_released_with_the_source():
+    """A relation becomes a view on its connection, dropped with the source."""
+    rel = _config.connection().sql("SELECT 1 AS a")
+    source = read(rel)
+    views = [v for v in _views() if v.startswith("_sqlearn_relation_")]
+    assert len(views) == 1
+    assert source.relation.sql_query() == f'SELECT * FROM "{views[0]}"'
+    del source
+    gc.collect()
+    assert not any(v.startswith("_sqlearn_relation_") for v in _views())
+
+
+def test_a_relation_of_another_connection_is_refused():
+    """A relation on another connection is refused, saying how to fix it."""
+    other = duckdb.connect()
+    rel = other.sql("SELECT 1 AS a")
+    with pytest.raises(SqlearnError, match=r"another DuckDB connection.*set_config"):
+        read(rel)
+    left = other.sql("SELECT view_name FROM duckdb_views()").fetchall()
+    assert not any(v[0].startswith("_sqlearn_relation_") for v in left)
+
+
+def test_a_replacement_scan_relation_is_read():
+    """A relation scanning a Python frame by its name keeps working."""
+    frame = pd.DataFrame({"a": [1.0, 3.0]})
+    rel = _config.connection().sql("FROM frame")
+    source = read(rel)
+    del frame, rel
+    gc.collect()
+    assert source.relation.fetchall() == [(1.0,), (3.0,)]
+
+
+def test_a_relation_duckdb_cannot_read_is_an_input_error():
+    """A relation whose table is gone is named as the input, not a step."""
+    con = _config.connection()
+    con.sql("CREATE TABLE gone AS SELECT 1 AS a")
+    rel = con.table("gone")
+    con.sql("DROP TABLE gone")
+    with pytest.raises(SqlearnError, match="cannot read the relation"):
+        read(rel)
 
 
 def test_an_edited_frame_gets_a_new_key():

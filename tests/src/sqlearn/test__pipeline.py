@@ -335,3 +335,42 @@ def test_steps_must_be_named_uniquely_and_be_steps(people):
         sq.Pipeline([("scale", MyScale()), ("scale", MyScale())])
     with pytest.raises(sq.SqlearnError, match="not a step"):
         sq.Pipeline([("model", object())]).learn(people)
+
+
+def test_a_relation_is_read_on_its_own_connection():
+    """Another connection's table is refused, then read once it is configured."""
+    connection().sql("CREATE TABLE t AS SELECT 100.0 AS a")
+    other = duckdb.connect()
+    other.sql("CREATE TABLE t AS SELECT * FROM (VALUES (1.0), (3.0)) v(a)")
+    pipe = sq.Pipeline([("scale", MyScale())])
+    with pytest.raises(sq.SqlearnError, match="another DuckDB connection"):
+        pipe.learn(other.table("t"))
+    sq.set_config(connection=other)
+    pipe.learn(other.table("t"))
+    assert pipe["scale"].mean_ == {"a": pytest.approx(2.0)}
+    assert [r[0] for r in pipe.apply(other.table("t")).fetchall()] == [-1.0, 1.0]
+
+
+def test_a_replacement_scan_relation_is_learned():
+    """A relation scanning a frame by its Python name learns its values."""
+    frame = pd.DataFrame({"a": [1.0, 3.0]})
+    rel = connection().sql("FROM frame")
+    del frame
+    gc.collect()
+    pipe = sq.Pipeline([("scale", MyScale())]).learn(rel)
+    assert pipe["scale"].mean_ == {"a": pytest.approx(2.0)}
+    assert len(pipe.apply(rel).fetchall()) == 2
+
+
+def test_a_source_duckdb_cannot_bind_is_an_input_error(people, monkeypatch):
+    """A source failing to bind is reported as the input's, not a step's."""
+    from sqlearn import _inputs, _pipeline
+
+    source = _inputs.read(people)
+    connection().execute(
+        source.relation.sql_query().replace("SELECT * FROM", "DROP VIEW")
+    )
+    monkeypatch.setattr(_pipeline, "read", lambda data: source)
+    with pytest.raises(sq.SqlearnError, match="cannot read the input") as err:
+        sq.Pipeline([("scale", MyScale())]).learn(people)
+    assert not isinstance(err.value, sq.StepError)

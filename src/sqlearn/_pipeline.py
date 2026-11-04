@@ -36,6 +36,20 @@ def _kind(dtype: DuckDBPyType) -> str:
     return "numeric" if _is_numeric(dtype) else str(dtype)
 
 
+def _source_sql(con: duckdb.DuckDBPyConnection, source: Source) -> str:
+    """Return the source's SQL once it binds, so no step is blamed for it."""
+    source_sql = source.relation.sql_query()
+    try:
+        describe(con, source_sql, [])
+    except duckdb.Error as exc:
+        msg = (
+            f"DuckDB cannot read the input: {exc}\n"
+            "Fix: check that the data passed still exists and can be read."
+        )
+        raise SqlearnError(msg) from exc
+    return source_sql
+
+
 def _bind(
     con: duckdb.DuckDBPyConnection,
     source_sql: str,
@@ -236,6 +250,8 @@ class Pipeline:
 
         Raises
         ------
+        SqlearnError
+            If the input cannot be read (see `sqlearn._inputs.read`).
         StepError
             If a step's selector matches no column, an output takes a name in
             use, or a step learns from no rows.
@@ -251,7 +267,7 @@ class Pipeline:
         steps = self._checked()
         source = read(data)
         con = connection()
-        source_sql = source.relation.sql_query()
+        source_sql = _source_sql(con, source)
         the_plan = plan(steps, source.schema)
         keys = [
             step_key(source.key, None, steps, i, the_plan.depends_on[i])
@@ -407,7 +423,7 @@ class Pipeline:
         Raises
         ------
         SqlearnError
-            If the pipeline has not learned yet.
+            If the pipeline has not learned yet, or the input cannot be read.
         StepError
             If the data lacks a column a step learned from, or holds it with
             another kind of type.
@@ -430,7 +446,7 @@ class Pipeline:
         steps = self._checked()
         source = read(data)
         con = connection()
-        source_sql = source.relation.sql_query()
+        source_sql = _source_sql(con, source)
         stages, _, _ = self._stages(
             con, source_sql, source.schema, steps, self._entries, self._types
         )
