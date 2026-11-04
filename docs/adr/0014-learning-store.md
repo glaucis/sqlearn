@@ -7,7 +7,9 @@ related: [docs/adr/0012-static-and-dynamic-steps.md, docs/adr/0013-learn-apply-t
 # 0014: Learned values live in a store while the program runs
 
 Status: accepted (2026-11-04). The data part of the key is extended to
-in-memory tables by [ADR 0021](0021-inputs-and-how-the-store-knows-them.md).
+in-memory tables by [ADR 0021](0021-inputs-and-how-the-store-knows-them.md);
+the steps part follows what a step reads, by
+[ADR 0024](0024-store-keys-follow-what-a-step-reads.md).
 
 ## Context
 

@@ -63,10 +63,10 @@ outside model and carries sqlearn's settings for it; a plain model is
 candidate keeps its own:
 
 ```python
-params = {
-    "model": [LogisticRegression(), sq.Model(LGBMClassifier(), feed="arrow")],
-    "model__C": [0.1, 1, 10],  # only where the model has C
-}
+params = [
+    {"model": [LogisticRegression()], "model__C": [0.1, 1, 10]},
+    {"model": [sq.Model(LGBMClassifier(), feed="arrow")]},
+]
 ```
 
 `feed` is not a search parameter, which would try every model with every form.
