@@ -1,9 +1,9 @@
 ---
 type: architecture
-tags: [repository-layout, directory-structure, docs, tests, examples]
-summary: "Describes the sqlearn repository's directory tree, the reasons for its layout, and where tests, examples, and generated outputs belong."
-related: [docs/specs/foundation.md]
-mdindex: [type=4ca303, tags=a1a8d0, summary=338ffa, related=8dbe55]
+tags: [repository, layout, directory-structure, tests, docs, examples]
+summary: "Describes the sqlearn repository's directory layout, what each top-level folder holds, and the reasons behind the structure."
+related: [docs/specs/foundation.md, docs/adr/0025-results-stored-as-data-in-mirrored-folders.md]
+mdindex: [type=4ca303, tags=501a6b, summary=a1e6bf, related=03b487]
 ---
 # The repository's layout
 
@@ -33,9 +33,11 @@ sqlearn/
   examples/              sphinx-gallery's sources; the gallery is
                          generated into docs/ and ignored by git
   validation/            the reference implementations and runners,
-                         3.8, and their committed results; imported by
-                         tests/, never installed
-  benchmarks/            the benchmark suite and its committed results
+                         3.8, and their committed results; mirrors
+                         src/sqlearn/; imported by tests/, never
+                         installed
+  benchmarks/            the benchmark suite and its committed results;
+                         mirrors src/sqlearn/
   src/sqlearn/           the package
   tests/                 mirrors the root, dot folders without their dot
   pyproject.toml         the package, and every tool's configuration
@@ -98,8 +100,10 @@ folder when its first example lands. Today there is the root header,
 
 ## What arrives later
 
-- `validation/` with the first page in the core's slice, and `benchmarks/`
-  with 3.9.
+- `validation/` with the core's slice: its runners and results, mirroring the
+  package
+  ([ADR 0025](../adr/0025-results-stored-as-data-in-mirrored-folders.md)); its
+  pages with 3.8. `benchmarks/` with 3.9, mirrored the same way.
 - `CHANGELOG.md`, `NOTICE` and `CITATION.cff` with the first release.
 - `.github/`: nothing while the repository is private.
 - Guide chapters, lessons, validation pages and benchmarks: the foundation

@@ -379,10 +379,19 @@ Per [ADR 0022](../adr/0022-one-search-with-pluggable-methods.md):
 - **Against the mathematics:** each step's formula and `accuracy` per
   [ADR 0016](../adr/0016-validation-method.md): a canonical value at 50 digits,
   DuckDB's own function alone and at one thread, numpy, scikit-learn and pandas
-  compared with it. The first validation pages are generated from these runs.
-  Their layout (spec's call, from the earlier attempts): per step, a table of
-  worst absolute, relative and ULP error per dataset, type and reference, an
-  anomaly column, and a register of known divergences with their reason.
+  compared with it.
+- **Results stored as data**
+  ([ADR 0025](../adr/0025-results-stored-as-data-in-mirrored-folders.md)): every
+  validation case, every test outcome and the environment are written as
+  committed JSON with fixed names, in folders that mirror the package
+  (`validation/sqlearn/preprocessing/scale.results.json`). `just validate`
+  writes them; `just verify` runs it. The pages that publish them come with
+  overview 3.8; the results are complete from the slice on. Each case records
+  what a page needs: worst absolute, relative and ULP error per dataset, type
+  and reference, the bound, the result (pass, fail, anomaly), and known
+  divergences with their reason.
+- **The mirror is enforced:** `just check` fails when a module has no test
+  file or a step has no validation runner.
 - **Runs:** for every combination that can be built from the slice's steps and
   selectors (static only; independent dynamic steps; a chain that forces a
   split; a step reading everything; an undeclared user step), the test asserts
@@ -412,7 +421,8 @@ Per [ADR 0022](../adr/0022-one-search-with-pluggable-methods.md):
 ## 15. Done when
 
 - The slice's script runs end to end.
-- §13's tests and validations pass in `just verify`, the slow tier included.
+- §13's tests and validations pass in `just verify`, the slow tier included,
+  and their results are committed under `validation/`.
 - The documentation in §14 builds.
 
 ## 16. Not in the core
