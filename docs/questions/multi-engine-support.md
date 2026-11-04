@@ -1,15 +1,18 @@
 ---
 type: question
-tags: [multi-engine, sql, sqlglot, duckdb, transpilation]
-summary: "Open question on whether sqlearn should support engines beyond DuckDB, and how to represent generated SQL to allow that."
-mdindex: [type=1f5087, tags=0837e6, summary=88d806, related=da8f4c]
-related: [docs/questions/multi-engine-support.md, earlier-attempts/README.md, sql_learn_test]
+tags: [multi-engine, duckdb, sqlglot, transpilation, dialects, sql]
+summary: "Open question on whether sqlearn should support engines other than DuckDB, and how to translate or render generated SQL for them."
+mdindex: [type=1f5087, tags=0f9a93, summary=104304, related=d7196c]
+related: [docs/adr/0015-duckdb-expressions-no-sqlglot.md, ADR 0015, docs/questions/earlier-attempts/README.md, sql_learn_test, "April's federated spec"]
 ---
 # Should sqlearn run on engines other than DuckDB?
 
-Future work, not planned yet. The idea is to let users pick an engine
-(Postgres and others) and transpile the generated SQL for it, possibly with
-sqlglot.
+Future work, not planned yet, and planned only if users ask for other engines.
+[ADR 0015](../adr/0015-duckdb-expressions-no-sqlglot.md) settles the present:
+steps build DuckDB expression objects, sqlearn's compositor assembles one query,
+no sqlglot, DuckDB only. The compositor is where a translator or a second
+renderer would plug in. The idea is to let users pick an engine (Postgres and
+others) and translate the generated SQL for it.
 
 Open points:
 
@@ -19,8 +22,8 @@ Open points:
   engines?
 - How do we test that results match across engines?
 
-Choosing the internal SQL representation early affects how hard this is later,
-so settle it before the first transformers are built.
+The internal representation is now chosen (ADR 0015); the points above stay
+open until other engines are requested.
 
 ## What the earlier attempts show
 

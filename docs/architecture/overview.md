@@ -1,9 +1,9 @@
 ---
 type: architecture
-tags: [sqlearn, duckdb, roadmap, scikit-learn, project-structure]
-summary: "Project-wide map of sqlearn: its purpose, agreed constraints, the nine parts and their dependencies, and the order of work."
-related: [docs/adr/0003-scikit-learn-style-api.md, docs/adr/0002-sql-on-duckdb-execution-engine.md, docs/questions/README.md, docs/adr/0004-apache-2-licence.md, docs/adr/0005-runtime-dependencies.md, docs/adr/0006-local-and-offline.md, docs/questions/applications-home.md, docs/adr/0009-sphinx-documentation-site.md]
-mdindex: [type=4ca303, tags=e5733c, summary=f8335e, related=6f5013]
+tags: [overview, roadmap, sqlearn, duckdb, scikit-learn, project-structure]
+summary: "The map of the sqlearn project: its purpose, agreed constraints, the nine parts and their dependencies, written before product code."
+related: [docs/adr/0003-scikit-learn-style-api.md, docs/adr/0002-sql-on-duckdb-execution-engine.md, docs/adr/0005-runtime-dependencies.md, docs/adr/0004-apache-2-licence.md, docs/adr/0006-local-and-offline.md, docs/questions/applications-home.md, docs/adr/0009-sphinx-documentation-site.md, docs/questions/site-hosting.md]
+mdindex: [type=4ca303, tags=b594fd, summary=4241eb, related=3e6a0f]
 ---
 # Overview
 
@@ -257,8 +257,10 @@ sqlearn stands and at what size the others stop.
 
 ### Later: other database engines
 
-Not one of the parts yet. Transpiling the generated SQL to other engines,
-possibly with sqlglot:
+Not one of the parts yet, and planned only if users ask for it. sqlearn
+targets DuckDB only and builds its SQL from DuckDB's expression objects, without
+sqlglot ([ADR 0015](../adr/0015-duckdb-expressions-no-sqlglot.md)); translating
+to other engines would plug into its compositor:
 [questions/multi-engine-support.md](../questions/multi-engine-support.md).
 
 ## 4. Order of work
