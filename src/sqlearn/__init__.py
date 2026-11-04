@@ -26,6 +26,7 @@ from sqlearn._expr import (
     median,
     stddev_pop,
 )
+from sqlearn._model import Model
 from sqlearn._output import Output, out_csv, out_json, out_parquet
 from sqlearn._pipeline import Pipeline, make_pipeline
 from sqlearn._selectors import cols, numeric, string
@@ -37,6 +38,7 @@ __all__ = [
     "Impute",
     "InternalError",
     "Learned",
+    "Model",
     "OneHot",
     "Ordinal",
     "Output",

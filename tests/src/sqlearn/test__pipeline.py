@@ -5,6 +5,7 @@ import math
 from dataclasses import dataclass
 
 import duckdb
+import numpy as np
 import pandas as pd
 import pytest
 from duckdb.sqltypes import INTEGER
@@ -374,3 +375,188 @@ def test_a_source_duckdb_cannot_bind_is_an_input_error(people, monkeypatch):
     with pytest.raises(sq.SqlearnError, match="cannot read the input") as err:
         sq.Pipeline([("scale", MyScale())]).learn(people)
     assert not isinstance(err.value, sq.StepError)
+
+
+def customers(seed, rows=300):
+    """Return seeded customers: two numbers with gaps, a city, and churned."""
+    rng = np.random.default_rng(seed)
+    age = rng.normal(40, 12, rows)
+    income = rng.normal(3000, 800, rows)
+    city = rng.choice(["kyiv", "oslo", "rome"], rows)
+    logit = 0.08 * (age - 40) - 0.002 * (income - 3000) + (city == "oslo") * 1.5
+    churned = (rng.random(rows) < 1 / (1 + np.exp(-logit))).astype(int)
+    age[rng.random(rows) < 0.1] = np.nan
+    income[rng.random(rows) < 0.1] = np.nan
+    return pd.DataFrame(
+        {"age": age, "income": income, "city": city, "churned": churned},
+    )
+
+
+def churn_pipe(model):
+    """Return Impute, OneHot and Scale, then the model."""
+    return sq.Pipeline(
+        [
+            ("impute", sq.Impute(sq.numeric(), strategy="median")),
+            ("onehot", sq.OneHot(["city"])),
+            ("scale", sq.Scale(sq.numeric())),
+            ("model", model),
+        ]
+    )
+
+
+class Echo:
+    """A model predicting its first column, to check where each row lands."""
+
+    def fit(self, x, y):
+        """Remember what was handed over."""
+        self.shape_ = x.shape
+        self.y_ = y
+        return self
+
+    def predict(self, x):
+        """Return the first column."""
+        return x[:, 0]
+
+
+def test_train_predict_matches_sklearn_pipeline():
+    """Impute, OneHot, Scale, LogisticRegression: as scikit-learn's pipeline."""
+    from sklearn.compose import ColumnTransformer
+    from sklearn.impute import SimpleImputer
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.pipeline import make_pipeline as sk_make_pipeline
+    from sklearn.preprocessing import OneHotEncoder, StandardScaler
+
+    train, new = customers(1), customers(2)
+    new.loc[0, "city"] = "riga"  # unseen: all zeros, as handle_unknown="ignore"
+    features = ["age", "income", "city"]
+    sk = sk_make_pipeline(
+        ColumnTransformer(
+            [
+                ("num", SimpleImputer(strategy="median"), ["age", "income"]),
+                ("cat", OneHotEncoder(handle_unknown="ignore"), ["city"]),
+            ]
+        ),
+        StandardScaler(),
+        LogisticRegression(),
+    ).fit(train[features], train["churned"])
+    pipe = churn_pipe(LogisticRegression()).train(train, target="churned")
+    assert pipe.columns_out_ == [
+        "age",
+        "income",
+        "city_kyiv",
+        "city_oslo",
+        "city_rome",
+    ]
+    np.testing.assert_allclose(pipe["model"].coef_, sk[-1].coef_, rtol=1e-6)
+    np.testing.assert_allclose(pipe["model"].intercept_, sk[-1].intercept_, rtol=1e-6)
+    got = pipe.predict(new, out="numpy")["prediction"]
+    np.testing.assert_array_equal(got, sk.predict(new[features]))
+    # The same arrays give the same probabilities: the models are one model.
+    prepared = sk[:-1].transform(new[features])
+    np.testing.assert_allclose(
+        pipe["model"].predict_proba(prepared),
+        sk.predict_proba(new[features]),
+        rtol=1e-6,
+    )
+
+
+def test_the_target_is_never_scaled():
+    """A numeric target is set aside: no selector matches it, no step sees it."""
+    frame = pd.DataFrame({"x": [1.0, 2.0, 3.0, 4.0], "y": [0.0, 1.0, 0.0, 1.0]})
+    pipe = sq.Pipeline([("scale", sq.Scale(sq.numeric())), ("model", Echo())])
+    pipe.train(frame, target="y")
+    assert pipe["scale"].mean_ == {"x": 2.5}
+    assert pipe.columns_out_ == ["x"]
+    assert pipe["model"].shape_ == (4, 1)
+    assert sorted(pipe["model"].y_.tolist()) == [0.0, 0.0, 1.0, 1.0]
+
+
+def test_target_and_features_come_from_one_query():
+    """Each row's target travels with its features; train records its runs."""
+    frame = pd.DataFrame({"x": [3.0, 1.0, 2.0], "y": [30, 10, 20]})
+    pipe = sq.Pipeline([("model", Echo())]).train(frame, target="y")
+    assert pipe["model"].y_.tolist() == [30, 10, 20]
+    pipe = churn_pipe(Echo()).train(customers(3), target="churned")
+    # Run 1 learns Impute and OneHot; run 2 learns Scale and feeds the model.
+    assert [len(r.statements) for r in pipe.runs_] == [1, 2]
+    assert '"churned"' in pipe.runs_[-1].statements[-1]
+    pipe.train(customers(3), target="churned")
+    assert [len(r.statements) for r in pipe.runs_] == [1]
+
+
+def test_predict_returns_one_column_in_input_order():
+    """`predict` gives a lazy relation of one column, one row per input row."""
+    frame = pd.DataFrame({"x": [5.0, 1.0, 4.0, 2.0, 3.0], "y": [1, 0, 1, 0, 1]})
+    pipe = sq.Pipeline([("impute", sq.Impute()), ("model", Echo())])
+    pipe.train(frame, target="y")
+    rel = pipe.predict(frame.drop(columns="y"))
+    assert isinstance(rel, duckdb.DuckDBPyRelation)
+    assert rel.columns == ["prediction"]
+    assert [r[0] for r in rel.fetchall()] == [5.0, 1.0, 4.0, 2.0, 3.0]
+    assert len(pipe.runs_) == 1
+    assert len(pipe.runs_[0].statements) == 1
+    # Data holding the target is predicted too: the target is not a feature.
+    assert [r[0] for r in pipe.predict(frame).fetchall()] == [5, 1, 4, 2, 3]
+
+
+def test_predictions_line_up_with_a_large_parquet_input(tmp_path):
+    """A million rows read by several threads come back in the input's order."""
+    path = tmp_path / "big.parquet"
+    connection().execute(
+        "COPY (SELECT (i * 7919) % 1000003 AS x, i % 2 AS y FROM range(1000000) "
+        f"t(i)) TO '{path}' (FORMAT parquet, ROW_GROUP_SIZE 50000)"
+    )
+    threads = connection().sql("SELECT current_setting('threads')").fetchall()
+    assert threads[0][0] > 1
+    pipe = sq.Pipeline([("impute", sq.Impute()), ("model", Echo())])
+    pipe.train(path, target="y")
+    got = pipe.predict(path, out="numpy")["prediction"]
+    want = connection().sql(f"SELECT x FROM '{path}'").fetchnumpy()["x"]
+    np.testing.assert_array_equal(got, want)
+
+
+def test_predictions_keep_the_model_labels():
+    """Text labels come back as text."""
+    from sklearn.tree import DecisionTreeClassifier
+
+    frame = pd.DataFrame({"x": [0.0, 1.0, 2.0, 3.0], "y": ["no", "yes", "no", "yes"]})
+    pipe = sq.Pipeline([("model", DecisionTreeClassifier())]).train(frame, "y")
+    assert [r[0] for r in pipe.predict(frame).fetchall()] == ["no", "yes", "no", "yes"]
+
+
+def test_predictions_outlive_the_input():
+    """The predictions stay readable after the input and the call are gone."""
+    frame = pd.DataFrame({"x": [1.0, 2.0], "y": [0, 1]})
+    pipe = sq.Pipeline([("model", Echo())]).train(frame, target="y")
+    rel = pipe.predict(pd.DataFrame({"x": [7.0, 8.0]}))
+    gc.collect()
+    assert rel.fetchall() == [(7.0,), (8.0,)]
+
+
+def test_train_takes_a_model_or_a_wrapped_model_and_a_feed():
+    """`sq.Model` carries the feed; `train(feed=...)` overrides it per call."""
+    frame = pd.DataFrame({"x": [1.0, 2.0], "y": [0, 1]})
+    pipe = sq.Pipeline([("model", sq.Model(Echo(), feed="numpy"))])
+    pipe.train(frame, target="y")
+    assert [r[0] for r in pipe.predict(frame).fetchall()] == [1.0, 2.0]
+    url = "https://github.com/glaucis/sqlearn/issues/21"
+    with pytest.raises(sq.SqlearnError, match=url):
+        pipe.train(frame, target="y", feed="arrow")
+
+
+def test_train_and_predict_refuse_mistakes():
+    """A missing target, no model, or predict before train are explained."""
+    frame = pd.DataFrame({"x": [1.0, 2.0], "y": [0, 1]})
+    with pytest.raises(sq.SqlearnError, match=r"'churned'.*'x', 'y'"):
+        sq.Pipeline([("model", Echo())]).train(frame, target="churned")
+    with pytest.raises(sq.SqlearnError, match="no model"):
+        scale_pipe().train(frame, target="y")
+    with pytest.raises(sq.SqlearnError, match="train"):
+        sq.Pipeline([("model", Echo())]).predict(frame)
+    with pytest.raises(sq.SqlearnError, match="ends in a model"):
+        sq.Pipeline([("model", Echo())]).learn(frame)
+    with pytest.raises(sq.SqlearnError, match="not a step"):
+        sq.Pipeline([("model", Echo()), ("scale", MyScale())]).train(frame, "y")
+    gaps = connection().sql("SELECT * FROM (VALUES (1.0, 0), (2.0, NULL)) t(x, y)")
+    with pytest.raises(sq.SqlearnError, match="target 'y' is missing in 1 row"):
+        sq.Pipeline([("model", Echo())]).train(gaps, target="y")

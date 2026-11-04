@@ -17,6 +17,7 @@ from sqlearn._compose import (
     build,
     describe,
     execute,
+    number_rows,
     stage_name,
     step_stage,
 )
@@ -24,6 +25,15 @@ from sqlearn._config import connection, get_config
 from sqlearn._diagnose import diagnose
 from sqlearn._errors import SqlearnError, StepError
 from sqlearn._inputs import Source, read
+from sqlearn._model import (
+    Model,
+    as_model,
+    check_feed,
+    is_model,
+    received,
+    take,
+    target_values,
+)
 from sqlearn._output import Output, to_output
 from sqlearn._plan import Plan, plan
 from sqlearn._selectors import Schema, _is_numeric
@@ -31,6 +41,9 @@ from sqlearn._step import Step
 from sqlearn._store import STORE, Entry, StepKey, step_key
 
 __all__ = ["Pipeline", "make_pipeline"]
+
+_ROW = "__sqlearn_row"
+"""The column numbering the rows that feed `predict`; never handed back."""
 
 
 def _kind(dtype: DuckDBPyType) -> str:
@@ -203,6 +216,7 @@ class Pipeline:
         self._entries: list[Entry] | None = None
         self._types: list[dict[str, DuckDBPyType]] = []
         self._columns_out: list[str] = []
+        self._feed: str | None = None
 
     @property
     def named_steps(self) -> dict[str, Any]:
@@ -267,18 +281,50 @@ class Pipeline:
             return self.steps[key][1]
         return self.named_steps[key]
 
-    def _checked(self) -> list[tuple[str, Step]]:
+    def _split(self) -> tuple[list[tuple[str, Step]], Model | None]:
+        """Return the steps, and the model when the last element is not a step."""
         steps: list[tuple[str, Step]] = []
+        model: Model | None = None
         for i, (name, step) in enumerate(self.steps):
-            if not isinstance(step, Step):
-                msg = (
-                    f"{name} (step {i + 1}) is a {type(step).__name__}, not a "
-                    "step: learn and apply take steps only. Fix: make it a "
-                    "subclass of sq.Step."
-                )
-                raise SqlearnError(msg)
-            steps.append((name, step))
+            if isinstance(step, Step):
+                steps.append((name, step))
+                continue
+            last = i == len(self.steps) - 1
+            if last and is_model(step):
+                model = as_model(step)
+                continue
+            where = "" if last else "; only the last element may be a model"
+            msg = (
+                f"{name} (step {i + 1}) is a {type(step).__name__}, not a step "
+                f"and not a model (one with fit and predict){where}. Fix: make "
+                "it a subclass of sq.Step, or put the model last."
+            )
+            raise SqlearnError(msg)
+        return steps, model
+
+    def _checked(self) -> list[tuple[str, Step]]:
+        steps, model = self._split()
+        if model is not None:
+            name = self.steps[-1][0]
+            msg = (
+                f"this pipeline ends in a model ({name!r}), so it is trained, "
+                "not learned: learn and apply are for steps alone. Fix: call "
+                "train(data, target=...) and predict(data), or build a pipeline "
+                "of the steps without the model."
+            )
+            raise SqlearnError(msg)
         return steps
+
+    def _modelled(self) -> tuple[list[tuple[str, Step]], Model]:
+        steps, model = self._split()
+        if model is None:
+            msg = (
+                "this pipeline has no model: its last element is a step, so "
+                "there is nothing to train. Fix: add a model last, such as "
+                "('model', LogisticRegression()), or call learn and apply."
+            )
+            raise SqlearnError(msg)
+        return steps, model
 
     def learn(self, data: object) -> "Pipeline":
         """Learn every step from data, finding unchanged steps in the store.
@@ -299,7 +345,8 @@ class Pipeline:
         Raises
         ------
         SqlearnError
-            If the input cannot be read (see `sqlearn._inputs.read`).
+            If the input cannot be read (see `sqlearn._inputs.read`), or the
+            pipeline ends in a model (use `train`).
         StepError
             If a step's selector matches no column, an output takes a name in
             use, or a step learns from no rows.
@@ -316,28 +363,58 @@ class Pipeline:
         source = read(data)
         con = connection()
         source_sql = _source_sql(con, source)
+        _, runs, known = self._learn(con, source, steps)
+        self._settle(con, source_sql, source.schema, steps, known)
+        self.runs_ = [run for _, run in runs]
+        return self
+
+    def _learn(
+        self,
+        con: duckdb.DuckDBPyConnection,
+        source: Source,
+        steps: list[tuple[str, Step]],
+    ) -> tuple[Plan, list[tuple[int, Run]], list[Entry]]:
+        """Learn the steps missing from the store.
+
+        Returns the plan, the runs executed (with their numbers) and every
+        step's entry.
+        """
         the_plan = plan(steps, source.schema)
         keys = [
             step_key(source.key, None, steps, i, the_plan.depends_on[i])
             for i in range(len(steps))
         ]
         entries: list[Entry | None] = [STORE.get(k) for k in keys]
-        runs: list[Run] = []
+        runs: list[tuple[int, Run]] = []
         for r in sorted(
             {the_plan.learn_run[i] for i, e in enumerate(entries) if e is None}
         ):
             run = self._learn_run(con, source, steps, the_plan, r, entries, keys)
             if run.statements:
-                runs.append(run)
-        known = [e for e in entries if e is not None]
-        _, schema, types = self._stages(con, source_sql, source.schema, steps, known)
+                runs.append((r, run))
+        return the_plan, runs, [e for e in entries if e is not None]
+
+    def _settle(
+        self,
+        con: duckdb.DuckDBPyConnection,
+        source_sql: str,
+        schema: Schema,
+        steps: list[tuple[str, Step]],
+        known: list[Entry],
+        aside: Sequence[str] = (),
+    ) -> list[Stage]:
+        """Build the stages with the learned values; keep what the steps learned.
+
+        Columns in `aside` (the target) pass through every stage untouched
+        and are not counted among the output columns.
+        """
+        stages, out, types = self._stages(con, source_sql, schema, steps, known)
         for (_, step), entry in zip(steps, known, strict=True):
             step._set_learned(_by_column(entry.values))
         self._entries = known
         self._types = types
-        self._columns_out = [c for c, _ in schema]
-        self.runs_ = runs
-        return self
+        self._columns_out = [c for c, _ in out if c not in aside]
+        return stages
 
     def _learn_run(
         self,
@@ -473,7 +550,8 @@ class Pipeline:
         Raises
         ------
         SqlearnError
-            If the pipeline has not learned yet, or the input cannot be read.
+            If the pipeline has not learned yet, ends in a model (use
+            `predict`), or the input cannot be read.
         StepError
             If the data lacks a column a step learned from, or holds it with
             another kind of type.
@@ -505,6 +583,153 @@ class Pipeline:
         # The relation reads the source's view (for a frame): keep the
         # source, and so the view, alive for as long as the relation is.
         weakref.finalize(rel, _hold, source)
+        self.runs_ = [Run([sql])]
+        return to_output(rel, out if out is not None else get_config().out)
+
+    def train(self, data: object, target: str, feed: str | None = None) -> "Pipeline":
+        """Learn the steps, then train the model on the prepared data.
+
+        The target column is set aside before planning: no step and no
+        selector sees it. The steps learn (or are found in the store), and
+        one query prepares the features with the target beside them, so each
+        row's answer stays with its features. They are handed over in the
+        form `feed` names and passed, with the target, to the model's ``fit``.
+
+        Parameters
+        ----------
+        data : str, pathlib.Path, duckdb.DuckDBPyRelation or pandas.DataFrame
+            A file path or glob, a table name, a relation or a pandas frame.
+        target : str
+            The column the model learns to predict.
+        feed : str, optional
+            The form of the hand-over for this call; by default the model's
+            own (``sq.Model(..., feed=...)``, which is ``"numpy"``).
+
+        Returns
+        -------
+        Pipeline
+            This pipeline, with its steps learned and its model trained.
+
+        Raises
+        ------
+        SqlearnError
+            If the pipeline has no model, the target is not a column, the
+            target is missing in a row, a feature is not a number, or `feed`
+            is not built.
+        StepError
+            As for `learn`.
+
+        Examples
+        --------
+        >>> import pandas as pd
+        >>> import sqlearn as sq
+        >>> from sklearn.linear_model import LogisticRegression
+        >>> data = pd.DataFrame({"x": [1.0, 2.0, 3.0, 4.0], "y": [0, 0, 1, 1]})
+        >>> pipe = sq.Pipeline([("scale", sq.Scale()), ("model", LogisticRegression())])
+        >>> pipe.train(data, target="y")["scale"].mean_
+        {'x': 2.5}
+        """
+        steps, model = self._modelled()
+        feed = model.feed if feed is None else feed
+        check_feed(feed)
+        source = read(data)
+        con = connection()
+        source_sql = _source_sql(con, source)
+        names = [c for c, _ in source.schema]
+        if target not in names:
+            msg = (
+                f"the target {target!r} is not a column of the data, whose "
+                f"columns are {', '.join(repr(c) for c in names)}. Fix: pass "
+                "target= one of them, spelled as in the data."
+            )
+            raise SqlearnError(msg)
+        features = [(c, t) for c, t in source.schema if c != target]
+        # The steps learn from the data without the target: a selector
+        # cannot match it, so sq.numeric() never scales it.
+        prepared = Source(
+            source.relation.project(*(duckdb.ColumnExpression(c) for c, _ in features)),
+            (*source.key, ("target", target)),
+            features,
+        )
+        the_plan, runs, known = self._learn(con, prepared, steps)
+        # The feeding query reads the whole data; the target passes through
+        # every stage untouched, so it is fetched with its own row's features.
+        stages = self._settle(
+            con, source_sql, source.schema, steps, known, aside=[target]
+        )
+        sql = build(source_sql, stages)
+        x, aside = take(con.sql(sql), feed, self._columns_out, [target])
+        model.estimator.fit(x, target_values(aside[target], target))
+        # The model is a reader (ADR 0018): the feeding query belongs to the
+        # feed run, after its learn statement when that run learned.
+        if runs and runs[-1][0] == the_plan.feed_run:
+            runs[-1][1].statements.append(sql)
+        else:
+            runs.append((the_plan.feed_run, Run([sql])))
+        self._feed = feed
+        self.runs_ = [run for _, run in runs]
+        return self
+
+    def predict(self, data: object, out: str | Output | None = None) -> Any:  # noqa: ANN401  (the form `out` names)
+        """Prepare data with the learned values and predict with the model.
+
+        One query prepares the data, its rows numbered in the order they are
+        read; the model's predictions are sorted back by that number, so row
+        ``i`` of the result is the prediction for row ``i`` of the input.
+
+        Parameters
+        ----------
+        data : str, pathlib.Path, duckdb.DuckDBPyRelation or pandas.DataFrame
+            A file path or glob, a table name, a relation or a pandas frame.
+            It may hold the target column too; it is not a feature.
+        out : {"pandas", "polars", "numpy", "arrow"} or Output, optional
+            What to hand back, as for `apply`.
+
+        Returns
+        -------
+        object
+            A `duckdb.DuckDBPyRelation` of one column, ``prediction``, one
+            row per input row in the input's order; or that in the form
+            `out` names.
+
+        Raises
+        ------
+        SqlearnError
+            If the pipeline has no model or has not been trained, or the
+            model does not return one value per row.
+        StepError
+            As for `apply`.
+
+        Examples
+        --------
+        >>> import pandas as pd
+        >>> import sqlearn as sq
+        >>> from sklearn.linear_model import LogisticRegression
+        >>> data = pd.DataFrame({"x": [1.0, 2.0, 3.0, 4.0], "y": [0, 0, 1, 1]})
+        >>> pipe = sq.Pipeline([("scale", sq.Scale()), ("model", LogisticRegression())])
+        >>> pipe.train(data, target="y").predict(data, out="numpy")[
+        ...     "prediction"
+        ... ].tolist()
+        [0, 0, 1, 1]
+        """
+        steps, model = self._modelled()
+        if self._feed is None or self._entries is None:
+            msg = (
+                "this pipeline has not been trained yet, so its model cannot "
+                "predict. Fix: call train(data, target=...) first."
+            )
+            raise SqlearnError(msg)
+        source = read(data)
+        con = connection()
+        source_sql = _source_sql(con, source)
+        numbered = number_rows(source_sql, _ROW)
+        schema = describe(con, numbered, [])
+        stages, _, _ = self._stages(
+            con, numbered, schema, steps, self._entries, self._types
+        )
+        sql = build(numbered, stages)
+        x, aside = take(con.sql(sql), self._feed, self._columns_out, [_ROW])
+        rel = received(con, aside[_ROW], model.estimator.predict(x))
         self.runs_ = [Run([sql])]
         return to_output(rel, out if out is not None else get_config().out)
 

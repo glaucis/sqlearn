@@ -30,6 +30,7 @@ __all__ = [
     "copy_sql",
     "describe",
     "execute",
+    "number_rows",
     "stage_name",
     "step_stage",
 ]
@@ -420,6 +421,36 @@ def _learn_sql(source_sql: str, stages: list[Stage]) -> str:
     )
     sources = " CROSS JOIN ".join(quote(s.learn_name) for s in learning)
     return "WITH " + ",\n".join(ctes) + f"\nSELECT {picks} FROM {sources}"
+
+
+def number_rows(source_sql: str, name: str) -> str:
+    """Return the data with each row numbered from 1 in the order it is read.
+
+    ``row_number() OVER ()`` with an empty window is DuckDB's streaming
+    window: it numbers rows as the scan hands them on, in the input's order
+    (DuckDB keeps insertion order by default). The number then travels with
+    its row, so a result can be sorted back into the input's order.
+
+    Parameters
+    ----------
+    source_sql : str
+        The data, as for `build`.
+    name : str
+        The name of the numbering column.
+
+    Returns
+    -------
+    str
+        The query: every column of the data, then the number.
+
+    Examples
+    --------
+    >>> import duckdb
+    >>> from sqlearn._compose import number_rows
+    >>> duckdb.sql(number_rows("SELECT 'a' AS c", "row")).fetchall()
+    [('a', 1)]
+    """
+    return f"SELECT *, row_number() OVER () AS {quote(name)} FROM ({source_sql})"
 
 
 _FORMATS = ("parquet", "csv", "json")

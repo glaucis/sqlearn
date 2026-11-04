@@ -14,9 +14,11 @@ from sqlearn._compose import (
     copy_sql,
     describe,
     execute,
+    number_rows,
     stage_name,
     step_stage,
 )
+from sqlearn._config import connection
 
 
 class FillZero(sq.Step):
@@ -241,3 +243,11 @@ def test_copy_writes_only_the_three_formats():
     assert copy_sql("SELECT 1", "a.csv", "csv").endswith("(FORMAT csv)")
     with pytest.raises(sq.SqlearnError, match="xlsx"):
         copy_sql("SELECT 1", "a.xlsx", "xlsx")
+
+
+def test_number_rows_counts_from_one_in_read_order():
+    """Rows are numbered from 1 as read, under a quoted name."""
+    sql = number_rows("SELECT * FROM (VALUES ('c'), ('a'), ('b')) t(v)", 'my "row"')
+    rel = connection().sql(sql)
+    assert rel.columns == ["v", 'my "row"']
+    assert rel.fetchall() == [("c", 1), ("a", 2), ("b", 3)]
