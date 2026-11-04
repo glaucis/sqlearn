@@ -65,8 +65,25 @@ def stddev_pop(x: Expression) -> Expression:
     return _call("stddev_pop", x)
 
 
+MEDIAN = "__sqlearn_median"
+"""The name of the function `median` returns: a marker, not a DuckDB function.
+
+The compositor finds it at the top of a learned value and writes the median
+by sorting (see `sqlearn._compose`), because DuckDB's own ``median`` keeps a
+column's values in memory and so cannot learn from data larger than memory.
+"""
+
+
 def median(x: Expression) -> Expression:
-    """Return the median of `x`.
+    """Return the median of `x`, computed by sorting so it runs larger than memory.
+
+    The result is a marker the compositor recognises; it must be a whole
+    learned value (``{"value": sq.median(x)}``), not part of a larger
+    expression. The compositor computes it from the values sorted by DuckDB,
+    which spills the sort to disk when the data does not fit in memory:
+    missing values (NULL, and NaN) are left out, the middle value is taken,
+    or the two middle ones interpolated halfway as DuckDB's ``median`` does,
+    as DOUBLE. With no value to take, the median is NULL. `x` must be numeric.
 
     Parameters
     ----------
@@ -76,16 +93,16 @@ def median(x: Expression) -> Expression:
     Returns
     -------
     duckdb.Expression
-        ``median(x)``.
+        The marker ``__sqlearn_median(x)``.
 
     Examples
     --------
     >>> import duckdb
     >>> import sqlearn as sq
     >>> str(sq.median(duckdb.ColumnExpression("age")))
-    'median("age")'
+    '__sqlearn_median("age")'
     """
-    return _call("median", x)
+    return _call(MEDIAN, x)
 
 
 def count(x: Expression) -> Expression:

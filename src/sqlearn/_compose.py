@@ -7,6 +7,13 @@ aggregates over the stage before the step, cross-joined into the step's data
 stage. Learned values are referenced there, never written in as numbers, so a
 later step learns from an earlier step's output. Every identifier written goes
 through `quote` (ADR 0015).
+
+A median (`sqlearn.median`, a marker) is not an aggregate DuckDB can compute
+larger than memory, so a learn stage's medians get stages of their own beside
+it: the present values of every median column, numbered in sorted order by one
+window (a sort, which spills to disk), and the one or two middle ones picked
+from each. Their one-row result is cross-joined into the learn stage, so a
+median comes back like any other learned value.
 """
 
 from collections.abc import Callable, Mapping, Sequence
@@ -17,7 +24,7 @@ import duckdb
 from duckdb import Expression
 
 from sqlearn._errors import InternalError, SqlearnError, StepError
-from sqlearn._expr import quote
+from sqlearn._expr import MEDIAN, quote
 from sqlearn._selectors import Schema
 from sqlearn._step import Learned, Step, output_names
 
@@ -350,6 +357,118 @@ def _check(stage: Stage) -> None:
         raise SqlearnError(msg)
 
 
+def _balanced(sql: str) -> bool:
+    """Say whether no parenthesis in `sql` closes one opened before it."""
+    depth = 0
+    quoted: str | None = None
+    for ch in sql:
+        if quoted is not None:
+            # A doubled quote inside a literal closes and reopens: still inside.
+            if ch == quoted:
+                quoted = None
+        elif ch in "'\"":
+            quoted = ch
+        elif ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth -= 1
+            if depth < 0:
+                return False
+    return depth == 0
+
+
+def _median_of(stage: Stage, expression: Expression) -> str | None:
+    """Return the SQL a median marker wraps, or None when it is no median.
+
+    A marker anywhere but at the top of a learned value is refused: the
+    median is computed in stages of its own, so it must be a whole value.
+    """
+    text = str(expression)
+    head = f"{MEDIAN}("
+    if text.startswith(head) and text.endswith(")"):
+        inner = text[len(head) : -1]
+        if MEDIAN not in inner and _balanced(inner):
+            return inner
+    if MEDIAN in text:
+        msg = (
+            f"{stage.step} (step {stage.position}) learns {text}, which uses "
+            "sq.median inside a larger expression; a median is computed by "
+            "sorting, in a stage of its own, so it must be a whole learned "
+            "value. Fix: learn the median as its own value, such as "
+            '{"median": sq.median(x)}, and combine it in apply.'
+        )
+        raise StepError(msg, step=stage.step, position=stage.position)
+    return None
+
+
+def _median_ctes(name: str, medians: dict[str, str], previous: str) -> list[str]:
+    """Return the stages computing a learn stage's medians, as one row.
+
+    Every median of the stage is computed in one sort: the present values of
+    each, tagged with the median's number, numbered in order of tag, then
+    value, by one window over all of them (no partitions), which spills to
+    disk. Each tag's values then hold the positions after those of the tags
+    before it, so its middle one or two are found from the counts per tag.
+    Each median is the middle value, or halfway between the two middle ones
+    (DuckDB's ``median`` interpolates so); NULL when there is no value.
+
+    One sort, not one per column: two sorts running in one statement hold
+    memory together, and do not fit where one does. Nor one partition per
+    column: a window over partitions needed more memory. DuckDB's sort itself
+    keeps a little memory per row, so this reaches as far as its ``ORDER BY``
+    does: under 64 MB, 20 million rows of two columns, not 60 million.
+    """
+    values, counts, each = (
+        quote(f"{name}_{part}") for part in ("values", "counts", "each")
+    )
+    t, x, r, n, start, m = (quote(c) for c in ("t", "x", "r", "n", "start", "m"))
+    tagged = " UNION ALL ".join(
+        f"SELECT {tag} AS {t}, CAST({inner} AS DOUBLE) AS {x} FROM {quote(previous)}"
+        for tag, inner in enumerate(medians.values())
+    )
+    pivot = ", ".join(
+        f"max({m}) FILTER (WHERE {t} = {tag}) AS {quote(key)}"
+        for tag, key in enumerate(medians)
+    )
+    return [
+        f"{values} AS (SELECT {t}, {x} FROM ({tagged}) "
+        f"WHERE {x} IS NOT NULL AND NOT isnan({x}))",
+        f"{counts} AS (SELECT {t}, {n}, sum({n}) OVER (ORDER BY {t}) - {n} AS {start} "
+        f"FROM (SELECT {t}, count(*) AS {n} FROM {values} GROUP BY {t}))",
+        f"{each} AS (SELECT {t}, min({x}) + (max({x}) - min({x})) * 0.5 AS {m} "
+        f"FROM (SELECT {t}, {x}, row_number() OVER (ORDER BY {t}, {x}) AS {r} "
+        f"FROM {values}) JOIN {counts} USING ({t}) "
+        f"WHERE {r} - {start} IN (({n} + 1) // 2, ({n} + 2) // 2) GROUP BY {t})",
+        f"{quote(name)} AS MATERIALIZED (SELECT {pivot} FROM {each})",
+    ]
+
+
+def _learn_ctes(stage: Stage, learn: dict[str, Expression], previous: str) -> list[str]:
+    """Return a learn stage, after the stages of the medians it learns."""
+    ctes: list[str] = []
+    aggregates: dict[str, Expression] = {}
+    medians: dict[str, str] = {}
+    for key, expression in learn.items():
+        inner = _median_of(stage, expression)
+        if inner is None:
+            aggregates[key] = expression
+        else:
+            medians[key] = inner
+    # MATERIALIZED, never NOT MATERIALIZED: the one row is computed once.
+    # The row count beside the values tells "no rows" from NULL values.
+    items = [_items(aggregates)] if aggregates else []
+    select = (
+        f"SELECT {', '.join([*items, f'count(*) AS {quote(_ROWS)}'])} "
+        f"FROM {quote(previous)}"
+    )
+    if medians:
+        name = f"{stage.learn_name}_median"
+        ctes.extend(_median_ctes(name, medians, previous))
+        select = f"SELECT * FROM ({select}) CROSS JOIN {quote(name)}"
+    ctes.append(f"{quote(stage.learn_name)} AS MATERIALIZED ({select})")
+    return ctes
+
+
 def _chain(source_sql: str, stages: list[Stage], every_learn: bool) -> list[str]:
     read = {r for s in stages for r in s.reads}
     ctes = [f"{quote(SOURCE)} AS (SELECT * FROM ({source_sql}))"]
@@ -357,13 +476,7 @@ def _chain(source_sql: str, stages: list[Stage], every_learn: bool) -> list[str]
     for stage in stages:
         _check(stage)
         if stage.learn and (every_learn or stage.learn_name in read):
-            # MATERIALIZED, never NOT MATERIALIZED: the one row is computed once.
-            # The row count beside the values tells "no rows" from NULL values.
-            ctes.append(
-                f"{quote(stage.learn_name)} AS MATERIALIZED "
-                f"(SELECT {_items(stage.learn)}, count(*) AS {quote(_ROWS)} "
-                f"FROM {quote(previous)})",
-            )
+            ctes.extend(_learn_ctes(stage, stage.learn, previous))
         joins = "".join(f" CROSS JOIN {quote(r)}" for r in stage.reads)
         ctes.append(
             f"{quote(stage.name)} AS "

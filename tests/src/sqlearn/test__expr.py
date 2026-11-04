@@ -13,7 +13,7 @@ def test_printed_sql_of_each_form():
     x = duckdb.ColumnExpression("age")
     assert str(sq.avg(x)) == 'avg("age")'
     assert str(sq.stddev_pop(x)) == 'stddev_pop("age")'
-    assert str(sq.median(x)) == 'median("age")'
+    assert str(sq.median(x)) == '__sqlearn_median("age")'
     assert str(sq.count(x)) == 'count("age")'
     assert (
         str(sq.distinct_values(x))

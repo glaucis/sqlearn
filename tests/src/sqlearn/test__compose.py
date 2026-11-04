@@ -1,6 +1,7 @@
 """Tests of the compositor: step pieces become one chain of SQL stages."""
 
 import duckdb
+import numpy as np
 import pytest
 from duckdb.sqltypes import DOUBLE, INTEGER, VARCHAR
 from steps_for_tests import MyEncoder, MyScale
@@ -10,6 +11,8 @@ from sqlearn._compose import (
     SOURCE,
     Run,
     Stage,
+    _balanced,
+    _learn_sql,
     build,
     copy_sql,
     describe,
@@ -251,3 +254,133 @@ def test_number_rows_counts_from_one_in_read_order():
     rel = connection().sql(sql)
     assert rel.columns == ["v", 'my "row"']
     assert rel.fetchall() == [("c", 1), ("a", 2), ("b", 3)]
+
+
+class Middle(sq.Step):
+    """Learn the median of each column; apply subtracts it."""
+
+    def learn(self, x):
+        """Learn the median."""
+        return {"median": sq.median(x)}
+
+    def apply(self, x, learned):
+        """Shift by the median, so a later step learns from the shifted values."""
+        return x - learned.median
+
+
+NAN = float("nan")
+
+
+@pytest.mark.parametrize(
+    ("values", "dtype"),
+    [
+        ([3.0, 1.0, 2.0], "DOUBLE"),  # odd count
+        ([4.0, 1.0, 10.0, 2.0], "DOUBLE"),  # even: halfway between 2 and 4
+        ([5.0, None, NAN, 1.0, None, 2.0, 8.0], "DOUBLE"),  # missing left out
+        ([0.1, 0.7, 0.2, 0.3000000001, 1e300, -1e300], "DOUBLE"),
+        ([7, 3, 9, 4], "INTEGER"),
+        ([7, None, 3, 9], "BIGINT"),
+        ([-2.5], "DOUBLE"),
+    ],
+)
+def test_median_matches_duckdb_and_numpy(values, dtype):
+    """The sorted median is DuckDB's median, and numpy's over present values."""
+    con = duckdb.connect()
+    con.execute(f"CREATE TABLE m (a {dtype})")
+    con.executemany("INSERT INTO m VALUES (?)", [[v] for v in values])
+    stage = step_stage(1, "middle", Middle(), [("a", DOUBLE)], SOURCE)
+    got = execute(con, "m", [stage], produce=False)[0]["s01_middle"]["median"]["a"]
+    (want,) = con.sql(
+        "SELECT median(a) FROM m WHERE a IS NOT NULL AND NOT isnan(a::DOUBLE)"
+    ).fetchall()[0]
+    present = [v for v in values if v is not None and v == v]
+    assert got == want
+    assert got == pytest.approx(float(np.median(np.array(present, dtype=float))))
+
+
+def test_median_of_no_present_value_is_null():
+    """Every value missing: the median is NULL (Impute then refuses it)."""
+    con = duckdb.connect()
+    source = "SELECT * FROM (VALUES (NULL::DOUBLE), ('NaN'::DOUBLE)) t(a)"
+    stage = step_stage(1, "middle", Middle(), [("a", DOUBLE)], SOURCE)
+    values, _, _ = execute(con, source, [stage], produce=False)
+    assert values["s01_middle"]["median"]["a"] is None
+
+
+def test_median_of_no_rows_is_null():
+    """No rows at all: the learn statement's median is NULL beside a count of 0."""
+    stage = step_stage(1, "middle", Middle(), [("a", DOUBLE)], SOURCE)
+    sql = _learn_sql("SELECT 1.0::DOUBLE AS a WHERE false", [stage])
+    assert duckdb.connect().sql(sql).fetchall() == [(0, None)]
+
+
+def test_median_is_computed_by_sorting_with_odd_names_quoted():
+    """The printed SQL sorts with a window and quotes every name it writes."""
+    con = duckdb.connect()
+    con.sql(
+        'CREATE TABLE "o d""d" AS '
+        'SELECT * FROM (VALUES (1.0, 5), (3.0, 7)) t("a b", "c""d")'
+    )
+    schema = [("a b", DOUBLE), ('c"d', INTEGER)]
+    stage = step_stage(1, "mid dle", Middle(), schema, SOURCE)
+    values, rel, run = produce(con, '"o d""d"', [stage])
+    learn = run.statements[0]
+    assert "row_number() OVER (ORDER BY" in learn
+    assert "median(" not in learn
+    assert "__sqlearn_median" not in learn
+    assert '"l01_mid dle_median_values"' in learn
+    assert '"c""d"' in learn
+    assert values["s01_mid dle"]["median"] == {"a b": 2.0, 'c"d': 6.0}
+    assert rel.fetchall() == [(-1.0, -1.0), (1.0, 1.0)]
+
+
+def test_a_later_step_learns_from_values_shifted_by_a_median(con):
+    """One statement: MyScale learns from the data after the median's shift."""
+    first = step_stage(1, "middle", Middle(), SCHEMA, SOURCE)
+    second = step_stage(2, "scale", MyScale(), SCHEMA, first.name)
+    values, _, run = execute(con, "t", [first, second], produce=False)
+    assert len(run.statements) == 1
+    assert values["s01_middle"]["median"]["age"] == 20.0
+    assert values["s02_scale"]["mean"]["age"] == 0.0
+
+
+def test_two_learn_stages_with_medians_in_one_statement(con):
+    """Each learn stage sorts its own medians; both come back."""
+    first = step_stage(1, "one", Middle(), SCHEMA, SOURCE)
+    second = step_stage(2, "two", Middle(), SCHEMA, first.name)
+    values, rel, _ = produce(con, "t", [first, second])
+    assert values["s01_one"]["median"]["age"] == 20.0
+    assert values["s02_two"]["median"]["age"] == 0.0
+    assert rel.fetchall() == [(-10.0,), (None,), (10.0,)]
+
+
+class Doubled(sq.Step):
+    """Learn twice the median: a median inside a larger expression."""
+
+    def learn(self, x):
+        """Learn the median, doubled."""
+        return {"twice": sq.median(x) * sq.const(2)}
+
+
+def test_a_median_inside_an_expression_is_refused(con):
+    """A median must be a whole learned value; the message names the step."""
+    stage = step_stage(1, "double", Doubled(), SCHEMA, SOURCE)
+    with pytest.raises(sq.StepError, match=r"double \(step 1\).*whole learned value"):
+        execute(con, "t", [stage], produce=False)
+
+
+def test_a_marker_closed_before_the_end_is_not_a_whole_median():
+    """``median(a) * f(b)`` starts and ends like a median but is not one."""
+    assert _balanced("\"a\" = ')'")
+    assert not _balanced('"a") * f("b"')
+    assert not _balanced('f("a"')
+
+
+def test_a_median_of_text_holding_parentheses_and_quotes(con):
+    """Parentheses and quotes inside the median's argument do not confuse it."""
+    stage = step_stage(1, "middle", Middle(), SCHEMA, SOURCE)
+    age = duckdb.ColumnExpression(SOURCE, "age")
+    odd = duckdb.CaseExpression(age.cast("VARCHAR") == sq.const(")'("), sq.const(None))
+    stage.learn = {"v0": sq.median(odd.otherwise(age))}
+    values, _, _ = execute(con, "t", [stage], produce=False)
+    assert values["s01_middle"]["median"]["age"] == 20.0
