@@ -13,8 +13,8 @@ Status: approved by Tomas on 2026-11-04. Written from the design talk of that
 day; every decision it rests on is in ADRs 0012–0025. Where this spec
 makes a call of its own, it says "(spec's call)".
 
-Built: see [the plan](../plans/2026-11-04-library-core.md). The rulings made
-while building are in the branch's history.
+Built: see [the plan](../plans/2026-11-04-library-core.md) and
+[issue #8](https://github.com/glaucis/sqlearn/issues/8), which tracks the core.
 
 ## 1. Purpose
 
@@ -66,7 +66,8 @@ It shows, and its tests prove:
   and so goes in the next run;
 - **the store:** over 2 imputer settings × 3 values of `C` × 5 folds (30
   trainings), `Impute` and `Scale` learn 10 times, `OneHot` and `Ordinal` 5
-  times (they never read what `Impute` writes); changing only `C` learns
+  times (they never read what `Impute` writes), each plus one for the final
+  training on all data; changing only `C` learns
   nothing ([ADR 0024](../adr/0024-store-keys-follow-what-a-step-reads.md));
 - **fold first:** the data is transformed once per fold and imputer setting,
   10 times for 30 trainings;
