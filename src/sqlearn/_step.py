@@ -306,7 +306,15 @@ class Step:
                     "run learn on data first",
                 )
             key = name[:-1]
-            return {col: vals[key] for col, vals in learned.items() if key in vals}
+            found = {col: vals[key] for col, vals in learned.items() if key in vals}
+            if not found:
+                known = sorted({f"{k}_" for vals in learned.values() for k in vals})
+                raise AttributeError(
+                    f"{type(self).__name__} learned no value called {key!r}, so "
+                    f"it has no {name!r}; it learned {', '.join(known) or 'nothing'}. "
+                    "Fix: check the spelling.",
+                )
+            return found
         raise AttributeError(
             f"{type(self).__name__!r} object has no attribute {name!r}",
         )

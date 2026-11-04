@@ -111,6 +111,16 @@ def test_missing_attributes_still_raise_attribute_error():
         step.mean_  # noqa: B018
 
 
+def test_a_name_the_step_did_not_learn_raises_attribute_error():
+    """A misspelt learned name raises, naming what was learned."""
+    step = MyScale()
+    step._set_learned({"age": {"mean": 1.0, "sd": 2.0}})
+    with pytest.raises(AttributeError, match=r"'maen'.*mean_, sd_"):
+        step.maen_  # noqa: B018
+    assert not hasattr(step, "maen_")
+    assert hasattr(step, "mean_")
+
+
 def test_steps_copy_and_pickle():
     """Copying and pickling do not recurse through __getattr__."""
     step = MyEncoder()
