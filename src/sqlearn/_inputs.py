@@ -3,6 +3,7 @@
 import glob
 import itertools
 import os
+import weakref
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol, cast
@@ -84,8 +85,10 @@ def _fingerprint(name: str) -> tuple[int, int]:
 
 
 def _is_pandas_frame(data: object) -> bool:
-    cls = type(data)
-    return cls.__name__ == "DataFrame" and cls.__module__.startswith("pandas")
+    return any(
+        cls.__name__ == "DataFrame" and cls.__module__.startswith("pandas")
+        for cls in type(data).__mro__
+    )
 
 
 def _read_files(pattern: str) -> Source:
@@ -120,12 +123,19 @@ def _read_table(name: str) -> Source:
 def _read_frame(frame: _Frame) -> Source:
     con = connection()
     name = f"_sqlearn_frame_{next(_frame_ids)}"
-    # A copy: DuckDB cannot scan negatively strided arrays (a reversed frame),
-    # and a later edit of the caller's frame must not change a keyed relation.
-    con.register(name, frame.copy())
+    try:
+        con.register(name, frame)
+    except duckdb.Error:
+        # DuckDB cannot scan negatively strided arrays (a reversed frame):
+        # only then fall back to a contiguous copy.
+        con.register(name, frame.copy())
     relation = con.table(name)
     rows, digest = _fingerprint(name)
-    return Source(relation, ("frame", rows, digest), _schema(relation))
+    source = Source(relation, ("frame", rows, digest), _schema(relation))
+    # Release the registration (and so the reference to the frame) once the
+    # source is dropped: the store never keeps the user's data alive.
+    weakref.finalize(source, con.unregister, name)
+    return source
 
 
 def read(data: object) -> Source:

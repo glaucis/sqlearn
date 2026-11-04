@@ -1,12 +1,15 @@
 """Tests of reading inputs and keying them for the store."""
 
+import gc
 import os
+import weakref
 
 import duckdb
 import pandas as pd
 import pytest
 
 from sqlearn import SqlearnError, _config
+from sqlearn import _inputs as inputs
 from sqlearn._inputs import read
 
 
@@ -28,7 +31,7 @@ def test_a_file_key_changes_when_the_file_changes(tmp_path):
     assert first.key != second.key
     assert second.relation.fetchall() == [(1,), (2,)]
     assert [name for name, _ in first.schema] == ["a"]
-    assert hash(first.key) is not None
+    assert {second.key: 1}[read(path).key] == 1
 
 
 def test_a_glob_reads_all_matches_in_order(tmp_path):
@@ -125,3 +128,43 @@ def test_relation_type_is_duckdb():
     """The source's relation is a DuckDB relation."""
     source = read(pd.DataFrame({"a": [1]}))
     assert isinstance(source.relation, duckdb.DuckDBPyRelation)
+
+
+def _views():
+    rows = _config.connection().sql("SELECT view_name FROM duckdb_views()")
+    return [r[0] for r in rows.fetchall()]
+
+
+def test_a_dropped_source_releases_its_frame():
+    """The registered view and the reference to the frame go with the source."""
+    df = pd.DataFrame({"a": [1, 2]})
+    ref = weakref.ref(df)
+    source = read(df)
+    assert any(v.startswith("_sqlearn_frame_") for v in _views())
+    del source
+    gc.collect()
+    assert not any(v.startswith("_sqlearn_frame_") for v in _views())
+    del df
+    gc.collect()
+    assert ref() is None
+
+
+def test_a_frame_is_not_copied_in_the_normal_case(monkeypatch):
+    """A normal frame is registered itself, not a copy of it."""
+    registered = []
+    real = _config.connection()
+
+    class Spy:
+        def register(self, name, obj):
+            registered.append(obj)
+            return real.register(name, obj)
+
+        def __getattr__(self, attr):
+            return getattr(real, attr)
+
+    monkeypatch.setattr(inputs, "connection", Spy)
+    df = pd.DataFrame({"a": [1, 2]})
+    source = read(df)
+    assert len(registered) == 1
+    assert registered[0] is df
+    assert source.relation.fetchall() == [(1,), (2,)]
