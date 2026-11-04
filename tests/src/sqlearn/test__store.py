@@ -63,3 +63,47 @@ def test_size_is_reported():
     key = _keys(DATA, None, "mean")[0]
     STORE.put(key, Entry({"mean": {"a": 1.0}}, ["a"], "SELECT 1"))
     assert STORE.size_bytes() > 0
+
+
+class _V(sq.Step):
+    """A step with one setting."""
+
+    def __init__(self, v):
+        """Set the setting."""
+        self.v = v
+
+
+_SOURCE = "class X(sq.Step):\n    def __init__(self, v=1):\n        self.v = v\n"
+
+
+def _make():
+    scope = {"sq": sq}
+    exec(_SOURCE, scope)
+    return scope["X"]
+
+
+def test_same_named_classes_get_different_keys():
+    """Same name and settings, different class objects: different keys."""
+    a, b = _make(), _make()
+    ka = step_key(DATA, None, [("x", a())], 0, frozenset())
+    kb = step_key(DATA, None, [("x", b())], 0, frozenset())
+    assert ka != kb
+    assert ka == step_key(DATA, None, [("x", a())], 0, frozenset())
+
+
+def test_true_and_one_get_different_keys():
+    """A boolean and an integer setting do not share a key."""
+    keys = {
+        step_key(DATA, None, [("x", _V(v))], 0, frozenset()) for v in (True, 1, 1.0)
+    }
+    assert len(keys) == 3
+
+
+def test_a_change_two_hops_up_reaches_the_last_key():
+    """A to B to C: a change in A changes C's key (transitive depends_on)."""
+
+    def key(strategy):
+        steps = [("a", MyImpute(strategy=strategy)), ("b", _V(1)), ("c", _V(2))]
+        return step_key(DATA, None, steps, 2, frozenset({0, 1}))
+
+    assert key("mean") != key("median")

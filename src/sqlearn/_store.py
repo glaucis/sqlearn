@@ -14,9 +14,11 @@ FoldKey = tuple[int, int, int]
 """A fold as ``(n, seed, k)``: the number of folds, the seed, the fold index."""
 
 StepKey = tuple[
-    DataKey, FoldKey | None, tuple[tuple[str, str, tuple[object, ...]], ...]
+    DataKey,
+    FoldKey | None,
+    tuple[tuple[str, type, str, tuple[object, ...]], ...],
 ]
-"""The data, the fold, and ``(name, class qualname, settings)`` per step."""
+"""The data, the fold, and ``(name, class, dotted path, settings)`` per step."""
 
 _PLAIN = (str, int, float, bool, bytes, type(None))
 
@@ -24,7 +26,7 @@ _PLAIN = (str, int, float, bool, bytes, type(None))
 def _freeze(value: object) -> object:
     """Return a deterministic, hashable form of a setting value."""
     if isinstance(value, _PLAIN):
-        return value
+        return (type(value).__qualname__, value)
     if isinstance(value, (list, tuple)):
         return tuple(_freeze(v) for v in value)
     return repr(value)
@@ -40,9 +42,11 @@ def step_key(
     """Build the store key of one step (ADR 0024).
 
     The key holds the data, the fold, and the name, class and settings of the
-    step and of every step it depends on, in pipeline order. Settings are
-    sorted by name; plain values are kept, selectors and models by their
-    ``repr``, lists as tuples.
+    step and of every step it depends on, in pipeline order. The class is the
+    class object itself (so a redefined class gets a new key) beside its dotted
+    path. Settings are sorted by name; plain values are kept with their type
+    (so ``True`` and ``1`` differ), selectors and models by their ``repr``,
+    lists as tuples.
 
     Parameters
     ----------
@@ -68,13 +72,14 @@ def step_key(
     >>> from sqlearn._store import step_key
     >>> steps = [("step", sq.Step(cols="a"))]
     >>> key = step_key(("t",), None, steps, 0, frozenset())
-    >>> key[2][0][:2]
-    ('step', 'Step')
+    >>> key[2][0][0], key[2][0][2]
+    ('step', 'sqlearn._step.Step')
     """
     chain = tuple(
         (
             steps[i][0],
-            type(steps[i][1]).__qualname__,
+            type(steps[i][1]),
+            f"{type(steps[i][1]).__module__}.{type(steps[i][1]).__qualname__}",
             tuple(
                 sorted((k, _freeze(v)) for k, v in steps[i][1].settings().items()),
             ),
@@ -84,9 +89,9 @@ def step_key(
     return (data, fold, chain)
 
 
-@dataclass
+@dataclass(frozen=True)
 class Entry:
-    """What one step learned.
+    """What one step learned (read-only once built).
 
     Attributes
     ----------
@@ -131,7 +136,7 @@ class Store:
     --------
     >>> from sqlearn._store import Entry, Store
     >>> store = Store()
-    >>> key = (("t",), None, (("scale", "Scale", ()),))
+    >>> key = (("t",), None, (("scale", object, "o.Scale", ()),))
     >>> store.put(key, Entry({}, [], ""))
     >>> len(store), store.learns["scale"]
     (1, 1)
@@ -168,7 +173,8 @@ class Store:
         Parameters
         ----------
         key : tuple
-            A key from `step_key`; its last chain item names the step.
+            A key from `step_key`; its last chain item is the step itself
+            (dependencies always have lower indices) and names it.
         entry : Entry
             What was learned.
 
@@ -176,7 +182,7 @@ class Store:
         --------
         >>> from sqlearn._store import Entry, Store
         >>> store = Store()
-        >>> store.put((("t",), None, (("s", "S", ()),)), Entry({}, [], ""))
+        >>> store.put((("t",), None, (("s", object, "o.S", ()),)), Entry({}, [], ""))
         >>> store.learns
         Counter({'s': 1})
         """
