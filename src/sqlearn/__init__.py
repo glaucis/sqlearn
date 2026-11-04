@@ -30,13 +30,15 @@ from sqlearn._output import Output, out_csv, out_json, out_parquet
 from sqlearn._pipeline import Pipeline, make_pipeline
 from sqlearn._selectors import cols, numeric, string
 from sqlearn._step import Learned, Step
-from sqlearn.preprocessing import Impute, Scale
+from sqlearn.preprocessing import Impute, OneHot, Ordinal, Scale
 
 __all__ = [
     "DefaultsUsedWarning",
     "Impute",
     "InternalError",
     "Learned",
+    "OneHot",
+    "Ordinal",
     "Output",
     "Pipeline",
     "Scale",

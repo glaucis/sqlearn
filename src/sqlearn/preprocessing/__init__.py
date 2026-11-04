@@ -8,6 +8,8 @@ Examples
 """
 
 from sqlearn.preprocessing.impute import Impute
+from sqlearn.preprocessing.onehot import OneHot
+from sqlearn.preprocessing.ordinal import Ordinal
 from sqlearn.preprocessing.scale import Scale
 
-__all__ = ["Impute", "Scale"]
+__all__ = ["Impute", "OneHot", "Ordinal", "Scale"]
