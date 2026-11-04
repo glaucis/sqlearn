@@ -4,13 +4,24 @@ from collections.abc import Mapping
 
 import duckdb
 from duckdb import Expression
-from duckdb.sqltypes import INTEGER
+from duckdb.sqltypes import DOUBLE, INTEGER
 
 from sqlearn._expr import const, distinct_values
 from sqlearn._selectors import Selector, string
 from sqlearn._step import Learned, Step
 
 __all__ = ["Ordinal"]
+
+
+def _is_nan(x: Expression) -> Expression:
+    """Return whether `x` is NaN; false for any type that holds no NaN.
+
+    Only FLOAT and DOUBLE hold NaN; the text ``'nan'`` is a value.
+    """
+    floating = duckdb.FunctionExpression("typeof", x).isin(
+        const("FLOAT"), const("DOUBLE")
+    )
+    return floating & duckdb.FunctionExpression("isnan", x.try_cast(DOUBLE))
 
 
 class Ordinal(Step):
@@ -20,7 +31,8 @@ class Ordinal(Step):
     (from 0) in that sorted list. A value not seen when learning becomes -1,
     as with scikit-learn's ``OrdinalEncoder(handle_unknown=
     "use_encoded_value", unknown_value=-1)``. NULL stays NULL (scikit-learn
-    keeps missing values missing) and is not a category. The output is
+    keeps missing values missing) and is not a category; so does NaN in a
+    float column, which scikit-learn treats as missing too. The output is
     INTEGER and replaces the column in place.
 
     Parameters
@@ -35,7 +47,8 @@ class Ordinal(Step):
     Attributes
     ----------
     categories_ : dict of str to list
-        After learning, the sorted distinct non-NULL values of each column.
+        After learning, the sorted distinct values of each column, without
+        NULL and NaN.
 
     Examples
     --------
@@ -59,7 +72,7 @@ class Ordinal(Step):
         super().__init__(cols=cols, keep=keep, suffix=suffix)
 
     def learn(self, x: Expression) -> Mapping[str, Expression]:
-        """Learn the sorted distinct values.
+        """Learn the sorted distinct values, without NULL and NaN.
 
         Parameters
         ----------
@@ -69,7 +82,7 @@ class Ordinal(Step):
         Returns
         -------
         mapping of str to duckdb.Expression
-            ``categories``: the sorted distinct non-NULL values.
+            ``categories``: the sorted distinct values, NULL and NaN left out.
 
         Examples
         --------
@@ -78,10 +91,11 @@ class Ordinal(Step):
         >>> list(sq.Ordinal().learn(duckdb.ColumnExpression("a")))
         ['categories']
         """
-        return {"categories": distinct_values(x)}
+        present = duckdb.CaseExpression(_is_nan(x), const(None)).otherwise(x)
+        return {"categories": distinct_values(present)}
 
     def apply(self, x: Expression, learned: Learned) -> Expression:
-        """Replace the value by its position, -1 if unseen, NULL if NULL.
+        """Replace the value by its position, -1 if unseen, NULL if missing.
 
         Parameters
         ----------
@@ -122,5 +136,5 @@ class Ordinal(Step):
             x,
         )
         code = duckdb.CoalesceOperator(position - const(1), const(-1))
-        keep_null = duckdb.CaseExpression(x.isnull(), const(None))
+        keep_null = duckdb.CaseExpression(x.isnull() | _is_nan(x), const(None))
         return keep_null.otherwise(code).cast(INTEGER)

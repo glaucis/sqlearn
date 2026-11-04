@@ -2,6 +2,7 @@
 
 import time
 
+import duckdb
 import numpy as np
 import pandas as pd
 import pytest
@@ -10,7 +11,7 @@ from sklearn.preprocessing import OneHotEncoder
 
 import sqlearn as sq
 from sqlearn._config import connection
-from sqlearn._step import classify
+from sqlearn._step import Learned, classify
 
 
 def towns(seed=3, rows=40):
@@ -187,3 +188,33 @@ def test_onehot_handles_two_thousand_categories():
     assert len(rel.columns) == 2000
     assert len(result) == rows
     assert all(sum(row) == 1 for row in result)
+
+
+def test_an_all_null_column_gives_one_null_column_as_in_sklearn():
+    """Only NULL seen: one column, ``c_NULL``, all ones (scikit-learn: one too)."""
+    frame = pd.DataFrame({"c": [None, None, None]}, dtype=object)
+    sk = OneHotEncoder(handle_unknown="ignore", sparse_output=False).fit(frame)
+    pipe = sq.Pipeline([("hot", sq.OneHot(cols="c"))]).learn(frame)
+    assert pipe["hot"].categories_ == {"c": []}
+    got = pipe.apply(frame, out="pandas")
+    assert list(got.columns) == ["c_NULL"]
+    np.testing.assert_array_equal(got.to_numpy(), sk.transform(frame).astype(int))
+
+
+def test_zero_categories_give_no_column():
+    """With no category and no NULL learned, the column becomes nothing."""
+    learned = Learned.values({"categories": [], "has_null": False})
+    assert sq.OneHot().apply(duckdb.ColumnExpression("c"), learned) == {}
+
+
+def test_nan_in_a_float_column_is_its_own_category_as_in_sklearn():
+    """NaN is a category named ``c_nan``, sorted last, as scikit-learn has it."""
+    rel = connection().sql(
+        "SELECT * FROM (VALUES (2.0::DOUBLE), ('nan'), (1.0), (2.0)) t(c)"
+    )
+    values = np.array([[2.0], [np.nan], [1.0], [2.0]])
+    sk = OneHotEncoder(handle_unknown="ignore", sparse_output=False).fit(values)
+    got = sq.Pipeline([("hot", sq.OneHot(cols="c"))]).learn(rel).apply(rel)
+    assert got.columns == ["c_1.0", "c_2.0", "c_nan"]
+    assert list(sk.get_feature_names_out(["c"])) == got.columns
+    np.testing.assert_array_equal(np.array(got.fetchall()), sk.transform(values))

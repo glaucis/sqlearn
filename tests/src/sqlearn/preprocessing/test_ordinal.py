@@ -102,3 +102,24 @@ def test_a_column_of_only_nulls_has_no_categories():
     assert pipe.apply(rel).fetchall() == [(None,), (None,)]
     more = connection().sql("SELECT 'z' AS c")
     assert pipe.apply(more).fetchall() == [(-1,)]
+
+
+def test_nan_in_a_float_column_is_missing_as_in_sklearn():
+    """NaN is missing, as NULL is: not a category, and NaN stays missing."""
+    rel = connection().sql(
+        "SELECT * FROM (VALUES (2.0::DOUBLE), ('nan'), (1.0), (NULL), (2.0)) t(c)"
+    )
+    values = np.array([[2.0], [np.nan], [1.0], [np.nan], [2.0]])
+    expected = encoder().fit(values).transform(values)[:, 0]
+    pipe = sq.Pipeline([("ord", sq.Ordinal(cols="c"))]).learn(rel)
+    assert pipe["ord"].categories_ == {"c": [1.0, 2.0]}
+    got = [r[0] for r in pipe.apply(rel).fetchall()]
+    assert got == [None if np.isnan(v) else int(v) for v in expected]
+    assert got == [1, None, 0, None, 1]
+
+
+def test_the_text_nan_is_a_category():
+    """In a text column 'nan' is a value like any other."""
+    rel = connection().sql("SELECT * FROM (VALUES ('nan'), ('a')) t(c)")
+    pipe = sq.Pipeline([("ord", sq.Ordinal())]).learn(rel)
+    assert pipe.apply(rel).fetchall() == [(1,), (0,)]
