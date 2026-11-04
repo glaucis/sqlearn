@@ -151,11 +151,16 @@ def test_a_name_collision_suggests_suffix():
 
 
 def test_a_new_dynamic_column_may_not_take_a_name_in_use():
-    """A dynamic step's new column colliding with a column is refused."""
+    """A dynamic step's new column colliding with a column is refused.
+
+    Its columns are named after what it learned, so suffix= is not advised.
+    """
     data = connection().sql("SELECT 'a' AS city, 1 AS city_a")
     pipe = sq.Pipeline([("onehot", MyEncoder())])
-    with pytest.raises(sq.StepError, match=r"onehot \(step 1\).*'city_a'.*suffix="):
+    with pytest.raises(sq.StepError, match=r"onehot \(step 1\).*'city_a'") as info:
         pipe.learn(data)
+    assert "suffix=" not in str(info.value)
+    assert "issues/26" in str(info.value)
 
 
 def test_selectors_are_fixed_at_learn(people):

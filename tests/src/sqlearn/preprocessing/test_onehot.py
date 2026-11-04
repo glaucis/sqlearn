@@ -201,6 +201,14 @@ def test_an_all_null_column_gives_one_null_column_as_in_sklearn():
     np.testing.assert_array_equal(got.to_numpy(), sk.transform(frame).astype(int))
 
 
+def test_a_clash_does_not_advise_suffix():
+    """OneHot ignores suffix=, so a clash points to the naming issue instead."""
+    data = connection().sql("SELECT 'a' AS city, 1 AS city_a")
+    with pytest.raises(sq.StepError, match=r"'city_a'.*rename.*issues/26") as info:
+        sq.Pipeline([("hot", sq.OneHot())]).learn(data)
+    assert "suffix=" not in str(info.value)
+
+
 def test_zero_categories_give_no_column():
     """With no category and no NULL learned, the column becomes nothing."""
     learned = Learned.values({"categories": [], "has_null": False})

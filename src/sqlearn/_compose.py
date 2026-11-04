@@ -255,6 +255,7 @@ def step_stage(
         else:
             per_column[c] = Learned.values(_known(name, c, aggregates, values))
     out: list[tuple[str, Expression]] = []
+    named = False  # names come from the learned values, not from suffix=
     for c, _ in schema:
         if c not in per_column or not applies:
             out.append((c, exprs[c]))
@@ -262,13 +263,22 @@ def step_stage(
         if step.keep:
             out.append((c, exprs[c]))
         result = step.apply(exprs[c], per_column[c])
+        named = named or not isinstance(result, Expression)
         out.extend(output_names(step_name, c, result, step.keep, step.suffix).items())
     clash = _clash([n for n, _ in out])
     if clash is not None:
+        fix = (
+            "Fix: rename the column before it. This step names its columns "
+            "after the values it learned; how such names are chosen and "
+            "clashes resolved is open in "
+            "https://github.com/glaucis/sqlearn/issues/26."
+            if named
+            else "Fix: set suffix= on the step, or rename the column before it."
+        )
         msg = (
             f"{step_name} (step {position}) makes two columns named {clash!r}: "
             "an output takes a name already in use (DuckDB names ignore case). "
-            "Fix: set suffix= on the step, or rename the column before it."
+            f"{fix}"
         )
         raise StepError(msg, step=step_name, position=position)
 
