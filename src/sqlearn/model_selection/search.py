@@ -40,6 +40,41 @@ def _preparation(params: Params, model_name: str) -> str:
     return json.dumps(steps, sort_keys=True, default=repr)
 
 
+def _check_folds(source: Source, folds: KFold) -> None:
+    """Refuse a fold that holds out no row, counting every fold in one query."""
+    fold = duckdb.ColumnExpression(FOLD)
+    counted = folds.numbered(source.relation, FOLD).aggregate(
+        [fold, duckdb.FunctionExpression("count_star")], fold
+    )
+    sizes = dict.fromkeys(range(folds.n), 0)
+    sizes.update({int(k): int(n) for k, n in counted.fetchall()})
+    empty = [k for k, n in sizes.items() if n == 0]
+    if empty:
+        rows = sum(sizes.values())
+        listed = ", ".join(str(n) for n in sizes.values())
+        msg = (
+            f"fold {empty[0]} of {folds!r} holds out no row: the {rows} rows "
+            f"were dealt into folds of {listed} rows, and a fold with nothing "
+            "held out cannot be scored. Fix: use fewer folds, or pass more "
+            "data."
+        )
+        raise SqlearnError(msg)
+
+
+def _fold_error(
+    exc: Exception, action: str, params: Params, k: int, folds: KFold
+) -> SqlearnError:
+    """Explain a model failing on one fold, naming the setting and the fold."""
+    setting = json.dumps(params, default=repr)
+    msg = (
+        f"the model failed to {action} with the setting {setting} on fold {k} "
+        f"of {folds!r}: {exc}\nFix: check that setting; with few or repeated "
+        "rows, pass more data or use fewer folds, so that each fold's "
+        "training rows hold every class."
+    )
+    return SqlearnError(msg)
+
+
 def _score(
     con: duckdb.DuckDBPyConnection,
     metric: Metric,
@@ -179,8 +214,9 @@ class Search:
         SqlearnError
             If the pipeline has no model, a setting names a step or setting
             that does not exist, the method refuses the params, the target
-            is not a column, or the data has a column named
-            ``__sqlearn_fold``.
+            is not a column, the data has a column named ``__sqlearn_fold``,
+            a fold holds out no row, or the model fails to fit or predict on
+            a fold (naming the setting and the fold).
         StepError
             As for `Pipeline.train`.
 
@@ -216,6 +252,7 @@ class Search:
                 "for each row's fold during a search. Fix: rename that column."
             )
             raise SqlearnError(msg)
+        _check_folds(source, folds)
         self.transforms_ = 0
         scored: list[tuple[Params, list[float]]] = []
         if method.knows_all:
@@ -281,8 +318,14 @@ class Search:
                 fit = np.ma.getdata(aside[FOLD]) != k
                 for i in members:
                     _, model = trial(self.pipe, settings[i])._modelled()
-                    model.estimator.fit(x[fit], y[fit])
-                    predicted = model.estimator.predict(x[~fit])
+                    action = "fit"
+                    try:
+                        model.estimator.fit(x[fit], y[fit])
+                        action = "predict"
+                        predicted = model.estimator.predict(x[~fit])
+                    except Exception as exc:
+                        err = _fold_error(exc, action, settings[i], k, folds)
+                        raise err from exc
                     scores[i][k] = _score(con, self.metric, y[~fit], predicted)
         return scores
 

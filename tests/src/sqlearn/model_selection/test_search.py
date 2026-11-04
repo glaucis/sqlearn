@@ -425,6 +425,29 @@ def test_a_model_predicting_the_wrong_shape_is_refused():
         )
 
 
+def test_an_empty_fold_is_refused_before_any_work():
+    """A fold holding out no row is refused, with every fold's size."""
+    df = pd.DataFrame({"x": np.arange(10, dtype=float), "y": [0, 1] * 5})
+    pipe = sq.Pipeline([("scale", sq.Scale()), ("model", LogisticRegression())])
+    search = sq.Search(pipe, params={"model__C": [1.0]}, folds=sq.KFold(5, seed=0))
+    with pytest.raises(
+        sq.SqlearnError, match=r"fold 3 .*4, 1, 2, 0, 3 rows.*Fix: .*fewer folds"
+    ):
+        search.train(df, target="y")
+    assert STORE.learns == {}
+
+
+def test_a_failing_fit_names_the_setting_and_the_fold():
+    """A model that cannot fit a fold is named with its setting and fold."""
+    dup = pd.DataFrame({"x": [1.0] * 6 + [2.0] * 6, "y": [0] * 6 + [1] * 6})
+    pipe = sq.Pipeline([("scale", sq.Scale()), ("model", LogisticRegression())])
+    search = sq.Search(pipe, params={"model__C": [1.0]}, folds=sq.KFold(2))
+    with pytest.raises(sq.SqlearnError, match=r'"model__C": 1.0.*fold 0') as info:
+        search.train(dup, target="y")
+    assert isinstance(info.value.__cause__, ValueError)
+    assert "Fix:" in str(info.value)
+
+
 def test_settings_changing_a_later_steps_inputs_score_as_if_alone():
     """Each setting's later steps learn on their own inputs, never stale."""
     rng = np.random.default_rng(0)
