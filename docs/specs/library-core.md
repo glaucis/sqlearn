@@ -256,7 +256,8 @@ Per [ADR 0020](../adr/0020-column-selectors.md):
   `sq.numeric()` and `sq.string()`, combined with `|`, `&`, `-` and `~`.
 - A selector is resolved in Python against the schema at that point in the
   pipeline (names and types, read without reading rows), then the SQL gets
-  plain names.
+  plain names. A name given in `cols=` that is not a column of the data
+  reaching the step is refused at `learn`, naming it and the columns there.
 - For planning, a selector is resolved against declared output types where
   names are not yet known: `sq.numeric()` after `OneHot` waits for it,
   `sq.string()` does not.

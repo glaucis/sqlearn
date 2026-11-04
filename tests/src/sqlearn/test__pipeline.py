@@ -117,6 +117,23 @@ def test_a_selector_matching_nothing_names_the_step():
         scale_pipe().learn(text)
 
 
+@pytest.mark.parametrize("given", [["age", "incme"], "incme", sq.cols("age", "incme")])
+def test_a_name_not_in_the_data_is_refused(given):
+    """A misspelt name in cols= is refused, naming it and the columns there."""
+    df = pd.DataFrame({"age": [1.0, 2.0, 3.0], "income": [5.0, 6.0, 9.0]})
+    with pytest.raises(
+        sq.StepError, match=r"s \(step 1\).*'incme'.*'age', 'income'.*Fix:"
+    ):
+        sq.Pipeline([("s", sq.Scale(cols=given))]).learn(df)
+
+
+def test_a_name_made_by_an_earlier_step_is_accepted():
+    """A name a dynamic step creates is found once that step has learned."""
+    df = pd.DataFrame({"city": ["a", "b"], "x": [1.0, 2.0]})
+    pipe = sq.Pipeline([("oh", sq.OneHot(["city"])), ("s", sq.Scale(["city_a"]))])
+    assert list(pipe.learn(df)["s"].mean_) == ["city_a"]
+
+
 def test_keep_adds_a_named_column(people):
     """With keep, the scaled column is added beside the original."""
     pipe = scale_pipe(keep=True).learn(people)

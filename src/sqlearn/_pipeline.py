@@ -36,7 +36,7 @@ from sqlearn._model import (
 )
 from sqlearn._output import Output, to_output
 from sqlearn._plan import Plan, plan
-from sqlearn._selectors import Schema, _is_numeric
+from sqlearn._selectors import Schema, _Cols, _is_numeric, to_selector
 from sqlearn._step import Step
 from sqlearn._store import STORE, Entry, FoldKey, StepKey, step_key
 
@@ -125,7 +125,27 @@ def _placed(exc: StepError, name: str, position: int) -> StepError:
 
 
 def _matched(step: Step, schema: Schema, name: str, position: int) -> list[str]:
-    """Return the columns a step works on, refusing a selector matching none."""
+    """Return the columns a step works on, refusing a selector matching none.
+
+    A name given in ``cols=`` (a string, a list or ``sq.cols``) must be a
+    column of the data reaching the step: a misspelt name is refused rather
+    than skipped. The planner, which runs before the names are known, does
+    not refuse it.
+    """
+    given = None if step.cols is None else to_selector(step.cols)
+    if isinstance(given, _Cols):
+        have = {c for c, _ in schema}
+        absent = [n for n in given.names if n not in have]
+        if absent:
+            names = ", ".join(repr(c) for c, _ in schema)
+            msg = (
+                f"{name} (step {position}) has cols={step.cols!r}, but the data "
+                f"reaching it has no column {', '.join(map(repr, absent))} (its "
+                f"columns: {names}). A name given in cols= must be a column. "
+                "Fix: correct the name (names are matched exactly), or remove "
+                "it from cols=."
+            )
+            raise StepError(msg, step=name, position=position)
     try:
         chosen = step.inputs(schema)
     except StepError as exc:
