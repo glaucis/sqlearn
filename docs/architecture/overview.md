@@ -1,9 +1,9 @@
 ---
 type: architecture
-tags: [overview, roadmap, sqlearn, duckdb, project-structure]
-summary: "Project map for sqlearn: its purpose, agreed constraints, the nine sub-projects in build order, and the open questions blocking them."
-related: [docs/adr/0003-scikit-learn-style-api.md, docs/adr/0002-sql-on-duckdb-execution-engine.md, docs/adr/0004-apache-2-licence.md, docs/adr/0005-runtime-dependencies.md, docs/adr/0006-local-and-offline.md, docs/adr/0009-sphinx-documentation-site.md, docs/adr/0001-uv-for-python-packaging.md, docs/adr/0007-python-3-12-floor.md]
-mdindex: [type=4ca303, tags=73402f, summary=1ddf37, related=aa323a]
+tags: [sqlearn, duckdb, scikit-learn, roadmap, validation, documentation]
+summary: "Project-wide map of sqlearn: its purpose, agreed constraints, the nine sub-projects in build order, and their dependencies."
+related: [docs/adr/0003-scikit-learn-style-api.md, docs/adr/0002-sql-on-duckdb-execution-engine.md, docs/questions/README.md, docs/adr/0004-apache-2-licence.md, docs/adr/0005-runtime-dependencies.md, docs/adr/0006-local-and-offline.md, docs/questions/applications-home.md, docs/adr/0009-sphinx-documentation-site.md]
+mdindex: [type=4ca303, tags=03f21b, summary=da6a38, related=6f5013]
 ---
 # Overview
 
@@ -33,9 +33,9 @@ large scientific-Python projects, and with a website that teaches machine
 learning from the beginning in one sequential path, which nothing available
 today does end to end.
 
-Who it is for: people who train models on data that does not fit in memory,
-and people learning machine learning who want one ordered path instead of
-scattered tutorials.
+Who it is for: people who prepare data that does not fit in memory and train
+models on it, and people learning machine learning who want one ordered path
+instead of scattered tutorials.
 
 In time, two graphical applications join the library (agreed):
 
@@ -136,8 +136,10 @@ kept in a store while the program runs, so nothing is learned twice
 ([ADR 0014](../adr/0014-learning-store.md)). See also
 [questions/scikit-learn-api-survey.md](../questions/scikit-learn-api-survey.md).
 
-Proven by one vertical slice: one transformer, one model, one metric, end to
-end, on data larger than memory.
+Proven by one vertical slice: one preparation step, one search over folds, the
+prepared data handed to an outside model library, one metric, end to end, with
+the preparation on data larger than memory. Models come from other libraries
+for now ([ADR 0017](../adr/0017-models-from-other-libraries.md)).
 
 **Done when:** the slice runs, its tests pass against a reference
 implementation (dev-only dependencies are allowed in tests), a pipeline
@@ -147,9 +149,12 @@ round-trips through its serialised form, and the contract is documented.
 
 ### 3.3 Library breadth
 
-**What:** the areas, each its own spec: preprocessing, models (linear, trees,
-ensembles, clustering, and on), model selection, metrics, datasets, and
-whatever the core's contract makes possible.
+**What:** the areas, each its own spec: preprocessing, model selection (a
+search over hyperparameters and folds, with sqlearn's folds or an outside
+optimiser such as Optuna), metrics, datasets, and whatever the core's contract
+makes possible. Models come from other libraries the user installs, for now;
+models in SQL are a later idea
+([ADR 0017](../adr/0017-models-from-other-libraries.md)).
 
 **Done when:** never; it grows. Each area is done when its spec says so.
 
