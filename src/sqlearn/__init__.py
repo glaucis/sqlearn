@@ -26,6 +26,7 @@ from sqlearn._expr import (
     median,
     stddev_pop,
 )
+from sqlearn._selectors import cols, numeric, string
 
 __all__ = [
     "DefaultsUsedWarning",
@@ -35,14 +36,17 @@ __all__ = [
     "StepError",
     "__version__",
     "avg",
+    "cols",
     "const",
     "count",
     "distinct_values",
     "get_config",
     "is_missing",
     "median",
+    "numeric",
     "set_config",
     "stddev_pop",
+    "string",
 ]
 
 __version__: str = version("sqlearn")
