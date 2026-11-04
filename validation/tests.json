@@ -188,6 +188,12 @@
     },
     {
       "area": "sqlearn/model_selection/search",
+      "name": "tests/src/sqlearn/model_selection/test_search.py::test_a_failing_fit_names_the_setting_and_the_fold",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/search",
       "name": "tests/src/sqlearn/model_selection/test_search.py::test_a_method_asking_one_setting_at_a_time_gives_the_same_scores",
       "outcome": "passed",
       "tier": "fast"
@@ -207,6 +213,12 @@
     {
       "area": "sqlearn/model_selection/search",
       "name": "tests/src/sqlearn/model_selection/test_search.py::test_a_setting_of_a_model_without_get_params_is_checked_by_attribute",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/search",
+      "name": "tests/src/sqlearn/model_selection/test_search.py::test_an_empty_fold_is_refused_before_any_work",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -267,6 +279,12 @@
     {
       "area": "sqlearn/model_selection/search",
       "name": "tests/src/sqlearn/model_selection/test_search.py::test_settings_are_checked_before_the_data_is_read",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/search",
+      "name": "tests/src/sqlearn/model_selection/test_search.py::test_settings_changing_a_later_steps_inputs_score_as_if_alone",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -440,7 +458,19 @@
     },
     {
       "area": "sqlearn/preprocessing/onehot",
+      "name": "tests/src/sqlearn/preprocessing/test_onehot.py::test_a_clash_does_not_advise_suffix",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/onehot",
       "name": "tests/src/sqlearn/preprocessing/test_onehot.py::test_a_null_string_clashing_with_the_null_column_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/onehot",
+      "name": "tests/src/sqlearn/preprocessing/test_onehot.py::test_an_all_null_column_gives_one_null_column_as_in_sklearn",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -459,6 +489,12 @@
     {
       "area": "sqlearn/preprocessing/onehot",
       "name": "tests/src/sqlearn/preprocessing/test_onehot.py::test_keep_and_categories_learned",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/onehot",
+      "name": "tests/src/sqlearn/preprocessing/test_onehot.py::test_nan_in_a_float_column_is_its_own_category_as_in_sklearn",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -511,6 +547,12 @@
       "tier": "fast"
     },
     {
+      "area": "sqlearn/preprocessing/onehot",
+      "name": "tests/src/sqlearn/preprocessing/test_onehot.py::test_zero_categories_give_no_column",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
       "area": "sqlearn/preprocessing/ordinal",
       "name": "tests/src/sqlearn/preprocessing/test_ordinal.py::test_a_column_of_only_nulls_has_no_categories",
       "outcome": "passed",
@@ -525,6 +567,12 @@
     {
       "area": "sqlearn/preprocessing/ordinal",
       "name": "tests/src/sqlearn/preprocessing/test_ordinal.py::test_keep_and_categories_learned",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/ordinal",
+      "name": "tests/src/sqlearn/preprocessing/test_ordinal.py::test_nan_in_a_float_column_is_missing_as_in_sklearn",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -549,6 +597,12 @@
     {
       "area": "sqlearn/preprocessing/ordinal",
       "name": "tests/src/sqlearn/preprocessing/test_ordinal.py::test_settings_and_declaration",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/ordinal",
+      "name": "tests/src/sqlearn/preprocessing/test_ordinal.py::test_the_text_nan_is_a_category",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1028,6 +1082,12 @@
     },
     {
       "area": "sqlearn/_inputs",
+      "name": "tests/src/sqlearn/test__inputs.py::test_a_finaliser_never_calls_the_connection",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_inputs",
       "name": "tests/src/sqlearn/test__inputs.py::test_a_frame_is_not_copied_in_the_normal_case",
       "outcome": "passed",
       "tier": "fast"
@@ -1058,6 +1118,12 @@
     },
     {
       "area": "sqlearn/_inputs",
+      "name": "tests/src/sqlearn/test__inputs.py::test_a_read_only_database_accepts_a_relation",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_inputs",
       "name": "tests/src/sqlearn/test__inputs.py::test_a_relation_duckdb_cannot_read_is_an_input_error",
       "outcome": "passed",
       "tier": "fast"
@@ -1076,6 +1142,12 @@
     },
     {
       "area": "sqlearn/_inputs",
+      "name": "tests/src/sqlearn/test__inputs.py::test_a_relation_never_leaves_a_view_in_a_database_file",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_inputs",
       "name": "tests/src/sqlearn/test__inputs.py::test_a_relation_of_another_connection_is_refused",
       "outcome": "passed",
       "tier": "fast"
@@ -1089,6 +1161,12 @@
     {
       "area": "sqlearn/_inputs",
       "name": "tests/src/sqlearn/test__inputs.py::test_a_table_name_is_keyed_by_row_count",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_inputs",
+      "name": "tests/src/sqlearn/test__inputs.py::test_a_table_or_relation_key_holds_its_schema",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1124,7 +1202,19 @@
     },
     {
       "area": "sqlearn/_inputs",
+      "name": "tests/src/sqlearn/test__inputs.py::test_renamed_or_swapped_columns_get_a_new_key",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_inputs",
       "name": "tests/src/sqlearn/test__inputs.py::test_reordered_rows_get_a_new_key",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_inputs",
+      "name": "tests/src/sqlearn/test__inputs.py::test_swapped_columns_are_learned_again",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1250,6 +1340,12 @@
     },
     {
       "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_a_column_removed_upstream_is_in_a_later_steps_key",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
       "name": "tests/src/sqlearn/test__pipeline.py::test_a_dynamic_step_may_keep_its_input",
       "outcome": "passed",
       "tier": "fast"
@@ -1281,6 +1377,30 @@
     {
       "area": "sqlearn/_pipeline",
       "name": "tests/src/sqlearn/test__pipeline.py::test_a_name_collision_suggests_suffix",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_a_name_made_by_an_earlier_step_is_accepted",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_a_name_not_in_the_data_is_refused[given0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_a_name_not_in_the_data_is_refused[given2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_a_name_not_in_the_data_is_refused[incme]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1580,13 +1700,31 @@
     },
     {
       "area": "sqlearn/_plan",
+      "name": "tests/src/sqlearn/test__plan.py::test_a_removed_column_carries_its_removers_dependencies",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_plan",
       "name": "tests/src/sqlearn/test__plan.py::test_a_replaced_column_keeps_its_type",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "sqlearn/_plan",
+      "name": "tests/src/sqlearn/test__plan.py::test_a_step_that_cannot_read_a_removed_column_does_not_depend_on_it",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_plan",
       "name": "tests/src/sqlearn/test__plan.py::test_a_step_that_changes_rows_is_read_by_every_later_step",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_plan",
+      "name": "tests/src/sqlearn/test__plan.py::test_a_step_that_could_read_a_removed_column_depends_on_its_remover",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1736,6 +1874,12 @@
     },
     {
       "area": "sqlearn/_step",
+      "name": "tests/src/sqlearn/test__step.py::test_a_name_the_step_did_not_learn_raises_attribute_error",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_step",
       "name": "tests/src/sqlearn/test__step.py::test_a_step_without_inputs_still_classifies",
       "outcome": "passed",
       "tier": "fast"
@@ -1857,6 +2001,12 @@
     {
       "area": "sqlearn/_store",
       "name": "tests/src/sqlearn/test__store.py::test_size_is_reported",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_store",
+      "name": "tests/src/sqlearn/test__store.py::test_the_resolved_inputs_are_in_the_key",
       "outcome": "passed",
       "tier": "fast"
     },
