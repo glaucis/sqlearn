@@ -38,7 +38,7 @@ from sqlearn._output import Output, to_output
 from sqlearn._plan import Plan, plan
 from sqlearn._selectors import Schema, _is_numeric
 from sqlearn._step import Step
-from sqlearn._store import STORE, Entry, StepKey, step_key
+from sqlearn._store import STORE, Entry, FoldKey, StepKey, step_key
 
 __all__ = ["Pipeline", "make_pipeline"]
 
@@ -171,6 +171,10 @@ def _check_numbering(con: duckdb.DuckDBPyConnection, schema: Schema) -> None:
             "the connection before predict."
         )
         raise SqlearnError(msg)
+
+
+def _schema(rel: duckdb.DuckDBPyRelation) -> Schema:
+    return list(zip(rel.columns, rel.types, strict=True))
 
 
 def _hold(source: Source) -> None:
@@ -394,15 +398,17 @@ class Pipeline:
         con: duckdb.DuckDBPyConnection,
         source: Source,
         steps: list[tuple[str, Step]],
+        fold: FoldKey | None = None,
     ) -> tuple[Plan, list[tuple[int, Run]], list[Entry]]:
         """Learn the steps missing from the store.
 
+        `fold` is the fold whose training rows `source` holds, for the keys.
         Returns the plan, the runs executed (with their numbers) and every
         step's entry.
         """
         the_plan = plan(steps, source.schema)
         keys = [
-            step_key(source.key, None, steps, i, the_plan.depends_on[i])
+            step_key(source.key, fold, steps, i, the_plan.depends_on[i])
             for i in range(len(steps))
         ]
         entries: list[Entry | None] = [STORE.get(k) for k in keys]
@@ -642,12 +648,17 @@ class Pipeline:
         >>> pipe.train(data, target="y")["scale"].mean_
         {'x': 2.5}
         """
-        steps, model = self._modelled()
+        _, model = self._modelled()
         feed = model.feed if feed is None else feed
         check_feed(feed)
-        source = read(data)
-        con = connection()
-        source_sql = _source_sql(con, source)
+        return self._train(read(data), target, feed)
+
+    def _features(self, source: Source, target: str) -> Source:
+        """Return the data without the target, keyed with the target's name.
+
+        The steps learn from this: a selector cannot match the target, so
+        sq.numeric() never scales it.
+        """
         names = [c for c, _ in source.schema]
         if target not in names:
             msg = (
@@ -657,13 +668,42 @@ class Pipeline:
             )
             raise SqlearnError(msg)
         features = [(c, t) for c, t in source.schema if c != target]
-        # The steps learn from the data without the target: a selector
-        # cannot match it, so sq.numeric() never scales it.
-        prepared = Source(
+        return Source(
             source.relation.project(*(duckdb.ColumnExpression(c) for c, _ in features)),
             (*source.key, ("target", target)),
             features,
         )
+
+    def _prepare_fold(
+        self,
+        learn_from: Source,
+        fold: FoldKey,
+        data: duckdb.DuckDBPyRelation,
+        aside: Sequence[str],
+        feed: str,
+    ) -> tuple[Any, dict[str, Any]]:
+        """Learn on one fold's training rows, then prepare all its rows once.
+
+        `learn_from` holds the fold's training rows without the target (see
+        `_features`), keyed by the whole data; `fold` completes the keys.
+        `data` holds every row with the `aside` columns (the target, the
+        fold number), which pass through the steps and come back beside the
+        features from the same query. Nothing is kept on the pipeline.
+        """
+        steps, _ = self._modelled()
+        con = connection()
+        _, _, known = self._learn(con, learn_from, steps, fold)
+        data_sql = data.sql_query()
+        stages, out, _ = self._stages(con, data_sql, _schema(data), steps, known)
+        columns = [c for c, _ in out if c not in aside]
+        return take(con.sql(build(data_sql, stages)), feed, columns, aside)
+
+    def _train(self, source: Source, target: str, feed: str) -> "Pipeline":
+        """Train on data already read, as `train` describes."""
+        steps, model = self._modelled()
+        con = connection()
+        source_sql = _source_sql(con, source)
+        prepared = self._features(source, target)
         the_plan, runs, known = self._learn(con, prepared, steps)
         # The feeding query reads the whole data; the target passes through
         # every stage untouched, so it is fetched with its own row's features.

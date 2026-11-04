@@ -32,12 +32,15 @@ from sqlearn._pipeline import Pipeline, make_pipeline
 from sqlearn._selectors import cols, numeric, string
 from sqlearn._step import Learned, Step
 from sqlearn.metrics import Metric, accuracy
+from sqlearn.model_selection import Grid, KFold, Search, range
 from sqlearn.preprocessing import Impute, OneHot, Ordinal, Scale
 
 __all__ = [
     "DefaultsUsedWarning",
+    "Grid",
     "Impute",
     "InternalError",
+    "KFold",
     "Learned",
     "Metric",
     "Model",
@@ -46,6 +49,7 @@ __all__ = [
     "Output",
     "Pipeline",
     "Scale",
+    "Search",
     "SqlearnError",
     "SqlearnWarning",
     "Step",
@@ -65,6 +69,7 @@ __all__ = [
     "out_csv",
     "out_json",
     "out_parquet",
+    "range",
     "set_config",
     "stddev_pop",
     "string",
