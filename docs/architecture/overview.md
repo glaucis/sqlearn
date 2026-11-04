@@ -1,9 +1,9 @@
 ---
 type: architecture
-tags: [overview, roadmap, sqlearn, duckdb, scikit-learn, project-structure]
-summary: "The map of the sqlearn project: its purpose, agreed constraints, the nine parts and their dependencies, written before product code."
-related: [docs/adr/0003-scikit-learn-style-api.md, docs/adr/0002-sql-on-duckdb-execution-engine.md, docs/adr/0005-runtime-dependencies.md, docs/adr/0004-apache-2-licence.md, docs/adr/0006-local-and-offline.md, docs/questions/applications-home.md, docs/adr/0009-sphinx-documentation-site.md, docs/questions/site-hosting.md]
-mdindex: [type=4ca303, tags=b594fd, summary=4241eb, related=3e6a0f]
+tags: [overview, roadmap, sqlearn, duckdb, project-structure]
+summary: "Project map for sqlearn: its purpose, agreed constraints, the nine sub-projects in build order, and the open questions blocking them."
+related: [docs/adr/0003-scikit-learn-style-api.md, docs/adr/0002-sql-on-duckdb-execution-engine.md, docs/adr/0004-apache-2-licence.md, docs/adr/0005-runtime-dependencies.md, docs/adr/0006-local-and-offline.md, docs/adr/0009-sphinx-documentation-site.md, docs/adr/0001-uv-for-python-packaging.md, docs/adr/0007-python-3-12-floor.md]
+mdindex: [type=4ca303, tags=73402f, summary=1ddf37, related=aa323a]
 ---
 # Overview
 
@@ -237,7 +237,9 @@ table maps the source's notation to sqlearn's names. A reviewer checks the
 LaTeX against the source's equation.
 
 **Done when:** every public numeric function has its page and its reference,
-and the tests compare against it. The first page is 3.2's slice. Open points:
+and the tests compare against it. The first page is 3.2's slice. The method,
+with its three-way location of drift, anomaly flags and merge gate:
+[ADR 0016](../adr/0016-validation-method.md). Open points:
 [questions/validation-method.md](../questions/validation-method.md).
 
 **Depends on:** 3.2 for the first function; grows with 3.3.

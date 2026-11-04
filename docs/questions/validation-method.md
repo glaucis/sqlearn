@@ -1,30 +1,29 @@
 ---
 type: question
-tags: [validation, precision, numerical-accuracy, testing, reference-implementation]
-summary: "Open questions on how library validation works: exact reference precision, handling iterative algorithms, and error table presentation."
-mdindex: [type=1f5087, tags=939656, summary=7455dd]
+tags: [validation, precision, testing, reference-implementations, iterative-algorithms]
+summary: "Mostly answered by ADR 0016; still open: the rule for models fitted by iteration, and the layout of the validation page."
+mdindex: [type=1f5087, tags=e8f243]
 related: [docs/architecture/overview.md]
 ---
 # How exactly does validation work?
 
-Validation ([overview 3.8](../architecture/overview.md)) compares every
-library's result against an exact reference implementation. Three points are
-open:
+The method is decided in
+[ADR 0016](../adr/0016-validation-method.md): an exact canonical value
+(`mpmath` or `Decimal` at 50 digits, `Fraction` where rational), every
+comparable library against it, each drift located, enforced as a gate, pages
+generated from the runs. Two points stay open:
 
-- **Precision:** `fractions.Fraction` or `decimal`, and at what precision.
 - **Iterative algorithms:** the rule where no closed form exists (models fitted
-  by iteration have no exact answer to compare against).
+  by iteration have no exact answer to compare against). Decided with the
+  models (overview 3.3).
 - **Presentation:** how the error table reads for someone who is not a
-  numerical analyst.
-
-Decided by Tomas, in the validation spec. The first validation page is part of
-the library core's vertical slice, so these are settled with
-[3.2](../architecture/overview.md).
+  numerical analyst. Decided in the validation spec, written with the core,
+  since the first validation page is part of the core's vertical slice.
 
 ## What the earlier attempts show
 
-Evidence from the ten earlier attempts ([the map](earlier-attempts/README.md));
-the decision is still open.
+Evidence from the ten earlier attempts ([the map](earlier-attempts/README.md)),
+behind ADR 0016.
 
 - **Precision:** the strongest designs used exact references at 50 digits
   (`mpmath`, `Decimal`) or `Fraction` for order statistics, compared every
