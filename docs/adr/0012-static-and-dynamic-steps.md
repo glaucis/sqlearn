@@ -6,7 +6,9 @@ related: [docs/questions/fit-execution-model.md, docs/questions/earlier-attempts
 ---
 # 0012: Static and dynamic steps decide how learning runs
 
-Status: accepted (2026-11-04)
+Status: accepted (2026-11-04). The run count is superseded by
+[ADR 0018](0018-runs-follow-the-chains-between-steps.md); how a user's step is
+classified is in [ADR 0019](0019-custom-steps-and-failure-feedback.md).
 
 ## Context
 

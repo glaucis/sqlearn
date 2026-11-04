@@ -1,9 +1,9 @@
 ---
 type: architecture
-tags: [sqlearn, duckdb, scikit-learn, roadmap, validation, documentation]
-summary: "Project-wide map of sqlearn: its purpose, agreed constraints, the nine sub-projects in build order, and their dependencies."
+tags: [overview, sqlearn, duckdb, scikit-learn, roadmap, constraints]
+summary: "Project-wide map of sqlearn: purpose, agreed constraints, the eight parts and their dependencies, written before product code."
 related: [docs/adr/0003-scikit-learn-style-api.md, docs/adr/0002-sql-on-duckdb-execution-engine.md, docs/questions/README.md, docs/adr/0004-apache-2-licence.md, docs/adr/0005-runtime-dependencies.md, docs/adr/0006-local-and-offline.md, docs/questions/applications-home.md, docs/adr/0009-sphinx-documentation-site.md]
-mdindex: [type=4ca303, tags=03f21b, summary=da6a38, related=6f5013]
+mdindex: [type=4ca303, tags=d179bd, summary=5681fc, related=6f5013]
 ---
 # Overview
 
@@ -130,16 +130,22 @@ Two requirements come from the later applications and are cheapest met here:
 
 The user writes steps in order and sees results when asked, as in
 scikit-learn; how much of a pipeline runs as one query is the library's
-concern, never the user's: learning runs once per dynamic step
-([ADR 0012](../adr/0012-static-and-dynamic-steps.md)), and learned values are
-kept in a store while the program runs, so nothing is learned twice
+concern, never the user's: everything goes in one query, split only where
+a step needs columns a dynamic step has not yet learned
+([ADR 0012](../adr/0012-static-and-dynamic-steps.md),
+[ADR 0018](../adr/0018-runs-follow-the-chains-between-steps.md)), and learned
+values are kept in a store while the program runs, so nothing is learned twice
 ([ADR 0014](../adr/0014-learning-store.md)). See also
 [questions/scikit-learn-api-survey.md](../questions/scikit-learn-api-survey.md).
 
-Proven by one vertical slice: one preparation step, one search over folds, the
-prepared data handed to an outside model library, one metric, end to end, with
-the preparation on data larger than memory. Models come from other libraries
-for now ([ADR 0017](../adr/0017-models-from-other-libraries.md)).
+Proven by one vertical slice: a few preparation steps, enough to show static
+steps chaining (`Impute` then `Scale`), a dynamic step (`OneHot`), and two
+independent dynamic steps sharing a run; one search over folds; the prepared
+data handed to an outside model library; one metric; end to end, with the
+preparation on data larger than memory. Its tests assert the number of runs as
+well as the results, over every combination of steps that can be built. Models
+come from other libraries for now
+([ADR 0017](../adr/0017-models-from-other-libraries.md)).
 
 **Done when:** the slice runs, its tests pass against a reference
 implementation (dev-only dependencies are allowed in tests), a pipeline
