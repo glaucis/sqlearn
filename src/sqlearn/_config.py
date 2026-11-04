@@ -18,12 +18,18 @@ __all__ = ["Config", "connection", "get_config", "set_config"]
 class Config:
     """The settings `set_config` changes.
 
-    Parameters
+    Attributes
     ----------
     out : str or Output or None
         The default output kind, or None for the library's default.
     connection : duckdb.DuckDBPyConnection or None
         The connection to compute in, or None for a shared in-memory one.
+
+    Examples
+    --------
+    >>> import sqlearn as sq
+    >>> sq.get_config().out is None
+    True
     """
 
     out: str | Output | None = None
@@ -44,10 +50,18 @@ def set_config(
 
     Parameters
     ----------
-    out : str or Output or None, optional
-        The default output kind.
-    connection : duckdb.DuckDBPyConnection or None, optional
-        The connection to compute in.
+    out : str or Output, optional
+        The default output kind; None restores the library's default.
+    connection : duckdb.DuckDBPyConnection, optional
+        The connection to compute in; None restores the shared in-memory one.
+
+    Examples
+    --------
+    >>> import sqlearn as sq
+    >>> sq.set_config(out="pandas")
+    >>> sq.get_config().out
+    'pandas'
+    >>> sq.set_config(out=None)
     """
     global _config
     changes: dict[str, object] = {}
@@ -65,6 +79,12 @@ def get_config() -> Config:
     -------
     Config
         The frozen configuration.
+
+    Examples
+    --------
+    >>> import sqlearn as sq
+    >>> sq.get_config().connection is None
+    True
     """
     return _config
 
@@ -77,6 +97,12 @@ def connection() -> duckdb.DuckDBPyConnection:
     duckdb.DuckDBPyConnection
         The configured connection; failing that, one in-memory connection
         opened on first use and reused.
+
+    Examples
+    --------
+    >>> from sqlearn import _config
+    >>> _config.connection() is _config.connection()
+    True
     """
     global _default_connection
     if _config.connection is not None:

@@ -2,7 +2,14 @@
 
 
 class SqlearnError(Exception):
-    """Base class of every exception sqlearn raises on purpose."""
+    """Base class of every exception sqlearn raises on purpose.
+
+    Examples
+    --------
+    >>> from sqlearn import SqlearnError, StepError
+    >>> issubclass(StepError, SqlearnError)
+    True
+    """
 
 
 class StepError(SqlearnError):
@@ -16,6 +23,13 @@ class StepError(SqlearnError):
         The name of the step.
     position : int
         The step's position in the pipeline, counting from zero.
+
+    Examples
+    --------
+    >>> from sqlearn import StepError
+    >>> err = StepError("m", step="scale", position=3)
+    >>> err.step, err.position
+    ('scale', 3)
     """
 
     def __init__(self, message: str, *, step: str, position: int) -> None:
@@ -25,12 +39,33 @@ class StepError(SqlearnError):
 
 
 class InternalError(SqlearnError):
-    """A condition that should be impossible: a bug in sqlearn."""
+    """A condition that should be impossible: a bug in sqlearn.
+
+    Examples
+    --------
+    >>> from sqlearn import InternalError, SqlearnError
+    >>> issubclass(InternalError, SqlearnError)
+    True
+    """
 
 
 class SqlearnWarning(UserWarning):
-    """Base class of every warning sqlearn issues."""
+    """Base class of every warning sqlearn issues.
+
+    Examples
+    --------
+    >>> from sqlearn import SqlearnWarning
+    >>> issubclass(SqlearnWarning, UserWarning)
+    True
+    """
 
 
 class DefaultsUsedWarning(SqlearnWarning):
-    """A default was used where the user might have expected a choice."""
+    """A default was used where the user might have expected a choice.
+
+    Examples
+    --------
+    >>> from sqlearn import DefaultsUsedWarning, SqlearnWarning
+    >>> issubclass(DefaultsUsedWarning, SqlearnWarning)
+    True
+    """

@@ -31,6 +31,13 @@ def avg(x: Expression) -> Expression:
     -------
     duckdb.Expression
         ``avg(x)``.
+
+    Examples
+    --------
+    >>> import duckdb
+    >>> import sqlearn as sq
+    >>> str(sq.avg(duckdb.ColumnExpression("age")))
+    'avg("age")'
     """
     return _call("avg", x)
 
@@ -47,6 +54,13 @@ def stddev_pop(x: Expression) -> Expression:
     -------
     duckdb.Expression
         ``stddev_pop(x)``.
+
+    Examples
+    --------
+    >>> import duckdb
+    >>> import sqlearn as sq
+    >>> str(sq.stddev_pop(duckdb.ColumnExpression("age")))
+    'stddev_pop("age")'
     """
     return _call("stddev_pop", x)
 
@@ -63,6 +77,13 @@ def median(x: Expression) -> Expression:
     -------
     duckdb.Expression
         ``median(x)``.
+
+    Examples
+    --------
+    >>> import duckdb
+    >>> import sqlearn as sq
+    >>> str(sq.median(duckdb.ColumnExpression("age")))
+    'median("age")'
     """
     return _call("median", x)
 
@@ -79,6 +100,13 @@ def count(x: Expression) -> Expression:
     -------
     duckdb.Expression
         ``count(x)``.
+
+    Examples
+    --------
+    >>> import duckdb
+    >>> import sqlearn as sq
+    >>> str(sq.count(duckdb.ColumnExpression("age")))
+    'count("age")'
     """
     return _call("count", x)
 
@@ -95,6 +123,13 @@ def distinct_values(x: Expression) -> Expression:
     -------
     duckdb.Expression
         ``list_sort(list_distinct(list(x)))``.
+
+    Examples
+    --------
+    >>> import duckdb
+    >>> import sqlearn as sq
+    >>> str(sq.distinct_values(duckdb.ColumnExpression("age")))
+    'list_sort(list_distinct(list("age")))'
     """
     return _call("list_sort", _call("list_distinct", _call("list", x)))
 
@@ -111,6 +146,15 @@ def is_missing(x: Expression) -> Expression:
     -------
     duckdb.Expression
         ``x IS NULL OR isnan(x::DOUBLE)``.
+
+    Examples
+    --------
+    >>> import duckdb
+    >>> import sqlearn as sq
+    >>> con = duckdb.connect()
+    >>> rel = con.sql("SELECT * FROM (VALUES (1.0), (NULL)) t(a)")
+    >>> rel.select(sq.is_missing(duckdb.ColumnExpression("a"))).fetchall()
+    [(False,), (True,)]
     """
     return x.isnull() | _call("isnan", x.cast("DOUBLE"))
 
@@ -127,6 +171,13 @@ def const(v: object) -> Expression:
     -------
     duckdb.Expression
         The constant.
+
+    Examples
+    --------
+    >>> import duckdb
+    >>> import sqlearn as sq
+    >>> str(sq.const(3))
+    '3'
     """
     return duckdb.ConstantExpression(v)
 
@@ -143,5 +194,12 @@ def quote(name: str) -> str:
     -------
     str
         The name in double quotes, inner quotes doubled.
+
+    Examples
+    --------
+    >>> import duckdb
+    >>> import sqlearn as sq
+    >>> sq._expr.quote('a"b')
+    '"a""b"'
     """
     return '"' + name.replace('"', '""') + '"'
