@@ -236,8 +236,8 @@ Per [ADR 0014](../adr/0014-learning-store.md) and
   | input | key | in the slice |
   |---|---|---|
   | file or glob | path(s), size, modification time | yes |
-  | DuckDB table or relation | connection, name (or the relation's SQL), row count | yes |
-  | pandas DataFrame | fingerprint of values and row order, computed by DuckDB | yes |
+  | DuckDB table or relation | connection, name (or the relation's SQL), row count, column names and types | yes |
+  | pandas DataFrame | fingerprint of values and row order, computed by DuckDB, with the column names and types | yes |
   | Polars, Arrow | the object, through a weak reference | after the slice (spec's call) |
 
 - The fingerprint is computed once per call to `learn`, `train` or a search,

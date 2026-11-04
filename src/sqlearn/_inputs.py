@@ -70,6 +70,11 @@ def _schema(relation: duckdb.DuckDBPyRelation) -> Schema:
     return list(zip(relation.columns, relation.types, strict=True))
 
 
+def _names_and_types(schema: Schema) -> tuple[tuple[str, str], ...]:
+    """Return the schema as text, for a key: DuckDB's row hash skips names."""
+    return tuple((name, str(dtype)) for name, dtype in schema)
+
+
 def _row_count(relation: duckdb.DuckDBPyRelation) -> int:
     return int(relation.count("*").fetchall()[0][0])
 
@@ -91,9 +96,10 @@ def _connection_token(con: duckdb.DuckDBPyConnection) -> int:
 def _fingerprint(name: str) -> tuple[int, int]:
     """Hash every value together with its row position, in one query.
 
-    Each row is hashed whole (names and values), combined with its row
-    number, and the hashes are XOR-ed: changing a value or moving a row
-    changes the result. The row count is returned beside it.
+    Each row is hashed whole, combined with its row number, and the hashes
+    are XOR-ed: changing a value or moving a row changes the result. The
+    hash does not cover the column names, so the key adds the schema. The row
+    count is returned beside it.
     """
     sql = (
         "SELECT count(*), coalesce(bit_xor(hash(t, rn)), 0) FROM "
@@ -135,8 +141,15 @@ def _read_table(name: str) -> Source:
     except duckdb.CatalogException as exc:
         msg = f"{name!r} is not a file or a table on the connection. Pass {_ACCEPTED}."
         raise SqlearnError(msg) from exc
-    key = ("table", _connection_token(con), name, _row_count(relation))
-    return Source(relation, key, _schema(relation))
+    schema = _schema(relation)
+    key = (
+        "table",
+        _connection_token(con),
+        name,
+        _row_count(relation),
+        _names_and_types(schema),
+    )
+    return Source(relation, key, schema)
 
 
 def _read_frame(frame: _Frame) -> Source:
@@ -150,7 +163,8 @@ def _read_frame(frame: _Frame) -> Source:
         con.register(name, frame.copy())
     relation = con.table(name)
     rows, digest = _fingerprint(name)
-    source = Source(relation, ("frame", rows, digest), _schema(relation))
+    schema = _schema(relation)
+    source = Source(relation, ("frame", rows, digest, _names_and_types(schema)), schema)
     # Release the registration (and so the reference to the frame) once the
     # source is dropped: the store never keeps the user's data alive.
     weakref.finalize(source, con.unregister, name)
@@ -175,6 +189,7 @@ def _read_relation(data: duckdb.DuckDBPyRelation) -> Source:
             _connection_token(connection()),
             data.sql_query(),
             _row_count(data),
+            _names_and_types(_schema(data)),
         )
     except duckdb.Error as exc:
         msg = (

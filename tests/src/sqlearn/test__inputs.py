@@ -165,6 +165,37 @@ def test_reordered_rows_get_a_new_key():
     assert read(df).relation.fetchall() == [(1,), (2,), (3,)]
 
 
+def test_renamed_or_swapped_columns_get_a_new_key():
+    """The same values under other names, or of another type, get another key."""
+    df = pd.DataFrame({"a": [1.0, 2.0, 4.0], "b": [50.0, 60.0, 70.0]})
+    swapped = pd.DataFrame({"b": [1.0, 2.0, 4.0], "a": [50.0, 60.0, 70.0]})
+    keys = {read(df).key, read(swapped).key, read(df.rename(columns={"a": "z"})).key}
+    assert len(keys) == 3
+    assert read(df).key != read(df.astype("float32")).key
+
+
+def test_swapped_columns_are_learned_again():
+    """A frame with the names swapped is learned, not found in the store."""
+    df = pd.DataFrame({"a": [1.0, 2.0, 4.0], "b": [50.0, 60.0, 70.0]})
+    swapped = pd.DataFrame({"b": [1.0, 2.0, 4.0], "a": [50.0, 60.0, 70.0]})
+    pipe = sq.Pipeline([("s", sq.Scale())]).learn(df)
+    pipe.learn(swapped)
+    assert pipe["s"].mean_ == {"a": 60.0, "b": pytest.approx(7 / 3)}
+    renamed = df.rename(columns={"a": "z"})
+    assert pipe.learn(renamed)["s"].mean_ == {"z": pytest.approx(7 / 3), "b": 60.0}
+
+
+def test_a_table_or_relation_key_holds_its_schema():
+    """Renaming a table's column, keeping its rows, changes its key."""
+    con = _config.connection()
+    con.execute("CREATE TABLE r AS SELECT 1 AS a")
+    first = read("r")
+    con.execute("ALTER TABLE r RENAME COLUMN a TO b")
+    assert read("r").key != first.key
+    assert read("r").key[-1] == (("b", "INTEGER"),)
+    assert read(con.sql("SELECT 1 AS a")).key[-1] == (("a", "INTEGER"),)
+
+
 def test_two_frames_do_not_collide():
     """Two frames read one after the other keep their own data."""
     a = read(pd.DataFrame({"x": [1]}))

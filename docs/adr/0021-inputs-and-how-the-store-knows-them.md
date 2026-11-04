@@ -46,7 +46,9 @@ The store recognises each kind as cheaply as is safe:
 
 The fingerprint is a hash computed by DuckDB, once per call to `learn`,
 `train` or a search, never once per fold. It covers row order because folds
-are tied to rows.
+are tied to rows. DuckDB's hash of a row skips the column names, so the key of
+a frame, a table or a relation also holds its column names and types, in
+order.
 
 The store never keeps the user's data alive: it holds an immutable table only
 through a weak reference, and falls back to the fingerprint where a weak
