@@ -92,6 +92,8 @@ def _make_stage(
     name, step = steps[position - 1]
     try:
         return step_stage(position, name, step, *args, **kwargs)
+    except StepError as exc:
+        raise _placed(exc, name, position) from exc
     except Exception as exc:
         err = diagnose(exc, steps, lambda _: position)
         if err is exc:
@@ -99,9 +101,19 @@ def _make_stage(
         raise err from exc
 
 
+def _placed(exc: StepError, name: str, position: int) -> StepError:
+    """Give a step's own refusal (raised with position 0) its name and place."""
+    if exc.position != 0:
+        return exc
+    return StepError(f"{name} (step {position}) {exc}", step=name, position=position)
+
+
 def _matched(step: Step, schema: Schema, name: str, position: int) -> list[str]:
     """Return the columns a step works on, refusing a selector matching none."""
-    chosen = step.inputs(schema)
+    try:
+        chosen = step.inputs(schema)
+    except StepError as exc:
+        raise _placed(exc, name, position) from exc
     if step.cols is not None and not chosen:
         names = ", ".join(repr(c) for c, _ in schema)
         msg = (
