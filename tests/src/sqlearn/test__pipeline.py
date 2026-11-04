@@ -560,3 +560,71 @@ def test_train_and_predict_refuse_mistakes():
     gaps = connection().sql("SELECT * FROM (VALUES (1.0, 0), (2.0, NULL)) t(x, y)")
     with pytest.raises(sq.SqlearnError, match="target 'y' is missing in 1 row"):
         sq.Pipeline([("model", Echo())]).train(gaps, target="y")
+
+
+def test_a_failed_retrain_keeps_the_trained_pipeline():
+    """A retrain refused before fit leaves the old values and the old model."""
+    frame = pd.DataFrame({"x": [3.0, 1.0, 2.0], "y": [1, 0, 1]})
+    pipe = sq.Pipeline([("scale", sq.Scale()), ("model", Echo())])
+    pipe.train(frame, target="y")
+    gaps = connection().sql("SELECT * FROM (VALUES (100.0, 0), (300.0, NULL)) t(x, y)")
+    with pytest.raises(sq.SqlearnError, match="missing"):
+        pipe.train(gaps, target="y")
+    assert pipe["scale"].mean_ == {"x": 2.0}
+    assert pipe["model"].y_.tolist() == [1, 0, 1]
+    got = [r[0] for r in pipe.predict(pd.DataFrame({"x": [2.0]})).fetchall()]
+    assert got == [0.0]
+
+
+class Failing(Echo):
+    """A model whose fit fails on its second call."""
+
+    calls = 0
+
+    def fit(self, x, y):
+        """Fit once, then fail."""
+        self.calls += 1
+        if self.calls > 1:
+            msg = "cannot fit"
+            raise ValueError(msg)
+        return super().fit(x, y)
+
+
+def test_a_failed_fit_leaves_the_pipeline_untrained():
+    """When fit itself fails, predict is refused rather than run half-changed."""
+    frame = pd.DataFrame({"x": [3.0, 1.0, 2.0], "y": [1, 0, 1]})
+    pipe = sq.Pipeline([("scale", sq.Scale()), ("model", Failing())])
+    pipe.train(frame, target="y")
+    with pytest.raises(ValueError, match="cannot fit"):
+        pipe.train(pd.DataFrame({"x": [100.0, 300.0], "y": [0, 1]}), target="y")
+    assert pipe["scale"].mean_ == {"x": 2.0}
+    with pytest.raises(sq.SqlearnError, match="not been trained"):
+        pipe.predict(frame)
+
+
+def test_predict_refuses_data_missing_a_trained_column():
+    """A column passed through to the model must be there at predict."""
+    frame = pd.DataFrame({"x": [1.0, 2.0], "z": [5.0, 6.0], "y": [0, 1]})
+    pipe = sq.Pipeline([("scale", sq.Scale(["x"])), ("model", Echo())])
+    pipe.train(frame, target="y")
+    with pytest.raises(sq.SqlearnError, match="no column 'z'"):
+        pipe.predict(pd.DataFrame({"x": [1.0]}))
+
+
+def test_predict_refuses_the_row_number_name():
+    """A column named as sqlearn's row number is refused as an input error."""
+    frame = pd.DataFrame({"x": [1.0, 2.0], "y": [0, 1]})
+    pipe = sq.Pipeline([("model", Echo())]).train(frame, target="y")
+    with pytest.raises(sq.SqlearnError, match="'__sqlearn_row'"):
+        pipe.predict(pd.DataFrame({"x": [1.0], "__sqlearn_row": [1]}))
+
+
+def test_predict_refuses_a_connection_not_keeping_order():
+    """Without preserve_insertion_order, rows could not be matched: refused."""
+    con = duckdb.connect()
+    sq.set_config(connection=con)
+    frame = pd.DataFrame({"x": [1.0, 2.0], "y": [0, 1]})
+    pipe = sq.Pipeline([("model", Echo())]).train(frame, target="y")
+    con.execute("SET preserve_insertion_order = false")
+    with pytest.raises(sq.SqlearnError, match="preserve_insertion_order"):
+        pipe.predict(frame)

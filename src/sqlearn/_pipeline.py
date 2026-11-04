@@ -153,6 +153,26 @@ def _by_column(values: dict[str, dict[str, object]]) -> dict[str, dict[str, obje
     return out
 
 
+def _check_numbering(con: duckdb.DuckDBPyConnection, schema: Schema) -> None:
+    """Refuse what would break numbering the rows that feed `predict`."""
+    if any(c.lower() == _ROW for c, _ in schema):
+        msg = (
+            f"the data has a column named {_ROW!r}, a name sqlearn keeps for "
+            "numbering rows so predictions line up with the input. Fix: "
+            "rename that column before predict."
+        )
+        raise SqlearnError(msg)
+    setting = con.sql("SELECT current_setting('preserve_insertion_order')")
+    if not setting.fetchall()[0][0]:
+        msg = (
+            "the connection has preserve_insertion_order turned off, so DuckDB "
+            "may read rows in any order and predictions could not be matched "
+            "to the input's rows. Fix: SET preserve_insertion_order = true on "
+            "the connection before predict."
+        )
+        raise SqlearnError(msg)
+
+
 def _hold(source: Source) -> None:
     """Do nothing: a finaliser's argument stays alive until it is called."""
 
@@ -364,7 +384,8 @@ class Pipeline:
         con = connection()
         source_sql = _source_sql(con, source)
         _, runs, known = self._learn(con, source, steps)
-        self._settle(con, source_sql, source.schema, steps, known)
+        _, out, types = self._stages(con, source_sql, source.schema, steps, known)
+        self._commit(steps, known, types, [c for c, _ in out])
         self.runs_ = [run for _, run in runs]
         return self
 
@@ -394,27 +415,19 @@ class Pipeline:
                 runs.append((r, run))
         return the_plan, runs, [e for e in entries if e is not None]
 
-    def _settle(
+    def _commit(
         self,
-        con: duckdb.DuckDBPyConnection,
-        source_sql: str,
-        schema: Schema,
         steps: list[tuple[str, Step]],
         known: list[Entry],
-        aside: Sequence[str] = (),
-    ) -> list[Stage]:
-        """Build the stages with the learned values; keep what the steps learned.
-
-        Columns in `aside` (the target) pass through every stage untouched
-        and are not counted among the output columns.
-        """
-        stages, out, types = self._stages(con, source_sql, schema, steps, known)
+        types: list[dict[str, DuckDBPyType]],
+        columns_out: list[str],
+    ) -> None:
+        """Keep what the steps learned; called last, once everything succeeded."""
         for (_, step), entry in zip(steps, known, strict=True):
             step._set_learned(_by_column(entry.values))
         self._entries = known
         self._types = types
-        self._columns_out = [c for c, _ in out if c not in aside]
-        return stages
+        self._columns_out = columns_out
 
     def _learn_run(
         self,
@@ -654,12 +667,20 @@ class Pipeline:
         the_plan, runs, known = self._learn(con, prepared, steps)
         # The feeding query reads the whole data; the target passes through
         # every stage untouched, so it is fetched with its own row's features.
-        stages = self._settle(
-            con, source_sql, source.schema, steps, known, aside=[target]
-        )
+        stages, out, types = self._stages(con, source_sql, source.schema, steps, known)
+        columns = [c for c, _ in out if c != target]
         sql = build(source_sql, stages)
-        x, aside = take(con.sql(sql), feed, self._columns_out, [target])
-        model.estimator.fit(x, target_values(aside[target], target))
+        x, aside = take(con.sql(sql), feed, columns, [target])
+        y = target_values(aside[target], target)
+        # All or nothing: until the model is fitted, the pipeline keeps what
+        # it had. A fit that fails may leave the model half changed, so the
+        # pipeline then counts as untrained.
+        try:
+            model.estimator.fit(x, y)
+        except BaseException:
+            self._feed = None
+            raise
+        self._commit(steps, known, types, columns)
         # The model is a reader (ADR 0018): the feeding query belongs to the
         # feed run, after its learn statement when that run learned.
         if runs and runs[-1][0] == the_plan.feed_run:
@@ -695,8 +716,10 @@ class Pipeline:
         Raises
         ------
         SqlearnError
-            If the pipeline has no model or has not been trained, or the
-            model does not return one value per row.
+            If the pipeline has no model or has not been trained, the data
+            lacks a column the model was trained on or has a column named
+            ``__sqlearn_row``, the connection does not preserve insertion
+            order, or the model does not return one value per row.
         StepError
             As for `apply`.
 
@@ -722,11 +745,22 @@ class Pipeline:
         source = read(data)
         con = connection()
         source_sql = _source_sql(con, source)
+        _check_numbering(con, source.schema)
         numbered = number_rows(source_sql, _ROW)
         schema = describe(con, numbered, [])
-        stages, _, _ = self._stages(
+        stages, reaching, _ = self._stages(
             con, numbered, schema, steps, self._entries, self._types
         )
+        have = {c for c, _ in reaching}
+        missing = [c for c in self._columns_out if c not in have]
+        if missing:
+            names = ", ".join(repr(c) for c in missing)
+            msg = (
+                f"the data has no column {names}, which the model was trained "
+                "on; a model needs every column it learned from. Fix: pass data "
+                "with the same columns as at train."
+            )
+            raise SqlearnError(msg)
         sql = build(numbered, stages)
         x, aside = take(con.sql(sql), self._feed, self._columns_out, [_ROW])
         rel = received(con, aside[_ROW], model.estimator.predict(x))
