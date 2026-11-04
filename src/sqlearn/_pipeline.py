@@ -2,7 +2,7 @@
 
 import weakref
 from collections import Counter
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from typing import Any
 
 import duckdb
@@ -12,6 +12,7 @@ from sqlearn._compose import (
     SOURCE,
     Run,
     Stage,
+    _learn_sql,
     apply_sql,
     build,
     describe,
@@ -20,6 +21,7 @@ from sqlearn._compose import (
     step_stage,
 )
 from sqlearn._config import connection, get_config
+from sqlearn._diagnose import diagnose
 from sqlearn._errors import SqlearnError, StepError
 from sqlearn._inputs import Source, read
 from sqlearn._output import Output, to_output
@@ -54,19 +56,47 @@ def _bind(
     con: duckdb.DuckDBPyConnection,
     source_sql: str,
     stages: list[Stage],
-    name: str,
+    steps: list[tuple[str, Step]],
     position: int,
 ) -> Schema:
     """Return the columns after the last stage, naming its step if it fails."""
     try:
         return describe(con, source_sql, stages)
     except duckdb.Error as exc:
-        msg = (
-            f"{name} (step {position}) builds SQL that DuckDB refuses: {exc}\n"
-            "Fix: check that the step's learn and apply suit the columns it "
-            "is given."
-        )
-        raise StepError(msg, step=name, position=position) from exc
+        sql = build(source_sql, stages)
+        raise diagnose(exc, steps, lambda _: position, sql=sql) from exc
+
+
+def _stage_of(steps: list[tuple[str, Step]]) -> Callable[[str], int | None]:
+    """Return a function finding the first stage of a step named in a message."""
+
+    def find(message: str) -> int | None:
+        hits = [
+            (at, i + 1)
+            for i, (name, _) in enumerate(steps)
+            for learn in (False, True)
+            if (at := message.find(stage_name(i + 1, name, learn))) >= 0
+        ]
+        return min(hits)[1] if hits else None
+
+    return find
+
+
+def _make_stage(
+    steps: list[tuple[str, Step]],
+    position: int,
+    *args: Any,  # noqa: ANN401  (the rest of step_stage's arguments)
+    **kwargs: Any,  # noqa: ANN401
+) -> Stage:
+    """Build a step's stage; a failure of the user's code is explained."""
+    name, step = steps[position - 1]
+    try:
+        return step_stage(position, name, step, *args, **kwargs)
+    except Exception as exc:
+        err = diagnose(exc, steps, lambda _: position)
+        if err is exc:
+            raise
+        raise err from exc
 
 
 def _matched(step: Step, schema: Schema, name: str, position: int) -> list[str]:
@@ -325,15 +355,15 @@ class Pipeline:
                 continue
             entry = entries[i]
             if entry is not None:
-                stage = step_stage(
-                    position, name, step, schema, previous, entry.values,
+                stage = _make_stage(
+                    steps, position, schema, previous, entry.values,
                     columns=entry.columns,
                 )  # fmt: skip
             else:
                 matched = _matched(step, schema, name, position)
                 built[i] = (schema, previous, matched)
-                stage = step_stage(
-                    position, name, step, schema, previous,
+                stage = _make_stage(
+                    steps, position, schema, previous,
                     columns=matched, applies=not dynamic,
                 )  # fmt: skip
             stages.append(stage)
@@ -342,15 +372,17 @@ class Pipeline:
                 if not step.keep:
                     schema = [c for c in schema if c[0] not in built[i][2]]
             else:
-                schema = _bind(con, source_sql, stages, name, position)
-        values, _, done = execute(con, source_sql, stages, produce=False)
+                schema = _bind(con, source_sql, stages, steps, position)
+        try:
+            values, _, done = execute(con, source_sql, stages, produce=False)
+        except duckdb.Error as exc:
+            sql = _learn_sql(source_sql, stages)
+            raise diagnose(exc, steps, _stage_of(steps), running=True, sql=sql) from exc
         for i in misses:
             name, step = steps[i]
             before, prev, matched = built[i]
             learned = values.get(stage_name(i + 1, name), {})
-            applied = step_stage(
-                i + 1, name, step, before, prev, learned, columns=matched
-            )
+            applied = _make_stage(steps, i + 1, before, prev, learned, columns=matched)
             entry = Entry(learned, matched, apply_sql(applied))
             STORE.put(keys[i], entry)
             entries[i] = entry
@@ -373,7 +405,7 @@ class Pipeline:
         stages: list[Stage] = []
         types: list[dict[str, DuckDBPyType]] = []
         previous = SOURCE
-        for i, ((name, step), entry) in enumerate(zip(steps, entries, strict=True)):
+        for i, ((name, _), entry) in enumerate(zip(steps, entries, strict=True)):
             position = i + 1
             have = dict(schema)
             for c in entry.columns:
@@ -394,13 +426,13 @@ class Pipeline:
                     )
                     raise StepError(msg, step=name, position=position)
             types.append({c: have[c] for c in entry.columns})
-            stage = step_stage(
-                position, name, step, schema, previous, entry.values,
+            stage = _make_stage(
+                steps, position, schema, previous, entry.values,
                 columns=entry.columns,
             )  # fmt: skip
             stages.append(stage)
             previous = stage.name
-            schema = _bind(con, source_sql, stages, name, position)
+            schema = _bind(con, source_sql, stages, steps, position)
         return stages, schema, types
 
     def apply(self, data: object, out: str | Output | None = None) -> Any:  # noqa: ANN401  (the form `out` names)
