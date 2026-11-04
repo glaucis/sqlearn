@@ -130,6 +130,9 @@ class Step:
         Declared class; None means classify by trying `apply`.
     creates : DuckDBPyType or None
         The type of the columns a dynamic step creates.
+    changes_rows : bool
+        True for a step that changes the rows (a filter, sampling); every
+        later step then depends on it. No step does yet.
 
     Examples
     --------
@@ -143,6 +146,7 @@ class Step:
 
     static: ClassVar[bool | None] = None
     creates: ClassVar[DuckDBPyType | None] = None
+    changes_rows: ClassVar[bool] = False
 
     def __init__(
         self,
