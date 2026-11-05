@@ -7,6 +7,12 @@
       "tier": "fast"
     },
     {
+      "area": "docs/conf",
+      "name": "tests/docs/test_conf.py::test_the_justfile_fetches_the_same_duckdb_inventory",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
       "area": "sqlearn/metrics/accuracy",
       "name": "tests/src/sqlearn/metrics/test_accuracy.py::test_accuracy_matches_sklearn_ints",
       "outcome": "passed",
