@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Refuse a merge commit whose files fail `just pre-commit`.
+# A merge that completes without conflicts runs this hook, not pre-commit, so
+# it hands over to pre-commit: the index then holds the merge's result, which
+# is what pre-commit checks.
+exec "$(dirname "$0")/pre-commit" "$@"

@@ -65,6 +65,12 @@ that mends it. Where `just` is not found, the commit is refused with the cure,
 hook would have nothing to run the checks with; the cure is `just setup` in
 that checkout.
 
+A merge that completes without conflicts runs git's `pre-merge-commit` hook
+instead of `pre-commit`. `.githooks/pre-merge-commit` hands over to
+`.githooks/pre-commit`, so a merge commit gets the same checks on the merge's
+result. A merge that stops on a conflict is committed with `git commit`, which
+runs `pre-commit` itself.
+
 ## The commit-message hook
 
 `.githooks/commit-msg` checks the message with commitlint against

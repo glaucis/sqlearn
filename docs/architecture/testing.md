@@ -39,10 +39,11 @@ rest.
 
 ## The hook tests
 
-`tests/githooks/test_pre_commit.py` and `tests/githooks/test_commit_msg.py`
-make real commits in scratch repositories that carry a copy of the hook. The
-pre-commit tests put a stand-in `just` first on `PATH`, which notes its
-arguments and exits as it is told. The commit-message tests run the real
+`tests/githooks/test_pre_commit.py`, `tests/githooks/test_pre_merge_commit.py`
+and `tests/githooks/test_commit_msg.py` make real commits and merges in scratch
+repositories that carry a copy of the hook. The pre-commit and pre-merge-commit
+tests put a stand-in `just` first on `PATH`, which notes its arguments and
+exits as it is told. The commit-message tests run the real
 commitlint and are skipped, with a reason, where it is not installed.
 `just test-hooks` runs them, and `just verify` includes it.
 
