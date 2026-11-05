@@ -32,3 +32,16 @@ def test_the_duckdb_intersphinx_url_names_the_floors_major_version():
         f"and the one in the justfile's fetch-inventories, then run "
         f"`just fetch-inventories`"
     )
+
+
+def test_the_justfile_fetches_the_same_duckdb_inventory():
+    """`just fetch-inventories` must fetch from the URL conf.py links to."""
+    conf = runpy.run_path(str(REPO / "docs" / "conf.py"))
+    url = conf["intersphinx_mapping"]["duckdb"][0]
+    justfile = (REPO / "justfile").read_text()
+    fetched = re.findall(r"https://duckdb\.org/docs/\S+", justfile)
+    assert fetched, "the justfile fetches no duckdb inventory"
+    assert all(f == f"{url}objects.inv" for f in fetched), (
+        f"the justfile fetches {fetched}, but docs/conf.py links to {url}: "
+        f"make the justfile fetch {url}objects.inv"
+    )
