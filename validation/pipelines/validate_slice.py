@@ -33,7 +33,7 @@ from validation import _cases
 # above the worst ULP difference measured, at least 1. Loosening it needs a
 # written reason here, never a quiet edit. First measured: 3,100 units of
 # 2^-52 in the large set's age column, from a mean 119 ULPs off; tightened
-# to 128 when the mean moved to `favg` (ruling 18), worst then 84.
+# to 128 when the mean moved to `favg` (ADR 0033), worst then 84.
 BOUND = 128
 
 COMPARED_WITH = (

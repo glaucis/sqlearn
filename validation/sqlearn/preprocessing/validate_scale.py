@@ -20,7 +20,7 @@ from validation import _cases
 # above the worst ULP error sqlearn showed, at least 1. Loosening a bound
 # needs a written reason here, never a quiet edit. First measured: mean 119
 # ULPs with DuckDB's plain `avg`; tightened to 1 when the mean moved to the
-# compensated `favg` (ruling 18), worst then 1 ULP (medium set). Standard
+# compensated `favg` (ADR 0033), worst then 1 ULP (medium set). Standard
 # deviation: 12 ULPs on the large set (`stddev_pop` alone shows the same).
 BOUNDS = {"mean": 1, "scale": 16}
 

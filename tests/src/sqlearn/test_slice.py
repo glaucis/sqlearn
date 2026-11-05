@@ -85,7 +85,7 @@ def test_the_slice_script_runs(tmp_path, monkeypatch):
     assert search.results_.count("*").fetchall() == [(30,)]
     # Fold first: 5 folds x 2 imputer settings; C changes nothing upstream.
     assert search.transforms_ == 10
-    # The folds' learning, plus the final training on all the data (Ruling 3).
+    # The folds' learning, plus the final training on all the data.
     assert dict(STORE.learns) == {"impute": 11, "scale": 11, "onehot": 6, "ordinal": 6}
 
 

@@ -17,7 +17,7 @@ from validation import _cases
 # above the worst ULP error sqlearn showed, at least 1. Loosening a bound
 # needs a written reason here, never a quiet edit. First measured: median 0
 # ULPs everywhere; mean 119 ULPs on the large set with DuckDB's plain `avg`,
-# tightened to 1 when the mean moved to the compensated `favg` (ruling 18),
+# tightened to 1 when the mean moved to the compensated `favg` (ADR 0033),
 # worst then 1 ULP (medium set).
 BOUNDS = {"median": 1, "mean": 1}
 

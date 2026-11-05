@@ -1,8 +1,9 @@
 ---
 type: guide
-tags: [sqlearn, documentation, api, usage]
-summary: "Index page for the sqlearn guide, introducing the chapters that explain its API and usage habits."
-mdindex: [type=83ca68, tags=8a263c, summary=186578]
+tags: [guide, sqlearn, api, documentation, index]
+summary: "Index page for the sqlearn user guide, listing chapters on writing steps and inputs and the store."
+mdindex: [type=83ca68, tags=78f095, summary=bdb396, related=776e9c]
+related: [docs/guide/writing-a-step.md, docs/guide/inputs-and-the-store.md]
 ---
 # Guide
 
