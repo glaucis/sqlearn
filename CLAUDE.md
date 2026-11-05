@@ -5,14 +5,15 @@ inside DuckDB, so it works on data larger than memory and a whole pipeline can
 execute as one query. Independent of scikit-learn. With it come documentation,
 a learning site, and later two local applications (data exploration, a
 node-based workflow editor). The foundation (package skeleton, checks, hooks,
-site) is built; no library code yet.
+site) and the library core (steps, pipeline, learning store, search) are
+built.
 
 - **The map:** `docs/architecture/overview.md` (the parts and their order).
   **How work runs:** `docs/architecture/workflow.md`. **Decisions:**
-  `docs/adr/`. **Next:** the library core (part 3.2 of the overview),
-  tracked in issue #8: the earlier attempts are absorbed and the core's
-  decisions made (ADRs 0012–0025); the core spec is approved
-  (`docs/specs/library-core.md`); its plan (#17) comes next.
+  `docs/adr/`. **Done:** the library core (part 3.2): spec
+  `docs/specs/library-core.md`, decisions ADRs 0012–0033, summary and
+  deferred findings in issue #8. **Next:** the library breadth (part 3.3),
+  one spec per area; parked issues #20–#28 wait for triage.
 
 Rules from the ADRs:
 
