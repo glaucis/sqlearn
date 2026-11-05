@@ -14,12 +14,28 @@ trap 'rm -rf "$work"' EXIT
 
 # 1. A replayed message was accepted when it was written; git's own revert
 #    subject is not `type: subject`, and a refusal would strand the operation.
+#    The git directory is asked of git, since a linked worktree's .git is a file.
 gitdir=$(git rev-parse --absolute-git-dir 2>/dev/null) || gitdir=$(git rev-parse --git-dir) || exit 1
-for marker in MERGE_HEAD CHERRY_PICK_HEAD REVERT_HEAD rebase-merge rebase-apply; do
+for marker in MERGE_HEAD CHERRY_PICK_HEAD REVERT_HEAD rebase-apply; do
   if [ -e "$gitdir/$marker" ]; then
     exit 0
   fi
 done
+#    In an interactive rebase the last line of rebase-merge/done is the step
+#    being run. A `reword`, or a commit made at an `edit` stop, is a message
+#    written now, so it is checked; any other step replays an old one.
+if [ -e "$gitdir/rebase-merge" ]; then
+  step=""
+  if [ -f "$gitdir/rebase-merge/done" ]; then
+    while IFS= read -r line || [ -n "$line" ]; do
+      step=$line
+    done <"$gitdir/rebase-merge/done"
+  fi
+  case "${step%% *}" in
+    reword | r | edit | e) ;;
+    *) exit 0 ;;
+  esac
+fi
 
 # 2. Clean the message: the diff below a scissors line (git commit -v), then
 #    comment lines. The comment character is core.commentChar ("auto" is `#`).

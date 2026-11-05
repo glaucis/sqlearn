@@ -71,8 +71,10 @@ that checkout.
 `commitlint.config.mjs` at the root, the one place the rules are kept. A message
 that follows Conventional Commits passes; a warning is shown and never refuses a
 commit; a broken rule refuses it. A merge, revert, cherry-pick or rebase in
-progress passes, since git wrote that message. That includes an interactive
-rebase: a `reword`, and any commit made at an `edit` stop, is not checked. Where
+progress passes, since git wrote that message, or it was checked when it was
+written. In an interactive rebase the hook reads the step being run, the last
+line of `rebase-merge/done`: a `reword`, and any commit made at an `edit`
+stop, is a message written now and is checked; every other step passes. Where
 commitlint is not found, the commit is refused with the cure,
 `brew install commitlint`. A `fixup!` or `squash!` subject is refused by design,
 since the rules ignore nothing; reword it, or fold it in before committing.

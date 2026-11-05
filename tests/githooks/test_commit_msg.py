@@ -182,6 +182,73 @@ def test_a_merge_with_gits_own_message_lands(scratch):
     assert subject.startswith("Merge branch")
 
 
+def rebase(repo, env, step, *, editor=None):
+    """Rebase the last commit interactively, its line rewritten to the step."""
+    run = {**env, "GIT_SEQUENCE_EDITOR": f"sed -i.bak '1s/^pick/{step}/'"}
+    if editor is not None:
+        run["GIT_EDITOR"] = editor
+    return git(repo, "rebase", "-i", "--force-rebase", "HEAD~1", env=run, check=False)
+
+
+def unchecked_commit(repo, env, message):
+    """Commit a change with the hooks off, as a commit made before them would be."""
+    with (repo / "a.txt").open("a") as handle:
+        handle.write("old\n")
+    git(repo, "add", "a.txt", env=env)
+    git(repo, "-c", "core.hooksPath=/nonexistent", "commit", "-m", message, env=env)
+
+
+@needs_commitlint
+def test_a_picked_commit_in_a_rebase_is_not_checked(scratch):
+    """A replayed message was accepted when it was written, so a pick passes."""
+    repo, env = scratch
+    unchecked_commit(repo, env, "Updated stuff.")
+    done = rebase(repo, env, "pick")
+    assert done.returncode == 0, done.stderr
+
+
+@needs_commitlint
+def test_a_reword_in_a_rebase_is_checked(scratch):
+    """A `reword` writes a new message, so commitlint checks it."""
+    repo, env = scratch
+    unchecked_commit(repo, env, "docs: fine")
+    done = rebase(repo, env, "reword", editor="printf 'Updated stuff.\\n' >")
+    assert done.returncode != 0
+    assert REFUSED in done.stderr
+    git(repo, "rebase", "--abort", env=env)
+    done = rebase(repo, env, "reword", editor="printf 'docs: reworded\\n' >")
+    assert done.returncode == 0, done.stderr
+    subject = git(repo, "log", "-1", "--format=%s", env=env).stdout.strip()
+    assert subject == "docs: reworded"
+
+
+@needs_commitlint
+def test_a_commit_at_an_edit_stop_is_checked(scratch):
+    """A commit made at an `edit` stop is new work, so commitlint checks it."""
+    repo, env = scratch
+    unchecked_commit(repo, env, "docs: fine")
+    done = rebase(repo, env, "edit")
+    assert done.returncode == 0, done.stderr
+    amend = git(repo, "commit", "--amend", "-m", "Updated stuff.", env=env, check=False)
+    assert amend.returncode != 0
+    assert REFUSED in amend.stderr
+    amend = git(repo, "commit", "--amend", "-m", "docs: amended", env=env, check=False)
+    assert amend.returncode == 0, amend.stderr
+    git(repo, "rebase", "--continue", env=env)
+
+
+@needs_commitlint
+def test_a_reword_in_a_linked_worktree_is_checked(scratch, tmp_path):
+    """In a linked worktree, whose .git is a file, a `reword` is still checked."""
+    repo, env = scratch
+    linked = tmp_path / "linked"
+    git(repo, "worktree", "add", "-b", "side", str(linked), env=env)
+    unchecked_commit(linked, env, "docs: fine")
+    done = rebase(linked, env, "reword", editor="printf 'Updated stuff.\\n' >")
+    assert done.returncode != 0
+    assert REFUSED in done.stderr
+
+
 def scissors_message(path, char):
     """Write a valid subject, comment lines and a scissors section that would refuse."""
     path.write_text(
