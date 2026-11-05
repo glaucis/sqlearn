@@ -1,6 +1,12 @@
 {
   "tests": [
     {
+      "area": "docs/conf",
+      "name": "tests/docs/test_conf.py::test_the_duckdb_intersphinx_url_names_the_floors_major_version",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
       "area": "sqlearn/metrics/accuracy",
       "name": "tests/src/sqlearn/metrics/test_accuracy.py::test_accuracy_matches_sklearn_ints",
       "outcome": "passed",
