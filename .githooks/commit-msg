@@ -42,9 +42,12 @@ case "$first" in
     exit 1
     ;;
 esac
+# The patterns are basic regular expressions, whose metacharacters are the ones
+# escaped here: in a basic one `| + ? ( ) {` are literal, so any comment
+# character is matched as itself. `--*` is one or more dashes.
 ccre=$(printf '%s' "$cc" | sed -e 's/[][\\.*^$\/]/\\&/g')
 clean="$work/message"
-LC_ALL=C sed -E -e "/^$ccre -+ >8 -+\$/,\$d" -e "/^$ccre/d" "$msgfile" >"$clean"
+LC_ALL=C sed -e "/^$ccre --* >8 --*\$/,\$d" -e "/^$ccre/d" "$msgfile" >"$clean"
 
 # 3. commitlint handed nothing prints its usage and exits as if it had crashed.
 if ! LC_ALL=C grep -q '[^[:space:]]' "$clean"; then

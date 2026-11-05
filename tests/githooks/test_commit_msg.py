@@ -232,14 +232,15 @@ def test_a_subject_starting_with_the_comment_character_is_refused(scratch):
 
 
 @needs_commitlint
-def test_the_comment_character_follows_core_commentchar(scratch, tmp_path):
-    """With core.commentChar set, its scissors section is the one ignored."""
+@pytest.mark.parametrize("char", ["#", ";", "|", "+", "?", "(", ")", "{"])
+def test_the_comment_character_follows_core_commentchar(scratch, tmp_path, char):
+    """With core.commentChar set, even to a regex metacharacter, its comments go."""
     repo, env = scratch
-    git(repo, "config", "core.commentChar", ";", env=env)
+    git(repo, "config", "core.commentChar", char, env=env)
     (repo / "a.txt").write_text("changed\n")
     git(repo, "add", "a.txt", env=env)
     message = tmp_path / "message.txt"
-    scissors_message(message, ";")
+    scissors_message(message, char)
     done = git(
         repo, "commit", "-F", str(message), "--cleanup=scissors", env=env, check=False
     )
