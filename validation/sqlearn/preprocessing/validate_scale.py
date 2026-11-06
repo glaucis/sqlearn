@@ -7,12 +7,13 @@ the quartiles, the extremes), the square root of the exact variance at 50
 digits with mpmath for the standard deviation. A quantile's ranks are found
 as numpy finds them (in doubles), then its value is interpolated exactly.
 
-The divisor counts a spread of 0 as 1, as sqlearn and scikit-learn do;
-numpy's answer goes through the same rule so the comparison stays like for
-like (scikit-learn's own rule also counts a spread below ten machine epsilons
-as 0). Beside sqlearn: scikit-learn's scaler of the same method
-(``StandardScaler``, ``RobustScaler``, ``MinMaxScaler``, ``MaxAbsScaler``)
-and numpy.
+The divisor counts a spread at the level of rounding as 1, as sqlearn and
+scikit-learn do (no dataset here has one but the single value, whose spread
+is 0); the exact answer and numpy's count a spread of 0 as 1, so the
+comparison stays like for like. The near-constant rule itself is tested
+against scikit-learn in the step's tests. Beside sqlearn: scikit-learn's
+scaler of the same method (``StandardScaler``, ``RobustScaler``,
+``MinMaxScaler``, ``MaxAbsScaler``) and numpy.
 """
 
 from collections.abc import Callable

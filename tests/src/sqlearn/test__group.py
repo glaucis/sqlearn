@@ -2,7 +2,8 @@
 
 import pytest
 
-from sqlearn._group import Group, columns_arg
+import sqlearn as sq
+from sqlearn._group import Group, column_names, columns_arg
 from sqlearn.errors import SqlearnError
 
 
@@ -45,3 +46,12 @@ def test_group_repr_and_dir():
     assert repr(group) == "sq.scale"
     assert "standard" in dir(group)
     assert not any(n.startswith("_") for n in dir(group))
+
+
+def test_column_names():
+    """Names and sequences of names read as a list; anything else as None."""
+    assert column_names("a") == ["a"]
+    assert column_names(["a", "b"]) == ["a", "b"]
+    assert column_names(("a",)) == ["a"]
+    assert column_names(sq.cols.numeric()) is None
+    assert column_names([1, 2]) is None

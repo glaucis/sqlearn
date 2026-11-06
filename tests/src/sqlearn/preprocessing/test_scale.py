@@ -484,3 +484,68 @@ def test_infinity_is_refused(method):
     pipe = sq.Pipeline([sq.scale(method=method)])
     with pytest.raises(StepError, match=rf"{method} \(step 1\).*'a'.*infinity"):
         pipe.learn(frame)
+
+
+@pytest.mark.parametrize(
+    ("method", "scaler", "values"),
+    [
+        ("standard", StandardScaler(), [1.0, 1.0 + 2**-52, 1.0]),
+        ("standard", StandardScaler(), [1e8, 1e8 + 2**-26, 1e8, 1e8]),
+        ("robust", RobustScaler(), [1.0, 1.0, 1.0 + 2**-52, 1.0 + 2**-51]),
+        ("minmax", MinMaxScaler(), [1.0, 1.0 + 2**-52, 1.0]),
+        ("maxabs", MaxAbsScaler(), [1e-300, -1e-300, 0.0]),
+    ],
+)
+def test_a_near_constant_column_is_constant_as_in_sklearn(method, scaler, values):
+    """A spread at the level of rounding counts as 1, as scikit-learn's does.
+
+    The standard spread is judged on the variance, by scikit-learn's bound on
+    its rounding; the others are 1 below ten machine epsilons.
+    """
+    frame = pd.DataFrame({"x": values})
+    pipe = sq.Pipeline([sq.scale(method=method)]).learn(frame)
+    sk = scaler.fit(frame)
+    assert pipe[method].scale_["x"] == 1.0 == sk.scale_[0]
+    got = pipe.apply(frame, out="pandas")["x"]
+    assert_allclose(got, sk.transform(frame)[:, 0], rtol=1e-15, atol=1e-15)
+
+
+def test_a_spread_just_above_the_threshold_divides():
+    """Ten machine epsilons and more divide, as scikit-learn's do."""
+    frame = pd.DataFrame({"x": [1.0, 1.0 + 2**-48, 1.0]})  # range 16 eps
+    pipe = sq.Pipeline([sq.scale.minmax()]).learn(frame)
+    sk = MinMaxScaler().fit(frame)
+    assert pipe["minmax"].scale_["x"] == 2**-48 and sk.scale_[0] == 2**48
+    assert pipe.apply(frame).fetchall() == [(0.0,), (1.0,), (0.0,)]
+
+
+def test_a_search_over_the_robust_center():
+    """The spec's search over ``robust__center``: each candidate learns its own."""
+    rng = np.random.default_rng(2)
+    frame = pd.DataFrame(
+        {"a": rng.exponential(3.0, 60), "b": rng.normal(0, 1, 60), "y": [0, 1] * 30}
+    )
+    pipe = sq.Pipeline([sq.scale.robust(), LogisticRegression()])
+    centers = [sq.agg.median, sq.agg.mean]
+    search = sq.Search(
+        pipe, params={"robust__center": centers}, folds=sq.KFold(2)
+    ).train(frame, target="y")
+    settings = {row[0] for row in search.results_.fetchall()}
+    assert settings == {
+        '{"robust__center": "sq.agg.median"}',
+        '{"robust__center": "sq.agg.mean"}',
+    }
+    assert search.best_params_["robust__center"] in centers
+    assert isinstance(search.best_params_["robust__center"], sq.agg.Aggregate)
+    features = frame[["a", "b"]]
+    learned = {
+        repr(c): sq.Pipeline([sq.scale.robust(center=c)])
+        .learn(features)["robust"]
+        .center_
+        for c in centers
+    }
+    assert learned["sq.agg.median"]["a"] == np.median(frame["a"])
+    assert learned["sq.agg.mean"]["a"] == pytest.approx(frame["a"].mean(), rel=1e-15)
+    assert learned["sq.agg.median"] != learned["sq.agg.mean"]
+    best = repr(search.best_params_["robust__center"])
+    assert search.best_pipeline_["robust"].center_ == learned[best]

@@ -11,7 +11,7 @@ from duckdb.sqltypes import INTEGER, DuckDBPyType
 
 from sqlearn._errors import SqlearnError, StepError
 from sqlearn._expr import const, is_missing
-from sqlearn._group import Group, call_repr, columns_arg
+from sqlearn._group import Group, call_repr, column_names, columns_arg
 from sqlearn._selectors import Schema, Selector, _numeric, _string, to_selector
 from sqlearn._step import Learned, Output, Step
 from sqlearn.agg import aggregates as agg
@@ -148,15 +148,6 @@ def _suits(value: object, dtype: DuckDBPyType) -> bool:
     return _constant_kind(value) == _column_kind(dtype)
 
 
-def _names(cols: object) -> list[str] | None:
-    """Return `cols` as a list of names, or None when it is not names."""
-    if isinstance(cols, str):
-        return [cols]
-    if isinstance(cols, Sequence) and all(isinstance(c, str) for c in cols):
-        return list(cols)
-    return None
-
-
 class Impute(Step):
     """Fill the missing values (NULL, or NaN in a float column) of columns.
 
@@ -241,7 +232,7 @@ class Impute(Step):
             keys = list(resolved)
             if cols is None:
                 cols = keys
-            elif _names(cols) != keys:
+            elif column_names(cols) != keys:
                 msg = (
                     f"sq.impute got the dict {value!r} and cols={cols!r}. Why: "
                     "a dict names the columns itself, by its keys. Fix: leave "

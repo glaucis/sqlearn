@@ -1,8 +1,10 @@
 """What the groups share: how a group method reads its columns and prints."""
 
+from collections.abc import Sequence
+
 from sqlearn._errors import SqlearnError
 
-__all__ = ["Group", "call_repr", "columns_arg"]
+__all__ = ["Group", "call_repr", "column_names", "columns_arg"]
 
 
 def columns_arg(names: tuple[object, ...], cols: object, *, allow_dict: bool) -> object:
@@ -60,6 +62,35 @@ def columns_arg(names: tuple[object, ...], cols: object, *, allow_dict: bool) ->
     if isinstance(one, (list, tuple)):
         return list(one)
     return one
+
+
+def column_names(cols: object) -> list[str] | None:
+    """Return `cols` as a list of names, or None when it is not names.
+
+    A dict step compares its keys with any ``cols=`` it is given by this.
+
+    Parameters
+    ----------
+    cols : object
+        A name, a sequence of names, or anything else (such as a selector).
+
+    Returns
+    -------
+    list of str or None
+        The names, in order; None when `cols` is not a name or names.
+
+    Examples
+    --------
+    >>> import sqlearn as sq
+    >>> from sqlearn._group import column_names
+    >>> column_names("a"), column_names(("a", "b")), column_names(sq.cols.numeric())
+    (['a'], ['a', 'b'], None)
+    """
+    if isinstance(cols, str):
+        return [cols]
+    if isinstance(cols, Sequence) and all(isinstance(c, str) for c in cols):
+        return list(cols)
+    return None
 
 
 def call_repr(path: str, *args: object, **kwargs: object) -> str:

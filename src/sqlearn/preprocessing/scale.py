@@ -10,7 +10,7 @@ from duckdb.sqltypes import DuckDBPyType
 
 from sqlearn._errors import SqlearnError, StepError
 from sqlearn._expr import const
-from sqlearn._group import Group, call_repr, columns_arg
+from sqlearn._group import Group, call_repr, column_names, columns_arg
 from sqlearn._selectors import Schema, Selector, _numeric, to_selector
 from sqlearn._step import Learned, Step
 from sqlearn.agg import aggregates as agg
@@ -19,7 +19,6 @@ from sqlearn.preprocessing._missing import (
     refuse_all_missing,
     refuse_infinite,
 )
-from sqlearn.preprocessing.impute import _names
 
 __all__ = ["DEFAULT", "Scale", "ScaleGroup", "scale"]
 
@@ -114,6 +113,27 @@ def _percent(q: float) -> float | None:
     return int(percent) if percent.is_integer() else percent
 
 
+EPS = 2.0**-52
+"""The machine epsilon of DOUBLE, by which scikit-learn judges a spread."""
+
+
+def _constant(x: Expression, spread: agg.Aggregate, raw: Expression) -> Expression:
+    """Return whether a column's spread is at the level of rounding: none.
+
+    As scikit-learn's scalers judge it: the standard deviation by the
+    variance, against its bound on the rounding of a two-pass variance
+    (``var <= n * eps * var + (n * mean * eps) ** 2``, its
+    ``_is_constant_feature``); any other spread below ten machine epsilons
+    (its ``_handle_zeros_in_scale``). NULL (no value) is not constant.
+    """
+    if spread != agg.std:
+        return raw < const(10 * EPS)
+    var, n, mean = agg.var(x), agg.count(x).cast("DOUBLE"), agg.mean(x)
+    eps = const(EPS)
+    rounding = n * mean * eps
+    return var <= n * eps * var + rounding * rounding
+
+
 class Scale(Step):
     """Centre numeric columns and divide them by their spread.
 
@@ -132,8 +152,10 @@ class Scale(Step):
     maxabs    None    maxabs  None           MaxAbsScaler
     ========  ======  ======  =============  ==============
 
-    A spread of 0 counts as 1, so a constant column scales to 0 (or to
-    ``a``). A dict gives each column its own method.
+    A spread at the level of rounding counts as 1, as scikit-learn judges
+    it (the standard deviation by its variance's rounding bound, any other
+    spread below ten machine epsilons), so a constant column scales to 0
+    (or to ``a``). A dict gives each column its own method.
 
     Parameters
     ----------
@@ -147,11 +169,16 @@ class Scale(Step):
         What to subtract: an aggregate (``sq.agg.mean``), its name, or None
         for 0. ``"default"`` takes the method's. A given one replaces it and
         the method stays: ``robust`` with ``center=sq.agg.mean`` is robust.
+        A value equal to the method's own is stored as ``"default"``, so a
+        search over `method` takes each method's own; the values learned
+        are read from `center_` and `scale_`.
     spread : Aggregate, str or None, default "default"
-        What to divide by, as `center`; None for 1.
+        What to divide by, as `center`; None for 1. Stored as ``"default"``
+        when it is the method's own, as `center` is.
     feature_range : tuple of (float, float) or None, default "default"
         The range ``(a, b)`` to stretch the result onto, or None for none;
-        ``"default"`` takes the method's.
+        ``"default"`` takes the method's, and a range equal to the method's
+        own is stored as ``"default"``.
     keep : bool, default False
         Keep the input column and add the scaled one beside it.
     suffix : str, optional
@@ -163,8 +190,8 @@ class Scale(Step):
     center_ : dict of str to float
         After learning, each column's centre, where there is one.
     scale_ : dict of str to float
-        After learning, each column's divisor (1 where the spread is 0),
-        where there is a spread.
+        After learning, each column's divisor (1 where the spread is at the
+        level of rounding), where there is a spread.
 
     Raises
     ------
@@ -214,7 +241,7 @@ class Scale(Step):
             keys = list(resolved)
             if cols is None:
                 cols = keys
-            elif _names(cols) != keys:
+            elif column_names(cols) != keys:
                 msg = (
                     f"sq.scale got the dict {dict(method)!r} and cols={cols!r}. "
                     "Why: a dict names the columns itself, by its keys. Fix: "
@@ -374,8 +401,9 @@ class Scale(Step):
         Returns
         -------
         mapping of str to duckdb.Expression
-            ``center`` (when there is one), ``scale`` (the spread, 1 where it
-            is 0, when there is one), both DOUBLE, and ``infinite``
+            ``center`` (when there is one), ``scale`` (the spread, when
+            there is one, 1 where it is at the level of rounding, as
+            scikit-learn judges it), both DOUBLE, and ``infinite``
             (infinity where the column holds any, else 0).
 
         Examples
@@ -393,8 +421,8 @@ class Scale(Step):
             out["center"] = center(x).cast("DOUBLE")
         if spread is not None:
             raw = spread(x).cast("DOUBLE")
-            zero = raw == const(0.0)
-            out["scale"] = duckdb.CaseExpression(zero, const(1.0)).otherwise(raw)
+            constant = _constant(x, spread, raw)
+            out["scale"] = duckdb.CaseExpression(constant, const(1.0)).otherwise(raw)
         out["infinite"] = infinite(x)
         return out
 
@@ -561,7 +589,8 @@ class ScaleGroup(Group):
         """Subtract the mean, divide by the standard deviation (``method="standard"``).
 
         As scikit-learn's ``StandardScaler``: the population standard
-        deviation, a spread of 0 counted as 1.
+        deviation; a column whose variance is within rounding of 0 is
+        constant and divided by 1, as scikit-learn's.
 
         Parameters
         ----------
