@@ -21,6 +21,7 @@ from sqlearn.preprocessing._encode import encode
 from sqlearn.preprocessing.bin import bin
 from sqlearn.preprocessing.impute import impute
 from sqlearn.preprocessing.scale import scale
+from sqlearn.preprocessing.transform import transform
 
 __all__ = [
     "Grid",
@@ -46,6 +47,7 @@ __all__ = [
     "scale",
     "set_config",
     "store",
+    "transform",
 ]
 
 __version__: str = version("sqlearn")

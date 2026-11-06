@@ -3079,6 +3079,318 @@
       "tier": "fast"
     },
     {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_bad_input_is_refused_naming_step_column_and_fix[log--3.0-clip]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_bad_input_is_refused_naming_step_column_and_fix[log--inf-clip]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_bad_input_is_refused_naming_step_column_and_fix[log-0.0-log1p]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_bad_input_is_refused_naming_step_column_and_fix[log1p--1.0-clip]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_bad_input_is_refused_naming_step_column_and_fix[log1p--2.0-clip]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_bad_input_is_refused_naming_step_column_and_fix[sqrt--0.5-clip]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_bad_input_is_refused_naming_step_column_and_fix[sqrt--inf-clip]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_bounds_belong_to_clip_only",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_chains_into_the_stage_around_it",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_clip_bounds_must_be_finite_numbers[True]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_clip_bounds_must_be_finite_numbers[a]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_clip_bounds_must_be_finite_numbers[bad4]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_clip_bounds_must_be_finite_numbers[inf]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_clip_bounds_must_be_finite_numbers[nan]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_clip_keeps_integer_columns_integer_as_numpy",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_clip_matches_numpy_with_one_or_two_bounds[bounds0-numpy_bounds0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_clip_matches_numpy_with_one_or_two_bounds[bounds1-numpy_bounds1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_clip_matches_numpy_with_one_or_two_bounds[bounds2-numpy_bounds2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_clip_with_no_bound_or_inverted_bounds_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_columns_by_name_list_or_selector",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_default_columns",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_default_names",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_good_values_next_to_good_values_do_not_raise_and_infinity_passes",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_integer_and_decimal_columns_give_double[log-BIGINT]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_integer_and_decimal_columns_give_double[log-DECIMAL(10,2)]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_integer_and_decimal_columns_give_double[log-INTEGER]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_integer_and_decimal_columns_give_double[log1p-BIGINT]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_integer_and_decimal_columns_give_double[log1p-DECIMAL(10,2)]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_integer_and_decimal_columns_give_double[log1p-INTEGER]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_integer_and_decimal_columns_give_double[sqrt-BIGINT]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_integer_and_decimal_columns_give_double[sqrt-DECIMAL(10,2)]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_integer_and_decimal_columns_give_double[sqrt-INTEGER]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_keep_adds_a_column_beside_the_input",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_log1p_matches_numpy_including_tiny_and_negative_values",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_log_matches_numpy",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_log_of_zero_is_refused_with_the_fix",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_lower_and_upper_on_text",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_no_method_is_a_type_error_and_a_bad_one_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_null_stays_null_and_nan_stays_nan[clip]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_null_stays_null_and_nan_stays_nan[log1p]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_null_stays_null_and_nan_stays_nan[log]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_null_stays_null_and_nan_stays_nan[sqrt]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_repr_is_the_shortest_form_that_rebuilds",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_reserved_word_and_space_names_work",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_settings_and_declaration",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_shortcut_equals_general_form",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_sqrt_matches_numpy_and_zero_is_allowed",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_text_null_stays_null",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_the_group_lists_its_shortcuts",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_the_refusal_is_not_raised_for_rows_not_fetched",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_the_step_pickles",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_the_wrong_kind_of_column_is_refused_by_name",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
       "area": "sqlearn/_compose",
       "name": "tests/src/sqlearn/test__compose.py::test_a_created_name_in_use_is_numbered",
       "outcome": "passed",

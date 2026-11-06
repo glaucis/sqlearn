@@ -44,6 +44,14 @@ The API of the sqlearn package, generated from its docstrings.
    sqlearn.bin.binarize
    sqlearn.preprocessing.Bin
    sqlearn.preprocessing.Binarize
+   sqlearn.transform
+   sqlearn.transform.log
+   sqlearn.transform.log1p
+   sqlearn.transform.sqrt
+   sqlearn.transform.clip
+   sqlearn.transform.lower
+   sqlearn.transform.upper
+   sqlearn.preprocessing.Transform
    sqlearn.Search
    sqlearn.Grid
    sqlearn.KFold

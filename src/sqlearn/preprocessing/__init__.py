@@ -13,6 +13,7 @@ from sqlearn.preprocessing.onehot import OneHot
 from sqlearn.preprocessing.ordinal import Ordinal
 from sqlearn.preprocessing.scale import Normalize, Scale
 from sqlearn.preprocessing.target import TargetEncoder
+from sqlearn.preprocessing.transform import Transform
 
 __all__ = [
     "Bin",
@@ -23,4 +24,5 @@ __all__ = [
     "Ordinal",
     "Scale",
     "TargetEncoder",
+    "Transform",
 ]
