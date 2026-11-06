@@ -85,35 +85,34 @@ CITIES = ("kyiv", "lima", "oslo", "rome")
 PLANS = ("basic", "plus", "pro")
 
 
-def customers(rows: int, start: int = 0) -> pd.DataFrame:
-    """Return rows `start` to `start + rows` of the script's data, seed 0.
+def customers(rows: int) -> pd.DataFrame:
+    """Return the first `rows` rows of the script's data, seed 0.
 
     Age and income with gaps, a city with gaps, a plan, and whether the
     customer churned, which depends on all four.
     """
     rng = np.random.default_rng(_cases.SEED)
-    n = start + rows
-    age = rng.normal(40.0, 12.0, n)
-    income = rng.lognormal(10.5, 0.5, n)
-    city = rng.choice(np.array(CITIES, dtype=object), n)
-    plan = rng.choice(np.array(PLANS, dtype=object), n, p=[0.5, 0.3, 0.2])
+    age = rng.normal(40.0, 12.0, rows)
+    income = rng.lognormal(10.5, 0.5, rows)
+    city = rng.choice(np.array(CITIES, dtype=object), rows)
+    plan = rng.choice(np.array(PLANS, dtype=object), rows, p=[0.5, 0.3, 0.2])
     signal = (
         0.04 * (age - 40.0)
         - 0.8 * (np.log(income) - 10.5) / 0.5
         + 0.9 * (plan == "basic")
         + 0.5 * (city == "oslo")
-        + rng.normal(0.0, 1.0, n)
+        + rng.normal(0.0, 1.0, rows)
     )
     frame = pd.DataFrame(
         {
-            "age": np.where(rng.random(n) < 0.1, np.nan, age),
-            "income": np.where(rng.random(n) < 0.05, np.nan, income),
-            "city": np.where(rng.random(n) < 0.05, None, city),
+            "age": np.where(rng.random(rows) < 0.1, np.nan, age),
+            "income": np.where(rng.random(rows) < 0.05, np.nan, income),
+            "city": np.where(rng.random(rows) < 0.05, None, city),
             "plan": plan,
             "churned": (signal > 0.4).astype(np.int64),
         }
     )
-    return frame.iloc[start:].reset_index(drop=True)
+    return frame
 
 
 def write_data(root: Path) -> None:

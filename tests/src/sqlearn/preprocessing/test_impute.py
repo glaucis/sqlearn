@@ -2,6 +2,7 @@
 
 import datetime
 import pickle
+import re
 
 import numpy as np
 import pandas as pd
@@ -114,6 +115,9 @@ def test_impute_a_dict():
     }
     pipe = sq.Pipeline([step]).learn(frame)
     assert list(pipe.named_steps) == ["impute"]
+    # One step learns every column's value in one learn stage.
+    (learn,) = pipe.runs_[0].statements
+    assert re.findall(r'"(l\d+_[a-z]+)" AS', learn) == ["l01_impute"]
     got = pipe.apply(frame, out="pandas")
     for col, imputer in [
         ("age", SimpleImputer(strategy="median")),
