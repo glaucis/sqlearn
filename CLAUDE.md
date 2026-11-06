@@ -15,7 +15,7 @@ built.
   deferred findings in issue #8. **Next:** the library breadth (part 3.3),
   one spec per area. Its first area, preprocessing, is tracked in issue #30:
   spec approved (`docs/specs/library-preprocessing.md`, ADRs 0034–0035); its
-  plan comes next.
+  plan is `docs/plans/2026-11-06-library-preprocessing.md`, being built.
 
 Rules from the ADRs:
 
