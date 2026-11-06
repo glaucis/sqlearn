@@ -438,6 +438,11 @@ def step_stage(
                 )  # fmt: skip
             else:
                 result = step.apply(exprs[c], per_column[c])
+            if isinstance(result, Expression) and not step.keep:
+                # One expression replacing the column keeps its name, as the
+                # planner plans it: a column passing through is never renamed.
+                out.append((c, result))
+                continue
             full = not step.names_are_labels and not isinstance(result, Expression)
             pairs = [
                 ((label, "") if full else (c, label), e)

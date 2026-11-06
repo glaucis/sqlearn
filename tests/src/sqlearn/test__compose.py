@@ -765,3 +765,29 @@ def test_two_chained_quantile_stages_spill(tmp_path):
         dict(zip(["age", "income", "churned"], medians, strict=True))
     )
     assert pipe[1].center_ == pytest.approx(pipe[0].value_)
+
+
+class _NamesOne(sq.Step):
+    """From ``b`` a column named in full ``a``; from ``a`` one expression."""
+
+    static = True
+    names_are_labels = False
+
+    def apply(self, x, learned):
+        """Write ``a`` from ``b``; replace any other column."""
+        if x.get_name() == "b":
+            return {"a": x * 10}
+        return x + 1
+
+
+def test_a_replaced_column_keeps_its_name_beside_a_created_one():
+    """One expression replacing ``a`` keeps the name ``a`` (ADR 0035).
+
+    A column another input creates under that name is numbered instead, as
+    the planner plans it, so a later step naming ``a`` reads the replaced one.
+    """
+    rel = connection().sql("SELECT 1.0::DOUBLE AS b, 2.0::DOUBLE AS a")
+    later = sq.Step(apply=lambda x: x * 100, cols=["a"])
+    pipe = sq.Pipeline([("names", _NamesOne()), ("later", later)]).learn(rel)
+    assert pipe.columns_out_ == ["a_2", "a"]
+    assert pipe.apply(rel).fetchall() == [(10.0, 300.0)]
