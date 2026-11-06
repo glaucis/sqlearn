@@ -1,9 +1,9 @@
 ---
 type: note
-tags: [decision-records, index, architecture, sqlearn]
-summary: "Index of sqlearn's architecture decision records, numbered 0001-0033 and grouped by topic such as tooling, DuckDB execution, the API and numerics."
-mdindex: [type=edb465, tags=7dda2a, summary=db653b, related=14668e]
-related: [docs/adr/0001-uv-for-python-packaging.md, docs/adr/0004-apache-2-licence.md, docs/adr/0005-runtime-dependencies.md, docs/adr/0006-local-and-offline.md, docs/adr/0007-python-3-12-floor.md, docs/adr/0008-just-task-runner.md, docs/adr/0010-british-prose-american-identifiers.md, docs/adr/0025-results-stored-as-data-in-mirrored-folders.md]
+tags: [decision-records, index, adr, architecture, sqlearn]
+summary: "Index of sqlearn's architecture decision records, grouped by topic: tooling, DuckDB execution, API, steps, store, models, and numerics."
+mdindex: [type=edb465, tags=8553db, summary=e6d370, related=497df0]
+related: [docs/adr/0001-uv-for-python-packaging.md, docs/adr/0002-sql-on-duckdb-execution-engine.md, docs/adr/0003-scikit-learn-style-api.md, docs/adr/0004-apache-2-licence.md, docs/adr/0005-runtime-dependencies.md, docs/adr/0006-local-and-offline.md, docs/adr/0007-python-3-12-floor.md, docs/adr/0008-just-task-runner.md]
 ---
 
 # Decision records
@@ -47,6 +47,8 @@ The verbs and conventions users write against.
 - [0013: learn, apply, train and predict](0013-learn-apply-train-predict.md)
 - [0020: Column selectors](0020-column-selectors.md)
 - [0026: A step without `cols=` works on every column](0026-a-step-without-cols-works-on-every-column.md)
+- [0034: A grouped API](0034-a-grouped-api.md)
+- [0035: Names of generated columns](0035-names-of-generated-columns.md)
 
 ## Steps users write
 

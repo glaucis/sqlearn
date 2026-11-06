@@ -1,9 +1,9 @@
 ---
 type: guide
 tags: [setup, git-hooks, just, uv, commitlint]
-summary: "How to set up a clone, what the just recipes do, and how the pre-commit and commit-msg git hooks behave."
-related: [docs/adr/0001-uv-for-python-packaging.md, docs/adr/0008-just-task-runner.md, commitlint.config.mjs, docs/specs/foundation.md]
-mdindex: [type=83ca68, tags=191ee2, summary=e0806e, related=9cf2f2]
+summary: "How to set up a clone, the just recipes they provide, and what the pre-commit and commit-msg git hooks check."
+related: [docs/adr/0001-uv-for-python-packaging.md, docs/adr/0008-just-task-runner.md, docs/specs/foundation.md, commitlint.config.mjs, just pre-commit, just verify, just check]
+mdindex: [type=83ca68, tags=191ee2, summary=25a6a5, related=b67768]
 ---
 # Setting up
 

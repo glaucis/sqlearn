@@ -13,7 +13,9 @@ built.
   `docs/adr/`. **Done:** the library core (part 3.2): spec
   `docs/specs/library-core.md`, decisions ADRs 0012–0033, summary and
   deferred findings in issue #8. **Next:** the library breadth (part 3.3),
-  one spec per area; parked issues #20–#28 wait for triage.
+  one spec per area. Its first area, preprocessing, is tracked in issue #30:
+  spec approved (`docs/specs/library-preprocessing.md`, ADRs 0034–0035); its
+  plan comes next.
 
 Rules from the ADRs:
 
