@@ -180,6 +180,41 @@ def test_a_step_may_return_full_names():
     assert list(stage.columns)[:2] == ["a^2", "A^2_2"]
 
 
+def test_one_expression_is_named_as_a_label_even_with_full_names():
+    """names_are_labels only concerns a mapping: one expression is the column."""
+
+    class Full(sq.Step):
+        names_are_labels = False
+
+        def apply(self, x, learned):
+            return x * 2
+
+    stage = step_stage(1, "full", Full("age"), SCHEMA, SOURCE)
+    assert list(stage.columns) == ["age"]
+    stage = step_stage(1, "full", Full("age", keep=True), SCHEMA, SOURCE)
+    assert list(stage.columns) == ["age", "age_full"]
+
+
+def test_fixed_names_are_used_and_recorded():
+    """Given the names fixed at learn, a stage uses them and records them."""
+    schema = [("age", DOUBLE), ("age_impute", DOUBLE)]
+    stage = step_stage(1, "impute", FillZero("age", keep=True), schema, SOURCE)
+    assert stage.created == {"age": ["age_impute_2"]}
+    again = step_stage(
+        1, "impute", FillZero("age", keep=True), SCHEMA, SOURCE, names=stage.created
+    )
+    assert list(again.columns) == ["age", "age_impute_2"]
+
+
+def test_fixed_names_must_match_the_outputs():
+    """A step creating other columns than at learn is refused."""
+    with pytest.raises(sq.errors.StepError, match=r"impute \(step 1\).*2 when"):
+        step_stage(
+            1, "impute", FillZero("age", keep=True), SCHEMA, SOURCE,
+            names={"age": ["a", "b"]},
+        )  # fmt: skip
+
+
 def test_two_columns_of_one_stage_may_not_share_a_name():
     """A stage built by hand with two equal names is refused."""
     col = duckdb.ColumnExpression("a")

@@ -5,6 +5,7 @@ import time
 import duckdb
 import numpy as np
 import pandas as pd
+import pytest
 from duckdb.sqltypes import VARCHAR
 from sklearn.preprocessing import OneHotEncoder
 
@@ -228,6 +229,31 @@ def test_a_new_column_never_renames_an_input_column():
     data = connection().sql("SELECT 'a' AS city, 1 AS city_a")
     pipe = sq.Pipeline([("hot", sq.OneHot())]).learn(data)
     assert pipe.columns_out_ == ["city_a_2", "city_a"]
+
+
+def test_names_are_fixed_at_learn():
+    """Applying to data with an extra column keeps the names columns_out_ shows."""
+    learn = connection().sql(
+        "SELECT * FROM (VALUES ('Oslo', 1.0), ('Rome', 2.0)) t(city, n)"
+    )
+    pipe = sq.Pipeline(
+        [("hot", sq.OneHot()), ("scale", sq.Scale(cols=["city_Oslo"]))]
+    ).learn(learn)
+    assert pipe.columns_out_ == ["city_Oslo", "city_Rome", "n"]
+    more = connection().sql("SELECT 'Oslo' AS city, 1.0 AS n, 5 AS extra")
+    assert pipe.apply(more).columns == ["city_Oslo", "city_Rome", "n", "extra"]
+
+
+def test_an_extra_column_taking_a_learned_name_is_refused():
+    """A column at apply clashing with a created name is refused, not renamed."""
+    learn = connection().sql("SELECT * FROM (VALUES ('Oslo'), ('Rome')) t(city)")
+    pipe = sq.Pipeline([("hot", sq.OneHot())]).learn(learn)
+    more = connection().sql("SELECT 'Oslo' AS city, 1 AS city_oslo")
+    with pytest.raises(
+        sq.errors.StepError,
+        match=r"hot \(step 1\).*'city_Oslo'.*'city_oslo'.*rename or drop 'city_oslo'",
+    ):
+        pipe.apply(more)
 
 
 def test_zero_categories_give_no_column():

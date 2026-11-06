@@ -109,6 +109,9 @@ class Stage:
         The name of the step the stage belongs to, for messages.
     position : int
         The step's position in the pipeline, counting from 1.
+    created : dict of str to list of str
+        Input column to the names of the columns created from it, in order;
+        fixed when the step learns and given back to `step_stage` at apply.
 
     Examples
     --------
@@ -131,6 +134,7 @@ class Stage:
     )
     step: str = ""
     position: int = 0
+    created: dict[str, list[str]] = field(default_factory=dict)
 
     @property
     def learn_name(self) -> str:
@@ -180,6 +184,7 @@ def step_stage(
     *,
     applies: bool = True,
     columns: Sequence[str] | None = None,
+    names: Mapping[str, Sequence[str]] | None = None,
 ) -> Stage:
     """Build a step's stage from its `learn` and `apply`.
 
@@ -188,7 +193,9 @@ def step_stage(
     they are constants and there is no learn stage. Columns are referenced
     qualified by `previous`, so no column can be confused with a learned
     value. The created columns are named from their labels by
-    `sqlearn._names.name_columns`: a clash is numbered, never refused.
+    `sqlearn._names.name_columns`: a clash is numbered, never refused. With
+    `names`, the names fixed when the step learned are used instead, so they
+    do not change with the data applied to.
 
     Parameters
     ----------
@@ -210,6 +217,9 @@ def step_stage(
     columns : sequence of str, optional
         The columns the step works on, as fixed when it learned; by default
         the step's selector is resolved against `schema`.
+    names : mapping of str to sequence of str, optional
+        The names of the created columns, per input column, as the step's
+        stage gave them when it learned (`Stage.created`).
 
     Returns
     -------
@@ -218,6 +228,10 @@ def step_stage(
 
     Raises
     ------
+    StepError
+        With `names`, if a column passing through takes a fixed name
+        (DuckDB names ignore case), or the step now creates other columns
+        than it did when it learned.
     SqlearnError
         If `values` lacks a value the step learns for one of its columns.
 
@@ -248,17 +262,19 @@ def step_stage(
     for c in chosen:
         aggregates = step.learn(exprs[c])
         if values is None:
-            names: dict[str, str] = {}
+            internal: dict[str, str] = {}
             for key, aggregate in aggregates.items():
-                internal = f"v{len(learn)}"
-                learn[internal] = aggregate
-                learned[internal] = (c, key)
-                names[key] = internal
-            per_column[c] = Learned.placeholders(learn_name, names)
+                slot = f"v{len(learn)}"
+                learn[slot] = aggregate
+                learned[slot] = (c, key)
+                internal[key] = slot
+            per_column[c] = Learned.placeholders(learn_name, internal)
         else:
             per_column[c] = Learned.values(_known(name, c, aggregates, values))
-    # Each output is a name passing through, or a (column, label) to name.
+    # Each output is a name passing through, or a (column, label) to name;
+    # `owner` holds the input column of each output to name.
     out: list[tuple[str | tuple[str, str], Expression]] = []
+    owner: list[str] = []
     for c, _ in schema:
         if c not in per_column or not applies:
             out.append((c, exprs[c]))
@@ -266,12 +282,21 @@ def step_stage(
         if step.keep:
             out.append((c, exprs[c]))
         result = step.apply(exprs[c], per_column[c])
+        full = not step.names_are_labels and not isinstance(result, Expression)
         for label, e in output_labels(step_name, result, step.keep, step.suffix):
-            out.append(((c, label) if step.names_are_labels else (label, ""), e))
+            out.append(((label, "") if full else (c, label), e))
+            owner.append(c)
     taken = [k for k, _ in out if isinstance(k, str)]
     planned = [k for k, _ in out if not isinstance(k, str)]
-    final = iter(name_columns(planned, taken))
-    outputs = {k if isinstance(k, str) else next(final): e for k, e in out}
+    if names is None:
+        final = name_columns(planned, taken)
+    else:
+        final = _fixed(step_name, position, names, owner, taken)
+    created: dict[str, list[str]] = {}
+    for c, n in zip(owner, final, strict=True):
+        created.setdefault(c, []).append(n)
+    named = iter(final)
+    outputs = {k if isinstance(k, str) else next(named): e for k, e in out}
 
     remake = partial(step_stage, position, step_name, step, schema, previous)
     return Stage(
@@ -280,10 +305,49 @@ def step_stage(
         learn=learn or None,
         reads=[learn_name] if learn and applies else [],
         learned=learned,
-        remake=partial(remake, applies=applies, columns=chosen) if learn else None,
+        remake=partial(remake, applies=applies, columns=chosen, names=names)
+        if learn
+        else None,
         step=step_name,
         position=position,
+        created=created,
     )
+
+
+def _fixed(
+    step_name: str,
+    position: int,
+    names: Mapping[str, Sequence[str]],
+    owner: list[str],
+    taken: list[str],
+) -> list[str]:
+    """Give the created columns their names fixed at learn, refusing a clash."""
+    counts = {c: owner.count(c) for c in dict.fromkeys([*owner, *names])}
+    for c, count in counts.items():
+        if count != len(names.get(c, ())):
+            msg = (
+                f"{step_name} (step {position}) creates {count} columns from "
+                f"{c!r} now, but {len(names.get(c, ()))} when it learned; "
+                "apply must create the same columns from the same learned "
+                "values. Fix: make the step's apply depend only on what it "
+                "learned."
+            )
+            raise StepError(msg, step=step_name, position=position)
+    given = {c: iter(names[c]) for c in counts}
+    final = [next(given[c]) for c in owner]
+    made = {n.lower(): n for n in final}
+    for t in taken:
+        if t.lower() in made:
+            msg = (
+                f"{step_name} (step {position}) creates the column "
+                f"{made[t.lower()]!r}, named when it learned, but the data "
+                f"reaching it also has a column {t!r} (DuckDB names ignore "
+                "case). The names a step learned do not change at apply, so "
+                f"the two would clash. Fix: rename or drop {t!r} before "
+                "apply, or learn the pipeline again on this data."
+            )
+            raise StepError(msg, step=step_name, position=position)
+    return final
 
 
 def _known(

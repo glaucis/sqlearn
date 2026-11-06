@@ -307,6 +307,8 @@ class Pipeline:
         self.runs_: list[Run] = []
         self._entries: list[Entry] | None = None
         self._types: list[dict[str, DuckDBPyType]] = []
+        # Per step, the names of the columns it created, fixed at learn.
+        self._names: list[dict[str, list[str]]] = []
         self._columns_out: list[str] = []
         self._feed: str | None = None
 
@@ -440,8 +442,8 @@ class Pipeline:
             If the input cannot be read (see `sqlearn._inputs.read`), or the
             pipeline ends in a model (use `train`).
         StepError
-            If a step's selector matches no column, an output takes a name in
-            use, or a step learns from no rows.
+            If a step's selector matches no column, or a step learns from no
+            rows.
 
         Notes
         -----
@@ -464,8 +466,8 @@ class Pipeline:
         con = connection()
         source_sql = _source_sql(con, source)
         _, runs, known = self._learn(con, source, steps)
-        _, out, types = self._stages(con, source_sql, source.schema, steps, known)
-        self._commit(steps, known, types, [c for c, _ in out])
+        stages, out, types = self._stages(con, source_sql, source.schema, steps, known)
+        self._commit(steps, known, types, [c for c, _ in out], stages)
         self.runs_ = [run for _, run in runs]
         return self
 
@@ -498,12 +500,14 @@ class Pipeline:
         known: list[Entry],
         types: list[dict[str, DuckDBPyType]],
         columns_out: list[str],
+        stages: list[Stage],
     ) -> None:
         """Keep what the steps learned; called last, once everything succeeded."""
         for (_, step), entry in zip(steps, known, strict=True):
             step._set_learned(_by_column(entry.values))
         self._entries = known
         self._types = types
+        self._names = [stage.created for stage in stages]
         self._columns_out = columns_out
 
     def _learn_run(
@@ -595,11 +599,14 @@ class Pipeline:
         steps: list[tuple[str, Step]],
         entries: list[Entry],
         check: list[dict[str, DuckDBPyType]] | None = None,
+        names: list[dict[str, list[str]]] | None = None,
     ) -> tuple[list[Stage], Schema, list[dict[str, DuckDBPyType]]]:
         """Build every step's stage with its learned values as constants.
 
         Checks each step's learned columns reach it, with the kind of type
-        they had at learn when `check` holds those types.
+        they had at learn when `check` holds those types. `names` holds the
+        names of the created columns fixed at learn; without it they are
+        named afresh, as when learning.
         """
         stages: list[Stage] = []
         types: list[dict[str, DuckDBPyType]] = []
@@ -628,6 +635,7 @@ class Pipeline:
             stage = _make_stage(
                 steps, position, schema, previous, entry.values,
                 columns=entry.columns,
+                names=None if names is None else names[i],
             )  # fmt: skip
             stages.append(stage)
             previous = stage.name
@@ -658,7 +666,8 @@ class Pipeline:
             `predict`), or the input cannot be read.
         StepError
             If the data lacks a column a step learned from, or holds it with
-            another kind of type.
+            another kind of type, or has a column taking the name of one a
+            step created when it learned (DuckDB names ignore case).
 
         Examples
         --------
@@ -680,8 +689,9 @@ class Pipeline:
         con = connection()
         source_sql = _source_sql(con, source)
         stages, _, _ = self._stages(
-            con, source_sql, source.schema, steps, self._entries, self._types
-        )
+            con, source_sql, source.schema, steps, self._entries, self._types,
+            self._names,
+        )  # fmt: skip
         sql = build(source_sql, stages)
         rel = con.sql(sql)
         # The relation reads the source's view (for a frame): keep the
@@ -813,7 +823,7 @@ class Pipeline:
         except BaseException:
             self._feed = None
             raise
-        self._commit(steps, known, types, columns)
+        self._commit(steps, known, types, columns, stages)
         # The model is a reader (ADR 0018): the feeding query belongs to the
         # feed run, after its learn statement when that run learned.
         if runs and runs[-1][0] == the_plan.feed_run:
@@ -882,8 +892,9 @@ class Pipeline:
         numbered = number_rows(source_sql, _ROW)
         schema = describe(con, numbered, [])
         stages, reaching, _ = self._stages(
-            con, numbered, schema, steps, self._entries, self._types
-        )
+            con, numbered, schema, steps, self._entries, self._types,
+            self._names,
+        )  # fmt: skip
         have = {c for c, _ in reaching}
         missing = [c for c in self._columns_out if c not in have]
         if missing:
