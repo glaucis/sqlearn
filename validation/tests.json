@@ -2114,6 +2114,24 @@
     },
     {
       "area": "sqlearn/preprocessing/scale",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_normalize_over_200_columns_is_quick_and_matches_sklearn[l1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/scale",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_normalize_over_200_columns_is_quick_and_matches_sklearn[l2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/scale",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_normalize_over_200_columns_is_quick_and_matches_sklearn[max]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/scale",
       "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_normalize_refuses_a_missing_value_when_fetched",
       "outcome": "passed",
       "tier": "fast"
@@ -2469,6 +2487,12 @@
     {
       "area": "sqlearn/_compose",
       "name": "tests/src/sqlearn/test__compose.py::test_reserved_and_spaced_names_are_quoted",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_compose",
+      "name": "tests/src/sqlearn/test__compose.py::test_row_values_are_computed_once_in_a_projection_of_their_own",
       "outcome": "passed",
       "tier": "fast"
     },
