@@ -28,7 +28,9 @@ The API of the sqlearn package, generated from its docstrings.
    sqlearn.scale.robust
    sqlearn.scale.minmax
    sqlearn.scale.maxabs
+   sqlearn.scale.normalize
    sqlearn.preprocessing.Scale
+   sqlearn.preprocessing.Normalize
    sqlearn.OneHot
    sqlearn.Ordinal
    sqlearn.Search

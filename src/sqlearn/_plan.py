@@ -2,13 +2,14 @@
 
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from typing import cast
 
 from duckdb.sqltypes import DuckDBPyType
 
 from sqlearn._errors import StepError
 from sqlearn._names import name_columns
 from sqlearn._selectors import Schema, Selector, _Cols, to_selector
-from sqlearn._step import Step, classify
+from sqlearn._step import Step, classify, row_outputs
 
 __all__ = ["Plan", "plan"]
 
@@ -120,6 +121,9 @@ def plan(steps: Sequence[tuple[str, Step]], schema: Schema) -> Plan:
     dynamic step takes away decides what a later step reads too: a step whose
     selector could have matched it (by name, by kind, or every column)
     depends on the step that took it away, and on what that step depends on.
+    Every output of a whole-row step (``rowwise``) reads every input it
+    selected; its outputs are named as the compositor names them, or unknown
+    when its inputs or outputs are not known before it learns.
 
     Parameters
     ----------
@@ -178,7 +182,10 @@ def plan(steps: Sequence[tuple[str, Step]], schema: Schema) -> Plan:
         result.learn_run.append(learn)
         result.apply_run.append(ready)
         result.depends_on.append(deps)
-        columns, gone = _write(step, step_name, columns, read, ready, mine, dynamic)
+        if step.rowwise and not dynamic:
+            columns, gone = _write_row(step, step_name, columns, read, ready, mine)
+        else:
+            columns, gone = _write(step, step_name, columns, read, ready, mine, dynamic)
         removed.extend(gone)
         if step.changes_rows:
             rows = _Column(None, None, ready, mine)
@@ -219,6 +226,61 @@ def _write(
     if dynamic and read:
         out.append(_Column(None, step.creates, ready, deps))
     return out, gone
+
+
+def _write_row(
+    step: Step,
+    step_name: str,
+    columns: list[_Column],
+    read: list[_Column],
+    ready: int,
+    deps: frozenset[int],
+) -> tuple[list[_Column], list[_Column]]:
+    """Return the columns after a static whole-row step (none is taken away).
+
+    Each output carries `deps`, which joins the dependencies of every input,
+    so a later step reading one output reads them all. An output is placed
+    and named as `sqlearn._compose.step_stage` does it; when the inputs are
+    not all known by name, or `apply_row` needs learned values, the outputs
+    are one unknown group of the type the step `creates`.
+    """
+    chosen = {id(c) for c in read}
+    names = [c.name for c in read]
+    try:
+        keys = None if None in names else row_outputs(step, cast("list[str]", names))
+    except Exception:  # noqa: BLE001  (unknown outputs are planned as unknown)
+        keys = None
+    if keys is None:
+        out, _ = _write(step, step_name, columns, read, ready, deps, dynamic=False)
+        if read:
+            out.append(_Column(None, step.creates, ready, deps))
+        return out, []
+    owned: dict[str | None, list[str]] = {name: [] for name in names}
+    for key in keys:
+        owned[key if key in owned else names[-1]].append(key)
+    types = {c.name: c.dtype for c in read}
+    label = (step.suffix or step_name) if step.keep and step.names_are_labels else ""
+    out: list[_Column] = []
+    new: list[int] = []
+    for c in columns:
+        if id(c) not in chosen or step.keep:
+            out.append(c)
+        if id(c) in chosen:
+            for key in owned[c.name]:
+                new.append(len(out))
+                dtype = types.get(key, step.creates)
+                out.append(_Column(key, dtype, ready, deps))
+    taken = [c.name for i, c in enumerate(out) if i not in set(new)]
+    final: list[str | None] = [None] * len(new)
+    if None not in taken:
+        planned = [(cast("str", out[i].name), label) for i in new]
+        final = list(name_columns(planned, cast("list[str]", taken)))
+    for i, name in zip(new, final, strict=True):
+        c = out[i]
+        # A column of unknown type is not known by name either.
+        known = name if c.dtype is not None else None
+        out[i] = _Column(known, c.dtype, c.ready, c.deps)
+    return out, []
 
 
 def _name_kept(out: list[_Column], kept: list[int], label: str) -> None:

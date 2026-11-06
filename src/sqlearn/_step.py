@@ -12,7 +12,15 @@ from duckdb.sqltypes import DuckDBPyType
 
 from sqlearn._selectors import Schema, Selector, to_selector
 
-__all__ = ["KINDS", "Learned", "Output", "Step", "classify", "output_labels"]
+__all__ = [
+    "KINDS",
+    "Learned",
+    "Output",
+    "Step",
+    "classify",
+    "output_labels",
+    "row_outputs",
+]
 
 KINDS: dict[tuple[type, tuple[tuple[str, object], ...]], str] = {}
 """Session cache of ``classify`` answers, keyed by class and settings."""
@@ -186,6 +194,10 @@ class Step:
         True (the default) when the keys of a mapping `apply` returns are
         labels, each creating the column ``<column>_<label>``; False when they
         are the full names of the new columns.
+    rowwise : bool
+        True for a step whose outputs read the whole row: it defines
+        `apply_row`, called once with every selected column, instead of
+        `apply`. `learn` stays per column.
 
     Examples
     --------
@@ -210,6 +222,7 @@ class Step:
     creates: DuckDBPyType | None = None
     changes_rows: ClassVar[bool] = False
     names_are_labels: ClassVar[bool] = True
+    rowwise: ClassVar[bool] = False
 
     def __init__(
         self,
@@ -284,6 +297,40 @@ class Step:
         '"a"'
         """
         return x
+
+    def apply_row(
+        self,
+        xs: Mapping[str, Expression],
+        learned: Mapping[str, Learned],
+    ) -> Mapping[str, Expression]:
+        """Say what to produce from the whole row, for a step with ``rowwise``.
+
+        Parameters
+        ----------
+        xs : mapping of str to duckdb.Expression
+            Every selected column, by name, in order.
+        learned : mapping of str to Learned
+            The values learned for each column, by name.
+
+        Returns
+        -------
+        mapping of str to duckdb.Expression
+            The output columns, replacing the selected ones. A key that names
+            a selected column takes its place (``<column>_<suffix>`` beside
+            it with `keep`); any other key follows the last selected column.
+            Each key is named as a column with the label ``""`` (or the
+            suffix with `keep`) unless `names_are_labels` is False, when it
+            is the full name. Names that clash are numbered (ADR 0035).
+
+        Examples
+        --------
+        >>> import duckdb
+        >>> import sqlearn as sq
+        >>> xs = {"a": duckdb.ColumnExpression("a")}
+        >>> {k: str(e) for k, e in sq.Step().apply_row(xs, {}).items()}
+        {'a': '"a"'}
+        """
+        return dict(xs)
 
     def default_name(self) -> str:
         """Return the name this step gets in a pipeline built from a plain list.
@@ -433,7 +480,8 @@ def classify(step: Step, schema: Schema) -> Literal["static", "dynamic"]:
     returns: getting one expression back means static; a failure (DuckDB
     raises ``TypeError`` when a placeholder is looped over or tested)
     or named columns back means the output depends on learned values, so
-    dynamic. Answers are cached per class and settings in `KINDS`.
+    dynamic. A whole-row step's ``apply_row`` is called on every input: it
+    is static unless it fails. Answers are cached per class and settings in `KINDS`.
 
     Parameters
     ----------
@@ -465,8 +513,50 @@ def classify(step: Step, schema: Schema) -> Literal["static", "dynamic"]:
     return "static" if KINDS[key] == "static" else "dynamic"
 
 
+def row_outputs(step: Step, names: Sequence[str]) -> list[str]:
+    """Return the output keys of a whole-row step, from placeholders.
+
+    Parameters
+    ----------
+    step : Step
+        A step with ``rowwise``.
+    names : sequence of str
+        The selected columns.
+
+    Returns
+    -------
+    list of str
+        The keys `apply_row` returns, in order.
+
+    Raises
+    ------
+    Exception
+        Whatever `learn` or `apply_row` raises with placeholders: a step whose
+        outputs depend on learned values (dynamic) cannot be read this way.
+
+    Examples
+    --------
+    >>> import sqlearn as sq
+    >>> from sqlearn._step import row_outputs
+    >>> row_outputs(sq.Step(), ["a", "b"])
+    ['a', 'b']
+    """
+    xs = {name: duckdb.ColumnExpression(name) for name in names}
+    learned: dict[str, Learned] = {}
+    for name, x in xs.items():
+        slots = {key: f"v{i}" for i, key in enumerate(step.learn(x))}
+        learned[name] = Learned.placeholders("learn", slots)
+    return list(step.apply_row(xs, learned))
+
+
 def _inspect(step: Step, schema: Schema) -> Literal["static", "dynamic"]:
     chosen = step.inputs(schema)
+    if step.rowwise:
+        try:
+            row_outputs(step, chosen)
+        except Exception:  # noqa: BLE001  (any failure means the output is dynamic)
+            return "dynamic"
+        return "static"
     x = duckdb.ColumnExpression(chosen[0] if chosen else "x")
     try:
         names = {name: f"v{i}" for i, name in enumerate(step.learn(x))}

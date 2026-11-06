@@ -490,3 +490,66 @@ def test_a_median_of_text_holding_parentheses_and_quotes(con):
     stage.learn = {"v0": sq.agg.median(odd.otherwise(age))}
     values, _, _ = execute(con, "t", [stage], produce=False)
     assert values["s01_middle"]["median"]["age"] == 20.0
+
+
+class Share(sq.Step):
+    """Divide each selected value by the row's total; also write the total."""
+
+    rowwise = True
+    static = True
+
+    def apply_row(self, xs, learned):
+        """Write each share, then the total."""
+        total = sq.fn.const(0.0)
+        for x in xs.values():
+            total = total + x
+        return {**{c: x / total for c, x in xs.items()}, "total": total}
+
+
+ROW = [("a", DOUBLE), ("city", VARCHAR), ("b", DOUBLE)]
+
+
+def test_a_rowwise_step_receives_every_selected_column():
+    """A rowwise step's apply_row gets all its columns at once (§6.1)."""
+    stage = step_stage(1, "share", Share(["a", "b"]), ROW, SOURCE)
+    assert list(stage.columns) == ["a", "city", "b", "total"]
+    assert '"source"."b"' in str(stage.columns["a"])
+    assert stage.created == {"a": ["a"], "b": ["b", "total"]}
+
+
+def test_a_rowwise_step_names_its_outputs_by_labels():
+    """With keep, an output named after an input follows it, labelled."""
+    stage = step_stage(1, "share", Share(["a", "b"], keep=True), ROW, SOURCE)
+    assert list(stage.columns) == [
+        "a", "a_share", "city", "b", "b_share", "total_share",
+    ]  # fmt: skip
+    taken = [("a", DOUBLE), ("total_share", DOUBLE), ("b", DOUBLE)]
+    numbered = step_stage(1, "share", Share(["a", "b"], keep=True), taken, SOURCE)
+    assert list(numbered.columns)[-1] == "total_share_2"
+    again = step_stage(
+        1, "share", Share(["a", "b"], keep=True), ROW, SOURCE, names=stage.created
+    )
+    assert list(again.columns) == list(stage.columns)
+
+
+def test_a_rowwise_step_learns_per_column(con):
+    """``learn`` stays per column; apply_row reads each column's values."""
+
+    class Centred(sq.Step):
+        rowwise = True
+        static = True
+
+        def learn(self, x):
+            return {"mean": sq.agg.mean(x)}
+
+        def apply_row(self, xs, learned):
+            return {c: x - learned[c].mean for c, x in xs.items()}
+
+    con.sql(
+        "CREATE TABLE r AS SELECT * FROM "
+        "(VALUES (1.0::DOUBLE, 10.0::DOUBLE), (3.0, 30.0)) v(a, b)"
+    )
+    stage = step_stage(1, "centred", Centred(), [("a", DOUBLE), ("b", DOUBLE)], SOURCE)
+    assert stage.learned == {"v0": ("a", "mean"), "v1": ("b", "mean")}
+    _, rel, _ = produce(con, "SELECT * FROM r", [stage])
+    assert rel.fetchall() == [(-1.0, -10.0), (1.0, 10.0)]

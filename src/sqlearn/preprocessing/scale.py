@@ -1,15 +1,18 @@
-"""Scale: centre and divide numeric columns, ``sq.scale`` and its shortcuts."""
+"""Scale: centre and divide numeric columns, ``sq.scale`` and its shortcuts.
+
+``sq.scale.normalize`` divides each row by its norm instead (`Normalize`).
+"""
 
 import math
 from collections.abc import Mapping, Sequence
-from typing import TypedDict, Unpack, cast
+from typing import Literal, TypedDict, Unpack, cast, overload
 
 import duckdb
 from duckdb import Expression
 from duckdb.sqltypes import DuckDBPyType
 
 from sqlearn._errors import SqlearnError, StepError
-from sqlearn._expr import const
+from sqlearn._expr import const, is_missing
 from sqlearn._group import Group, call_repr, column_names, columns_arg
 from sqlearn._selectors import Schema, Selector, _numeric, to_selector
 from sqlearn._step import Learned, Step
@@ -20,7 +23,7 @@ from sqlearn.preprocessing._missing import (
     refuse_infinite,
 )
 
-__all__ = ["DEFAULT", "Scale", "ScaleGroup", "scale"]
+__all__ = ["DEFAULT", "Normalize", "Scale", "ScaleGroup", "scale"]
 
 DEFAULT = "default"
 """The setting that takes the method's own centre, spread or feature range."""
@@ -44,7 +47,15 @@ def _method(method: object) -> str:
     """Return `method` when it is a method's name, else refuse it."""
     if isinstance(method, str) and method in _METHODS:
         return method
-    names = ", ".join(repr(m) for m in _METHODS)
+    if method == "normalize":
+        msg = (
+            "Scale got method='normalize'. Why: normalize divides each row by "
+            "its norm, a step of its own (Normalize), not a centre and a "
+            "spread, so a Scale cannot become it. Fix: build it with "
+            "sq.scale.normalize(), or search over whole steps."
+        )
+        raise SqlearnError(msg)
+    names = ", ".join(repr(m) for m in [*_METHODS, "normalize"])
     msg = (
         f"sq.scale got method={method!r}, which is not a method. Why: the "
         f"methods are {names}. Fix: use one of them, or a shortcut such as "
@@ -132,6 +143,29 @@ def _constant(x: Expression, spread: agg.Aggregate, raw: Expression) -> Expressi
     eps = const(EPS)
     rounding = n * mean * eps
     return var <= n * eps * var + rounding * rounding
+
+
+def _numeric_inputs(
+    cols: Selector | str | tuple[str, ...] | list[str] | None,
+    schema: Schema,
+    verb: str,
+    why: str,
+) -> list[str]:
+    """Return the chosen columns (the numeric ones by default), refusing text."""
+    selector = _numeric() if cols is None else to_selector(cols)
+    chosen = selector.resolve(schema)
+    types: dict[str, DuckDBPyType] = dict(schema)
+    numeric = set(_numeric().resolve(schema))
+    for c in chosen:
+        if c not in numeric:
+            msg = (
+                f"cannot {verb} column {c!r}, which is {types[c]}. Why: "
+                f"{why}, which takes numbers. Fix: "
+                "choose numeric columns with cols=, or encode the column "
+                "as numbers before this step."
+            )
+            raise StepError(msg, step="", position=0)
+    return chosen
 
 
 class Scale(Step):
@@ -269,6 +303,14 @@ class Scale(Step):
     def _dict_method(method: Mapping[str, object], value: object) -> str:
         if isinstance(value, str) and value in _METHODS:
             return value
+        if value == "normalize":
+            msg = (
+                f"sq.scale got the dict {dict(method)!r}, which maps a column to "
+                "'normalize'. Why: normalize divides by the norm of the whole "
+                "row, not of one column. Fix: normalize those columns in a step "
+                "of their own, sq.scale.normalize(cols=[...])."
+            )
+            raise SqlearnError(msg)
         names = ", ".join(repr(m) for m in _METHODS)
         msg = (
             f"sq.scale got the dict {dict(method)!r}, which maps a column to "
@@ -375,20 +417,9 @@ class Scale(Step):
         >>> sq.scale().inputs([("a", DOUBLE), ("c", VARCHAR)])
         ['a']
         """
-        selector = _numeric() if self.cols is None else to_selector(self.cols)
-        chosen = selector.resolve(schema)
-        types: dict[str, DuckDBPyType] = dict(schema)
-        numeric = set(_numeric().resolve(schema))
-        for c in chosen:
-            if c not in numeric:
-                msg = (
-                    f"cannot scale column {c!r}, which is {types[c]}. Why: "
-                    "scaling subtracts and divides, which takes numbers. Fix: "
-                    "choose numeric columns with cols=, or encode the column "
-                    "as numbers before this step."
-                )
-                raise StepError(msg, step="", position=0)
-        return chosen
+        return _numeric_inputs(
+            self.cols, schema, "scale", "scaling subtracts and divides"
+        )
 
     def learn(self, x: Expression) -> Mapping[str, Expression]:
         """Learn the centre, the divisor and whether the column holds infinity.
@@ -473,6 +504,208 @@ class Scale(Step):
         return out
 
 
+NORMS = ("l1", "l2", "max")
+"""The norms `Normalize` divides by, as scikit-learn's ``Normalizer``."""
+
+
+def _refusal(name: str, found: str, fix: str) -> Expression:
+    """Return ``error(...)``: a refusal DuckDB raises when the row is fetched."""
+    msg = (
+        f"sq.scale.normalize found {found} in column {name!r}. Why: a row's "
+        "norm needs every value of the row to be a number, and "
+        f"scikit-learn's Normalizer refuses it too. Fix: {fix}"
+    )
+    return duckdb.FunctionExpression("error", const(msg))
+
+
+_MISSING = (
+    "a missing value (NULL or NaN)",
+    "impute the column first, such as with sq.impute() before this step.",
+)
+_INFINITE = (
+    "an infinite value",
+    "replace or drop the infinite values before this step.",
+)
+
+
+class Normalize(Step):
+    """Divide each row's selected values by that row's norm.
+
+    Build it with ``sq.scale.normalize`` or ``sq.scale(method="normalize")``.
+    As scikit-learn's ``Normalizer``: the norm of a row is the sum of its
+    absolute values (``"l1"``), the square root of the sum of their squares
+    (``"l2"``) or the largest absolute value (``"max"``), over the selected
+    columns; each becomes ``x / norm``, as DOUBLE. A norm below ten machine
+    epsilons counts as 1, so a row of zeros stays zeros. It learns nothing,
+    and every output reads every selected column: it is a whole-row step
+    (``rowwise``).
+
+    A missing value (NULL or NaN) or an infinity in a selected column is
+    refused when the rows are fetched, naming the column: impute first.
+
+    Parameters
+    ----------
+    cols : Selector or str or sequence of str, optional
+        The columns of the row; by default the numeric ones.
+    norm : {"l1", "l2", "max"}, default "l2"
+        The norm to divide by.
+    keep : bool, default False
+        Keep the input columns and add the divided ones beside them.
+    suffix : str, optional
+        Suffix of the divided columns when `keep` is True; defaults to the
+        step's name.
+
+    Raises
+    ------
+    SqlearnError
+        If `norm` is not one of the norms.
+
+    Examples
+    --------
+    >>> import pandas as pd
+    >>> import sqlearn as sq
+    >>> data = pd.DataFrame({"a": [3.0, 0.0], "b": [4.0, 0.0]})
+    >>> pipe = sq.Pipeline([sq.scale.normalize()]).learn(data)
+    >>> pipe.apply(data, out="pandas").to_numpy().tolist()
+    [[0.6, 0.8], [0.0, 0.0]]
+    """
+
+    static = True
+    rowwise = True
+
+    def __init__(
+        self,
+        cols: Selector | str | tuple[str, ...] | list[str] | None = None,
+        norm: str = "l2",
+        keep: bool = False,
+        suffix: str | None = None,
+    ) -> None:
+        if norm not in NORMS:
+            names = ", ".join(repr(n) for n in NORMS)
+            msg = (
+                f"sq.scale.normalize got norm={norm!r}, which is not a norm. "
+                f"Why: the norms are {names}, as scikit-learn's Normalizer. "
+                "Fix: use one of them."
+            )
+            raise SqlearnError(msg)
+        super().__init__(cols=cols, keep=keep, suffix=suffix)
+        self.norm = norm
+
+    def default_name(self) -> str:
+        """Return ``normalize``.
+
+        Returns
+        -------
+        str
+            ``normalize``, whatever the norm.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> sq.scale.normalize(norm="l1").default_name()
+        'normalize'
+        """
+        return "normalize"
+
+    def __repr__(self) -> str:
+        """Return the shortest call that rebuilds the step."""
+        kwargs: dict[str, object] = {}
+        if self.cols is not None:
+            kwargs["cols"] = self.cols
+        if self.norm != "l2":
+            kwargs["norm"] = self.norm
+        if self.keep:
+            kwargs["keep"] = True
+        if self.suffix is not None:
+            kwargs["suffix"] = self.suffix
+        return call_repr("sq.scale.normalize", **kwargs)
+
+    def inputs(self, schema: Schema) -> list[str]:
+        """Return the columns of the row, refusing any that is not numeric.
+
+        Parameters
+        ----------
+        schema : list of (str, DuckDBPyType)
+            The columns reaching the step.
+
+        Returns
+        -------
+        list of str
+            The chosen columns (by default the numeric ones), in schema order.
+
+        Raises
+        ------
+        StepError
+            If a chosen column is not numeric.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> from duckdb.sqltypes import DOUBLE, VARCHAR
+        >>> sq.scale.normalize().inputs([("a", DOUBLE), ("c", VARCHAR)])
+        ['a']
+        """
+        return _numeric_inputs(
+            self.cols, schema, "normalize", "normalizing divides by the row's norm"
+        )
+
+    def apply_row(
+        self,
+        xs: Mapping[str, Expression],
+        learned: Mapping[str, Learned],
+    ) -> Mapping[str, Expression]:
+        """Divide each selected value by the row's norm.
+
+        Parameters
+        ----------
+        xs : mapping of str to duckdb.Expression
+            The selected columns, by name.
+        learned : mapping of str to Learned
+            Unused: the step learns nothing.
+
+        Returns
+        -------
+        mapping of str to duckdb.Expression
+            Each column, ``x / norm`` as DOUBLE, under its own name; a value
+            missing or infinite raises when fetched.
+
+        Examples
+        --------
+        >>> import duckdb
+        >>> import sqlearn as sq
+        >>> xs = {"a": duckdb.ColumnExpression("a")}
+        >>> list(sq.scale.normalize().apply_row(xs, {}))
+        ['a']
+        """
+        checked: dict[str, Expression] = {}
+        for name, x in xs.items():
+            v = x.cast("DOUBLE")
+            isinf = duckdb.FunctionExpression("isinf", v)
+            checked[name] = (
+                duckdb.CaseExpression(is_missing(x), _refusal(name, *_MISSING))
+                .when(isinf, _refusal(name, *_INFINITE))
+                .otherwise(v)
+            )
+        if not checked:
+            return checked
+        sizes = [duckdb.FunctionExpression("abs", v) for v in checked.values()]
+        if self.norm == "max":
+            norm = duckdb.FunctionExpression("greatest", *sizes)
+        else:
+            parts = sizes if self.norm == "l1" else [v * v for v in checked.values()]
+            norm = parts[0]
+            for part in parts[1:]:
+                norm = norm + part
+            if self.norm == "l2":
+                norm = duckdb.FunctionExpression("sqrt", norm)
+        # As scikit-learn's _handle_zeros_in_scale: a norm at the level of
+        # rounding counts as 1, so the row is left as it is.
+        divisor = duckdb.CaseExpression(norm < const(10 * EPS), const(1.0)).otherwise(
+            norm
+        )
+        return {name: v / divisor for name, v in checked.items()}
+
+
 class _Columns(TypedDict, total=False):
     """The general form's settings every shortcut passes on."""
 
@@ -512,7 +745,34 @@ class ScaleGroup(Group):
     sq.scale.robust(cols='age')
     >>> sq.scale({"age": "robust", "income": "standard"})
     sq.scale({'age': 'robust', 'income': 'standard'})
+    >>> sq.scale(method="normalize", norm="l1")
+    sq.scale.normalize(norm='l1')
     """
+
+    @overload
+    def __call__(
+        self,
+        *names: object,
+        method: Literal["normalize"],
+        norm: str = DEFAULT,
+        cols: Selector | str | Sequence[str] | None = None,
+        keep: bool = False,
+        suffix: str | None = None,
+    ) -> Normalize: ...
+
+    @overload
+    def __call__(
+        self,
+        *names: object,
+        method: str = "standard",
+        center: Part = DEFAULT,
+        spread: Part = DEFAULT,
+        feature_range: Range = DEFAULT,
+        norm: str = DEFAULT,
+        cols: Selector | str | Sequence[str] | None = None,
+        keep: bool = False,
+        suffix: str | None = None,
+    ) -> Scale: ...
 
     def __call__(
         self,
@@ -521,10 +781,11 @@ class ScaleGroup(Group):
         center: Part = DEFAULT,
         spread: Part = DEFAULT,
         feature_range: Range = DEFAULT,
+        norm: str = DEFAULT,
         cols: Selector | str | Sequence[str] | None = None,
         keep: bool = False,
         suffix: str | None = None,
-    ) -> Scale:
+    ) -> Scale | Normalize:
         """Build the step that scales columns by `method`.
 
         Parameters
@@ -532,14 +793,16 @@ class ScaleGroup(Group):
         *names : str, list of str or dict
             The columns: names, one list, or one dict of column to method.
         method : str, default "standard"
-            ``"standard"``, ``"robust"``, ``"minmax"`` or ``"maxabs"``; not
-            given with a dict.
+            ``"standard"``, ``"robust"``, ``"minmax"``, ``"maxabs"`` or
+            ``"normalize"`` (a `Normalize`); not given with a dict.
         center : Aggregate, str or None, default "default"
             What to subtract (see `Scale`); the method's by default.
         spread : Aggregate, str or None, default "default"
             What to divide by; the method's by default.
         feature_range : tuple of (float, float) or None, default "default"
             The range to stretch the result onto; the method's by default.
+        norm : {"l1", "l2", "max"}, default "default"
+            The norm of ``normalize`` (``"l2"`` by default); only with it.
         cols : Selector or str or sequence of str, optional
             The columns, as a selector; not given with `names`.
         keep : bool, default False
@@ -549,13 +812,15 @@ class ScaleGroup(Group):
 
         Returns
         -------
-        Scale
-            The step.
+        Scale or Normalize
+            The step: a `Normalize` for ``method="normalize"``.
 
         Raises
         ------
         SqlearnError
-            If names and `cols` are both given, or a dict and `method`.
+            If names and `cols` are both given, or a dict and `method`, or
+            ``normalize`` with `center`, `spread` or `feature_range`, or
+            `norm` with another method.
 
         Examples
         --------
@@ -575,8 +840,34 @@ class ScaleGroup(Group):
                 raise SqlearnError(msg)
             given = chosen
             chosen = None
+        columns = cast("str | list[str] | Selector | None", chosen)
+        if method == "normalize" and not isinstance(given, Mapping):
+            parts = {"center": center, "spread": spread, "feature_range": feature_range}
+            for setting, value in parts.items():
+                if value != DEFAULT:
+                    msg = (
+                        f"sq.scale got method='normalize' and {setting}={value!r}. "
+                        "Why: normalize divides each row by its norm, so it has "
+                        f"no {setting}. Fix: leave {setting}= out, or use "
+                        "another method."
+                    )
+                    raise SqlearnError(msg)
+            return Normalize(
+                cols=columns,
+                norm="l2" if norm == DEFAULT else norm,
+                keep=keep,
+                suffix=suffix,
+            )
+        if norm != DEFAULT:
+            what = "a dict of methods" if isinstance(given, Mapping) else f"{method=}"
+            msg = (
+                f"sq.scale got norm={norm!r} with {what}. Why: only normalize "
+                "divides by a row's norm. Fix: leave norm= out, or use "
+                "method='normalize'."
+            )
+            raise SqlearnError(msg)
         return Scale(
-            cols=cast("str | list[str] | Selector | None", chosen),
+            cols=columns,
             method=given,
             center=center,
             spread=spread,
@@ -724,6 +1015,42 @@ class ScaleGroup(Group):
         sq.scale.maxabs(cols='income')
         """
         return self(*names, method="maxabs", **kw)
+
+    def normalize(
+        self,
+        *names: object,
+        norm: str = "l2",
+        **kw: Unpack[_Columns],
+    ) -> Normalize:
+        """Divide each row by its norm (``method="normalize"``).
+
+        As scikit-learn's ``Normalizer``: over the selected columns of each
+        row, the norm is ``"l1"`` (sum of absolute values), ``"l2"`` (square
+        root of the sum of squares) or ``"max"`` (largest absolute value). A
+        row of zeros stays zeros. It learns nothing; a missing or infinite
+        value is refused when the rows are fetched, so impute first.
+
+        Parameters
+        ----------
+        *names : str or list of str
+            The columns; by default the numeric ones.
+        norm : {"l1", "l2", "max"}, default "l2"
+            The norm to divide by.
+        **kw : object
+            The general form's ``cols``, ``keep`` and ``suffix``.
+
+        Returns
+        -------
+        Normalize
+            The step.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> sq.scale.normalize("a", "b", norm="l1")
+        sq.scale.normalize(cols=['a', 'b'], norm='l1')
+        """
+        return self(*names, method="normalize", norm=norm, **kw)
 
 
 scale = ScaleGroup("scale")

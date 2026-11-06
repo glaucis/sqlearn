@@ -37,11 +37,14 @@ def _versions() -> str:
 
 
 def _method(tb: TracebackType | None, step: Step) -> str:
-    """Name the step's method (learn or apply) the traceback went through."""
+    """Name the step's method (learn, apply or apply_row) the traceback went through."""
     found = "learn or apply"
     while tb is not None:
         code = tb.tb_frame.f_code.co_name
-        if code in {"learn", "apply"} and tb.tb_frame.f_locals.get("self") is step:
+        if (
+            code in {"learn", "apply", "apply_row"}
+            and tb.tb_frame.f_locals.get("self") is step
+        ):
             found = code
         tb = tb.tb_next
     return found
@@ -61,17 +64,23 @@ def _needs_values(step: Step) -> tuple[str, BaseException] | None:
     except Exception:  # noqa: BLE001  (a step that cannot learn is not this case)
         return None
     try:
-        step.apply(x, learned)
+        if step.rowwise:
+            step.apply_row({"x": x}, {"x": learned})
+        else:
+            step.apply(x, learned)
     except Exception as exc:  # noqa: BLE001  (any failure of apply is the signal)
         if learned.accessed:
             return learned.accessed[-1], exc
     return None
 
 
-def _declared_static(name: str, position: int, used: str, exc: BaseException) -> str:
+def _declared_static(
+    name: str, position: int, step: Step, used: str, exc: BaseException
+) -> str:
     verb = "loops over" if isinstance(exc, TypeError) else "uses"
+    method = "apply_row" if step.rowwise else "apply"
     return (
-        f"{name} (step {position}) is declared static, but its apply() {verb} "
+        f"{name} (step {position}) is declared static, but its {method}() {verb} "
         f"learned.{used}, which is only known after learning. A step that "
         "needs learned values to write its SQL is dynamic.\n"
         "Fix: remove static=True (sqlearn will then detect it), or set "
@@ -109,7 +118,7 @@ def _user(
     if step.static is True:
         needy = _needs_values(step)
         if needy is not None:
-            msg = _declared_static(name, position, *needy)
+            msg = _declared_static(name, position, step, *needy)
             return StepError(msg, step=name, position=position)
     if isinstance(exc, duckdb.Error):
         missing = _MISSING_COLUMN.search(str(exc))

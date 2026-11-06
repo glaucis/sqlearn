@@ -270,3 +270,48 @@ def test_a_removed_column_carries_its_removers_dependencies():
     assert p.depends_on[2] == frozenset({0})
     q = runs(static_step(["city"]), dynamic_step("city"), static_step(sq.cols.string()))
     assert q.depends_on[2] == frozenset({0, 1})
+
+
+class Total(sq.Step):
+    """A whole-row step writing its inputs' shares and their total."""
+
+    rowwise = True
+    static = True
+    creates = DOUBLE
+
+    def apply_row(self, xs, learned):
+        """Write each share, then the total."""
+        total = sum(xs.values(), sq.fn.const(0.0))
+        return {**{c: x / total for c, x in xs.items()}, "total": total}
+
+
+def test_a_rowwise_step_reads_every_input():
+    """Each output of a whole-row step reads every selected input (§6.1)."""
+    # A dynamic step creates x_* columns; normalize reads one of them, so it
+    # waits for that step, and so does a later step reading only ``a``.
+    p = runs(
+        dynamic_step("city", creates=DOUBLE),
+        sq.scale.normalize(["a", "x_1"]),
+        static_step("a"),
+    )
+    assert p.learn_run == [0, 1, 1]
+    assert p.depends_on[2] == frozenset({0, 1})
+    q = runs(static_step("b"), sq.scale.normalize(["a", "b"]), static_step("a"))
+    assert q.depends_on[2] == frozenset({0, 1})
+
+
+def test_a_rowwise_step_names_its_new_outputs():
+    """A new output of a whole-row step is known by name to later steps."""
+    p = runs(static_step("b"), Total(["a", "b"]), static_step("total"))
+    assert p.depends_on[2] == frozenset({0, 1})
+    kept = runs(static_step("b"), Total(["a", "b"], keep=True), static_step("a"))
+    assert kept.depends_on[2] == frozenset()
+    assert runs(Total(["a", "b"], keep=True), static_step("a_s0")).depends_on[1] == (
+        frozenset({0})
+    )
+
+
+def test_a_rowwise_step_reading_unknown_columns_writes_unknown_ones():
+    """Outputs of a whole-row step over unknown columns are themselves unknown."""
+    p = runs(dynamic_step("city", creates=DOUBLE), Total(["x_1"]), static_step("total"))
+    assert (p.learn_run, p.depends_on[2]) == ([0, 1, 1], frozenset({0, 1}))

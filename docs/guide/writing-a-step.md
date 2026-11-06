@@ -5,7 +5,7 @@ kernelspec:
   display_name: Python 3
   language: python
 type: guide
-tags: [steps, custom-steps, learn, apply, static, dynamic, errors]
+tags: [steps, custom-steps, learn, apply, apply_row, rowwise, static, dynamic, errors]
 summary: "How to write your own sqlearn step: the learn/apply contract, what a step declares, placeholders, static or dynamic, and the messages a failing step gets."
 related: [docs/specs/library-core.md, docs/adr/0012-static-and-dynamic-steps.md, docs/adr/0019-custom-steps-and-failure-feedback.md]
 ---
@@ -142,6 +142,38 @@ sq.Pipeline([MyEncoder()]).learn(cities).columns_out_
 column by that name. When two outputs share a label (the text `'NULL'` and a
 real NULL, say), return a list of `(label, expression)` pairs instead of a
 dict; they are numbered in the order given.
+
+## Steps that read the whole row
+
+Some outputs need several columns of the same row: dividing each value by the
+row's norm, or multiplying columns together. Such a step sets
+`rowwise = True` and defines `apply_row(xs, learned)` instead of `apply`.
+`xs` holds every selected column at once, by name, and `learned` holds each
+column's learned values by the same name; `learn` stays per column. It
+returns a dict of output columns, which replace the selected ones.
+
+```{code-cell} python
+class Share(sq.Step):
+    rowwise = True
+    static = True
+
+    def __init__(self, cols=sq.cols.numeric(), keep=False, suffix=None):
+        super().__init__(cols, keep, suffix)
+
+    def apply_row(self, xs, learned):
+        total = sum(xs.values(), sq.fn.const(0.0))
+        return {name: x / total for name, x in xs.items()}
+
+
+parts = pd.DataFrame({"a": [1.0, 3.0], "b": [3.0, 1.0]})
+sq.Pipeline([Share()]).learn(parts).apply(parts)
+```
+
+An output named after a selected column takes its place (with `keep=True`,
+`a_share` comes beside `a`); any other name follows the last selected column.
+Names are given by the same rule as above. Since each output reads the whole
+row, a later step reading any one of them depends on every selected column,
+and on the steps that made them. `sq.scale.normalize` is built this way.
 
 ## Placeholders
 

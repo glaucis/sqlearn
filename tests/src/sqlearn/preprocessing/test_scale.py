@@ -3,6 +3,7 @@
 import pickle
 from typing import Any
 
+import duckdb
 import numpy as np
 import pandas as pd
 import pytest
@@ -14,6 +15,7 @@ from sklearn.pipeline import Pipeline as SkPipeline
 from sklearn.preprocessing import (
     MaxAbsScaler,
     MinMaxScaler,
+    Normalizer,
     RobustScaler,
     StandardScaler,
 )
@@ -22,7 +24,7 @@ import sqlearn as sq
 from sqlearn._config import connection
 from sqlearn._step import classify
 from sqlearn.errors import SqlearnError, StepError
-from sqlearn.preprocessing.scale import Scale
+from sqlearn.preprocessing.scale import Normalize, Scale
 
 
 @pytest.fixture
@@ -549,3 +551,161 @@ def test_a_search_over_the_robust_center():
     assert learned["sq.agg.median"] != learned["sq.agg.mean"]
     best = repr(search.best_params_["robust__center"])
     assert search.best_pipeline_["robust"].center_ == learned[best]
+
+
+@pytest.mark.parametrize("norm", ["l1", "l2", "max"])
+def test_normalize_matches_sklearn(con, norm):
+    """Each row of the selected columns is divided by its norm, as Normalizer."""
+    frame = data()
+    sk = Normalizer(norm=norm).fit_transform(frame[NUMBERS])
+    got = sq.Pipeline([sq.scale.normalize(norm=norm)]).learn(frame)
+    out = got.apply(frame, out="pandas")
+    assert list(out.columns) == list(frame.columns)
+    assert_allclose(out[NUMBERS].to_numpy(), sk, rtol=1e-14, atol=1e-16)
+    assert out["city"].tolist() == frame["city"].tolist()
+
+
+def test_a_zero_row_stays_zero(con):
+    """A row whose norm is 0 (or within rounding of it) stays as it is."""
+    frame = pd.DataFrame({"a": [0.0, 3.0, 1e-17], "b": [0.0, -4.0, 0.0]})
+    for norm in ["l1", "l2", "max"]:
+        sk = Normalizer(norm=norm).fit_transform(frame)
+        pipe = sq.Pipeline([sq.scale.normalize(norm=norm)]).learn(frame)
+        got = pipe.apply(frame, out="pandas").to_numpy()
+        assert_array_equal(got, sk)
+        assert got[0].tolist() == [0.0, 0.0]
+
+
+def test_normalize_refuses_a_missing_value_when_fetched():
+    """A NULL or NaN in a selected column is refused, saying to impute first."""
+    frame = holed()
+    pipe = sq.Pipeline([sq.scale.normalize(["a", "n"])]).learn(frame)
+    with pytest.raises(
+        duckdb.InvalidInputException,
+        match=r"sq\.scale\.normalize.*missing.*'a'.*Fix: impute",
+    ):
+        pipe.apply(frame).fetchall()
+    rel = connection().sql("SELECT 1.0 AS a, NULL::DOUBLE AS b")
+    with pytest.raises(duckdb.InvalidInputException, match=r"'b'"):
+        sq.Pipeline([sq.scale.normalize()]).learn(rel).apply(rel).fetchall()
+    imputed = sq.Pipeline([sq.impute(), sq.scale.normalize()]).learn(frame)
+    sk = SkPipeline([("i", SimpleImputer(strategy="median")), ("n", Normalizer())])
+    assert_allclose(
+        imputed.apply(frame, out="pandas")[NUMBERS].to_numpy(),
+        sk.fit_transform(frame[NUMBERS]),
+        rtol=1e-14,
+    )
+
+
+def test_normalize_refuses_infinity_when_fetched():
+    """An infinite value is refused, as scikit-learn's Normalizer refuses it."""
+    rel = connection().sql("SELECT 1.0 AS a, 'inf'::DOUBLE AS b")
+    with pytest.raises(duckdb.InvalidInputException, match=r"'b'.*infinite"):
+        sq.Pipeline([sq.scale.normalize()]).learn(rel).apply(rel).fetchall()
+
+
+def test_normalize_shortcut_equals_general_form():
+    """``sq.scale.normalize`` and ``method="normalize"`` build equal steps."""
+    pairs = [
+        (sq.scale.normalize(), sq.scale(method="normalize")),
+        (
+            sq.scale.normalize("a", norm="l1"),
+            sq.scale("a", method="normalize", norm="l1"),
+        ),
+        (
+            sq.scale.normalize(norm="max", keep=True, suffix="u"),
+            sq.scale(method="normalize", norm="max", keep=True, suffix="u"),
+        ),
+    ]
+    for short, general in pairs:
+        assert isinstance(general, Normalize)
+        assert short.settings() == general.settings()
+        assert repr(short) == repr(general)
+        assert eval(repr(short)).settings() == short.settings()
+    assert repr(pairs[0][0]) == "sq.scale.normalize()"
+    assert repr(pairs[1][0]) == "sq.scale.normalize(cols='a', norm='l1')"
+    assert repr(sq.scale.normalize(norm="l2")) == "sq.scale.normalize()"
+
+
+@pytest.mark.parametrize(
+    ("build", "match"),
+    [
+        (lambda: sq.scale(method="normalize", center="mean"), r"center=.*normalize"),
+        (lambda: sq.scale(method="normalize", spread=None), r"spread=None"),
+        (
+            lambda: sq.scale(method="normalize", feature_range=(0, 1)),
+            r"feature_range=\(0, 1\)",
+        ),
+        (lambda: sq.scale({"a": "normalize"}), r"'normalize'.*whole row"),
+        (lambda: sq.scale.normalize(norm="l3"), r"norm='l3'.*'l1', 'l2', 'max'"),
+        (lambda: sq.scale(norm="l1"), r"norm='l1'.*method='standard'"),
+    ],
+)
+def test_bad_normalize_settings_are_refused(build, match):
+    """Settings normalize does not take are refused when the step is built."""
+    with pytest.raises(SqlearnError, match=match):
+        build()
+
+
+def test_normalize_declares_a_whole_row_static_step():
+    """Normalize is rowwise and static, learns nothing, and is named normalize."""
+    step = sq.scale.normalize("a", norm="l1")
+    assert Normalize.rowwise is True and Normalize.static is True
+    assert step.settings() == {
+        "cols": "a", "norm": "l1", "keep": False, "suffix": None,
+    }  # fmt: skip
+    assert step.default_name() == "normalize"
+    assert step.learn(duckdb.ColumnExpression("a")) == {}
+    assert step.apply_row({}, {}) == {}
+    with pytest.raises(SqlearnError, match=r"Scale got method='normalize'"):
+        Scale(method="normalize")
+    assert "normalize" in dir(sq.scale)
+    back = pickle.loads(pickle.dumps(step))
+    assert repr(back) == repr(step)
+
+
+def test_normalize_keeps_inputs_and_takes_integers_but_not_text():
+    """keep adds ``<column>_normalize``; integers come out DOUBLE; text is refused."""
+    frame = data()
+    got = (
+        sq.Pipeline([sq.scale.normalize(["a", "n"], keep=True)])
+        .learn(frame)
+        .apply(frame, out="pandas")
+    )
+    assert list(got.columns) == ["a", "a_normalize", "b", "n", "n_normalize", "city"]
+    assert_allclose(
+        got[["a_normalize", "n_normalize"]].to_numpy(),
+        Normalizer().fit_transform(frame[["a", "n"]]),
+        rtol=1e-14,
+    )
+    rel = sq.Pipeline([sq.scale.normalize("n")]).learn(frame).apply(frame)
+    assert str(rel.types[2]) == "DOUBLE"
+    with pytest.raises(StepError, match=r"normalize \(step 1\).*'city'.*VARCHAR"):
+        sq.Pipeline([sq.scale.normalize(["a", "city"])]).learn(frame)
+
+
+class Times(sq.Step):
+    """Multiply a column by a factor (a setting, so it is in the store key)."""
+
+    static = True
+
+    def __init__(self, cols=None, factor=2.0):
+        """Set the settings."""
+        super().__init__(cols)
+        self.factor = factor
+
+    def apply(self, x, learned):
+        """Multiply."""
+        return x * self.factor
+
+
+def test_a_step_after_normalize_depends_on_every_input_s_producer():
+    """Reading one normalized column depends on what made the others (ADR 0024)."""
+    frame = data()
+    centres = [
+        sq.Pipeline([Times("b", factor), sq.scale.normalize(["a", "b"]), sq.scale("a")])
+        .learn(frame)["standard"]
+        .center_["a"]
+        for factor in (2.0, 3.0)
+    ]
+    assert centres[0] != centres[1]

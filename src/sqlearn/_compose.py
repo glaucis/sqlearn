@@ -193,7 +193,9 @@ def step_stage(
     they are constants and there is no learn stage. Columns are referenced
     qualified by `previous`, so no column can be confused with a learned
     value. The created columns are named from their labels by
-    `sqlearn._names.name_columns`: a clash is numbered, never refused. With
+    `sqlearn._names.name_columns`: a clash is numbered, never refused. A
+    whole-row step (``rowwise``) has its `apply_row` called once with every
+    selected column, and its outputs take the places of those columns. With
     `names`, the names fixed when the step learned are used instead, so they
     do not change with the data applied to.
 
@@ -275,16 +277,24 @@ def step_stage(
     # `owner` holds the input column of each output to name.
     out: list[tuple[str | tuple[str, str], Expression]] = []
     owner: list[str] = []
+    rows = _row_outputs(step, step_name, exprs, per_column) if applies else {}
     for c, _ in schema:
         if c not in per_column or not applies:
             out.append((c, exprs[c]))
             continue
         if step.keep:
             out.append((c, exprs[c]))
-        result = step.apply(exprs[c], per_column[c])
-        full = not step.names_are_labels and not isinstance(result, Expression)
-        for label, e in output_labels(step_name, result, step.keep, step.suffix):
-            out.append(((label, "") if full else (c, label), e))
+        if step.rowwise:
+            pairs = rows.get(c, [])
+        else:
+            result = step.apply(exprs[c], per_column[c])
+            full = not step.names_are_labels and not isinstance(result, Expression)
+            pairs = [
+                ((label, "") if full else (c, label), e)
+                for label, e in output_labels(step_name, result, step.keep, step.suffix)
+            ]
+        for key, e in pairs:
+            out.append((key, e))
             owner.append(c)
     taken = [k for k, _ in out if isinstance(k, str)]
     planned = [k for k, _ in out if not isinstance(k, str)]
@@ -312,6 +322,32 @@ def step_stage(
         position=position,
         created=created,
     )
+
+
+def _row_outputs(
+    step: Step,
+    step_name: str,
+    exprs: Mapping[str, Expression],
+    per_column: Mapping[str, Learned],
+) -> dict[str, list[tuple[tuple[str, str], Expression]]]:
+    """Call a whole-row step's `apply_row`; place each output by its owner.
+
+    An output named after a selected column belongs to it; any other to the
+    last selected column. Each is planned as ``(name, label)``: the label is
+    ``""``, or the suffix (or step name) with `keep` when names are labels.
+    """
+    if not step.rowwise or not per_column:
+        return {}
+    xs = {c: exprs[c] for c in per_column}
+    result = step.apply_row(xs, per_column)
+    label = (step.suffix or step_name) if step.keep and step.names_are_labels else ""
+    last = list(per_column)[-1]
+    placed: dict[str, list[tuple[tuple[str, str], Expression]]] = {}
+    for key, e in result.items():
+        placed.setdefault(key if key in per_column else last, []).append(
+            ((key, label), e),
+        )
+    return placed
 
 
 def _fixed(

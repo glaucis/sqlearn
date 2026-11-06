@@ -198,3 +198,41 @@ def test_a_builtin_failing_while_running_is_an_internal_error():
     assert "WITH" in text
     assert "Could not convert string 'abc'" in text
     assert isinstance(err.value.__cause__, duckdb.Error)
+
+
+class RowNeedsValues(sq.Step):
+    """A whole-row step declared static whose apply_row loops over learned values."""
+
+    rowwise = True
+    static = True
+
+    def learn(self, x):
+        """Learn the distinct values."""
+        return {"cities": sq.agg.distinct(x)}
+
+    def apply_row(self, xs, learned):
+        """Loop over them."""
+        return {c: x for n, x in xs.items() for c in learned[n].cities}
+
+
+class RowRaises(sq.Step):
+    """A whole-row step whose apply_row raises a plain Python error."""
+
+    rowwise = True
+    static = True
+
+    def apply_row(self, xs, learned):
+        """Fail."""
+        raise ValueError("cannot do this")
+
+
+def test_a_whole_row_step_is_named_by_its_apply_row(people):
+    """Failures of a whole-row step name its apply_row()."""
+    with pytest.raises(
+        sq.errors.StepError,
+        match=r"row \(step 1\) is declared "
+        r"static, but its apply_row\(\) loops over learned\.cities",
+    ):
+        sq.Pipeline([("row", RowNeedsValues(cols="city"))]).learn(people)
+    with pytest.raises(sq.errors.StepError, match=r"failed in its apply_row\(\)"):
+        sq.Pipeline([("row", RowRaises(cols="age"))]).learn(people)
