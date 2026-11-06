@@ -403,3 +403,22 @@ def test_an_sqlearn_error_from_a_static_apply_is_raised_as_it_is():
         runs(Refuses("a"))
     assert err.value is refusal
     assert err.value.__cause__ is not refusal
+
+
+def test_a_step_reads_the_columns_its_default_chooses():
+    """A step left without cols= reads the columns it chooses itself.
+
+    sq.scale.robust() chooses the numeric columns, so a later encoder of a
+    text column does not depend on it; a step of no default (cols=None on a
+    plain Step) still reads, and depends on, every column.
+    """
+    p = runs(sq.impute.median(), sq.scale.robust(), sq.encode.onehot("city"))
+    assert p.depends_on == [frozenset(), frozenset({0}), frozenset()]
+    p = runs(sq.scale.robust(), sq.Step())
+    assert p.depends_on[1] == frozenset({0})
+
+
+def test_a_default_step_waits_for_the_columns_a_dynamic_step_creates():
+    """Unknown created columns may be chosen by a default: the step waits."""
+    p = runs(sq.encode.onehot("city"), sq.scale.robust())
+    assert (p.learn_run, p.depends_on[1]) == ([0, 1], frozenset({0}))

@@ -98,9 +98,25 @@ def _known(columns: list[_Column]) -> Schema:
     ]
 
 
+def _reads_every_column(step: Step) -> bool:
+    """Whether a step reads every column: no cols= and no default of its own."""
+    return step.cols is None and type(step).inputs is Step.inputs
+
+
 def _read(step: Step, columns: list[_Column]) -> list[_Column]:
-    if step.cols is None:
+    if _reads_every_column(step):
         return list(columns)
+    if step.cols is None:
+        # The step chooses its own columns (sq.scale.robust() the numeric
+        # ones): it reads the known columns it chooses, and may choose any
+        # column not yet known.
+        try:
+            chosen = set(step.inputs(_known(columns)))
+        except Exception:  # noqa: BLE001  (refused at learn, with its message)
+            return list(columns)
+        return [
+            c for c in columns if c.name is None or c.dtype is None or c.name in chosen
+        ]
     selector = to_selector(step.cols)
     known = _known(columns)
     chosen = set(selector.resolve(known))
@@ -120,6 +136,9 @@ def plan(steps: Sequence[tuple[str, Step]], schema: Schema) -> Plan:
     a step reads them when it names a column not yet known, when its selector
     may match their declared type (any type when ``creates`` is None), or when
     it works on every column (then it depends on every earlier step). A step
+    left without ``cols`` that chooses its own (``sq.scale.robust()`` the
+    numeric columns, by its ``inputs``) reads the known columns it chooses
+    and every column not yet known. A step
     that changes rows is read by every later step (ADR 0024). A column a
     dynamic step takes away decides what a later step reads too: a step whose
     selector could have matched it (by name, by kind, or every column)
@@ -185,7 +204,7 @@ def plan(steps: Sequence[tuple[str, Step]], schema: Schema) -> Plan:
         names = {name for name, _ in _known(columns)}
         absent = [c for c in removed if _may_read(step, c, names)]
         deps = frozenset().union(*(c.deps for c in [*read, rows, *absent]))
-        if step.cols is None:
+        if _reads_every_column(step):
             deps = frozenset(range(i))
         ready = learn + 1 if dynamic or step.uses_target else learn
         mine = deps | {i}
