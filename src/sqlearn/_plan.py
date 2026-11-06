@@ -7,6 +7,7 @@ from typing import cast
 import duckdb
 from duckdb.sqltypes import DOUBLE, DuckDBPyType
 
+from sqlearn._diagnose import diagnose
 from sqlearn._errors import StepError
 from sqlearn._names import name_columns
 from sqlearn._selectors import Schema, Selector, _Cols, to_selector
@@ -190,14 +191,21 @@ def plan(steps: Sequence[tuple[str, Step]], schema: Schema) -> Plan:
         result.learn_run.append(learn)
         result.apply_run.append(ready)
         result.depends_on.append(deps)
-        if step.rowwise and not dynamic:
-            columns, gone = _write_row(step, step_name, columns, read, ready, mine)
-        elif step.uses_target and not dynamic:
-            columns, gone = _write(
-                step, step_name, columns, read, ready, mine, False, DOUBLE
-            )
-        else:
-            columns, gone = _write(step, step_name, columns, read, ready, mine, dynamic)
+        try:
+            if step.rowwise and not dynamic:
+                columns, gone = _write_row(step, step_name, columns, read, ready, mine)
+            elif step.uses_target and not dynamic:
+                columns, gone = _write(
+                    step, step_name, columns, read, ready, mine, False, DOUBLE
+                )
+            else:
+                columns, gone = _write(
+                    step, step_name, columns, read, ready, mine, dynamic
+                )
+        except Exception as exc:
+            # A step declared static whose apply cannot be read before it
+            # learns (`_labels`, `_write_row`): say which and why (ADR 0019).
+            raise diagnose(exc, steps, lambda _, at=i + 1: at) from exc
         removed.extend(gone)
         if step.changes_rows:
             rows = _Column(None, None, ready, mine)
@@ -248,7 +256,11 @@ def _write(
             out.append(c)
         if id(c) not in chosen:
             continue
-        labels = None if dynamic or dtype else _labels(step, step_name, c.name)
+        labels = (
+            None
+            if dynamic or dtype or step.rowwise
+            else _labels(step, step_name, c.name)
+        )
         if labels is not None:
             for column, label in labels:
                 labelled.append(len(out))
@@ -280,10 +292,11 @@ def _labels(
     """Return a static step's labelled outputs for a column, from placeholders.
 
     Each is ``(column, label)`` as the compositor plans it; None when `apply`
-    returns one expression, when the column is not known by name, or when
-    `apply` cannot be read with placeholders (the column is then planned as
-    one output, as before). A step learning from the target writes one
-    expression per input.
+    returns one expression or the column is not known by name. A step left
+    undeclared whose `apply` cannot be read with placeholders is planned as
+    one output, as before; for one declaring ``static=True`` the failure is
+    raised, since its columns must follow from its settings. A step learning
+    from the target writes one expression per input.
     """
     if name is None or step.uses_target:
         return None
@@ -291,8 +304,10 @@ def _labels(
     try:
         slots = {key: f"v{i}" for i, key in enumerate(step.learn(x))}
         result = step.apply(x, Learned.placeholders("learn", slots))
-    except Exception:  # noqa: BLE001  (unreadable outputs are planned as one)
-        return None
+    except Exception:
+        if step.static is True:
+            raise  # explained by `plan`, as the compositor would
+        return None  # undeclared: unreadable outputs are planned as one
     if isinstance(result, duckdb.Expression):
         return None
     pairs = output_labels(step_name, result, step.keep, step.suffix)
@@ -321,8 +336,10 @@ def _write_row(
     names = [c.name for c in read]
     try:
         keys = None if None in names else row_outputs(step, cast("list[str]", names))
-    except Exception:  # noqa: BLE001  (unknown outputs are planned as unknown)
-        keys = None
+    except Exception:
+        if step.static is True:
+            raise  # declared static, so its outputs must be readable now
+        keys = None  # unknown outputs are planned as unknown
     if keys is None:
         unknown, _ = _write(step, step_name, columns, read, ready, deps, dynamic=False)
         if read:

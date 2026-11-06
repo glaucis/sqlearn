@@ -364,3 +364,25 @@ def test_labelled_outputs_of_unknown_type_are_unknown():
     untyped = type("Untyped", (Pieces,), {"creates": None})
     p = runs(untyped("a"), static_step("a_q"), static_step("b"))
     assert p.depends_on[1:] == [frozenset({0}), frozenset()]
+    full = type("Full", (Pieces,), {"names_are_labels": False})
+    assert runs(full("a"), static_step("q")).depends_on[1] == frozenset({0})
+
+
+def test_a_declared_static_step_whose_apply_fails_is_refused():
+    """A step declaring static=True must be readable before it learns."""
+
+    class Fragile(sq.Step):
+        static = True
+
+        def learn(self, x):
+            """Learn the mean."""
+            return {"mean": sq.agg.mean(x)}
+
+        def apply(self, x, learned):
+            """Loop over the learned value, which a placeholder cannot answer."""
+            return [(str(v), x) for v in learned.mean]
+
+    with pytest.raises(sq.errors.StepError, match=r"s0 \(step 1\) is declared static"):
+        runs(Fragile("a"))
+    undeclared = type("Undeclared", (Fragile,), {"static": None})
+    assert runs(undeclared("a"), static_step("a")).depends_on[1] == frozenset({0})

@@ -3,6 +3,7 @@
 import weakref
 from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
+from dataclasses import replace
 from typing import Any
 
 import duckdb
@@ -344,6 +345,43 @@ def _after_unapplied(
     return schema
 
 
+def _unread(
+    stage: Stage,
+    steps: list[tuple[str, Step]],
+    built: tuple[Schema, str, list[str]],
+    bound: Schema | None,
+    aside: Sequence[str],
+    *,
+    last: bool,
+) -> Stage:
+    """Return a learning step's stage for a learn statement nothing reads it in.
+
+    Its learn stage stays; its outputs, written with placeholders, are not
+    built. The last stage of the statement passes its input through; one
+    before a later stage keeps its outputs' names and types, as NULL, so the
+    later stages (which read none of them) bind as they did.
+    """
+    before, previous, matched = built
+    if last or bound is None:
+        return _make_stage(
+            steps, stage.position, before, previous,
+            columns=matched, applies=False, aside=aside,
+        )  # fmt: skip
+    step = steps[stage.position - 1][1]
+    passing = {c for c, _ in before if c not in matched or step.keep}
+    types = dict(bound)
+    columns = {
+        name: e if name in passing or name not in types else _null(types[name])
+        for name, e in stage.columns.items()
+    }
+    return replace(stage, columns=columns, reads=[], row={})
+
+
+def _null(dtype: DuckDBPyType) -> Expression:
+    """Return NULL of a type: a column no later stage reads."""
+    return duckdb.ConstantExpression(None).cast(dtype)
+
+
 def _hold(source: Source) -> None:
     """Do nothing: a finaliser's argument stays alive until it is called."""
 
@@ -667,6 +705,7 @@ class Pipeline:
         built: dict[int, tuple[Schema, str, list[str]]] = {}
         keys: dict[int, StepKey] = {}
         upto: dict[int, int] = {}
+        after: dict[int, Schema] = {}  # the columns after each step, bound
         for i in range(last + 1):
             name, step = steps[i]
             position = i + 1
@@ -695,22 +734,37 @@ class Pipeline:
                     folds=entry.folds or None,
                 )  # fmt: skip
             else:
+                # The last step of the run is read by no later one: its
+                # outputs are not built with placeholders (see `_unread`).
                 stage = _make_stage(
                     steps, position, schema, previous,
-                    columns=built[i][2], applies=not dynamic, aside=aside,
+                    columns=built[i][2], applies=not dynamic and i < last,
+                    aside=aside,
                 )  # fmt: skip
             stages.append(stage)
             upto[i] = len(stages)
             previous = stage.name
             if entry is None and dynamic:
                 schema = _after_unapplied(step, schema, built[i][2], dynamic)
-            else:
+            elif i < last:
+                # Only a later step of this run reads the columns after it.
                 bound = _bind(con, source_sql, stages, steps, position)
-                schema = _features_only(bound, aside)
+                schema = after[i] = _features_only(bound, aside)
         misses = sorted(built)
         if not misses:
             return Run()
         stages = stages[: upto[misses[-1]]]
+        for i in misses:
+            if i == last or the_plan.apply_run[i] > the_plan.learn_run[i]:
+                continue  # its output is not in the statement already
+            if any(i in the_plan.depends_on[j] for j in range(i + 1, misses[-1] + 1)):
+                continue  # a later step of the statement reads its output
+            # Nothing later in the statement reads what it writes with
+            # placeholders, so the statement holds only its learn stage.
+            at = upto[i] - 1
+            stages[at] = _unread(
+                stages[at], steps, built[i], after.get(i), aside, last=i == misses[-1]
+            )
         try:
             values, _, done = execute(con, source_sql, stages, produce=False)
         except duckdb.Error as exc:

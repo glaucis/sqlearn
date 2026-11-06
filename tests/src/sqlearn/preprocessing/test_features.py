@@ -1,6 +1,7 @@
 """Tests of sq.features against PolynomialFeatures and SplineTransformer."""
 
 import pickle
+import time
 
 import duckdb
 import numpy as np
@@ -12,7 +13,7 @@ from sklearn.preprocessing import PolynomialFeatures, SplineTransformer
 
 import sqlearn as sq
 from sqlearn._config import connection
-from sqlearn._step import classify
+from sqlearn._step import Learned, classify
 from sqlearn.errors import SqlearnError, StepError
 from sqlearn.preprocessing.features import Polynomial, Spline
 
@@ -194,6 +195,23 @@ def test_spline_outside_the_training_range_is_constant(knots):
     assert_allclose(got.to_numpy(), basis(model, new.a), atol=1e-13)
 
 
+def test_spline_of_degree_zero_is_zero_on_both_sides_of_the_knots():
+    """degree=0 has no boundary columns: outside the knots, zeros on both sides.
+
+    scikit-learn agrees below the knots and raises above them (a shape
+    mismatch in its constant extrapolation); sqlearn gives zeros there too.
+    """
+    frame = pd.DataFrame({"a": [0.0, 1.0, 2.0]})
+    model = sklearn_spline(frame.a, n_knots=3, degree=0)
+    step = sq.features.spline(n_knots=3, degree=0)
+    inside = pd.DataFrame({"a": [-1.0, 0.0, 1.0, 2.0]})
+    assert_allclose(applied(step, frame, inside).to_numpy(), basis(model, inside.a))
+    with pytest.raises(ValueError, match="shape mismatch"):
+        basis(model, [3.0])
+    above = applied(step, frame, pd.DataFrame({"a": [3.0, 1e9]}))
+    assert above.to_numpy().tolist() == [[0.0, 0.0], [0.0, 0.0]]
+
+
 def test_spline_of_a_constant_column():
     """A constant column gives zeros everywhere, as SplineTransformer gives."""
     frame = pd.DataFrame({"a": [3.0] * 6})
@@ -236,9 +254,27 @@ def test_spline_chains_into_the_stage_around_it(knots):
     names = model.get_feature_names_out(["a"])
     means = learned["standard"].center_
     assert_allclose([means[n] for n in names], expected.mean(axis=0), atol=1e-13)
-    # The same SQL serves data outside the range, with learned constants.
-    got = learned.apply(together, out="pandas")
-    assert got.shape == (len(together), len(names))
+    # A learn never reaches outside its own range, so the placeholder path's
+    # values outside it are evaluated directly, against scikit-learn's.
+    step = sq.features.spline(knots=knots)
+    names_in = list(step.learn(duckdb.ColumnExpression("a")))
+    slots = {key: f"v{i}" for i, key in enumerate(names_in)}
+    x = duckdb.ColumnExpression("a")
+    pairs = step.apply(x, Learned.placeholders("l", slots))
+    t = model.bsplines_[0].t
+    learned_row = (
+        [float(t[3]), float(t[-4]), 0.0]
+        if knots == "uniform"
+        else [f"[{', '.join(repr(float(v)) for v in t[3:-3])}]", 0.0]
+    )
+    row = ", ".join(str(v) for v in learned_row)
+    values = ", ".join(f"({float(v)!r})" for v in together.a)
+    sql = (
+        f"SELECT {', '.join(str(e) for _, e in pairs)} "
+        f"FROM (VALUES {values}) d(a), (SELECT {row}) l({', '.join(slots.values())})"
+    )
+    got = np.array(connection().sql(sql).fetchall())
+    assert_allclose(got, basis(model, together.a), atol=1e-13)
 
 
 def test_a_step_naming_a_spline_output_depends_on_it():
@@ -317,7 +353,11 @@ def test_spline_is_static_and_creates_double():
     assert Spline.static is True
     assert Spline.creates == DOUBLE
     assert Spline.rowwise is False
-    assert list(Spline().learn(duckdb.ColumnExpression("a"))) == ["knots", "infinite"]
+    x = duckdb.ColumnExpression("a")
+    assert list(Spline().learn(x)) == ["min", "max", "infinite"]
+    assert list(Spline(knots="quantile").learn(x)) == ["quantiles", "infinite"]
+    with pytest.raises(AttributeError, match="after the step has learned"):
+        _ = Spline().knots_
 
 
 # --- the group --------------------------------------------------------------
@@ -484,3 +524,35 @@ def test_the_group_lists_its_shortcuts():
     """Tab completion lists the shortcuts; the group prints as sq.features."""
     assert repr(sq.features) == "sq.features"
     assert {"polynomial", "spline"} <= set(dir(sq.features))
+
+
+def test_a_wide_spline_learns_fast_when_nothing_reads_it_in_the_run():
+    """50 columns learn in well under 2 s: the unread basis is not built."""
+    rng = np.random.default_rng(0)
+    frame = pd.DataFrame({f"c{i}": rng.normal(size=200) for i in range(50)})
+    sq.store.clear()
+    start = time.perf_counter()
+    pipe = sq.Pipeline([sq.features.spline()]).learn(frame)
+    assert time.perf_counter() - start < 2.0
+    assert len(pipe.runs_) == 1
+    model = sklearn_spline(frame.c7)
+    got = pipe.apply(frame, out="pandas")
+    expected = basis(model, frame.c7)
+    assert_allclose(got[[f"c7_sp_{i}" for i in range(7)]], expected, atol=1e-13)
+
+
+@pytest.mark.parametrize("knots", ["uniform", "quantile"])
+def test_the_store_entry_is_the_same_whether_or_not_a_later_step_reads_it(knots):
+    """Learned alone or read by a later step, the spline stores the same entry."""
+    frame = data()[["a", "b"]]
+    alone = sq.Pipeline([sq.features.spline(knots=knots)]).learn(frame)
+    sq.store.clear()
+    read = sq.Pipeline(
+        [sq.features.spline(knots=knots), sq.scale.standard("a_sp_2")]
+    ).learn(frame)
+    first, second = alone._entries, read._entries
+    assert first is not None and second is not None
+    assert first[0] == second[0]
+    ours, theirs = alone.apply(frame, out="pandas"), read.apply(frame, out="pandas")
+    unscaled = [c for c in ours.columns if c != "a_sp_2"]
+    assert ours[unscaled].equals(theirs[unscaled])

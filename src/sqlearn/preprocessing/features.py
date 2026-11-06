@@ -273,19 +273,24 @@ def _rank(i: int, n: int) -> float:
     return (100.0 * level) / 100.0
 
 
-def _linspace(start: Expression, stop: Expression, num: int) -> list[Expression]:
-    """Return numpy's ``linspace(start, stop, num)``, as expressions.
+def _lift(like: object, value: float) -> Any:  # noqa: ANN401  (a float or an expression)
+    """Return `value` as the kind of number `like` is: a double or an expression."""
+    return const(value) if isinstance(like, Expression) else value
+
+
+def _linspace(start: Any, stop: Any, num: int) -> list[Any]:  # noqa: ANN401
+    """Return numpy's ``linspace(start, stop, num)``, in doubles or expressions.
 
     As numpy computes it in doubles: the step ``(stop - start) / (num - 1)``,
     then ``i * step + start``, the last exactly `stop`; one value is `start`.
     """
     if num <= 1:
         return [start][:num]
-    step = (stop - start) / const(float(num - 1))
-    return [const(float(i)) * step + start for i in range(num - 1)] + [stop]
+    step = (stop - start) / _lift(start, float(num - 1))
+    return [_lift(start, float(i)) * step + start for i in range(num - 1)] + [stop]
 
 
-def _extend(base: list[Expression], degree: int) -> list[Expression]:
+def _extend(base: list[Any], degree: int) -> list[Any]:
     """Add `degree` knots on each side, as ``SplineTransformer`` does.
 
     The steps repeat the distance between the first two knots below them, and
@@ -293,7 +298,7 @@ def _extend(base: list[Expression], degree: int) -> list[Expression]:
     first - d, degree)`` and its mirror.
     """
     low, high = base[1] - base[0], base[-1] - base[-2]
-    k = const(float(degree))
+    k = _lift(base[0], float(degree))
     below = _linspace(base[0] - k * low, base[0] - low, degree)
     above = _linspace(base[-1] + high, base[-1] + k * high, degree)
     return [*below, *base, *above]
@@ -488,7 +493,9 @@ class Spline(Step):
     scipy's answer. Outside the first and last of the learned knots, each
     column holds its value at the nearer end, as ``extrapolation="constant"``
     (the first `degree` columns below, the last `degree` above, the others
-    0). A constant column gives zeros, as scikit-learn.
+    0). A constant column gives zeros, as scikit-learn. With ``degree=0``
+    there are no such columns, so a value outside gives zeros on both sides,
+    where scikit-learn raises above the knots.
 
     A missing value (NULL or NaN) or infinity is refused when the rows are
     fetched, naming the column, as scikit-learn's ``handle_missing="error"``;
@@ -510,8 +517,9 @@ class Spline(Step):
     Attributes
     ----------
     knots_ : dict of str to list of float
-        After learning, each column's knots, the added ones too, as
-        scikit-learn's ``bsplines_[i].t``.
+        After learning, each column's whole knot vector, the `degree` knots
+        added on each side too: scikit-learn's ``bsplines_[i].t``, not only
+        the learned ``min_`` and ``max_`` (or ``quantiles_``).
 
     Raises
     ------
@@ -631,28 +639,72 @@ class Spline(Step):
         Returns
         -------
         mapping of str to duckdb.Expression
-            ``knots``: every knot, the `degree` added on each side too, a
-            list of DOUBLE computed from the minimum and maximum (uniform) or
-            the quantiles, NULL when the column has no present value; and
-            ``infinite`` (infinity where the column holds any, else 0).
+            For uniform knots ``min`` and ``max``, for quantile knots
+            ``quantiles`` (the `n_knots` levels, a list of DOUBLE, NULL when
+            the column has no present value); and ``infinite`` (infinity
+            where the column holds any, else 0). The knots follow from these
+            (`knots_`).
 
         Examples
         --------
         >>> import duckdb
         >>> import sqlearn as sq
         >>> list(sq.features.spline().learn(duckdb.ColumnExpression("a")))
-        ['knots', 'infinite']
+        ['min', 'max', 'infinite']
         """
-        n = self.n_knots
         if self.knots == "uniform":
             low, high = agg.min(x).cast(DOUBLE), agg.max(x).cast(DOUBLE)
-            base = _linspace(low, high, n)
-        else:
-            base = [agg.quantile(x, q=_rank(i, n), method="linear") for i in range(n)]
-        listed = duckdb.FunctionExpression("list_value", *_extend(base, self.degree))
+            return {"min": low, "max": high, "infinite": infinite(x)}
+        n = self.n_knots
+        levels = [agg.quantile(x, q=_rank(i, n), method="linear") for i in range(n)]
         none = const(None).cast("DOUBLE[]")
-        knots = duckdb.CaseExpression(base[0].isnull(), none).otherwise(listed)
-        return {"knots": knots, "infinite": infinite(x)}
+        quantiles = duckdb.CaseExpression(levels[0].isnull(), none).otherwise(
+            duckdb.FunctionExpression("list_value", *levels)
+        )
+        return {"quantiles": quantiles, "infinite": infinite(x)}
+
+    def _knots(self, values: Mapping[str, Any]) -> list[Any]:
+        """Return every knot, from what was learned: doubles or expressions."""
+        if self.knots == "uniform":
+            base = _linspace(values["min"], values["max"], self.n_knots)
+        else:
+            base = values["quantiles"]
+        return _extend(base, self.degree)
+
+    @property
+    def knots_(self) -> dict[str, list[float]]:
+        """Each column's knots, the added ones too, as ``bsplines_[i].t``.
+
+        Computed from what the step learned (the minimum and maximum, or the
+        quantiles) as scikit-learn computes them.
+
+        Returns
+        -------
+        dict of str to list of float
+            Column to its ``n_knots + 2 * degree`` knots.
+
+        Raises
+        ------
+        AttributeError
+            Before the step has learned.
+
+        Examples
+        --------
+        >>> import pandas as pd
+        >>> import sqlearn as sq
+        >>> data = pd.DataFrame({"x": [0.0, 2.0]})
+        >>> step = sq.features.spline(n_knots=3, degree=1)
+        >>> sq.Pipeline([step]).learn(data)["spline"].knots_
+        {'x': [-1.0, 0.0, 1.0, 2.0, 3.0]}
+        """
+        learned = self.__dict__.get("_learned")
+        if learned is None:
+            msg = "'knots_' is read after the step has learned; run learn on data first"
+            raise AttributeError(msg)
+        return {
+            column: [float(e) for e in self._knots(values)]
+            for column, values in learned.items()
+        }
 
     def apply(self, x: Expression, learned: Learned) -> list[tuple[str, Expression]]:
         """Write the basis: one column per B-spline, labelled ``sp_0`` on.
@@ -681,29 +733,34 @@ class Spline(Step):
         >>> import sqlearn as sq
         >>> from sqlearn._step import Learned
         >>> x = duckdb.ColumnExpression("a")
-        >>> learned = Learned.values({"knots": [-1.0, 0.0, 1.0, 2.0], "infinite": 0.0})
+        >>> learned = Learned.values({"min": 0.0, "max": 1.0, "infinite": 0.0})
         >>> step = sq.features.spline(n_knots=2, degree=1)
         >>> [label for label, _ in step.apply(x, learned)]
         ['sp_0', 'sp_1']
         """
-        refuse_all_missing(x, learned, "knots")
+        uniform = self.knots == "uniform"
+        refuse_all_missing(x, learned, "min" if uniform else "quantiles")
         refuse_infinite(x, learned, "infinite")
         k = self.degree
         m = self.n_knots + k - 1
         size = self.n_knots + 2 * k
-        listed = learned.knots
         v = x.cast(DOUBLE)
-        if isinstance(listed, list):
-            t = [float(e) for e in listed]
+        names = ("min", "max") if uniform else ("quantiles",)
+        raw = {key: learned.raw(key) for key in names}
+        if not any(isinstance(value, Expression) for value in raw.values()):
+            t = [float(e) for e in self._knots(raw)]
             inside, low, high = self._concrete(v, t)
             knot = [const(e) for e in t]
         else:
-            knot = [
-                duckdb.FunctionExpression(
-                    "list_extract", cast("Expression", listed), const(e + 1)
-                )
-                for e in range(size)
-            ]
+            # Placeholders: references into the learn stage.
+            values = {key: getattr(learned, key) for key in names}
+            if not uniform:
+                listed = cast("Expression", values["quantiles"])
+                values["quantiles"] = [
+                    duckdb.FunctionExpression("list_extract", listed, const(e + 1))
+                    for e in range(self.n_knots)
+                ]
+            knot = self._knots(values)
             inside, low, high = self._placeholders(v, knot)
         name = x.get_name()
         first, last = knot[k], knot[size - k - 1]
