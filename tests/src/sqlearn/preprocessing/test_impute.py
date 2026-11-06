@@ -1,5 +1,6 @@
 """Tests of sq.impute against scikit-learn's SimpleImputer and MissingIndicator."""
 
+import datetime
 import pickle
 
 import numpy as np
@@ -142,6 +143,56 @@ def test_a_dict_and_a_value_together_are_refused():
         Impute(cols=["income"], value={"age": "median"})
 
 
+def test_a_dict_with_the_indicator_is_refused():
+    """A dict step is static: the indicator goes in a step of its own."""
+    with pytest.raises(SqlearnError, match=r"indicator=True.*sq\.impute\.indicator"):
+        sq.impute({"age": "median"}, indicator=True)
+
+
+@pytest.mark.parametrize(
+    ("step", "match"),
+    [
+        (sq.impute.constant(datetime.date(2020, 1, 1), "age"), r"'age'.*DOUBLE.*date"),
+        (sq.impute.constant(True, "age"), r"'age'.*DOUBLE.*boolean True"),
+        (sq.impute("city", value="count"), r"'city'.*VARCHAR.*sq\.agg\.count"),
+        (sq.impute("age", value="distinct"), r"'age'.*DOUBLE.*sq\.agg\.distinct"),
+        (sq.impute(value="count"), r"'age'.*sq\.agg\.count"),
+    ],
+)
+def test_a_value_that_cannot_fill_the_column_is_refused(step, match):
+    """A constant of another type, or count or distinct, is refused at learn."""
+    with pytest.raises(StepError, match=match):
+        sq.Pipeline([step]).learn(people())
+
+
+def test_constants_of_other_types_fill_their_own_columns():
+    """A bool, date or timestamp fills, by default, only columns of its type."""
+    rel = connection().sql(
+        "SELECT * FROM (VALUES (1.0, NULL::BOOLEAN, NULL::DATE, NULL::TIMESTAMP),"
+        " (NULL, true, DATE '2021-01-01', TIMESTAMP '2021-01-01 10:00')) "
+        "t(n, b, d, ts)"
+    )
+    day, moment = datetime.date(2020, 1, 1), datetime.datetime(2020, 1, 1, 9, 30)
+    pipe = sq.Pipeline(
+        [sq.impute.constant(False), sq.impute.constant(day), sq.impute.constant(moment)]
+    ).learn(rel)
+    assert pipe.apply(rel).fetchall() == [
+        (1.0, False, day, moment),
+        (None, True, datetime.date(2021, 1, 1), datetime.datetime(2021, 1, 1, 10)),
+    ]
+    assert (
+        sq.Pipeline([sq.impute.constant(2, "n")]).learn(rel).apply(rel).fetchall()[1][0]
+        == 2.0
+    )  # an int fills a DOUBLE column
+
+
+def test_min_and_max_keep_the_type_of_any_column():
+    """``min`` and ``max`` fill text as well as numbers."""
+    frame = people()
+    got = sq.Pipeline([sq.impute("city", value="max")]).learn(frame)
+    assert got.apply(frame, out="pandas")["city"].tolist()[1] == "rome"
+
+
 def test_a_search_over_a_dict_step_is_refused():
     """Searching a dict step's values is refused, saying to use one step per column."""
     frame = pd.DataFrame(
@@ -281,7 +332,7 @@ def test_static_or_dynamic_follows_the_indicator():
 
 def test_the_step_pickles():
     """A step pickles and comes back equal (the search copies steps)."""
-    step = sq.impute({"a": sq.agg.median, "c": sq.fn.const("mode")}, indicator=True)
+    step = sq.impute("c", value=sq.fn.const("mode"), indicator=True)
     back = pickle.loads(pickle.dumps(step))
     assert back.settings() == step.settings()
     assert repr(back) == repr(step)

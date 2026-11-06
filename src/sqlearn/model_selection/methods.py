@@ -435,7 +435,7 @@ def trial(pipe: Pipeline, params: Params) -> Pipeline:
                     f"{setting} with a dict ({settings[setting]!r}). Why: a "
                     "dict step is one step, so a search cannot change one "
                     f"column's {setting} apart from the others'. Fix: use one "
-                    f"step per column, such as sq.impute.median('age'), and "
+                    f"step per column, each with its own {setting}, and "
                     f"search each step's {setting}."
                 )
                 raise SqlearnError(msg)

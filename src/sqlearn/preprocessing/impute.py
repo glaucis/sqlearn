@@ -22,6 +22,9 @@ __all__ = ["Impute", "ImputeGroup", "impute"]
 _SHORTCUTS = ("mean", "median", "mode")
 """The aggregates with a shortcut of their own, named after them."""
 
+_KEEPS_TYPE = ("mode", "min", "max")
+"""The aggregates taking any type whose result keeps the column's type."""
+
 _CONSTANTS = (
     str,
     int,
@@ -65,7 +68,9 @@ def _resolve(value: object) -> object:
                 "sq.fn.const('unknown'), or an aggregate, such as sq.agg.median."
             )
             raise SqlearnError(msg)
-        return _Text(raw) if isinstance(raw, str) and agg.lookup(raw) else raw
+        if isinstance(raw, str):
+            return _Text(raw) if agg.lookup(raw) else raw
+        value = raw
     if isinstance(value, str):
         return agg.lookup(value) or value
     if not isinstance(value, _CONSTANTS):
@@ -98,15 +103,45 @@ def _missing(x: Expression) -> Expression:
     return x.isnull() | nan
 
 
-def _default_columns(value: object) -> Selector | None:
-    """Return the columns `value` suits by default; None for every column."""
-    if isinstance(value, agg.Aggregate):
-        return _numeric() if value.numeric_only else None
+def _column_kind(dtype: DuckDBPyType) -> str:
+    """Return the kind of a column's type: numeric, text, boolean, date..."""
+    if _numeric().resolve([("c", dtype)]):
+        return "numeric"
+    if _string().resolve([("c", dtype)]):
+        return "text"
+    name = str(dtype)
+    if name.startswith("TIMESTAMP"):
+        return "timestamp"
+    return {"BOOLEAN": "boolean", "DATE": "date"}.get(name, name)
+
+
+def _constant_kind(value: object) -> str:
+    """Return the kind of column a constant suits (as `_column_kind` names it)."""
+    if isinstance(value, bool):
+        return "boolean"
     if _is_number(value):
-        return _numeric()
+        return "numeric"
     if isinstance(value, str):
-        return _string()
-    return None
+        return "text"
+    if isinstance(value, datetime.datetime):
+        return "timestamp"
+    return "date"  # the last of _CONSTANTS
+
+
+def _fills(value: agg.Aggregate) -> bool:
+    """Say whether an aggregate's result can fill a column at all."""
+    return value.numeric_only or value.name in _KEEPS_TYPE
+
+
+def _suits(value: object, dtype: DuckDBPyType) -> bool:
+    """Say whether `value` can fill a column of type `dtype`."""
+    if value is None:
+        return True
+    if isinstance(value, agg.Aggregate):
+        if value.numeric_only:
+            return _column_kind(dtype) == "numeric"
+        return value.name in _KEEPS_TYPE
+    return _constant_kind(value) == _column_kind(dtype)
 
 
 def _names(cols: object) -> list[str] | None:
@@ -134,8 +169,9 @@ class Impute(Step):
     ----------
     cols : Selector or str or sequence of str, optional
         The columns to fill; by default those the value suits: numbers for
-        an aggregate of numbers or a number, text for text, every column for
-        the mode or None. With a dict, its keys.
+        an aggregate of numbers or a number, columns of its own type for any
+        other constant (text, a bool, a date, a timestamp), every column for
+        the mode, ``min``, ``max`` or None. With a dict, its keys.
     value : Aggregate, str, constant, None or dict, default "median"
         What to fill with: an aggregate (``sq.agg.median``), a string naming
         one (``"median"``), a constant (any other string, a number, or
@@ -144,7 +180,8 @@ class Impute(Step):
         kept as ``sq.agg.median``.
     indicator : bool, default False
         Also create ``<column>_missing`` (INTEGER 0/1) for each column with a
-        missing value at `learn`; the step is then dynamic.
+        missing value at `learn`; the step is then dynamic. Not with a dict,
+        which is one static step.
     keep : bool, default False
         Keep the input column and add the filled one beside it.
     suffix : str, optional
@@ -162,8 +199,8 @@ class Impute(Step):
     Raises
     ------
     SqlearnError
-        If `value` is not a fill value, or a dict is given with other `cols`
-        than its keys.
+        If `value` is not a fill value, a dict is given with other `cols`
+        than its keys, or a dict with `indicator`.
 
     Examples
     --------
@@ -187,6 +224,15 @@ class Impute(Step):
     ) -> None:
         resolved: object
         if isinstance(value, Mapping):
+            if indicator:
+                msg = (
+                    f"sq.impute got the dict {value!r} and indicator=True. "
+                    "Why: a dict step is one static step, choosing a value "
+                    "per column, and the indicator would make it dynamic. "
+                    "Fix: leave indicator out of the dict step and add "
+                    "sq.impute.indicator(...) as its own step before it."
+                )
+                raise SqlearnError(msg)
             resolved = {str(k): _resolve(v) for k, v in value.items()}
             keys = list(resolved)
             if cols is None:
@@ -295,8 +341,10 @@ class Impute(Step):
         Raises
         ------
         StepError
-            If a chosen column is text and its value an aggregate of
-            numbers or a number, or a number and its value text.
+            If a chosen column's value cannot fill it: an aggregate of
+            numbers on a column of another type, an aggregate whose result
+            fills no column (``count``, ``distinct``), or a constant of
+            another kind (text into numbers, a date into text...).
 
         Examples
         --------
@@ -305,12 +353,12 @@ class Impute(Step):
         >>> sq.impute().inputs([("a", DOUBLE), ("c", VARCHAR)])
         ['a']
         """
-        given = self.cols if self.cols is not None else _default_columns(self.value)
-        chosen = (
-            [c for c, _ in schema]
-            if given is None
-            else to_selector(given).resolve(schema)
-        )
+        if self.cols is not None:
+            chosen = to_selector(self.cols).resolve(schema)
+        elif isinstance(self.value, agg.Aggregate) and not _fills(self.value):
+            chosen = [c for c, _ in schema]  # to be refused, by name
+        else:
+            chosen = [c for c, t in schema if _suits(self.value, t)]
         types: dict[str, DuckDBPyType] = dict(schema)
         for c in chosen:
             _check_suits(c, types[c], self._value_of(c))
@@ -422,32 +470,32 @@ def _fill(x: Expression, value: object, learned: Learned) -> Expression:
 
 def _check_suits(column: str, dtype: DuckDBPyType, value: object) -> None:
     """Refuse a fill value whose type does not suit the column."""
-    numeric = bool(_numeric().resolve([(column, dtype)]))
-    text = bool(_string().resolve([(column, dtype)]))
-    if isinstance(value, agg.Aggregate) and value.numeric_only and not numeric:
+    if _suits(value, dtype):
+        return
+    if isinstance(value, agg.Aggregate) and not _fills(value):
+        msg = (
+            f"cannot impute column {column!r}, which is {dtype}, with "
+            f"{value!r}. Why: its result is not a value of the column (a "
+            "count, or a list of values), so it cannot fill one. Fix: use an "
+            "aggregate whose result is a value, such as sq.agg.median, "
+            "sq.agg.mode, sq.agg.min or sq.agg.max."
+        )
+    elif isinstance(value, agg.Aggregate):
         msg = (
             f"cannot impute column {column!r}, which is {dtype} (text or "
             f"another non-numeric type), with {value!r}, which takes numbers. "
             "Fix: choose numeric columns with cols=, fill it with "
             "sq.impute.mode or a constant, or drop it before this step."
         )
-        raise StepError(msg, step="", position=0)
-    if _is_number(value) and not numeric:
+    else:
+        kind = _constant_kind(value)
         msg = (
-            f"cannot fill column {column!r}, which is {dtype}, with the number "
-            f"{value!r}. Why: a column holds one type, and a number is not "
-            f"{dtype}. Fix: give a constant of the column's type, or choose "
-            "numeric columns with cols=."
+            f"cannot fill column {column!r}, which is {dtype}, with the "
+            f"{kind} {value!r}. Why: a column holds one type, and a {kind} "
+            f"is not {dtype}. Fix: give a constant of the column's type, or "
+            f"choose {kind} columns with cols=."
         )
-        raise StepError(msg, step="", position=0)
-    if isinstance(value, str) and not text:
-        msg = (
-            f"cannot fill column {column!r}, which is {dtype}, with the text "
-            f"{str(value)!r}. Why: a column holds one type, and text is not "
-            f"{dtype}. Fix: give a constant of the column's type, or choose "
-            "text columns with cols=."
-        )
-        raise StepError(msg, step="", position=0)
+    raise StepError(msg, step="", position=0)
 
 
 class _Columns(TypedDict, total=False):
