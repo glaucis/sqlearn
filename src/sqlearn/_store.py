@@ -113,7 +113,9 @@ class Entry:
     columns : list of str
         The columns the step's selector matched.
     apply_sql : str
-        The SQL text of the step's apply stage.
+        The SQL text of the step's apply stage, as built when it learned. It
+        is informational: kept to read, and counted in the store's size, but
+        nothing runs it; `apply` builds every stage again from `values`.
     folds : dict of str to dict
         For a step learning from the target, per inner fold (``"0"`` to
         ``"k-1"``), what it learned on the rows outside that fold, as
