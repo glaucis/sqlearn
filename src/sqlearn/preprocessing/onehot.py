@@ -8,7 +8,7 @@ from duckdb.sqltypes import INTEGER
 
 from sqlearn._errors import StepError
 from sqlearn._expr import const
-from sqlearn._selectors import Selector, string
+from sqlearn._selectors import Selector, _string
 from sqlearn._step import Learned, Step
 
 __all__ = ["OneHot"]
@@ -76,7 +76,7 @@ class OneHot(Step):
 
     def __init__(
         self,
-        cols: Selector | str | tuple[str, ...] | list[str] | None = string(),  # noqa: B008
+        cols: Selector | str | tuple[str, ...] | list[str] | None = _string(),  # noqa: B008
         keep: bool = False,
         suffix: str | None = None,
     ) -> None:

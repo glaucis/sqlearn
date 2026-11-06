@@ -8,7 +8,7 @@ from duckdb.sqltypes import DuckDBPyType
 
 from sqlearn._errors import SqlearnError, StepError
 from sqlearn._expr import const, is_missing
-from sqlearn._selectors import Schema, Selector, numeric
+from sqlearn._selectors import Schema, Selector, _numeric
 from sqlearn._step import Learned, Step
 from sqlearn.agg.aggregates import mean, median
 from sqlearn.preprocessing._missing import (
@@ -66,7 +66,7 @@ class Impute(Step):
 
     def __init__(
         self,
-        cols: Selector | str | tuple[str, ...] | list[str] | None = numeric(),  # noqa: B008
+        cols: Selector | str | tuple[str, ...] | list[str] | None = _numeric(),  # noqa: B008
         strategy: str = "median",
         keep: bool = False,
         suffix: str | None = None,
@@ -108,7 +108,7 @@ class Impute(Step):
         chosen = super().inputs(schema)
         types: dict[str, DuckDBPyType] = dict(schema)
         for c in chosen:
-            if not numeric().resolve([(c, types[c])]):
+            if not _numeric().resolve([(c, types[c])]):
                 msg = (
                     f"cannot impute column {c!r}, which is {types[c]} (text or "
                     "another non-numeric type); Impute fills numeric columns "

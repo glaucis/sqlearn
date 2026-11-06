@@ -7,7 +7,7 @@ from duckdb import Expression
 from duckdb.sqltypes import DOUBLE, INTEGER
 
 from sqlearn._expr import const
-from sqlearn._selectors import Selector, string
+from sqlearn._selectors import Selector, _string
 from sqlearn._step import Learned, Step
 from sqlearn.agg.aggregates import distinct
 
@@ -66,7 +66,7 @@ class Ordinal(Step):
 
     def __init__(
         self,
-        cols: Selector | str | tuple[str, ...] | list[str] | None = string(),  # noqa: B008
+        cols: Selector | str | tuple[str, ...] | list[str] | None = _string(),  # noqa: B008
         keep: bool = False,
         suffix: str | None = None,
     ) -> None:

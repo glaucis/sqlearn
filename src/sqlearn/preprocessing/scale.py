@@ -6,7 +6,7 @@ import duckdb
 from duckdb import Expression
 
 from sqlearn._expr import const
-from sqlearn._selectors import Selector, numeric
+from sqlearn._selectors import Selector, _numeric
 from sqlearn._step import Learned, Step
 from sqlearn.agg.aggregates import mean, std
 from sqlearn.preprocessing._missing import (
@@ -59,7 +59,7 @@ class Scale(Step):
 
     def __init__(
         self,
-        cols: Selector | str | tuple[str, ...] | list[str] | None = numeric(),  # noqa: B008
+        cols: Selector | str | tuple[str, ...] | list[str] | None = _numeric(),  # noqa: B008
         keep: bool = False,
         suffix: str | None = None,
     ) -> None:

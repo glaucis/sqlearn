@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from duckdb.sqltypes import DuckDBPyType
 
-__all__ = ["Schema", "Selector", "cols", "numeric", "string", "to_selector"]
+__all__ = ["Schema", "Selector", "cols", "to_selector"]
 
 Schema = list[tuple[str, DuckDBPyType]]
 """An ordered list of ``(name, type)`` pairs, as a relation reports them."""
@@ -316,12 +316,12 @@ cols = _ColsGroup()
 """The column chooser: ``sq.cols("a", "b")``, ``sq.cols.numeric()``."""
 
 
-def numeric() -> Selector:
+def _numeric() -> Selector:
     """Return the numeric-columns selector (what ``cols.numeric()`` gives)."""
     return _Kind("numeric")
 
 
-def string() -> Selector:
+def _string() -> Selector:
     """Return the text-columns selector (what ``cols.string()`` gives)."""
     return _Kind("string")
 
