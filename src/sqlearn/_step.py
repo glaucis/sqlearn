@@ -1,7 +1,9 @@
 """The step contract: what a step learns, what it applies, and how it is classed."""
 
+import functools
 import inspect
-from collections.abc import Mapping
+import types
+from collections.abc import Callable, Mapping
 from typing import ClassVar, Literal
 
 import duckdb
@@ -12,7 +14,7 @@ from sqlearn._selectors import Schema, Selector, to_selector
 
 __all__ = ["KINDS", "Learned", "Step", "classify", "output_names"]
 
-KINDS: dict[tuple[type, tuple[tuple[str, str], ...]], str] = {}
+KINDS: dict[tuple[type, tuple[tuple[str, object], ...]], str] = {}
 """Session cache of ``classify`` answers, keyed by class and settings."""
 
 
@@ -156,6 +158,13 @@ class Step:
         Keep the input column and add the output beside it.
     suffix : str, optional
         Suffix for the output column when `keep` is True.
+    learn : callable, optional
+        ``learn(x)`` returning a mapping of learned name to aggregate; it
+        replaces the `learn` method for this step.
+    apply : callable, optional
+        ``apply(x, learned)`` (or ``apply(x)`` when nothing is learned)
+        returning an expression or a mapping; it replaces the `apply` method
+        for this step.
 
     Attributes
     ----------
@@ -178,6 +187,12 @@ class Step:
     ...         return x * 2
     >>> Double(cols="a").settings()
     {'cols': 'a', 'keep': False, 'suffix': None}
+
+    A step without a subclass, from callables:
+
+    >>> ln = sq.Step(apply=lambda x: x + 1, cols="a")
+    >>> str(ln.apply(sq._step.duckdb.ColumnExpression("a"), None))
+    '("a" + 1)'
     """
 
     static: ClassVar[bool | None] = None
@@ -190,10 +205,18 @@ class Step:
         cols: Selector | str | tuple[str, ...] | list[str] | None = None,
         keep: bool = False,
         suffix: str | None = None,
+        *,
+        learn: Callable[[Expression], Mapping[str, Expression]] | None = None,
+        apply: Callable[..., Expression | Mapping[str, Expression]] | None = None,
     ) -> None:
         self.cols = cols
         self.keep = keep
         self.suffix = suffix
+        self._callables = {"learn": learn, "apply": apply}
+        if learn is not None:
+            self.__dict__["learn"] = learn
+        if apply is not None:
+            self.__dict__["apply"] = _with_learned(apply)
 
     def learn(self, x: Expression) -> Mapping[str, Expression]:
         """Say what to learn from a column, as SQL aggregates.
@@ -282,8 +305,9 @@ class Step:
         {'cols': None, 'keep': True, 'suffix': None}
         """
         params = inspect.signature(type(self).__init__).parameters
+        given = self.__dict__.get("_callables", {})
         return {
-            name: getattr(self, name)
+            name: given.get(name) if name in given else getattr(self, name)
             for name, p in params.items()
             if name != "self" and p.kind not in (p.VAR_POSITIONAL, p.VAR_KEYWORD)
         }
@@ -339,8 +363,43 @@ class Step:
         )
 
 
-def _key(step: Step) -> tuple[type, tuple[tuple[str, str], ...]]:
-    return type(step), tuple((k, repr(v)) for k, v in step.settings().items())
+_FUNCTIONS = (
+    types.FunctionType,
+    types.MethodType,
+    types.BuiltinFunctionType,
+    functools.partial,
+)
+
+
+def _with_learned(
+    fn: Callable[..., Expression | Mapping[str, Expression]],
+) -> Callable[..., Expression | Mapping[str, Expression]]:
+    """Wrap an ``apply`` callable so it may leave out ``learned``."""
+    try:
+        params = inspect.signature(fn).parameters.values()
+    except (TypeError, ValueError):
+        return fn
+    if any(p.kind is p.VAR_POSITIONAL for p in params):
+        return fn
+    positional = [
+        p for p in params if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)
+    ]
+    if len(positional) != 1:
+        return fn
+
+    def apply(x: Expression, learned: Learned) -> Expression | Mapping[str, Expression]:
+        return fn(x)
+
+    return apply
+
+
+def _key(step: Step) -> tuple[type, tuple[tuple[str, object], ...]]:
+    # A function is keyed by the object itself: its repr holds an address that
+    # can be reused once the function is collected.
+    return type(step), tuple(
+        (k, v if isinstance(v, _FUNCTIONS) else repr(v))
+        for k, v in step.settings().items()
+    )
 
 
 def classify(step: Step, schema: Schema) -> Literal["static", "dynamic"]:

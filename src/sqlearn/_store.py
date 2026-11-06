@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from sqlearn._inputs import DataKey
-from sqlearn._step import Step
+from sqlearn._step import _FUNCTIONS, Step
 
 __all__ = ["STORE", "Entry", "FoldKey", "StepKey", "Store", "step_key"]
 
@@ -31,6 +31,10 @@ def _freeze(value: object) -> object:
         return (type(value).__qualname__, value)
     if isinstance(value, (list, tuple)):
         return tuple(_freeze(v) for v in value)
+    if isinstance(value, _FUNCTIONS):
+        module = getattr(value, "__module__", None)
+        name = getattr(value, "__qualname__", type(value).__qualname__)
+        return (value, f"{module}.{name}")
     return repr(value)
 
 

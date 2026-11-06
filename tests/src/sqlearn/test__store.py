@@ -116,3 +116,15 @@ def test_the_resolved_inputs_are_in_the_key():
     two = step_key(DATA, None, steps, 0, frozenset(), inputs=["region", "plan"])
     assert one != two
     assert one == step_key(DATA, None, steps, 0, frozenset(), inputs=["plan"])
+
+
+def test_redefining_a_lambda_relearns():
+    """Two equal-looking lambdas are two function objects: two keys."""
+
+    def key(step):
+        return step_key(DATA, None, [("x", step)], 0, frozenset())
+
+    one = sq.Step(apply=lambda x: x + 1, cols=["a"])
+    two = sq.Step(apply=lambda x: x + 1, cols=["a"])
+    assert key(one) != key(two)
+    assert key(one) == key(one)

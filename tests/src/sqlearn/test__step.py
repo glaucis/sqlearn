@@ -9,6 +9,7 @@ from duckdb.sqltypes import DOUBLE, INTEGER, VARCHAR
 from steps_for_tests import MyEncoder, MyScale
 
 import sqlearn as sq
+from sqlearn._config import connection
 from sqlearn._step import Learned, Step, classify, output_names
 
 SCHEMA = [("age", DOUBLE), ("city", VARCHAR), ("n", INTEGER)]
@@ -175,3 +176,51 @@ def test_a_declared_dynamic_step_is_trusted_without_calling_apply():
 
     assert classify(Declared(), [("a", INTEGER)]) == "dynamic"
     assert calls == []
+
+
+def _data():
+    return connection().sql(
+        "SELECT * FROM (VALUES (10.0), (20.0), (40.0)) t(a)",
+    )
+
+
+def test_a_step_from_callables_learns_and_applies():
+    """A step built from callables learns an aggregate and applies it."""
+    step = sq.Step(
+        learn=lambda x: {"top": sq.agg.max(x)},
+        apply=lambda x, learned: x / learned.top,
+        cols=["a"],
+    )
+    out = sq.Pipeline([step]).learn(_data()).apply(_data(), out="numpy")
+    assert out["a"].tolist() == [0.25, 0.5, 1.0]
+
+
+def test_an_apply_of_one_argument_is_allowed():
+    """An apply that ignores what was learned takes only the column."""
+    step = sq.Step(apply=lambda x: x + 1, cols=["a"])
+    out = sq.Pipeline([step]).learn(_data()).apply(_data(), out="numpy")
+    assert out["a"].tolist() == [11.0, 21.0, 41.0]
+
+
+def test_the_callables_are_settings():
+    """`settings` names the callables as given."""
+    fn = lambda x: x  # noqa: E731
+    assert sq.Step(apply=fn).settings()["apply"] is fn
+    assert sq.Step().settings()["learn"] is None
+
+
+def test_callables_classify_by_what_apply_returns():
+    """One expression back is static; a mapping back is dynamic."""
+    one = sq.Step(apply=lambda x: x + 1, cols=["a"])
+    many = sq.Step(apply=lambda x: {"a_lo": x, "a_hi": x + 1}, cols=["a"])
+    assert classify(one, SCHEMA) == "static"
+    assert classify(many, SCHEMA) == "dynamic"
+
+
+def test_two_lambdas_never_share_a_classification():
+    """Different function objects get their own cached answer."""
+    one = sq.Step(apply=lambda x: x + 1, cols=["age"])
+    many = sq.Step(apply=lambda x: {"u": x, "v": x}, cols=["age"])
+    assert classify(one, SCHEMA) == "static"
+    assert classify(many, SCHEMA) == "dynamic"
+    assert classify(one, SCHEMA) == "static"

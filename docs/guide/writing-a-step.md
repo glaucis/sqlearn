@@ -137,6 +137,27 @@ Learned values come only through `learned`. A step whose `apply` reaches for a
 value from somewhere else, such as a module-level variable, builds and runs
 with that stale value, and nothing can catch it.
 
+## A step without a subclass
+
+For a step that needs no settings of its own, pass `learn` and `apply` as
+callables to `sq.Step`. They follow the same contract as the methods; an
+`apply` that uses nothing learned may take only the column:
+
+```{code-cell} python
+log = sq.Step(apply=lambda x: sq.fn.ln(x + 1), cols=["age"])
+
+top = sq.Step(
+    learn=lambda x: {"top": sq.agg.max(x)},
+    apply=lambda x, learned: x / learned.top,
+    cols=["age"],
+)
+sq.Pipeline([top]).learn(data).apply(data)
+```
+
+Its name in a pipeline is `step`. Its store key uses the callables themselves,
+so defining a lambda again relearns. A subclass is still the form for a step
+with settings of its own.
+
 ## When something fails
 
 Diagnosis runs only after a failure; a run that works pays nothing for it.
