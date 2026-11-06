@@ -836,3 +836,40 @@ def test_each_step_hears_what_it_learned_once_per_learn(people):
     pipe.learn(people)
     assert len(heard) == 2
     assert heard[1] == heard[0]
+
+
+def _mixed():
+    """Return a frame of a number, two texts and a 0/1 target."""
+    return pd.DataFrame(
+        {
+            "age": [1.0, 2.0, 3.0, 4.0] * 5,
+            "city": ["a", "b", None, "a"] * 5,
+            "plan": ["x", "y", "x", "y"] * 5,
+            "y": [0, 1, 0, 1] * 5,
+        }
+    )
+
+
+@pytest.mark.parametrize(
+    ("first", "encoded"),
+    [
+        ([sq.encode.target("city")], {"plan"}),
+        ([sq.encode.onehot("city")], {"plan"}),
+        ([sq.impute.indicator("city")], {"city", "plan"}),
+        ([sq.impute.mode("city", indicator=True), sq.encode.target("city")], {"plan"}),
+    ],
+    ids=["target", "dynamic", "keeping", "target-in-a-later-run"],
+)
+def test_a_step_not_yet_applied_stays_so_past_a_later_bind(first, encoded):
+    """A learning step's changes hold past a later static step in its run.
+
+    The target encoder makes ``city`` a number, so a later step by type must
+    not read it as text, even after a static step between them is bound;
+    so too when the encoder learns only in a later run.
+    """
+    frame = _mixed()
+    steps = [*first, sq.scale.standard("age"), sq.encode.ordinal()]
+    pipe = sq.Pipeline(steps).learn(frame, target="y")
+    got = pipe.apply(frame, out="pandas")
+    assert list(got.columns) == pipe.columns_out_
+    assert set(pipe["ordinal"].categories_) == encoded

@@ -707,6 +707,10 @@ class Pipeline:
         keys: dict[int, StepKey] = {}
         upto: dict[int, int] = {}
         after: dict[int, Schema] = {}  # the columns after each step, bound
+        # The steps not applied in this statement, with their inputs: the SQL
+        # passes those inputs through as they are, so binding a later stage
+        # gives them back as they were, and the changes are made again.
+        unapplied: list[tuple[Step, list[str], bool]] = []
         for i in range(last + 1):
             name, step = steps[i]
             position = i + 1
@@ -714,7 +718,9 @@ class Pipeline:
             if the_plan.learn_run[i] > run:
                 # Not reached yet: a dynamic step's inputs are gone once it
                 # applies, so the steps learning now must not see them.
-                schema = _after_unapplied(step, schema, step.inputs(schema), dynamic)
+                inputs = step.inputs(schema)
+                schema = _after_unapplied(step, schema, inputs, dynamic)
+                unapplied.append((step, inputs, dynamic))
                 continue
             entry = entries[i]
             if entry is None:
@@ -747,10 +753,13 @@ class Pipeline:
             previous = stage.name
             if entry is None and dynamic:
                 schema = _after_unapplied(step, schema, built[i][2], dynamic)
+                unapplied.append((step, built[i][2], dynamic))
             elif i < last:
                 # Only a later step of this run reads the columns after it.
                 bound = _bind(con, source_sql, stages, steps, position)
                 schema = after[i] = _features_only(bound, aside)
+                for earlier, inputs, held in unapplied:
+                    schema = _after_unapplied(earlier, schema, inputs, held)
         misses = sorted(built)
         if not misses:
             return Run()
