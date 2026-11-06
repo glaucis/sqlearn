@@ -7,6 +7,7 @@ import sqlearn as sq
 from sqlearn._config import connection
 from sqlearn._step import Learned
 from sqlearn.preprocessing._missing import (
+    infinite,
     refuse_all_missing,
     refuse_infinite,
 )
@@ -36,3 +37,15 @@ def test_infinite_values_are_refused(bad):
     refuse_infinite(X, Learned.values({"m": 1.0}), "m")
     refuse_infinite(X, Learned.values({"m": None}), "m")
     refuse_infinite(X, Learned.placeholders("l01_s", {"m": "v0"}), "m")
+
+
+def test_infinite_flags_a_column_holding_infinity():
+    """Infinity where any value is infinite (either sign), else 0; NULL is not."""
+    rel = connection().sql(
+        "SELECT * FROM (VALUES (1, 1.0::DOUBLE, NULL::DOUBLE), "
+        "(2, '-inf'::DOUBLE, 'nan'::DOUBLE)) t(i, a, b)"
+    )
+    got = rel.aggregate(
+        [infinite(duckdb.ColumnExpression(c)) for c in ("i", "a", "b")]
+    ).fetchall()
+    assert got == [(0.0, float("inf"), 0.0)]

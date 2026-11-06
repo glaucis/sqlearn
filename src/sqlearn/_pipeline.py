@@ -747,8 +747,10 @@ class Pipeline:
         >>> import sqlearn as sq
         >>> from sklearn.linear_model import LogisticRegression
         >>> data = pd.DataFrame({"x": [1.0, 2.0, 3.0, 4.0], "y": [0, 0, 1, 1]})
-        >>> pipe = sq.Pipeline([("scale", sq.Scale()), ("model", LogisticRegression())])
-        >>> pipe.train(data, target="y")["scale"].mean_
+        >>> pipe = sq.Pipeline(
+        ...     [("scale", sq.scale.standard()), ("model", LogisticRegression())]
+        ... )
+        >>> pipe.train(data, target="y")["scale"].center_
         {'x': 2.5}
         """
         _, model = self._modelled()
@@ -872,7 +874,9 @@ class Pipeline:
         >>> import sqlearn as sq
         >>> from sklearn.linear_model import LogisticRegression
         >>> data = pd.DataFrame({"x": [1.0, 2.0, 3.0, 4.0], "y": [0, 0, 1, 1]})
-        >>> pipe = sq.Pipeline([("scale", sq.Scale()), ("model", LogisticRegression())])
+        >>> pipe = sq.Pipeline(
+        ...     [("scale", sq.scale.standard()), ("model", LogisticRegression())]
+        ... )
         >>> pipe.train(data, target="y").predict(data, out="numpy")[
         ...     "prediction"
         ... ].tolist()

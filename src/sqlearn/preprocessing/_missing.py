@@ -2,12 +2,45 @@
 
 import math
 
+import duckdb
 from duckdb import Expression
 
 from sqlearn._errors import StepError
+from sqlearn._expr import const
 from sqlearn._step import Learned
 
-__all__ = ["refuse_all_missing", "refuse_infinite"]
+__all__ = ["infinite", "refuse_all_missing", "refuse_infinite"]
+
+
+def infinite(x: Expression) -> Expression:
+    """Return the aggregate saying whether a column holds infinity.
+
+    Learned beside a value that infinity would make meaningless, or that it
+    would hide (a median), so `refuse_infinite` can refuse the column.
+
+    Parameters
+    ----------
+    x : duckdb.Expression
+        The column, of numbers.
+
+    Returns
+    -------
+    duckdb.Expression
+        Infinity where the column holds any infinite value, else 0.
+
+    Examples
+    --------
+    >>> import duckdb
+    >>> from sqlearn.preprocessing._missing import infinite
+    >>> rel = duckdb.sql("SELECT * FROM (VALUES (1.0), ('inf'::DOUBLE)) t(a)")
+    >>> rel.aggregate(infinite(duckdb.ColumnExpression("a"))).fetchall()
+    [(inf,)]
+    """
+    flag = duckdb.CaseExpression(
+        duckdb.FunctionExpression("isinf", x.cast("DOUBLE")),
+        const(float("inf")),
+    ).otherwise(const(0.0))
+    return duckdb.FunctionExpression("max", flag)
 
 
 def refuse_all_missing(x: Expression, learned: Learned, name: str) -> None:

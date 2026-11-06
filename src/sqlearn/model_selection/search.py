@@ -143,7 +143,9 @@ class Search:
     >>> import sqlearn as sq
     >>> from sklearn.linear_model import LogisticRegression
     >>> data = pd.DataFrame({"x": range(20), "y": [0, 1] * 5 + [1, 0] * 5})
-    >>> pipe = sq.Pipeline([("scale", sq.Scale()), ("model", LogisticRegression())])
+    >>> pipe = sq.Pipeline(
+    ...     [("scale", sq.scale.standard()), ("model", LogisticRegression())]
+    ... )
     >>> search = sq.Search(pipe, params={"model__C": [1.0]}, folds=sq.KFold(2))
     >>> search.train(data, target="y").best_params_
     {'model__C': 1.0}

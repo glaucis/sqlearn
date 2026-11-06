@@ -3,8 +3,8 @@
 Examples
 --------
 >>> from sqlearn.preprocessing import Impute, Scale
->>> Impute().value, Scale().keep
-(sq.agg.median, False)
+>>> Impute().value, Scale().method
+(sq.agg.median, 'standard')
 """
 
 from sqlearn.preprocessing.impute import Impute

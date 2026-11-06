@@ -268,6 +268,17 @@ def test_quantiles_match_numpy(q, method, n):
     assert got == pytest.approx(want, rel=1e-15, abs=1e-15)
 
 
+def test_a_linear_quantile_interpolates_as_numpy_does():
+    """From a weight of 0.5, numpy interpolates down from the high value.
+
+    ``lo + w * (hi - lo)`` and numpy's ``hi - (hi - lo) * (1 - w)`` differ
+    by an ULP here, so this one is equal only by numpy's form.
+    """
+    values = [float(v) for v in np.random.default_rng(6).random(100)]
+    assert learn(values, sq.agg.quantile(q=0.07)) == np.quantile(values, 0.07)
+    assert learn(values, sq.agg.quantile(q=0.93)) == np.quantile(values, 0.93)
+
+
 def test_the_median_is_the_linear_middle_quantile():
     """median is quantile(q=0.5) in value, and DuckDB's median exactly."""
     values = [0.1, 0.7, 0.2, 0.3000000001, 1e300, -1e300]

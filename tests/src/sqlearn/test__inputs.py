@@ -128,7 +128,7 @@ def test_a_relation_never_leaves_a_view_in_a_database_file(tmp_path):
     con.execute("CREATE TABLE t AS SELECT range::DOUBLE AS x FROM range(10)")
     _config.set_config(connection=con)
     rel = con.sql("SELECT * FROM t WHERE x > 1")
-    pipe = sq.Pipeline([("s", sq.Scale())]).learn(rel)
+    pipe = sq.Pipeline([("s", sq.scale.standard())]).learn(rel)
     out = pipe.apply(rel)
     con.execute("CHECKPOINT")
     stored = con.sql(
@@ -153,10 +153,10 @@ def test_a_read_only_database_accepts_a_relation(tmp_path):
     con.close()
     con = duckdb.connect(path, read_only=True)
     _config.set_config(connection=con)
-    pipe = sq.Pipeline([("s", sq.Scale())]).learn(
+    pipe = sq.Pipeline([("s", sq.scale.standard())]).learn(
         con.sql("SELECT * FROM t WHERE x > 1")
     )
-    assert pipe["s"].mean_ == {"x": 5.5}
+    assert pipe["s"].center_ == {"x": 5.5}
     con.close()
 
 
@@ -220,11 +220,11 @@ def test_swapped_columns_are_learned_again():
     """A frame with the names swapped is learned, not found in the store."""
     df = pd.DataFrame({"a": [1.0, 2.0, 4.0], "b": [50.0, 60.0, 70.0]})
     swapped = pd.DataFrame({"b": [1.0, 2.0, 4.0], "a": [50.0, 60.0, 70.0]})
-    pipe = sq.Pipeline([("s", sq.Scale())]).learn(df)
+    pipe = sq.Pipeline([("s", sq.scale.standard())]).learn(df)
     pipe.learn(swapped)
-    assert pipe["s"].mean_ == {"a": 60.0, "b": pytest.approx(7 / 3)}
+    assert pipe["s"].center_ == {"a": 60.0, "b": pytest.approx(7 / 3)}
     renamed = df.rename(columns={"a": "z"})
-    assert pipe.learn(renamed)["s"].mean_ == {"z": pytest.approx(7 / 3), "b": 60.0}
+    assert pipe.learn(renamed)["s"].center_ == {"z": pytest.approx(7 / 3), "b": 60.0}
 
 
 def test_a_table_or_relation_key_holds_its_schema():
@@ -280,7 +280,7 @@ def _next_call():
     """Make a public call that registers nothing: it releases what is pending."""
     con = _config.connection()
     con.execute("CREATE OR REPLACE TABLE _next AS SELECT 1.0 AS x")
-    sq.Pipeline([("s", sq.Scale())]).learn("_next")
+    sq.Pipeline([("s", sq.scale.standard())]).learn("_next")
 
 
 def test_a_dropped_source_releases_its_frame():
@@ -332,10 +332,14 @@ def test_a_finaliser_never_calls_the_connection(monkeypatch):
             del df
             big = pd.DataFrame({"x": range(200_000), "y": [0, 1] * 100_000})
             big["c"] = big["y"].astype(str)  # scanning text calls into Python
-            steps = [("s", sq.Scale()), ("o", sq.Ordinal()), ("model", _Model())]
+            steps = [
+                ("s", sq.scale.standard()),
+                ("o", sq.Ordinal()),
+                ("model", _Model()),
+            ]
             pipe = sq.Pipeline(steps)
             pipe.train(big, target="y").predict(big).fetchall()
-            sq.Pipeline([("s", sq.Scale())]).learn(big).apply(big).fetchall()
+            sq.Pipeline([("s", sq.scale.standard())]).learn(big).apply(big).fetchall()
             del big, pipe
     finally:
         gc.set_threshold(*threshold)

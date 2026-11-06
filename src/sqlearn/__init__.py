@@ -17,8 +17,9 @@ from sqlearn._pipeline import Pipeline
 from sqlearn._selectors import cols
 from sqlearn._step import Learned, Step
 from sqlearn.model_selection import Grid, KFold, Search, range
-from sqlearn.preprocessing import OneHot, Ordinal, Scale
+from sqlearn.preprocessing import OneHot, Ordinal
 from sqlearn.preprocessing.impute import impute
+from sqlearn.preprocessing.scale import scale
 
 __all__ = [
     "Grid",
@@ -29,7 +30,6 @@ __all__ = [
     "Ordinal",
     "Output",
     "Pipeline",
-    "Scale",
     "Search",
     "Step",
     "__version__",
@@ -42,6 +42,7 @@ __all__ = [
     "metrics",
     "out",
     "range",
+    "scale",
     "set_config",
     "store",
 ]

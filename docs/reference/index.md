@@ -23,9 +23,14 @@ The API of the sqlearn package, generated from its docstrings.
    sqlearn.impute.constant
    sqlearn.impute.indicator
    sqlearn.preprocessing.Impute
+   sqlearn.scale
+   sqlearn.scale.standard
+   sqlearn.scale.robust
+   sqlearn.scale.minmax
+   sqlearn.scale.maxabs
+   sqlearn.preprocessing.Scale
    sqlearn.OneHot
    sqlearn.Ordinal
-   sqlearn.Scale
    sqlearn.Search
    sqlearn.Grid
    sqlearn.KFold

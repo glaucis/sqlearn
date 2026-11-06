@@ -563,10 +563,12 @@ def _ranks(method: str, q: str) -> tuple[str, str, str]:
     """Return the SQL of the low rank, high rank and weight of a quantile.
 
     In terms of ``n``, the number of present values, ranked from 1 in
-    ascending order. The quantile is ``low + weight * (high - low)``, or the
-    low value alone when the weight is 0, so no difference is formed for
-    nothing. The positions are computed in DOUBLE as numpy computes them,
-    so a position numpy finds whole is whole here too.
+    ascending order. The quantile is ``low + (high - low) * weight``, or,
+    from a weight of 0.5, ``high - (high - low) * (1 - weight)``, as numpy's
+    ``_lerp`` finds it; the low value alone when the weight is 0, so no
+    difference is formed for nothing. The positions are computed in DOUBLE
+    as numpy computes them, so a position numpy finds whole is whole here
+    too.
     """
     n = quote("n")
     if method == "linear":
@@ -627,8 +629,9 @@ def _quantile_ctes(
             f"max({weight}) FILTER (WHERE {t} = {tag}) AS {w}",
         ]
         finals.append(
-            f"CASE WHEN {w} = 0 THEN {lo} ELSE {lo} + {w} * ({hi} - {lo}) END "
-            f"AS {quote(column)}"
+            f"CASE WHEN {w} = 0 THEN {lo} WHEN {w} >= 0.5 "
+            f"THEN {hi} - ({hi} - {lo}) * (1 - {w}) "
+            f"ELSE {lo} + ({hi} - {lo}) * {w} END AS {quote(column)}"
         )
     return [
         f"{values} AS (SELECT {t}, {x} FROM ({tagged}) "

@@ -137,7 +137,7 @@ def test_a_later_step_sees_the_numbered_names():
     """A selector after OneHot matches the final, numbered names."""
     data = connection().sql("SELECT * FROM (VALUES ('Oslo'), ('oslo')) t(city)")
     pipe = sq.Pipeline(
-        [("hot", sq.OneHot()), ("scale", sq.Scale(cols=["city_oslo_2"]))]
+        [("hot", sq.OneHot()), ("scale", sq.scale.standard(cols=["city_oslo_2"]))]
     ).learn(data)
     assert pipe.columns_out_ == ["city_Oslo", "city_oslo_2"]
     assert pipe.apply(data).fetchall() == [(1, -1.0), (0, 1.0)]
@@ -178,7 +178,7 @@ def test_awkward_names_survive_the_slice_steps():
     pipe = sq.Pipeline(
         [
             ("fill", sq.impute()),
-            ("scale", sq.Scale()),
+            ("scale", sq.scale.standard()),
             ("hot", sq.OneHot(cols=["order", 'a"b'])),
         ],
     ).learn(frame)
@@ -237,7 +237,7 @@ def test_names_are_fixed_at_learn():
         "SELECT * FROM (VALUES ('Oslo', 1.0), ('Rome', 2.0)) t(city, n)"
     )
     pipe = sq.Pipeline(
-        [("hot", sq.OneHot()), ("scale", sq.Scale(cols=["city_Oslo"]))]
+        [("hot", sq.OneHot()), ("scale", sq.scale.standard(cols=["city_Oslo"]))]
     ).learn(learn)
     assert pipe.columns_out_ == ["city_Oslo", "city_Rome", "n"]
     more = connection().sql("SELECT 'Oslo' AS city, 1.0 AS n, 5 AS extra")

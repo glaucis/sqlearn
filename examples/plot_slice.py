@@ -58,7 +58,7 @@ pipe = sq.Pipeline(
         ("impute", sq.impute.median(cols=sq.cols.numeric())),
         ("onehot", sq.OneHot(cols=["city"])),
         ("ordinal", sq.Ordinal(cols=["plan"])),
-        ("scale", sq.Scale(cols=sq.cols.numeric())),
+        ("scale", sq.scale.standard(cols=sq.cols.numeric())),
         ("model", LogisticRegression()),
     ]
 )

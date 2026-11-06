@@ -408,7 +408,9 @@ def trial(pipe: Pipeline, params: Params) -> Pipeline:
     >>> import sqlearn as sq
     >>> from sklearn.linear_model import LogisticRegression
     >>> from sqlearn.model_selection.methods import trial
-    >>> pipe = sq.Pipeline([("scale", sq.Scale()), ("model", LogisticRegression())])
+    >>> pipe = sq.Pipeline(
+    ...     [("scale", sq.scale.standard()), ("model", LogisticRegression())]
+    ... )
     >>> copy = trial(pipe, {"model__C": 0.1, "scale__keep": True})
     >>> copy["model"].C, copy["scale"].keep, pipe["scale"].keep
     (0.1, True, False)

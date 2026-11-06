@@ -13,6 +13,960 @@
       "tier": "fast"
     },
     {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_a_bad_param_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_a_linear_quantile_interpolates_as_numpy_does",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_aggregates_leave_missing_out[values0-expected0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_aggregates_leave_missing_out[values1-expected1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_aggregates_of_integers_and_decimals_are_double",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_aggregates_of_text_keep_its_type",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_an_aggregate_built_by_hand",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_an_aggregate_equals_only_aggregates",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_an_aggregate_is_a_value_and_a_builder",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_an_aggregate_pickles_by_name_and_params",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_approx_quantile_is_close",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_count_of_no_present_value_is_zero",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_distinct_leaves_null_and_nan_out",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_distinct_values_are_sorted_without_null_and_nan[('b'), ('a'), (NULL), ('b'), ('NULL')-want0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_distinct_values_are_sorted_without_null_and_nan[(2.0), ('NaN'::DOUBLE), (-0.0), (0.0), ('NaN'::DOUBLE)-want1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_distinct_values_are_sorted_without_null_and_nan[(NULL::VARCHAR)-want2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_distinct_values_need_memory_for_the_values_not_the_rows",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_distinct_values_of_no_rows_is_empty",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_equal_aggregates_share_a_store_key",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_infinity_is_a_value_to_the_quantiles",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_mode_is_counted_not_sorted",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_mode_ties_go_to_the_smallest",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_no_present_value_gives_null[sq.agg.iqr]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_no_present_value_gives_null[sq.agg.max]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_no_present_value_gives_null[sq.agg.maxabs]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_no_present_value_gives_null[sq.agg.mean]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_no_present_value_gives_null[sq.agg.median]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_no_present_value_gives_null[sq.agg.min]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_no_present_value_gives_null[sq.agg.mode]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_no_present_value_gives_null[sq.agg.quantile(q=0.9)]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_no_present_value_gives_null[sq.agg.range]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_no_present_value_gives_null[sq.agg.std]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_no_present_value_gives_null[sq.agg.var]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_numeric_only_marks_the_aggregates_needing_numbers",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_present_nulls_nan_and_null_and_casts_to_double",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantile_markers_inside_an_expression_share_one_sort",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[1-averaged_inverted_cdf-0.0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[1-averaged_inverted_cdf-0.1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[1-averaged_inverted_cdf-0.25]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[1-averaged_inverted_cdf-0.3333333333333333]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[1-averaged_inverted_cdf-0.3]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[1-averaged_inverted_cdf-0.5]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[1-averaged_inverted_cdf-0.6]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[1-averaged_inverted_cdf-0.75]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[1-averaged_inverted_cdf-0.9]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[1-averaged_inverted_cdf-1.0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[1-linear-0.0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[1-linear-0.1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[1-linear-0.25]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[1-linear-0.3333333333333333]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[1-linear-0.3]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[1-linear-0.5]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[1-linear-0.6]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[1-linear-0.75]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[1-linear-0.9]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[1-linear-1.0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[10-averaged_inverted_cdf-0.0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[10-averaged_inverted_cdf-0.1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[10-averaged_inverted_cdf-0.25]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[10-averaged_inverted_cdf-0.3333333333333333]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[10-averaged_inverted_cdf-0.3]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[10-averaged_inverted_cdf-0.5]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[10-averaged_inverted_cdf-0.6]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[10-averaged_inverted_cdf-0.75]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[10-averaged_inverted_cdf-0.9]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[10-averaged_inverted_cdf-1.0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[10-linear-0.0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[10-linear-0.1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[10-linear-0.25]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[10-linear-0.3333333333333333]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[10-linear-0.3]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[10-linear-0.5]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[10-linear-0.6]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[10-linear-0.75]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[10-linear-0.9]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[10-linear-1.0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[2-averaged_inverted_cdf-0.0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[2-averaged_inverted_cdf-0.1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[2-averaged_inverted_cdf-0.25]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[2-averaged_inverted_cdf-0.3333333333333333]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[2-averaged_inverted_cdf-0.3]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[2-averaged_inverted_cdf-0.5]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[2-averaged_inverted_cdf-0.6]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[2-averaged_inverted_cdf-0.75]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[2-averaged_inverted_cdf-0.9]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[2-averaged_inverted_cdf-1.0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[2-linear-0.0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[2-linear-0.1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[2-linear-0.25]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[2-linear-0.3333333333333333]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[2-linear-0.3]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[2-linear-0.5]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[2-linear-0.6]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[2-linear-0.75]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[2-linear-0.9]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[2-linear-1.0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[3-averaged_inverted_cdf-0.0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[3-averaged_inverted_cdf-0.1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[3-averaged_inverted_cdf-0.25]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[3-averaged_inverted_cdf-0.3333333333333333]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[3-averaged_inverted_cdf-0.3]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[3-averaged_inverted_cdf-0.5]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[3-averaged_inverted_cdf-0.6]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[3-averaged_inverted_cdf-0.75]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[3-averaged_inverted_cdf-0.9]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[3-averaged_inverted_cdf-1.0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[3-linear-0.0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[3-linear-0.1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[3-linear-0.25]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[3-linear-0.3333333333333333]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[3-linear-0.3]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[3-linear-0.5]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[3-linear-0.6]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[3-linear-0.75]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[3-linear-0.9]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[3-linear-1.0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[4-averaged_inverted_cdf-0.0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[4-averaged_inverted_cdf-0.1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[4-averaged_inverted_cdf-0.25]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[4-averaged_inverted_cdf-0.3333333333333333]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[4-averaged_inverted_cdf-0.3]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[4-averaged_inverted_cdf-0.5]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[4-averaged_inverted_cdf-0.6]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[4-averaged_inverted_cdf-0.75]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[4-averaged_inverted_cdf-0.9]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[4-averaged_inverted_cdf-1.0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[4-linear-0.0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[4-linear-0.1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[4-linear-0.25]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[4-linear-0.3333333333333333]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[4-linear-0.3]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[4-linear-0.5]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[4-linear-0.6]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[4-linear-0.75]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[4-linear-0.9]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[4-linear-1.0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[7-averaged_inverted_cdf-0.0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[7-averaged_inverted_cdf-0.1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[7-averaged_inverted_cdf-0.25]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[7-averaged_inverted_cdf-0.3333333333333333]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[7-averaged_inverted_cdf-0.3]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[7-averaged_inverted_cdf-0.5]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[7-averaged_inverted_cdf-0.6]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[7-averaged_inverted_cdf-0.75]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[7-averaged_inverted_cdf-0.9]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[7-averaged_inverted_cdf-1.0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[7-linear-0.0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[7-linear-0.1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[7-linear-0.25]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[7-linear-0.3333333333333333]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[7-linear-0.3]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[7-linear-0.5]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[7-linear-0.6]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[7-linear-0.75]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[7-linear-0.9]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_quantiles_match_numpy[7-linear-1.0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_strings_name_aggregates",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_the_median_is_the_linear_middle_quantile",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_the_repr_sorts_params_and_leaves_defaults_out",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
       "area": "sqlearn/metrics/accuracy",
       "name": "tests/src/sqlearn/metrics/test_accuracy.py::test_accuracy_matches_sklearn_ints",
       "outcome": "passed",
@@ -350,6 +1304,12 @@
     },
     {
       "area": "sqlearn/preprocessing/_missing",
+      "name": "tests/src/sqlearn/preprocessing/test__missing.py::test_infinite_flags_a_column_holding_infinity",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/_missing",
       "name": "tests/src/sqlearn/preprocessing/test__missing.py::test_infinite_values_are_refused[-inf]",
       "outcome": "passed",
       "tier": "fast"
@@ -367,8 +1327,62 @@
       "tier": "fast"
     },
     {
-      "area": "sqlearn/preprocessing/_missing",
-      "name": "tests/src/sqlearn/preprocessing/test__missing.py::test_present_nulls_nan_and_null_and_casts_to_double",
+      "area": "sqlearn/preprocessing/impute",
+      "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_a_dict_and_a_value_together_are_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/impute",
+      "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_a_dict_naming_a_missing_column_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/impute",
+      "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_a_dict_with_the_indicator_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/impute",
+      "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_a_search_over_a_dict_step_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/impute",
+      "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_a_string_naming_no_aggregate_is_a_constant",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/impute",
+      "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_a_value_that_cannot_fill_the_column_is_refused[step0-'age'.*DOUBLE.*date]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/impute",
+      "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_a_value_that_cannot_fill_the_column_is_refused[step1-'age'.*DOUBLE.*boolean True]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/impute",
+      "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_a_value_that_cannot_fill_the_column_is_refused[step2-'city'.*VARCHAR.*sq\\\\.agg\\\\.count]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/impute",
+      "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_a_value_that_cannot_fill_the_column_is_refused[step3-'age'.*DOUBLE.*sq\\\\.agg\\\\.distinct]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/impute",
+      "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_a_value_that_cannot_fill_the_column_is_refused[step4-'age'.*sq\\\\.agg\\\\.count]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -386,7 +1400,43 @@
     },
     {
       "area": "sqlearn/preprocessing/impute",
+      "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_constant_fills_an_all_missing_column",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/impute",
+      "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_constant_matches_simple_imputer",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/impute",
+      "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_constants_of_other_types_fill_their_own_columns",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/impute",
+      "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_default_columns_follow_the_value",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/impute",
+      "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_default_names",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/impute",
       "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_default_selects_numeric_columns_only",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/impute",
+      "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_impute_a_dict",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -405,6 +1455,12 @@
     {
       "area": "sqlearn/preprocessing/impute",
       "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_impute_treats_nan_as_missing",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/impute",
+      "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_indicator_only_where_missing",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -440,7 +1496,61 @@
     },
     {
       "area": "sqlearn/preprocessing/impute",
+      "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_keep_with_an_indicator",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/impute",
+      "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_literal_text_constant",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/impute",
       "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_median_of_an_even_count_is_the_exact_median",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/impute",
+      "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_median_with_an_indicator_matches_add_indicator",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/impute",
+      "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_min_and_max_keep_the_type_of_any_column",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/impute",
+      "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_mode_matches_most_frequent_on_numbers_and_text",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/impute",
+      "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_mode_of_an_all_missing_column_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/impute",
+      "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_mode_on_text_and_constant_type_mismatch",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/impute",
+      "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_names_and_cols_together_are_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/impute",
+      "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_repr_is_the_shortest_form_that_rebuilds",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -458,31 +1568,55 @@
     },
     {
       "area": "sqlearn/preprocessing/impute",
+      "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_shortcut_equals_general_form",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/impute",
+      "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_static_or_dynamic_follows_the_indicator",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/impute",
       "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_text_column_is_refused_by_name",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "sqlearn/preprocessing/impute",
-      "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_unknown_strategy_is_refused",
+      "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_the_group_lists_its_shortcuts",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/impute",
+      "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_the_step_pickles",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "sqlearn/preprocessing/onehot",
-      "name": "tests/src/sqlearn/preprocessing/test_onehot.py::test_a_clash_does_not_advise_suffix",
+      "name": "tests/src/sqlearn/preprocessing/test_onehot.py::test_a_later_step_sees_the_numbered_names",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "sqlearn/preprocessing/onehot",
-      "name": "tests/src/sqlearn/preprocessing/test_onehot.py::test_a_null_string_clashing_with_the_null_column_is_refused",
+      "name": "tests/src/sqlearn/preprocessing/test_onehot.py::test_a_new_column_never_renames_an_input_column",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "sqlearn/preprocessing/onehot",
       "name": "tests/src/sqlearn/preprocessing/test_onehot.py::test_an_all_null_column_gives_one_null_column_as_in_sklearn",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/onehot",
+      "name": "tests/src/sqlearn/preprocessing/test_onehot.py::test_an_extra_column_taking_a_learned_name_is_refused",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -501,6 +1635,12 @@
     {
       "area": "sqlearn/preprocessing/onehot",
       "name": "tests/src/sqlearn/preprocessing/test_onehot.py::test_keep_and_categories_learned",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/onehot",
+      "name": "tests/src/sqlearn/preprocessing/test_onehot.py::test_names_are_fixed_at_learn",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -542,6 +1682,12 @@
     },
     {
       "area": "sqlearn/preprocessing/onehot",
+      "name": "tests/src/sqlearn/preprocessing/test_onehot.py::test_onehot_of_case_only_categories",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/onehot",
       "name": "tests/src/sqlearn/preprocessing/test_onehot.py::test_output_is_integer",
       "outcome": "passed",
       "tier": "fast"
@@ -549,6 +1695,12 @@
     {
       "area": "sqlearn/preprocessing/onehot",
       "name": "tests/src/sqlearn/preprocessing/test_onehot.py::test_settings_and_declaration",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/onehot",
+      "name": "tests/src/sqlearn/preprocessing/test_onehot.py::test_text_null_beside_a_real_null",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -626,19 +1778,157 @@
     },
     {
       "area": "sqlearn/preprocessing/scale",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_a_center_or_spread_of_none_means_zero_or_one",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/scale",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_a_dict_naming_a_missing_column_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/scale",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_a_given_center_replaces_the_default",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/scale",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_a_search_over_a_dict_step_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/scale",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_a_search_over_the_method_takes_its_defaults",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/scale",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_a_text_column_is_refused_by_name",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/scale",
       "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_all_missing_after_impute_in_the_same_statement",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "sqlearn/preprocessing/scale",
-      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_all_missing_column",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_all_missing_column[maxabs]",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "sqlearn/preprocessing/scale",
-      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_all_null_column_without_nan",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_all_missing_column[minmax]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/scale",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_all_missing_column[robust]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/scale",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_all_missing_column[standard]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/scale",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_bad_settings_are_refused[<lambda>-'normalise'.*standard]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/scale",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_bad_settings_are_refused[<lambda>-'zscore'.*'standard']",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/scale",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_bad_settings_are_refused[<lambda>-center='middle'.*aggregate]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/scale",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_bad_settings_are_refused[<lambda>-cols=0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/scale",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_bad_settings_are_refused[<lambda>-cols=1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/scale",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_bad_settings_are_refused[<lambda>-dict.*center=]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/scale",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_bad_settings_are_refused[<lambda>-dict.*method=]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/scale",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_bad_settings_are_refused[<lambda>-feature_range=0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/scale",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_bad_settings_are_refused[<lambda>-feature_range=\\\\(1, 0\\\\)]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/scale",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_bad_settings_are_refused[<lambda>-quantile_range.*spread]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/scale",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_bad_settings_are_refused[<lambda>-quantile_range0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/scale",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_bad_settings_are_refused[<lambda>-quantile_range1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/scale",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_bad_settings_are_refused[<lambda>-spread=2\\\\.0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/scale",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_bad_settings_are_refused[<lambda>-sq\\\\.agg\\\\.distinct]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/scale",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_bad_settings_are_refused[<lambda>-sq\\\\.agg\\\\.mean.*method]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -650,19 +1940,37 @@
     },
     {
       "area": "sqlearn/preprocessing/scale",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_default_names",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/scale",
       "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_impute_then_scale_matches_sklearn_pipeline",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "sqlearn/preprocessing/scale",
-      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_infinity_is_refused",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_infinity_is_refused[maxabs]",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "sqlearn/preprocessing/scale",
-      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_integer_column_with_nulls",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_infinity_is_refused[minmax]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/scale",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_infinity_is_refused[robust]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/scale",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_infinity_is_refused[standard]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -680,6 +1988,12 @@
     },
     {
       "area": "sqlearn/preprocessing/scale",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_minmax_with_a_feature_range_matches_sklearn",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/scale",
       "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_one_non_missing_value_scales_to_zero",
       "outcome": "passed",
       "tier": "fast"
@@ -692,19 +2006,85 @@
     },
     {
       "area": "sqlearn/preprocessing/scale",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_repr_is_the_shortest_form_that_rebuilds",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/scale",
       "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_reserved_word_and_space_names_work_and_are_named_in_errors",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "sqlearn/preprocessing/scale",
-      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_scale_matches_standard_scaler",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_robust_with_a_quantile_range_matches_sklearn",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/scale",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_scale_a_dict",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/scale",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_scale_and_impute_integer_and_decimal_columns",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/scale",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_scalers_match_sklearn[maxabs-sklearn_scaler3]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/scale",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_scalers_match_sklearn[minmax-sklearn_scaler2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/scale",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_scalers_match_sklearn[robust-sklearn_scaler1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/scale",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_scalers_match_sklearn[standard-sklearn_scaler0]",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "sqlearn/preprocessing/scale",
       "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_settings_and_declaration",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/scale",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_shortcut_equals_general_form",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/scale",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_the_group_lists_its_shortcuts",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/scale",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_the_step_pickles",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_compose",
+      "name": "tests/src/sqlearn/test__compose.py::test_a_created_name_in_use_is_numbered",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -728,13 +2108,13 @@
     },
     {
       "area": "sqlearn/_compose",
-      "name": "tests/src/sqlearn/test__compose.py::test_a_marker_closed_before_the_end_is_not_a_whole_median",
+      "name": "tests/src/sqlearn/test__compose.py::test_a_marker_sq_agg_did_not_build_is_refused",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "sqlearn/_compose",
-      "name": "tests/src/sqlearn/test__compose.py::test_a_median_inside_an_expression_is_refused",
+      "name": "tests/src/sqlearn/test__compose.py::test_a_median_inside_an_expression_is_computed",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -764,13 +2144,31 @@
     },
     {
       "area": "sqlearn/_compose",
+      "name": "tests/src/sqlearn/test__compose.py::test_a_step_may_return_full_names",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_compose",
+      "name": "tests/src/sqlearn/test__compose.py::test_an_aggregate_of_an_aggregate_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_compose",
       "name": "tests/src/sqlearn/test__compose.py::test_copy_writes_only_the_three_formats",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "sqlearn/_compose",
-      "name": "tests/src/sqlearn/test__compose.py::test_duplicate_output_names_are_refused",
+      "name": "tests/src/sqlearn/test__compose.py::test_fixed_names_are_used_and_recorded",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_compose",
+      "name": "tests/src/sqlearn/test__compose.py::test_fixed_names_must_match_the_outputs",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -794,7 +2192,19 @@
     },
     {
       "area": "sqlearn/_compose",
+      "name": "tests/src/sqlearn/test__compose.py::test_labels_name_the_created_columns",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_compose",
       "name": "tests/src/sqlearn/test__compose.py::test_learning_from_no_rows_names_the_step",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_compose",
+      "name": "tests/src/sqlearn/test__compose.py::test_markers_are_found_outside_quotes_with_their_arguments",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -872,6 +2282,12 @@
     },
     {
       "area": "sqlearn/_compose",
+      "name": "tests/src/sqlearn/test__compose.py::test_one_expression_is_named_as_a_label_even_with_full_names",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_compose",
       "name": "tests/src/sqlearn/test__compose.py::test_one_statement_and_two_give_equal_rows",
       "outcome": "passed",
       "tier": "fast"
@@ -909,6 +2325,12 @@
     {
       "area": "sqlearn/_compose",
       "name": "tests/src/sqlearn/test__compose.py::test_the_learn_statement_must_give_one_row",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_compose",
+      "name": "tests/src/sqlearn/test__compose.py::test_two_columns_of_one_stage_may_not_share_a_name",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1028,36 +2450,6 @@
     },
     {
       "area": "sqlearn/_expr",
-      "name": "tests/src/sqlearn/test__expr.py::test_distinct_values_are_sorted_without_null[('b'), ('a'), (NULL), ('b'), ('NULL')-want0]",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "sqlearn/_expr",
-      "name": "tests/src/sqlearn/test__expr.py::test_distinct_values_are_sorted_without_null[(2.0), ('NaN'::DOUBLE), (-0.0), (0.0), ('NaN'::DOUBLE)-want1]",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "sqlearn/_expr",
-      "name": "tests/src/sqlearn/test__expr.py::test_distinct_values_are_sorted_without_null[(NULL::VARCHAR)-want2]",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "sqlearn/_expr",
-      "name": "tests/src/sqlearn/test__expr.py::test_distinct_values_need_memory_for_the_values_not_the_rows",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "sqlearn/_expr",
-      "name": "tests/src/sqlearn/test__expr.py::test_distinct_values_of_no_rows_is_empty",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "sqlearn/_expr",
       "name": "tests/src/sqlearn/test__expr.py::test_is_missing_catches_null_and_nan",
       "outcome": "passed",
       "tier": "fast"
@@ -1071,6 +2463,36 @@
     {
       "area": "sqlearn/_expr",
       "name": "tests/src/sqlearn/test__expr.py::test_quote_escapes_quotes_and_reserved_words",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_group",
+      "name": "tests/src/sqlearn/test__group.py::test_columns_arg_dict",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_group",
+      "name": "tests/src/sqlearn/test__group.py::test_columns_arg_forms",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_group",
+      "name": "tests/src/sqlearn/test__group.py::test_columns_arg_refuses_names_and_cols_together",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_group",
+      "name": "tests/src/sqlearn/test__group.py::test_columns_arg_takes_cols_keyword_alone",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_group",
+      "name": "tests/src/sqlearn/test__group.py::test_group_repr_and_dir",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1303,6 +2725,42 @@
       "tier": "fast"
     },
     {
+      "area": "sqlearn/_names",
+      "name": "tests/src/sqlearn/test__names.py::test_a_label_follows_its_column",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_names",
+      "name": "tests/src/sqlearn/test__names.py::test_a_number_already_in_use_is_skipped",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_names",
+      "name": "tests/src/sqlearn/test__names.py::test_an_input_column_is_never_renamed",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_names",
+      "name": "tests/src/sqlearn/test__names.py::test_clashes_are_numbered_in_sorted_order",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_names",
+      "name": "tests/src/sqlearn/test__names.py::test_equal_labels_keep_their_order",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_names",
+      "name": "tests/src/sqlearn/test__names.py::test_the_column_itself_keeps_its_name",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
       "area": "sqlearn/_output",
       "name": "tests/src/sqlearn/test__output.py::test_an_unknown_name_lists_the_names",
       "outcome": "passed",
@@ -1388,7 +2846,7 @@
     },
     {
       "area": "sqlearn/_pipeline",
-      "name": "tests/src/sqlearn/test__pipeline.py::test_a_name_collision_suggests_suffix",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_a_kept_name_in_use_is_numbered",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1418,7 +2876,13 @@
     },
     {
       "area": "sqlearn/_pipeline",
-      "name": "tests/src/sqlearn/test__pipeline.py::test_a_new_dynamic_column_may_not_take_a_name_in_use",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_a_new_dynamic_column_never_renames_an_input_column",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_a_plain_list_names_its_steps",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1449,6 +2913,12 @@
     {
       "area": "sqlearn/_pipeline",
       "name": "tests/src/sqlearn/test__pipeline.py::test_a_step_learning_nothing_runs_nothing",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_a_step_may_override_default_name",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1502,7 +2972,19 @@
     },
     {
       "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_default_name_of_a_step_is_step",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
       "name": "tests/src/sqlearn/test__pipeline.py::test_each_input_is_read_once",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_equal_given_names_are_refused",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1532,13 +3014,25 @@
     },
     {
       "area": "sqlearn/_pipeline",
-      "name": "tests/src/sqlearn/test__pipeline.py::test_make_pipeline_names_steps",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_make_pipeline_is_gone",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_numbering_does_not_clash_with_a_given_name",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "sqlearn/_pipeline",
       "name": "tests/src/sqlearn/test__pipeline.py::test_out_pandas_and_out_parquet",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_pairs_and_plain_steps_mix",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1645,6 +3139,12 @@
       "tier": "fast"
     },
     {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_two_models_are_numbered",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
       "area": "sqlearn/_plan",
       "name": "tests/src/sqlearn/test__plan.py::test_a_chain_of_dynamic_steps_adds_runs",
       "outcome": "passed",
@@ -1695,6 +3195,12 @@
     {
       "area": "sqlearn/_plan",
       "name": "tests/src/sqlearn/test__plan.py::test_a_kept_column_takes_its_input_type",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_plan",
+      "name": "tests/src/sqlearn/test__plan.py::test_a_kept_name_in_use_is_numbered_as_the_compositor_does",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1820,6 +3326,12 @@
     },
     {
       "area": "sqlearn/_selectors",
+      "name": "tests/src/sqlearn/test__selectors.py::test_cols_is_a_callable_group",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_selectors",
       "name": "tests/src/sqlearn/test__selectors.py::test_may_match_by_type",
       "outcome": "passed",
       "tier": "fast"
@@ -1892,7 +3404,25 @@
     },
     {
       "area": "sqlearn/_step",
+      "name": "tests/src/sqlearn/test__step.py::test_a_step_from_a_module_level_function_pickles",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_step",
+      "name": "tests/src/sqlearn/test__step.py::test_a_step_from_callables_learns_and_applies",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_step",
       "name": "tests/src/sqlearn/test__step.py::test_a_step_without_inputs_still_classifies",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_step",
+      "name": "tests/src/sqlearn/test__step.py::test_an_apply_of_one_argument_is_allowed",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1911,6 +3441,12 @@
     {
       "area": "sqlearn/_step",
       "name": "tests/src/sqlearn/test__step.py::test_an_undeclared_scale_is_static",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_step",
+      "name": "tests/src/sqlearn/test__step.py::test_callables_classify_by_what_apply_returns",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1940,7 +3476,7 @@
     },
     {
       "area": "sqlearn/_step",
-      "name": "tests/src/sqlearn/test__step.py::test_output_names",
+      "name": "tests/src/sqlearn/test__step.py::test_output_labels",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1970,7 +3506,19 @@
     },
     {
       "area": "sqlearn/_step",
+      "name": "tests/src/sqlearn/test__step.py::test_the_callables_are_settings",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_step",
       "name": "tests/src/sqlearn/test__step.py::test_the_default_learn_is_empty",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_step",
+      "name": "tests/src/sqlearn/test__step.py::test_two_lambdas_never_share_a_classification",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -2006,6 +3554,12 @@
     },
     {
       "area": "sqlearn/_store",
+      "name": "tests/src/sqlearn/test__store.py::test_redefining_a_lambda_relearns",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_store",
       "name": "tests/src/sqlearn/test__store.py::test_same_named_classes_get_different_keys",
       "outcome": "passed",
       "tier": "fast"
@@ -2029,6 +3583,84 @@
       "tier": "fast"
     },
     {
+      "area": "sqlearn/errors",
+      "name": "tests/src/sqlearn/test_errors.py::test_errors_holds_the_exceptions_and_warnings",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/fn",
+      "name": "tests/src/sqlearn/test_fn.py::test_const_and_is_missing_are_here",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/fn",
+      "name": "tests/src/sqlearn/test_fn.py::test_functions_build_the_expression[<lambda>-COALESCE(\"a\", 0)]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/fn",
+      "name": "tests/src/sqlearn/test_fn.py::test_functions_build_the_expression[<lambda>-abs(\"a\")]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/fn",
+      "name": "tests/src/sqlearn/test_fn.py::test_functions_build_the_expression[<lambda>-exp(\"a\")]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/fn",
+      "name": "tests/src/sqlearn/test_fn.py::test_functions_build_the_expression[<lambda>-greatest(\"a\", 0)]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/fn",
+      "name": "tests/src/sqlearn/test_fn.py::test_functions_build_the_expression[<lambda>-least(\"a\", 10)]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/fn",
+      "name": "tests/src/sqlearn/test_fn.py::test_functions_build_the_expression[<lambda>-ln(\"a\")]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/fn",
+      "name": "tests/src/sqlearn/test_fn.py::test_functions_build_the_expression[<lambda>-log10(\"a\")]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/fn",
+      "name": "tests/src/sqlearn/test_fn.py::test_functions_build_the_expression[<lambda>-lower(\"a\")]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/fn",
+      "name": "tests/src/sqlearn/test_fn.py::test_functions_build_the_expression[<lambda>-sqrt(\"a\")]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/fn",
+      "name": "tests/src/sqlearn/test_fn.py::test_functions_build_the_expression[<lambda>-upper(\"a\")]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/fn",
+      "name": "tests/src/sqlearn/test_fn.py::test_functions_compute",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
       "area": "sqlearn/init",
       "name": "tests/src/sqlearn/test_init.py::test_the_package_imports",
       "outcome": "passed",
@@ -2042,7 +3674,19 @@
     },
     {
       "area": "sqlearn/init",
+      "name": "tests/src/sqlearn/test_init.py::test_the_top_level_holds_only_the_builders",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/init",
       "name": "tests/src/sqlearn/test_init.py::test_the_version_is_a_string",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/out",
+      "name": "tests/src/sqlearn/test_out.py::test_out_holds_the_file_builders",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -2173,6 +3817,12 @@
       "tier": "fast"
     },
     {
+      "area": "sqlearn/store",
+      "name": "tests/src/sqlearn/test_store.py::test_store_clear_relearns",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
       "area": "environment",
       "name": "tests/test_environment.py::test_duckdb_answers_a_query",
       "outcome": "passed",
@@ -2205,6 +3855,12 @@
     {
       "area": "validation/_cases",
       "name": "tests/validation/test__cases.py::test_a_case_records_every_field",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_cases",
+      "name": "tests/validation/test__cases.py::test_a_recorded_case_has_no_bound_and_never_fails",
       "outcome": "passed",
       "tier": "fast"
     },

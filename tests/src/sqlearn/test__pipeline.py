@@ -126,14 +126,16 @@ def test_a_name_not_in_the_data_is_refused(given):
     with pytest.raises(
         sq.errors.StepError, match=r"s \(step 1\).*'incme'.*'age', 'income'.*Fix:"
     ):
-        sq.Pipeline([("s", sq.Scale(cols=given))]).learn(df)
+        sq.Pipeline([("s", sq.scale.standard(cols=given))]).learn(df)
 
 
 def test_a_name_made_by_an_earlier_step_is_accepted():
     """A name a dynamic step creates is found once that step has learned."""
     df = pd.DataFrame({"city": ["a", "b"], "x": [1.0, 2.0]})
-    pipe = sq.Pipeline([("oh", sq.OneHot(["city"])), ("s", sq.Scale(["city_a"]))])
-    assert list(pipe.learn(df)["s"].mean_) == ["city_a"]
+    pipe = sq.Pipeline(
+        [("oh", sq.OneHot(["city"])), ("s", sq.scale.standard(["city_a"]))]
+    )
+    assert list(pipe.learn(df)["s"].center_) == ["city_a"]
 
 
 def test_keep_adds_a_named_column(people):
@@ -484,7 +486,7 @@ def churn_pipe(model):
         [
             ("impute", sq.impute.median(cols=sq.cols.numeric())),
             ("onehot", sq.OneHot(["city"])),
-            ("scale", sq.Scale(sq.cols.numeric())),
+            ("scale", sq.scale.standard(sq.cols.numeric())),
             ("model", model),
         ]
     )
@@ -549,9 +551,11 @@ def test_train_predict_matches_sklearn_pipeline():
 def test_the_target_is_never_scaled():
     """A numeric target is set aside: no selector matches it, no step sees it."""
     frame = pd.DataFrame({"x": [1.0, 2.0, 3.0, 4.0], "y": [0.0, 1.0, 0.0, 1.0]})
-    pipe = sq.Pipeline([("scale", sq.Scale(sq.cols.numeric())), ("model", Echo())])
+    pipe = sq.Pipeline(
+        [("scale", sq.scale.standard(sq.cols.numeric())), ("model", Echo())]
+    )
     pipe.train(frame, target="y")
-    assert pipe["scale"].mean_ == {"x": 2.5}
+    assert pipe["scale"].center_ == {"x": 2.5}
     assert pipe.columns_out_ == ["x"]
     assert pipe["model"].shape_ == (4, 1)
     assert sorted(pipe["model"].y_.tolist()) == [0.0, 0.0, 1.0, 1.0]
@@ -651,12 +655,12 @@ def test_train_and_predict_refuse_mistakes():
 def test_a_failed_retrain_keeps_the_trained_pipeline():
     """A retrain refused before fit leaves the old values and the old model."""
     frame = pd.DataFrame({"x": [3.0, 1.0, 2.0], "y": [1, 0, 1]})
-    pipe = sq.Pipeline([("scale", sq.Scale()), ("model", Echo())])
+    pipe = sq.Pipeline([("scale", sq.scale.standard()), ("model", Echo())])
     pipe.train(frame, target="y")
     gaps = connection().sql("SELECT * FROM (VALUES (100.0, 0), (300.0, NULL)) t(x, y)")
     with pytest.raises(sq.errors.SqlearnError, match="missing"):
         pipe.train(gaps, target="y")
-    assert pipe["scale"].mean_ == {"x": 2.0}
+    assert pipe["scale"].center_ == {"x": 2.0}
     assert pipe["model"].y_.tolist() == [1, 0, 1]
     got = [r[0] for r in pipe.predict(pd.DataFrame({"x": [2.0]})).fetchall()]
     assert got == [0.0]
@@ -679,11 +683,11 @@ class Failing(Echo):
 def test_a_failed_fit_leaves_the_pipeline_untrained():
     """When fit itself fails, predict is refused rather than run half-changed."""
     frame = pd.DataFrame({"x": [3.0, 1.0, 2.0], "y": [1, 0, 1]})
-    pipe = sq.Pipeline([("scale", sq.Scale()), ("model", Failing())])
+    pipe = sq.Pipeline([("scale", sq.scale.standard()), ("model", Failing())])
     pipe.train(frame, target="y")
     with pytest.raises(ValueError, match="cannot fit"):
         pipe.train(pd.DataFrame({"x": [100.0, 300.0], "y": [0, 1]}), target="y")
-    assert pipe["scale"].mean_ == {"x": 2.0}
+    assert pipe["scale"].center_ == {"x": 2.0}
     with pytest.raises(sq.errors.SqlearnError, match="not been trained"):
         pipe.predict(frame)
 
@@ -691,7 +695,7 @@ def test_a_failed_fit_leaves_the_pipeline_untrained():
 def test_predict_refuses_data_missing_a_trained_column():
     """A column passed through to the model must be there at predict."""
     frame = pd.DataFrame({"x": [1.0, 2.0], "z": [5.0, 6.0], "y": [0, 1]})
-    pipe = sq.Pipeline([("scale", sq.Scale(["x"])), ("model", Echo())])
+    pipe = sq.Pipeline([("scale", sq.scale.standard(["x"])), ("model", Echo())])
     pipe.train(frame, target="y")
     with pytest.raises(sq.errors.SqlearnError, match="no column 'z'"):
         pipe.predict(pd.DataFrame({"x": [1.0]}))

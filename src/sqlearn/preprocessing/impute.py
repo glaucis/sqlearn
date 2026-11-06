@@ -15,7 +15,11 @@ from sqlearn._group import Group, call_repr, columns_arg
 from sqlearn._selectors import Schema, Selector, _numeric, _string, to_selector
 from sqlearn._step import Learned, Output, Step
 from sqlearn.agg import aggregates as agg
-from sqlearn.preprocessing._missing import refuse_all_missing, refuse_infinite
+from sqlearn.preprocessing._missing import (
+    infinite,
+    refuse_all_missing,
+    refuse_infinite,
+)
 
 __all__ = ["Impute", "ImputeGroup", "impute"]
 
@@ -394,11 +398,7 @@ class Impute(Step):
         if isinstance(value, agg.Aggregate):
             out["value"] = value(x)
             if value.numeric_only:
-                infinite = duckdb.CaseExpression(
-                    duckdb.FunctionExpression("isinf", x.cast("DOUBLE")),
-                    const(float("inf")),
-                ).otherwise(const(0.0))
-                out["infinite"] = duckdb.FunctionExpression("max", infinite)
+                out["infinite"] = infinite(x)
         if self.indicator:
             out["missing"] = duckdb.FunctionExpression("bool_or", _missing(x))
         return out

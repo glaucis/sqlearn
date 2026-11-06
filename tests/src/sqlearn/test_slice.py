@@ -55,7 +55,7 @@ def run_the_slice():
             ("impute", sq.impute.median(cols=sq.cols.numeric())),
             ("onehot", sq.OneHot(cols=["city"])),
             ("ordinal", sq.Ordinal(cols=["plan"])),
-            ("scale", sq.Scale(cols=sq.cols.numeric())),
+            ("scale", sq.scale.standard(cols=sq.cols.numeric())),
             ("model", LogisticRegression()),
         ]
     )
@@ -129,14 +129,14 @@ RUNS = [
         # Static steps only: everything in one run.
         lambda: [
             ("impute", sq.impute.median(["age", "income"])),
-            ("scale", sq.Scale(cols=["age", "income"])),
+            ("scale", sq.scale.standard(cols=["age", "income"])),
         ],
         1,
         id="static-by-name",
     ),
     pytest.param(
         # Static steps only, chained through numeric(): one run.
-        lambda: [("impute", sq.impute()), ("scale", sq.Scale())],
+        lambda: [("impute", sq.impute()), ("scale", sq.scale.standard())],
         1,
         id="static-numeric",
     ),
@@ -160,13 +160,19 @@ RUNS = [
     ),
     pytest.param(
         # Scale names a column that exists from the start: no wait.
-        lambda: [("onehot", sq.OneHot(cols=["city"])), ("scale", sq.Scale(["age"]))],
+        lambda: [
+            ("onehot", sq.OneHot(cols=["city"])),
+            ("scale", sq.scale.standard(["age"])),
+        ],
         1,
         id="known-name-does-not-wait",
     ),
     pytest.param(
         # Scale names OneHot's new columns: run 1 OneHot, run 2 Scale.
-        lambda: [("onehot", sq.OneHot(cols=["city"])), ("scale", sq.Scale(CITIES))],
+        lambda: [
+            ("onehot", sq.OneHot(cols=["city"])),
+            ("scale", sq.scale.standard(CITIES)),
+        ],
         2,
         id="new-names-wait",
     ),
@@ -177,7 +183,7 @@ RUNS = [
             ("impute", sq.impute()),
             ("onehot", sq.OneHot(cols=["city"])),
             ("ordinal", sq.Ordinal(cols=["plan"])),
-            ("scale", sq.Scale()),
+            ("scale", sq.scale.standard()),
         ],
         2,
         id="the-slice",
@@ -186,9 +192,9 @@ RUNS = [
         # ADR 0018's own example: the two chains share their runs, two not three.
         lambda: [
             ("onehot_city", sq.OneHot(cols=["city"])),
-            ("scale_city", sq.Scale(CITIES)),
+            ("scale_city", sq.scale.standard(CITIES)),
             ("onehot_plan", sq.OneHot(cols=["plan"])),
-            ("scale_plan", sq.Scale(PLANS)),
+            ("scale_plan", sq.scale.standard(PLANS)),
         ],
         2,
         id="two-chains-share-runs",
@@ -200,7 +206,7 @@ RUNS = [
         lambda: [
             ("ordinal", sq.Ordinal(cols=["plan"])),
             ("onehot", sq.OneHot(cols=["plan"])),
-            ("scale", sq.Scale()),
+            ("scale", sq.scale.standard()),
         ],
         3,
         id="chain-of-dynamic",
@@ -220,7 +226,7 @@ RUNS = [
         # OneHot's INTEGER columns, so Scale waits.
         lambda: [
             ("onehot", sq.OneHot(cols=["city"])),
-            ("scale", sq.Scale(cols=sq.cols.numeric() & ~sq.cols("visits"))),
+            ("scale", sq.scale.standard(cols=sq.cols.numeric() & ~sq.cols("visits"))),
         ],
         2,
         id="combined-selector-waits",
@@ -239,7 +245,7 @@ RUNS = [
     ),
     pytest.param(
         # An undeclared dynamic user step: numeric() waits for it.
-        lambda: [("encode", MyEncoder()), ("scale", sq.Scale())],
+        lambda: [("encode", MyEncoder()), ("scale", sq.scale.standard())],
         2,
         id="undeclared-dynamic-numeric-waits",
     ),
@@ -260,7 +266,7 @@ RUNS = [
     ),
     pytest.param(
         # ...and numeric() still does.
-        lambda: [("encode", DeclaredEncoder()), ("scale", sq.Scale())],
+        lambda: [("encode", DeclaredEncoder()), ("scale", sq.scale.standard())],
         2,
         id="declared-dynamic-numeric-waits",
     ),
@@ -371,7 +377,7 @@ def test_preparation_runs_larger_than_memory(tmp_path, capsys):
             ("impute", sq.impute.median(cols=sq.cols.numeric())),
             ("onehot", sq.OneHot(cols=["city"])),
             ("ordinal", sq.Ordinal(cols=["plan"])),
-            ("scale", sq.Scale(cols=sq.cols.numeric())),
+            ("scale", sq.scale.standard(cols=sq.cols.numeric())),
         ]
     )
     out = tmp_path / "prepared.parquet"
@@ -395,6 +401,6 @@ def test_preparation_runs_larger_than_memory(tmp_path, capsys):
     )
     filled = pipe["impute"].value_["age"]
     (mean,) = con.sql(f"SELECT avg(coalesce(age, {filled})) FROM {data}").fetchall()[0]
-    assert pipe["scale"].mean_["age"] == pytest.approx(mean, rel=1e-9)
+    assert pipe["scale"].center_["age"] == pytest.approx(mean, rel=1e-9)
     prepared = con.sql(f"SELECT count(*) FROM read_parquet('{out}')").fetchall()
     assert prepared == [(20_000_000,)]

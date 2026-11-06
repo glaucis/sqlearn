@@ -1,7 +1,7 @@
 """Validate the slice's preparation, whole, against scikit-learn's pipeline.
 
-sqlearn: ``impute.median → OneHot(city) → Ordinal(plan) → Scale(numeric())``,
-where Scale also scales the new one-hot and ordinal columns, being numeric.
+sqlearn: ``impute.median → OneHot(city) → Ordinal(plan) → scale.standard(numeric())``,
+where the scaler also scales the new one-hot and ordinal columns, being numeric.
 scikit-learn's equivalent: a ``ColumnTransformer`` of ``SimpleImputer``,
 ``OneHotEncoder`` and ``OrdinalEncoder``, then ``StandardScaler`` over every
 column. Both learn on the data and are applied to it; each output column's
@@ -82,7 +82,7 @@ def _sqlearn(columns: dict[str, tuple]) -> pd.DataFrame:
             ("impute", sq.impute.median(cols=sq.cols.numeric())),
             ("onehot", sq.OneHot(cols=["city"])),
             ("ordinal", sq.Ordinal(cols=["plan"])),
-            ("scale", sq.Scale(cols=sq.cols.numeric())),
+            ("scale", sq.scale.standard(cols=sq.cols.numeric())),
         ]
     ).learn(rel)
     return pipe.apply(rel, out="pandas")
