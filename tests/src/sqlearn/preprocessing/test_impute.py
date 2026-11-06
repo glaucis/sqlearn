@@ -139,6 +139,8 @@ def test_a_dict_and_a_value_together_are_refused():
     """The dict gives the values; ``value=`` beside it is refused."""
     with pytest.raises(SqlearnError, match="dict"):
         sq.impute({"age": "median"}, value="mean")
+    with pytest.raises(SqlearnError, match=r"dict.*value='median'"):
+        sq.impute({"age": "mean"}, value="median")  # the default, given
     with pytest.raises(SqlearnError, match="cols"):
         Impute(cols=["income"], value={"age": "median"})
 

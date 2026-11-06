@@ -4,7 +4,25 @@ from collections.abc import Sequence
 
 from sqlearn._errors import SqlearnError
 
-__all__ = ["Group", "call_repr", "column_names", "columns_arg"]
+__all__ = ["Group", "Unset", "call_repr", "column_names", "columns_arg"]
+
+
+class Unset(str):
+    """A text setting's default, told apart from the same text given.
+
+    It is the text itself, so the step reads it as given; only ``is`` tells
+    it from a value passed, which lets a group refuse a setting given beside
+    a dict that sets it per column.
+
+    Examples
+    --------
+    >>> from sqlearn._group import Unset
+    >>> median = Unset("median")
+    >>> median == "median", median is "median"
+    (True, False)
+    """
+
+    __slots__ = ()
 
 
 def columns_arg(names: tuple[object, ...], cols: object, *, allow_dict: bool) -> object:

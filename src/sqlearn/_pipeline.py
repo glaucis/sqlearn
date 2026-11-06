@@ -66,11 +66,19 @@ def _name_steps(
 
     A plain item is named by its `default_name()`, or "model" for a model. A
     default name used twice, or already given, is numbered from 1 in order,
-    skipping any name taken.
+    skipping any name taken. A tuple that is not a pair is refused.
     """
     pairs: list[tuple[str | None, Step | object]] = []
-    for item in items:
+    for position, item in enumerate(items, start=1):
         if isinstance(item, tuple):
+            if len(item) != 2:
+                msg = (
+                    f"Pipeline got item {position} as {item!r}, a tuple of "
+                    f"{len(item)}. Why: a named step is a pair (name, step). "
+                    "Fix: give (name, step), or the step alone to name it by "
+                    "default."
+                )
+                raise SqlearnError(msg)
             pairs.append((item[0], item[1]))
         else:
             pairs.append((None, item))

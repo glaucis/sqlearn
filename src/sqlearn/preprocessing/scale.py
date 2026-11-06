@@ -13,7 +13,7 @@ from duckdb.sqltypes import DuckDBPyType
 
 from sqlearn._errors import SqlearnError, StepError
 from sqlearn._expr import const, is_missing
-from sqlearn._group import Group, call_repr, column_names, columns_arg
+from sqlearn._group import Group, Unset, call_repr, column_names, columns_arg
 from sqlearn._selectors import Schema, Selector, _numeric, to_selector
 from sqlearn._step import Learned, Step
 from sqlearn.agg import aggregates as agg
@@ -27,6 +27,9 @@ __all__ = ["DEFAULT", "Normalize", "Scale", "ScaleGroup", "scale"]
 
 DEFAULT = "default"
 """The setting that takes the method's own centre, spread or feature range."""
+
+_STANDARD = Unset("standard")
+"""The default method of `sq.scale`, told apart from ``method="standard"`` given."""
 
 Part = agg.Aggregate | str | None
 """A centre or spread: an aggregate, its name, None, or `DEFAULT`."""
@@ -803,7 +806,7 @@ class ScaleGroup(Group):
     def __call__(
         self,
         *names: object,
-        method: str = "standard",
+        method: str = _STANDARD,
         center: Part = DEFAULT,
         spread: Part = DEFAULT,
         feature_range: Range = DEFAULT,
@@ -816,7 +819,7 @@ class ScaleGroup(Group):
     def __call__(
         self,
         *names: object,
-        method: str = "standard",
+        method: str = _STANDARD,
         center: Part = DEFAULT,
         spread: Part = DEFAULT,
         feature_range: Range = DEFAULT,
@@ -868,9 +871,9 @@ class ScaleGroup(Group):
         sq.scale.minmax(cols='age', feature_range=(-1, 1))
         """
         chosen = columns_arg(names, cols, allow_dict=True)
-        given: str | Mapping[str, str] = method
+        given: str | Mapping[str, str] = str(method)  # the default as if given
         if isinstance(chosen, dict):
-            if method != "standard":
+            if method is not _STANDARD:
                 msg = (
                     f"sq.scale got the dict {chosen!r} and method={method!r}. "
                     "Why: the dict gives each column its method. Fix: leave "

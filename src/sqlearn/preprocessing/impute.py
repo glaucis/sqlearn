@@ -11,7 +11,7 @@ from duckdb.sqltypes import INTEGER, DuckDBPyType
 
 from sqlearn._errors import SqlearnError, StepError
 from sqlearn._expr import const, is_missing
-from sqlearn._group import Group, call_repr, column_names, columns_arg
+from sqlearn._group import Group, Unset, call_repr, column_names, columns_arg
 from sqlearn._selectors import Schema, Selector, _numeric, _string, to_selector
 from sqlearn._step import Learned, Output, Step
 from sqlearn.agg import aggregates as agg
@@ -53,6 +53,9 @@ class _Text(str):
     def __repr__(self) -> str:
         return f"sq.fn.const({str.__repr__(self)})"
 
+
+_MEDIAN = Unset("median")
+"""The default value of `sq.impute`, told apart from ``value="median"`` given."""
 
 _REFUSED = object()
 """Marks an expression that holds no constant."""
@@ -526,7 +529,7 @@ class ImputeGroup(Group):
     def __call__(
         self,
         *names: object,
-        value: object = "median",
+        value: object = _MEDIAN,
         indicator: bool = False,
         cols: Selector | str | Sequence[str] | None = None,
         keep: bool = False,
@@ -567,7 +570,7 @@ class ImputeGroup(Group):
         """
         chosen = columns_arg(names, cols, allow_dict=True)
         if isinstance(chosen, dict):
-            if not (isinstance(value, str) and value == "median"):
+            if value is not _MEDIAN:
                 msg = (
                     f"sq.impute got the dict {chosen!r} and value={value!r}. "
                     "Why: the dict gives each column its value. Fix: leave "
@@ -576,6 +579,8 @@ class ImputeGroup(Group):
                 raise SqlearnError(msg)
             value = chosen
             chosen = None
+        elif value is _MEDIAN:
+            value = "median"  # as if given
         return Impute(
             cols=cast("str | list[str] | Selector | None", chosen),
             value=value,

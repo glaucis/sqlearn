@@ -353,6 +353,13 @@ def test_a_step_may_override_default_name():
     assert [n for n, _ in pipe.steps] == ["named-1", "named-2", "step"]
 
 
+@pytest.mark.parametrize("item", [("a", sq.Step("a"), "extra"), ("a",), ()])
+def test_a_tuple_that_is_not_a_pair_is_refused(item):
+    """A named step is a pair (name, step); a longer or shorter tuple is refused."""
+    with pytest.raises(sq.errors.SqlearnError, match=r"item 1 .*\(name, step\)"):
+        sq.Pipeline([item])
+
+
 def test_pairs_and_plain_steps_mix():
     """Given names stay; plain items take the default."""
     pipe = sq.Pipeline([("first", sq.Step("a")), sq.Step("b")])

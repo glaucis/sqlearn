@@ -238,6 +238,7 @@ def test_scale_a_dict():
         (lambda: sq.scale({"a": "normalise"}), r"'normalise'.*standard"),
         (lambda: sq.scale({"a": sq.agg.mean}), r"sq\.agg\.mean.*method"),
         (lambda: sq.scale({"a": "robust"}, method="minmax"), r"dict.*method="),
+        (lambda: sq.scale({"a": "robust"}, method="standard"), r"dict.*method="),
         (lambda: sq.scale({"a": "robust"}, center=sq.agg.mean), r"dict.*center="),
         (lambda: Scale(cols=["b"], method={"a": "robust"}), r"cols="),
         (lambda: sq.scale(method="zscore"), r"'zscore'.*'standard'"),
