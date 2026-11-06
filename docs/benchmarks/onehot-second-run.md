@@ -94,7 +94,7 @@ MB is above it, the rest below):
 
 The MB-read columns of the two tables are not comparable: without a limit they
 count file reads only; under a limit they also count what DuckDB reads back from
-its spill files (295 to 472 MB against a 29.7 MB file).
+its spill files (293 to 446 MB against a 29.7 MB file).
 
 With eight threads the lowest limit that passes, of those tried, is 256 MB; at
 128 MB and below both pipelines run out of memory. With one thread the lowest
