@@ -40,10 +40,54 @@ from sqlearn._selectors import Schema, _Cols, _is_numeric, to_selector
 from sqlearn._step import Step
 from sqlearn._store import STORE, Entry, FoldKey, StepKey, step_key
 
-__all__ = ["Pipeline", "make_pipeline"]
+__all__ = ["Pipeline"]
 
 _ROW = "__sqlearn_row"
 """The column numbering the rows that feed `predict`; never handed back."""
+
+
+def _default_name(step: Step | object) -> str:
+    """Return the name a plain item gets: "model" for a model, else the step's."""
+    if isinstance(step, Step) and not is_model(step):
+        return step.default_name()
+    return "model"
+
+
+def _name_steps(
+    items: Sequence[Step | object | tuple[str, Step | object]],
+) -> list[tuple[str, Step | object]]:
+    """Name the plain items of a list, leaving given names as they are.
+
+    A plain item is named by its `default_name()`, or "model" for a model. A
+    default name used twice, or already given, is numbered from 1 in order,
+    skipping any name taken.
+    """
+    pairs: list[tuple[str | None, Step | object]] = []
+    for item in items:
+        if isinstance(item, tuple):
+            pairs.append((item[0], item[1]))
+        else:
+            pairs.append((None, item))
+    given = {n for n, _ in pairs if n is not None}
+    defaults = [None if n is not None else _default_name(s) for n, s in pairs]
+    counts = Counter(d for d in defaults if d is not None)
+    taken = set(given)
+    seen: Counter[str] = Counter()
+    named: list[tuple[str, Step | object]] = []
+    for (n, step), base in zip(pairs, defaults, strict=True):
+        if n is None:
+            assert base is not None
+            if counts[base] > 1 or base in given:
+                while True:
+                    seen[base] += 1
+                    n = f"{base}-{seen[base]}"
+                    if n not in taken:
+                        break
+            else:
+                n = base
+            taken.add(n)
+        named.append((n, step))
+    return named
 
 
 def _kind(dtype: DuckDBPyType) -> str:
@@ -211,8 +255,10 @@ class Pipeline:
 
     Parameters
     ----------
-    steps : sequence of (str, Step)
-        The named steps, in order. Names must be unique.
+    steps : sequence of Step or model or (str, Step or model)
+        The steps, in order. A plain item is named by its `default_name()`
+        ("model" for a model); names that clash are numbered from 1 in order
+        (``step-1``, ``step-2``). Given names must be unique.
 
     Attributes
     ----------
@@ -245,15 +291,17 @@ class Pipeline:
     [(-1.0,), (1.0,)]
     """
 
-    def __init__(self, steps: Sequence[tuple[str, Step | object]]) -> None:
-        self.steps = list(steps)
+    def __init__(
+        self, steps: Sequence[Step | object | tuple[str, Step | object]]
+    ) -> None:
+        self.steps = _name_steps(steps)
         clash = [
             n for n, count in Counter(n for n, _ in self.steps).items() if count > 1
         ]
         if clash:
             msg = (
                 f"two steps are named {clash[0]!r}; each step needs its own "
-                "name. Fix: rename one, or build the pipeline with make_pipeline."
+                "name. Fix: rename one."
             )
             raise SqlearnError(msg)
         self.runs_: list[Run] = []
@@ -851,37 +899,3 @@ class Pipeline:
         rel = received(con, aside[_ROW], model.estimator.predict(x))
         self.runs_ = [Run([sql])]
         return to_output(rel, out if out is not None else get_config().out)
-
-
-def make_pipeline(*steps: Step | object) -> Pipeline:
-    """Build a pipeline naming each step after its class, lowercased.
-
-    Names that clash are numbered from 1 in order (``scale-1``, ``scale-2``),
-    as scikit-learn's ``make_pipeline`` does.
-
-    Parameters
-    ----------
-    *steps : Step
-        The steps, in order.
-
-    Returns
-    -------
-    Pipeline
-        The pipeline.
-
-    Examples
-    --------
-    >>> import sqlearn as sq
-    >>> [name for name, _ in sq.make_pipeline(sq.Step(), sq.Step()).steps]
-    ['step-1', 'step-2']
-    """
-    names = [type(s).__name__.lower() for s in steps]
-    counts = Counter(names)
-    seen: Counter[str] = Counter()
-    named: list[tuple[str, Step | object]] = []
-    for name, step in zip(names, steps, strict=True):
-        if counts[name] > 1:
-            seen[name] += 1
-            name = f"{name}-{seen[name]}"
-        named.append((name, step))
-    return Pipeline(named)

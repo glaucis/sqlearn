@@ -315,11 +315,66 @@ def test_sql_duckdb_refuses_names_the_step(people):
         pipe.learn(people)
 
 
-def test_make_pipeline_names_steps():
-    """Steps are named after their class, numbered when names clash."""
-    pipe = sq.make_pipeline(MyScale(), MyEncoder(), MyScale())
-    assert [name for name, _ in pipe.steps] == ["myscale-1", "myencoder", "myscale-2"]
-    assert list(pipe.named_steps) == ["myscale-1", "myencoder", "myscale-2"]
+class _Model:
+    """A stand-in model: anything with fit and predict is one."""
+
+    def fit(self, x, y):
+        return self
+
+    def predict(self, x):
+        return x
+
+
+def test_a_plain_list_names_its_steps():
+    """Plain steps are named by default_name, a model "model"; clashes numbered."""
+    pipe = sq.Pipeline([MyScale(), MyEncoder(), MyScale(), _Model()])
+    assert [n for n, _ in pipe.steps] == ["step-1", "step-2", "step-3", "model"]
+    assert list(pipe.named_steps) == ["step-1", "step-2", "step-3", "model"]
+
+
+def test_default_name_of_a_step_is_step():
+    """The base step's name in a plain list is "step"."""
+    assert sq.Step().default_name() == "step"
+
+
+def test_a_step_may_override_default_name():
+    """A step's own default_name is what a plain list uses."""
+
+    class Named(sq.Step):
+        def default_name(self):
+            return "named"
+
+    pipe = sq.Pipeline([Named(), Named(), sq.Step()])
+    assert [n for n, _ in pipe.steps] == ["named-1", "named-2", "step"]
+
+
+def test_pairs_and_plain_steps_mix():
+    """Given names stay; plain items take the default."""
+    pipe = sq.Pipeline([("first", sq.Step("a")), sq.Step("b")])
+    assert [n for n, _ in pipe.steps] == ["first", "step"]
+
+
+def test_numbering_does_not_clash_with_a_given_name():
+    """A plain step numbered into a given name is moved on to the next free one."""
+    pipe = sq.Pipeline([("step-1", sq.Step()), sq.Step(), sq.Step()])
+    assert [n for n, _ in pipe.steps] == ["step-1", "step-2", "step-3"]
+
+
+def test_two_models_are_numbered():
+    """Two models in a list are model-1 and model-2."""
+    pipe = sq.Pipeline([_Model(), _Model()])
+    assert [n for n, _ in pipe.steps] == ["model-1", "model-2"]
+
+
+def test_equal_given_names_are_refused():
+    """Two equal given names are refused, as before."""
+    with pytest.raises(sq.errors.SqlearnError, match="'a'"):
+        sq.Pipeline([("a", sq.Step()), ("a", sq.Step())])
+
+
+def test_make_pipeline_is_gone():
+    """The function is removed with no alias."""
+    assert not hasattr(sq, "make_pipeline")
 
 
 def test_a_frame_result_outlives_the_frame():

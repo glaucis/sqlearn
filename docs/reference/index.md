@@ -14,7 +14,6 @@ The API of the sqlearn package, generated from its docstrings.
 
    sqlearn
    sqlearn.Pipeline
-   sqlearn.make_pipeline
    sqlearn.Step
    sqlearn.Learned
    sqlearn.Impute

@@ -150,11 +150,12 @@ sq.impute({"age": "median", "income": "mean", "city": "unknown"})  # a dict
 
 - `sq.Pipeline([step, step, ..., model])` takes a plain list; `(name, step)`
   pairs still work and may be mixed with plain steps.
-- **Names:** a step built by a shortcut is named after the shortcut
-  (`robust`, `median`, `onehot`); one built by the general form after its
-  group (`impute`, `scale`); a model `model`. Clashes are numbered as the
-  core's `make_pipeline` does (`median-1`, `median-2`). These names key
-  `params` (`robust__center`) and `pipe["robust"]` (spec's call).
+- **Names:** a step is named after the shortcut its settings match
+  (`robust`, `median`, `onehot`), else after its group (`impute`, `scale`);
+  a model `model`. A shortcut and the general form build equal steps, so
+  `sq.scale(method="robust")` is named `robust` too (spec's call). Clashes
+  are numbered from 1 (`median-1`, `median-2`). These names key `params`
+  (`robust__center`) and `pipe["robust"]` (spec's call).
 - `sq.make_pipeline` is removed: a plain list does its job (spec's call).
 
 ### 3.5 One's own step

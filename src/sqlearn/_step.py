@@ -247,6 +247,25 @@ class Step:
         """
         return x
 
+    def default_name(self) -> str:
+        """Return the name this step gets in a pipeline built from a plain list.
+
+        A group's step returns the shortcut its settings match, else the
+        group's name; the base step returns "step".
+
+        Returns
+        -------
+        str
+            The name.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> sq.Step().default_name()
+        'step'
+        """
+        return "step"
+
     def settings(self) -> dict[str, object]:
         """Return the ``__init__`` parameters with their current values.
 

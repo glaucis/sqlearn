@@ -13,7 +13,7 @@ from sqlearn import agg, errors, fn, metrics, out, store
 from sqlearn._config import get_config, set_config
 from sqlearn._model import Model
 from sqlearn._output import Output
-from sqlearn._pipeline import Pipeline, make_pipeline
+from sqlearn._pipeline import Pipeline
 from sqlearn._selectors import cols
 from sqlearn._step import Learned, Step
 from sqlearn.model_selection import Grid, KFold, Search, range
@@ -38,7 +38,6 @@ __all__ = [
     "errors",
     "fn",
     "get_config",
-    "make_pipeline",
     "metrics",
     "out",
     "range",

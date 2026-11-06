@@ -31,6 +31,7 @@ def test_the_top_level_holds_only_the_builders():
 
     public = {n for n in dir(sq) if not n.startswith("_")}
     for gone in [
+        "make_pipeline",
         "numeric",
         "string",
         "const",
