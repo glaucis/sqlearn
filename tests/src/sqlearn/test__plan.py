@@ -386,3 +386,20 @@ def test_a_declared_static_step_whose_apply_fails_is_refused():
         runs(Fragile("a"))
     undeclared = type("Undeclared", (Fragile,), {"static": None})
     assert runs(undeclared("a"), static_step("a")).depends_on[1] == frozenset({0})
+
+
+def test_an_sqlearn_error_from_a_static_apply_is_raised_as_it_is():
+    """A step's own SqlearnError comes out unchanged, not as its own cause."""
+    refusal = sq.errors.SqlearnError("no")
+
+    class Refuses(sq.Step):
+        static = True
+
+        def apply(self, x, learned):
+            """Refuse."""
+            raise refusal
+
+    with pytest.raises(sq.errors.SqlearnError) as err:
+        runs(Refuses("a"))
+    assert err.value is refusal
+    assert err.value.__cause__ is not refusal

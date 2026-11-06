@@ -2,6 +2,7 @@
 
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from functools import partial
 from typing import cast
 
 import duckdb
@@ -205,12 +206,20 @@ def plan(steps: Sequence[tuple[str, Step]], schema: Schema) -> Plan:
         except Exception as exc:
             # A step declared static whose apply cannot be read before it
             # learns (`_labels`, `_write_row`): say which and why (ADR 0019).
-            raise diagnose(exc, steps, lambda _, at=i + 1: at) from exc
+            err = diagnose(exc, steps, partial(_at, i + 1))
+            if err is exc:
+                raise
+            raise err from exc
         removed.extend(gone)
         if step.changes_rows:
             rows = _Column(None, None, ready, mine)
     result.feed_run = max((c.ready for c in [*columns, rows]), default=0)
     return result
+
+
+def _at(position: int, _: str) -> int:
+    """Return `position`, whatever the message: the step that failed."""
+    return position
 
 
 def _check_target_step(step: Step, step_name: str, position: int) -> None:
