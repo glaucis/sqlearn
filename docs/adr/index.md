@@ -78,6 +78,7 @@ Accuracy, and how it is measured.
 - [0030: Infinity is refused](0030-infinity-is-refused.md)
 - [0032: The median is exact, by sorting](0032-the-median-is-exact-by-sorting.md)
 - [0033: The mean is summed with compensation](0033-the-mean-is-summed-with-compensation.md)
+- [0036: Staged aggregates anywhere in a learned value](0036-staged-aggregates-anywhere-in-a-learned-value.md)
 
 ```{toctree}
 :hidden:

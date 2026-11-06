@@ -1,9 +1,9 @@
 ---
 type: guide
 tags: [guide, sqlearn, api, documentation, index]
-summary: "Index page for the sqlearn user guide, listing chapters on writing steps and inputs and the store."
+summary: "Index page for the sqlearn user guide: writing steps, inputs and the store, the preprocessing groups (imputing, scaling, encoding, binning, transforming, making features), column names, and moving from scikit-learn."
 mdindex: [type=83ca68, tags=78f095, summary=bdb396, related=776e9c]
-related: [docs/guide/writing-a-step.md, docs/guide/inputs-and-the-store.md]
+related: [docs/guide/writing-a-step.md, docs/guide/inputs-and-the-store.md, docs/guide/from-scikit-learn.md, docs/guide/column-names.md]
 ---
 # Guide
 
@@ -14,4 +14,12 @@ How to use sqlearn: the chapters that explain its API and its habits.
 
 writing-a-step
 inputs-and-the-store
+from-scikit-learn
+imputing
+scaling
+encoding
+binning
+transforming
+making-features
+column-names
 ```

@@ -48,3 +48,8 @@ pipe.learn("customers")  # learns again
 
 Size limits for the store wait for
 [issue #23](https://github.com/glaucis/sqlearn/issues/23).
+
+The steps that learn from the data ([imputing](imputing.md),
+[scaling](scaling.md), [encoding](encoding.md), [binning](binning.md) and the
+spline in [making features](making-features.md)) use the store like any other:
+learning again on unchanged data learns nothing.

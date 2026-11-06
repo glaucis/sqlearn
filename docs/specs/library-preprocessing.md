@@ -14,6 +14,10 @@ Status: approved by Tomas on 2026-11-06. Written from the design talk of
 [ADR 0035](../adr/0035-names-of-generated-columns.md) (names of generated
 columns). Where this spec makes a call of its own, it says "(spec's call)".
 
+Built: see [the plan](../plans/2026-11-06-library-preprocessing.md) and
+[issue #30](https://github.com/glaucis/sqlearn/issues/30), which tracks this
+area.
+
 ## 1. Purpose
 
 sqlearn will in time cover everything scikit-learn's preprocessing covers.

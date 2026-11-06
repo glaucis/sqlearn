@@ -50,8 +50,11 @@ class MyScale(sq.Step):
 - `sq.agg.median`, `sq.agg.quantile(x, q=0.9)` and `sq.agg.iqr` are exact,
   computed by sorting, so they can run on data larger than memory; every
   quantile a step learns shares one sort. They may sit inside a larger
-  expression (`{"spread": sq.agg.iqr(x) / sq.agg.median(x)}`). `sq.agg.mode`
-  is the most frequent value, a tie going to the smallest.
+  expression (`{"spread": sq.agg.iqr(x) / sq.agg.median(x)}`). `sq.agg.mode` is
+  the most frequent value, a tie going to the smallest. They may sit anywhere in
+  a learned value, inside another aggregate too, such as the mean absolute
+  deviation about the median
+  ([ADR 0036](../adr/0036-staged-aggregates-anywhere-in-a-learned-value.md)).
 - `sq.agg.mean` is DuckDB's compensated mean, exact to about one unit in the
   last place. It gives NaN, not infinity, when the data holds an infinity or
   the sum overflows.
@@ -320,3 +323,9 @@ SQL up front, so a mistake in your expressions is reported with your step's
 name. An error DuckDB raises only when that relation is later fetched, because
 of the data (a cast that fails on one value, say), cannot name the step: it
 comes with DuckDB's own message.
+
+The steps sqlearn ships are written the same way. See the guide pages for
+[imputing](imputing.md), [scaling](scaling.md), [encoding](encoding.md),
+[binning](binning.md), [transforming](transforming.md) and [making
+features](making-features.md), and [column names](column-names.md) for how
+created columns are named.
