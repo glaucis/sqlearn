@@ -13,6 +13,7 @@ from sqlearn._compose import (
     SOURCE,
     Run,
     Stage,
+    _in_aggregates,
     _learn_sql,
     _markers,
     apply_sql,
@@ -598,15 +599,16 @@ def test_row_values_are_computed_once_in_a_projection_of_their_own(con):
 
 
 def wide(columns: int, rows: int = 200):
-    """Return a table of `columns` numeric columns and `rows` rows."""
+    """Return a new table, ``wide<columns>``, of `columns` numbers and `rows` rows."""
     con = connection()
     picks = ", ".join(
         f"(hash(i, {c}) % 1000)::DOUBLE / 7 AS c{c}" for c in range(columns)
     )
     con.execute(
-        f"CREATE OR REPLACE TABLE wide AS SELECT {picks} FROM range({rows}) r(i)"
+        f"CREATE OR REPLACE TABLE wide{columns} AS "
+        f"SELECT {picks} FROM range({rows}) r(i)"
     )
-    return con.table("wide")
+    return con.table(f"wide{columns}")
 
 
 @pytest.mark.parametrize(
@@ -622,10 +624,11 @@ def test_a_cold_learn_of_many_staged_aggregates_is_fast(step):
     It took 7 s (robust) and 13 s (bin.quantile) when each quantile had its
     own column, filters and scalar subquery.
     """
-    data = wide(50)
+    sq.Pipeline([step()]).learn(wide(1))  # warm up: imports, caches
+    data = wide(50)  # built before the clock starts
     pipe = sq.Pipeline([step()])
     start = time.perf_counter()
-    pipe.learn(data)
+    pipe.learn(data)  # cold: a new table, never learned from
     assert time.perf_counter() - start < 2.0
 
 
@@ -633,3 +636,92 @@ def test_two_hundred_columns_of_quantiles_learn():
     """200 columns' quantiles stay within DuckDB's expression depth."""
     pipe = sq.Pipeline([sq.scale.robust()]).learn(wide(200, rows=20))
     assert len(pipe[0].center_) == 200
+
+
+class Learns(sq.Step):
+    """Learn the values `make` builds from the column; apply leaves it."""
+
+    def __init__(self, make, cols=None, keep=False):
+        """Set the settings."""
+        super().__init__(cols=cols, keep=keep)
+        self.make = make
+
+    def learn(self, x):
+        """Learn what `make` builds."""
+        return self.make(x)
+
+    def apply(self, x, learned):
+        """Leave the column."""
+        return x
+
+
+VALUES = [1.0, 2.0, 3.0, 9.0, None, 4.0]
+
+
+def learned(make, values=VALUES, kind="DOUBLE"):
+    """Return what a `Learns` step learns from column ``a`` holding `values`."""
+    con = duckdb.connect()
+    con.execute(f"CREATE TABLE t (a {kind})")
+    con.executemany("INSERT INTO t VALUES (?)", [[v] for v in values])
+    schema = [("a", duckdb.sqltype(kind))]
+    stage = step_stage(1, "learns", Learns(make), schema, SOURCE)
+    got = execute(con, "t", [stage], produce=False)[0]["s01_learns"]
+    return {k: v["a"] for k, v in got.items()}
+
+
+def test_a_quantile_inside_another_aggregate_is_computed():
+    """Mean absolute deviation about the median, and a sum about it, as numpy."""
+    present = np.array([v for v in VALUES if v is not None])
+    middle = np.median(present)
+
+    def make(x):
+        centred = x - sq.agg.median(x)
+        return {
+            "mad": sq.agg.mean(duckdb.FunctionExpression("abs", centred)),
+            "sum": duckdb.FunctionExpression("sum", centred),
+            "iqr": sq.agg.iqr(x),
+            "plus": sq.agg.median(x) + duckdb.FunctionExpression("sum", centred),
+        }
+
+    got = learned(make)
+    assert got["mad"] == pytest.approx(np.mean(np.abs(present - middle)))
+    assert got["sum"] == pytest.approx(np.sum(present - middle))
+    assert got["iqr"] == pytest.approx(
+        np.quantile(present, 0.75) - np.quantile(present, 0.25)
+    )
+    assert got["plus"] == pytest.approx(middle + np.sum(present - middle))
+
+
+def test_a_mode_inside_another_aggregate_is_computed():
+    """How many values equal the mode, at the top level beside it."""
+
+    def make(x):
+        hits = duckdb.CaseExpression(x == sq.agg.mode(x), sq.fn.const(1))
+        return {
+            "mode": sq.agg.mode(x),
+            "hits": duckdb.FunctionExpression("sum", hits.otherwise(sq.fn.const(0))),
+        }
+
+    got = learned(make, ["b", "a", "b", None, "c"], "VARCHAR")
+    assert got == {"mode": "b", "hits": 2}
+
+
+def test_a_nested_quantile_over_no_rows_gives_one_row():
+    """No rows: the learn statement still gives one row, the values NULL."""
+    centred = lambda x: x - sq.agg.median(x)  # noqa: E731
+    stage = step_stage(
+        1,
+        "learns",
+        Learns(lambda x: {"sum": duckdb.FunctionExpression("sum", centred(x))}),
+        [("a", DOUBLE)],
+        SOURCE,
+    )
+    sql = _learn_sql("SELECT 1.0::DOUBLE AS a WHERE false", [stage])
+    assert duckdb.connect().sql(sql).fetchall() == [(0, None)]
+
+
+def test_spans_inside_aggregates_are_found_once():
+    """Only the outermost aggregate's brackets count; quotes and FILTER are read."""
+    text = "sum(abs(\"x\" - m)) + f('sum(') + count(*) FILTER (WHERE y > m) + g(1)) "
+    spans = [text[a:b] for a, b in _in_aggregates(text)]
+    assert spans == ['abs("x" - m)', "*", "WHERE y > m"]

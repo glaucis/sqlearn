@@ -32,7 +32,7 @@ every stage untouched.
 import re
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
-from functools import partial
+from functools import cache, partial
 from typing import cast
 
 import duckdb
@@ -757,9 +757,60 @@ def _markers(text: str) -> list[_Marker]:
     return found
 
 
+_CALL = re.compile(
+    r"""'(?:[^']|'')*'|"(?:[^"]|"")*"|([A-Za-z_][A-Za-z0-9_]*)\s*\(|[()]"""
+)
+"""A quoted literal or identifier, a function's name and its ``(``, or a bracket."""
+
+
+@cache
+def _aggregate_names() -> frozenset[str]:
+    """Return the names of DuckDB's aggregate functions, lower case.
+
+    ``filter`` is among them: an aggregate's ``FILTER (WHERE ...)`` is read
+    per row, as its arguments are.
+    """
+    rows = duckdb.connect().sql(
+        "SELECT DISTINCT lower(function_name) FROM duckdb_functions() "
+        "WHERE function_type = 'aggregate'"
+    )
+    return frozenset(str(name) for (name,) in rows.fetchall()) | {"filter"}
+
+
+def _in_aggregates(text: str) -> list[tuple[int, int]]:
+    """Return the spans of `text` inside an aggregate call's brackets.
+
+    The text is read once; an aggregate call inside another adds no span of
+    its own.
+    """
+    names = _aggregate_names()
+    spans: list[tuple[int, int]] = []
+    opened: list[bool] = []  # per open bracket: does it open an aggregate?
+    start = 0
+    for token in _CALL.finditer(text):
+        piece = token.group()
+        if piece[0] in "'\"":
+            continue
+        name = token.group(1)
+        if name is not None or piece == "(":
+            aggregate = name is not None and name.lower() in names
+            if aggregate and not any(opened):
+                start = token.end()
+            opened.append(aggregate)
+        elif opened:
+            if opened.pop() and not any(opened):
+                spans.append((start, token.start()))
+    return spans
+
+
 def _refuse(stage: Stage, text: str, why: str, fix: str) -> StepError:
     msg = f"{stage.step} (step {stage.position}) learns {text}, {why} Fix: {fix}"
     return StepError(msg, step=stage.step, position=stage.position)
+
+
+def _read(column: str, nested: bool) -> str:
+    """Read a one-row stage's column: plain inside an aggregate, else any_value."""
+    return column if nested else f"any_value({column})"
 
 
 @dataclass
@@ -778,12 +829,17 @@ class _Staged:
     modes: dict[str, int] = field(default_factory=dict)
     stats: dict[tuple[str, str, str], int] = field(default_factory=dict)
 
-    def reference(self, stage: Stage, text: str, marker: _Marker) -> str:
+    def reference(
+        self, stage: Stage, text: str, marker: _Marker, *, nested: bool
+    ) -> str:
         """Return the expression standing for `marker` in `text`.
 
         It reads the one row the marker's stage computed, cross-joined into
-        the learn stage: ``any_value`` of a column of that row (one value,
-        computed once per stage, as DuckDB folds equal aggregates into one).
+        the learn stage. Inside another aggregate (`nested`) it is a plain
+        column of that row, read per row as the aggregate's argument; else
+        ``any_value`` of it, as a bare column beside aggregates must be (one
+        value, computed once per stage, as DuckDB folds equal aggregates into
+        one).
         """
         whole = text[marker.start : marker.end]
         for arg in marker.args:
@@ -798,11 +854,11 @@ class _Staged:
         if marker.kind == TARGET_STATS and len(marker.args) == 3:
             x, y, fold = marker.args
             index = self.stats.setdefault((x, y, fold), len(self.stats))
-            return f"any_value({quote(self.name + '_stats')}.{quote(f'l{index}')})"
+            return _read(f"{quote(self.name + '_stats')}.{quote(f'l{index}')}", nested)
         if marker.kind == MODE and len(marker.args) == 1:
             (values,) = marker.args
             index = self.modes.setdefault(values, len(self.modes))
-            return f"any_value({quote(self.name + '_modes')}.{quote(f'm{index}')})"
+            return _read(f"{quote(self.name + '_modes')}.{quote(f'm{index}')}", nested)
         method = marker.args[-1] if len(marker.args) == 3 else ""
         if marker.kind == QUANTILE and method in (
             "'linear'",
@@ -812,7 +868,8 @@ class _Staged:
             key = (values, q, method.strip("'"))
             index = self.quantiles.setdefault(key, len(self.quantiles))
             table = quote(self.name + "_quantile")
-            return f"any_value({table}.{quote('qs')})[{index + 1}]"
+            column = f"{table}.{quote('qs')}"
+            return f"{_read(column, nested)}[{index + 1}]"
         raise _refuse(
             stage,
             whole,
@@ -1008,7 +1065,8 @@ def _learn_ctes(stage: Stage, learn: dict[str, Expression], previous: str) -> li
     Each staged marker in a learned value is replaced by a reference to the
     one row its stages computed, so a quantile may sit anywhere in a learned
     value (``iqr`` is one quantile less another). Those rows are cross-joined
-    into the learn stage and read with ``any_value``; a scalar subquery per
+    into the learn stage and read with ``any_value``, or as plain columns
+    inside another aggregate (``mean(abs(x - median(x)))``); a scalar subquery per
     reference instead made DuckDB plan one join per reference (4.6 s for 600
     references, and past its expression depth at 1,000).
     """
@@ -1018,8 +1076,14 @@ def _learn_ctes(stage: Stage, learn: dict[str, Expression], previous: str) -> li
         text = str(expression)
         pieces: list[str] = []
         last = 0
-        for marker in _markers(text):
-            pieces += [text[last : marker.start], staged.reference(stage, text, marker)]
+        markers = _markers(text)
+        spans = _in_aggregates(text) if markers else []
+        for marker in markers:
+            nested = any(a <= marker.start < b for a, b in spans)
+            pieces += [
+                text[last : marker.start],
+                staged.reference(stage, text, marker, nested=nested),
+            ]
             last = marker.end
         pieces.append(text[last:])
         items.append(f"{''.join(pieces)} AS {quote(key)}")
