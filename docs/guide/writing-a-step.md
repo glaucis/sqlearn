@@ -232,7 +232,8 @@ needs no target.
 
 In `train`, the rows the model trains on are **cross-fitted**, as
 scikit-learn's `fit_transform` does: each row is dealt into an inner fold
-(`sq.KFold(cv, seed)` over the row as read, without the target) and encoded
+(`sq.KFold(cv, seed)` over the row's position in the data as read, so rows
+alike get folds of their own) and encoded
 with what was learned on the rows outside its fold, so a row's own answer
 does not leak into its features. Later steps learn from those values, so such
 a step ends its run, like a dynamic one. `predict`, and `apply` after

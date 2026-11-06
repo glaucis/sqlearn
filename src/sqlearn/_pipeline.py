@@ -10,6 +10,7 @@ from duckdb import Expression
 from duckdb.sqltypes import DOUBLE, DuckDBPyType
 
 from sqlearn._compose import (
+    POSITION,
     SOURCE,
     TARGET,
     Run,
@@ -253,6 +254,26 @@ def _aside_of(source: Source) -> list[str]:
     """Return the columns travelling beside the data: not in its schema."""
     seen = {c for c, _ in source.schema}
     return [c for c in source.relation.columns if c not in seen]
+
+
+def _positioned(rel: duckdb.DuckDBPyRelation) -> duckdb.DuckDBPyRelation:
+    """Return the rows numbered from 1 in the order read, as `POSITION`.
+
+    Inner folds are dealt by this number, so each query reading the data
+    must number its rows alike: DuckDB keeps insertion order unless the
+    connection turns it off, which is refused.
+    """
+    con = connection()
+    setting = con.sql("SELECT current_setting('preserve_insertion_order')")
+    if not setting.fetchall()[0][0]:
+        msg = (
+            "the connection has preserve_insertion_order turned off, so DuckDB "
+            "may read rows in any order and a step learning from the target "
+            "could not deal each row into the same inner fold every time. "
+            "Fix: SET preserve_insertion_order = true on the connection."
+        )
+        raise SqlearnError(msg)
+    return con.sql(number_rows(rel.sql_query(), POSITION))
 
 
 def _features_only(schema: Schema, aside: Sequence[str]) -> Schema:
@@ -895,7 +916,10 @@ class Pipeline:
         it. Beside the features travel, in this order, the `keep` columns
         (a search's fold), the target as `TARGET`, and each row's inner fold
         for every step learning from the target, dealt by a hash of the
-        row's features (`inner_fold`).
+        row's position (`inner_fold`). The position is the relation's
+        `POSITION` column when it has one (a search numbers every row once,
+        before dealing them into outer folds, so a fold's training rows keep
+        their numbers), else the rows are numbered here in the order read.
         """
         names = [c for c, _ in source.schema]
         if target not in names:
@@ -906,7 +930,8 @@ class Pipeline:
             )
             raise SqlearnError(msg)
         for c in names:
-            if c.lower() == TARGET or c.lower().startswith(_INNER):
+            low = c.lower()
+            if low in (TARGET, POSITION) or low.startswith(_INNER):
                 msg = (
                     f"the data has a column named {c!r}, a name sqlearn keeps "
                     "for the target and its folds while steps learn. Fix: "
@@ -920,20 +945,20 @@ class Pipeline:
             for _, s in steps
             if s.uses_target
         )
+        rel = source.relation
+        if folds and POSITION not in rel.columns:
+            rel = _positioned(rel)
         feature_names = [c for c, _ in features]
         beside = [
             *(duckdb.ColumnExpression(c) for c in keep),
             duckdb.ColumnExpression(target).alias(TARGET),
             *(
-                inner_fold(feature_names, cv, seed).alias(inner_name(cv, seed))
+                inner_fold(POSITION, cv, seed).alias(inner_name(cv, seed))
                 for cv, seed in folds
-                if feature_names
             ),
         ]
         return Source(
-            source.relation.project(
-                *(duckdb.ColumnExpression(c) for c in feature_names), *beside
-            ),
+            rel.project(*(duckdb.ColumnExpression(c) for c in feature_names), *beside),
             (*source.key, ("target", target)),
             features,
         )
@@ -963,7 +988,8 @@ class Pipeline:
         steps, _ = self._modelled()
         con = connection()
         _, _, known = self._learn(con, learn_from, steps, fold)
-        prepared = self._features(Source(data, (), _schema(data)), target, keep)
+        schema = [c for c in _schema(data) if c[0] != POSITION]
+        prepared = self._features(Source(data, (), schema), target, keep)
         data_sql = prepared.relation.sql_query()
         stages, out, _ = self._stages(
             con, data_sql, prepared.schema, steps, known,

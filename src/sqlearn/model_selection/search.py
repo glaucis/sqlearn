@@ -15,13 +15,13 @@ from typing import Any
 
 import duckdb
 
-from sqlearn._compose import TARGET
+from sqlearn._compose import POSITION, TARGET
 from sqlearn._config import connection
 from sqlearn._errors import DefaultsUsedWarning, SqlearnError
 from sqlearn._inputs import Source, _release_later, read
 from sqlearn._model import Model, _numpy, _unregister, target_values
 from sqlearn._output import Output
-from sqlearn._pipeline import Pipeline, _source_sql
+from sqlearn._pipeline import Pipeline, _positioned, _source_sql
 from sqlearn.metrics import Metric, accuracy
 from sqlearn.model_selection.defaults import default_space, hint
 from sqlearn.model_selection.folds import KFold
@@ -311,9 +311,20 @@ class Search:
         for i, params in enumerate(settings):
             groups.setdefault(_preparation(params, model_name), []).append(i)
         numbered = folds.numbered(source.relation, FOLD)
+        if any(s.uses_target for _, s in self.pipe._split()[0]):
+            # Every row numbered once, before the folds split them, so a
+            # fold's training rows keep the positions their inner folds
+            # are dealt by in the fold's query too.
+            numbered = _positioned(numbered)
+        columns = [duckdb.ColumnExpression(c) for c, _ in source.schema]
+        if POSITION in numbered.columns:
+            columns.append(duckdb.ColumnExpression(POSITION))
         scores = [[0.0] * folds.n for _ in settings]
         for k in range(folds.n):
-            rows = folds.rows(source.relation, k, held=False)
+            training = numbered.filter(
+                duckdb.ColumnExpression(FOLD) != duckdb.ConstantExpression(k)
+            )
+            rows = training.project(*columns)
             for members in groups.values():
                 prepared = trial(self.pipe, settings[members[0]])
                 _, first = prepared._modelled()

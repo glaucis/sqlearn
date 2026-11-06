@@ -2,6 +2,7 @@
 
 import math
 from collections.abc import Iterable, Mapping, Sequence
+from fractions import Fraction
 from typing import Any, cast
 
 import duckdb
@@ -71,15 +72,17 @@ def _sorted(categories: Iterable[object]) -> list[object]:
     return [*ordered, *([None] * (len(given) - len(present)))]
 
 
-def _totals(rows: Stats) -> tuple[int, float, float]:
+def _totals(rows: Stats) -> tuple[int, Fraction, Fraction]:
+    """Return the count and the exact sums of a set of statistics' rows."""
     n = sum(r[2] for r in rows)
-    return n, math.fsum(r[3] for r in rows), math.fsum(r[4] for r in rows)
+    total = sum((Fraction(r[3]) for r in rows), Fraction(0))
+    return n, total, sum((Fraction(r[4]) for r in rows), Fraction(0))
 
 
-def _moments(n: int, total: float, squares: float) -> tuple[float, float]:
-    """Return the mean and the population variance (never below 0)."""
+def _moments(n: int, total: Fraction, squares: Fraction) -> tuple[Fraction, Fraction]:
+    """Return the exact mean and population variance (never below 0)."""
     mean = total / n
-    return mean, max(squares / n - mean * mean, 0.0)
+    return mean, max(squares / n - mean * mean, Fraction(0))
 
 
 class TargetEncoder(Step):
@@ -108,9 +111,8 @@ class TargetEncoder(Step):
     scikit-learn's ``fit_transform``: each row is encoded with what was
     learned on the rows outside its own inner fold, and later steps learn
     from those values. The inner folds are sqlearn's: ``sq.KFold(cv, seed)``
-    over the rows as read, without the target, so rows alike share a fold;
-    where every row of a category is alike (the category the only feature),
-    its rows are all encoded with their fold's mean. ``apply`` after
+    dealt by each row's position in the data as read (rows alike get folds
+    of their own, as scikit-learn's ``KFold`` deals them). ``apply`` after
     ``learn(data, target=...)``, and ``predict``, use what was learned on all
     rows (scikit-learn's ``fit`` then ``transform``).
 
@@ -303,7 +305,9 @@ class TargetEncoder(Step):
         stats : sequence of (int, object, int, float, float)
             Per inner fold and category: the fold, the category, the count,
             the sum of the target and the sum of its squares; the target
-            already label-encoded when binary.
+            already label-encoded when binary. Sums of the target less a
+            constant (`target_stats` gives ``y - min(y)``) give encodings
+            less that constant.
         k : int
             The number of inner folds.
 
@@ -327,8 +331,19 @@ class TargetEncoder(Step):
         >>> sq.encode.target(smooth=0.0).encodings(stats, 2)["all"]
         {'a': 0.6666666666666666, 'b': 0.0}
         """
+        return self._encodings(stats, k, 0.0)
+
+    def _encodings(
+        self, stats: Stats, k: int, offset: float
+    ) -> dict[str, dict[object, float]]:
+        """Encode as `encodings`, `offset` added before the one rounding.
+
+        The formulae are computed exactly (`Fraction`) from the fetched
+        sums, so each encoding is the double nearest their answer.
+        """
         rows = [(f, _key(c), n, s, ss) for f, c, n, s, ss in stats]
         categories = _sorted(dict.fromkeys(r[1] for r in rows))
+        shift = Fraction(offset)
         out: dict[str, dict[object, float]] = {}
         for key in ["all", *(str(i) for i in range(k))]:
             used = rows if key == "all" else [r for r in rows if r[0] != int(key)]
@@ -340,22 +355,24 @@ class TargetEncoder(Step):
             for _, c, n, s, ss in used:
                 per.setdefault(c, []).append((n, s, ss))
             out[key] = {
-                c: self._encode(per.get(c, []), mean, variance) for c in categories
+                c: float(self._encode(per.get(c, []), mean, variance) + shift)
+                for c in categories
             }
         return out
 
     def _encode(
-        self, rows: list[tuple[int, float, float]], mean: float, variance: float
-    ) -> float:
+        self, rows: list[tuple[int, float, float]], mean: Fraction, variance: Fraction
+    ) -> Fraction:
         """Encode one category from its rows' statistics, as scikit-learn."""
         n = sum(r[0] for r in rows)
-        total = math.fsum(r[1] for r in rows)
+        total = sum((Fraction(r[1]) for r in rows), Fraction(0))
         if self.smooth != "auto":
-            smooth = float(self.smooth)
+            smooth = Fraction(self.smooth)
             return mean if n + smooth == 0 else (total + smooth * mean) / (n + smooth)
         if n == 0:
             return mean
-        mu, spread = _moments(n, total, math.fsum(r[2] for r in rows))
+        squares = sum((Fraction(r[2]) for r in rows), Fraction(0))
+        mu, spread = _moments(n, total, squares)
         weight = n * variance + spread
         if weight == 0:
             return mean
@@ -420,21 +437,31 @@ class TargetEncoder(Step):
             for f, c, n, s, ss in cast("Stats", values["stats"])
         ]
         target_type = self._target_type(stats, values)
+        # The statistics are of y - low (see `target_stats`): a binary target
+        # is label-encoded by dividing by the width; a continuous one gets
+        # low back on its encodings and mean.
+        low, high = _number(values["low"]), _number(values["high"])
+        offset = 0.0
         if target_type == "binary":
-            low, high = _number(values["low"]), _number(values["high"])
             width = high - low
             stats = [
                 (f, c, n, enc, enc)
                 for f, c, n, s, _ in stats
-                for enc in [(s - n * low) / width if width else 0.0]
+                for enc in [s / width if width else 0.0]
             ]
+        else:
+            offset = low
         self._check_folds(stats, k)
-        encoded = self.encodings(stats, k)
+        encoded = self._encodings(stats, k, offset)
         out: dict[str, dict[str, object]] = {}
         for key, table in encoded.items():
             used = stats if key == "all" else [r for r in stats if r[0] != int(key)]
             known = [c for c in table if c is not None]
-            mean = _moments(*_totals(used))[0] if used else math.nan
+            mean = (
+                float(_moments(*_totals(used))[0] + Fraction(offset))
+                if used
+                else math.nan
+            )
             out[key] = {
                 "categories": known,
                 "encodings": [table[c] for c in known],
@@ -447,24 +474,29 @@ class TargetEncoder(Step):
     def _target_type(self, stats: Stats, values: Mapping[str, object]) -> str:
         """Find the target's type as scikit-learn's ``type_of_target`` does.
 
-        A value that is not whole makes it continuous. Whole values are
-        binary when there are at most two: every value is then one of the
-        extremes, so ``Σ (y - low)(y - high)`` is 0; a value between them
-        makes a term, so the sum, at most -1.
+        A value that is not whole makes it continuous. Otherwise it is
+        binary when it holds at most two values: every value is then one of
+        the extremes, so ``Σ (y - low)(y - high)``, from the sums of ``y -
+        low`` as ``Σ (y - low)² - width · Σ (y - low)``, is 0, while a value
+        between them makes a term below 0. Whole values give whole sums,
+        exact in a double below 2**53, so the sum is then at most -1; values
+        that are not whole (``target_type="binary"`` given) are judged within
+        rounding.
         """
-        if self.target_type != "auto":
-            given = self.target_type
-            if given == "continuous":
-                return given
-        elif values["fractional"]:
+        fractional = bool(values["fractional"])
+        if self.target_type == "continuous":
             return "continuous"
-        low, high = _number(values["low"]), _number(values["high"])
+        if self.target_type == "auto" and fractional:
+            return "continuous"
+        width = _number(values["high"]) - _number(values["low"])
         n, total, squares = _totals(stats)
-        between = squares - (low + high) * total + n * low * high
-        if between < -0.5:
+        between = squares - width * total
+        limit = 1e-9 * width * width * n if fractional else 0.5
+        if between < -limit:
+            what = "values" if fractional else "whole values"
             msg = (
-                "learns from the target, which holds more than two whole "
-                "values: a multiclass target, which comes later. Fix: pass "
+                f"learns from the target, which holds more than two {what}: "
+                "a multiclass target, which comes later. Fix: pass "
                 'target_type="continuous" to treat it as a number, or give a '
                 "binary target."
             )

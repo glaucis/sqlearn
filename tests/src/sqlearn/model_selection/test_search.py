@@ -517,11 +517,11 @@ def test_a_target_step_cross_fits_within_each_folds_training_rows():
     )
     rel = connection().from_df(frame)
     outer = np.array([r[-1] for r in sq.KFold(2).numbered(rel, "f").fetchall()])
-    features = connection().from_df(frame.drop(columns="churned"))
+    positions = connection().sql(f"SELECT range + 1 AS p FROM range({len(frame)})")
     inner = np.array(
         [
             r[0]
-            for r in features.set_alias("d")
+            for r in positions.set_alias("d")
             .project(sq.KFold(5, 0).expression("d"))
             .fetchall()
         ]

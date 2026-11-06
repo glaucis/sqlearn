@@ -36,11 +36,16 @@ def as_sklearn(frame, column="plan"):
 
 
 def inner_folds(frame, target="y", cv=5, seed=0):
-    """Return each row's inner fold, as sqlearn deals it: by the row's features."""
-    features = connection().from_df(frame.drop(columns=[target]))
+    """Return each row's inner fold, as sqlearn deals it: by its position."""
+    return position_folds(len(frame), cv, seed)
+
+
+def position_folds(rows, cv=5, seed=0):
+    """Return KFold(cv, seed)'s fold of positions 1 to `rows`."""
+    positions = connection().sql(f"SELECT range + 1 AS p FROM range({rows})")
     fold = sq.KFold(cv, seed).expression("d")
     return np.array(
-        [r[0] for r in features.set_alias("d").project(fold).fetchall()],
+        [r[0] for r in positions.set_alias("d").project(fold).fetchall()],
     )
 
 
@@ -190,7 +195,7 @@ def test_a_number_for_smooth_is_the_weighted_mean():
     assert got == pytest.approx(theirs.transform(as_sklearn(frame))[:, 0], rel=1e-12)
 
 
-def test_a_binary_target_of_two_words_or_two_numbers():
+def test_a_binary_target_of_two_numbers_or_a_boolean():
     """Two numbers are label-encoded in sorted order; a boolean is too."""
     frame = sample()
     expected = sq.Pipeline([sq.encode.target("plan")]).learn(frame, target="y")
@@ -322,3 +327,87 @@ def test_learn_without_y_is_refused():
 
     with pytest.raises(sq.errors.StepError, match="target"):
         TargetEncoder().learn(duckdb.ColumnExpression("a"))
+
+
+def test_rows_alike_get_folds_of_their_own():
+    """A table of a category alone cross-fits to each category's own values.
+
+    Inner folds are dealt by position, so rows alike are spread over the
+    folds and each fold's complement holds every category, as with
+    fit_transform given the same folds.
+    """
+    plans = [f"p{i}" for i in range(8)] * 50
+    frame = pd.DataFrame({"plan": plans, "y": [int(p in {"p0", "p1"}) for p in plans]})
+    pipe = sq.Pipeline([sq.encode.target("plan"), Recorder()])
+    pipe.train(frame, target="y")
+    got = Recorder.seen[0][:, 0]
+    theirs = SkTargetEncoder(target_type="binary", cv=splits(inner_folds(frame)))
+    expected = theirs.fit_transform(as_sklearn(frame), frame["y"])[:, 0]
+    assert got == pytest.approx(expected, rel=1e-12)
+    ones = np.isin(plans, ["p0", "p1"])
+    assert got[ones].min() > 0.9
+    assert got[~ones].max() < 0.1
+
+
+def test_two_large_labels_are_binary_and_exact():
+    """{1e9, 1e9 + 1} over many rows is binary, its encodings scikit-learn's."""
+    frame = sample(rows=20_000)
+    frame["y"] = frame["y"] + 1_000_000_000
+    pipe = sq.Pipeline([sq.encode.target("plan")]).learn(frame, target="y")
+    assert pipe["target"].target_type_ == {"plan": "binary"}
+    got = pipe.apply(frame, out="pandas")["plan"].to_numpy()
+    theirs = SkTargetEncoder(target_type="binary").fit(as_sklearn(frame), frame["y"])
+    assert got == pytest.approx(theirs.transform(as_sklearn(frame))[:, 0], rel=1e-12)
+
+
+def test_three_large_whole_values_are_multiclass():
+    """A third whole value between two large ones is found, exactly."""
+    frame = sample(rows=3_000)
+    frame["y"] = 10_000_000 + np.arange(len(frame)) % 3
+    with pytest.raises(sq.errors.StepError, match="more than two whole values"):
+        sq.Pipeline([sq.encode.target("plan")]).learn(frame, target="y")
+
+
+def test_binary_given_for_values_not_whole_is_refused_as_such():
+    """Three values that are not whole, given as binary, are refused as values."""
+    frame = sample().assign(y=lambda f: 0.5 + (np.arange(len(f)) % 3) / 4)
+    with pytest.raises(sq.errors.StepError, match="more than two values"):
+        sq.Pipeline([sq.encode.target("plan", target_type="binary")]).learn(
+            frame, target="y"
+        )
+
+
+def test_a_continuous_target_with_a_large_offset_keeps_its_digits():
+    """The statistics are of y - min(y), so an offset of 1e7 costs nothing."""
+    frame = sample(continuous=True)
+    frame["y"] = frame["y"] + 10_000_000
+    pipe = sq.Pipeline([sq.encode.target("plan")]).learn(frame, target="y")
+    got = pipe.apply(frame, out="pandas")["plan"].to_numpy()
+    theirs = SkTargetEncoder(target_type="continuous").fit(
+        as_sklearn(frame), frame["y"]
+    )
+    assert got == pytest.approx(theirs.transform(as_sklearn(frame))[:, 0], rel=1e-14)
+
+
+def test_another_target_or_cv_learns_the_step_and_those_after_again():
+    """The target's name and cv are in the keys: changing either relearns."""
+    frame = sample().assign(z=lambda f: 1 - f["y"])
+    steps = lambda cv: [sq.encode.target("plan", cv=cv), sq.scale.standard("plan")]  # noqa: E731
+    sq.Pipeline(steps(5)).learn(frame.drop(columns="z"), target="y")
+    sq.Pipeline(steps(5)).learn(frame.drop(columns="z"), target="y")
+    assert (STORE.learns["target"], STORE.learns["standard"]) == (1, 1)
+    sq.Pipeline(steps(5)).learn(frame.drop(columns="y"), target="z")
+    assert (STORE.learns["target"], STORE.learns["standard"]) == (2, 2)
+    sq.Pipeline(steps(3)).learn(frame.drop(columns="z"), target="y")
+    assert (STORE.learns["target"], STORE.learns["standard"]) == (3, 3)
+
+
+def test_rows_read_in_any_order_are_refused():
+    """Without insertion order, positions (and so inner folds) could move."""
+    con = connection()
+    con.execute("SET preserve_insertion_order = false")
+    try:
+        with pytest.raises(sq.errors.SqlearnError, match="preserve_insertion_order"):
+            sq.Pipeline([sq.encode.target("plan")]).learn(sample(), target="y")
+    finally:
+        con.execute("SET preserve_insertion_order = true")

@@ -41,7 +41,9 @@ TARGET_STATS = "__sqlearn_target_stats"
 
 Not a DuckDB function. The compositor computes it in a ``GROUP BY fold, x``
 stage of its own (NULL is a category, as is NaN), returning per inner fold
-and category the count, ``sum(y)`` and ``sum(y * y)``: what a step learning
+and category the count, and the sum and the sum of squares of ``y -
+min(y)`` (the target shifted by its minimum over every row, so whole values
+stay exact and a large offset costs no digits): what a step learning
 from the target needs to learn on every inner fold's complement at once.
 The learned value is the list of ``(fold, category, count, sum, sum of
 squares)`` tuples, sorted by fold, then category.

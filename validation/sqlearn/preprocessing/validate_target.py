@@ -37,10 +37,13 @@ CV = 5
 # Set from the first measurement (ADR 0016): the smallest power of two at or
 # above the worst ULP error sqlearn showed, at least 1. Loosening a bound
 # needs a written reason here, never a quiet edit. First measured: worst 1
-# ULP for every formula and dataset, the continuous target (values near
-# 1,000) included: the sums are compensated (fsum) in SQL and in Python.
-# scikit-learn's plain sums drift up to 5 ULPs on the continuous target
-# (an anomaly against these bounds).
+# ULP for every formula and dataset, inner folds dealt by a hash of the
+# features. Measured again with folds dealt by position (Ruling T10a): the
+# cross-fitted binary values showed 2 ULPs from the rounding of the formula
+# in doubles, so the formula moved to exact arithmetic over the fetched sums
+# (`Fraction`, one rounding): worst 0 ULPs, but 1 for the scaler's mean (its
+# own sum). The bounds stay at 1. scikit-learn's plain sums drift up to 6
+# ULPs on the continuous target (an anomaly against these bounds).
 BOUNDS = {"all": 1, "smooth": 1, "crossed": 1, "pipeline": 1}
 
 FORMULAS = {
@@ -125,23 +128,17 @@ def _sk(plans: Sequence) -> np.ndarray:
 
 
 def _table(plans: Sequence, ys: Sequence, kind: str):
-    """Return the plans, a row number and the target as a table.
-
-    The row number tells rows apart: the inner folds are dealt by a hash of
-    each row's features, so rows alike share a fold, and with the plan alone
-    every row of a plan would fall in one fold.
-    """
     y_kind = "INTEGER" if kind == "binary" else "DOUBLE"
     return _cases.sqlearn_table(
-        {"plan": tuple(plans), "row": tuple(range(len(plans))), "y": tuple(ys)},
-        {"plan": "VARCHAR", "row": "INTEGER", "y": y_kind},
+        {"plan": tuple(plans), "y": tuple(ys)}, {"plan": "VARCHAR", "y": y_kind}
     )
 
 
-def _folds(rel) -> np.ndarray:
+def _folds(rows: int) -> np.ndarray:
+    """Return sqlearn's inner folds: KFold over each row's position, from 1."""
     fold = sq.KFold(CV, 0).expression("d")
-    features = rel.project("plan, row").set_alias("d")
-    return np.array([r[0] for r in features.project(fold).fetchall()])
+    positions = _cases.sqlearn_table({"p": tuple(range(1, rows + 1))}, "BIGINT")
+    return np.array([r[0] for r in positions.set_alias("d").project(fold).fetchall()])
 
 
 def _measure(
@@ -197,7 +194,7 @@ def _crossed_cases(
 ) -> list[dict]:
     """Cross-fitted rows and the scaler after: per inner fold and category."""
     rel = _table(plans, ys, kind)
-    folds = _folds(rel)
+    folds = _folds(len(plans))
     _Recorder.seen.clear()
     sq.Pipeline([sq.encode.target("plan", cv=CV), _Recorder()]).train(rel, target="y")
     ours = _Recorder.seen[-1][:, 0]

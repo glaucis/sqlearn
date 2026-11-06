@@ -23,8 +23,9 @@ list.
 
 While learning and training, columns no step sees travel beside the data
 (``aside``): the target, under `TARGET`, and each row's inner fold for a
-step learning from the target (`inner_name`), computed once from the row as
-it was read. They pass through every stage untouched.
+step learning from the target (`inner_name`), computed once from the row's
+position in the data as read (`POSITION`, `inner_fold`). They pass through
+every stage untouched.
 """
 
 from collections.abc import Callable, Mapping, Sequence
@@ -42,6 +43,7 @@ from sqlearn._selectors import Schema
 from sqlearn._step import Learned, Output, Step, apply_rows, output_labels
 
 __all__ = [
+    "POSITION",
     "SOURCE",
     "TARGET",
     "Run",
@@ -66,6 +68,9 @@ _ROWS = "n"
 
 TARGET = "__sqlearn_target"
 """The name the target travels under beside the data, seen by no step."""
+
+POSITION = "__sqlearn_position"
+"""The column numbering the rows as read, from which inner folds are dealt."""
 
 Values = dict[str, dict[str, object]]
 """What one step learned: learned name, then column, to value (as the store)."""
@@ -95,18 +100,20 @@ def inner_name(cv: int, seed: int) -> str:
     return f"__sqlearn_inner_{cv}_{seed}"
 
 
-def inner_fold(columns: Sequence[str], cv: int, seed: int) -> Expression:
-    """Return a row's inner fold: ``KFold(cv, seed)``'s, over these columns.
+def inner_fold(position: str, cv: int, seed: int) -> Expression:
+    """Return a row's inner fold, dealt by its position: ``KFold(cv, seed)``'s.
 
-    ``hash(row(<columns>), seed) % cv``: the fold `sqlearn.KFold` deals the
-    row into, its expression (``hash(<alias>, seed) % n``) read over a
-    relation of exactly these columns, since DuckDB hashes a row as the
-    struct of its values.
+    ``hash(row(<position>), seed) % cv``: the fold `sqlearn.KFold` deals a
+    row into over a relation of the position alone (its expression,
+    ``hash(<alias>, seed) % n``, hashes a row as the struct of its values).
+    The position is the row's number in the data as read, so every row gets
+    its own fold, rows alike included, as scikit-learn's ``KFold`` deals
+    them by place.
 
     Parameters
     ----------
-    columns : sequence of str
-        The columns of the row, in order: the data as read, without the target.
+    position : str
+        The column numbering the rows (`POSITION`), from 1.
     cv : int
         The number of inner folds.
     seed : int
@@ -120,12 +127,10 @@ def inner_fold(columns: Sequence[str], cv: int, seed: int) -> Expression:
     Examples
     --------
     >>> from sqlearn._compose import inner_fold
-    >>> str(inner_fold(["a", "b"], 5, 0))
-    '(hash("row"(a, b), 0) % 5)'
+    >>> str(inner_fold("p", 5, 0))
+    '(hash("row"("p"), 0) % 5)'
     """
-    row = duckdb.FunctionExpression(
-        "row", *(duckdb.ColumnExpression(c) for c in columns)
-    )
+    row = duckdb.FunctionExpression("row", duckdb.ColumnExpression(position))
     return duckdb.FunctionExpression("hash", row, const(seed)) % const(cv)
 
 
@@ -932,14 +937,18 @@ def _stats_ctes(table: str, key: tuple[str, str, str], previous: str) -> list[st
     """Return the stage grouping the target's statistics by fold and category.
 
     A ``GROUP BY``, which spills to disk; NULL (and NaN) is a category. The
-    sums are compensated (``fsum``), as the mean is (ADR 0033).
+    target is shifted by its minimum first (one more scan, of one value), so
+    the sums hold ``y - min(y)``: whole values stay whole and small, and the
+    sum of squares loses no digits to a large offset. The sums are
+    compensated (``fsum``), as the mean is (ADR 0033).
     """
     x, y, fold = key
     f, c, v, n, total, squares = (quote(k) for k in ("f", "x", "y", "n", "s", "ss"))
+    low = f"(SELECT min(CAST({y} AS DOUBLE)) FROM {quote(previous)})"
     return [
         f"{quote(table)} AS MATERIALIZED (SELECT {f}, {c}, count(*) AS {n}, "
         f"fsum({v}) AS {total}, fsum({v} * {v}) AS {squares} FROM "
-        f"(SELECT {x} AS {c}, CAST({y} AS DOUBLE) AS {v}, {fold} AS {f} "
+        f"(SELECT {x} AS {c}, CAST({y} AS DOUBLE) - {low} AS {v}, {fold} AS {f} "
         f"FROM {quote(previous)}) GROUP BY {f}, {c})",
     ]
 
