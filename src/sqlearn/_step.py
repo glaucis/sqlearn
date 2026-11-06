@@ -16,11 +16,13 @@ __all__ = [
     "KINDS",
     "Learned",
     "Output",
+    "RowOutput",
     "Step",
     "apply_rows",
     "classify",
     "output_labels",
     "row_outputs",
+    "row_owners",
 ]
 
 KINDS: dict[tuple[type, tuple[tuple[str, object], ...]], str] = {}
@@ -28,6 +30,9 @@ KINDS: dict[tuple[type, tuple[tuple[str, object], ...]], str] = {}
 
 Output = Expression | Mapping[str, Expression] | Sequence[tuple[str, Expression]]
 """What ``apply`` returns: one expression, or new columns keyed by label."""
+
+RowOutput = Mapping[str, Expression] | Sequence[tuple[str, Expression]]
+"""What ``apply_row`` returns: the output columns, keyed by name."""
 
 
 class Learned:
@@ -355,7 +360,7 @@ class Step:
         xs: Mapping[str, Expression],
         learned: Mapping[str, Learned],
         values: Mapping[str, Expression],
-    ) -> Mapping[str, Expression]:
+    ) -> RowOutput:
         """Say what to produce from the whole row, for a step with ``rowwise``.
 
         Parameters
@@ -370,13 +375,16 @@ class Step:
 
         Returns
         -------
-        mapping of str to duckdb.Expression
-            The output columns, replacing the selected ones. A key that names
-            a selected column takes its place (``<column>_<suffix>`` beside
-            it with `keep`); any other key follows the last selected column.
-            Each key is named as a column with the label ``""`` (or the
-            suffix with `keep`) unless `names_are_labels` is False, when it
-            is the full name. Names that clash are numbered (ADR 0035).
+        mapping of str to duckdb.Expression or sequence of (str, duckdb.Expression)
+            The output columns, replacing the selected ones. The first key
+            that names a selected column takes its place
+            (``<column>_<suffix>`` beside it with `keep`); any other key
+            follows the last selected column. Each key is named as a column
+            with the label ``""`` (or the suffix with `keep`) unless
+            `names_are_labels` is False, when it is the full name. Names that
+            clash are numbered (ADR 0035). When two outputs share a name,
+            return a sequence of ``(name, expression)`` pairs instead of a
+            mapping.
 
         Examples
         --------
@@ -662,7 +670,45 @@ def row_outputs(step: Step, names: Sequence[str]) -> list[str]:
     _, outputs = apply_rows(
         step, xs, learned, lambda _, name: duckdb.ColumnExpression(name)
     )
-    return list(outputs)
+    return [name for name, _ in outputs]
+
+
+def row_owners(selected: Sequence[str], keys: Sequence[str]) -> list[str]:
+    """Return the selected column each output of a whole-row step belongs to.
+
+    The first output named after a selected column takes its place; any
+    other, a second output of that name too, follows the last selected
+    column.
+
+    Parameters
+    ----------
+    selected : sequence of str
+        The selected columns, in order.
+    keys : sequence of str
+        The names `apply_row` returned, in order.
+
+    Returns
+    -------
+    list of str
+        The owning column of each output, in the order of `keys`.
+
+    Examples
+    --------
+    >>> from sqlearn._step import row_owners
+    >>> row_owners(["a", "a^2"], ["a", "a^2", "a^2", "a*a^2"])
+    ['a', 'a^2', 'a^2', 'a^2']
+    >>> row_owners(["a^2", "a"], ["a^2", "a", "a^2"])
+    ['a^2', 'a', 'a']
+    """
+    free = set(selected)
+    owners: list[str] = []
+    for key in keys:
+        if key in free:
+            free.discard(key)
+            owners.append(key)
+        else:
+            owners.append(selected[-1])
+    return owners
 
 
 def apply_rows(
@@ -670,7 +716,7 @@ def apply_rows(
     xs: Mapping[str, Expression],
     learned: Mapping[str, Learned],
     refer: Callable[[int, str], Expression],
-) -> tuple[dict[str, Expression], Mapping[str, Expression]]:
+) -> tuple[dict[str, Expression], list[tuple[str, Expression]]]:
     """Call a whole-row step's `row_values`, then its `apply_row`.
 
     Parameters
@@ -686,8 +732,9 @@ def apply_rows(
 
     Returns
     -------
-    tuple of (dict, mapping)
-        The row values by name, and the outputs `apply_row` returned.
+    tuple of (dict, list of (str, duckdb.Expression))
+        The row values by name, and the outputs `apply_row` returned, as
+        ``(name, expression)`` pairs in order.
 
     Examples
     --------
@@ -696,12 +743,16 @@ def apply_rows(
     >>> from sqlearn._step import apply_rows
     >>> xs = {"a": duckdb.ColumnExpression("a")}
     >>> values, outputs = apply_rows(sq.Step(), xs, {}, lambda i, n: xs["a"])
-    >>> values, list(outputs)
+    >>> values, [name for name, _ in outputs]
     ({}, ['a'])
     """
     values = dict(step.row_values(xs, learned))
     refs = {name: refer(i, name) for i, name in enumerate(values)}
-    return values, step.apply_row(xs, learned, refs)
+    result = step.apply_row(xs, learned, refs)
+    pairs: list[tuple[str, Expression]] = (
+        list(result.items()) if isinstance(result, Mapping) else list(result)
+    )
+    return values, pairs
 
 
 def _inspect(step: Step, schema: Schema) -> Literal["static", "dynamic"]:

@@ -42,7 +42,14 @@ from sqlearn._errors import InternalError, SqlearnError, StepError
 from sqlearn._expr import MODE, QUANTILE, TARGET_STATS, const, quote
 from sqlearn._names import name_columns
 from sqlearn._selectors import Schema
-from sqlearn._step import Learned, Output, Step, apply_rows, output_labels
+from sqlearn._step import (
+    Learned,
+    Output,
+    Step,
+    apply_rows,
+    output_labels,
+    row_owners,
+)
 
 __all__ = [
     "POSITION",
@@ -505,12 +512,10 @@ def _row_outputs(
     values, result = apply_rows(step, xs, per_column, refer)
     row.update(zip(internal, values.values(), strict=True))
     label = (step.suffix or step_name) if step.keep and step.names_are_labels else ""
-    last = list(per_column)[-1]
+    owners = row_owners(list(per_column), [key for key, _ in result])
     placed: dict[str, list[tuple[tuple[str, str], Expression]]] = {}
-    for key, e in result.items():
-        placed.setdefault(key if key in per_column else last, []).append(
-            ((key, label), e),
-        )
+    for owner, (key, e) in zip(owners, result, strict=True):
+        placed.setdefault(owner, []).append(((key, label), e))
     return placed
 
 

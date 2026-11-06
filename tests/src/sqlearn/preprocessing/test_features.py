@@ -126,6 +126,30 @@ def test_polynomial_names_clash_with_a_column_passing_through():
     assert got.to_numpy().tolist() == [[2.0, 4.0, 7.0]]
 
 
+def test_polynomial_terms_named_like_an_input_are_numbered():
+    """A term spelt as an input column (``a^2``) is numbered, not overwritten.
+
+    The input's own term keeps its name; the square of ``a`` follows as
+    ``a^2_2``, as the bias ``1`` beside an input named ``1`` is ``1_2``.
+    """
+    frame = pd.DataFrame({"a": [2.0, 3.0], "a^2": [10.0, 20.0]})
+    pipe = sq.Pipeline([sq.features.polynomial()]).learn(frame)
+    assert pipe.columns_out_ == ["a", "a^2", "a^2_2", "a*a^2", "a^2^2"]
+    got = pipe.apply(frame, out="pandas")
+    assert list(got.columns) == pipe.columns_out_
+    sk = PolynomialFeatures().fit(frame)
+    assert_allclose(got.to_numpy(), sk.transform(frame)[:, 1:])
+    swapped = frame[["a^2", "a"]]
+    pipe = sq.Pipeline([sq.features.polynomial()]).learn(swapped)
+    assert pipe.columns_out_ == ["a^2", "a", "a^2^2", "a^2*a", "a^2_2"]
+    got = pipe.apply(swapped, out="pandas")
+    assert_allclose(got.to_numpy(), sk.fit_transform(swapped)[:, 1:])
+    ones = pd.DataFrame({"1": [2.0, 3.0], "b": [5.0, 7.0]})
+    pipe = sq.Pipeline([sq.features.polynomial(include_bias=True)]).learn(ones)
+    assert pipe.columns_out_ == ["1", "b", "1_2", "1^2", "1*b", "b^2"]
+    assert pipe.apply(ones, out="pandas")["1_2"].tolist() == [1.0, 1.0]
+
+
 def test_polynomial_learns_nothing_and_reads_the_whole_row():
     """Polynomial is static, whole-row, and names its outputs in full."""
     assert Polynomial.static is True
@@ -149,7 +173,7 @@ def test_polynomial_of_no_column_creates_nothing():
     """With no numeric column selected, nothing changes, not even ``1``."""
     frame = pd.DataFrame({"city": ["x", "y"]})
     assert applied(sq.features.polynomial(), frame).equals(frame)
-    assert sq.features.polynomial(include_bias=True).apply_row({}, {}, {}) == {}
+    assert sq.features.polynomial(include_bias=True).apply_row({}, {}, {}) == []
 
 
 # --- spline -----------------------------------------------------------------

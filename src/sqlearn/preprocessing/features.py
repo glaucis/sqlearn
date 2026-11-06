@@ -199,7 +199,7 @@ class Polynomial(Step):
         xs: Mapping[str, Expression],
         learned: Mapping[str, Learned],
         values: Mapping[str, Expression],
-    ) -> Mapping[str, Expression]:
+    ) -> list[tuple[str, Expression]]:
         """Write every term, in scikit-learn's ``powers_`` order.
 
         Parameters
@@ -213,24 +213,26 @@ class Polynomial(Step):
 
         Returns
         -------
-        mapping of str to duckdb.Expression
-            Each term's full name (``a``, ``a^2``, ``a*b``, ``1``) to its
-            product, as DOUBLE; nothing when no column is selected.
+        list of (str, duckdb.Expression)
+            Each term's full name (``a``, ``a^2``, ``a*b``, ``1``) and its
+            product, as DOUBLE; nothing when no column is selected. Pairs,
+            not a mapping: a term may be spelt as an input column (the square
+            of ``a`` beside an input ``a^2``), and both are kept.
 
         Examples
         --------
         >>> import duckdb
         >>> import sqlearn as sq
         >>> xs = {c: duckdb.ColumnExpression(c) for c in "ab"}
-        >>> list(sq.features.polynomial().apply_row(xs, {}, {}))
+        >>> [name for name, _ in sq.features.polynomial().apply_row(xs, {}, {})]
         ['a', 'b', 'a^2', 'a*b', 'b^2']
         """
         names = list(xs)
-        out: dict[str, Expression] = {}
+        out: list[tuple[str, Expression]] = []
         if not names:
             return out
         if self.include_bias and self.degree == 0:
-            out["1"] = const(1.0)
+            out.append(("1", const(1.0)))
         combine = (
             itertools.combinations
             if self.interaction_only
@@ -239,12 +241,11 @@ class Polynomial(Step):
         double = {name: x.cast(DOUBLE) for name, x in xs.items()}
         for d in range(1, self.degree + 1):
             for term in combine(range(len(names)), d):
-                out[_term_name([names[i] for i in term])] = _product(
-                    [double[names[i]] for i in term]
-                )
+                product = _product([double[names[i]] for i in term])
+                out.append((_term_name([names[i] for i in term]), product))
             if d == 1 and self.include_bias:
                 # After the inputs' own terms, which take the inputs' places.
-                out["1"] = const(1.0)
+                out.append(("1", const(1.0)))
         return out
 
 

@@ -184,11 +184,14 @@ parts = pd.DataFrame({"a": [1.0, 3.0], "b": [3.0, 1.0]})
 sq.Pipeline([Share()]).learn(parts).apply(parts)
 ```
 
-An output named after a selected column takes its place (with `keep=True`,
-`a_share` comes beside `a`); any other name follows the last selected column.
-Names are given by the same rule as above. Since each output reads the whole
-row, a later step reading any one of them depends on every selected column,
-and on the steps that made them.
+The first output named after a selected column takes its place (with
+`keep=True`, `a_share` comes beside `a`); any other name follows the last
+selected column. Names are given by the same rule as above. When two outputs
+share a name, return a list of `(name, expression)` pairs instead of a dict:
+both are kept, and the second is numbered. `sq.features.polynomial` does so,
+since the square of `a` is spelt `a^2`, as an input column may be. Since each
+output reads the whole row, a later step reading any one of them depends on
+every selected column, and on the steps that made them.
 
 A value every output shares, such as the row's total above, is written into
 each output, so the SQL grows with the square of the number of columns. To

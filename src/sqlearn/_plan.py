@@ -12,7 +12,14 @@ from sqlearn._diagnose import diagnose
 from sqlearn._errors import StepError
 from sqlearn._names import name_columns
 from sqlearn._selectors import Schema, Selector, _Cols, to_selector
-from sqlearn._step import Learned, Step, classify, output_labels, row_outputs
+from sqlearn._step import (
+    Learned,
+    Step,
+    classify,
+    output_labels,
+    row_outputs,
+    row_owners,
+)
 
 __all__ = ["Plan", "plan"]
 
@@ -380,10 +387,18 @@ def _write_row(
         if read:
             unknown.append(_Column(None, step.creates, ready, deps))
         return unknown, []
-    owned: dict[str | None, list[str]] = {name: [] for name in names}
-    for key in keys:
-        owned[key if key in owned else names[-1]].append(key)
+    owned: dict[str | None, list[tuple[str, DuckDBPyType | None]]] = {
+        name: [] for name in names
+    }
     types = {c.name: c.dtype for c in read}
+    selected = cast("list[str]", names)
+    placed: set[str] = set()
+    for owner, key in zip(row_owners(selected, keys), keys, strict=True):
+        # The output taking an input's place has its type; any other is new.
+        first = owner == key and key not in placed
+        if first:
+            placed.add(key)
+        owned[owner].append((key, types[key] if first else step.creates))
     label = (step.suffix or step_name) if step.keep and step.names_are_labels else ""
     out: list[_Column] = []
     new: list[int] = []
@@ -391,9 +406,8 @@ def _write_row(
         if id(c) not in chosen or step.keep:
             out.append(c)
         if id(c) in chosen:
-            for key in owned[c.name]:
+            for key, dtype in owned[c.name]:
                 new.append(len(out))
-                dtype = types.get(key, step.creates)
                 out.append(_Column(key, dtype, ready, deps))
     taken = [c.name for i, c in enumerate(out) if i not in set(new)]
     final: list[str | None] = [None] * len(new)
