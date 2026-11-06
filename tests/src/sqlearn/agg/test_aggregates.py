@@ -1,6 +1,7 @@
 """Tests of the aggregates: values a step takes, expressions it learns."""
 
 import math
+import pickle
 
 import duckdb
 import numpy as np
@@ -385,3 +386,10 @@ def test_mode_is_counted_not_sorted():
 def test_infinity_is_a_value_to_the_quantiles():
     """Infinity is present (only NaN and NULL are missing); Impute refuses it."""
     assert learn([1.0, math.inf, 2.0], sq.agg.median) == 2.0
+
+
+def test_an_aggregate_pickles_by_name_and_params():
+    """A step holding an aggregate can be pickled: it comes back equal."""
+    for a in (sq.agg.median, sq.agg.quantile(q=0.9), sq.agg.iqr(q=(0.1, 0.9))):
+        back = pickle.loads(pickle.dumps(a))
+        assert back == a and repr(back) == repr(a)

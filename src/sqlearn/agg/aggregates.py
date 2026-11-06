@@ -311,6 +311,17 @@ class Aggregate:
         """Hash the name and params, as equality compares them."""
         return hash((self.name, tuple(sorted(self.params.items()))))
 
+    def __reduce__(self) -> tuple[object, tuple[str, dict[str, object]]]:
+        """Pickle by name and params, so a step holding one can be copied."""
+        return _rebuild, (self.name, self.params)
+
+
+def _rebuild(name: str, params: dict[str, object]) -> Aggregate:
+    """Return the aggregate `name` with `params` set (unpickling)."""
+    out = _BY_NAME[name]()
+    out.params = dict(params)
+    return out
+
 
 def _quantile(x: Expression, q: float, method: str) -> Expression:
     return _fn(QUANTILE, present(x), const(float(q)), const(method))

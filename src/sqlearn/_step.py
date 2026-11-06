@@ -172,7 +172,8 @@ class Step:
     Attributes
     ----------
     static : bool or None
-        Declared class; None means classify by trying `apply`.
+        Declared class; None means classify by trying `apply`. Set on the
+        class, or on the instance in ``__init__`` when the settings decide.
     dynamic : bool or None
         Declared dynamic when True, trusted as `static` is; declaring both
         `static` and `dynamic` as True is refused.
@@ -202,9 +203,11 @@ class Step:
     '("a" + 1)'
     """
 
-    static: ClassVar[bool | None] = None
-    dynamic: ClassVar[bool | None] = None
-    creates: ClassVar[DuckDBPyType | None] = None
+    # Not ClassVar: a step whose class depends on its settings sets these on
+    # the instance in `__init__` (sq.impute with indicator=True is dynamic).
+    static: bool | None = None
+    dynamic: bool | None = None
+    creates: DuckDBPyType | None = None
     changes_rows: ClassVar[bool] = False
     names_are_labels: ClassVar[bool] = True
 
@@ -497,7 +500,9 @@ def output_labels(
     list of (str, duckdb.Expression)
         ``(label, expression)`` per output, in order. One expression is
         labelled ``""``, the column itself (or `suffix` or `step_name` with
-        `keep`); a mapping or a sequence of pairs keeps its own labels.
+        `keep`); a mapping or a sequence of pairs keeps its own labels, its
+        ``""`` too becoming `suffix` or `step_name` with `keep`, since the
+        kept input is then the column itself.
 
     Examples
     --------
@@ -509,6 +514,9 @@ def output_labels(
     """
     if isinstance(result, Expression):
         return [((suffix or step_name) if keep else "", result)]
-    if isinstance(result, Mapping):
-        return list(result.items())
-    return list(result)
+    pairs: list[tuple[str, Expression]] = (
+        list(result.items()) if isinstance(result, Mapping) else list(result)
+    )
+    if keep:
+        return [(label or suffix or step_name, e) for label, e in pairs]
+    return pairs

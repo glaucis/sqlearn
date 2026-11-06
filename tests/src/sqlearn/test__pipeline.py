@@ -482,7 +482,7 @@ def churn_pipe(model):
     """Return Impute, OneHot and Scale, then the model."""
     return sq.Pipeline(
         [
-            ("impute", sq.Impute(sq.cols.numeric(), strategy="median")),
+            ("impute", sq.impute.median(cols=sq.cols.numeric())),
             ("onehot", sq.OneHot(["city"])),
             ("scale", sq.Scale(sq.cols.numeric())),
             ("model", model),
@@ -573,7 +573,7 @@ def test_target_and_features_come_from_one_query():
 def test_predict_returns_one_column_in_input_order():
     """`predict` gives a lazy relation of one column, one row per input row."""
     frame = pd.DataFrame({"x": [5.0, 1.0, 4.0, 2.0, 3.0], "y": [1, 0, 1, 0, 1]})
-    pipe = sq.Pipeline([("impute", sq.Impute()), ("model", Echo())])
+    pipe = sq.Pipeline([("impute", sq.impute()), ("model", Echo())])
     pipe.train(frame, target="y")
     rel = pipe.predict(frame.drop(columns="y"))
     assert isinstance(rel, duckdb.DuckDBPyRelation)
@@ -594,7 +594,7 @@ def test_predictions_line_up_with_a_large_parquet_input(tmp_path):
     )
     threads = connection().sql("SELECT current_setting('threads')").fetchall()
     assert threads[0][0] > 1
-    pipe = sq.Pipeline([("impute", sq.Impute()), ("model", Echo())])
+    pipe = sq.Pipeline([("impute", sq.impute()), ("model", Echo())])
     pipe.train(path, target="y")
     got = pipe.predict(path, out="numpy")["prediction"]
     want = connection().sql(f"SELECT x FROM '{path}'").fetchnumpy()["x"]

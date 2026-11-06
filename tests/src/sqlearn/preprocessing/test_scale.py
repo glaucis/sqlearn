@@ -80,7 +80,7 @@ def test_impute_then_scale_matches_sklearn_pipeline():
     sk = SkPipeline([("i", SimpleImputer(strategy="median")), ("s", StandardScaler())])
     expected = sk.fit_transform(frame[cols])
     pipe = sq.Pipeline(
-        [("fill", sq.Impute(cols=cols)), ("scale", sq.Scale(cols=cols))],
+        [("fill", sq.impute.median(cols)), ("scale", sq.Scale(cols=cols))],
     ).learn(frame)
     got = pipe.apply(frame, out="pandas")
     assert_allclose(got[cols].to_numpy(), expected, rtol=1e-12)
@@ -156,7 +156,7 @@ def test_all_null_column_without_nan():
 def test_all_missing_after_impute_in_the_same_statement():
     """Impute then Scale on an all-missing column fails at Impute, by name."""
     frame = pd.DataFrame({"a": [1.0, 2.0], "dead": [np.nan, np.nan]})
-    pipe = sq.Pipeline([("fill", sq.Impute()), ("scale", sq.Scale())])
+    pipe = sq.Pipeline([("fill", sq.impute()), ("scale", sq.Scale())])
     with pytest.raises(sq.errors.StepError, match=r"fill \(step 1\).*'dead'") as err:
         pipe.learn(frame)
     assert err.value.position == 1

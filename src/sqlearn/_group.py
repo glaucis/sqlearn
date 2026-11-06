@@ -1,8 +1,8 @@
-"""What the groups share: how a group method reads its columns."""
+"""What the groups share: how a group method reads its columns and prints."""
 
 from sqlearn._errors import SqlearnError
 
-__all__ = ["Group", "columns_arg"]
+__all__ = ["Group", "call_repr", "columns_arg"]
 
 
 def columns_arg(names: tuple[object, ...], cols: object, *, allow_dict: bool) -> object:
@@ -60,6 +60,36 @@ def columns_arg(names: tuple[object, ...], cols: object, *, allow_dict: bool) ->
     if isinstance(one, (list, tuple)):
         return list(one)
     return one
+
+
+def call_repr(path: str, *args: object, **kwargs: object) -> str:
+    """Write the call that builds a step, for its ``repr``.
+
+    A step group's step prints as the shortest call that rebuilds it; the
+    step picks which arguments to give, and this writes them.
+
+    Parameters
+    ----------
+    path : str
+        What is called, such as ``"sq.impute.median"``.
+    *args : object
+        The positional arguments, written by their ``repr``.
+    **kwargs : object
+        The keyword arguments, in order, written as ``name=repr``.
+
+    Returns
+    -------
+    str
+        The call, such as ``sq.impute.median(cols='age')``.
+
+    Examples
+    --------
+    >>> from sqlearn._group import call_repr
+    >>> call_repr("sq.impute.constant", 0, cols=["a"])
+    "sq.impute.constant(0, cols=['a'])"
+    """
+    parts = [repr(a) for a in args] + [f"{k}={v!r}" for k, v in kwargs.items()]
+    return f"{path}({', '.join(parts)})"
 
 
 class Group:

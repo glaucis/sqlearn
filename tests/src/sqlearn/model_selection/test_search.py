@@ -15,7 +15,7 @@ from sqlearn._store import STORE
 from sqlearn.metrics import Metric
 from sqlearn.model_selection import search as search_module
 
-GRID = {"model__C": [0.1, 1, 10], "impute__strategy": ["median", "mean"]}
+GRID = {"model__C": [0.1, 1, 10], "impute__value": ["median", "mean"]}
 
 
 def customers(seed=0, rows=600):
@@ -43,7 +43,7 @@ def slice_pipe(model=None):
     """Return the slice's pipeline (spec §2)."""
     return sq.Pipeline(
         [
-            ("impute", sq.Impute(cols=sq.cols.numeric(), strategy="median")),
+            ("impute", sq.impute.median(cols=sq.cols.numeric())),
             ("onehot", sq.OneHot(cols=["city"])),
             ("ordinal", sq.Ordinal(cols=["plan"])),
             ("scale", sq.Scale(cols=sq.cols.numeric())),
@@ -131,7 +131,7 @@ def test_grid_matches_gridsearchcv():
 
     sk_best = sk_grid.best_params_
     assert search.best_params_ == {
-        "impute__strategy": sk_best["columntransformer__num__strategy"],
+        "impute__value": sk_best["columntransformer__num__strategy"],
         "model__C": sk_best["logisticregression__C"],
     }
     ours = mean_scores(search)
@@ -142,7 +142,7 @@ def test_grid_matches_gridsearchcv():
     ):
         setting = json.dumps(
             {
-                "impute__strategy": params["columntransformer__num__strategy"],
+                "impute__value": params["columntransformer__num__strategy"],
                 "model__C": params["logisticregression__C"],
             }
         )

@@ -16,7 +16,13 @@ The API of the sqlearn package, generated from its docstrings.
    sqlearn.Pipeline
    sqlearn.Step
    sqlearn.Learned
-   sqlearn.Impute
+   sqlearn.impute
+   sqlearn.impute.mean
+   sqlearn.impute.median
+   sqlearn.impute.mode
+   sqlearn.impute.constant
+   sqlearn.impute.indicator
+   sqlearn.preprocessing.Impute
    sqlearn.OneHot
    sqlearn.Ordinal
    sqlearn.Scale

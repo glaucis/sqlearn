@@ -1,6 +1,6 @@
 """Validate the slice's preparation, whole, against scikit-learn's pipeline.
 
-sqlearn: ``Impute(median) → OneHot(city) → Ordinal(plan) → Scale(numeric())``,
+sqlearn: ``impute.median → OneHot(city) → Ordinal(plan) → Scale(numeric())``,
 where Scale also scales the new one-hot and ordinal columns, being numeric.
 scikit-learn's equivalent: a ``ColumnTransformer`` of ``SimpleImputer``,
 ``OneHotEncoder`` and ``OrdinalEncoder``, then ``StandardScaler`` over every
@@ -79,7 +79,7 @@ def _sqlearn(columns: dict[str, tuple]) -> pd.DataFrame:
     rel = _cases.sqlearn_table(columns, KINDS)
     pipe = sq.Pipeline(
         [
-            ("impute", sq.Impute(cols=sq.cols.numeric(), strategy="median")),
+            ("impute", sq.impute.median(cols=sq.cols.numeric())),
             ("onehot", sq.OneHot(cols=["city"])),
             ("ordinal", sq.Ordinal(cols=["plan"])),
             ("scale", sq.Scale(cols=sq.cols.numeric())),

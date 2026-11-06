@@ -8,7 +8,7 @@ of a pipeline, refusing a setting that names nothing.
 """
 
 import itertools
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Protocol, runtime_checkable
 
@@ -426,6 +426,17 @@ def trial(pipe: Pipeline, params: Params) -> Pipeline:
                     f"{type(step).__name__} (step {position}, {name!r}) has no "
                     f"setting {setting!r}; its settings are "
                     f"{', '.join(settings)}. Fix: correct the name."
+                )
+                raise SqlearnError(msg)
+            if isinstance(settings[setting], Mapping):
+                msg = (
+                    f"Search got the setting {f'{name}__{setting}'!r}, but "
+                    f"{name!r} (step {position}) gives each column its own "
+                    f"{setting} with a dict ({settings[setting]!r}). Why: a "
+                    "dict step is one step, so a search cannot change one "
+                    f"column's {setting} apart from the others'. Fix: use one "
+                    f"step per column, such as sq.impute.median('age'), and "
+                    f"search each step's {setting}."
                 )
                 raise SqlearnError(msg)
         rebuilt: dict[str, Any] = {**settings, **step_values[name]}

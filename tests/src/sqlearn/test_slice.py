@@ -52,7 +52,7 @@ def run_the_slice():
     """Run spec §2's script, as written there, from the current directory."""
     pipe = sq.Pipeline(
         [
-            ("impute", sq.Impute(cols=sq.cols.numeric(), strategy="median")),
+            ("impute", sq.impute.median(cols=sq.cols.numeric())),
             ("onehot", sq.OneHot(cols=["city"])),
             ("ordinal", sq.Ordinal(cols=["plan"])),
             ("scale", sq.Scale(cols=sq.cols.numeric())),
@@ -62,7 +62,7 @@ def run_the_slice():
 
     search = sq.Search(
         pipe,
-        params={"model__C": [0.1, 1, 10], "impute__strategy": ["median", "mean"]},
+        params={"model__C": [0.1, 1, 10], "impute__value": ["median", "mean"]},
         metric=sq.metrics.accuracy,
     )
     search.train("data/train/*.parquet", target="churned")
@@ -80,7 +80,7 @@ def test_the_slice_script_runs(tmp_path, monkeypatch):
     assert list(predicted.columns) == ["prediction"]
     assert len(predicted) == 150
     assert set(predicted["prediction"]) <= {0, 1}
-    assert set(search.best_params_) == {"model__C", "impute__strategy"}
+    assert set(search.best_params_) == {"model__C", "impute__value"}
     assert 0 <= search.best_score_ <= 1
     assert search.results_.count("*").fetchall() == [(30,)]
     # Fold first: 5 folds x 2 imputer settings; C changes nothing upstream.
@@ -128,7 +128,7 @@ RUNS = [
     pytest.param(
         # Static steps only: everything in one run.
         lambda: [
-            ("impute", sq.Impute(cols=["age", "income"])),
+            ("impute", sq.impute.median(["age", "income"])),
             ("scale", sq.Scale(cols=["age", "income"])),
         ],
         1,
@@ -136,7 +136,7 @@ RUNS = [
     ),
     pytest.param(
         # Static steps only, chained through numeric(): one run.
-        lambda: [("impute", sq.Impute()), ("scale", sq.Scale())],
+        lambda: [("impute", sq.impute()), ("scale", sq.Scale())],
         1,
         id="static-numeric",
     ),
@@ -174,7 +174,7 @@ RUNS = [
         # The slice's preparation: numeric() could match OneHot's and
         # Ordinal's INTEGER columns, so Scale waits: two runs.
         lambda: [
-            ("impute", sq.Impute()),
+            ("impute", sq.impute()),
             ("onehot", sq.OneHot(cols=["city"])),
             ("ordinal", sq.Ordinal(cols=["plan"])),
             ("scale", sq.Scale()),
@@ -227,13 +227,13 @@ RUNS = [
     ),
     pytest.param(
         # An undeclared user step found static: one run.
-        lambda: [("impute", sq.Impute()), ("scale", MyScale())],
+        lambda: [("impute", sq.impute()), ("scale", MyScale())],
         1,
         id="undeclared-static",
     ),
     pytest.param(
         # A declared static user step: one run.
-        lambda: [("impute", sq.Impute()), ("scale", DeclaredScale())],
+        lambda: [("impute", sq.impute()), ("scale", DeclaredScale())],
         1,
         id="declared-static",
     ),
@@ -333,7 +333,7 @@ def test_an_edited_frame_relearns():
     frame = pd.DataFrame(
         {"age": [20.0, None, 40.0, 50.0], "city": ["kyiv", "oslo", "kyiv", "rome"]}
     )
-    pipe = sq.Pipeline([("impute", sq.Impute()), ("onehot", sq.OneHot(["city"]))])
+    pipe = sq.Pipeline([("impute", sq.impute()), ("onehot", sq.OneHot(["city"]))])
     pipe.learn(frame)
     assert dict(STORE.learns) == {"impute": 1, "onehot": 1}
     pipe.learn(frame)
@@ -368,7 +368,7 @@ def test_preparation_runs_larger_than_memory(tmp_path, capsys):
     sq.set_config(connection=con)
     pipe = sq.Pipeline(
         [
-            ("impute", sq.Impute(cols=sq.cols.numeric(), strategy="median")),
+            ("impute", sq.impute.median(cols=sq.cols.numeric())),
             ("onehot", sq.OneHot(cols=["city"])),
             ("ordinal", sq.Ordinal(cols=["plan"])),
             ("scale", sq.Scale(cols=sq.cols.numeric())),

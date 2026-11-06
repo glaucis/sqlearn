@@ -177,7 +177,7 @@ def test_awkward_names_survive_the_slice_steps():
     )
     pipe = sq.Pipeline(
         [
-            ("fill", sq.Impute()),
+            ("fill", sq.impute()),
             ("scale", sq.Scale()),
             ("hot", sq.OneHot(cols=["order", 'a"b'])),
         ],

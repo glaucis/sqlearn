@@ -12,14 +12,14 @@ OTHER = ("table", "t", 2)
 class MyImpute(sq.Step):
     """A step with a setting, to change between keys."""
 
-    def __init__(self, cols=("a",), strategy="mean", keep=False, suffix=None):
+    def __init__(self, cols=("a",), value="mean", keep=False, suffix=None):
         """Set the settings."""
-        self.cols, self.strategy, self.keep, self.suffix = cols, strategy, keep, suffix
+        self.cols, self.value, self.keep, self.suffix = cols, value, keep, suffix
 
 
-def _keys(data, fold, strategy):
+def _keys(data, fold, value):
     steps = [
-        ("impute", MyImpute(strategy=strategy)),
+        ("impute", MyImpute(value=value)),
         ("onehot", MyEncoder()),
         ("scale", MyScale(cols=("a",))),
     ]
@@ -102,8 +102,8 @@ def test_true_and_one_get_different_keys():
 def test_a_change_two_hops_up_reaches_the_last_key():
     """A to B to C: a change in A changes C's key (transitive depends_on)."""
 
-    def key(strategy):
-        steps = [("a", MyImpute(strategy=strategy)), ("b", _V(1)), ("c", _V(2))]
+    def key(value):
+        steps = [("a", MyImpute(value=value)), ("b", _V(1)), ("c", _V(2))]
         return step_key(DATA, None, steps, 2, frozenset({0, 1}))
 
     assert key("mean") != key("median")

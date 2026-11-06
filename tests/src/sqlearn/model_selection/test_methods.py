@@ -19,7 +19,7 @@ def asked(method, space):
 def test_grid_expands_as_parameter_grid():
     """Keys sorted, the last varying fastest; a list of grids one after another."""
     space = [
-        {"model__C": [0.1, 1, 10], "impute__strategy": ["median", "mean"]},
+        {"model__C": [0.1, 1, 10], "impute__value": ["median", "mean"]},
         {"model": ["a", "b"]},
     ]
     assert asked(sq.Grid(), space) == list(ParameterGrid(space))

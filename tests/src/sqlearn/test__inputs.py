@@ -100,10 +100,10 @@ def test_equal_tables_on_two_connections_learn_their_own_values():
     a.execute("CREATE TABLE t AS SELECT * FROM (VALUES (1.0), (2.0), (3.0)) v(x)")
     b.execute("CREATE TABLE t AS SELECT * FROM (VALUES (10.0), (20.0), (60.0)) v(x)")
     _config.set_config(connection=a)
-    first = sq.Pipeline([("fill", sq.Impute(strategy="mean"))]).learn(a.table("t"))
+    first = sq.Pipeline([("fill", sq.impute.mean())]).learn(a.table("t"))
     assert first["fill"].value_ == {"x": 2.0}
     _config.set_config(connection=b)
-    second = sq.Pipeline([("fill", sq.Impute(strategy="mean"))]).learn(b.table("t"))
+    second = sq.Pipeline([("fill", sq.impute.mean())]).learn(b.table("t"))
     assert second["fill"].value_ == {"x": 30.0}
     assert STORE.learns["fill"] == 2
 

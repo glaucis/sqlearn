@@ -55,7 +55,7 @@ duckdb.sql(f"COPY frame TO '{folder}/train.parquet' (FORMAT parquet)")
 
 pipe = sq.Pipeline(
     [
-        ("impute", sq.Impute(cols=sq.cols.numeric(), strategy="median")),
+        ("impute", sq.impute.median(cols=sq.cols.numeric())),
         ("onehot", sq.OneHot(cols=["city"])),
         ("ordinal", sq.Ordinal(cols=["plan"])),
         ("scale", sq.Scale(cols=sq.cols.numeric())),
@@ -70,7 +70,7 @@ pipe = sq.Pipeline(
 
 search = sq.Search(
     pipe,
-    params={"model__C": [0.1, 1, 10], "impute__strategy": ["median", "mean"]},
+    params={"model__C": [0.1, 1, 10], "impute__value": ["median", "mean"]},
     metric=sq.metrics.accuracy,
 )
 search.train(str(folder / "*.parquet"), target="churned")

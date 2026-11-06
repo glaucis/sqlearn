@@ -17,11 +17,11 @@ from sqlearn._pipeline import Pipeline
 from sqlearn._selectors import cols
 from sqlearn._step import Learned, Step
 from sqlearn.model_selection import Grid, KFold, Search, range
-from sqlearn.preprocessing import Impute, OneHot, Ordinal, Scale
+from sqlearn.preprocessing import OneHot, Ordinal, Scale
+from sqlearn.preprocessing.impute import impute
 
 __all__ = [
     "Grid",
-    "Impute",
     "KFold",
     "Learned",
     "Model",
@@ -38,6 +38,7 @@ __all__ = [
     "errors",
     "fn",
     "get_config",
+    "impute",
     "metrics",
     "out",
     "range",
