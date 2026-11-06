@@ -37,8 +37,8 @@ REPETITIONS = 5
 """Each measurement is repeated this many times; the median is reported."""
 
 LIMITS = ("512MB", "256MB", "128MB", "96MB", "64MB")
-"""Memory limits tried, largest first, on the largest size. Each is smaller
-than the data in memory (about 400 MB); every outcome is recorded."""
+"""Memory limits tried, largest first, on the largest size (the data takes
+about 400 MB in memory, so 512 MB is above it); every outcome is recorded."""
 
 DATA = """
     SELECT
@@ -92,9 +92,15 @@ def _once(path: Path, make, out: Path) -> dict:
 
 
 def measure(
-    path: Path, make, scratch: Path, limit: str | None, threads: int | None = None
-) -> dict:
-    """Return the median times, the runs and the bytes read for one pipeline."""
+    path: Path, scratch: Path, limit: str | None, threads: int | None = None
+) -> dict[str, dict]:
+    """Return, per variant, the median times, the runs and the bytes read.
+
+    Each variant first runs once, discarded, to warm the file cache and the
+    connection. The measured repetitions then alternate the variants' order,
+    so neither always takes the first read of a file. The runs are checked:
+    learning takes the variant's runs, and applying is one run.
+    """
     con = duckdb.connect()
     con.execute(f"SET temp_directory = '{scratch / 'spill'}'")
     if threads:
@@ -103,33 +109,61 @@ def measure(
         con.execute(f"SET memory_limit = '{limit}'")
     sq.set_config(connection=con)
     out = scratch / "prepared.parquet"
+    profile = scratch / "profile.json"
+    names = list(VARIANTS)
+    reps: dict[str, list[dict]] = {name: [] for name in names}
+    results: dict[str, dict] = {}
     try:
-        reps = [_once(path, make, out) for _ in range(REPETITIONS)]
-        profile = scratch / "profile.json"
-        read = sum(_bytes_read(con, s, profile) for s in reps[0]["learn_statements"])
-        read_apply = sum(
-            _bytes_read(con, f"COPY ({s}) TO '{out}' (FORMAT parquet)", profile)
-            for s in reps[0]["apply_statements"]
-        )
-    except (duckdb.Error, SqlearnError) as error:
-        return {"result": "fail", "error": str(error).splitlines()[0][:160]}
+        for name in names:  # the discarded warm-up
+            try:
+                _once(path, VARIANTS[name], out)
+            except (duckdb.Error, SqlearnError) as error:
+                results[name] = {
+                    "result": "fail",
+                    "error": str(error).splitlines()[0][:160],
+                }
+        live = [name for name in names if name not in results]
+        for i in range(REPETITIONS):
+            for name in live if i % 2 == 0 else live[::-1]:
+                reps[name].append(_once(path, VARIANTS[name], out))
+        for name in live:
+            last = reps[name][-1]
+            assert last["apply_runs"] == 1, "apply was not one run"
+            read = sum(_bytes_read(con, s, profile) for s in last["learn_statements"])
+            read_apply = sum(
+                _bytes_read(con, f"COPY ({s}) TO '{out}' (FORMAT parquet)", profile)
+                for s in last["apply_statements"]
+            )
+            results[name] = {
+                "result": "pass",
+                "runs": last["runs"],
+                "learn_s": statistics.median(r["learn_s"] for r in reps[name]),
+                "apply_s": statistics.median(r["apply_s"] for r in reps[name]),
+                "total_s": statistics.median(r["total_s"] for r in reps[name]),
+                "bytes_learn": read,
+                "bytes_apply": read_apply,
+            }
     finally:
         con.close()
         sq.set_config(connection=None)
-    return {
-        "result": "pass",
-        "runs": reps[0]["runs"],
-        "apply_runs": reps[0]["apply_runs"],
-        "learn_s": statistics.median(r["learn_s"] for r in reps),
-        "apply_s": statistics.median(r["apply_s"] for r in reps),
-        "total_s": statistics.median(r["total_s"] for r in reps),
-        "bytes_learn": read,
-        "bytes_apply": read_apply,
-    }
+    return results
+
+
+def _show(rows: int, limit: str, results: dict[str, dict]) -> None:
+    """Print a pair's rows; two out-of-memory failures print as one row."""
+    if all(
+        m["result"] == "fail" and "Out of Memory" in m["error"]
+        for m in results.values()
+    ):
+        print(f"| {rows:,} | {limit} | both | out of memory | | | | | |")  # noqa: T201
+    else:
+        for name, m in results.items():
+            print(_row(rows, limit, name, m))  # noqa: T201
+    sys.stdout.flush()
 
 
 def _machine() -> dict:
-    """Return the machine and the versions the numbers were measured on."""
+    """Return the machine and versions; the sysctl details are macOS-only."""
 
     def sysctl(key: str) -> str:
         try:
@@ -178,17 +212,12 @@ def main() -> None:
             duckdb.execute(
                 f"COPY ({DATA.format(s=SEED * 10, n=n)}) TO '{path}' (FORMAT parquet)"
             )
-            for name, make in VARIANTS.items():
-                print(_row(n, "none", name, measure(path, make, root, None)))  # noqa: T201
-                sys.stdout.flush()
+            _show(n, "none", measure(path, root, None))
         print(f"\nlarge file: {path.stat().st_size / 1e6:.1f} MB as Parquet")  # noqa: T201
         for threads in (None, 1):
             for limit in LIMITS:
                 label = f"{limit}, {threads} thread" if threads else limit
-                for name, make in VARIANTS.items():
-                    result = measure(path, make, root, limit, threads)
-                    print(_row(SIZES[-1], label, name, result))  # noqa: T201
-                    sys.stdout.flush()
+                _show(SIZES[-1], label, measure(path, root, limit, threads))
 
 
 if __name__ == "__main__":
