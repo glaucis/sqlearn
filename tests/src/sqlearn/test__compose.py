@@ -29,7 +29,7 @@ class FillZero(sq.Step):
 
     def apply(self, x, learned):
         """Fill the gaps."""
-        return duckdb.CoalesceOperator(x, sq.const(0.0))
+        return duckdb.CoalesceOperator(x, sq.fn.const(0.0))
 
 
 @pytest.fixture
@@ -152,16 +152,16 @@ def test_keep_puts_the_output_beside_the_input(con):
 def test_duplicate_output_names_are_refused():
     """Two output columns of one stage may not share a name."""
     schema = [("age", DOUBLE), ("age_impute", DOUBLE)]
-    with pytest.raises(sq.SqlearnError, match="age_impute"):
+    with pytest.raises(sq.errors.SqlearnError, match="age_impute"):
         step_stage(1, "impute", FillZero("age", keep=True), schema, SOURCE)
     col = duckdb.ColumnExpression("a")
-    with pytest.raises(sq.SqlearnError, match="s01_x"):
+    with pytest.raises(sq.errors.SqlearnError, match="s01_x"):
         build("t", [Stage("s01_x", {"a": col, "A": col})])
 
 
 def test_a_stage_with_no_columns_is_refused():
     """A data stage must produce at least one column."""
-    with pytest.raises(sq.SqlearnError, match="s01_x"):
+    with pytest.raises(sq.errors.SqlearnError, match="s01_x"):
         build("t", [Stage("s01_x", {})])
 
 
@@ -175,9 +175,9 @@ def test_produce_needs_a_way_to_remake_a_learning_stage(con):
     """A learning stage built by hand cannot be applied with values."""
     agg = sq.avg(duckdb.ColumnExpression("age"))
     stage = Stage("s01_x", {"age": duckdb.ColumnExpression("age")}, {"v0": agg})
-    with pytest.raises(sq.SqlearnError, match="s01_x"):
+    with pytest.raises(sq.errors.SqlearnError, match="s01_x"):
         execute(con, "t", [stage], produce=True)
-    with pytest.raises(sq.SqlearnError, match="not mapped"):
+    with pytest.raises(sq.errors.SqlearnError, match="not mapped"):
         execute(con, "t", [stage], produce=False)
 
 
@@ -206,7 +206,7 @@ def test_one_statement_and_two_give_equal_rows(con):
 def test_remaking_without_a_learned_value_is_refused():
     """A learned value missing for a column names the stage and column."""
     known = {"mean": {"age": 10.0}, "scale": {}}
-    with pytest.raises(sq.SqlearnError, match=r"s01_scale.*'scale'.*'age'"):
+    with pytest.raises(sq.errors.SqlearnError, match=r"s01_scale.*'scale'.*'age'"):
         step_stage(1, "scale", MyScale(), SCHEMA, SOURCE, values=known)
 
 
@@ -221,14 +221,14 @@ def test_the_learn_statement_must_give_one_row():
             return duckdb.sql("SELECT 1 WHERE false")
 
     stages = impute_then_scale(SCHEMA)
-    with pytest.raises(sq.InternalError, match="one row"):
+    with pytest.raises(sq.errors.InternalError, match="one row"):
         execute(NoRows(), "t", stages, produce=False)  # ty: ignore[invalid-argument-type]
 
 
 def test_learning_from_no_rows_names_the_step(con):
     """A learn stage over no rows raises a StepError for its step."""
     stages = impute_then_scale(SCHEMA)
-    with pytest.raises(sq.StepError, match=r"scale \(step 2\).*no rows") as err:
+    with pytest.raises(sq.errors.StepError, match=r"scale \(step 2\).*no rows") as err:
         execute(con, "SELECT * FROM t WHERE false", stages, produce=False)
     assert (err.value.step, err.value.position) == ("scale", 2)
 
@@ -244,7 +244,7 @@ def test_given_columns_replace_the_selector():
 def test_copy_writes_only_the_three_formats():
     """A file format other than parquet, csv or json is refused."""
     assert copy_sql("SELECT 1", "a.csv", "csv").endswith("(FORMAT csv)")
-    with pytest.raises(sq.SqlearnError, match="xlsx"):
+    with pytest.raises(sq.errors.SqlearnError, match="xlsx"):
         copy_sql("SELECT 1", "a.xlsx", "xlsx")
 
 
@@ -359,13 +359,15 @@ class Doubled(sq.Step):
 
     def learn(self, x):
         """Learn the median, doubled."""
-        return {"twice": sq.median(x) * sq.const(2)}
+        return {"twice": sq.median(x) * sq.fn.const(2)}
 
 
 def test_a_median_inside_an_expression_is_refused(con):
     """A median must be a whole learned value; the message names the step."""
     stage = step_stage(1, "double", Doubled(), SCHEMA, SOURCE)
-    with pytest.raises(sq.StepError, match=r"double \(step 1\).*whole learned value"):
+    with pytest.raises(
+        sq.errors.StepError, match=r"double \(step 1\).*whole learned value"
+    ):
         execute(con, "t", [stage], produce=False)
 
 
@@ -380,7 +382,9 @@ def test_a_median_of_text_holding_parentheses_and_quotes(con):
     """Parentheses and quotes inside the median's argument do not confuse it."""
     stage = step_stage(1, "middle", Middle(), SCHEMA, SOURCE)
     age = duckdb.ColumnExpression(SOURCE, "age")
-    odd = duckdb.CaseExpression(age.cast("VARCHAR") == sq.const(")'("), sq.const(None))
+    odd = duckdb.CaseExpression(
+        age.cast("VARCHAR") == sq.fn.const(")'("), sq.fn.const(None)
+    )
     stage.learn = {"v0": sq.median(odd.otherwise(age))}
     values, _, _ = execute(con, "t", [stage], produce=False)
     assert values["s01_middle"]["median"]["age"] == 20.0

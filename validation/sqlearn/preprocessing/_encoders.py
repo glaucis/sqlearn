@@ -92,7 +92,7 @@ def cases(
             for formula in formulas:
                 try:
                     sqlearn_side(make, data, applied)
-                except sq.SqlearnError as exc:
+                except sq.errors.SqlearnError as exc:
                     result, note = (
                         "pass",
                         f"refused, as specified: {_cases.first_line(exc)}",

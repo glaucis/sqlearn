@@ -78,7 +78,11 @@ def test_a_step_without_inputs_still_classifies():
 
 def test_settings_come_from_init():
     """Settings are the __init__ parameters, read from attributes."""
-    assert MyScale().settings() == {"cols": sq.numeric(), "keep": False, "suffix": None}
+    assert MyScale().settings() == {
+        "cols": sq.cols.numeric(),
+        "keep": False,
+        "suffix": None,
+    }
     assert MyEncoder(keep=True).settings()["keep"] is True
 
 

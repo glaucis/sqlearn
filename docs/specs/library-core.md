@@ -39,10 +39,10 @@ from sklearn.linear_model import LogisticRegression
 
 pipe = sq.Pipeline(
     [
-        ("impute", sq.Impute(cols=sq.numeric(), strategy="median")),
+        ("impute", sq.Impute(cols=sq.cols.numeric(), strategy="median")),
         ("onehot", sq.OneHot(cols=["city"])),
         ("ordinal", sq.Ordinal(cols=["plan"])),
-        ("scale", sq.Scale(cols=sq.numeric())),
+        ("scale", sq.Scale(cols=sq.cols.numeric())),
         ("model", LogisticRegression()),
     ]
 )
@@ -50,7 +50,7 @@ pipe = sq.Pipeline(
 search = sq.Search(
     pipe,
     params={"model__C": [0.1, 1, 10], "impute__strategy": ["median", "mean"]},
-    metric=sq.accuracy,
+    metric=sq.metrics.accuracy,
 )
 search.train("data/train/*.parquet", target="churned")
 print(search.best_params_, search.best_score_)
@@ -62,8 +62,8 @@ It shows, and its tests prove:
 
 - **chaining:** `Scale` learns from imputed values, inside one query;
 - **dynamic steps:** `OneHot` and `Ordinal` are independent and learn in the
-  same run; `Scale` reads `OneHot`'s new columns (it selects `sq.numeric()`)
-  and so goes in the next run;
+  same run; `Scale` reads `OneHot`'s new columns (it selects
+  `sq.cols.numeric()`) and so goes in the next run;
 - **the store:** over 2 imputer settings × 3 values of `C` × 5 folds (30
   trainings), `Impute` and `Scale` learn 10 times, `OneHot` and `Ordinal` 5
   times (they never read what `Impute` writes), each plus one for the final
@@ -86,7 +86,7 @@ Both are built from DuckDB's expression objects
 
 ```python
 class Scale(sq.Step):
-    def __init__(self, cols=sq.numeric(), keep=False):
+    def __init__(self, cols=sq.cols.numeric(), keep=False):
         self.cols = cols
         self.keep = keep
 
@@ -246,7 +246,7 @@ Per [ADR 0014](../adr/0014-learning-store.md) and
 - The store never keeps the user's data alive and never holds data, only keys,
   values and SQL text.
 - The static/dynamic answers for user steps (§3.4) live beside it.
-- Size limits and `sq.store.clear()` wait for
+- `sq.store.clear()` forgets every entry; size limits wait for
   [issue #23](https://github.com/glaucis/sqlearn/issues/23).
 
 ## 6. Selectors
@@ -254,14 +254,15 @@ Per [ADR 0014](../adr/0014-learning-store.md) and
 Per [ADR 0020](../adr/0020-column-selectors.md):
 
 - `cols=` takes a list of names or a selector. The slice has `sq.cols(...)`,
-  `sq.numeric()` and `sq.string()`, combined with `|`, `&`, `-` and `~`.
+  `sq.cols.numeric()` and `sq.cols.string()`, combined with `|`, `&`, `-` and
+  `~`.
 - A selector is resolved in Python against the schema at that point in the
   pipeline (names and types, read without reading rows), then the SQL gets
   plain names. A name given in `cols=` that is not a column of the data
   reaching the step is refused at `learn`, naming it and the columns there.
 - For planning, a selector is resolved against declared output types where
-  names are not yet known: `sq.numeric()` after `OneHot` waits for it,
-  `sq.string()` does not.
+  names are not yet known: `sq.cols.numeric()` after `OneHot` waits for it,
+  `sq.cols.string()` does not.
 - What a selector matched is fixed at `learn` and stored, so `apply` on other
   data uses the training columns.
 - A selector that matches nothing is an error naming the step (spec's call).
@@ -274,7 +275,7 @@ Per [ADR 0020](../adr/0020-column-selectors.md):
   only on `duckdb`.
 - `train(data, target="churned")` takes the target by column name. The target
   is set aside before the steps run: no step and no selector sees it (spec's
-  call), so `sq.numeric()` never scales the target.
+  call), so `sq.cols.numeric()` never scales the target.
 - Every sqlearn object works on one DuckDB connection: the user's, if given
   (`sq.set_config(connection=con)`), otherwise one sqlearn opens in memory
   (spec's call).
@@ -286,8 +287,8 @@ Per [ADR 0023](../adr/0023-lazy-results-out-and-feed.md):
 - `apply` and `predict` return a DuckDB relation by default: lazy, with column
   names.
 - `out=` turns it into what the user wants: `"pandas"`, `"polars"`,
-  `"numpy"`, `"arrow"`, or `sq.out_parquet(path)`, `sq.out_csv(path)`,
-  `sq.out_json(path)`, which DuckDB writes straight to disk.
+  `"numpy"`, `"arrow"`, or `sq.out.parquet(path)`, `sq.out.csv(path)`,
+  `sq.out.json(path)`, which DuckDB writes straight to disk.
   `sq.set_config(out=...)` sets a session default.
 - `feed=` is the form handed to the model: numpy by default for every model.
   `sq.Model(estimator, feed=...)` carries it with the model; `train(...,
@@ -358,7 +359,7 @@ Per [ADR 0022](../adr/0022-one-search-with-pluggable-methods.md):
   is used; the slice knows only `LogisticRegression` (`C` from 0.001 to 100,
   log scale, as a grid of 7 values for `sq.Grid`; spec's call). An unknown
   model is evaluated with its own settings over the folds (one trial). Either
-  way a `sq.DefaultsUsedWarning` says what stood in and how to choose.
+  way a `sq.errors.DefaultsUsedWarning` says what stood in and how to choose.
 - **Record:** `best_params_`, `best_score_`, `results_` (a relation: one row
   per setting and fold, with the score) and `used_` (what was given and what
   was defaulted).
@@ -366,7 +367,7 @@ Per [ADR 0022](../adr/0022-one-search-with-pluggable-methods.md):
 ## 11. Metrics
 
 - A metric takes the target and the predictions as columns of one relation and
-  computes its value in SQL. The slice has `sq.accuracy`.
+  computes its value in SQL. The slice has `sq.metrics.accuracy`.
 - Predictions come back from the model as an array, aligned with the rows the
   model was fed; they are joined to the target by row position in the order the
   query produced them (the builder ensures that order is fixed for the query).
@@ -378,9 +379,9 @@ Per [ADR 0022](../adr/0022-one-search-with-pluggable-methods.md):
   went wrong, why, and the fix, in the form of ADR 0019's example.
 - A failure inside a built-in step is reported as an internal error, saying it
   is sqlearn's bug and how to report it, with what reproduces it.
-- Errors derive from one `sq.SqlearnError`; warnings from one
-  `sq.SqlearnWarning` (`DefaultsUsedWarning` among them). Names beyond these are
-  the builder's.
+- Errors derive from one `sq.errors.SqlearnError`; warnings from one
+  `sq.errors.SqlearnWarning` (`DefaultsUsedWarning` among them). Names beyond
+  these are the builder's.
 - Diagnosis code (inspecting declarations again, tracing a DuckDB error to a
   stage) runs only after a failure.
 
@@ -453,7 +454,7 @@ Each has its own place:
   [issue #21](https://github.com/glaucis/sqlearn/issues/21);
 - OneHot as a list column:
   [issue #22](https://github.com/glaucis/sqlearn/issues/22);
-- store limits and `clear()`:
+- store size limits:
   [issue #23](https://github.com/glaucis/sqlearn/issues/23);
 - `sq.Random`, `sq.Optuna` and other methods, `FeatureUnion`, more selectors,
   more steps, more metrics, Polars and Arrow inputs: the library's breadth

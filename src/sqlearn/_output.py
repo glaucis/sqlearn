@@ -30,7 +30,7 @@ class Output:
     Examples
     --------
     >>> import sqlearn as sq
-    >>> sq.out_parquet("prepared.parquet")
+    >>> sq.out.parquet("prepared.parquet")
     Output(path='prepared.parquet', format='parquet')
     """
 
@@ -57,7 +57,7 @@ class Output:
         >>> import sqlearn as sq
         >>> from sqlearn._config import connection
         >>> path = Path(tempfile.mkdtemp()) / "one.csv"
-        >>> sq.out_csv(path).write(connection().sql("SELECT 1 AS a")) == str(path)
+        >>> sq.out.csv(path).write(connection().sql("SELECT 1 AS a")) == str(path)
         True
         """
         connection().execute(copy_sql(rel.sql_query(), self.path, self.format))
@@ -80,7 +80,7 @@ def out_parquet(path: str | Path) -> Output:
     Examples
     --------
     >>> import sqlearn as sq
-    >>> sq.out_parquet("prepared.parquet").format
+    >>> sq.out.parquet("prepared.parquet").format
     'parquet'
     """
     return Output(str(path), "parquet")
@@ -102,7 +102,7 @@ def out_csv(path: str | Path) -> Output:
     Examples
     --------
     >>> import sqlearn as sq
-    >>> sq.out_csv("prepared.csv").format
+    >>> sq.out.csv("prepared.csv").format
     'csv'
     """
     return Output(str(path), "csv")
@@ -124,7 +124,7 @@ def out_json(path: str | Path) -> Output:
     Examples
     --------
     >>> import sqlearn as sq
-    >>> sq.out_json("prepared.json").format
+    >>> sq.out.json("prepared.json").format
     'json'
     """
     return Output(str(path), "json")
@@ -187,6 +187,6 @@ def to_output(rel: duckdb.DuckDBPyRelation, out: str | Output | None) -> object:
     names = ", ".join(repr(n) for n in _NAMES)
     msg = (
         f"out={out!r} is not an output kind. Pass one of {names}, an output "
-        "such as sq.out_parquet(path), or None for a lazy relation."
+        "such as sq.out.parquet(path), or None for a lazy relation."
     )
     raise SqlearnError(msg)

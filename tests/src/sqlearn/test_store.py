@@ -1,0 +1,19 @@
+"""Tests of the public store."""
+
+import pandas as pd
+
+import sqlearn as sq
+from sqlearn._store import STORE
+
+
+def test_store_clear_relearns():
+    """A `learn` after ``sq.store.clear()`` learns again."""
+    frame = pd.DataFrame({"a": [1.0, 2.0, 3.0]})
+    pipe = sq.Pipeline([("scale", sq.Scale())])
+    pipe.learn(frame)
+    pipe.learn(frame)
+    assert STORE.learns["scale"] == 1
+    sq.store.clear()
+    assert len(STORE) == 0
+    pipe.learn(frame)
+    assert STORE.learns["scale"] == 1  # counts cleared, then one learn

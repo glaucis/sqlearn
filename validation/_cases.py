@@ -448,7 +448,7 @@ def measure_all(
             value = float(raw)
         except Exception as exc:  # noqa: BLE001  (each library's own refusal is recorded)
             if reference == "sqlearn":
-                refused = exact is None and isinstance(exc, sqlearn.SqlearnError)
+                refused = exact is None and isinstance(exc, sqlearn.errors.SqlearnError)
                 out.append(
                     skipped(
                         reference=reference,

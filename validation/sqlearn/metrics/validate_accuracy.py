@@ -86,7 +86,7 @@ def cases() -> list[dict]:
 
         def ours(y=y, p=p, kind=kind, y_col=y_col, p_col=p_col) -> float:
             rel = _cases.sqlearn_table({y_col: y, p_col: p}, kind)
-            return sq.accuracy.compute(rel, y_col, p_col)
+            return sq.metrics.accuracy.compute(rel, y_col, p_col)
 
         def arrays(y=y, p=p) -> tuple[np.ndarray, np.ndarray]:
             return _cases.as_nan(y), _cases.as_nan(p)

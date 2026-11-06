@@ -182,7 +182,7 @@ def is_missing(x: Expression) -> Expression:
     >>> import sqlearn as sq
     >>> con = duckdb.connect()
     >>> rel = con.sql("SELECT * FROM (VALUES (1.0), (NULL)) t(a)")
-    >>> rel.select(sq.is_missing(duckdb.ColumnExpression("a"))).fetchall()
+    >>> rel.select(sq.fn.is_missing(duckdb.ColumnExpression("a"))).fetchall()
     [(False,), (True,)]
     """
     return x.isnull() | _call("isnan", x.cast("DOUBLE"))
@@ -205,7 +205,7 @@ def const(v: object) -> Expression:
     --------
     >>> import duckdb
     >>> import sqlearn as sq
-    >>> str(sq.const(3))
+    >>> str(sq.fn.const(3))
     '3'
     """
     return duckdb.ConstantExpression(v)

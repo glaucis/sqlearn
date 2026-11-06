@@ -53,9 +53,9 @@ def test_training_and_held_out_rows_split_the_data():
 
 def test_kfold_refuses_bad_settings_and_shows_itself():
     """Fewer than two folds, or a seed that is not an integer, is refused."""
-    with pytest.raises(sq.SqlearnError, match="at least 2"):
+    with pytest.raises(sq.errors.SqlearnError, match="at least 2"):
         sq.KFold(1)
-    with pytest.raises(sq.SqlearnError, match="seed"):
+    with pytest.raises(sq.errors.SqlearnError, match="seed"):
         sq.KFold(5, seed=0.5)  # ty: ignore[invalid-argument-type]
     assert repr(sq.KFold()) == "KFold(n=5, seed=0)"
     assert sq.KFold(3, 1) == sq.KFold(3, 1)
@@ -66,5 +66,5 @@ def test_kfold_refuses_bad_settings_and_shows_itself():
 def test_a_column_named_as_the_row_alias_is_refused():
     """The row alias must not be a column, or the hash would read the column."""
     rel = connection().sql(f'SELECT 1 AS "{ALIAS}"')
-    with pytest.raises(sq.SqlearnError, match=ALIAS):
+    with pytest.raises(sq.errors.SqlearnError, match=ALIAS):
         sq.KFold().numbered(rel, "k")

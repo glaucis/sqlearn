@@ -25,28 +25,31 @@ The API of the sqlearn package, generated from its docstrings.
    sqlearn.Grid
    sqlearn.KFold
    sqlearn.range
-   sqlearn.Metric
-   sqlearn.accuracy
+   sqlearn.metrics.Metric
+   sqlearn.metrics.accuracy
    sqlearn.Model
    sqlearn.Output
-   sqlearn.out_parquet
-   sqlearn.out_csv
-   sqlearn.out_json
+   sqlearn.out.parquet
+   sqlearn.out.csv
+   sqlearn.out.json
    sqlearn.cols
-   sqlearn.numeric
-   sqlearn.string
+   sqlearn.fn
+   sqlearn.out
+   sqlearn.errors
+   sqlearn.store
+   sqlearn.metrics
    sqlearn.avg
    sqlearn.stddev_pop
    sqlearn.median
    sqlearn.count
    sqlearn.distinct_values
-   sqlearn.const
-   sqlearn.is_missing
+   sqlearn.fn.const
+   sqlearn.fn.is_missing
    sqlearn.get_config
    sqlearn.set_config
-   sqlearn.SqlearnError
-   sqlearn.SqlearnWarning
-   sqlearn.StepError
-   sqlearn.InternalError
-   sqlearn.DefaultsUsedWarning
+   sqlearn.errors.SqlearnError
+   sqlearn.errors.SqlearnWarning
+   sqlearn.errors.StepError
+   sqlearn.errors.InternalError
+   sqlearn.errors.DefaultsUsedWarning
 ```

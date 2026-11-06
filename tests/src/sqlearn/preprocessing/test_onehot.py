@@ -116,7 +116,7 @@ def test_keep_and_categories_learned():
 def test_a_null_string_clashing_with_the_null_column_is_refused():
     """The text 'NULL' and a real NULL would both be ``c_NULL``."""
     data = connection().sql("SELECT * FROM (VALUES ('NULL'), (NULL)) t(c)")
-    with pytest.raises(sq.StepError, match="c_NULL"):
+    with pytest.raises(sq.errors.StepError, match="c_NULL"):
         sq.Pipeline([("hot", sq.OneHot())]).learn(data)
 
 
@@ -133,7 +133,7 @@ def test_onehot_and_ordinal_learn_in_one_run():
 def test_settings_and_declaration():
     """Defaults are as documented and the step declares dynamic."""
     assert sq.OneHot(keep=True).settings() == {
-        "cols": sq.string(),
+        "cols": sq.cols.string(),
         "keep": True,
         "suffix": None,
     }
@@ -204,7 +204,9 @@ def test_an_all_null_column_gives_one_null_column_as_in_sklearn():
 def test_a_clash_does_not_advise_suffix():
     """OneHot ignores suffix=, so a clash points to the naming issue instead."""
     data = connection().sql("SELECT 'a' AS city, 1 AS city_a")
-    with pytest.raises(sq.StepError, match=r"'city_a'.*rename.*issues/26") as info:
+    with pytest.raises(
+        sq.errors.StepError, match=r"'city_a'.*rename.*issues/26"
+    ) as info:
         sq.Pipeline([("hot", sq.OneHot())]).learn(data)
     assert "suffix=" not in str(info.value)
 

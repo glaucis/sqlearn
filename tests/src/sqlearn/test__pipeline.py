@@ -61,7 +61,7 @@ def test_out_pandas_and_out_parquet(people, tmp_path):
     assert isinstance(frame, pd.DataFrame)
     assert list(frame.columns) == ["age", "city"]
     path = tmp_path / "prepared.parquet"
-    pipe.apply(people, out=sq.out_parquet(path))
+    pipe.apply(people, out=sq.out.parquet(path))
     rows = connection().sql(f"SELECT * FROM '{path}'").fetchall()
     assert [r[0] for r in rows] == pytest.approx([(a - MEAN) / SD for a in AGES])
 
@@ -94,7 +94,7 @@ def test_relearning_unchanged_steps_hits_the_store(people):
 def test_learning_from_no_rows_is_refused():
     """Learning from no rows names the step; no NULL values are stored."""
     empty = connection().sql("SELECT 1.0 AS age WHERE false")
-    with pytest.raises(sq.StepError, match=r"scale \(step 1\).*no rows") as err:
+    with pytest.raises(sq.errors.StepError, match=r"scale \(step 1\).*no rows") as err:
         scale_pipe().learn(empty)
     assert err.value.step == "scale"
     assert err.value.position == 1
@@ -104,16 +104,18 @@ def test_learning_from_no_rows_is_refused():
 def test_apply_names_a_missing_column(people):
     """Data at apply without a learned column, or with it as text, is named."""
     pipe = scale_pipe().learn(people)
-    with pytest.raises(sq.StepError, match=r"scale \(step 1\).*'age'"):
+    with pytest.raises(sq.errors.StepError, match=r"scale \(step 1\).*'age'"):
         pipe.apply(connection().sql("SELECT 'b' AS city"))
-    with pytest.raises(sq.StepError, match=r"scale \(step 1\).*'age'.*VARCHAR"):
+    with pytest.raises(sq.errors.StepError, match=r"scale \(step 1\).*'age'.*VARCHAR"):
         pipe.apply(connection().sql("SELECT '10' AS age, 'b' AS city"))
 
 
 def test_a_selector_matching_nothing_names_the_step():
     """A selector choosing no column stops `learn`, naming the step."""
     text = connection().sql("SELECT 'b' AS city")
-    with pytest.raises(sq.StepError, match=r"scale \(step 1\).*matches no column"):
+    with pytest.raises(
+        sq.errors.StepError, match=r"scale \(step 1\).*matches no column"
+    ):
         scale_pipe().learn(text)
 
 
@@ -122,7 +124,7 @@ def test_a_name_not_in_the_data_is_refused(given):
     """A misspelt name in cols= is refused, naming it and the columns there."""
     df = pd.DataFrame({"age": [1.0, 2.0, 3.0], "income": [5.0, 6.0, 9.0]})
     with pytest.raises(
-        sq.StepError, match=r"s \(step 1\).*'incme'.*'age', 'income'.*Fix:"
+        sq.errors.StepError, match=r"s \(step 1\).*'incme'.*'age', 'income'.*Fix:"
     ):
         sq.Pipeline([("s", sq.Scale(cols=given))]).learn(df)
 
@@ -146,7 +148,7 @@ def test_a_name_collision_suggests_suffix():
     """An output taking a name in use is refused, suggesting suffix=."""
     data = connection().sql("SELECT 10.0 AS age, 1.0 AS age_scale")
     pipe = sq.Pipeline([("scale", MyScale(cols=["age"], keep=True))])
-    with pytest.raises(sq.StepError, match=r"'age_scale'.*suffix="):
+    with pytest.raises(sq.errors.StepError, match=r"'age_scale'.*suffix="):
         pipe.learn(data)
 
 
@@ -157,7 +159,9 @@ def test_a_new_dynamic_column_may_not_take_a_name_in_use():
     """
     data = connection().sql("SELECT 'a' AS city, 1 AS city_a")
     pipe = sq.Pipeline([("onehot", MyEncoder())])
-    with pytest.raises(sq.StepError, match=r"onehot \(step 1\).*'city_a'") as info:
+    with pytest.raises(
+        sq.errors.StepError, match=r"onehot \(step 1\).*'city_a'"
+    ) as info:
         pipe.learn(data)
     assert "suffix=" not in str(info.value)
     assert "issues/26" in str(info.value)
@@ -216,7 +220,9 @@ def test_a_step_not_waiting_skips_a_pending_dynamic_step():
     data = connection().sql(
         "SELECT * FROM (VALUES ('x', 'b'), ('y', 'a')) t(name, city)",
     )
-    pipe = sq.Pipeline([("onehot", IntEncoder()), ("text", CountText(sq.string()))])
+    pipe = sq.Pipeline(
+        [("onehot", IntEncoder()), ("text", CountText(sq.cols.string()))]
+    )
     pipe.learn(data)
     assert len(pipe.runs_) == 1
     assert pipe["text"].n_ == {"name": 2}
@@ -231,7 +237,7 @@ def test_a_step_waiting_between_steps_of_the_first_run():
     steps = [
         ("onehot", IntEncoder()),
         ("scale", MyScale()),
-        ("text", CountText(sq.string())),
+        ("text", CountText(sq.cols.string())),
     ]
     pipe = sq.Pipeline(steps).learn(data)
     assert len(pipe.runs_) == 2
@@ -305,7 +311,7 @@ def test_sql_duckdb_refuses_names_the_step(people):
         {"apply": lambda self, x, learned: duckdb.FunctionExpression("no_such", x)},
     )
     pipe = sq.Pipeline([("scale", MyScale()), ("bad", add_text(cols=["age"]))])
-    with pytest.raises(sq.StepError, match=r"bad \(step 2\).*DuckDB refuses"):
+    with pytest.raises(sq.errors.StepError, match=r"bad \(step 2\).*DuckDB refuses"):
         pipe.learn(people)
 
 
@@ -346,7 +352,7 @@ def test_each_input_is_read_once(people, monkeypatch):
 
 def test_apply_before_learn_is_refused(people):
     """`apply` before `learn` says to learn first."""
-    with pytest.raises(sq.SqlearnError, match="learn"):
+    with pytest.raises(sq.errors.SqlearnError, match="learn"):
         scale_pipe().apply(people)
     with pytest.raises(AttributeError, match="learn"):
         _ = scale_pipe().columns_out_
@@ -354,9 +360,9 @@ def test_apply_before_learn_is_refused(people):
 
 def test_steps_must_be_named_uniquely_and_be_steps(people):
     """Two steps sharing a name, or an object that is not a step, are refused."""
-    with pytest.raises(sq.SqlearnError, match="'scale'"):
+    with pytest.raises(sq.errors.SqlearnError, match="'scale'"):
         sq.Pipeline([("scale", MyScale()), ("scale", MyScale())])
-    with pytest.raises(sq.SqlearnError, match="not a step"):
+    with pytest.raises(sq.errors.SqlearnError, match="not a step"):
         sq.Pipeline([("model", object())]).learn(people)
 
 
@@ -366,7 +372,7 @@ def test_a_relation_is_read_on_its_own_connection():
     other = duckdb.connect()
     other.sql("CREATE TABLE t AS SELECT * FROM (VALUES (1.0), (3.0)) v(a)")
     pipe = sq.Pipeline([("scale", MyScale())])
-    with pytest.raises(sq.SqlearnError, match="another DuckDB connection"):
+    with pytest.raises(sq.errors.SqlearnError, match="another DuckDB connection"):
         pipe.learn(other.table("t"))
     sq.set_config(connection=other)
     pipe.learn(other.table("t"))
@@ -394,9 +400,9 @@ def test_a_source_duckdb_cannot_bind_is_an_input_error(people, monkeypatch):
         source.relation.sql_query().replace("SELECT * FROM", "DROP VIEW")
     )
     monkeypatch.setattr(_pipeline, "read", lambda data: source)
-    with pytest.raises(sq.SqlearnError, match="cannot read the input") as err:
+    with pytest.raises(sq.errors.SqlearnError, match="cannot read the input") as err:
         sq.Pipeline([("scale", MyScale())]).learn(people)
-    assert not isinstance(err.value, sq.StepError)
+    assert not isinstance(err.value, sq.errors.StepError)
 
 
 def customers(seed, rows=300):
@@ -418,9 +424,9 @@ def churn_pipe(model):
     """Return Impute, OneHot and Scale, then the model."""
     return sq.Pipeline(
         [
-            ("impute", sq.Impute(sq.numeric(), strategy="median")),
+            ("impute", sq.Impute(sq.cols.numeric(), strategy="median")),
             ("onehot", sq.OneHot(["city"])),
-            ("scale", sq.Scale(sq.numeric())),
+            ("scale", sq.Scale(sq.cols.numeric())),
             ("model", model),
         ]
     )
@@ -485,7 +491,7 @@ def test_train_predict_matches_sklearn_pipeline():
 def test_the_target_is_never_scaled():
     """A numeric target is set aside: no selector matches it, no step sees it."""
     frame = pd.DataFrame({"x": [1.0, 2.0, 3.0, 4.0], "y": [0.0, 1.0, 0.0, 1.0]})
-    pipe = sq.Pipeline([("scale", sq.Scale(sq.numeric())), ("model", Echo())])
+    pipe = sq.Pipeline([("scale", sq.Scale(sq.cols.numeric())), ("model", Echo())])
     pipe.train(frame, target="y")
     assert pipe["scale"].mean_ == {"x": 2.5}
     assert pipe.columns_out_ == ["x"]
@@ -562,25 +568,25 @@ def test_train_takes_a_model_or_a_wrapped_model_and_a_feed():
     pipe.train(frame, target="y")
     assert [r[0] for r in pipe.predict(frame).fetchall()] == [1.0, 2.0]
     url = "https://github.com/glaucis/sqlearn/issues/21"
-    with pytest.raises(sq.SqlearnError, match=url):
+    with pytest.raises(sq.errors.SqlearnError, match=url):
         pipe.train(frame, target="y", feed="arrow")
 
 
 def test_train_and_predict_refuse_mistakes():
     """A missing target, no model, or predict before train are explained."""
     frame = pd.DataFrame({"x": [1.0, 2.0], "y": [0, 1]})
-    with pytest.raises(sq.SqlearnError, match=r"'churned'.*'x', 'y'"):
+    with pytest.raises(sq.errors.SqlearnError, match=r"'churned'.*'x', 'y'"):
         sq.Pipeline([("model", Echo())]).train(frame, target="churned")
-    with pytest.raises(sq.SqlearnError, match="no model"):
+    with pytest.raises(sq.errors.SqlearnError, match="no model"):
         scale_pipe().train(frame, target="y")
-    with pytest.raises(sq.SqlearnError, match="train"):
+    with pytest.raises(sq.errors.SqlearnError, match="train"):
         sq.Pipeline([("model", Echo())]).predict(frame)
-    with pytest.raises(sq.SqlearnError, match="ends in a model"):
+    with pytest.raises(sq.errors.SqlearnError, match="ends in a model"):
         sq.Pipeline([("model", Echo())]).learn(frame)
-    with pytest.raises(sq.SqlearnError, match="not a step"):
+    with pytest.raises(sq.errors.SqlearnError, match="not a step"):
         sq.Pipeline([("model", Echo()), ("scale", MyScale())]).train(frame, "y")
     gaps = connection().sql("SELECT * FROM (VALUES (1.0, 0), (2.0, NULL)) t(x, y)")
-    with pytest.raises(sq.SqlearnError, match="target 'y' is missing in 1 row"):
+    with pytest.raises(sq.errors.SqlearnError, match="target 'y' is missing in 1 row"):
         sq.Pipeline([("model", Echo())]).train(gaps, target="y")
 
 
@@ -590,7 +596,7 @@ def test_a_failed_retrain_keeps_the_trained_pipeline():
     pipe = sq.Pipeline([("scale", sq.Scale()), ("model", Echo())])
     pipe.train(frame, target="y")
     gaps = connection().sql("SELECT * FROM (VALUES (100.0, 0), (300.0, NULL)) t(x, y)")
-    with pytest.raises(sq.SqlearnError, match="missing"):
+    with pytest.raises(sq.errors.SqlearnError, match="missing"):
         pipe.train(gaps, target="y")
     assert pipe["scale"].mean_ == {"x": 2.0}
     assert pipe["model"].y_.tolist() == [1, 0, 1]
@@ -620,7 +626,7 @@ def test_a_failed_fit_leaves_the_pipeline_untrained():
     with pytest.raises(ValueError, match="cannot fit"):
         pipe.train(pd.DataFrame({"x": [100.0, 300.0], "y": [0, 1]}), target="y")
     assert pipe["scale"].mean_ == {"x": 2.0}
-    with pytest.raises(sq.SqlearnError, match="not been trained"):
+    with pytest.raises(sq.errors.SqlearnError, match="not been trained"):
         pipe.predict(frame)
 
 
@@ -629,7 +635,7 @@ def test_predict_refuses_data_missing_a_trained_column():
     frame = pd.DataFrame({"x": [1.0, 2.0], "z": [5.0, 6.0], "y": [0, 1]})
     pipe = sq.Pipeline([("scale", sq.Scale(["x"])), ("model", Echo())])
     pipe.train(frame, target="y")
-    with pytest.raises(sq.SqlearnError, match="no column 'z'"):
+    with pytest.raises(sq.errors.SqlearnError, match="no column 'z'"):
         pipe.predict(pd.DataFrame({"x": [1.0]}))
 
 
@@ -637,7 +643,7 @@ def test_predict_refuses_the_row_number_name():
     """A column named as sqlearn's row number is refused as an input error."""
     frame = pd.DataFrame({"x": [1.0, 2.0], "y": [0, 1]})
     pipe = sq.Pipeline([("model", Echo())]).train(frame, target="y")
-    with pytest.raises(sq.SqlearnError, match="'__sqlearn_row'"):
+    with pytest.raises(sq.errors.SqlearnError, match="'__sqlearn_row'"):
         pipe.predict(pd.DataFrame({"x": [1.0], "__sqlearn_row": [1]}))
 
 
@@ -648,7 +654,7 @@ def test_predict_refuses_a_connection_not_keeping_order():
     frame = pd.DataFrame({"x": [1.0, 2.0], "y": [0, 1]})
     pipe = sq.Pipeline([("model", Echo())]).train(frame, target="y")
     con.execute("SET preserve_insertion_order = false")
-    with pytest.raises(sq.SqlearnError, match="preserve_insertion_order"):
+    with pytest.raises(sq.errors.SqlearnError, match="preserve_insertion_order"):
         pipe.predict(frame)
 
 
@@ -660,7 +666,10 @@ def test_a_column_removed_upstream_is_in_a_later_steps_key():
 
     def pipe(cols):
         return sq.Pipeline(
-            [("onehot", sq.OneHot(cols=cols)), ("ordinal", sq.Ordinal(sq.string()))]
+            [
+                ("onehot", sq.OneHot(cols=cols)),
+                ("ordinal", sq.Ordinal(sq.cols.string())),
+            ]
         )
 
     pipe(["city", "region"]).learn(df)

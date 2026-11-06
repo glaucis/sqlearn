@@ -43,10 +43,10 @@ def slice_pipe(model=None):
     """Return the slice's pipeline (spec §2)."""
     return sq.Pipeline(
         [
-            ("impute", sq.Impute(cols=sq.numeric(), strategy="median")),
+            ("impute", sq.Impute(cols=sq.cols.numeric(), strategy="median")),
             ("onehot", sq.OneHot(cols=["city"])),
             ("ordinal", sq.Ordinal(cols=["plan"])),
-            ("scale", sq.Scale(cols=sq.numeric())),
+            ("scale", sq.Scale(cols=sq.cols.numeric())),
             ("model", LogisticRegression() if model is None else model),
         ]
     )
@@ -126,7 +126,7 @@ def test_grid_matches_gridsearchcv():
         cv=PredefinedSplit(folds),
     ).fit(data.drop(columns="churned"), data["churned"])
 
-    search = sq.Search(slice_pipe(), params=GRID, metric=sq.accuracy)
+    search = sq.Search(slice_pipe(), params=GRID, metric=sq.metrics.accuracy)
     search.train(data, target="churned")
 
     sk_best = sk_grid.best_params_
@@ -223,7 +223,7 @@ def test_unknown_setting_is_named():
         ({"scale": [sq.Scale()]}, r"'scale'.*step__setting"),
     ]
     for params, message in cases:
-        with pytest.raises(sq.SqlearnError, match=message):
+        with pytest.raises(sq.errors.SqlearnError, match=message):
             sq.Search(slice_pipe(), params=params).train(data, target="churned")
 
 
@@ -233,7 +233,7 @@ def test_a_setting_of_a_model_without_get_params_is_checked_by_attribute():
     search = sq.Search(slice_pipe(Echo()), params={"model__label": [None]})
     search.train(data, target="churned")
     assert search.best_params_ == {"model__label": None}
-    with pytest.raises(sq.SqlearnError, match=r"Echo.*'nope'"):
+    with pytest.raises(sq.errors.SqlearnError, match=r"Echo.*'nope'"):
         sq.Search(slice_pipe(Echo()), params={"model__nope": [1]}).train(
             data, target="churned"
         )
@@ -242,14 +242,16 @@ def test_a_setting_of_a_model_without_get_params_is_checked_by_attribute():
 def test_range_given_to_grid_is_refused():
     """Grid cannot try a range: the search refuses it, naming the setting."""
     search = sq.Search(slice_pipe(), params={"model__C": sq.range(0.01, 10, log=True)})
-    with pytest.raises(sq.SqlearnError, match=r"'model__C'.*range"):
+    with pytest.raises(sq.errors.SqlearnError, match=r"'model__C'.*range"):
         search.train(customers(rows=50), target="churned")
 
 
 def test_no_params_uses_default_space_and_warns():
     """No params: LogisticRegression's default space, and a warning saying so."""
     search = sq.Search(slice_pipe())
-    with pytest.warns(sq.DefaultsUsedWarning, match="LogisticRegression") as caught:
+    with pytest.warns(
+        sq.errors.DefaultsUsedWarning, match="LogisticRegression"
+    ) as caught:
         search.train(customers(), target="churned")
     text = str(caught[0].message)
     assert text == (
@@ -267,7 +269,7 @@ def test_no_params_uses_default_space_and_warns():
 def test_unknown_model_runs_one_trial_and_warns():
     """A model with no default space is scored with its own settings."""
     search = sq.Search(slice_pipe(Echo()))
-    with pytest.warns(sq.DefaultsUsedWarning, match="no default space for Echo"):
+    with pytest.warns(sq.errors.DefaultsUsedWarning, match="no default space for Echo"):
         search.train(customers(rows=100), target="churned")
     assert search.results_.count("*").fetchall() == [(5,)]
     assert search.best_params_ == {}
@@ -314,8 +316,8 @@ def test_a_metric_where_lower_is_better_picks_the_lowest():
         "error",
         lambda y, p: sq.avg(
             __import__("duckdb")
-            .CaseExpression(y != p, sq.const(1.0))
-            .otherwise(sq.const(0.0))
+            .CaseExpression(y != p, sq.fn.const(1.0))
+            .otherwise(sq.fn.const(0.0))
         ),
         False,
     )
@@ -344,7 +346,7 @@ def test_predict_uses_the_best_pipeline():
     """`predict` is the best pipeline's, trained on all the data."""
     data = customers()
     search = sq.Search(slice_pipe(), params=GRID)
-    with pytest.raises(sq.SqlearnError, match="train"):
+    with pytest.raises(sq.errors.SqlearnError, match="train"):
         search.predict(data)
     search.train(data, target="churned")
     got = search.predict(data, out="numpy")["prediction"]
@@ -373,13 +375,13 @@ def test_a_column_named_as_the_fold_column_is_refused():
     """The search keeps a column name for the fold number."""
     data = customers(rows=50)
     data[search_module.FOLD] = 1
-    with pytest.raises(sq.SqlearnError, match=search_module.FOLD):
+    with pytest.raises(sq.errors.SqlearnError, match=search_module.FOLD):
         sq.Search(slice_pipe(), params=GRID).train(data, target="churned")
 
 
 def test_the_target_must_be_a_column():
     """A missing target is refused before any work."""
-    with pytest.raises(sq.SqlearnError, match="'nope' is not a column"):
+    with pytest.raises(sq.errors.SqlearnError, match="'nope' is not a column"):
         sq.Search(slice_pipe(), params=GRID).train(customers(rows=50), target="nope")
 
 
@@ -393,7 +395,7 @@ class Wide(Echo):
 
 def test_a_candidate_that_is_not_a_model_is_refused():
     """``"model"`` lists models; anything else is named."""
-    with pytest.raises(sq.SqlearnError, match=r"'model': 'tree'.*not a model"):
+    with pytest.raises(sq.errors.SqlearnError, match=r"'model': 'tree'.*not a model"):
         sq.Search(slice_pipe(), params={"model": ["tree"]}).train(
             customers(rows=50), target="churned"
         )
@@ -407,19 +409,19 @@ def test_settings_are_checked_before_the_data_is_read(monkeypatch):
     monkeypatch.setattr(
         "sqlearn._inputs._fingerprint", lambda name: calls.append(name) or (0, 0)
     )
-    with pytest.raises(sq.SqlearnError, match="nope"):
+    with pytest.raises(sq.errors.SqlearnError, match="nope"):
         sq.Search(slice_pipe(), params={"model__nope": [1]}).train(
             customers(rows=50), target="churned"
         )
     assert calls == []
     monkeypatch.setattr("sqlearn._inputs._fingerprint", _fingerprint)
-    with pytest.raises(sq.SqlearnError, match="no setting to try"):
+    with pytest.raises(sq.errors.SqlearnError, match="no setting to try"):
         sq.Search(slice_pipe(), params=[]).train(customers(rows=50), target="churned")
 
 
 def test_a_model_predicting_the_wrong_shape_is_refused():
     """One prediction per held-out row, or the score cannot be computed."""
-    with pytest.raises(sq.SqlearnError, match=r"shape \(\d+, 2\)"):
+    with pytest.raises(sq.errors.SqlearnError, match=r"shape \(\d+, 2\)"):
         sq.Search(slice_pipe(Wide()), params={}).train(
             customers(rows=100), target="churned"
         )
@@ -431,7 +433,7 @@ def test_an_empty_fold_is_refused_before_any_work():
     pipe = sq.Pipeline([("scale", sq.Scale()), ("model", LogisticRegression())])
     search = sq.Search(pipe, params={"model__C": [1.0]}, folds=sq.KFold(5, seed=0))
     with pytest.raises(
-        sq.SqlearnError, match=r"fold 3 .*4, 1, 2, 0, 3 rows.*Fix: .*fewer folds"
+        sq.errors.SqlearnError, match=r"fold 3 .*4, 1, 2, 0, 3 rows.*Fix: .*fewer folds"
     ):
         search.train(df, target="y")
     assert STORE.learns == {}
@@ -442,7 +444,9 @@ def test_a_failing_fit_names_the_setting_and_the_fold():
     dup = pd.DataFrame({"x": [1.0] * 6 + [2.0] * 6, "y": [0] * 6 + [1] * 6})
     pipe = sq.Pipeline([("scale", sq.Scale()), ("model", LogisticRegression())])
     search = sq.Search(pipe, params={"model__C": [1.0]}, folds=sq.KFold(2))
-    with pytest.raises(sq.SqlearnError, match=r'"model__C": 1.0.*fold 0') as info:
+    with pytest.raises(
+        sq.errors.SqlearnError, match=r'"model__C": 1.0.*fold 0'
+    ) as info:
         search.train(dup, target="y")
     assert isinstance(info.value.__cause__, ValueError)
     assert "Fix:" in str(info.value)
@@ -465,7 +469,7 @@ def test_settings_changing_a_later_steps_inputs_score_as_if_alone():
         return sq.Pipeline(
             [
                 ("onehot", sq.OneHot(cols=["city"])),
-                ("ordinal", sq.Ordinal(cols=sq.string())),
+                ("ordinal", sq.Ordinal(cols=sq.cols.string())),
                 ("model", LogisticRegression()),
             ]
         )

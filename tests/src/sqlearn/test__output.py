@@ -41,22 +41,22 @@ def test_polars_and_arrow_need_their_library(rel, name, module):
     if importlib.util.find_spec(module) is not None:
         assert to_output(rel, name) is not None
         return
-    with pytest.raises(sq.SqlearnError, match=module):
+    with pytest.raises(sq.errors.SqlearnError, match=module):
         to_output(rel, name)
 
 
 def test_an_unknown_name_lists_the_names(rel):
     """An unknown output name is refused, listing the accepted ones."""
-    with pytest.raises(sq.SqlearnError, match=r"pandas.*polars.*numpy.*arrow"):
+    with pytest.raises(sq.errors.SqlearnError, match=r"pandas.*polars.*numpy.*arrow"):
         to_output(rel, "excel")
 
 
 @pytest.mark.parametrize(
     ("make", "reader"),
     [
-        (sq.out_parquet, "read_parquet"),
-        (sq.out_csv, "read_csv"),
-        (sq.out_json, "read_json"),
+        (sq.out.parquet, "read_parquet"),
+        (sq.out.csv, "read_csv"),
+        (sq.out.json, "read_json"),
     ],
 )
 def test_files_are_written_by_duckdb(rel, tmp_path, make, reader):

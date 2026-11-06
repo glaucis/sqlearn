@@ -6,7 +6,7 @@ class SqlearnError(Exception):
 
     Examples
     --------
-    >>> from sqlearn import SqlearnError, StepError
+    >>> from sqlearn.errors import SqlearnError, StepError
     >>> issubclass(StepError, SqlearnError)
     True
     """
@@ -26,7 +26,7 @@ class StepError(SqlearnError):
 
     Examples
     --------
-    >>> from sqlearn import StepError
+    >>> from sqlearn.errors import StepError
     >>> err = StepError("m", step="scale", position=3)
     >>> err.step, err.position
     ('scale', 3)
@@ -43,7 +43,7 @@ class InternalError(SqlearnError):
 
     Examples
     --------
-    >>> from sqlearn import InternalError, SqlearnError
+    >>> from sqlearn.errors import InternalError, SqlearnError
     >>> issubclass(InternalError, SqlearnError)
     True
     """
@@ -54,7 +54,7 @@ class SqlearnWarning(UserWarning):
 
     Examples
     --------
-    >>> from sqlearn import SqlearnWarning
+    >>> from sqlearn.errors import SqlearnWarning
     >>> issubclass(SqlearnWarning, UserWarning)
     True
     """
@@ -65,7 +65,7 @@ class DefaultsUsedWarning(SqlearnWarning):
 
     Examples
     --------
-    >>> from sqlearn import DefaultsUsedWarning, SqlearnWarning
+    >>> from sqlearn.errors import DefaultsUsedWarning, SqlearnWarning
     >>> issubclass(DefaultsUsedWarning, SqlearnWarning)
     True
     """

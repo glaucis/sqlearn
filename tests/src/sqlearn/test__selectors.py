@@ -12,25 +12,27 @@ SCHEMA = [("id", INTEGER), ("age", DOUBLE), ("city", VARCHAR), ("income", BIGINT
 
 def test_numeric_except_id():
     """Selectors combine as in Polars; the result keeps schema order."""
-    assert (sq.numeric() - sq.cols("id")).resolve(SCHEMA) == ["age", "income"]
+    assert (sq.cols.numeric() - sq.cols("id")).resolve(SCHEMA) == ["age", "income"]
 
 
 def test_operators():
     """|, & and ~ behave as or, and, not."""
-    assert (sq.string() | sq.cols("id")).resolve(SCHEMA) == ["id", "city"]
-    assert (~sq.numeric()).resolve(SCHEMA) == ["city"]
-    assert (sq.numeric() & sq.cols("age", "city")).resolve(SCHEMA) == ["age"]
+    assert (sq.cols.string() | sq.cols("id")).resolve(SCHEMA) == ["id", "city"]
+    assert (~sq.cols.numeric()).resolve(SCHEMA) == ["city"]
+    assert (sq.cols.numeric() & sq.cols("age", "city")).resolve(SCHEMA) == ["age"]
 
 
 def test_may_match_by_type():
     """Planning asks whether a selector could match a not-yet-named column."""
-    assert sq.numeric().may_match(INTEGER) and not sq.string().may_match(INTEGER)
-    assert sq.string().may_match(VARCHAR)
-    assert (~sq.numeric()).may_match(VARCHAR)
-    assert not (~sq.numeric()).may_match(DOUBLE)
+    assert sq.cols.numeric().may_match(INTEGER) and not sq.cols.string().may_match(
+        INTEGER
+    )
+    assert sq.cols.string().may_match(VARCHAR)
+    assert (~sq.cols.numeric()).may_match(VARCHAR)
+    assert not (~sq.cols.numeric()).may_match(DOUBLE)
     assert sq.cols("a").may_match(INTEGER)
-    assert (sq.numeric() - sq.cols("id")).may_match(INTEGER)
-    assert not (sq.numeric() & sq.string()).may_match(INTEGER)
+    assert (sq.cols.numeric() - sq.cols("id")).may_match(INTEGER)
+    assert not (sq.cols.numeric() & sq.cols.string()).may_match(INTEGER)
 
 
 def test_missing_name_resolves_to_nothing():
@@ -49,33 +51,33 @@ def test_numeric_kinds():
     )
     assert rel is not None
     schema = list(zip("abcdefghijklm", rel.types, strict=True))
-    assert sq.numeric().resolve(schema) == list("abcdefghi")
-    assert sq.string().resolve(schema) == ["j"]
+    assert sq.cols.numeric().resolve(schema) == list("abcdefghi")
+    assert sq.cols.string().resolve(schema) == ["j"]
 
 
 def test_to_selector():
     """Names, one name or a selector all become a selector."""
     assert to_selector(["a"]) == sq.cols("a")
     assert to_selector("a") == sq.cols("a")
-    assert to_selector(sq.numeric()) is not None
-    s = sq.numeric()
+    assert to_selector(sq.cols.numeric()) is not None
+    s = sq.cols.numeric()
     assert to_selector(s) is s
 
 
 def test_value_equality_and_repr():
     """Selectors compare by value and print deterministically."""
-    assert sq.numeric() == sq.numeric()
-    assert sq.numeric() != sq.string()
-    assert sq.numeric() - sq.cols("id") == sq.numeric() - sq.cols("id")
+    assert sq.cols.numeric() == sq.cols.numeric()
+    assert sq.cols.numeric() != sq.cols.string()
+    assert sq.cols.numeric() - sq.cols("id") == sq.cols.numeric() - sq.cols("id")
     assert hash(sq.cols("a")) == hash(sq.cols("a"))
     assert repr(sq.cols("a", "b")) == "cols('a', 'b')"
-    assert repr(sq.numeric() - sq.cols("id")) == "(numeric() - cols('id'))"
-    assert repr(~sq.string() | sq.numeric()) == "((~string()) | numeric())"
+    assert repr(sq.cols.numeric() - sq.cols("id")) == "(numeric() - cols('id'))"
+    assert repr(~sq.cols.string() | sq.cols.numeric()) == "((~string()) | numeric())"
 
 
 def test_may_match_through_every_combinator():
     """Planning stays sound through nested |, &, - and ~."""
-    num, text, name = sq.numeric(), sq.string(), sq.cols("id")
+    num, text, name = sq.cols.numeric(), sq.cols.string(), sq.cols("id")
     assert (num | text).may_match(VARCHAR)
     assert not (~(num | text)).may_match(VARCHAR)
     assert not (~(num & ~text)).may_match(INTEGER)
@@ -97,4 +99,14 @@ def test_non_selector_operands_are_refused():
         lambda a: a - 1,
     ):
         with pytest.raises(TypeError):
-            op(sq.numeric())
+            op(sq.cols.numeric())
+
+
+def test_cols_is_a_callable_group():
+    """``sq.cols`` is called with names and has the kinds as methods."""
+    assert sq.cols("a").resolve([("a", INTEGER), ("b", INTEGER)]) == ["a"]
+    assert sq.cols.numeric().resolve([("a", INTEGER), ("b", VARCHAR)]) == ["a"]
+    assert sq.cols.string().resolve([("a", INTEGER), ("b", VARCHAR)]) == ["b"]
+    sel = sq.cols.numeric() - sq.cols("id")
+    assert sel.resolve([("id", INTEGER), ("x", DOUBLE)]) == ["x"]
+    assert repr(sq.cols) == "sq.cols"

@@ -11,7 +11,7 @@ from sqlearn._selectors import Selector
 class MyScale(sq.Step):
     """Centre and scale numeric columns (undeclared: classified as static)."""
 
-    def __init__(self, cols=sq.numeric(), keep=False, suffix=None):  # noqa: B008
+    def __init__(self, cols=sq.cols.numeric(), keep=False, suffix=None):  # noqa: B008
         """Set the settings."""
         self.cols, self.keep, self.suffix = cols, keep, suffix
 
@@ -37,7 +37,9 @@ class MyEncoder(sq.Step):
 
     def apply(self, x, learned):
         """Apply what was learned."""
-        return {f"city_{c}": (x == sq.const(c)).cast(INTEGER) for c in learned.cities}
+        return {
+            f"city_{c}": (x == sq.fn.const(c)).cast(INTEGER) for c in learned.cities
+        }
 
 
 @dataclass(frozen=True, repr=False)

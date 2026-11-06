@@ -113,7 +113,7 @@ class Search:
         models. A list of dicts holds one grid per model. By default, the
         model's default space (`sqlearn.model_selection.defaults`), or one
         trial of its own settings, with a `DefaultsUsedWarning`.
-    metric : Metric, default sq.accuracy
+    metric : Metric, default sq.metrics.accuracy
         The score, computed in SQL on each fold's held-out rows.
     method : Method, optional
         How settings are picked; by default ``sq.Grid()``.

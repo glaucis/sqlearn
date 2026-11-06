@@ -25,7 +25,7 @@ import sqlearn as sq
 
 
 class MyScale(sq.Step):
-    def __init__(self, cols=sq.numeric(), keep=False, suffix=None):
+    def __init__(self, cols=sq.cols.numeric(), keep=False, suffix=None):
         super().__init__(cols, keep, suffix)
 
     def learn(self, x):
@@ -37,8 +37,8 @@ class MyScale(sq.Step):
 
 - `learn(x)` is called once per selected column; `x` is that column as an
   expression. It returns a mapping of name to aggregate, built with `sq.avg`,
-  `sq.stddev_pop`, `sq.median`, `sq.count`, `sq.distinct_values` or `sq.const`.
-  A step that learns nothing does not define it.
+  `sq.stddev_pop`, `sq.median`, `sq.count`, `sq.distinct_values` or
+  `sq.fn.const`. A step that learns nothing does not define it.
 - `apply(x, learned)` is called once per selected column. It returns one
   expression, the column's new value, or a dict of name to expression, which
   makes new columns.
@@ -75,7 +75,7 @@ your code to find out:
   in scikit-learn. A step takes `cols`, `keep` and `suffix`; the base class
   stores them when you pass them to `super().__init__`.
 - **its inputs:** the columns it reads, from `cols=` (a list of names or a
-  selector such as `sq.numeric()`; `None` means every column).
+  selector such as `sq.cols.numeric()`; `None` means every column).
 - **its outputs:** a replacing step writes its inputs. With `keep=True` it
   writes `<column>_<step>` as well (`suffix=` chooses another ending). A name
   that already exists stops the run with a message naming it.
@@ -101,7 +101,7 @@ class MyEncoder(sq.Step):
         return {"cities": sq.distinct_values(x)}
 
     def apply(self, x, learned):
-        return {f"city_{c}": (x == sq.const(c)).cast(INTEGER) for c in learned.cities}
+        return {f"city_{c}": (x == sq.fn.const(c)).cast(INTEGER) for c in learned.cities}
 
 
 encoder = sq.Pipeline([("encode", MyEncoder())])
@@ -147,14 +147,14 @@ class WrongEncoder(MyEncoder):
 
 try:
     sq.Pipeline([("encode", WrongEncoder())]).learn(data)
-except sq.StepError as error:
+except sq.errors.StepError as error:
     print(error)
 ```
 
 The rest of the cases follow the same form: an exception inside `learn` or
 `apply`, a name that already exists, a selector that matches nothing. When
 a built-in step fails, the failure is sqlearn's bug and is reported as an
-`sq.InternalError`, with what is needed to reproduce it.
+`sq.errors.InternalError`, with what is needed to reproduce it.
 
 One limit. `apply` returns a lazy DuckDB relation, and sqlearn checks all the
 SQL up front, so a mistake in your expressions is reported with your step's

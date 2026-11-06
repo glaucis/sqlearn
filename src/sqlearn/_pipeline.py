@@ -702,7 +702,7 @@ class Pipeline:
         """Return the data without the target, keyed with the target's name.
 
         The steps learn from this: a selector cannot match the target, so
-        sq.numeric() never scales it.
+        sq.cols.numeric() never scales it.
         """
         names = [c for c, _ in source.schema]
         if target not in names:

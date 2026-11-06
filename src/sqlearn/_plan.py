@@ -142,7 +142,9 @@ def plan(steps: Sequence[tuple[str, Step]], schema: Schema) -> Plan:
     ...     static = False
     ...     creates = DOUBLE
     >>> schema = [("city", VARCHAR), ("age", DOUBLE)]
-    >>> p = plan([("onehot", OneHot("city")), ("scale", sq.Step(sq.numeric()))], schema)
+    >>> p = plan(
+    ...     [("onehot", OneHot("city")), ("scale", sq.Step(sq.cols.numeric()))], schema
+    ... )
     >>> p.learn_run, p.feed_run
     ([0, 1], 1)
     """

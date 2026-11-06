@@ -79,10 +79,10 @@ def _sqlearn(columns: dict[str, tuple]) -> pd.DataFrame:
     rel = _cases.sqlearn_table(columns, KINDS)
     pipe = sq.Pipeline(
         [
-            ("impute", sq.Impute(cols=sq.numeric(), strategy="median")),
+            ("impute", sq.Impute(cols=sq.cols.numeric(), strategy="median")),
             ("onehot", sq.OneHot(cols=["city"])),
             ("ordinal", sq.Ordinal(cols=["plan"])),
-            ("scale", sq.Scale(cols=sq.numeric())),
+            ("scale", sq.Scale(cols=sq.cols.numeric())),
         ]
     ).learn(rel)
     return pipe.apply(rel, out="pandas")

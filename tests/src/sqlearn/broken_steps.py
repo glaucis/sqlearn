@@ -17,7 +17,9 @@ class DeclaredStaticNeedsValues(sq.Step):
 
     def apply(self, x, learned):
         """Write one column per learned city."""
-        return {f"city_{c}": (x == sq.const(c)).cast(INTEGER) for c in learned.cities}
+        return {
+            f"city_{c}": (x == sq.fn.const(c)).cast(INTEGER) for c in learned.cities
+        }
 
 
 class BadSql(sq.Step):

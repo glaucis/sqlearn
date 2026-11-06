@@ -78,7 +78,7 @@ def test_keep_and_categories_learned():
 def test_settings_and_declaration():
     """Defaults are as documented and the step declares dynamic."""
     assert sq.Ordinal().settings() == {
-        "cols": sq.string(),
+        "cols": sq.cols.string(),
         "keep": False,
         "suffix": None,
     }

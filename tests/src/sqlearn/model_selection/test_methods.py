@@ -45,21 +45,21 @@ def test_range_given_to_grid_is_refused():
     """A range has no list of values to try: grid names the setting."""
     r = sq.range(0.01, 10, log=True)
     assert r == Range(0.01, 10, log=True)
-    with pytest.raises(sq.SqlearnError, match=r"'model__C'.*sq\.range"):
+    with pytest.raises(sq.errors.SqlearnError, match=r"'model__C'.*sq\.range"):
         sq.Grid().start([{"model__C": r}])
 
 
 def test_a_single_value_is_refused():
     """Grid wants a list of values per setting, as scikit-learn's grid does."""
-    with pytest.raises(sq.SqlearnError, match=r"'model__C'.*\[1\.0\]"):
+    with pytest.raises(sq.errors.SqlearnError, match=r"'model__C'.*\[1\.0\]"):
         sq.Grid().start([{"model__C": 1.0}])
-    with pytest.raises(sq.SqlearnError, match=r"'model__C'.*no value"):
+    with pytest.raises(sq.errors.SqlearnError, match=r"'model__C'.*no value"):
         sq.Grid().start([{"model__C": []}])
 
 
 def test_range_refuses_low_above_high_and_log_from_zero():
     """A range runs from low to high; a log range starts above zero."""
-    with pytest.raises(sq.SqlearnError, match="low"):
+    with pytest.raises(sq.errors.SqlearnError, match="low"):
         sq.range(2, 1)
-    with pytest.raises(sq.SqlearnError, match="log"):
+    with pytest.raises(sq.errors.SqlearnError, match="log"):
         sq.range(0, 1, log=True)

@@ -49,7 +49,7 @@ class Selector:
     Examples
     --------
     >>> import sqlearn as sq
-    >>> sq.numeric() - sq.cols("id")
+    >>> sq.cols.numeric() - sq.cols("id")
     (numeric() - cols('id'))
     """
 
@@ -71,7 +71,7 @@ class Selector:
         --------
         >>> import sqlearn as sq
         >>> from duckdb.sqltypes import INTEGER, VARCHAR
-        >>> sq.numeric().resolve([("a", INTEGER), ("b", VARCHAR)])
+        >>> sq.cols.numeric().resolve([("a", INTEGER), ("b", VARCHAR)])
         ['a']
         """
         return [name for name, dtype in schema if self._matches(name, dtype)]
@@ -95,7 +95,7 @@ class Selector:
         --------
         >>> import sqlearn as sq
         >>> from duckdb.sqltypes import VARCHAR
-        >>> sq.numeric().may_match(VARCHAR)
+        >>> sq.cols.numeric().may_match(VARCHAR)
         False
         """
         return self._may(dtype)
@@ -236,62 +236,93 @@ class _Not(Selector):
         return f"(~{self.inner!r})"
 
 
-def cols(*names: str) -> Selector:
-    """Choose columns by name.
+class _ColsGroup:
+    """Choose columns by name, or by kind with ``cols.numeric()``.
 
-    Parameters
-    ----------
-    *names : str
-        The column names.
-
-    Returns
-    -------
-    Selector
-        A selector that chooses these columns when they exist.
+    Call it with names to choose those columns; its methods choose by kind.
+    The result is a `Selector`, which combines with ``|``, ``&``, ``-`` and
+    ``~``.
 
     Examples
     --------
     >>> import sqlearn as sq
     >>> sq.cols("age", "income")
     cols('age', 'income')
+    >>> sq.cols.numeric() - sq.cols("id")
+    (numeric() - cols('id'))
     """
-    return _Cols(tuple(names))
+
+    def __call__(self, *names: str) -> Selector:
+        """Choose columns by name.
+
+        Parameters
+        ----------
+        *names : str
+            The column names.
+
+        Returns
+        -------
+        Selector
+            A selector that chooses these columns when they exist.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> sq.cols("age", "income")
+        cols('age', 'income')
+        """
+        return _Cols(tuple(names))
+
+    def numeric(self) -> Selector:
+        """Choose every numeric column.
+
+        Integers of any width (signed or unsigned), FLOAT, DOUBLE and DECIMAL
+        of any precision count as numeric.
+
+        Returns
+        -------
+        Selector
+            The numeric-columns selector.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> sq.cols.numeric()
+        numeric()
+        """
+        return _Kind("numeric")
+
+    def string(self) -> Selector:
+        """Choose every text (VARCHAR) column.
+
+        Returns
+        -------
+        Selector
+            The text-columns selector.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> sq.cols.string()
+        string()
+        """
+        return _Kind("string")
+
+    def __repr__(self) -> str:
+        return "sq.cols"
+
+
+cols = _ColsGroup()
+"""The column chooser: ``sq.cols("a", "b")``, ``sq.cols.numeric()``."""
 
 
 def numeric() -> Selector:
-    """Choose every numeric column.
-
-    Integers of any width (signed or unsigned), FLOAT, DOUBLE and DECIMAL of
-    any precision count as numeric.
-
-    Returns
-    -------
-    Selector
-        The numeric-columns selector.
-
-    Examples
-    --------
-    >>> import sqlearn as sq
-    >>> sq.numeric()
-    numeric()
-    """
+    """Return the numeric-columns selector (what ``cols.numeric()`` gives)."""
     return _Kind("numeric")
 
 
 def string() -> Selector:
-    """Choose every text (VARCHAR) column.
-
-    Returns
-    -------
-    Selector
-        The text-columns selector.
-
-    Examples
-    --------
-    >>> import sqlearn as sq
-    >>> sq.string()
-    string()
-    """
+    """Return the text-columns selector (what ``cols.string()`` gives)."""
     return _Kind("string")
 
 

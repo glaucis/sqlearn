@@ -34,7 +34,7 @@ class Metric:
     Examples
     --------
     >>> import sqlearn as sq
-    >>> sq.accuracy.greater_is_better
+    >>> sq.metrics.accuracy.greater_is_better
     True
     """
 
@@ -74,7 +74,7 @@ class Metric:
         >>> import duckdb
         >>> import sqlearn as sq
         >>> rel = duckdb.sql("SELECT * FROM (VALUES (1, 1), (1, 2)) t(y, prediction)")
-        >>> sq.accuracy.compute(rel, "y")
+        >>> sq.metrics.accuracy.compute(rel, "y")
         0.5
         """
         names = list(rel.columns)

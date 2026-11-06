@@ -19,7 +19,7 @@ def test_printed_sql_of_each_form():
         str(sq.distinct_values(x))
         == 'COALESCE(list_sort(map_keys(histogram("age"))), [])'
     )
-    assert str(sq.const(float("nan"))) == "'NaN'::DOUBLE"
+    assert str(sq.fn.const(float("nan"))) == "'NaN'::DOUBLE"
     assert str(duckdb.ColumnExpression("l03_scale", "v0")) == '"l03_scale"."v0"'
 
 
@@ -66,7 +66,7 @@ def test_is_missing_catches_null_and_nan():
     """`is_missing` is true for NULL and for NaN, false otherwise."""
     con = duckdb.connect()
     rel = con.sql("SELECT * FROM (VALUES (1.0), (NULL), ('NaN'::DOUBLE)) t(a)")
-    out = rel.select(sq.is_missing(duckdb.ColumnExpression("a"))).fetchall()
+    out = rel.select(sq.fn.is_missing(duckdb.ColumnExpression("a"))).fetchall()
     assert out == [(False,), (True,), (True,)]
 
 

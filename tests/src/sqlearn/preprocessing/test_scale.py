@@ -89,14 +89,14 @@ def test_impute_then_scale_matches_sklearn_pipeline():
 def test_all_missing_column():
     """A column of only NULLs is named in a StepError."""
     frame = pd.DataFrame({"dead": [np.nan, np.nan], "a": [1.0, 2.0]})
-    with pytest.raises(sq.StepError, match=r"scale \(step 1\).*'dead'"):
+    with pytest.raises(sq.errors.StepError, match=r"scale \(step 1\).*'dead'"):
         sq.Pipeline([("scale", sq.Scale())]).learn(frame)
 
 
 def test_settings_and_declaration():
     """Settings read back, and the static declaration matches the learning."""
     assert sq.Scale(keep=True).settings() == {
-        "cols": sq.numeric(),
+        "cols": sq.cols.numeric(),
         "keep": True,
         "suffix": None,
     }
@@ -112,9 +112,9 @@ def test_reserved_word_and_space_names_work_and_are_named_in_errors():
     got = sq.Pipeline([("scale", sq.Scale())]).learn(frame).apply(frame, out="pandas")
     assert_allclose(got.to_numpy(), sk.transform(frame), rtol=1e-12)
     dead = pd.DataFrame({"order": [np.nan, np.nan], "my col": [np.nan, np.nan]})
-    with pytest.raises(sq.StepError, match=r"scale \(step 1\).*'order'"):
+    with pytest.raises(sq.errors.StepError, match=r"scale \(step 1\).*'order'"):
         sq.Pipeline([("scale", sq.Scale(cols="order"))]).learn(dead)
-    with pytest.raises(sq.StepError, match=r"scale \(step 1\).*'my col'"):
+    with pytest.raises(sq.errors.StepError, match=r"scale \(step 1\).*'my col'"):
         sq.Pipeline([("scale", sq.Scale(cols="my col"))]).learn(dead)
 
 
@@ -149,7 +149,7 @@ def test_one_non_missing_value_scales_to_zero():
 def test_all_null_column_without_nan():
     """A column of real NULLs is refused, naming it."""
     rel = connection().sql("SELECT NULL::DOUBLE AS dead, 1.0 AS ok")
-    with pytest.raises(sq.StepError, match=r"scale \(step 1\).*'dead'"):
+    with pytest.raises(sq.errors.StepError, match=r"scale \(step 1\).*'dead'"):
         sq.Pipeline([("scale", sq.Scale())]).learn(rel)
 
 
@@ -157,7 +157,7 @@ def test_all_missing_after_impute_in_the_same_statement():
     """Impute then Scale on an all-missing column fails at Impute, by name."""
     frame = pd.DataFrame({"a": [1.0, 2.0], "dead": [np.nan, np.nan]})
     pipe = sq.Pipeline([("fill", sq.Impute()), ("scale", sq.Scale())])
-    with pytest.raises(sq.StepError, match=r"fill \(step 1\).*'dead'") as err:
+    with pytest.raises(sq.errors.StepError, match=r"fill \(step 1\).*'dead'") as err:
         pipe.learn(frame)
     assert err.value.position == 1
 
@@ -165,5 +165,5 @@ def test_all_missing_after_impute_in_the_same_statement():
 def test_infinity_is_refused():
     """A column holding infinity is refused instead of scaling to NaN."""
     frame = pd.DataFrame({"a": [1.0, np.inf, 3.0]})
-    with pytest.raises(sq.StepError, match=r"scale \(step 1\).*'a'.*infinity"):
+    with pytest.raises(sq.errors.StepError, match=r"scale \(step 1\).*'a'.*infinity"):
         sq.Pipeline([("scale", sq.Scale())]).learn(frame)

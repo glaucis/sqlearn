@@ -97,7 +97,7 @@ def test_keep_adds_a_column_beside_the_input():
 def test_all_missing_column():
     """Scikit-learn drops such a column; sqlearn names it in a StepError."""
     frame = pd.DataFrame({"a": [1.0, 2.0], "dead": [np.nan, np.nan]})
-    with pytest.raises(sq.StepError, match=r"fill \(step 1\).*'dead'") as err:
+    with pytest.raises(sq.errors.StepError, match=r"fill \(step 1\).*'dead'") as err:
         sq.Pipeline([("fill", sq.Impute())]).learn(frame)
     assert err.value.step == "fill"
     assert err.value.position == 1
@@ -107,14 +107,16 @@ def test_text_column_is_refused_by_name():
     """Selecting a text column is refused, naming it and the step."""
     frame = pd.DataFrame({"city": ["x", "y"]})
     pipe = sq.Pipeline([("pass", sq.Step()), ("fill", sq.Impute(cols="city"))])
-    with pytest.raises(sq.StepError, match=r"fill \(step 2\).*'city'.*text") as err:
+    with pytest.raises(
+        sq.errors.StepError, match=r"fill \(step 2\).*'city'.*text"
+    ) as err:
         pipe.learn(frame)
     assert err.value.position == 2
 
 
 def test_unknown_strategy_is_refused():
     """A strategy other than median or mean fails in ``__init__``."""
-    with pytest.raises(sq.SqlearnError, match="mode"):
+    with pytest.raises(sq.errors.SqlearnError, match="mode"):
         sq.Impute(strategy="mode")
 
 
@@ -122,7 +124,7 @@ def test_settings_and_declaration():
     """Settings read back, and the static declaration matches the learning."""
     step = sq.Impute(strategy="mean", keep=True, suffix="f")
     assert step.settings() == {
-        "cols": sq.numeric(),
+        "cols": sq.cols.numeric(),
         "strategy": "mean",
         "keep": True,
         "suffix": "f",
@@ -139,16 +141,16 @@ def test_reserved_word_and_space_names_work_and_are_named_in_errors():
     assert got["order"].tolist() == [1.0, 2.0, 3.0]
     assert got["my col"].tolist() == [2.0, 4.0, 3.0]
     dead = pd.DataFrame({"order": [np.nan, np.nan], "my col": [np.nan, np.nan]})
-    with pytest.raises(sq.StepError, match=r"fill \(step 1\).*'order'"):
+    with pytest.raises(sq.errors.StepError, match=r"fill \(step 1\).*'order'"):
         sq.Pipeline([("fill", sq.Impute(cols="order"))]).learn(dead)
-    with pytest.raises(sq.StepError, match=r"fill \(step 1\).*'my col'"):
+    with pytest.raises(sq.errors.StepError, match=r"fill \(step 1\).*'my col'"):
         sq.Pipeline([("fill", sq.Impute(cols="my col"))]).learn(dead)
 
 
 def test_all_null_column_without_nan():
     """A column of real NULLs (not NaN) is refused, naming it."""
     rel = connection().sql("SELECT NULL::DOUBLE AS dead, 1.0 AS ok")
-    with pytest.raises(sq.StepError, match=r"fill \(step 1\).*'dead'"):
+    with pytest.raises(sq.errors.StepError, match=r"fill \(step 1\).*'dead'"):
         sq.Pipeline([("fill", sq.Impute())]).learn(rel)
 
 
@@ -164,5 +166,5 @@ def test_infinity_is_refused(strategy):
     """A column holding infinity is refused (the median would hide it)."""
     frame = pd.DataFrame({"a": [1.0, np.inf, 3.0, np.nan, 2.0]})
     pipe = sq.Pipeline([("fill", sq.Impute(strategy=strategy))])
-    with pytest.raises(sq.StepError, match=r"fill \(step 1\).*'a'.*infinity"):
+    with pytest.raises(sq.errors.StepError, match=r"fill \(step 1\).*'a'.*infinity"):
         pipe.learn(frame)

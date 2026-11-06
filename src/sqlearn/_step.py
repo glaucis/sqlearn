@@ -287,7 +287,7 @@ class Step:
         >>> import sqlearn as sq
         >>> from duckdb.sqltypes import INTEGER, VARCHAR
         >>> schema = [("a", INTEGER), ("b", VARCHAR)]
-        >>> sq.Step(cols=sq.numeric()).inputs(schema)
+        >>> sq.Step(cols=sq.cols.numeric()).inputs(schema)
         ['a']
         """
         if self.cols is None:

@@ -35,7 +35,7 @@ def test_declared_static_but_needs_values(people):
             ("MyEncoder", DeclaredStaticNeedsValues(cols="city")),
         ]
     )
-    with pytest.raises(sq.StepError) as err:
+    with pytest.raises(sq.errors.StepError) as err:
         pipe.learn(people)
     assert err.value.step == "MyEncoder"
     assert err.value.position == 3
@@ -51,7 +51,7 @@ def test_declared_static_but_needs_values(people):
 def test_bad_sql_in_apply_names_the_step(people):
     """A function DuckDB lacks is traced to the step that called it."""
     pipe = sq.Pipeline([("one", sq.Step()), ("bad", BadSql(cols="age"))])
-    with pytest.raises(sq.StepError) as err:
+    with pytest.raises(sq.errors.StepError) as err:
         pipe.learn(people)
     assert (err.value.step, err.value.position) == ("bad", 2)
     first, fix = str(err.value).split("\n", 1)
@@ -66,7 +66,7 @@ def test_bad_sql_in_apply_names_the_step(people):
 def test_a_missing_column_names_column_and_step(people):
     """A column the data lacks is named, with the step that reads it."""
     pipe = sq.Pipeline([("gap", MissingColumn(cols="age"))])
-    with pytest.raises(sq.StepError) as err:
+    with pytest.raises(sq.errors.StepError) as err:
         pipe.learn(people)
     assert (err.value.step, err.value.position) == ("gap", 1)
     assert (
@@ -87,7 +87,7 @@ def test_a_missing_column_names_column_and_step(people):
 def test_a_python_error_in_apply_names_the_step(people):
     """A plain Python error is a StepError naming the step and the method."""
     pipe = sq.Pipeline([("oops", RaisesInApply(cols="age"))])
-    with pytest.raises(sq.StepError) as err:
+    with pytest.raises(sq.errors.StepError) as err:
         pipe.learn(people)
     assert (err.value.step, err.value.position) == ("oops", 1)
     assert str(err.value) == (
@@ -102,7 +102,7 @@ def test_a_failure_while_running_is_traced_by_its_stage_name():
     """A DuckDB error raised while running names the step in its stage name."""
     words = connection().sql("SELECT * FROM (VALUES ('1'), ('abc')) t(a)")
     pipe = sq.Pipeline([("copy", sq.Step()), ("total", FailsWhileRunning())])
-    with pytest.raises(sq.StepError) as err:
+    with pytest.raises(sq.errors.StepError) as err:
         pipe.learn(words)
     assert (err.value.step, err.value.position) == ("total", 2)
     text = str(err.value)
@@ -121,7 +121,7 @@ def test_a_builtin_failure_is_an_internal_error(people):
     built-in step exists yet to break.
     """
     pipe = sq.Pipeline([("fake", FakeBuiltin(cols="age"))])
-    with pytest.raises(sq.InternalError) as err:
+    with pytest.raises(sq.errors.InternalError) as err:
         pipe.learn(people)
     lines = str(err.value).split("\n")
     assert lines[0] == (
@@ -152,7 +152,7 @@ def test_a_builtin_sql_refusal_reports_the_sql(people):
             "__module__": "sqlearn.preprocessing.fake",
         },
     )
-    with pytest.raises(sq.InternalError) as err:
+    with pytest.raises(sq.errors.InternalError) as err:
         sq.Pipeline([("fake", refused(cols="age"))]).learn(people)
     assert "sqlearn's bug" in str(err.value)
     assert "SELECT" in str(err.value)
@@ -163,7 +163,7 @@ def test_diagnose_rechecks_the_declaration_when_duckdb_fails():
     """A DuckDB failure in a step declared static is re-checked by inspection."""
     steps = [("MyEncoder", DeclaredStaticNeedsValues(cols="city"))]
     err = diagnose(duckdb.Error("boom"), steps, lambda message: 1)
-    assert isinstance(err, sq.StepError)
+    assert isinstance(err, sq.errors.StepError)
     assert "MyEncoder (step 1) is declared static, but its apply() loops over" in str(
         err
     )
@@ -171,14 +171,14 @@ def test_diagnose_rechecks_the_declaration_when_duckdb_fails():
 
 def test_diagnose_leaves_sqlearn_errors_alone():
     """An error sqlearn already explained is returned as it is."""
-    given = sq.SqlearnError("already explained")
+    given = sq.errors.SqlearnError("already explained")
     assert diagnose(given, [], lambda message: None) is given
 
 
 def test_diagnose_without_a_step_still_explains():
     """A DuckDB error that names no stage is reported, not hidden."""
     err = diagnose(duckdb.Error("odd"), [("a", sq.Step())], lambda message: None)
-    assert isinstance(err, sq.SqlearnError)
+    assert isinstance(err, sq.errors.SqlearnError)
     assert "odd" in str(err)
 
 
@@ -190,7 +190,7 @@ def test_a_builtin_failing_while_running_is_an_internal_error():
         (FailsWhileRunning,),
         {"__module__": "sqlearn.preprocessing.fake"},
     )
-    with pytest.raises(sq.InternalError) as err:
+    with pytest.raises(sq.errors.InternalError) as err:
         sq.Pipeline([("fake", builtin())]).learn(words)
     text = str(err.value)
     assert text.startswith("fake (step 1) is a built-in step (")

@@ -52,10 +52,10 @@ def run_the_slice():
     """Run spec §2's script, as written there, from the current directory."""
     pipe = sq.Pipeline(
         [
-            ("impute", sq.Impute(cols=sq.numeric(), strategy="median")),
+            ("impute", sq.Impute(cols=sq.cols.numeric(), strategy="median")),
             ("onehot", sq.OneHot(cols=["city"])),
             ("ordinal", sq.Ordinal(cols=["plan"])),
-            ("scale", sq.Scale(cols=sq.numeric())),
+            ("scale", sq.Scale(cols=sq.cols.numeric())),
             ("model", LogisticRegression()),
         ]
     )
@@ -63,7 +63,7 @@ def run_the_slice():
     search = sq.Search(
         pipe,
         params={"model__C": [0.1, 1, 10], "impute__strategy": ["median", "mean"]},
-        metric=sq.accuracy,
+        metric=sq.metrics.accuracy,
     )
     search.train("data/train/*.parquet", target="churned")
     print(search.best_params_, search.best_score_)  # noqa: T201  (the script prints)
@@ -153,7 +153,7 @@ RUNS = [
         # string() cannot match OneHot's INTEGER columns: no wait.
         lambda: [
             ("onehot", sq.OneHot(cols=["city"])),
-            ("ordinal", sq.Ordinal(cols=sq.string())),
+            ("ordinal", sq.Ordinal(cols=sq.cols.string())),
         ],
         1,
         id="string-does-not-wait",
@@ -220,7 +220,7 @@ RUNS = [
         # OneHot's INTEGER columns, so Scale waits.
         lambda: [
             ("onehot", sq.OneHot(cols=["city"])),
-            ("scale", sq.Scale(cols=sq.numeric() & ~sq.cols("visits"))),
+            ("scale", sq.Scale(cols=sq.cols.numeric() & ~sq.cols("visits"))),
         ],
         2,
         id="combined-selector-waits",
@@ -245,13 +245,16 @@ RUNS = [
     ),
     pytest.param(
         # Undeclared, its new columns may be of any type: string() waits too.
-        lambda: [("encode", MyEncoder()), ("ordinal", sq.Ordinal(sq.string()))],
+        lambda: [("encode", MyEncoder()), ("ordinal", sq.Ordinal(sq.cols.string()))],
         2,
         id="undeclared-dynamic-string-waits",
     ),
     pytest.param(
         # Declared as creating INTEGER columns: string() does not wait.
-        lambda: [("encode", DeclaredEncoder()), ("ordinal", sq.Ordinal(sq.string()))],
+        lambda: [
+            ("encode", DeclaredEncoder()),
+            ("ordinal", sq.Ordinal(sq.cols.string())),
+        ],
         1,
         id="declared-dynamic-string-does-not-wait",
     ),
@@ -365,16 +368,16 @@ def test_preparation_runs_larger_than_memory(tmp_path, capsys):
     sq.set_config(connection=con)
     pipe = sq.Pipeline(
         [
-            ("impute", sq.Impute(cols=sq.numeric(), strategy="median")),
+            ("impute", sq.Impute(cols=sq.cols.numeric(), strategy="median")),
             ("onehot", sq.OneHot(cols=["city"])),
             ("ordinal", sq.Ordinal(cols=["plan"])),
-            ("scale", sq.Scale(cols=sq.numeric())),
+            ("scale", sq.Scale(cols=sq.cols.numeric())),
         ]
     )
     out = tmp_path / "prepared.parquet"
     start = time.perf_counter()
     pipe.learn(str(path))
-    pipe.apply(str(path), out=sq.out_parquet(out))
+    pipe.apply(str(path), out=sq.out.parquet(out))
     elapsed = time.perf_counter() - start
     with capsys.disabled():
         print(f"\n20 million rows prepared within 64 MB: {elapsed:.1f} s")  # noqa: T201

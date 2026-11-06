@@ -10,10 +10,11 @@ import pandas as pd
 import pytest
 
 import sqlearn as sq
-from sqlearn import SqlearnError, _config
+from sqlearn import _config
 from sqlearn import _inputs as inputs
 from sqlearn._inputs import read
 from sqlearn._store import STORE
+from sqlearn.errors import SqlearnError
 
 
 def _write(path, text, mtime_ns=None):
@@ -324,7 +325,9 @@ def test_a_finaliser_never_calls_the_connection(monkeypatch):
             pipe = sq.Pipeline([("oh", sq.OneHot(["city"])), ("model", _Model())])
             try:
                 pipe.train(df, target="city_a")
-            except sq.StepError as exc:  # its traceback holds the source in a cycle
+            except (
+                sq.errors.StepError
+            ) as exc:  # its traceback holds the source in a cycle
                 assert "city_a" in str(exc)  # noqa: PT017
             del df
             big = pd.DataFrame({"x": range(200_000), "y": [0, 1] * 100_000})

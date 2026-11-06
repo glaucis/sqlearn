@@ -39,7 +39,7 @@ def test_independent_dynamic_steps_share_a_run():
 
 def test_reading_new_columns_waits():
     """A selector that may match a dynamic step's new columns waits for it."""
-    p = runs(dynamic_step("x"), static_step(sq.numeric()))
+    p = runs(dynamic_step("x"), static_step(sq.cols.numeric()))
     assert (p.learn_run, p.feed_run) == ([0, 1], 1)
 
 
@@ -58,8 +58,8 @@ def test_a_chain_of_dynamic_steps_adds_runs():
     """A dynamic step reading another's new columns learns a run later."""
     p = runs(
         dynamic_step("x"),
-        dynamic_step(sq.numeric()),
-        static_step(sq.numeric()),
+        dynamic_step(sq.cols.numeric()),
+        static_step(sq.cols.numeric()),
     )
     assert (p.learn_run, p.feed_run) == ([0, 1, 2], 2)
     assert p.apply_run == [1, 2, 2]
@@ -67,7 +67,7 @@ def test_a_chain_of_dynamic_steps_adds_runs():
 
 def test_string_selector_does_not_wait_for_onehot():
     """A selector that cannot match the declared new type does not wait."""
-    p = runs(dynamic_step("city"), static_step(sq.string()))
+    p = runs(dynamic_step("city"), static_step(sq.cols.string()))
     assert (p.learn_run, p.feed_run) == ([0, 0], 1)
 
 
@@ -86,7 +86,7 @@ def test_depends_on_follows_columns():
 
 def test_depends_on_is_transitive():
     """Reading a step's output also depends on what that step read."""
-    p = runs(static_step("age"), static_step(None), dynamic_step(sq.numeric()))
+    p = runs(static_step("age"), static_step(None), dynamic_step(sq.cols.numeric()))
     assert p.depends_on[2] == frozenset({0, 1})
 
 
@@ -104,13 +104,13 @@ def test_unknown_inputs_wait_for_new_columns():
 
 def test_undeclared_new_types_match_any_selector():
     """With no declared type, any selector may match the new columns."""
-    p = runs(dynamic_step("x", creates=None), static_step(sq.string()))
+    p = runs(dynamic_step("x", creates=None), static_step(sq.cols.string()))
     assert p.learn_run == [0, 1]
 
 
 def test_a_replaced_column_keeps_its_type():
     """A static step keeps its column's type, so a string selector finds it."""
-    p = runs(static_step("x"), dynamic_step(sq.string()))
+    p = runs(static_step("x"), dynamic_step(sq.cols.string()))
     assert p.depends_on[1] == frozenset({0})
 
 
@@ -127,7 +127,7 @@ def test_a_kept_unknown_column_stays_unknown():
     p = runs(
         dynamic_step("x"),
         static_step(Prefix("x_"), keep=True),
-        static_step(sq.numeric() - sq.cols("age", "a", "b")),
+        static_step(sq.cols.numeric() - sq.cols("age", "a", "b")),
     )
     assert (p.learn_run, p.feed_run) == ([0, 1, 1], 1)
     assert p.depends_on[2] == frozenset({0, 1})
@@ -145,7 +145,7 @@ def test_a_dynamic_step_leaves_new_columns_it_may_not_read():
     p = runs(
         dynamic_step("x"),
         dynamic_step(Prefix("x_a"), creates=VARCHAR),
-        static_step(sq.numeric()),
+        static_step(sq.cols.numeric()),
     )
     assert (p.learn_run, p.depends_on[2]) == ([0, 1, 1], frozenset({0}))
 
@@ -154,8 +154,8 @@ def test_a_dynamic_step_leaves_new_columns_of_any_type():
     """New columns of undeclared type may not all be read by a type selector."""
     p = runs(
         dynamic_step("x", creates=None),
-        dynamic_step(sq.numeric(), creates=INTEGER),
-        static_step(sq.string()),
+        dynamic_step(sq.cols.numeric(), creates=INTEGER),
+        static_step(sq.cols.string()),
     )
     assert (p.learn_run, p.depends_on[2]) == ([0, 1, 1], frozenset({0}))
 
@@ -168,8 +168,8 @@ def test_a_dynamic_step_consumes_new_columns_it_must_read():
     """
     p = runs(
         dynamic_step("x"),
-        dynamic_step(sq.numeric(), creates=VARCHAR),
-        static_step(sq.numeric()),
+        dynamic_step(sq.cols.numeric(), creates=VARCHAR),
+        static_step(sq.cols.numeric()),
     )
     assert (p.learn_run, p.depends_on[2]) == ([0, 1, 0], frozenset({0, 1}))
 
@@ -190,7 +190,7 @@ def test_a_step_that_changes_rows_is_read_by_every_later_step():
     """Every step after a row-changing step depends on it and waits for it."""
     p = runs(
         dynamic_step("x"),
-        static_step(sq.numeric(), changes_rows=True),
+        static_step(sq.cols.numeric(), changes_rows=True),
         static_step("city"),
     )
     assert p.depends_on[2] == frozenset({0, 1})
@@ -219,7 +219,7 @@ def test_a_declared_dynamic_step_is_planned_as_dynamic():
 def test_declaring_static_and_dynamic_is_refused():
     """The two declarations contradict each other, so the step is named."""
     kind = type("Both", (sq.Step,), {"static": True, "dynamic": True})
-    with pytest.raises(sq.StepError) as err:
+    with pytest.raises(sq.errors.StepError) as err:
         plan([("one", sq.Step()), ("both", kind(cols="age"))], SCHEMA)
     assert (err.value.step, err.value.position) == ("both", 2)
     assert str(err.value) == (
@@ -231,7 +231,7 @@ def test_declaring_static_and_dynamic_is_refused():
 
 def test_a_step_that_could_read_a_removed_column_depends_on_its_remover():
     """A column taken away decides what a later step reads (ADR 0024)."""
-    p = runs(dynamic_step("city"), static_step(sq.string()))
+    p = runs(dynamic_step("city"), static_step(sq.cols.string()))
     assert (p.learn_run, p.depends_on[1]) == ([0, 0], frozenset({0}))
     by_name = runs(dynamic_step("city"), static_step(["x", "city"]))
     assert 0 in by_name.depends_on[1]
@@ -243,7 +243,7 @@ def test_a_step_that_cannot_read_a_removed_column_does_not_depend_on_it():
     """A removed column of another type or name leaves a step independent."""
     p = runs(
         dynamic_step("city", creates=VARCHAR),
-        static_step(sq.numeric()),
+        static_step(sq.cols.numeric()),
         static_step(["x"]),
     )
     assert p.depends_on[1:] == [frozenset(), frozenset()]
@@ -257,5 +257,5 @@ def test_a_removed_column_carries_its_removers_dependencies():
         static_step(["y"]),
     )
     assert p.depends_on[2] == frozenset({0})
-    q = runs(static_step(["city"]), dynamic_step("city"), static_step(sq.string()))
+    q = runs(static_step(["city"]), dynamic_step("city"), static_step(sq.cols.string()))
     assert q.depends_on[2] == frozenset({0, 1})

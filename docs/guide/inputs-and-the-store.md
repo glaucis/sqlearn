@@ -36,5 +36,15 @@ pipe.learn("customers")  # same rows, same columns: the old values are used
 
 The remedy is to pass the changed data so that it is seen as new: under a new
 name (`CREATE TABLE customers_2 AS ...`), or as a file or a pandas DataFrame,
-whose changes are always noticed. Clearing the store waits for
+whose changes are always noticed. Or clear the store, which forgets every
+learned value:
+
+```python
+pipe.learn("customers")
+con.execute("UPDATE customers SET age = age + 1")
+sq.store.clear()  # forget every learned value
+pipe.learn("customers")  # learns again
+```
+
+Size limits for the store wait for
 [issue #23](https://github.com/glaucis/sqlearn/issues/23).

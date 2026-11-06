@@ -23,3 +23,29 @@ def test_the_version_is_a_string():
 def test_the_package_ships_py_typed():
     """`py.typed` is in the package, so users' type checkers read it."""
     assert files("sqlearn").joinpath("py.typed").is_file()
+
+
+def test_the_top_level_holds_only_the_builders():
+    """Names that moved into groups are gone from the top level."""
+    import sqlearn as sq
+
+    public = {n for n in dir(sq) if not n.startswith("_")}
+    for gone in [
+        "numeric",
+        "string",
+        "const",
+        "is_missing",
+        "out_csv",
+        "out_json",
+        "out_parquet",
+        "Metric",
+        "accuracy",
+        "SqlearnError",
+        "StepError",
+        "InternalError",
+        "SqlearnWarning",
+        "DefaultsUsedWarning",
+    ]:
+        assert gone not in public  # moved names (the step ones go later)
+    assert {"Pipeline", "Step", "Search", "set_config", "get_config"} <= public
+    assert {"cols", "fn", "out", "errors", "store", "metrics"} <= public
