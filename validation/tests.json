@@ -1178,7 +1178,19 @@
     },
     {
       "area": "sqlearn/model_selection/search",
+      "name": "tests/src/sqlearn/model_selection/test_search.py::test_a_search_over_the_inner_folds_of_a_target_step",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/search",
       "name": "tests/src/sqlearn/model_selection/test_search.py::test_a_setting_of_a_model_without_get_params_is_checked_by_attribute",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/search",
+      "name": "tests/src/sqlearn/model_selection/test_search.py::test_a_target_step_cross_fits_within_each_folds_training_rows",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1310,6 +1322,12 @@
     },
     {
       "area": "sqlearn/preprocessing/_encode",
+      "name": "tests/src/sqlearn/preprocessing/test__encode.py::test_classes_take_no_suffix[TargetEncoder]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/_encode",
       "name": "tests/src/sqlearn/preprocessing/test__encode.py::test_columns_by_name_list_or_selector",
       "outcome": "passed",
       "tier": "fast"
@@ -1358,6 +1376,12 @@
     },
     {
       "area": "sqlearn/preprocessing/_encode",
+      "name": "tests/src/sqlearn/preprocessing/test__encode.py::test_repr_rebuilds_the_step[step3]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/_encode",
       "name": "tests/src/sqlearn/preprocessing/test__encode.py::test_shortcut_equals_general_form[onehot-OneHot]",
       "outcome": "passed",
       "tier": "fast"
@@ -1370,7 +1394,13 @@
     },
     {
       "area": "sqlearn/preprocessing/_encode",
-      "name": "tests/src/sqlearn/preprocessing/test__encode.py::test_suffix_is_refused[make2]",
+      "name": "tests/src/sqlearn/preprocessing/test__encode.py::test_shortcut_equals_general_form[target-TargetEncoder]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/_encode",
+      "name": "tests/src/sqlearn/preprocessing/test__encode.py::test_suffix_is_refused[make3]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1383,6 +1413,18 @@
     {
       "area": "sqlearn/preprocessing/_encode",
       "name": "tests/src/sqlearn/preprocessing/test__encode.py::test_suffix_is_refused[ordinal]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/_encode",
+      "name": "tests/src/sqlearn/preprocessing/test__encode.py::test_suffix_is_refused[target]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/_encode",
+      "name": "tests/src/sqlearn/preprocessing/test__encode.py::test_target_settings_only_with_target",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -2341,6 +2383,144 @@
       "tier": "fast"
     },
     {
+      "area": "sqlearn/preprocessing/target",
+      "name": "tests/src/sqlearn/preprocessing/test_target.py::test_a_binary_target_of_two_words_or_two_numbers",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/target",
+      "name": "tests/src/sqlearn/preprocessing/test_target.py::test_a_column_of_nulls_gets_nulls_encoding",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/target",
+      "name": "tests/src/sqlearn/preprocessing/test_target.py::test_a_constant_target_encodes_every_category_as_its_value",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/target",
+      "name": "tests/src/sqlearn/preprocessing/test_target.py::test_a_missing_target_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/target",
+      "name": "tests/src/sqlearn/preprocessing/test_target.py::test_a_multiclass_target_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/target",
+      "name": "tests/src/sqlearn/preprocessing/test_target.py::test_a_number_for_smooth_is_the_weighted_mean",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/target",
+      "name": "tests/src/sqlearn/preprocessing/test_target.py::test_a_scaler_after_target_learns_from_cross_fitted_values",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/target",
+      "name": "tests/src/sqlearn/preprocessing/test_target.py::test_a_text_target_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/target",
+      "name": "tests/src/sqlearn/preprocessing/test_target.py::test_binary_given_for_three_values_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/target",
+      "name": "tests/src/sqlearn/preprocessing/test_target.py::test_encodings_follow_the_formulae",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/target",
+      "name": "tests/src/sqlearn/preprocessing/test_target.py::test_learn_then_apply_matches_fit_then_transform",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/target",
+      "name": "tests/src/sqlearn/preprocessing/test_target.py::test_learn_without_target_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/target",
+      "name": "tests/src/sqlearn/preprocessing/test_target.py::test_learn_without_y_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/target",
+      "name": "tests/src/sqlearn/preprocessing/test_target.py::test_nan_categories_are_one_category",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/target",
+      "name": "tests/src/sqlearn/preprocessing/test_target.py::test_null_seen_at_learn_is_a_category",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/target",
+      "name": "tests/src/sqlearn/preprocessing/test_target.py::test_predict_uses_the_values_learned_on_all_rows",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/target",
+      "name": "tests/src/sqlearn/preprocessing/test_target.py::test_repr_and_shortcut",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/target",
+      "name": "tests/src/sqlearn/preprocessing/test_target.py::test_rows_all_in_one_inner_fold_are_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/target",
+      "name": "tests/src/sqlearn/preprocessing/test_target.py::test_settings_are_checked",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/target",
+      "name": "tests/src/sqlearn/preprocessing/test_target.py::test_target_unseen_and_null_get_the_overall_mean",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/target",
+      "name": "tests/src/sqlearn/preprocessing/test_target.py::test_the_store_entry_holds_all_rows_and_each_fold",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/target",
+      "name": "tests/src/sqlearn/preprocessing/test_target.py::test_train_cross_fits_a_continuous_target",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/target",
+      "name": "tests/src/sqlearn/preprocessing/test_target.py::test_train_cross_fits_like_fit_transform",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
       "area": "sqlearn/_compose",
       "name": "tests/src/sqlearn/test__compose.py::test_a_created_name_in_use_is_numbered",
       "outcome": "passed",
@@ -3104,6 +3284,12 @@
     },
     {
       "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_a_column_named_as_the_target_aside_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
       "name": "tests/src/sqlearn/test__pipeline.py::test_a_column_removed_upstream_is_in_a_later_steps_key",
       "outcome": "passed",
       "tier": "fast"
@@ -3231,6 +3417,24 @@
     {
       "area": "sqlearn/_pipeline",
       "name": "tests/src/sqlearn/test__pipeline.py::test_a_stored_step_is_applied_while_others_learn",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_a_target_named_like_a_created_column_does_not_renumber_it",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_a_target_steps_failures_name_it",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_a_user_target_step_learns_without_cross_fitting_by_default",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -3555,6 +3759,18 @@
     {
       "area": "sqlearn/_plan",
       "name": "tests/src/sqlearn/test__plan.py::test_a_step_that_could_read_a_removed_column_depends_on_its_remover",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_plan",
+      "name": "tests/src/sqlearn/test__plan.py::test_a_target_step_ends_its_run",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_plan",
+      "name": "tests/src/sqlearn/test__plan.py::test_a_target_step_without_folds_is_refused",
       "outcome": "passed",
       "tier": "fast"
     },

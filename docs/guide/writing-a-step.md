@@ -5,7 +5,7 @@ kernelspec:
   display_name: Python 3
   language: python
 type: guide
-tags: [steps, custom-steps, learn, apply, apply_row, rowwise, static, dynamic, errors]
+tags: [steps, custom-steps, learn, apply, apply_row, rowwise, uses_target, cross-fitting, static, dynamic, errors]
 summary: "How to write your own sqlearn step: the learn/apply contract, what a step declares, placeholders, static or dynamic, and the messages a failing step gets."
 related: [docs/specs/library-core.md, docs/adr/0012-static-and-dynamic-steps.md, docs/adr/0019-custom-steps-and-failure-feedback.md]
 ---
@@ -195,6 +195,56 @@ sq.Pipeline([OnceShare()]).learn(parts).apply(parts)
 ```
 
 `sq.scale.normalize` is built this way, computing each row's norm once.
+
+## Steps that learn from the target
+
+A step can learn from the target, as `sq.encode.target` learns the target's
+mean in each category. It sets `uses_target = True`, and its `learn` gets the
+target as a second argument, `learn(x, y)` (write `y=None`, so the signature
+extends the base class's). No other step sees the target, and no selector
+matches it. Such a step also has the settings `cv` and `seed`, its inner
+folds, and its `apply` returns one expression per column, a DOUBLE.
+
+```{code-cell} python
+class OverTarget(sq.Step):
+    uses_target = True
+    static = True
+
+    def __init__(self, cols=sq.cols.numeric(), keep=False, cv=5, seed=0):
+        super().__init__(cols, keep)
+        self.cv = cv
+        self.seed = seed
+
+    def learn(self, x, y=None):
+        return {"mean": sq.agg.mean(y)}
+
+    def apply(self, x, learned):
+        return x / learned.mean
+
+
+answers = pd.DataFrame({"x": [1.0, 2.0, 3.0], "y": [2.0, 4.0, 6.0]})
+sq.Pipeline([OverTarget()]).learn(answers, target="y").apply(answers)
+```
+
+The pipeline learns it only when given the target: `train` gives it, and
+`learn` needs `target=` (without it, such a step is refused). `apply` then
+needs no target.
+
+In `train`, the rows the model trains on are **cross-fitted**, as
+scikit-learn's `fit_transform` does: each row is dealt into an inner fold
+(`sq.KFold(cv, seed)` over the row as read, without the target) and encoded
+with what was learned on the rows outside its fold, so a row's own answer
+does not leak into its features. Later steps learn from those values, so such
+a step ends its run, like a dynamic one. `predict`, and `apply` after
+`learn`, use what was learned on all rows.
+
+To cross-fit, a step learns its statistics grouped by inner fold, then turns
+them into its values for all rows (`"all"`) and for each fold's complement
+(`"0"`, `"1"`, ...) in `derive(values, k)`. The default `derive` gives every
+fold the values learned on all rows: `OverTarget` above is not cross-fitted.
+`sq.encode.target` learns, with `sqlearn._expr.target_stats`, the count, sum
+and sum of squares of the target per fold and category, in one `GROUP BY`,
+and derives every fold's encodings from them in Python.
 
 ## Placeholders
 

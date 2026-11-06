@@ -3,7 +3,7 @@
 import sys
 from collections import Counter
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from sqlearn._inputs import DataKey
 from sqlearn._step import _FUNCTIONS, Step
@@ -107,11 +107,16 @@ class Entry:
     Attributes
     ----------
     values : dict of str to dict of str to object
-        Learned name, then column, to value.
+        Learned name, then column, to value: for a step learning from the
+        target, what it learned on all rows (``"all"``).
     columns : list of str
         The columns the step's selector matched.
     apply_sql : str
         The SQL text of the step's apply stage.
+    folds : dict of str to dict
+        For a step learning from the target, per inner fold (``"0"`` to
+        ``"k-1"``), what it learned on the rows outside that fold, as
+        `values`; empty for any other step.
 
     Examples
     --------
@@ -123,6 +128,7 @@ class Entry:
     values: dict[str, dict[str, object]]
     columns: list[str]
     apply_sql: str
+    folds: dict[str, dict[str, dict[str, object]]] = field(default_factory=dict)
 
 
 def _size(obj: object) -> int:
@@ -220,7 +226,11 @@ class Store:
         True
         """
         return sum(
-            _size(k) + _size(e.values) + _size(e.columns) + _size(e.apply_sql)
+            _size(k)
+            + _size(e.values)
+            + _size(e.columns)
+            + _size(e.apply_sql)
+            + _size(e.folds)
             for k, e in self._entries.items()
         )
 

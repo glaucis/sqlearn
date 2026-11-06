@@ -21,6 +21,7 @@ RUNNERS = (
     "validation.sqlearn.preprocessing.validate_scale",
     "validation.sqlearn.preprocessing.validate_onehot",
     "validation.sqlearn.preprocessing.validate_ordinal",
+    "validation.sqlearn.preprocessing.validate_target",
     "validation.sqlearn.metrics.validate_accuracy",
     "validation.pipelines.validate_slice",
 )

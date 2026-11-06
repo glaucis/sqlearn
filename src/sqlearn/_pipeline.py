@@ -2,14 +2,16 @@
 
 import weakref
 from collections import Counter
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
 import duckdb
-from duckdb.sqltypes import DuckDBPyType
+from duckdb import Expression
+from duckdb.sqltypes import DOUBLE, DuckDBPyType
 
 from sqlearn._compose import (
     SOURCE,
+    TARGET,
     Run,
     Stage,
     _learn_sql,
@@ -17,6 +19,8 @@ from sqlearn._compose import (
     build,
     describe,
     execute,
+    inner_fold,
+    inner_name,
     number_rows,
     stage_name,
     step_stage,
@@ -241,6 +245,84 @@ def _schema(rel: duckdb.DuckDBPyRelation) -> Schema:
     return list(zip(rel.columns, rel.types, strict=True))
 
 
+_INNER = "__sqlearn_inner_"
+"""How the name of every inner-fold column begins (`inner_name`)."""
+
+
+def _aside_of(source: Source) -> list[str]:
+    """Return the columns travelling beside the data: not in its schema."""
+    seen = {c for c, _ in source.schema}
+    return [c for c in source.relation.columns if c not in seen]
+
+
+def _features_only(schema: Schema, aside: Sequence[str]) -> Schema:
+    """Return the columns of a stage without those travelling beside them."""
+    gone = set(aside)
+    return [c for c in schema if c[0] not in gone]
+
+
+def _without(source: Source, target: str | None) -> Source:
+    """Return the data without the target column, when it holds it."""
+    if target is None or all(c != target for c, _ in source.schema):
+        return source
+    kept = [(c, t) for c, t in source.schema if c != target]
+    rel = source.relation.project(*(duckdb.ColumnExpression(c) for c, _ in kept))
+    return Source(rel, source.key, kept)
+
+
+def _derive(
+    steps: list[tuple[str, Step]],
+    position: int,
+    learned: Mapping[str, Mapping[str, object]],
+    columns: Sequence[str],
+) -> tuple[dict[str, dict[str, object]], dict[str, dict[str, dict[str, object]]]]:
+    """Derive a target step's values on all rows and per inner fold, per column.
+
+    Returns the values learned on all rows and, per inner fold, those learned
+    on the rows outside it, each as learned name, then column, to value.
+    """
+    name, step = steps[position - 1]
+    every: dict[str, dict[str, object]] = {}
+    folds: dict[str, dict[str, dict[str, object]]] = {}
+    for c in columns:
+        fetched = {key: per[c] for key, per in learned.items() if c in per}
+        try:
+            derived = step.derive(fetched, getattr(step, "cv"))  # noqa: B009
+        except StepError as exc:
+            placed = _placed(exc, name, position)
+            if placed is exc:
+                raise
+            raise placed from exc
+        except Exception as exc:
+            err = diagnose(exc, steps, lambda _: position)
+            if err is exc:
+                raise
+            raise err from exc
+        for key, values in derived.items():
+            into = every if key == "all" else folds.setdefault(key, {})
+            for learned_name, value in values.items():
+                into.setdefault(learned_name, {})[c] = value
+    return every, folds
+
+
+def _after_unapplied(
+    step: Step, schema: Schema, inputs: Sequence[str], dynamic: bool
+) -> Schema:
+    """Return the columns later steps of a run see past a step not applied.
+
+    A dynamic step's inputs are gone once it applies, so the steps learning
+    now must not see them; a step learning from the target turns its inputs
+    into numbers, so they must not be seen as they were (text) either.
+    """
+    if step.keep:
+        return schema
+    if step.uses_target:
+        return [(c, DOUBLE if c in inputs else t) for c, t in schema]
+    if dynamic:
+        return [c for c in schema if c[0] not in inputs]
+    return schema
+
+
 def _hold(source: Source) -> None:
     """Do nothing: a finaliser's argument stays alive until it is called."""
 
@@ -311,6 +393,8 @@ class Pipeline:
         self._names: list[dict[str, list[str]]] = []
         self._columns_out: list[str] = []
         self._feed: str | None = None
+        # The target the steps learned with: left out of the data at apply.
+        self._target: str | None = None
 
     @property
     def named_steps(self) -> dict[str, Any]:
@@ -420,7 +504,7 @@ class Pipeline:
             raise SqlearnError(msg)
         return steps, model
 
-    def learn(self, data: object) -> "Pipeline":
+    def learn(self, data: object, target: str | None = None) -> "Pipeline":
         """Learn every step from data, finding unchanged steps in the store.
 
         The data is read once. Steps go in the earliest run their inputs
@@ -430,6 +514,12 @@ class Pipeline:
         ----------
         data : str, pathlib.Path, duckdb.DuckDBPyRelation or pandas.DataFrame
             A file path or glob, a table name, a relation or a pandas frame.
+        target : str, optional
+            The target column, needed only by a step that learns from it
+            (``sq.encode.target``). It is set aside as in `train`: no other
+            step and no selector sees it. Such a step is cross-fitted for
+            the steps after it, as in `train`; `apply` then uses what it
+            learned on all rows.
 
         Returns
         -------
@@ -439,11 +529,13 @@ class Pipeline:
         Raises
         ------
         SqlearnError
-            If the input cannot be read (see `sqlearn._inputs.read`), or the
-            pipeline ends in a model (use `train`).
+            If the input cannot be read (see `sqlearn._inputs.read`), the
+            pipeline ends in a model (use `train`), or the target is not a
+            column.
         StepError
-            If a step's selector matches no column, or a step learns from no
-            rows.
+            If a step's selector matches no column, a step learns from no
+            rows, or a step learns from the target and `target` is not
+            given.
 
         Notes
         -----
@@ -462,12 +554,26 @@ class Pipeline:
         []
         """
         steps = self._checked()
+        if target is None:
+            for i, (name, step) in enumerate(steps):
+                if step.uses_target:
+                    msg = (
+                        f"{name} (step {i + 1}) learns from the target, but "
+                        "learn was given none, so there is nothing to learn "
+                        "from. Fix: pass the target column, as "
+                        "learn(data, target='churned')."
+                    )
+                    raise StepError(msg, step=name, position=i + 1)
         source = read(data)
         con = connection()
-        source_sql = _source_sql(con, source)
-        _, runs, known = self._learn(con, source, steps)
-        stages, out, types = self._stages(con, source_sql, source.schema, steps, known)
+        _source_sql(con, source)
+        learn_from = source if target is None else self._features(source, target)
+        _, runs, known = self._learn(con, learn_from, steps)
+        stages, out, types = self._stages(
+            con, learn_from.relation.sql_query(), learn_from.schema, steps, known
+        )
         self._commit(steps, known, types, [c for c, _ in out], stages)
+        self._target = target
         self.runs_ = [run for _, run in runs]
         return self
 
@@ -526,6 +632,7 @@ class Pipeline:
         matches in the data reaching it, then looked up.
         """
         source_sql = source.relation.sql_query()
+        aside = _aside_of(source)
         last = max(i for i, r in enumerate(the_plan.learn_run) if r == run)
         schema = source.schema
         previous = SOURCE
@@ -540,9 +647,7 @@ class Pipeline:
             if the_plan.learn_run[i] > run:
                 # Not reached yet: a dynamic step's inputs are gone once it
                 # applies, so the steps learning now must not see them.
-                if dynamic and not step.keep:
-                    gone = set(step.inputs(schema))
-                    schema = [c for c in schema if c[0] not in gone]
+                schema = _after_unapplied(step, schema, step.inputs(schema), dynamic)
                 continue
             entry = entries[i]
             if entry is None:
@@ -555,23 +660,26 @@ class Pipeline:
                 if entry is None:
                     built[i] = (schema, previous, matched)
             if entry is not None:
+                # A target step learned: the rows reaching later steps take
+                # their values from their own inner fold (cross-fitting).
                 stage = _make_stage(
                     steps, position, schema, previous, entry.values,
-                    columns=entry.columns,
+                    columns=entry.columns, aside=aside,
+                    folds=entry.folds or None,
                 )  # fmt: skip
             else:
                 stage = _make_stage(
                     steps, position, schema, previous,
-                    columns=built[i][2], applies=not dynamic,
+                    columns=built[i][2], applies=not dynamic, aside=aside,
                 )  # fmt: skip
             stages.append(stage)
             upto[i] = len(stages)
             previous = stage.name
             if entry is None and dynamic:
-                if not step.keep:
-                    schema = [c for c in schema if c[0] not in built[i][2]]
+                schema = _after_unapplied(step, schema, built[i][2], dynamic)
             else:
-                schema = _bind(con, source_sql, stages, steps, position)
+                bound = _bind(con, source_sql, stages, steps, position)
+                schema = _features_only(bound, aside)
         misses = sorted(built)
         if not misses:
             return Run()
@@ -585,8 +693,11 @@ class Pipeline:
             name, step = steps[i]
             before, prev, matched = built[i]
             learned = values.get(stage_name(i + 1, name), {})
+            folds: dict[str, dict[str, dict[str, object]]] = {}
+            if step.uses_target:
+                learned, folds = _derive(steps, i + 1, learned, matched)
             applied = _make_stage(steps, i + 1, before, prev, learned, columns=matched)
-            entry = Entry(learned, matched, apply_sql(applied))
+            entry = Entry(learned, matched, apply_sql(applied), folds)
             STORE.put(keys[i], entry)
             entries[i] = entry
         return done
@@ -600,13 +711,21 @@ class Pipeline:
         entries: list[Entry],
         check: list[dict[str, DuckDBPyType]] | None = None,
         names: list[dict[str, list[str]]] | None = None,
+        *,
+        aside: Sequence[str] = (),
+        cross: bool = False,
+        held: Expression | None = None,
     ) -> tuple[list[Stage], Schema, list[dict[str, DuckDBPyType]]]:
         """Build every step's stage with its learned values as constants.
 
         Checks each step's learned columns reach it, with the kind of type
         they had at learn when `check` holds those types. `names` holds the
         names of the created columns fixed at learn; without it they are
-        named afresh, as when learning.
+        named afresh, as when learning. The `aside` columns pass through
+        every stage and are not in the schema returned. With `cross`, the
+        rows are training rows: a step learning from the target encodes
+        each with its own inner fold's values, except the rows `held` holds
+        out, which take the values learned on all rows.
         """
         stages: list[Stage] = []
         types: list[dict[str, DuckDBPyType]] = []
@@ -636,10 +755,13 @@ class Pipeline:
                 steps, position, schema, previous, entry.values,
                 columns=entry.columns,
                 names=None if names is None else names[i],
+                aside=aside, folds=entry.folds or None if cross else None,
+                held=held,
             )  # fmt: skip
             stages.append(stage)
             previous = stage.name
-            schema = _bind(con, source_sql, stages, steps, position)
+            bound = _bind(con, source_sql, stages, steps, position)
+            schema = _features_only(bound, aside)
         return stages, schema, types
 
     def apply(self, data: object, out: str | Output | None = None) -> Any:  # noqa: ANN401  (the form `out` names)
@@ -687,7 +809,9 @@ class Pipeline:
         steps = self._checked()
         source = read(data)
         con = connection()
-        source_sql = _source_sql(con, source)
+        _source_sql(con, source)
+        source = _without(source, self._target)
+        source_sql = source.relation.sql_query()
         stages, _, _ = self._stages(
             con, source_sql, source.schema, steps, self._entries, self._types,
             self._names,
@@ -703,11 +827,14 @@ class Pipeline:
     def train(self, data: object, target: str, feed: str | None = None) -> "Pipeline":
         """Learn the steps, then train the model on the prepared data.
 
-        The target column is set aside before planning: no step and no
-        selector sees it. The steps learn (or are found in the store), and
-        one query prepares the features with the target beside them, so each
-        row's answer stays with its features. They are handed over in the
-        form `feed` names and passed, with the target, to the model's ``fit``.
+        The target column is set aside before planning: no selector sees it,
+        and only a step that learns from it (``sq.encode.target``) is given
+        it. The steps learn (or are found in the store), and one query
+        prepares the features with the target beside them, so each row's
+        answer stays with its features; a step that learns from the target
+        encodes each row with what it learned on the rows outside the row's
+        inner fold (cross-fitting). They are handed over in the form `feed`
+        names and passed, with the target, to the model's ``fit``.
 
         Parameters
         ----------
@@ -758,11 +885,17 @@ class Pipeline:
         check_feed(feed)
         return self._train(read(data), target, feed)
 
-    def _features(self, source: Source, target: str) -> Source:
-        """Return the data without the target, keyed with the target's name.
+    def _features(
+        self, source: Source, target: str, keep: Sequence[str] = ()
+    ) -> Source:
+        """Return the data with the target set aside, keyed with its name.
 
-        The steps learn from this: a selector cannot match the target, so
-        sq.cols.numeric() never scales it.
+        The steps learn from this: its schema holds the features alone, so a
+        selector cannot match the target and sq.cols.numeric() never scales
+        it. Beside the features travel, in this order, the `keep` columns
+        (a search's fold), the target as `TARGET`, and each row's inner fold
+        for every step learning from the target, dealt by a hash of the
+        row's features (`inner_fold`).
         """
         names = [c for c, _ in source.schema]
         if target not in names:
@@ -772,9 +905,35 @@ class Pipeline:
                 "target= one of them, spelled as in the data."
             )
             raise SqlearnError(msg)
-        features = [(c, t) for c, t in source.schema if c != target]
+        for c in names:
+            if c.lower() == TARGET or c.lower().startswith(_INNER):
+                msg = (
+                    f"the data has a column named {c!r}, a name sqlearn keeps "
+                    "for the target and its folds while steps learn. Fix: "
+                    "rename that column."
+                )
+                raise SqlearnError(msg)
+        features = [(c, t) for c, t in source.schema if c != target and c not in keep]
+        steps, _ = self._split()
+        folds = dict.fromkeys(
+            (getattr(s, "cv"), getattr(s, "seed"))  # noqa: B009
+            for _, s in steps
+            if s.uses_target
+        )
+        feature_names = [c for c, _ in features]
+        beside = [
+            *(duckdb.ColumnExpression(c) for c in keep),
+            duckdb.ColumnExpression(target).alias(TARGET),
+            *(
+                inner_fold(feature_names, cv, seed).alias(inner_name(cv, seed))
+                for cv, seed in folds
+                if feature_names
+            ),
+        ]
         return Source(
-            source.relation.project(*(duckdb.ColumnExpression(c) for c, _ in features)),
+            source.relation.project(
+                *(duckdb.ColumnExpression(c) for c in feature_names), *beside
+            ),
             (*source.key, ("target", target)),
             features,
         )
@@ -784,39 +943,56 @@ class Pipeline:
         learn_from: Source,
         fold: FoldKey,
         data: duckdb.DuckDBPyRelation,
-        aside: Sequence[str],
+        target: str,
         feed: str,
+        *,
+        keep: Sequence[str],
+        held: Expression,
     ) -> tuple[Any, dict[str, Any]]:
         """Learn on one fold's training rows, then prepare all its rows once.
 
-        `learn_from` holds the fold's training rows without the target (see
-        `_features`), keyed by the whole data; `fold` completes the keys.
-        `data` holds every row with the `aside` columns (the target, the
-        fold number), which pass through the steps and come back beside the
-        features from the same query. Nothing is kept on the pipeline.
+        `learn_from` holds the fold's training rows with the target set
+        aside (see `_features`), keyed by the whole data; `fold` completes
+        the keys. `data` holds every row with the `keep` columns (the fold
+        number), which pass through the steps and come back beside the
+        features from the same query, with the target under `TARGET`. The
+        training rows are cross-fitted; the rows `held` is true for (those
+        the fold holds out) take what was learned on all training rows.
+        Nothing is kept on the pipeline.
         """
         steps, _ = self._modelled()
         con = connection()
         _, _, known = self._learn(con, learn_from, steps, fold)
-        data_sql = data.sql_query()
-        stages, out, _ = self._stages(con, data_sql, _schema(data), steps, known)
-        columns = [c for c, _ in out if c not in aside]
-        return take(con.sql(build(data_sql, stages)), feed, columns, aside)
+        prepared = self._features(Source(data, (), _schema(data)), target, keep)
+        data_sql = prepared.relation.sql_query()
+        stages, out, _ = self._stages(
+            con, data_sql, prepared.schema, steps, known,
+            aside=_aside_of(prepared), cross=True, held=held,
+        )  # fmt: skip
+        columns = [c for c, _ in out]
+        sql = build(data_sql, stages)
+        return take(con.sql(sql), feed, columns, [TARGET, *keep])
 
     def _train(self, source: Source, target: str, feed: str) -> "Pipeline":
         """Train on data already read, as `train` describes."""
         steps, model = self._modelled()
         con = connection()
-        source_sql = _source_sql(con, source)
+        _source_sql(con, source)
         prepared = self._features(source, target)
         the_plan, runs, known = self._learn(con, prepared, steps)
-        # The feeding query reads the whole data; the target passes through
-        # every stage untouched, so it is fetched with its own row's features.
-        stages, out, types = self._stages(con, source_sql, source.schema, steps, known)
-        columns = [c for c, _ in out if c != target]
-        sql = build(source_sql, stages)
-        x, aside = take(con.sql(sql), feed, columns, [target])
-        y = target_values(aside[target], target)
+        # The feeding query reads the data the steps learned from; the target
+        # passes through every stage untouched (as `TARGET`, so no created
+        # name is numbered against it), so it is fetched with its own row's
+        # features, and a target step's rows are cross-fitted.
+        data_sql = prepared.relation.sql_query()
+        stages, out, types = self._stages(
+            con, data_sql, prepared.schema, steps, known,
+            aside=_aside_of(prepared), cross=True,
+        )  # fmt: skip
+        columns = [c for c, _ in out]
+        sql = build(data_sql, stages)
+        x, aside = take(con.sql(sql), feed, columns, [TARGET])
+        y = target_values(aside[TARGET], target)
         # All or nothing: until the model is fitted, the pipeline keeps what
         # it had. A fit that fails may leave the model half changed, so the
         # pipeline then counts as untrained.
@@ -826,6 +1002,7 @@ class Pipeline:
             self._feed = None
             raise
         self._commit(steps, known, types, columns, stages)
+        self._target = target
         # The model is a reader (ADR 0018): the feeding query belongs to the
         # feed run, after its learn statement when that run learned.
         if runs and runs[-1][0] == the_plan.feed_run:
@@ -891,9 +1068,10 @@ class Pipeline:
             raise SqlearnError(msg)
         source = read(data)
         con = connection()
-        source_sql = _source_sql(con, source)
+        _source_sql(con, source)
+        source = _without(source, self._target)
         _check_numbering(con, source.schema)
-        numbered = number_rows(source_sql, _ROW)
+        numbered = number_rows(source.relation.sql_query(), _ROW)
         schema = describe(con, numbered, [])
         stages, reaching, _ = self._stages(
             con, numbered, schema, steps, self._entries, self._types,

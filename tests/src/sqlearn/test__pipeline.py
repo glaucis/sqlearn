@@ -548,6 +548,25 @@ def test_train_predict_matches_sklearn_pipeline():
     )
 
 
+def test_a_target_named_like_a_created_column_does_not_renumber_it():
+    """Learn and train name created columns against the same columns.
+
+    The target is set aside before the steps learn, and so before their new
+    columns are named: a target spelt like one (``city_oslo`` beside OneHot's
+    ``city_Oslo``) numbers nothing, at learn as in the data fed to the model.
+    """
+    frame = pd.DataFrame(
+        {"city": ["Oslo", "Rome", "Oslo", "Rome"], "city_oslo": [1, 0, 1, 0]}
+    )
+    pipe = sq.Pipeline([("hot", sq.encode.onehot("city")), ("model", Echo())])
+    pipe.train(frame, target="city_oslo")
+    assert pipe.columns_out_ == ["city_Oslo", "city_Rome"]
+    assert pipe._names == [{"city": ["city_Oslo", "city_Rome"]}]
+    assert pipe["model"].shape_ == (4, 2)
+    got = pipe.predict(frame, out="numpy")["prediction"]
+    assert got.tolist() == [1, 0, 1, 0]
+
+
 def test_the_target_is_never_scaled():
     """A numeric target is set aside: no selector matches it, no step sees it."""
     frame = pd.DataFrame({"x": [1.0, 2.0, 3.0, 4.0], "y": [0.0, 1.0, 0.0, 1.0]})
@@ -741,3 +760,61 @@ def test_a_column_removed_upstream_is_in_a_later_steps_key():
     STORE.clear()
     assert got == pipe(["city"]).learn(df).apply(df).fetchall()
     assert all(isinstance(v, int) for row in got for v in row)
+
+
+class _TargetStep(sq.Step):
+    """A step learning the target's mean; how it fails is set per test."""
+
+    uses_target = True
+    static = True
+
+    def __init__(self, cols="x", keep=False, cv=2, seed=0, broken=""):
+        super().__init__(cols, keep)
+        self.cv = cv
+        self.seed = seed
+        self.broken = broken
+
+    def learn(self, x, y=None):
+        return {"mean": sq.agg.mean(y)}
+
+    def derive(self, values, k):
+        if self.broken == "derive":
+            raise ValueError("no luck")
+        return super().derive(values, k)
+
+    def apply(self, x, learned):
+        if self.broken == "apply":
+            return {"a": x}
+        return x * learned.mean
+
+
+def target_frame():
+    """Return eight rows of a number and a 0/1 target."""
+    return pd.DataFrame({"x": [float(i) for i in range(8)], "y": [0, 1] * 4})
+
+
+def test_a_user_target_step_learns_without_cross_fitting_by_default():
+    """The default derive gives every fold the values learned on all rows."""
+    pipe = sq.Pipeline([_TargetStep(), Echo()]).train(target_frame(), target="y")
+    assert pipe["step"].mean_ == {"x": 0.5}
+    np.testing.assert_allclose(pipe.predict(target_frame(), out="numpy")["prediction"],
+                               [i * 0.5 for i in range(8)])  # fmt: skip
+
+
+def test_a_target_steps_failures_name_it():
+    """A failing derive is diagnosed; a mapping from apply is refused."""
+    with pytest.raises(sq.errors.StepError, match=r"step \(step 1\).*derive"):
+        sq.Pipeline([_TargetStep(broken="derive"), Echo()]).train(
+            target_frame(), target="y"
+        )
+    with pytest.raises(sq.errors.StepError, match="one expression"):
+        sq.Pipeline([_TargetStep(broken="apply"), Echo()]).train(
+            target_frame(), target="y"
+        )
+
+
+def test_a_column_named_as_the_target_aside_is_refused():
+    """The name the target travels under is kept: a column of it is refused."""
+    frame = target_frame().assign(__sqlearn_target=1.0)
+    with pytest.raises(sq.errors.SqlearnError, match="__sqlearn_target"):
+        sq.Pipeline([_TargetStep(), Echo()]).train(frame, target="y")

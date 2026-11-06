@@ -15,6 +15,7 @@ from typing import Any
 
 import duckdb
 
+from sqlearn._compose import TARGET
 from sqlearn._config import connection
 from sqlearn._errors import DefaultsUsedWarning, SqlearnError
 from sqlearn._inputs import Source, _release_later, read
@@ -313,18 +314,20 @@ class Search:
         scores = [[0.0] * folds.n for _ in settings]
         for k in range(folds.n):
             rows = folds.rows(source.relation, k, held=False)
-            learn_from = self.pipe._features(
-                Source(rows, source.key, source.schema), target
-            )
             for members in groups.values():
                 prepared = trial(self.pipe, settings[members[0]])
                 _, first = prepared._modelled()
+                # The setting's own steps: their inner folds travel beside.
+                learn_from = prepared._features(
+                    Source(rows, source.key, source.schema), target
+                )
+                held = duckdb.ColumnExpression(FOLD) == duckdb.ConstantExpression(k)
                 x, aside = prepared._prepare_fold(
-                    learn_from, (folds.n, folds.seed, k), numbered,
-                    [target, FOLD], first.feed,
+                    learn_from, (folds.n, folds.seed, k), numbered, target,
+                    first.feed, keep=[FOLD], held=held,
                 )  # fmt: skip
                 self.transforms_ += 1
-                y = target_values(aside[target], target)
+                y = target_values(aside[TARGET], target)
                 fit = np.ma.getdata(aside[FOLD]) != k
                 for i in members:
                     _, model = trial(self.pipe, settings[i])._modelled()

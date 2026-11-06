@@ -3,7 +3,15 @@
 import duckdb
 from duckdb import Expression
 
-__all__ = ["MODE", "QUANTILE", "const", "is_missing", "quote"]
+__all__ = [
+    "MODE",
+    "QUANTILE",
+    "TARGET_STATS",
+    "const",
+    "is_missing",
+    "quote",
+    "target_stats",
+]
 
 
 def _call(name: str, *args: Expression) -> Expression:
@@ -26,6 +34,46 @@ Not a DuckDB function. The compositor computes the mode by counting each
 value in a ``GROUP BY``, which spills to disk, and breaks a tie to the
 smallest value, which DuckDB's ``mode`` does not promise.
 """
+
+
+TARGET_STATS = "__sqlearn_target_stats"
+"""The name of the grouped marker: ``__sqlearn_target_stats(x, y, fold)``.
+
+Not a DuckDB function. The compositor computes it in a ``GROUP BY fold, x``
+stage of its own (NULL is a category, as is NaN), returning per inner fold
+and category the count, ``sum(y)`` and ``sum(y * y)``: what a step learning
+from the target needs to learn on every inner fold's complement at once.
+The learned value is the list of ``(fold, category, count, sum, sum of
+squares)`` tuples, sorted by fold, then category.
+"""
+
+
+def target_stats(x: Expression, y: Expression, fold: Expression) -> Expression:
+    """Return the grouped marker counting and summing `y` per fold and category.
+
+    Parameters
+    ----------
+    x : duckdb.Expression
+        The column whose values are the categories.
+    y : duckdb.Expression
+        The target, as a number.
+    fold : duckdb.Expression
+        Each row's inner fold (`sqlearn._compose.inner_fold`).
+
+    Returns
+    -------
+    duckdb.Expression
+        The marker; see `TARGET_STATS`.
+
+    Examples
+    --------
+    >>> import duckdb
+    >>> from sqlearn._expr import target_stats
+    >>> x, y, f = (duckdb.ColumnExpression(c) for c in "xyf")
+    >>> str(target_stats(x, y, f))
+    '__sqlearn_target_stats(x, y, f)'
+    """
+    return _call(TARGET_STATS, x, y, fold)
 
 
 def is_missing(x: Expression) -> Expression:

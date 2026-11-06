@@ -5,13 +5,14 @@ from typing import TypedDict, Unpack, cast
 
 from sqlearn._errors import SqlearnError
 from sqlearn._group import Group, columns_arg
-from sqlearn._selectors import Selector
+from sqlearn._selectors import Selector, _string
 from sqlearn.preprocessing.onehot import OneHot
 from sqlearn.preprocessing.ordinal import Ordinal
+from sqlearn.preprocessing.target import TargetEncoder
 
 __all__ = ["EncodeGroup", "encode"]
 
-_METHODS = ("onehot", "ordinal")
+_METHODS = ("onehot", "ordinal", "target")
 """The encoding methods, each with a shortcut of its name."""
 
 
@@ -22,13 +23,22 @@ class _Settings(TypedDict, total=False):
     keep: bool
 
 
+class _TargetSettings(_Settings, total=False):
+    """The settings of the target shortcut."""
+
+    smooth: str | float
+    cv: int
+    seed: int
+    target_type: str
+
+
 class EncodeGroup(Group):
     """Encode categories: ``sq.encode(cols, method=...)`` and its shortcuts.
 
     Called, it is the general form: `method` picks the encoder. Each shortcut
     is a method, and builds exactly the step the general form builds with it.
     The encoders take no ``suffix=``: the new columns are named after the
-    categories (``onehot``) or replace the column (``ordinal``).
+    categories (``onehot``) or replace the column (``ordinal``, ``target``).
 
     Examples
     --------
@@ -45,30 +55,37 @@ class EncodeGroup(Group):
         method: str = "onehot",
         cols: Selector | str | Sequence[str] | None = None,
         keep: bool = False,
-    ) -> OneHot | Ordinal:
+        smooth: str | float | None = None,
+        cv: int | None = None,
+        seed: int | None = None,
+        target_type: str | None = None,
+    ) -> OneHot | Ordinal | TargetEncoder:
         """Build the step that encodes columns by `method`.
 
         Parameters
         ----------
         *names : str or list of str
             The columns: names or one list; by default the text columns.
-        method : {"onehot", "ordinal"}, default "onehot"
+        method : {"onehot", "ordinal", "target"}, default "onehot"
             The encoder.
         cols : Selector or str or sequence of str, optional
             The columns, as a selector; not given with `names`.
         keep : bool, default False
             Keep the input column beside the encoded ones.
+        smooth, cv, seed, target_type : optional
+            The settings of ``target`` (see `TargetEncoder`), only with it;
+            its defaults when not given.
 
         Returns
         -------
-        OneHot or Ordinal
+        OneHot or Ordinal or TargetEncoder
             The step.
 
         Raises
         ------
         SqlearnError
-            If names and `cols` are both given, a dict is given, or `method`
-            is not a method.
+            If names and `cols` are both given, a dict is given, `method` is
+            not a method, or a setting of ``target`` is given with another.
 
         Examples
         --------
@@ -85,10 +102,39 @@ class EncodeGroup(Group):
             )
             raise SqlearnError(msg)
         chosen = columns_arg(names, cols, allow_dict=False)
+        given = {
+            k: v
+            for k, v in {
+                "smooth": smooth,
+                "cv": cv,
+                "seed": seed,
+                "target_type": target_type,
+            }.items()
+            if v is not None
+        }
+        if given and method != "target":
+            setting = next(iter(given))
+            msg = (
+                f"sq.encode got method={method!r} and {setting}="
+                f"{given[setting]!r}. Why: {setting} is a setting of the "
+                "target encoder alone. Fix: leave it out, or use "
+                "method='target'."
+            )
+            raise SqlearnError(msg)
+        columns = cast("str | list[str] | Selector | None", chosen)
+        if method == "target":
+            return TargetEncoder(
+                cols=_string() if columns is None else columns,
+                keep=keep,
+                smooth="auto" if smooth is None else smooth,
+                cv=5 if cv is None else cv,
+                seed=0 if seed is None else seed,
+                target_type="auto" if target_type is None else target_type,
+            )
         step = OneHot if method == "onehot" else Ordinal
-        if chosen is None:
+        if columns is None:
             return step(keep=keep)
-        return step(cols=cast("str | list[str] | Selector", chosen), keep=keep)
+        return step(cols=columns, keep=keep)
 
     def onehot(self, *names: object, **kw: Unpack[_Settings]) -> OneHot:
         """Make one 0/1 column per category (``method="onehot"``).
@@ -140,6 +186,34 @@ class EncodeGroup(Group):
         sq.encode.ordinal(cols='size')
         """
         return cast("Ordinal", self(*names, method="ordinal", **kw))
+
+    def target(self, *names: object, **kw: Unpack[_TargetSettings]) -> TargetEncoder:
+        """Replace each category by the target's mean in it, smoothed.
+
+        As scikit-learn's ``TargetEncoder``, for a binary or a continuous
+        target, cross-fitted in ``train`` (see `TargetEncoder`). It learns
+        from the target: learn it with ``learn(data, target=...)``.
+
+        Parameters
+        ----------
+        *names : str or list of str
+            The columns; by default the text columns.
+        **kw : object
+            The general form's other settings (``cols``, ``keep``,
+            ``smooth``, ``cv``, ``seed``, ``target_type``).
+
+        Returns
+        -------
+        TargetEncoder
+            The step.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> sq.encode.target("plan", smooth=10.0)
+        sq.encode.target(cols='plan', smooth=10.0)
+        """
+        return cast("TargetEncoder", self(*names, method="target", **kw))
 
 
 encode = EncodeGroup("encode")

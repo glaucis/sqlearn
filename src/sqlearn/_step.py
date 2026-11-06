@@ -199,6 +199,13 @@ class Step:
         True for a step whose outputs read the whole row: it defines
         `apply_row`, called once with every selected column, instead of
         `apply`. `learn` stays per column.
+    uses_target : bool
+        True for a step that learns from the target: its `learn` is
+        ``learn(x, y)``, given the target as `y`; it has the settings ``cv``
+        (the number of inner folds) and ``seed``, and turns what it fetched
+        into the values for all rows and for each inner fold's complement in
+        `derive`. Such a step ends its run, and its `apply` returns one
+        expression, a DOUBLE.
 
     Examples
     --------
@@ -224,6 +231,7 @@ class Step:
     changes_rows: ClassVar[bool] = False
     names_are_labels: ClassVar[bool] = True
     rowwise: ClassVar[bool] = False
+    uses_target: ClassVar[bool] = False
 
     def __init__(
         self,
@@ -371,6 +379,42 @@ class Step:
         {'a': '"a"'}
         """
         return dict(xs)
+
+    def derive(
+        self, values: Mapping[str, object], k: int
+    ) -> dict[str, dict[str, object]]:
+        """Turn what a target step fetched for one column into its learned values.
+
+        Called once per column after the learn statement, for a step with
+        `uses_target`: `values` holds what its `learn` aggregates returned
+        (learned name to value). The step returns its learned values for all
+        rows, under ``"all"``, and for each inner fold's complement, under
+        ``"0"`` to ``str(k - 1)``: `apply` is given the first for new data,
+        and each training row the values of its own fold.
+
+        Parameters
+        ----------
+        values : mapping of str to object
+            Learned name to the value fetched.
+        k : int
+            The number of inner folds (the step's ``cv``).
+
+        Returns
+        -------
+        dict of str to dict of str to object
+            ``"all"``, ``"0"``, ... to learned name to value. The default
+            learns no folds apart: every key holds `values` (no
+            cross-fitting); a step cross-fits by learning grouped statistics
+            (`sqlearn._expr.target_stats`) and overriding this.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> sq.Step().derive({"mean": 1.0}, 2)
+        {'all': {'mean': 1.0}, '0': {'mean': 1.0}, '1': {'mean': 1.0}}
+        """
+        keys = ["all", *(str(i) for i in range(k))]
+        return {key: dict(values) for key in keys}
 
     def default_name(self) -> str:
         """Return the name this step gets in a pipeline built from a plain list.

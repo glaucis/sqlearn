@@ -42,7 +42,7 @@ def _method(tb: TracebackType | None, step: Step) -> str:
     while tb is not None:
         code = tb.tb_frame.f_code.co_name
         if (
-            code in {"learn", "apply", "apply_row"}
+            code in {"learn", "apply", "apply_row", "derive"}
             and tb.tb_frame.f_locals.get("self") is step
         ):
             found = code

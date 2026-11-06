@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import cast
 
-from duckdb.sqltypes import DuckDBPyType
+from duckdb.sqltypes import DOUBLE, DuckDBPyType
 
 from sqlearn._errors import StepError
 from sqlearn._names import name_columns
@@ -123,7 +123,12 @@ def plan(steps: Sequence[tuple[str, Step]], schema: Schema) -> Plan:
     depends on the step that took it away, and on what that step depends on.
     Every output of a whole-row step (``rowwise``) reads every input it
     selected; its outputs are named as the compositor names them, or unknown
-    when its inputs or outputs are not known before it learns.
+    when its inputs or outputs are not known before it learns. A step that
+    learns from the target (``uses_target``) ends its run, as a dynamic step
+    does: in training, the rows reaching a later step take their values from
+    what it learned on their inner fold's complement, known only once it has
+    learned. Its outputs are known: one DOUBLE per input, named as a static
+    step's.
 
     Parameters
     ----------
@@ -169,6 +174,8 @@ def plan(steps: Sequence[tuple[str, Step]], schema: Schema) -> Plan:
                 "Fix: declare one, or neither (sqlearn will then detect it)."
             )
             raise StepError(msg, step=step_name, position=i + 1)
+        if step.uses_target:
+            _check_target_step(step, step_name, i + 1)
         dynamic = classify(step, _known(columns)) == "dynamic"
         read = _read(step, columns)
         learn = max((c.ready for c in [*read, rows]), default=0)
@@ -177,13 +184,17 @@ def plan(steps: Sequence[tuple[str, Step]], schema: Schema) -> Plan:
         deps = frozenset().union(*(c.deps for c in [*read, rows, *absent]))
         if step.cols is None:
             deps = frozenset(range(i))
-        ready = learn + 1 if dynamic else learn
+        ready = learn + 1 if dynamic or step.uses_target else learn
         mine = deps | {i}
         result.learn_run.append(learn)
         result.apply_run.append(ready)
         result.depends_on.append(deps)
         if step.rowwise and not dynamic:
             columns, gone = _write_row(step, step_name, columns, read, ready, mine)
+        elif step.uses_target and not dynamic:
+            columns, gone = _write(
+                step, step_name, columns, read, ready, mine, False, DOUBLE
+            )
         else:
             columns, gone = _write(step, step_name, columns, read, ready, mine, dynamic)
         removed.extend(gone)
@@ -191,6 +202,20 @@ def plan(steps: Sequence[tuple[str, Step]], schema: Schema) -> Plan:
             rows = _Column(None, None, ready, mine)
     result.feed_run = max((c.ready for c in [*columns, rows]), default=0)
     return result
+
+
+def _check_target_step(step: Step, step_name: str, position: int) -> None:
+    """Refuse a target step without whole-number ``cv`` and ``seed`` settings."""
+    for setting in ("cv", "seed"):
+        value = getattr(step, setting, None)
+        if isinstance(value, bool) or not isinstance(value, int):
+            msg = (
+                f"{step_name} (step {position}) learns from the target, so it "
+                f"needs the setting {setting} as a whole number (its inner "
+                f"folds), but has {setting}={value!r}. Fix: set self.{setting} "
+                "in __init__, such as cv=5, seed=0."
+            )
+            raise StepError(msg, step=step_name, position=position)
 
 
 def _write(
@@ -201,8 +226,12 @@ def _write(
     ready: int,
     deps: frozenset[int],
     dynamic: bool,
+    dtype: DuckDBPyType | None = None,
 ) -> tuple[list[_Column], list[_Column]]:
-    """Return the columns after the step, and those it took away."""
+    """Return the columns after the step, and those it took away.
+
+    `dtype`, when given, is the type of a static step's outputs.
+    """
     # Columns are compared by identity (`_Column` has eq=False on purpose):
     # two unknown groups may hold equal fields yet be different columns.
     chosen = {id(c) for c in read}
@@ -216,12 +245,12 @@ def _write(
             # The step may read only part of an unknown group: the rest stays.
             out.append(c)
         elif not dynamic:
-            out.append(_Column(c.name, c.dtype, ready, deps))
+            out.append(_Column(c.name, dtype or c.dtype, ready, deps))
         else:
             gone.append(_Column(c.name, c.dtype, ready, deps))
         if id(c) in chosen and step.keep and not dynamic:
             kept.append(len(out))
-            out.append(_Column(c.name, c.dtype, ready, deps))
+            out.append(_Column(c.name, dtype or c.dtype, ready, deps))
     _name_kept(out, kept, step.suffix or step_name)
     if dynamic and read:
         out.append(_Column(None, step.creates, ready, deps))

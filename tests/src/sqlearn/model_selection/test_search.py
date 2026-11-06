@@ -6,7 +6,9 @@ import warnings
 import numpy as np
 import pandas as pd
 import pytest
+from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import TargetEncoder
 from sklearn.tree import DecisionTreeClassifier
 
 import sqlearn as sq
@@ -485,3 +487,63 @@ def test_settings_changing_a_later_steps_inputs_score_as_if_alone():
     STORE.clear()
     alone = sq.Search(pipe(), params={"onehot__cols": [["city"]]}, folds=sq.KFold(3))
     assert got == alone.train(df, target="y").results_.fetchall()
+
+
+class Recorder(BaseEstimator, ClassifierMixin):
+    """A model that keeps what each fold trains and predicts on."""
+
+    seen: list[tuple[str, np.ndarray]] = []  # noqa: RUF012  (shared on purpose)
+
+    def fit(self, x, y):
+        """Keep the features."""
+        Recorder.seen.append(("fit", np.array(x)))
+        self.classes_ = np.unique(y)
+        return self
+
+    def predict(self, x):
+        """Keep the features; predict the first class."""
+        Recorder.seen.append(("predict", np.array(x)))
+        return np.full(len(x), self.classes_[0])
+
+
+def test_a_target_step_cross_fits_within_each_folds_training_rows():
+    """Each fold's training rows are cross-fitted, its held-out rows encoded
+    with what was learned on all its training rows, as scikit-learn's."""
+    Recorder.seen.clear()
+    frame = customers()[["plan", "age", "churned"]].fillna({"age": 0.0})
+    pipe = sq.Pipeline([sq.encode.target("plan"), Recorder()])
+    sq.Search(pipe, params={"target__cv": [5]}, folds=sq.KFold(2)).train(
+        frame, target="churned"
+    )
+    rel = connection().from_df(frame)
+    outer = np.array([r[-1] for r in sq.KFold(2).numbered(rel, "f").fetchall()])
+    features = connection().from_df(frame.drop(columns="churned"))
+    inner = np.array(
+        [
+            r[0]
+            for r in features.set_alias("d")
+            .project(sq.KFold(5, 0).expression("d"))
+            .fetchall()
+        ]
+    )
+    train = outer != 0
+    x = np.array(frame[["plan"]], dtype=object)
+    y = frame["churned"].to_numpy()
+    folds = inner[train]
+    cv = [(np.flatnonzero(folds != k), np.flatnonzero(folds == k)) for k in range(5)]
+    theirs = TargetEncoder(target_type="binary", cv=[s for s in cv if len(s[1])])
+    crossed = theirs.fit_transform(x[train], y[train])[:, 0]
+    (fit, fitted), (predict, held) = Recorder.seen[:2]
+    assert (fit, predict) == ("fit", "predict")
+    assert fitted[:, 0] == pytest.approx(crossed, rel=1e-12)
+    assert held[:, 0] == pytest.approx(theirs.transform(x[~train])[:, 0], rel=1e-12)
+
+
+def test_a_search_over_the_inner_folds_of_a_target_step():
+    """Each setting's own inner folds are dealt: cv=2 and cv=3 both run."""
+    frame = customers()[["plan", "age", "churned"]].fillna({"age": 0.0})
+    pipe = sq.Pipeline([sq.encode.target("plan"), LogisticRegression()])
+    search = sq.Search(pipe, params={"target__cv": [2, 3]}, folds=sq.KFold(2))
+    search.train(frame, target="churned")
+    assert search.results_.count("*").fetchall() == [(4,)]
+    assert search.best_pipeline_["target"].cv in (2, 3)

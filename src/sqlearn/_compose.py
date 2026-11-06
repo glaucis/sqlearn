@@ -16,24 +16,34 @@ spills to disk), and the one or two values each quantile needs picked from
 them. A mode (`sqlearn.agg.mode`, a marker too) is counted in a ``GROUP BY``
 stage of its own. A marker may sit anywhere in a learned value: it is
 replaced by a scalar subquery reading its stage's one row, so a quantile
-comes back like any other learned value.
+comes back like any other learned value. The target's statistics
+(`sqlearn._expr.target_stats`, a step learning from the target) are grouped
+by inner fold and category in a ``GROUP BY`` stage, and come back as one
+list.
+
+While learning and training, columns no step sees travel beside the data
+(``aside``): the target, under `TARGET`, and each row's inner fold for a
+step learning from the target (`inner_name`), computed once from the row as
+it was read. They pass through every stage untouched.
 """
 
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from functools import partial
+from typing import cast
 
 import duckdb
 from duckdb import Expression
 
 from sqlearn._errors import InternalError, SqlearnError, StepError
-from sqlearn._expr import MODE, QUANTILE, quote
+from sqlearn._expr import MODE, QUANTILE, TARGET_STATS, const, quote
 from sqlearn._names import name_columns
 from sqlearn._selectors import Schema
-from sqlearn._step import Learned, Step, apply_rows, output_labels
+from sqlearn._step import Learned, Output, Step, apply_rows, output_labels
 
 __all__ = [
     "SOURCE",
+    "TARGET",
     "Run",
     "Stage",
     "apply_sql",
@@ -41,6 +51,8 @@ __all__ = [
     "copy_sql",
     "describe",
     "execute",
+    "inner_fold",
+    "inner_name",
     "number_rows",
     "stage_name",
     "step_stage",
@@ -52,8 +64,69 @@ SOURCE = "source"
 _ROWS = "n"
 """The column of a learn stage counting the rows it learned from."""
 
+TARGET = "__sqlearn_target"
+"""The name the target travels under beside the data, seen by no step."""
+
 Values = dict[str, dict[str, object]]
 """What one step learned: learned name, then column, to value (as the store)."""
+
+
+def inner_name(cv: int, seed: int) -> str:
+    """Name the column holding each row's inner fold, for a step's settings.
+
+    Parameters
+    ----------
+    cv : int
+        The number of inner folds.
+    seed : int
+        The seed mixed into the hash.
+
+    Returns
+    -------
+    str
+        ``__sqlearn_inner_<cv>_<seed>``.
+
+    Examples
+    --------
+    >>> from sqlearn._compose import inner_name
+    >>> inner_name(5, 0)
+    '__sqlearn_inner_5_0'
+    """
+    return f"__sqlearn_inner_{cv}_{seed}"
+
+
+def inner_fold(columns: Sequence[str], cv: int, seed: int) -> Expression:
+    """Return a row's inner fold: ``KFold(cv, seed)``'s, over these columns.
+
+    ``hash(row(<columns>), seed) % cv``: the fold `sqlearn.KFold` deals the
+    row into, its expression (``hash(<alias>, seed) % n``) read over a
+    relation of exactly these columns, since DuckDB hashes a row as the
+    struct of its values.
+
+    Parameters
+    ----------
+    columns : sequence of str
+        The columns of the row, in order: the data as read, without the target.
+    cv : int
+        The number of inner folds.
+    seed : int
+        The seed.
+
+    Returns
+    -------
+    duckdb.Expression
+        The fold, from 0 to ``cv - 1``.
+
+    Examples
+    --------
+    >>> from sqlearn._compose import inner_fold
+    >>> str(inner_fold(["a", "b"], 5, 0))
+    '(hash("row"(a, b), 0) % 5)'
+    """
+    row = duckdb.FunctionExpression(
+        "row", *(duckdb.ColumnExpression(c) for c in columns)
+    )
+    return duckdb.FunctionExpression("hash", row, const(seed)) % const(cv)
 
 
 def stage_name(position: int, step_name: str, learn: bool = False) -> str:
@@ -207,6 +280,9 @@ def step_stage(
     applies: bool = True,
     columns: Sequence[str] | None = None,
     names: Mapping[str, Sequence[str]] | None = None,
+    aside: Sequence[str] = (),
+    folds: Mapping[str, Mapping[str, Mapping[str, object]]] | None = None,
+    held: Expression | None = None,
 ) -> Stage:
     """Build a step's stage from its `learn` and `apply`.
 
@@ -220,6 +296,13 @@ def step_stage(
     selected column, and its outputs take the places of those columns. With
     `names`, the names fixed when the step learned are used instead, so they
     do not change with the data applied to.
+
+    A step learning from the target (``uses_target``) learns from the target
+    as `TARGET`, beside the data. Given `folds` too (what it learned on each
+    inner fold's complement), its output is cross-fitted: each row takes
+    `apply` with the values of its own inner fold (``CASE <fold> WHEN k ...``,
+    the fold read from its `inner_name` column), but a row `held` holds out
+    takes the values learned on all rows.
 
     Parameters
     ----------
@@ -244,6 +327,15 @@ def step_stage(
     names : mapping of str to sequence of str, optional
         The names of the created columns, per input column, as the step's
         stage gave them when it learned (`Stage.created`).
+    aside : sequence of str, default ()
+        Columns of the stage before that are not in `schema` and pass
+        through, last, untouched: the target and the inner folds.
+    folds : mapping, optional
+        For a step learning from the target, with `values`: per inner fold
+        (``"0"``, ``"1"``, ...), what it learned on the rows outside it.
+    held : duckdb.Expression, optional
+        With `folds`: true for the rows encoded with `values` (a search's
+        held-out rows) instead of their inner fold's.
 
     Returns
     -------
@@ -283,8 +375,17 @@ def step_stage(
     learn: dict[str, Expression] = {}
     learned: dict[str, tuple[str, str]] = {}
     per_column: dict[str, Learned] = {}
+    target = duckdb.ColumnExpression(previous, TARGET)
     for c in chosen:
-        aggregates = step.learn(exprs[c])
+        if values is not None and step.uses_target:
+            # What it learned is derived from its aggregates, under other names.
+            per_column[c] = Learned.values(_derived(name, c, values))
+            continue
+        # A target step's learn also takes the target (`Step.uses_target`).
+        learn_from = cast("Callable[..., Mapping[str, Expression]]", step.learn)
+        aggregates = (
+            learn_from(exprs[c], target) if step.uses_target else learn_from(exprs[c])
+        )
         if values is None:
             internal: dict[str, str] = {}
             for key, aggregate in aggregates.items():
@@ -314,7 +415,15 @@ def step_stage(
         if step.rowwise:
             pairs = rows.get(c, [])
         else:
-            result = step.apply(exprs[c], per_column[c])
+            result: Output
+            if folds is not None and step.uses_target:
+                result = _cross_fitted(
+                    step, step_name, position, exprs[c], per_column[c],
+                    {k: Learned.values(_derived(name, c, v)) for k, v in folds.items()},
+                    duckdb.ColumnExpression(previous, _inner(step)), held,
+                )  # fmt: skip
+            else:
+                result = step.apply(exprs[c], per_column[c])
             full = not step.names_are_labels and not isinstance(result, Expression)
             pairs = [
                 ((label, "") if full else (c, label), e)
@@ -334,6 +443,7 @@ def step_stage(
         created.setdefault(c, []).append(n)
     named = iter(final)
     outputs = {k if isinstance(k, str) else next(named): e for k, e in out}
+    outputs.update({a: duckdb.ColumnExpression(previous, a) for a in aside})
 
     remake = partial(step_stage, position, step_name, step, schema, previous)
     return Stage(
@@ -342,7 +452,9 @@ def step_stage(
         learn=learn or None,
         reads=[learn_name] if learn and applies else [],
         learned=learned,
-        remake=partial(remake, applies=applies, columns=chosen, names=names)
+        remake=partial(
+            remake, applies=applies, columns=chosen, names=names, aside=aside
+        )
         if learn
         else None,
         step=step_name,
@@ -429,6 +541,62 @@ def _fixed(
             )
             raise StepError(msg, step=step_name, position=position)
     return final
+
+
+def _inner(step: Step) -> str:
+    """Name the inner-fold column of a step learning from the target."""
+    return inner_name(getattr(step, "cv"), getattr(step, "seed"))  # noqa: B009
+
+
+def _cross_fitted(
+    step: Step,
+    step_name: str,
+    position: int,
+    x: Expression,
+    everything: Learned,
+    per_fold: Mapping[str, Learned],
+    fold: Expression,
+    held: Expression | None,
+) -> Expression:
+    """Return a target step's output with each row's own inner fold's values.
+
+    ``CASE WHEN <fold> = 0 THEN apply(x, learned_0) ... END``, inside
+    ``CASE WHEN <held> THEN apply(x, everything) ELSE ... END`` when some
+    rows (a search's held-out rows) take the values learned on all rows.
+    """
+
+    def one(learned: Learned) -> Expression:
+        result = step.apply(x, learned)
+        if not isinstance(result, Expression):
+            msg = (
+                f"{step_name} (step {position}) learns from the target, so its "
+                "apply must return one expression per column, but it returned "
+                f"{type(result).__name__}. Fix: return one expression."
+            )
+            raise StepError(msg, step=step_name, position=position)
+        return result
+
+    keys = sorted(per_fold, key=int)
+    case = duckdb.CaseExpression(fold == const(int(keys[0])), one(per_fold[keys[0]]))
+    for key in keys[1:]:
+        case = case.when(fold == const(int(key)), one(per_fold[key]))
+    if held is None:
+        return case
+    return duckdb.CaseExpression(held, one(everything)).otherwise(case)
+
+
+def _derived(
+    stage: str, column: str, values: Mapping[str, Mapping[str, object]]
+) -> dict[str, object]:
+    """Pick one column's derived values, refusing a column with none."""
+    mine = {k: v[column] for k, v in values.items() if column in v}
+    if not mine:
+        msg = (
+            f"stage {stage!r} has no learned value for column {column!r}; the "
+            "values do not match what the step learned."
+        )
+        raise SqlearnError(msg)
+    return mine
 
 
 def _known(
@@ -555,7 +723,7 @@ def _scan(text: str, start: int) -> tuple[int, list[str]]:
 
 
 def _markers(text: str) -> list[_Marker]:
-    """Find every staged marker (a quantile or a mode) in `text`, in order.
+    """Find every staged marker (a quantile, a mode, target statistics), in order.
 
     A marker's name is matched only outside quotes and not as the end of a
     longer name, so a column named after one is not taken for it.
@@ -575,7 +743,7 @@ def _markers(text: str) -> list[_Marker]:
             i += 1
             continue
         kind = next(
-            (k for k in (QUANTILE, MODE) if text.startswith(f"{k}(", i)),
+            (k for k in (QUANTILE, MODE, TARGET_STATS) if text.startswith(f"{k}(", i)),
             None,
         )
         if kind is not None and (
@@ -602,12 +770,15 @@ class _Staged:
 
     `quantiles` maps ``(values, q, method)`` (SQL texts; `values` is the
     expression sorted) to the column of the quantile stage holding it;
-    `modes` maps the expression counted to the mode stage holding its mode.
+    `modes` maps the expression counted to the mode stage holding its mode;
+    `stats` maps ``(x, y, fold)`` to the stage grouping the target's
+    statistics.
     """
 
     name: str
     quantiles: dict[tuple[str, str, str], str] = field(default_factory=dict)
     modes: dict[str, str] = field(default_factory=dict)
+    stats: dict[tuple[str, str, str], str] = field(default_factory=dict)
 
     def reference(self, stage: Stage, text: str, marker: _Marker) -> str:
         """Return the scalar subquery standing for `marker` in `text`."""
@@ -621,6 +792,16 @@ class _Staged:
                     "one), which has no meaning over one column.",
                     "learn each aggregate of the column on its own.",
                 )
+        if marker.kind == TARGET_STATS and len(marker.args) == 3:
+            x, y, fold = marker.args
+            table = self.stats.setdefault(
+                (x, y, fold), f"{self.name}_stats{len(self.stats)}"
+            )
+            f, c, n, total, squares = (quote(v) for v in ("f", "x", "n", "s", "ss"))
+            return (
+                f"(SELECT list(row({f}, {c}, {n}, {total}, {squares}) "
+                f"ORDER BY {f}, {c}) FROM {quote(table)})"
+            )
         if marker.kind == MODE and len(marker.args) == 1:
             (values,) = marker.args
             table = self.modes.setdefault(values, f"{self.name}_mode{len(self.modes)}")
@@ -747,6 +928,22 @@ def _mode_ctes(table: str, inner: str, previous: str) -> list[str]:
     ]
 
 
+def _stats_ctes(table: str, key: tuple[str, str, str], previous: str) -> list[str]:
+    """Return the stage grouping the target's statistics by fold and category.
+
+    A ``GROUP BY``, which spills to disk; NULL (and NaN) is a category. The
+    sums are compensated (``fsum``), as the mean is (ADR 0033).
+    """
+    x, y, fold = key
+    f, c, v, n, total, squares = (quote(k) for k in ("f", "x", "y", "n", "s", "ss"))
+    return [
+        f"{quote(table)} AS MATERIALIZED (SELECT {f}, {c}, count(*) AS {n}, "
+        f"fsum({v}) AS {total}, fsum({v} * {v}) AS {squares} FROM "
+        f"(SELECT {x} AS {c}, CAST({y} AS DOUBLE) AS {v}, {fold} AS {f} "
+        f"FROM {quote(previous)}) GROUP BY {f}, {c})",
+    ]
+
+
 def _learn_ctes(stage: Stage, learn: dict[str, Expression], previous: str) -> list[str]:
     """Return a learn stage, after the stages of the quantiles and modes it learns.
 
@@ -770,6 +967,8 @@ def _learn_ctes(stage: Stage, learn: dict[str, Expression], previous: str) -> li
         ctes.extend(_quantile_ctes(staged.name, staged.quantiles, previous))
     for inner, table in staged.modes.items():
         ctes.extend(_mode_ctes(table, inner, previous))
+    for grouped, table in staged.stats.items():
+        ctes.extend(_stats_ctes(table, grouped, previous))
     # MATERIALIZED, never NOT MATERIALIZED: the one row is computed once.
     # The row count beside the values tells "no rows" from NULL values.
     select = (

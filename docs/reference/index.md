@@ -34,8 +34,10 @@ The API of the sqlearn package, generated from its docstrings.
    sqlearn.encode
    sqlearn.encode.onehot
    sqlearn.encode.ordinal
+   sqlearn.encode.target
    sqlearn.preprocessing.OneHot
    sqlearn.preprocessing.Ordinal
+   sqlearn.preprocessing.TargetEncoder
    sqlearn.Search
    sqlearn.Grid
    sqlearn.KFold

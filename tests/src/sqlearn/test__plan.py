@@ -315,3 +315,24 @@ def test_a_rowwise_step_reading_unknown_columns_writes_unknown_ones():
     """Outputs of a whole-row step over unknown columns are themselves unknown."""
     p = runs(dynamic_step("city", creates=DOUBLE), Total(["x_1"]), static_step("total"))
     assert (p.learn_run, p.depends_on[2]) == ([0, 1, 1], frozenset({0, 1}))
+
+
+def test_a_target_step_ends_its_run():
+    """A step learning from the target ends its run; its outputs are DOUBLE."""
+    p = runs(sq.encode.target("city"), sq.scale.standard())
+    assert (p.learn_run, p.apply_run, p.feed_run) == ([0, 1], [1, 1], 1)
+    q = runs(sq.encode.target("city"), sq.encode.onehot())
+    # The encoded city is a number now, so onehot does not read it: it learns
+    # beside the target step, but after it in the pipeline.
+    assert q.learn_run == [0, 0]
+
+
+def test_a_target_step_without_folds_is_refused():
+    """A step learning from the target needs whole-number cv and seed."""
+
+    class NoFolds(sq.Step):
+        uses_target = True
+        static = True
+
+    with pytest.raises(sq.errors.StepError, match=r"s0 \(step 1\).*cv"):
+        runs(NoFolds("city"))
