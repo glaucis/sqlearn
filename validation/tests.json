@@ -4154,6 +4154,12 @@
     },
     {
       "area": "sqlearn/_compose",
+      "name": "tests/src/sqlearn/test__compose.py::test_two_chained_quantile_stages_spill",
+      "outcome": "passed",
+      "tier": "slow"
+    },
+    {
+      "area": "sqlearn/_compose",
       "name": "tests/src/sqlearn/test__compose.py::test_two_columns_of_one_stage_may_not_share_a_name",
       "outcome": "passed",
       "tier": "fast"
