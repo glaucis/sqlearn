@@ -133,7 +133,7 @@ def test_a_name_made_by_an_earlier_step_is_accepted():
     """A name a dynamic step creates is found once that step has learned."""
     df = pd.DataFrame({"city": ["a", "b"], "x": [1.0, 2.0]})
     pipe = sq.Pipeline(
-        [("oh", sq.OneHot(["city"])), ("s", sq.scale.standard(["city_a"]))]
+        [("oh", sq.encode.onehot(["city"])), ("s", sq.scale.standard(["city_a"]))]
     )
     assert list(pipe.learn(df)["s"].center_) == ["city_a"]
 
@@ -485,7 +485,7 @@ def churn_pipe(model):
     return sq.Pipeline(
         [
             ("impute", sq.impute.median(cols=sq.cols.numeric())),
-            ("onehot", sq.OneHot(["city"])),
+            ("onehot", sq.encode.onehot(["city"])),
             ("scale", sq.scale.standard(sq.cols.numeric())),
             ("model", model),
         ]
@@ -729,8 +729,8 @@ def test_a_column_removed_upstream_is_in_a_later_steps_key():
     def pipe(cols):
         return sq.Pipeline(
             [
-                ("onehot", sq.OneHot(cols=cols)),
-                ("ordinal", sq.Ordinal(sq.cols.string())),
+                ("onehot", sq.encode.onehot(cols=cols)),
+                ("ordinal", sq.encode.ordinal(sq.cols.string())),
             ]
         )
 

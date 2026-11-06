@@ -53,6 +53,8 @@ def test_the_top_level_holds_only_the_builders():
         "distinct_values",
         "Impute",
         "Scale",
+        "OneHot",
+        "Ordinal",
     ]:
         assert gone not in public  # moved names (the step ones go later)
     assert {"Pipeline", "Step", "Search", "set_config", "get_config"} <= public
@@ -66,4 +68,5 @@ def test_the_top_level_holds_only_the_builders():
         "agg",
         "impute",
         "scale",
+        "encode",
     } <= public

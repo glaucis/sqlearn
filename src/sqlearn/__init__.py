@@ -17,7 +17,7 @@ from sqlearn._pipeline import Pipeline
 from sqlearn._selectors import cols
 from sqlearn._step import Learned, Step
 from sqlearn.model_selection import Grid, KFold, Search, range
-from sqlearn.preprocessing import OneHot, Ordinal
+from sqlearn.preprocessing._encode import encode
 from sqlearn.preprocessing.impute import impute
 from sqlearn.preprocessing.scale import scale
 
@@ -26,8 +26,6 @@ __all__ = [
     "KFold",
     "Learned",
     "Model",
-    "OneHot",
-    "Ordinal",
     "Output",
     "Pipeline",
     "Search",
@@ -35,6 +33,7 @@ __all__ = [
     "__version__",
     "agg",
     "cols",
+    "encode",
     "errors",
     "fn",
     "get_config",

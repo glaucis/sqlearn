@@ -7,6 +7,7 @@ from duckdb import Expression
 from duckdb.sqltypes import INTEGER
 
 from sqlearn._expr import const
+from sqlearn._group import call_repr
 from sqlearn._selectors import Selector, _string
 from sqlearn._step import Learned, Step
 
@@ -31,6 +32,8 @@ def _categories(x: Expression) -> Expression:
 class OneHot(Step):
     """Replace a column by one 0/1 integer column per category.
 
+    Build it with `sq.encode.onehot <EncodeGroup>`.
+
     Learns the distinct values of each column and creates a column named
     ``<column>_<value>`` for each, holding 1 where the row has that value and
     0 elsewhere. A value not seen when learning gives 0 in every column, as
@@ -48,8 +51,6 @@ class OneHot(Step):
         The columns to encode; defaults to the text columns.
     keep : bool, default False
         Keep the input column beside the new ones.
-    suffix : str, optional
-        Unused by the new column names, which come from the categories.
 
     Attributes
     ----------
@@ -61,7 +62,7 @@ class OneHot(Step):
     >>> import pandas as pd
     >>> import sqlearn as sq
     >>> data = pd.DataFrame({"city": ["rome", "oslo", "rome"]})
-    >>> pipe = sq.Pipeline([("hot", sq.OneHot())]).learn(data)
+    >>> pipe = sq.Pipeline([("hot", sq.encode.onehot())]).learn(data)
     >>> pipe["hot"].categories_
     {'city': ['oslo', 'rome']}
     >>> pipe.apply(data, out="pandas").to_dict("list")
@@ -75,9 +76,33 @@ class OneHot(Step):
         self,
         cols: Selector | str | tuple[str, ...] | list[str] | None = _string(),  # noqa: B008
         keep: bool = False,
-        suffix: str | None = None,
     ) -> None:
-        super().__init__(cols=cols, keep=keep, suffix=suffix)
+        super().__init__(cols=cols, keep=keep)
+
+    def default_name(self) -> str:
+        """Return ``onehot``.
+
+        Returns
+        -------
+        str
+            The name of the method.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> sq.encode.onehot().default_name()
+        'onehot'
+        """
+        return "onehot"
+
+    def __repr__(self) -> str:
+        """Return the shortest call that rebuilds the step."""
+        kwargs: dict[str, object] = {}
+        if self.cols != _string():
+            kwargs["cols"] = self.cols
+        if self.keep:
+            kwargs["keep"] = True
+        return call_repr("sq.encode.onehot", **kwargs)
 
     def learn(self, x: Expression) -> Mapping[str, Expression]:
         """Learn the distinct values and whether NULL occurs.
@@ -97,7 +122,7 @@ class OneHot(Step):
         --------
         >>> import duckdb
         >>> import sqlearn as sq
-        >>> list(sq.OneHot().learn(duckdb.ColumnExpression("a")))
+        >>> list(sq.encode.onehot().learn(duckdb.ColumnExpression("a")))
         ['categories', 'has_null']
         """
         return {
@@ -129,7 +154,7 @@ class OneHot(Step):
         >>> import sqlearn as sq
         >>> from sqlearn._step import Learned
         >>> learned = Learned.values({"categories": ["a", "b"], "has_null": False})
-        >>> out = sq.OneHot().apply(duckdb.ColumnExpression("c"), learned)
+        >>> out = sq.encode.onehot().apply(duckdb.ColumnExpression("c"), learned)
         >>> [label for label, _ in out]
         ['a', 'b']
         """

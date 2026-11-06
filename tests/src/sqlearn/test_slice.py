@@ -53,8 +53,8 @@ def run_the_slice():
     pipe = sq.Pipeline(
         [
             ("impute", sq.impute.median(cols=sq.cols.numeric())),
-            ("onehot", sq.OneHot(cols=["city"])),
-            ("ordinal", sq.Ordinal(cols=["plan"])),
+            ("onehot", sq.encode.onehot(cols=["city"])),
+            ("ordinal", sq.encode.ordinal(cols=["plan"])),
             ("scale", sq.scale.standard(cols=sq.cols.numeric())),
             ("model", LogisticRegression()),
         ]
@@ -143,8 +143,8 @@ RUNS = [
     pytest.param(
         # OneHot and Ordinal read different columns: both learn in run 1.
         lambda: [
-            ("onehot", sq.OneHot(cols=["city"])),
-            ("ordinal", sq.Ordinal(cols=["plan"])),
+            ("onehot", sq.encode.onehot(cols=["city"])),
+            ("ordinal", sq.encode.ordinal(cols=["plan"])),
         ],
         1,
         id="independent-dynamic",
@@ -152,8 +152,8 @@ RUNS = [
     pytest.param(
         # string() cannot match OneHot's INTEGER columns: no wait.
         lambda: [
-            ("onehot", sq.OneHot(cols=["city"])),
-            ("ordinal", sq.Ordinal(cols=sq.cols.string())),
+            ("onehot", sq.encode.onehot(cols=["city"])),
+            ("ordinal", sq.encode.ordinal(cols=sq.cols.string())),
         ],
         1,
         id="string-does-not-wait",
@@ -161,7 +161,7 @@ RUNS = [
     pytest.param(
         # Scale names a column that exists from the start: no wait.
         lambda: [
-            ("onehot", sq.OneHot(cols=["city"])),
+            ("onehot", sq.encode.onehot(cols=["city"])),
             ("scale", sq.scale.standard(["age"])),
         ],
         1,
@@ -170,7 +170,7 @@ RUNS = [
     pytest.param(
         # Scale names OneHot's new columns: run 1 OneHot, run 2 Scale.
         lambda: [
-            ("onehot", sq.OneHot(cols=["city"])),
+            ("onehot", sq.encode.onehot(cols=["city"])),
             ("scale", sq.scale.standard(CITIES)),
         ],
         2,
@@ -181,8 +181,8 @@ RUNS = [
         # Ordinal's INTEGER columns, so Scale waits: two runs.
         lambda: [
             ("impute", sq.impute()),
-            ("onehot", sq.OneHot(cols=["city"])),
-            ("ordinal", sq.Ordinal(cols=["plan"])),
+            ("onehot", sq.encode.onehot(cols=["city"])),
+            ("ordinal", sq.encode.ordinal(cols=["plan"])),
             ("scale", sq.scale.standard()),
         ],
         2,
@@ -191,9 +191,9 @@ RUNS = [
     pytest.param(
         # ADR 0018's own example: the two chains share their runs, two not three.
         lambda: [
-            ("onehot_city", sq.OneHot(cols=["city"])),
+            ("onehot_city", sq.encode.onehot(cols=["city"])),
             ("scale_city", sq.scale.standard(CITIES)),
-            ("onehot_plan", sq.OneHot(cols=["plan"])),
+            ("onehot_plan", sq.encode.onehot(cols=["plan"])),
             ("scale_plan", sq.scale.standard(PLANS)),
         ],
         2,
@@ -204,8 +204,8 @@ RUNS = [
         # learned), OneHot of it waits a run, and Scale of numeric() waits
         # for OneHot: three runs.
         lambda: [
-            ("ordinal", sq.Ordinal(cols=["plan"])),
-            ("onehot", sq.OneHot(cols=["plan"])),
+            ("ordinal", sq.encode.ordinal(cols=["plan"])),
+            ("onehot", sq.encode.onehot(cols=["plan"])),
             ("scale", sq.scale.standard()),
         ],
         3,
@@ -214,8 +214,8 @@ RUNS = [
     pytest.param(
         # A step reading every column depends on every step before it.
         lambda: [
-            ("onehot", sq.OneHot(cols=["city"])),
-            ("ordinal", sq.Ordinal(cols=["plan"])),
+            ("onehot", sq.encode.onehot(cols=["city"])),
+            ("ordinal", sq.encode.ordinal(cols=["plan"])),
             ("scale", MyScale(cols=None)),
         ],
         2,
@@ -225,7 +225,7 @@ RUNS = [
         # Combined selectors: numeric() & ~cols(...) could still match
         # OneHot's INTEGER columns, so Scale waits.
         lambda: [
-            ("onehot", sq.OneHot(cols=["city"])),
+            ("onehot", sq.encode.onehot(cols=["city"])),
             ("scale", sq.scale.standard(cols=sq.cols.numeric() & ~sq.cols("visits"))),
         ],
         2,
@@ -251,7 +251,10 @@ RUNS = [
     ),
     pytest.param(
         # Undeclared, its new columns may be of any type: string() waits too.
-        lambda: [("encode", MyEncoder()), ("ordinal", sq.Ordinal(sq.cols.string()))],
+        lambda: [
+            ("encode", MyEncoder()),
+            ("ordinal", sq.encode.ordinal(sq.cols.string())),
+        ],
         2,
         id="undeclared-dynamic-string-waits",
     ),
@@ -259,7 +262,7 @@ RUNS = [
         # Declared as creating INTEGER columns: string() does not wait.
         lambda: [
             ("encode", DeclaredEncoder()),
-            ("ordinal", sq.Ordinal(sq.cols.string())),
+            ("ordinal", sq.encode.ordinal(sq.cols.string())),
         ],
         1,
         id="declared-dynamic-string-does-not-wait",
@@ -339,7 +342,9 @@ def test_an_edited_frame_relearns():
     frame = pd.DataFrame(
         {"age": [20.0, None, 40.0, 50.0], "city": ["kyiv", "oslo", "kyiv", "rome"]}
     )
-    pipe = sq.Pipeline([("impute", sq.impute()), ("onehot", sq.OneHot(["city"]))])
+    pipe = sq.Pipeline(
+        [("impute", sq.impute()), ("onehot", sq.encode.onehot(["city"]))]
+    )
     pipe.learn(frame)
     assert dict(STORE.learns) == {"impute": 1, "onehot": 1}
     pipe.learn(frame)
@@ -375,8 +380,8 @@ def test_preparation_runs_larger_than_memory(tmp_path, capsys):
     pipe = sq.Pipeline(
         [
             ("impute", sq.impute.median(cols=sq.cols.numeric())),
-            ("onehot", sq.OneHot(cols=["city"])),
-            ("ordinal", sq.Ordinal(cols=["plan"])),
+            ("onehot", sq.encode.onehot(cols=["city"])),
+            ("ordinal", sq.encode.ordinal(cols=["plan"])),
             ("scale", sq.scale.standard(cols=sq.cols.numeric())),
         ]
     )

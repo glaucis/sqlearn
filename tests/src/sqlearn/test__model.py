@@ -87,7 +87,7 @@ def test_hand_over_gives_a_float_matrix_in_column_order():
 def test_hand_over_refuses_a_column_that_is_not_a_number():
     """Text left in the data is named, with the steps that encode it."""
     rel = connection().sql("SELECT 1.0 AS a, 'x' AS city")
-    with pytest.raises(sq.errors.SqlearnError, match=r"'city'.*OneHot"):
+    with pytest.raises(sq.errors.SqlearnError, match=r"'city'.*onehot"):
         hand_over(rel, "numpy")
 
 

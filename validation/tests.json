@@ -1291,6 +1291,108 @@
       "tier": "fast"
     },
     {
+      "area": "sqlearn/preprocessing/_encode",
+      "name": "tests/src/sqlearn/preprocessing/test__encode.py::test_a_dict_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/_encode",
+      "name": "tests/src/sqlearn/preprocessing/test__encode.py::test_classes_take_no_suffix[OneHot]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/_encode",
+      "name": "tests/src/sqlearn/preprocessing/test__encode.py::test_classes_take_no_suffix[Ordinal]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/_encode",
+      "name": "tests/src/sqlearn/preprocessing/test__encode.py::test_columns_by_name_list_or_selector",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/_encode",
+      "name": "tests/src/sqlearn/preprocessing/test__encode.py::test_default_method_and_columns",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/_encode",
+      "name": "tests/src/sqlearn/preprocessing/test__encode.py::test_group_lists_its_shortcuts",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/_encode",
+      "name": "tests/src/sqlearn/preprocessing/test__encode.py::test_in_a_pipeline_named_after_the_method",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/_encode",
+      "name": "tests/src/sqlearn/preprocessing/test__encode.py::test_repr_is_shortest_form",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/_encode",
+      "name": "tests/src/sqlearn/preprocessing/test__encode.py::test_repr_rebuilds_the_step[step0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/_encode",
+      "name": "tests/src/sqlearn/preprocessing/test__encode.py::test_repr_rebuilds_the_step[step1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/_encode",
+      "name": "tests/src/sqlearn/preprocessing/test__encode.py::test_repr_rebuilds_the_step[step2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/_encode",
+      "name": "tests/src/sqlearn/preprocessing/test__encode.py::test_shortcut_equals_general_form[onehot-OneHot]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/_encode",
+      "name": "tests/src/sqlearn/preprocessing/test__encode.py::test_shortcut_equals_general_form[ordinal-Ordinal]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/_encode",
+      "name": "tests/src/sqlearn/preprocessing/test__encode.py::test_suffix_is_refused[make2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/_encode",
+      "name": "tests/src/sqlearn/preprocessing/test__encode.py::test_suffix_is_refused[onehot]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/_encode",
+      "name": "tests/src/sqlearn/preprocessing/test__encode.py::test_suffix_is_refused[ordinal]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/_encode",
+      "name": "tests/src/sqlearn/preprocessing/test__encode.py::test_unknown_method_is_refused_with_the_methods",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
       "area": "sqlearn/preprocessing/_missing",
       "name": "tests/src/sqlearn/preprocessing/test__missing.py::test_all_missing_is_judged_on_the_raw_value_not_its_text",
       "outcome": "passed",

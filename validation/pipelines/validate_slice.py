@@ -80,8 +80,8 @@ def _sqlearn(columns: dict[str, tuple]) -> pd.DataFrame:
     pipe = sq.Pipeline(
         [
             ("impute", sq.impute.median(cols=sq.cols.numeric())),
-            ("onehot", sq.OneHot(cols=["city"])),
-            ("ordinal", sq.Ordinal(cols=["plan"])),
+            ("onehot", sq.encode.onehot(cols=["city"])),
+            ("ordinal", sq.encode.ordinal(cols=["plan"])),
             ("scale", sq.scale.standard(cols=sq.cols.numeric())),
         ]
     ).learn(rel)

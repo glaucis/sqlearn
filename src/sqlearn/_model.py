@@ -299,7 +299,7 @@ def take(
             msg = (
                 f"column {c!r} reaches the model as {kind}, not as a number; a "
                 "model is handed numbers only. Fix: encode it with a step "
-                "(sq.OneHot or sq.Ordinal), or leave it out of the data."
+                "(sq.encode.onehot or sq.encode.ordinal), or leave it out of the data."
             )
             raise SqlearnError(msg)
         x[:, j] = np.ma.filled(np.ma.asarray(values).astype(np.float64), np.nan)

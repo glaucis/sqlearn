@@ -28,7 +28,7 @@ def _same(ours: object, theirs: float) -> bool:
 
 
 def _compare(data: _cases.Dataset, applied: tuple) -> list[dict]:
-    categories, frame = _encoders.sqlearn_side(sq.Ordinal, data, applied)
+    categories, frame = _encoders.sqlearn_side(sq.encode.ordinal, data, applied)
     encoder = OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=-1)
     encoder.fit(_encoders.to_sklearn(data.values))
     named = [c for c in encoder.categories_[0] if isinstance(c, str)]
@@ -63,5 +63,8 @@ def _compare(data: _cases.Dataset, applied: tuple) -> list[dict]:
 def cases() -> list[dict]:
     """Return Ordinal's cases: categories and codes per dataset."""
     return _encoders.cases(
-        "ordinal", ("categories", "codes"), lambda c: sq.Ordinal(cols=[c]), _compare
+        "ordinal",
+        ("categories", "codes"),
+        lambda c: sq.encode.ordinal(cols=[c]),
+        _compare,
     )

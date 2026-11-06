@@ -7,6 +7,7 @@ from duckdb import Expression
 from duckdb.sqltypes import DOUBLE, INTEGER
 
 from sqlearn._expr import const
+from sqlearn._group import call_repr
 from sqlearn._selectors import Selector, _string
 from sqlearn._step import Learned, Step
 from sqlearn.agg.aggregates import distinct
@@ -28,6 +29,8 @@ def _is_nan(x: Expression) -> Expression:
 class Ordinal(Step):
     """Replace each value by its position among the sorted categories.
 
+    Build it with `sq.encode.ordinal <EncodeGroup>`.
+
     Learns the distinct values of each column; a value becomes its position
     (from 0) in that sorted list. A value not seen when learning becomes -1,
     as with scikit-learn's ``OrdinalEncoder(handle_unknown=
@@ -42,8 +45,6 @@ class Ordinal(Step):
         The columns to encode; defaults to the text columns.
     keep : bool, default False
         Keep the input column and add the code beside it.
-    suffix : str, optional
-        Suffix of the new column when `keep` is True; defaults to the step's name.
 
     Attributes
     ----------
@@ -56,7 +57,7 @@ class Ordinal(Step):
     >>> import pandas as pd
     >>> import sqlearn as sq
     >>> data = pd.DataFrame({"size": ["m", "s", "l", "m"]})
-    >>> pipe = sq.Pipeline([("code", sq.Ordinal())]).learn(data)
+    >>> pipe = sq.Pipeline([("code", sq.encode.ordinal())]).learn(data)
     >>> pipe.apply(data, out="pandas")["size"].tolist()
     [1, 2, 0, 1]
     """
@@ -68,9 +69,33 @@ class Ordinal(Step):
         self,
         cols: Selector | str | tuple[str, ...] | list[str] | None = _string(),  # noqa: B008
         keep: bool = False,
-        suffix: str | None = None,
     ) -> None:
-        super().__init__(cols=cols, keep=keep, suffix=suffix)
+        super().__init__(cols=cols, keep=keep)
+
+    def default_name(self) -> str:
+        """Return ``ordinal``.
+
+        Returns
+        -------
+        str
+            The name of the method.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> sq.encode.ordinal().default_name()
+        'ordinal'
+        """
+        return "ordinal"
+
+    def __repr__(self) -> str:
+        """Return the shortest call that rebuilds the step."""
+        kwargs: dict[str, object] = {}
+        if self.cols != _string():
+            kwargs["cols"] = self.cols
+        if self.keep:
+            kwargs["keep"] = True
+        return call_repr("sq.encode.ordinal", **kwargs)
 
     def learn(self, x: Expression) -> Mapping[str, Expression]:
         """Learn the sorted distinct values, without NULL and NaN.
@@ -89,7 +114,7 @@ class Ordinal(Step):
         --------
         >>> import duckdb
         >>> import sqlearn as sq
-        >>> list(sq.Ordinal().learn(duckdb.ColumnExpression("a")))
+        >>> list(sq.encode.ordinal().learn(duckdb.ColumnExpression("a")))
         ['categories']
         """
         return {"categories": distinct(x)}
@@ -121,7 +146,7 @@ class Ordinal(Step):
         >>> import sqlearn as sq
         >>> from sqlearn._step import Learned
         >>> learned = Learned.values({"categories": ["a", "b"]})
-        >>> expr = sq.Ordinal().apply(duckdb.ColumnExpression("c"), learned)
+        >>> expr = sq.encode.ordinal().apply(duckdb.ColumnExpression("c"), learned)
         >>> "list_position" in str(expr)
         True
         """

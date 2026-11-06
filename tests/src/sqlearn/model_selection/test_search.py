@@ -44,8 +44,8 @@ def slice_pipe(model=None):
     return sq.Pipeline(
         [
             ("impute", sq.impute.median(cols=sq.cols.numeric())),
-            ("onehot", sq.OneHot(cols=["city"])),
-            ("ordinal", sq.Ordinal(cols=["plan"])),
+            ("onehot", sq.encode.onehot(cols=["city"])),
+            ("ordinal", sq.encode.ordinal(cols=["plan"])),
             ("scale", sq.scale.standard(cols=sq.cols.numeric())),
             ("model", LogisticRegression() if model is None else model),
         ]
@@ -472,8 +472,8 @@ def test_settings_changing_a_later_steps_inputs_score_as_if_alone():
     def pipe():
         return sq.Pipeline(
             [
-                ("onehot", sq.OneHot(cols=["city"])),
-                ("ordinal", sq.Ordinal(cols=sq.cols.string())),
+                ("onehot", sq.encode.onehot(cols=["city"])),
+                ("ordinal", sq.encode.ordinal(cols=sq.cols.string())),
                 ("model", LogisticRegression()),
             ]
         )

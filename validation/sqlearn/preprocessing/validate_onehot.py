@@ -19,7 +19,7 @@ COMPARED_WITH = 'scikit-learn OneHotEncoder(handle_unknown="ignore")'
 
 
 def _compare(data: _cases.Dataset, applied: tuple) -> list[dict]:
-    categories, frame = _encoders.sqlearn_side(sq.OneHot, data, applied)
+    categories, frame = _encoders.sqlearn_side(sq.encode.onehot, data, applied)
     encoder = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
     encoder.fit(_encoders.to_sklearn(data.values))
     theirs = list(encoder.categories_[0])
@@ -66,5 +66,8 @@ def _compare(data: _cases.Dataset, applied: tuple) -> list[dict]:
 def cases() -> list[dict]:
     """Return OneHot's cases: categories and indicators per dataset."""
     return _encoders.cases(
-        "onehot", ("categories", "indicators"), lambda c: sq.OneHot(cols=[c]), _compare
+        "onehot",
+        ("categories", "indicators"),
+        lambda c: sq.encode.onehot(cols=[c]),
+        _compare,
     )

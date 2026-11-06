@@ -322,7 +322,9 @@ def test_a_finaliser_never_calls_the_connection(monkeypatch):
         for _ in range(3):
             df = pd.DataFrame({"city": ["a", "b"], "x": [1.0, 2.0], "city_a": [0, 1]})
             refs.append(weakref.ref(df))
-            pipe = sq.Pipeline([("oh", sq.OneHot(["city"])), ("model", _Model())])
+            pipe = sq.Pipeline(
+                [("oh", sq.encode.onehot(["city"])), ("model", _Model())]
+            )
             try:
                 pipe.train(df, target="city_a")
             except (
@@ -334,7 +336,7 @@ def test_a_finaliser_never_calls_the_connection(monkeypatch):
             big["c"] = big["y"].astype(str)  # scanning text calls into Python
             steps = [
                 ("s", sq.scale.standard()),
-                ("o", sq.Ordinal()),
+                ("o", sq.encode.ordinal()),
                 ("model", _Model()),
             ]
             pipe = sq.Pipeline(steps)
