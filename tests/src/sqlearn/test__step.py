@@ -224,3 +224,17 @@ def test_two_lambdas_never_share_a_classification():
     assert classify(one, SCHEMA) == "static"
     assert classify(many, SCHEMA) == "dynamic"
     assert classify(one, SCHEMA) == "static"
+
+
+def add_one(x):
+    """Add one to a column (module level, so it pickles)."""
+    return x + 1
+
+
+def test_a_step_from_a_module_level_function_pickles():
+    """A one-argument apply that is a module-level function survives pickle."""
+    step = sq.Step(apply=add_one, cols=["a"])
+    back = pickle.loads(pickle.dumps(step))
+    assert back.settings()["apply"] is add_one
+    out = sq.Pipeline([back]).learn(_data()).apply(_data(), out="numpy")
+    assert out["a"].tolist() == [11.0, 21.0, 41.0]

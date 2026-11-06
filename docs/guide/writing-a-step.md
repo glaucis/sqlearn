@@ -155,8 +155,9 @@ sq.Pipeline([top]).learn(data).apply(data)
 ```
 
 Its name in a pipeline is `step`. Its store key uses the callables themselves,
-so defining a lambda again relearns. A subclass is still the form for a step
-with settings of its own.
+so defining a lambda again relearns. A step built from a lambda cannot be
+pickled, since lambdas cannot; use a module-level function for that. A subclass
+is still the form for a step with settings of its own.
 
 ## When something fails
 

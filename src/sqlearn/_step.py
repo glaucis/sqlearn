@@ -371,6 +371,22 @@ _FUNCTIONS = (
 )
 
 
+class _DropLearned:
+    """An ``apply`` of one argument, called with ``(x, learned)``."""
+
+    def __init__(
+        self, fn: Callable[..., Expression | Mapping[str, Expression]]
+    ) -> None:
+        self.fn = fn
+
+    def __call__(
+        self,
+        x: Expression,
+        learned: Learned,
+    ) -> Expression | Mapping[str, Expression]:
+        return self.fn(x)
+
+
 def _with_learned(
     fn: Callable[..., Expression | Mapping[str, Expression]],
 ) -> Callable[..., Expression | Mapping[str, Expression]]:
@@ -384,13 +400,7 @@ def _with_learned(
     positional = [
         p for p in params if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)
     ]
-    if len(positional) != 1:
-        return fn
-
-    def apply(x: Expression, learned: Learned) -> Expression | Mapping[str, Expression]:
-        return fn(x)
-
-    return apply
+    return _DropLearned(fn) if len(positional) == 1 else fn
 
 
 def _key(step: Step) -> tuple[type, tuple[tuple[str, object], ...]]:
