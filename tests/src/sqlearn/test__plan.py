@@ -336,3 +336,31 @@ def test_a_target_step_without_folds_is_refused():
 
     with pytest.raises(sq.errors.StepError, match=r"s0 \(step 1\).*cv"):
         runs(NoFolds("city"))
+
+
+class Pieces(sq.Step):
+    """A static step making two labelled columns from each input."""
+
+    static = True
+    creates = DOUBLE
+
+    def apply(self, x, learned):
+        """Write the column plus one and plus two."""
+        return [("p", x + 1), ("q", x + 2)]
+
+
+def test_a_static_step_names_its_labelled_outputs():
+    """The labelled outputs of a static per-column step are known by name."""
+    p = runs(Pieces("a"), static_step("a_q"))
+    assert p.depends_on[1] == frozenset({0})
+    q = runs(static_step("b"), Pieces(["a", "b"]), static_step("b_p"))
+    assert q.depends_on[2] == frozenset({0, 1})
+    # The input is gone, so a step naming it reads nothing of the step's.
+    assert runs(Pieces("a"), static_step("b")).depends_on[1] == frozenset()
+
+
+def test_labelled_outputs_of_unknown_type_are_unknown():
+    """Without a declared type, a static step's labelled outputs are unknown."""
+    untyped = type("Untyped", (Pieces,), {"creates": None})
+    p = runs(untyped("a"), static_step("a_q"), static_step("b"))
+    assert p.depends_on[1:] == [frozenset({0}), frozenset()]

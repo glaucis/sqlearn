@@ -52,6 +52,11 @@ The API of the sqlearn package, generated from its docstrings.
    sqlearn.transform.lower
    sqlearn.transform.upper
    sqlearn.preprocessing.Transform
+   sqlearn.features
+   sqlearn.features.polynomial
+   sqlearn.features.spline
+   sqlearn.preprocessing.Polynomial
+   sqlearn.preprocessing.Spline
    sqlearn.Search
    sqlearn.Grid
    sqlearn.KFold

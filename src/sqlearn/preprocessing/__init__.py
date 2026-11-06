@@ -8,6 +8,7 @@ Examples
 """
 
 from sqlearn.preprocessing.bin import Bin, Binarize
+from sqlearn.preprocessing.features import Polynomial, Spline
 from sqlearn.preprocessing.impute import Impute
 from sqlearn.preprocessing.onehot import OneHot
 from sqlearn.preprocessing.ordinal import Ordinal
@@ -22,7 +23,9 @@ __all__ = [
     "Normalize",
     "OneHot",
     "Ordinal",
+    "Polynomial",
     "Scale",
+    "Spline",
     "TargetEncoder",
     "Transform",
 ]

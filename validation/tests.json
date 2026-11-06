@@ -1987,6 +1987,432 @@
       "tier": "fast"
     },
     {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_a_step_naming_a_spline_output_depends_on_it",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_a_text_column_is_refused_by_name[polynomial]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_a_text_column_is_refused_by_name[spline]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_bad_settings_are_refused[<lambda>-degree0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_bad_settings_are_refused[<lambda>-degree1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_bad_settings_are_refused[<lambda>-degree2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_bad_settings_are_refused[<lambda>-degree3]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_bad_settings_are_refused[<lambda>-extrapolation=]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_bad_settings_are_refused[<lambda>-extrapolation]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_bad_settings_are_refused[<lambda>-include_bias=]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_bad_settings_are_refused[<lambda>-include_bias]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_bad_settings_are_refused[<lambda>-interaction_only=]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_bad_settings_are_refused[<lambda>-interaction_only]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_bad_settings_are_refused[<lambda>-knots=]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_bad_settings_are_refused[<lambda>-knots]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_bad_settings_are_refused[<lambda>-n_knots0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_bad_settings_are_refused[<lambda>-n_knots1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_bad_settings_are_refused[<lambda>-n_knots=]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_columns_by_name_list_or_selector",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_default_columns_are_the_numeric_ones",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_default_names",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_no_method_is_a_type_error_and_a_bad_one_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_polynomial_chains_into_the_stage_around_it",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_polynomial_include_bias_adds_a_column_of_ones_named_1",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_polynomial_learns_nothing_and_reads_the_whole_row",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_polynomial_matches_sklearn[False-1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_polynomial_matches_sklearn[False-2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_polynomial_matches_sklearn[False-3]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_polynomial_matches_sklearn[True-1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_polynomial_matches_sklearn[True-2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_polynomial_matches_sklearn[True-3]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_polynomial_names_and_order_for_two_columns",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_polynomial_names_clash_with_a_column_passing_through",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_polynomial_null_stays_null_and_nan_stays_nan",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_polynomial_of_degree_zero_with_the_bias_is_the_column_of_ones",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_polynomial_of_integer_and_decimal_columns_is_double[BIGINT]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_polynomial_of_integer_and_decimal_columns_is_double[DECIMAL(10,2)]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_polynomial_of_integer_and_decimal_columns_is_double[INTEGER]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_polynomial_of_no_column_creates_nothing",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_polynomial_passes_other_columns_and_keeps_their_place",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_repr_is_the_shortest_form_that_rebuilds",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_settings_read_back_under_the_init_names",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_shortcut_equals_general_form",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_spline_chains_into_the_stage_around_it[quantile]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_spline_chains_into_the_stage_around_it[uniform]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_spline_is_static_and_creates_double",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_spline_matches_sklearn[2-3-quantile]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_spline_matches_sklearn[2-3-uniform]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_spline_matches_sklearn[3-1-quantile]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_spline_matches_sklearn[3-1-uniform]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_spline_matches_sklearn[4-2-quantile]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_spline_matches_sklearn[4-2-uniform]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_spline_matches_sklearn[5-3-quantile]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_spline_matches_sklearn[5-3-uniform]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_spline_matches_sklearn[6-0-quantile]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_spline_matches_sklearn[6-0-uniform]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_spline_matches_sklearn[7-4-quantile]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_spline_matches_sklearn[7-4-uniform]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_spline_of_a_constant_column",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_spline_of_an_all_missing_column_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_spline_of_integer_and_decimal_columns_is_double[BIGINT]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_spline_of_integer_and_decimal_columns_is_double[DECIMAL(10,2)]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_spline_of_integer_and_decimal_columns_is_double[INTEGER]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_spline_outside_the_training_range_is_constant[quantile]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_spline_outside_the_training_range_is_constant[uniform]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_spline_refuses_a_missing_value_when_fetched",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_spline_refuses_infinity",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_spline_with_repeated_quantile_knots_matches_sklearn",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_spline_works_per_column_and_passes_the_rest",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_the_group_lists_its_shortcuts",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_the_steps_pickle",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
       "area": "sqlearn/preprocessing/impute",
       "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_a_dict_and_a_value_together_are_refused",
       "outcome": "passed",
@@ -4622,6 +5048,12 @@
     },
     {
       "area": "sqlearn/_plan",
+      "name": "tests/src/sqlearn/test__plan.py::test_a_static_step_names_its_labelled_outputs",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_plan",
       "name": "tests/src/sqlearn/test__plan.py::test_a_step_that_cannot_read_a_removed_column_does_not_depend_on_it",
       "outcome": "passed",
       "tier": "fast"
@@ -4683,6 +5115,12 @@
     {
       "area": "sqlearn/_plan",
       "name": "tests/src/sqlearn/test__plan.py::test_independent_dynamic_steps_share_a_run",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_plan",
+      "name": "tests/src/sqlearn/test__plan.py::test_labelled_outputs_of_unknown_type_are_unknown",
       "outcome": "passed",
       "tier": "fast"
     },

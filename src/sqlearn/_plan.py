@@ -4,12 +4,13 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import cast
 
+import duckdb
 from duckdb.sqltypes import DOUBLE, DuckDBPyType
 
 from sqlearn._errors import StepError
 from sqlearn._names import name_columns
 from sqlearn._selectors import Schema, Selector, _Cols, to_selector
-from sqlearn._step import Step, classify, row_outputs
+from sqlearn._step import Learned, Step, classify, output_labels, row_outputs
 
 __all__ = ["Plan", "plan"]
 
@@ -230,31 +231,74 @@ def _write(
 ) -> tuple[list[_Column], list[_Column]]:
     """Return the columns after the step, and those it took away.
 
-    `dtype`, when given, is the type of a static step's outputs.
+    `dtype`, when given, is the type of a static step's outputs. A static
+    step whose `apply` returns labelled columns (a mapping or pairs) writes
+    those columns, of the type it `creates`, named as the compositor names
+    them.
     """
     # Columns are compared by identity (`_Column` has eq=False on purpose):
     # two unknown groups may hold equal fields yet be different columns.
     chosen = {id(c) for c in read}
     out: list[_Column] = []
     gone: list[_Column] = []
-    kept: list[int] = []  # where the new columns of a kept input go
+    new: list[tuple[int, str]] = []  # created columns to name, with labels
+    labelled: list[int] = []  # those a labelled output created
     for c in columns:
         if id(c) not in chosen or step.keep:
             out.append(c)
+        if id(c) not in chosen:
+            continue
+        labels = None if dynamic or dtype else _labels(step, step_name, c.name)
+        if labels is not None:
+            for column, label in labels:
+                labelled.append(len(out))
+                new.append((len(out), label))
+                out.append(_Column(column, step.creates, ready, deps))
         elif dynamic and not _consumes(step, c):
             # The step may read only part of an unknown group: the rest stays.
-            out.append(c)
+            if not step.keep:
+                out.append(c)
         elif not dynamic:
+            if step.keep:
+                new.append((len(out), step.suffix or step_name))
             out.append(_Column(c.name, dtype or c.dtype, ready, deps))
-        else:
+        elif not step.keep:
             gone.append(_Column(c.name, c.dtype, ready, deps))
-        if id(c) in chosen and step.keep and not dynamic:
-            kept.append(len(out))
-            out.append(_Column(c.name, dtype or c.dtype, ready, deps))
-    _name_kept(out, kept, step.suffix or step_name)
+    _name_new(out, new)
+    for i in labelled:
+        # A column of unknown type is not known by name either.
+        if out[i].dtype is None:
+            out[i] = _Column(None, None, out[i].ready, out[i].deps)
     if dynamic and read:
         out.append(_Column(None, step.creates, ready, deps))
     return out, gone
+
+
+def _labels(
+    step: Step, step_name: str, name: str | None
+) -> list[tuple[str, str]] | None:
+    """Return a static step's labelled outputs for a column, from placeholders.
+
+    Each is ``(column, label)`` as the compositor plans it; None when `apply`
+    returns one expression, when the column is not known by name, or when
+    `apply` cannot be read with placeholders (the column is then planned as
+    one output, as before). A step learning from the target writes one
+    expression per input.
+    """
+    if name is None or step.uses_target:
+        return None
+    x = duckdb.ColumnExpression(name)
+    try:
+        slots = {key: f"v{i}" for i, key in enumerate(step.learn(x))}
+        result = step.apply(x, Learned.placeholders("learn", slots))
+    except Exception:  # noqa: BLE001  (unreadable outputs are planned as one)
+        return None
+    if isinstance(result, duckdb.Expression):
+        return None
+    pairs = output_labels(step_name, result, step.keep, step.suffix)
+    if step.names_are_labels:
+        return [(name, label) for label, _ in pairs]
+    return [(label, "") for label, _ in pairs]
 
 
 def _write_row(
@@ -312,23 +356,25 @@ def _write_row(
     return out, []
 
 
-def _name_kept(out: list[_Column], kept: list[int], label: str) -> None:
-    """Name the new columns of kept inputs as the compositor will.
+def _name_new(out: list[_Column], new: list[tuple[int, str]]) -> None:
+    """Name the columns a step created as the compositor will.
 
+    `new` holds each created column's place in `out` and its label; its
+    planned name is ``<column>_<label>`` from the column name it holds now.
     The names follow `name_columns`, so a name in use is numbered. If an
     unknown column is present it might hold the name, so the new columns are
     left unknown too.
     """
-    if not kept:
+    if not new:
         return
-    new = set(kept)
-    known = [c.name for i, c in enumerate(out) if i not in new]
-    columns = [out[i].name for i in kept]
-    names: list[str | None] = [None] * len(kept)
+    places = {i for i, _ in new}
+    known = [c.name for i, c in enumerate(out) if i not in places]
+    columns = [out[i].name for i, _ in new]
+    names: list[str | None] = [None] * len(new)
     if None not in known and None not in columns:
-        planned = [(name, label) for name in columns if name is not None]
+        planned = [(cast("str", out[i].name), label) for i, label in new]
         taken = [name for name in known if name is not None]
         names = list(name_columns(planned, taken))
-    for i, name in zip(kept, names, strict=True):
+    for (i, _), name in zip(new, names, strict=True):
         c = out[i]
         out[i] = _Column(name, c.dtype, c.ready, c.deps)

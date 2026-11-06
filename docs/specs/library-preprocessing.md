@@ -376,7 +376,9 @@ default.
   static: the number of columns follows from its settings.
   `extrapolation="constant"` is scikit-learn's default and the only one in
   this spec (spec's call).
-- Each reads several input columns to write each output (§6.1).
+- `polynomial` reads several input columns to write each output, a
+  whole-row step (§6.1); `spline` works per column, one input making several
+  outputs.
 
 ## 6. What these steps add to the contract
 
@@ -386,8 +388,8 @@ declared as data, so the planner and later the node editor read it.
 
 ### 6.1 Steps that read the whole row
 
-`normalize`, `polynomial` and `spline` write an output from several input
-columns of the same row. The contract gains a form whose `apply` receives
+`normalize` and `polynomial` write an output from several input columns of
+the same row. The contract gains a form whose `apply` receives
 every selected column at once and returns the output columns; the planner
 treats each output as reading every selected input. The name and signature
 are the builder's; one's own step can use it too.
