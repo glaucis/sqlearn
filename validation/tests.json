@@ -2234,6 +2234,12 @@
     },
     {
       "area": "sqlearn/preprocessing/features",
+      "name": "tests/src/sqlearn/preprocessing/test_features.py::test_polynomial_terms_named_like_an_input_are_numbered",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/features",
       "name": "tests/src/sqlearn/preprocessing/test_features.py::test_repr_is_the_shortest_form_that_rebuilds",
       "outcome": "passed",
       "tier": "fast"
@@ -2607,6 +2613,18 @@
     {
       "area": "sqlearn/preprocessing/impute",
       "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_keep_with_an_indicator",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/impute",
+      "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_later_steps_see_the_columns_filled_with_an_indicator",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/impute",
+      "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_later_steps_see_the_columns_the_indicator_keeps",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -3080,7 +3098,13 @@
     },
     {
       "area": "sqlearn/preprocessing/scale",
-      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_bad_settings_are_refused[<lambda>-dict.*method=]",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_bad_settings_are_refused[<lambda>-dict.*method=0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/scale",
+      "name": "tests/src/sqlearn/preprocessing/test_scale.py::test_bad_settings_are_refused[<lambda>-dict.*method=1]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -3915,6 +3939,12 @@
     {
       "area": "sqlearn/_compose",
       "name": "tests/src/sqlearn/test__compose.py::test_a_quantile_inside_another_aggregate_is_computed",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_compose",
+      "name": "tests/src/sqlearn/test__compose.py::test_a_replaced_column_keeps_its_name_beside_a_created_one",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -4784,6 +4814,30 @@
     },
     {
       "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_a_step_not_yet_applied_stays_so_past_a_later_bind[dynamic]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_a_step_not_yet_applied_stays_so_past_a_later_bind[keeping]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_a_step_not_yet_applied_stays_so_past_a_later_bind[target-in-a-later-run]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_a_step_not_yet_applied_stays_so_past_a_later_bind[target]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
       "name": "tests/src/sqlearn/test__pipeline.py::test_a_step_waiting_between_steps_of_the_first_run",
       "outcome": "passed",
       "tier": "fast"
@@ -4803,6 +4857,24 @@
     {
       "area": "sqlearn/_pipeline",
       "name": "tests/src/sqlearn/test__pipeline.py::test_a_target_steps_failures_name_it",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_a_tuple_that_is_not_a_pair_is_refused[item0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_a_tuple_that_is_not_a_pair_is_refused[item1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_a_tuple_that_is_not_a_pair_is_refused[item2]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -5060,6 +5132,12 @@
     },
     {
       "area": "sqlearn/_plan",
+      "name": "tests/src/sqlearn/test__plan.py::test_a_dynamic_step_keeping_its_inputs_writes_them_again",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_plan",
       "name": "tests/src/sqlearn/test__plan.py::test_a_dynamic_step_leaves_new_columns_it_may_not_read",
       "outcome": "passed",
       "tier": "fast"
@@ -5246,6 +5324,12 @@
     },
     {
       "area": "sqlearn/_plan",
+      "name": "tests/src/sqlearn/test__plan.py::test_the_indicator_keeps_its_inputs",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_plan",
       "name": "tests/src/sqlearn/test__plan.py::test_undeclared_new_types_match_any_selector",
       "outcome": "passed",
       "tier": "fast"
@@ -5325,6 +5409,12 @@
     {
       "area": "sqlearn/_selectors",
       "name": "tests/src/sqlearn/test__selectors.py::test_value_equality_and_repr",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_step",
+      "name": "tests/src/sqlearn/test__step.py::test_a_callable_object_classifies_by_itself",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -5468,6 +5558,12 @@
     },
     {
       "area": "sqlearn/_store",
+      "name": "tests/src/sqlearn/test__store.py::test_a_callable_object_is_keyed_by_itself",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_store",
       "name": "tests/src/sqlearn/test__store.py::test_a_change_two_hops_up_reaches_the_last_key",
       "outcome": "passed",
       "tier": "fast"
@@ -5523,6 +5619,222 @@
     {
       "area": "sqlearn/_store",
       "name": "tests/src/sqlearn/test__store.py::test_true_and_one_get_different_keys",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/combinations",
+      "name": "tests/src/sqlearn/test_combinations.py::test_a_step_by_type_after_each_kind_of_step[dynamic-lower-after a static step]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/combinations",
+      "name": "tests/src/sqlearn/test_combinations.py::test_a_step_by_type_after_each_kind_of_step[dynamic-lower-alone]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/combinations",
+      "name": "tests/src/sqlearn/test_combinations.py::test_a_step_by_type_after_each_kind_of_step[dynamic-ordinal-after a static step]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/combinations",
+      "name": "tests/src/sqlearn/test_combinations.py::test_a_step_by_type_after_each_kind_of_step[dynamic-ordinal-alone]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/combinations",
+      "name": "tests/src/sqlearn/test_combinations.py::test_a_step_by_type_after_each_kind_of_step[dynamic-robust-after a static step]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/combinations",
+      "name": "tests/src/sqlearn/test_combinations.py::test_a_step_by_type_after_each_kind_of_step[dynamic-robust-alone]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/combinations",
+      "name": "tests/src/sqlearn/test_combinations.py::test_a_step_by_type_after_each_kind_of_step[keeping-lower-after a static step]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/combinations",
+      "name": "tests/src/sqlearn/test_combinations.py::test_a_step_by_type_after_each_kind_of_step[keeping-lower-alone]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/combinations",
+      "name": "tests/src/sqlearn/test_combinations.py::test_a_step_by_type_after_each_kind_of_step[keeping-ordinal-after a static step]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/combinations",
+      "name": "tests/src/sqlearn/test_combinations.py::test_a_step_by_type_after_each_kind_of_step[keeping-ordinal-alone]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/combinations",
+      "name": "tests/src/sqlearn/test_combinations.py::test_a_step_by_type_after_each_kind_of_step[keeping-robust-after a static step]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/combinations",
+      "name": "tests/src/sqlearn/test_combinations.py::test_a_step_by_type_after_each_kind_of_step[keeping-robust-alone]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/combinations",
+      "name": "tests/src/sqlearn/test_combinations.py::test_a_step_by_type_after_each_kind_of_step[normalize-lower-after a static step]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/combinations",
+      "name": "tests/src/sqlearn/test_combinations.py::test_a_step_by_type_after_each_kind_of_step[normalize-lower-alone]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/combinations",
+      "name": "tests/src/sqlearn/test_combinations.py::test_a_step_by_type_after_each_kind_of_step[normalize-ordinal-after a static step]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/combinations",
+      "name": "tests/src/sqlearn/test_combinations.py::test_a_step_by_type_after_each_kind_of_step[normalize-ordinal-alone]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/combinations",
+      "name": "tests/src/sqlearn/test_combinations.py::test_a_step_by_type_after_each_kind_of_step[normalize-robust-after a static step]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/combinations",
+      "name": "tests/src/sqlearn/test_combinations.py::test_a_step_by_type_after_each_kind_of_step[normalize-robust-alone]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/combinations",
+      "name": "tests/src/sqlearn/test_combinations.py::test_a_step_by_type_after_each_kind_of_step[polynomial-lower-after a static step]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/combinations",
+      "name": "tests/src/sqlearn/test_combinations.py::test_a_step_by_type_after_each_kind_of_step[polynomial-lower-alone]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/combinations",
+      "name": "tests/src/sqlearn/test_combinations.py::test_a_step_by_type_after_each_kind_of_step[polynomial-ordinal-after a static step]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/combinations",
+      "name": "tests/src/sqlearn/test_combinations.py::test_a_step_by_type_after_each_kind_of_step[polynomial-ordinal-alone]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/combinations",
+      "name": "tests/src/sqlearn/test_combinations.py::test_a_step_by_type_after_each_kind_of_step[polynomial-robust-after a static step]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/combinations",
+      "name": "tests/src/sqlearn/test_combinations.py::test_a_step_by_type_after_each_kind_of_step[polynomial-robust-alone]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/combinations",
+      "name": "tests/src/sqlearn/test_combinations.py::test_a_step_by_type_after_each_kind_of_step[static-lower-after a static step]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/combinations",
+      "name": "tests/src/sqlearn/test_combinations.py::test_a_step_by_type_after_each_kind_of_step[static-lower-alone]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/combinations",
+      "name": "tests/src/sqlearn/test_combinations.py::test_a_step_by_type_after_each_kind_of_step[static-ordinal-after a static step]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/combinations",
+      "name": "tests/src/sqlearn/test_combinations.py::test_a_step_by_type_after_each_kind_of_step[static-ordinal-alone]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/combinations",
+      "name": "tests/src/sqlearn/test_combinations.py::test_a_step_by_type_after_each_kind_of_step[static-robust-after a static step]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/combinations",
+      "name": "tests/src/sqlearn/test_combinations.py::test_a_step_by_type_after_each_kind_of_step[static-robust-alone]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/combinations",
+      "name": "tests/src/sqlearn/test_combinations.py::test_a_step_by_type_after_each_kind_of_step[target-lower-after a static step]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/combinations",
+      "name": "tests/src/sqlearn/test_combinations.py::test_a_step_by_type_after_each_kind_of_step[target-lower-alone]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/combinations",
+      "name": "tests/src/sqlearn/test_combinations.py::test_a_step_by_type_after_each_kind_of_step[target-ordinal-after a static step]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/combinations",
+      "name": "tests/src/sqlearn/test_combinations.py::test_a_step_by_type_after_each_kind_of_step[target-ordinal-alone]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/combinations",
+      "name": "tests/src/sqlearn/test_combinations.py::test_a_step_by_type_after_each_kind_of_step[target-robust-after a static step]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/combinations",
+      "name": "tests/src/sqlearn/test_combinations.py::test_a_step_by_type_after_each_kind_of_step[target-robust-alone]",
       "outcome": "passed",
       "tier": "fast"
     },
