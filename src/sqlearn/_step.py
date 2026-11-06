@@ -17,6 +17,7 @@ __all__ = [
     "Learned",
     "Output",
     "Step",
+    "apply_rows",
     "classify",
     "output_labels",
     "row_outputs",
@@ -298,10 +299,46 @@ class Step:
         """
         return x
 
+    def row_values(
+        self,
+        xs: Mapping[str, Expression],
+        learned: Mapping[str, Learned],
+    ) -> Mapping[str, Expression]:
+        """Say what a whole-row step computes once per row, before `apply_row`.
+
+        A value several outputs share (a row's norm, say) is computed once
+        here, in a projection before the outputs, instead of being written
+        into each output: the SQL then grows with the number of columns, not
+        its square.
+
+        Parameters
+        ----------
+        xs : mapping of str to duckdb.Expression
+            Every selected column, by name, in order.
+        learned : mapping of str to Learned
+            The values learned for each column, by name.
+
+        Returns
+        -------
+        mapping of str to duckdb.Expression
+            Name to value. The default computes nothing. `apply_row` gets a
+            reference to each in its ``values``.
+
+        Examples
+        --------
+        >>> import duckdb
+        >>> import sqlearn as sq
+        >>> sq.Step().row_values({"a": duckdb.ColumnExpression("a")}, {})
+        {}
+        """
+        empty: dict[str, Expression] = {}
+        return empty
+
     def apply_row(
         self,
         xs: Mapping[str, Expression],
         learned: Mapping[str, Learned],
+        values: Mapping[str, Expression],
     ) -> Mapping[str, Expression]:
         """Say what to produce from the whole row, for a step with ``rowwise``.
 
@@ -311,6 +348,9 @@ class Step:
             Every selected column, by name, in order.
         learned : mapping of str to Learned
             The values learned for each column, by name.
+        values : mapping of str to duckdb.Expression
+            A reference to each value `row_values` returned, by its name
+            (empty when it returns none).
 
         Returns
         -------
@@ -327,7 +367,7 @@ class Step:
         >>> import duckdb
         >>> import sqlearn as sq
         >>> xs = {"a": duckdb.ColumnExpression("a")}
-        >>> {k: str(e) for k, e in sq.Step().apply_row(xs, {}).items()}
+        >>> {k: str(e) for k, e in sq.Step().apply_row(xs, {}, {}).items()}
         {'a': '"a"'}
         """
         return dict(xs)
@@ -546,7 +586,49 @@ def row_outputs(step: Step, names: Sequence[str]) -> list[str]:
     for name, x in xs.items():
         slots = {key: f"v{i}" for i, key in enumerate(step.learn(x))}
         learned[name] = Learned.placeholders("learn", slots)
-    return list(step.apply_row(xs, learned))
+    _, outputs = apply_rows(
+        step, xs, learned, lambda _, name: duckdb.ColumnExpression(name)
+    )
+    return list(outputs)
+
+
+def apply_rows(
+    step: Step,
+    xs: Mapping[str, Expression],
+    learned: Mapping[str, Learned],
+    refer: Callable[[int, str], Expression],
+) -> tuple[dict[str, Expression], Mapping[str, Expression]]:
+    """Call a whole-row step's `row_values`, then its `apply_row`.
+
+    Parameters
+    ----------
+    step : Step
+        A step with ``rowwise``.
+    xs : mapping of str to duckdb.Expression
+        The selected columns, by name.
+    learned : mapping of str to Learned
+        Each column's learned values.
+    refer : callable
+        ``refer(i, name)`` returns the reference to the i-th row value.
+
+    Returns
+    -------
+    tuple of (dict, mapping)
+        The row values by name, and the outputs `apply_row` returned.
+
+    Examples
+    --------
+    >>> import duckdb
+    >>> import sqlearn as sq
+    >>> from sqlearn._step import apply_rows
+    >>> xs = {"a": duckdb.ColumnExpression("a")}
+    >>> values, outputs = apply_rows(sq.Step(), xs, {}, lambda i, n: xs["a"])
+    >>> values, list(outputs)
+    ({}, ['a'])
+    """
+    values = dict(step.row_values(xs, learned))
+    refs = {name: refer(i, name) for i, name in enumerate(values)}
+    return values, step.apply_row(xs, learned, refs)
 
 
 def _inspect(step: Step, schema: Schema) -> Literal["static", "dynamic"]:

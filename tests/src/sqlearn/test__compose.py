@@ -13,6 +13,7 @@ from sqlearn._compose import (
     Stage,
     _learn_sql,
     _markers,
+    apply_sql,
     build,
     copy_sql,
     describe,
@@ -498,7 +499,7 @@ class Share(sq.Step):
     rowwise = True
     static = True
 
-    def apply_row(self, xs, learned):
+    def apply_row(self, xs, learned, values):
         """Write each share, then the total."""
         total = sq.fn.const(0.0)
         for x in xs.values():
@@ -542,7 +543,7 @@ def test_a_rowwise_step_learns_per_column(con):
         def learn(self, x):
             return {"mean": sq.agg.mean(x)}
 
-        def apply_row(self, xs, learned):
+        def apply_row(self, xs, learned, values):
             return {c: x - learned[c].mean for c, x in xs.items()}
 
     con.sql(
@@ -553,3 +554,42 @@ def test_a_rowwise_step_learns_per_column(con):
     assert stage.learned == {"v0": ("a", "mean"), "v1": ("b", "mean")}
     _, rel, _ = produce(con, "SELECT * FROM r", [stage])
     assert rel.fetchall() == [(-1.0, -10.0), (1.0, 10.0)]
+
+
+class RowTotal(sq.Step):
+    """Divide each value by the row's total, computed once as a row value."""
+
+    rowwise = True
+    static = True
+
+    def learn(self, x):
+        """Learn the mean."""
+        return {"mean": sq.agg.mean(x)}
+
+    def row_values(self, xs, learned):
+        """The total of the centred values, once per row."""
+        terms = [x - learned[c].mean for c, x in xs.items()]
+        return {"total": sum(terms, sq.fn.const(0.0))}
+
+    def apply_row(self, xs, learned, values):
+        """Divide by the total."""
+        return {c: x / values["total"] for c, x in xs.items()}
+
+
+def test_row_values_are_computed_once_in_a_projection_of_their_own(con):
+    """A row value is one column of the row projection, read by every output."""
+    schema = [("a", DOUBLE), ("__row_0", DOUBLE)]
+    stage = step_stage(1, "total", RowTotal(["a", "__row_0"]), schema, SOURCE)
+    assert list(stage.row) == ["___row_0"]
+    assert list(stage.columns) == ["a", "__row_0"]
+    assert str(stage.columns["a"]).count("___row_0") == 1
+    sql = build("SELECT * FROM r", [stage])
+    assert '"r01_total" AS "source"' in sql
+    assert "___row_0" in apply_sql(stage)
+    con.sql(
+        "CREATE TABLE r AS SELECT * FROM "
+        "(VALUES (1.0::DOUBLE, 2.0::DOUBLE), (3.0, 6.0)) v(a, __row_0)"
+    )
+    _, rel, _ = produce(con, "SELECT * FROM r", [stage])
+    # Means 2 and 4: the totals are -3 and 3.
+    assert rel.fetchall() == [(-1 / 3, -2 / 3), (1.0, 2.0)]

@@ -210,7 +210,7 @@ class RowNeedsValues(sq.Step):
         """Learn the distinct values."""
         return {"cities": sq.agg.distinct(x)}
 
-    def apply_row(self, xs, learned):
+    def apply_row(self, xs, learned, values):
         """Loop over them."""
         return {c: x for n, x in xs.items() for c in learned[n].cities}
 
@@ -221,7 +221,7 @@ class RowRaises(sq.Step):
     rowwise = True
     static = True
 
-    def apply_row(self, xs, learned):
+    def apply_row(self, xs, learned, values):
         """Fail."""
         raise ValueError("cannot do this")
 

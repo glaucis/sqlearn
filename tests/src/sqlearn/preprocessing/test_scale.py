@@ -1,6 +1,7 @@
 """Tests of sq.scale against scikit-learn's Standard, Robust, MinMax, MaxAbs scalers."""
 
 import pickle
+import time
 from typing import Any
 
 import duckdb
@@ -656,7 +657,7 @@ def test_normalize_declares_a_whole_row_static_step():
     }  # fmt: skip
     assert step.default_name() == "normalize"
     assert step.learn(duckdb.ColumnExpression("a")) == {}
-    assert step.apply_row({}, {}) == {}
+    assert step.apply_row({}, {}, {}) == {}
     with pytest.raises(SqlearnError, match=r"Scale got method='normalize'"):
         Scale(method="normalize")
     assert "normalize" in dir(sq.scale)
@@ -709,3 +710,16 @@ def test_a_step_after_normalize_depends_on_every_input_s_producer():
         for factor in (2.0, 3.0)
     ]
     assert centres[0] != centres[1]
+
+
+@pytest.mark.parametrize("norm", ["l1", "l2", "max"])
+def test_normalize_over_200_columns_is_quick_and_matches_sklearn(norm):
+    """The norm is computed once per row, so wide tables stay fast (linear SQL)."""
+    rng = np.random.default_rng(4)
+    frame = pd.DataFrame(rng.normal(size=(1000, 200))).add_prefix("c")
+    start = time.perf_counter()
+    rel = sq.Pipeline([sq.scale.normalize(norm=norm)]).learn(frame).apply(frame)
+    got = rel.df().to_numpy()
+    assert time.perf_counter() - start < 10
+    assert len(rel.sql_query()) < 1_000_000
+    assert_allclose(got, Normalizer(norm=norm).fit_transform(frame), rtol=1e-13)

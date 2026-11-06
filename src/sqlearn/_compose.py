@@ -30,7 +30,7 @@ from sqlearn._errors import InternalError, SqlearnError, StepError
 from sqlearn._expr import MODE, QUANTILE, quote
 from sqlearn._names import name_columns
 from sqlearn._selectors import Schema
-from sqlearn._step import Learned, Step, output_labels
+from sqlearn._step import Learned, Step, apply_rows, output_labels
 
 __all__ = [
     "SOURCE",
@@ -112,6 +112,10 @@ class Stage:
     created : dict of str to list of str
         Input column to the names of the columns created from it, in order;
         fixed when the step learns and given back to `step_stage` at apply.
+    row : dict of str to duckdb.Expression
+        Internal name to a value a whole-row step computes once per row
+        (`Step.row_values`), in a projection named `row_name` before the
+        data stage, which reads it under the name of the stage before.
 
     Examples
     --------
@@ -135,6 +139,24 @@ class Stage:
     step: str = ""
     position: int = 0
     created: dict[str, list[str]] = field(default_factory=dict)
+    row: dict[str, Expression] = field(default_factory=dict)
+
+    @property
+    def row_name(self) -> str:
+        """The row-values projection's name: the data stage's, with ``r``.
+
+        Returns
+        -------
+        str
+            ``r03_normalize`` for the data stage ``s03_normalize``.
+
+        Examples
+        --------
+        >>> from sqlearn._compose import Stage
+        >>> Stage("s03_normalize", {}).row_name
+        'r03_normalize'
+        """
+        return "r" + self.name[1:]
 
     @property
     def learn_name(self) -> str:
@@ -277,7 +299,12 @@ def step_stage(
     # `owner` holds the input column of each output to name.
     out: list[tuple[str | tuple[str, str], Expression]] = []
     owner: list[str] = []
-    rows = _row_outputs(step, step_name, exprs, per_column) if applies else {}
+    row: dict[str, Expression] = {}
+    rows = (
+        _row_outputs(step, step_name, exprs, per_column, previous, row)
+        if applies
+        else {}
+    )
     for c, _ in schema:
         if c not in per_column or not applies:
             out.append((c, exprs[c]))
@@ -321,6 +348,7 @@ def step_stage(
         step=step_name,
         position=position,
         created=created,
+        row=row,
     )
 
 
@@ -329,17 +357,34 @@ def _row_outputs(
     step_name: str,
     exprs: Mapping[str, Expression],
     per_column: Mapping[str, Learned],
+    previous: str,
+    row: dict[str, Expression],
 ) -> dict[str, list[tuple[tuple[str, str], Expression]]]:
     """Call a whole-row step's `apply_row`; place each output by its owner.
 
-    An output named after a selected column belongs to it; any other to the
-    last selected column. Each is planned as ``(name, label)``: the label is
-    ``""``, or the suffix (or step name) with `keep` when names are labels.
+    The step's row values go into `row` under internal names no column
+    reaching the step has, and `apply_row` reads them as columns of
+    `previous` (the row projection is read under that name). An output named
+    after a selected column belongs to it; any other to the last selected
+    column. Each is planned as ``(name, label)``: the label is ``""``, or the
+    suffix (or step name) with `keep` when names are labels.
     """
     if not step.rowwise or not per_column:
         return {}
     xs = {c: exprs[c] for c in per_column}
-    result = step.apply_row(xs, per_column)
+    used = {c.lower() for c in exprs}
+    internal: list[str] = []
+
+    def refer(i: int, _: str) -> Expression:
+        name = f"__row_{i}"
+        while name.lower() in used:
+            name = f"_{name}"
+        used.add(name.lower())
+        internal.append(name)
+        return duckdb.ColumnExpression(previous, name)
+
+    values, result = apply_rows(step, xs, per_column, refer)
+    row.update(zip(internal, values.values(), strict=True))
     label = (step.suffix or step_name) if step.keep and step.names_are_labels else ""
     last = list(per_column)[-1]
     placed: dict[str, list[tuple[tuple[str, str], Expression]]] = {}
@@ -436,6 +481,8 @@ def apply_sql(stage: Stage) -> str:
     >>> apply_sql(Stage("s01_double", {"a": duckdb.ColumnExpression("a") * 2}))
     'SELECT ("a" * 2) AS "a"'
     """
+    if stage.row:
+        return f"SELECT {_items(stage.columns)} FROM (SELECT *, {_items(stage.row)})"
     return f"SELECT {_items(stage.columns)}"
 
 
@@ -742,9 +789,18 @@ def _chain(source_sql: str, stages: list[Stage], every_learn: bool) -> list[str]
         if stage.learn and (every_learn or stage.learn_name in read):
             ctes.extend(_learn_ctes(stage, stage.learn, previous))
         joins = "".join(f" CROSS JOIN {quote(r)}" for r in stage.reads)
+        reads = quote(previous)
+        if stage.row:
+            # The row values, computed once per row, then read under the
+            # previous stage's name, so the outputs' references still hold.
+            ctes.append(
+                f"{quote(stage.row_name)} AS (SELECT {quote(previous)}.*, "
+                f"{_items(stage.row)} FROM {quote(previous)}{joins})",
+            )
+            reads = f"{quote(stage.row_name)} AS {quote(previous)}"
         ctes.append(
             f"{quote(stage.name)} AS "
-            f"(SELECT {_items(stage.columns)} FROM {quote(previous)}{joins})",
+            f"(SELECT {_items(stage.columns)} FROM {reads}{joins})",
         )
         previous = stage.name
     return ctes

@@ -279,7 +279,7 @@ class Total(sq.Step):
     static = True
     creates = DOUBLE
 
-    def apply_row(self, xs, learned):
+    def apply_row(self, xs, learned, values):
         """Write each share, then the total."""
         total = sum(xs.values(), sq.fn.const(0.0))
         return {**{c: x / total for c, x in xs.items()}, "total": total}

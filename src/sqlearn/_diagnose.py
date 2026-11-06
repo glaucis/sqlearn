@@ -12,7 +12,7 @@ from types import TracebackType
 import duckdb
 
 from sqlearn._errors import InternalError, SqlearnError, StepError
-from sqlearn._step import Learned, Step
+from sqlearn._step import Learned, Step, apply_rows
 
 __all__ = ["diagnose"]
 
@@ -37,7 +37,7 @@ def _versions() -> str:
 
 
 def _method(tb: TracebackType | None, step: Step) -> str:
-    """Name the step's method (learn, apply or apply_row) the traceback went through."""
+    """Name the step's method (learn, apply, ...) the traceback went through."""
     found = "learn or apply"
     while tb is not None:
         code = tb.tb_frame.f_code.co_name
@@ -65,7 +65,7 @@ def _needs_values(step: Step) -> tuple[str, BaseException] | None:
         return None
     try:
         if step.rowwise:
-            step.apply_row({"x": x}, {"x": learned})
+            apply_rows(step, {"x": x}, {"x": learned}, lambda _, n: x)
         else:
             step.apply(x, learned)
     except Exception as exc:  # noqa: BLE001  (any failure of apply is the signal)

@@ -649,10 +649,63 @@ class Normalize(Step):
             self.cols, schema, "normalize", "normalizing divides by the row's norm"
         )
 
+    def row_values(
+        self,
+        xs: Mapping[str, Expression],
+        learned: Mapping[str, Learned],
+    ) -> Mapping[str, Expression]:
+        """Compute the row's norm once, refusing a missing or infinite value.
+
+        Parameters
+        ----------
+        xs : mapping of str to duckdb.Expression
+            The selected columns, by name.
+        learned : mapping of str to Learned
+            Unused: the step learns nothing.
+
+        Returns
+        -------
+        mapping of str to duckdb.Expression
+            ``norm``: the sum (``l1``, ``l2``, as a list sum, so the
+            expression stays shallow however many columns there are) or the
+            largest (``max``) of each value's size. Each column's value is
+            checked once, inside its own term; nothing when no column is
+            selected.
+
+        Examples
+        --------
+        >>> import duckdb
+        >>> import sqlearn as sq
+        >>> xs = {"a": duckdb.ColumnExpression("a")}
+        >>> list(sq.scale.normalize().row_values(xs, {}))
+        ['norm']
+        """
+        terms: list[Expression] = []
+        for name, x in xs.items():
+            v = x.cast("DOUBLE")
+            size = v * v if self.norm == "l2" else duckdb.FunctionExpression("abs", v)
+            terms.append(
+                duckdb.CaseExpression(is_missing(x), _refusal(name, *_MISSING))
+                .when(duckdb.FunctionExpression("isinf", v), _refusal(name, *_INFINITE))
+                .otherwise(size),
+            )
+        empty: dict[str, Expression] = {}
+        if not terms:
+            return empty
+        if self.norm == "max":
+            return {"norm": duckdb.FunctionExpression("greatest", *terms)}
+        total = duckdb.FunctionExpression(
+            "list_sum", duckdb.FunctionExpression("list_value", *terms)
+        )
+        if self.norm == "l2":
+            total = duckdb.FunctionExpression("sqrt", total)
+        return {"norm": total}
+
     def apply_row(
         self,
         xs: Mapping[str, Expression],
         learned: Mapping[str, Learned],
+        values: Mapping[str, Expression],
     ) -> Mapping[str, Expression]:
         """Divide each selected value by the row's norm.
 
@@ -662,6 +715,9 @@ class Normalize(Step):
             The selected columns, by name.
         learned : mapping of str to Learned
             Unused: the step learns nothing.
+        values : mapping of str to duckdb.Expression
+            The reference to the row's ``norm`` (`row_values`); when it is
+            empty, the norm is written into each output.
 
         Returns
         -------
@@ -674,36 +730,18 @@ class Normalize(Step):
         >>> import duckdb
         >>> import sqlearn as sq
         >>> xs = {"a": duckdb.ColumnExpression("a")}
-        >>> list(sq.scale.normalize().apply_row(xs, {}))
+        >>> list(sq.scale.normalize().apply_row(xs, {}, {}))
         ['a']
         """
-        checked: dict[str, Expression] = {}
-        for name, x in xs.items():
-            v = x.cast("DOUBLE")
-            isinf = duckdb.FunctionExpression("isinf", v)
-            checked[name] = (
-                duckdb.CaseExpression(is_missing(x), _refusal(name, *_MISSING))
-                .when(isinf, _refusal(name, *_INFINITE))
-                .otherwise(v)
-            )
-        if not checked:
-            return checked
-        sizes = [duckdb.FunctionExpression("abs", v) for v in checked.values()]
-        if self.norm == "max":
-            norm = duckdb.FunctionExpression("greatest", *sizes)
-        else:
-            parts = sizes if self.norm == "l1" else [v * v for v in checked.values()]
-            norm = parts[0]
-            for part in parts[1:]:
-                norm = norm + part
-            if self.norm == "l2":
-                norm = duckdb.FunctionExpression("sqrt", norm)
+        if not xs:
+            return dict(xs)
+        norm = (values or self.row_values(xs, learned))["norm"]
         # As scikit-learn's _handle_zeros_in_scale: a norm at the level of
         # rounding counts as 1, so the row is left as it is.
         divisor = duckdb.CaseExpression(norm < const(10 * EPS), const(1.0)).otherwise(
             norm
         )
-        return {name: v / divisor for name, v in checked.items()}
+        return {name: x.cast("DOUBLE") / divisor for name, x in xs.items()}
 
 
 class _Columns(TypedDict, total=False):

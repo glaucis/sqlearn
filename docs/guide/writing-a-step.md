@@ -147,7 +147,8 @@ dict; they are numbered in the order given.
 
 Some outputs need several columns of the same row: dividing each value by the
 row's norm, or multiplying columns together. Such a step sets
-`rowwise = True` and defines `apply_row(xs, learned)` instead of `apply`.
+`rowwise = True` and defines `apply_row(xs, learned, values)` instead of
+`apply`.
 `xs` holds every selected column at once, by name, and `learned` holds each
 column's learned values by the same name; `learn` stays per column. It
 returns a dict of output columns, which replace the selected ones.
@@ -160,7 +161,7 @@ class Share(sq.Step):
     def __init__(self, cols=sq.cols.numeric(), keep=False, suffix=None):
         super().__init__(cols, keep, suffix)
 
-    def apply_row(self, xs, learned):
+    def apply_row(self, xs, learned, values):
         total = sum(xs.values(), sq.fn.const(0.0))
         return {name: x / total for name, x in xs.items()}
 
@@ -173,7 +174,27 @@ An output named after a selected column takes its place (with `keep=True`,
 `a_share` comes beside `a`); any other name follows the last selected column.
 Names are given by the same rule as above. Since each output reads the whole
 row, a later step reading any one of them depends on every selected column,
-and on the steps that made them. `sq.scale.normalize` is built this way.
+and on the steps that made them.
+
+A value every output shares, such as the row's total above, is written into
+each output, so the SQL grows with the square of the number of columns. To
+compute it once per row instead, return it from `row_values(xs, learned)`:
+sqlearn computes it in a projection before the outputs, and `values` holds a
+reference to it by name (`values` is empty for a step without row values).
+
+```{code-cell} python
+class OnceShare(Share):
+    def row_values(self, xs, learned):
+        return {"total": sum(xs.values(), sq.fn.const(0.0))}
+
+    def apply_row(self, xs, learned, values):
+        return {name: x / values["total"] for name, x in xs.items()}
+
+
+sq.Pipeline([OnceShare()]).learn(parts).apply(parts)
+```
+
+`sq.scale.normalize` is built this way, computing each row's norm once.
 
 ## Placeholders
 
