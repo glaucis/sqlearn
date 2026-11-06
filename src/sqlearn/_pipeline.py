@@ -629,13 +629,19 @@ class Pipeline:
         columns_out: list[str],
         stages: list[Stage],
     ) -> None:
-        """Keep what the steps learned; called last, once everything succeeded."""
-        for (_, step), entry in zip(steps, known, strict=True):
-            step._set_learned(_by_column(entry.values))
+        """Keep what the steps learned; called last, once everything succeeded.
+
+        Then each step hears what it learned (`Step.learned`), once.
+        """
+        learned = [_by_column(entry.values) for entry in known]
+        for (_, step), values in zip(steps, learned, strict=True):
+            step._set_learned(values)
         self._entries = known
         self._types = types
         self._names = [stage.created for stage in stages]
         self._columns_out = columns_out
+        for (_, step), values in zip(steps, learned, strict=True):
+            step.learned(values)
 
     def _learn_run(
         self,

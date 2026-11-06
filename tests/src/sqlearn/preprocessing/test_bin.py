@@ -8,6 +8,7 @@ import pandas as pd
 import pytest
 from duckdb.sqltypes import DOUBLE
 from numpy.testing import assert_array_equal
+from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import Binarizer, KBinsDiscretizer
 
 import sqlearn as sq
@@ -397,3 +398,52 @@ def test_a_step_after_bin_learns_from_its_bins_in_the_same_run(method):
     assert len(pipe.runs_) == 1
     assert pipe["minmax"].center_ == {"a": expected.min()}
     assert pipe["minmax"].scale_ == {"a": expected.max() - expected.min()}
+
+
+def bin_warnings(run):
+    """Return the SqlearnWarnings `run` issues, every one recorded."""
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        run()
+    return [w for w in caught if issubclass(w.category, SqlearnWarning)]
+
+
+@pytest.mark.parametrize(
+    "values",
+    [[0.0] * 6 + [1.0, 2.0, 3.0, 4.0], [3.0] * 10],
+    ids=["merged", "constant"],
+)
+def test_the_warning_comes_once_per_learn_and_never_on_apply(values):
+    """One warning per learn or train, a store hit included; none on apply."""
+    frame = pd.DataFrame({"x": values, "y": [0, 1] * 5})
+    pipe = sq.Pipeline([sq.bin.quantile("x", n=5)])
+    caught = bin_warnings(lambda: pipe.learn(frame))
+    assert len(caught) == 1
+    assert caught[0].filename == __file__
+    assert bin_warnings(lambda: pipe.apply(frame).fetchall()) == []
+    assert len(bin_warnings(lambda: pipe.learn(frame))) == 1
+    fresh = sq.Pipeline([sq.bin.quantile("x", n=5)])
+    assert len(bin_warnings(lambda: fresh.learn(frame))) == 1
+    model = sq.Pipeline([sq.bin.quantile("x", n=5), LogisticRegression()])
+    caught = bin_warnings(lambda: model.train(frame, target="y"))
+    assert len(caught) == 1
+    assert caught[0].filename == __file__
+    assert bin_warnings(lambda: model.predict(frame, out="numpy")) == []
+
+
+def test_no_warning_when_every_bin_is_there():
+    """A column with all its bins says nothing."""
+    frame = data()
+    assert bin_warnings(lambda: sq.Pipeline([sq.bin.quantile()]).learn(frame)) == []
+
+
+def test_a_search_warns_once_for_its_final_training_not_per_fold():
+    """The folds learn without a word; the final training warns once."""
+    rng = np.random.default_rng(0)
+    x = np.r_[np.zeros(30), rng.normal(5, 1, 30)]
+    frame = pd.DataFrame({"x": x, "id": np.arange(60.0), "y": (x > 0).astype(int)})
+    pipe = sq.Pipeline([("bin", sq.bin.quantile("x")), LogisticRegression()])
+    search = sq.Search(pipe, params={"bin__n": [3, 4]}, folds=sq.KFold(2))
+    caught = bin_warnings(lambda: search.train(frame, target="y"))
+    assert len(caught) == 1
+    assert caught[0].filename == __file__

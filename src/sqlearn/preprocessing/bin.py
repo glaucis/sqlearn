@@ -9,6 +9,7 @@ import itertools
 import math
 import warnings
 from collections.abc import Mapping, Sequence
+from pathlib import Path
 from typing import TypedDict, Unpack, cast
 
 import duckdb
@@ -43,6 +44,9 @@ _QUANTILE_METHOD = "averaged_inverted_cdf"
 """The quantile method of scikit-learn 1.9's ``KBinsDiscretizer``."""
 
 _WHY_NUMBERS = "binning compares each value with numbers"
+
+_PACKAGE = (str(Path(__file__).parents[1]),)
+"""sqlearn's own files: a warning is placed at the first frame outside them."""
 
 
 def _fn(name: str, *args: Expression) -> Expression:
@@ -312,12 +316,6 @@ class Bin(Step):
         StepError
             If every value of the column was missing, or any is infinite.
 
-        Warns
-        -----
-        SqlearnWarning
-            If the column has fewer bins than asked for: edges were merged
-            away, or the column is constant.
-
         Examples
         --------
         >>> import duckdb
@@ -332,7 +330,6 @@ class Bin(Step):
         refuse_infinite(x, learned, "infinite")
         edges = learned.edges
         if isinstance(edges, list):
-            self._warn_fewer(x, edges)
             bounds = [const(float(e)) for e in edges]
         else:
             # Placeholders: the edges are a list in the learn stage, at most
@@ -351,26 +348,45 @@ class Bin(Step):
         keep_null = duckdb.CaseExpression(is_missing(x), const(None))
         return keep_null.otherwise(index).cast(INTEGER)
 
-    def _warn_fewer(self, x: Expression, edges: list[float]) -> None:
-        """Warn when a column has fewer bins than asked for, as scikit-learn.
+    def learned(self, values: Mapping[str, Mapping[str, object]]) -> None:
+        """Warn of each column with fewer bins than asked for, as scikit-learn.
 
-        Only when the edges are new to the step: it warns as it learns them,
-        as scikit-learn's ``fit`` does, not again on each later apply.
+        Called once per ``learn`` or ``train``, as scikit-learn's ``fit``
+        warns: edges were merged away, or the column is constant.
+
+        Parameters
+        ----------
+        values : mapping of str to mapping of str to object
+            Column, then learned name, to the value learned.
+
+        Warns
+        -----
+        SqlearnWarning
+            For each column with fewer than `n` bins, naming it.
+
+        Examples
+        --------
+        >>> import warnings
+        >>> import sqlearn as sq
+        >>> with warnings.catch_warnings(record=True) as caught:
+        ...     warnings.simplefilter("always")
+        ...     sq.bin.uniform(n=3).learned({"x": {"edges": []}})
+        >>> str(caught[0].message).startswith("sq.bin: column 'x' has 1 bin, not 3")
+        True
         """
-        bins = len(edges) + 1
-        known = cast(
-            "dict[str, dict[str, object]]", self.__dict__.get("_learned") or {}
-        )
-        if bins >= self.n or known.get(x.get_name(), {}).get("edges") == edges:
-            return
-        noun = "bin" if bins == 1 else "bins"
-        text = (
-            f"sq.bin.{self.method}: column {x.get_name()!r} has {bins} {noun}, "
-            f"not {self.n}. Why: bins of width 1e-8 or less are merged away, "
-            "as scikit-learn merges them, and a constant column has one bin. "
-            "Fix: ask for fewer bins, or bin the column uniformly."
-        )
-        warnings.warn(text, SqlearnWarning, stacklevel=4)
+        for column, learned in values.items():
+            edges = learned.get("edges")
+            if not isinstance(edges, list) or len(edges) + 1 >= self.n:
+                continue
+            bins = len(edges) + 1
+            noun = "bin" if bins == 1 else "bins"
+            text = (
+                f"sq.bin: column {column!r} has {bins} {noun}, not {self.n}. "
+                f"Why: {self.method} bins of width 1e-8 or less are merged "
+                "away, as scikit-learn merges them, and a constant column has "
+                "one bin. Fix: ask for fewer bins, or bin the column uniformly."
+            )
+            warnings.warn(text, SqlearnWarning, skip_file_prefixes=_PACKAGE)
 
 
 class Binarize(Step):

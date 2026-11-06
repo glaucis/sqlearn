@@ -818,3 +818,21 @@ def test_a_column_named_as_the_target_aside_is_refused():
     frame = target_frame().assign(__sqlearn_target=1.0)
     with pytest.raises(sq.errors.SqlearnError, match="__sqlearn_target"):
         sq.Pipeline([_TargetStep(), Echo()]).train(frame, target="y")
+
+
+def test_each_step_hears_what_it_learned_once_per_learn(people):
+    """`Step.learned` is called once per learn, a store hit too, never on apply."""
+    heard = []
+
+    class Heard(MyScale):
+        def learned(self, values):
+            heard.append(values)
+
+    pipe = sq.Pipeline([("scale", Heard(cols=["age"]))])
+    pipe.learn(people)
+    assert heard == [{"age": {"mean": MEAN, "scale": pytest.approx(SD)}}]
+    pipe.apply(people).fetchall()
+    assert len(heard) == 1
+    pipe.learn(people)
+    assert len(heard) == 2
+    assert heard[1] == heard[0]

@@ -66,8 +66,11 @@ pipe["scale"].mean_, pipe["scale"].scale_
 ```
 
 After learning, each learned value is readable as the step's attribute named
-after it with `_` added: `pipe["scale"].mean_` is a dict of column to value.
-Applying gives a lazy DuckDB relation:
+after it with `_` added: `pipe["scale"].mean_` is a dict of column to value. To
+say something about what was learned, such as a warning, override
+`learned(values)`: it is called once per `learn` or `train`, with the values by
+column, whether they were computed or found in the store. Applying gives a lazy
+DuckDB relation:
 
 ```{code-cell} python
 pipe.apply(data)

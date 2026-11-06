@@ -1472,6 +1472,12 @@
     },
     {
       "area": "sqlearn/preprocessing/bin",
+      "name": "tests/src/sqlearn/preprocessing/test_bin.py::test_a_search_warns_once_for_its_final_training_not_per_fold",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/bin",
       "name": "tests/src/sqlearn/preprocessing/test_bin.py::test_a_step_after_bin_learns_from_its_bins_in_the_same_run[quantile]",
       "outcome": "passed",
       "tier": "fast"
@@ -1910,6 +1916,12 @@
     },
     {
       "area": "sqlearn/preprocessing/bin",
+      "name": "tests/src/sqlearn/preprocessing/test_bin.py::test_no_warning_when_every_bin_is_there",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/bin",
       "name": "tests/src/sqlearn/preprocessing/test_bin.py::test_null_and_nan_stay_null_and_are_left_out_of_learning[quantile]",
       "outcome": "passed",
       "tier": "fast"
@@ -1959,6 +1971,18 @@
     {
       "area": "sqlearn/preprocessing/bin",
       "name": "tests/src/sqlearn/preprocessing/test_bin.py::test_the_steps_pickle",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/bin",
+      "name": "tests/src/sqlearn/preprocessing/test_bin.py::test_the_warning_comes_once_per_learn_and_never_on_apply[constant]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/bin",
+      "name": "tests/src/sqlearn/preprocessing/test_bin.py::test_the_warning_comes_once_per_learn_and_never_on_apply[merged]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -4011,6 +4035,12 @@
     {
       "area": "sqlearn/_pipeline",
       "name": "tests/src/sqlearn/test__pipeline.py::test_each_input_is_read_once",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_each_step_hears_what_it_learned_once_per_learn",
       "outcome": "passed",
       "tier": "fast"
     },

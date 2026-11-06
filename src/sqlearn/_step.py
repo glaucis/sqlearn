@@ -435,6 +435,27 @@ class Step:
         """
         return "step"
 
+    def learned(self, values: Mapping[str, Mapping[str, object]]) -> None:
+        """Hear what the step learned, once per ``learn`` or ``train``.
+
+        The pipeline calls it once for each ``learn`` or ``train`` (and for a
+        search's final training, not for each fold), after the values are
+        known and kept on the step, whether computed or found in the store.
+        Override it to say something about them, such as a warning; it
+        changes nothing. The default does nothing.
+
+        Parameters
+        ----------
+        values : mapping of str to mapping of str to object
+            Column, then learned name, to the value learned.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> sq.Step().learned({"a": {"mean": 2.0}}) is None
+        True
+        """
+
     def settings(self) -> dict[str, object]:
         """Return the ``__init__`` parameters with their current values.
 
