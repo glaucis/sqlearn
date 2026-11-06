@@ -129,6 +129,14 @@ You may declare it with a class attribute, `static = True` or `dynamic = True`,
 and sqlearn trusts you. Or leave both out, and sqlearn finds out before the
 first run.
 
+A dynamic step replaces its inputs, as the encoder above replaces `city`: the
+steps after it no longer see them. One whose `apply` writes each input again
+under its own name (the label `""`), of the same kind (numbers stay numbers,
+text stays text), declares `keeps_inputs = True`. `sq.impute.indicator` is
+one: it passes `city` through and adds `city_missing`. The steps after it
+then see `city` too, once the indicator has learned, so a later
+`sq.encode.onehot()` still encodes it.
+
 (names-of-new-columns)=
 
 ## Names of new columns

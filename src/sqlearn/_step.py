@@ -188,6 +188,13 @@ class Step:
         `static` and `dynamic` as True is refused.
     creates : DuckDBPyType or None
         The type of the columns a dynamic step creates.
+    keeps_inputs : bool
+        True for a dynamic step whose outputs include each input under its
+        own name (the label ``""``), of the same kind (numbers stay numbers,
+        text stays text), as ``sq.impute.indicator`` passes its inputs
+        through: they are not taken away, and a later step reading them
+        waits for the run after it learns. False (the default) for a dynamic
+        step that replaces its inputs, as a one-hot encoder does.
     changes_rows : bool
         True for a step that changes the rows (a filter, sampling); every
         later step then depends on it. No step does yet.
@@ -228,6 +235,7 @@ class Step:
     static: bool | None = None
     dynamic: bool | None = None
     creates: DuckDBPyType | None = None
+    keeps_inputs: bool = False
     changes_rows: ClassVar[bool] = False
     names_are_labels: ClassVar[bool] = True
     rowwise: ClassVar[bool] = False

@@ -478,3 +478,39 @@ def test_infinity_is_refused(value):
     pipe = sq.Pipeline([("fill", sq.impute(value=value))])
     with pytest.raises(StepError, match=r"fill \(step 1\).*'a'.*infinity"):
         pipe.learn(frame)
+
+
+def test_later_steps_see_the_columns_the_indicator_keeps():
+    """The indicator keeps its inputs, so a later step by type still reads them."""
+    frame = people()
+    pipe = sq.Pipeline([sq.impute.indicator("age", "city"), sq.encode.onehot()])
+    pipe.learn(frame)
+    assert pipe.columns_out_ == [
+        "age",
+        "age_missing",
+        "income",
+        "city_lima",
+        "city_oslo",
+        "city_rome",
+        "city_NULL",
+        "city_missing",
+    ]
+    every = sq.Pipeline([sq.impute.indicator(), sq.encode.onehot()]).learn(frame)
+    assert "city_oslo" in every.columns_out_
+    lower = sq.Pipeline([sq.impute.indicator("age", "city"), sq.transform.upper()])
+    got = lower.learn(frame).apply(frame, out="pandas")
+    assert got["city"].dropna().tolist() == ["OSLO", "ROME", "OSLO", "LIMA"]
+
+
+def test_later_steps_see_the_columns_filled_with_an_indicator():
+    """Filled with the indicator, the input is still there for a later step."""
+    frame = people()
+    pipe = sq.Pipeline([sq.impute.mode("city", indicator=True), sq.encode.onehot()])
+    assert pipe.learn(frame).columns_out_ == [
+        "age",
+        "income",
+        "city_lima",
+        "city_oslo",
+        "city_rome",
+        "city_missing",
+    ]

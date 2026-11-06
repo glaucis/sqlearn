@@ -333,10 +333,11 @@ def _after_unapplied(
     """Return the columns later steps of a run see past a step not applied.
 
     A dynamic step's inputs are gone once it applies, so the steps learning
-    now must not see them; a step learning from the target turns its inputs
-    into numbers, so they must not be seen as they were (text) either.
+    now must not see them, unless it keeps them (``keeps_inputs``); a step
+    learning from the target turns its inputs into numbers, so they must not
+    be seen as they were (text) either.
     """
-    if step.keep:
+    if step.keep or (dynamic and step.keeps_inputs):
         return schema
     if step.uses_target:
         return [(c, DOUBLE if c in inputs else t) for c, t in schema]

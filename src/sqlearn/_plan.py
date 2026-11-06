@@ -145,7 +145,9 @@ def plan(steps: Sequence[tuple[str, Step]], schema: Schema) -> Plan:
     depends on the step that took it away, and on what that step depends on.
     Every output of a whole-row step (``rowwise``) reads every input it
     selected; its outputs are named as the compositor names them, or unknown
-    when its inputs or outputs are not known before it learns. A step that
+    when its inputs or outputs are not known before it learns. A dynamic
+    step that keeps its inputs (``keeps_inputs``) takes none away: each is
+    there again, of its kind, from the run after it learns. A step that
     learns from the target (``uses_target``) ends its run, as a dynamic step
     does: in training, the rows reaching a later step take their values from
     what it learned on their inner fold's complement, known only once it has
@@ -294,6 +296,11 @@ def _write(
                 labelled.append(len(out))
                 new.append((len(out), label))
                 out.append(_Column(column, step.creates, ready, deps))
+        elif dynamic and step.keeps_inputs:
+            # It writes the input again, under its name and of its kind,
+            # once it has learned (sq.impute.indicator passes it through).
+            if not step.keep:
+                out.append(_Column(c.name, c.dtype, ready, deps))
         elif dynamic and not _consumes(step, c):
             # The step may read only part of an unknown group: the rest stays.
             if not step.keep:

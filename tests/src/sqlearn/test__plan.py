@@ -422,3 +422,23 @@ def test_a_default_step_waits_for_the_columns_a_dynamic_step_creates():
     """Unknown created columns may be chosen by a default: the step waits."""
     p = runs(sq.encode.onehot("city"), sq.scale.robust())
     assert (p.learn_run, p.depends_on[1]) == ([0, 1], frozenset({0}))
+
+
+def test_a_dynamic_step_keeping_its_inputs_writes_them_again():
+    """A dynamic step that keeps its inputs (``keeps_inputs``) leaves them.
+
+    They are there, under their names and of their kind, from the run after
+    it learns; a later step reading them waits for it.
+    """
+    settings = {"static": False, "creates": INTEGER, "keeps_inputs": True}
+    kind = type("Flags", (sq.Step,), settings)
+    p = runs(kind(cols="city"), static_step(sq.cols.string()))
+    assert (p.learn_run, p.depends_on[1]) == ([0, 1], frozenset({0}))
+    p = runs(kind(cols="city"), static_step(["name"]))
+    assert p.learn_run == [0, 0]
+
+
+def test_the_indicator_keeps_its_inputs():
+    """``sq.impute.indicator`` keeps its inputs, so a later onehot waits for it."""
+    p = runs(sq.impute.indicator("age", "city"), sq.encode.onehot())
+    assert (p.learn_run, p.depends_on[1]) == ([0, 1], frozenset({0}))

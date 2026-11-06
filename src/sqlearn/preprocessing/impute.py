@@ -246,6 +246,7 @@ class Impute(Step):
         self.indicator = indicator
         self.static = not indicator
         self.dynamic = indicator
+        self.keeps_inputs = indicator  # the filled (or unfilled) input stays
         self.creates = INTEGER if indicator else None
 
     def __getstate__(self) -> dict[str, object]:
