@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from sqlearn._inputs import DataKey
-from sqlearn._step import _FUNCTIONS, Step
+from sqlearn._step import Step, _by_identity, _setting_key
 
 __all__ = ["STORE", "Entry", "FoldKey", "StepKey", "Store", "step_key"]
 
@@ -31,10 +31,10 @@ def _freeze(value: object) -> object:
         return (type(value).__qualname__, value)
     if isinstance(value, (list, tuple)):
         return tuple(_freeze(v) for v in value)
-    if isinstance(value, _FUNCTIONS):
+    if _by_identity(value):
         module = getattr(value, "__module__", None)
         name = getattr(value, "__qualname__", type(value).__qualname__)
-        return (value, f"{module}.{name}")
+        return (_setting_key(value), f"{module}.{name}")
     return repr(value)
 
 
@@ -55,7 +55,8 @@ def step_key(
     class object itself (so a redefined class gets a new key) beside its dotted
     path. Settings are sorted by name; plain values are kept with their type
     (so ``True`` and ``1`` differ), selectors and models by their ``repr``,
-    lists as tuples.
+    lists as tuples; functions and objects with the default ``repr`` (an
+    address, reusable once they are collected) by themselves.
 
     Parameters
     ----------

@@ -1,5 +1,8 @@
 """Tests for the learning store and its keys."""
 
+import gc
+import weakref
+
 from steps_for_tests import MyEncoder, MyScale
 
 import sqlearn as sq
@@ -128,3 +131,34 @@ def test_redefining_a_lambda_relearns():
     two = sq.Step(apply=lambda x: x + 1, cols=["a"])
     assert key(one) != key(two)
     assert key(one) == key(one)
+
+
+class Doubler:
+    """A callable object with the default repr, which holds its address."""
+
+    def __call__(self, x):
+        """Double a column."""
+        return x * 2
+
+
+def test_a_callable_object_is_keyed_by_itself():
+    """A setting whose repr is the default one (an address) is keyed by itself.
+
+    The address may be reused once the object is collected, so a later
+    object could share the repr and find the first one's entry; the key holds
+    the object instead, which keeps it alive.
+    """
+
+    def key(fn):
+        return step_key(
+            DATA, None, [("x", sq.Step(apply=fn, cols=["a"]))], 0, frozenset()
+        )
+
+    first = Doubler()
+    kept = key(first)
+    held = weakref.ref(first)
+    del first
+    gc.collect()
+    assert held() is not None
+    assert kept != key(Doubler())
+    assert kept == key(held())

@@ -1,7 +1,9 @@
 """Tests of the step contract and its classification."""
 
 import copy
+import gc
 import pickle
+import weakref
 
 import duckdb
 import pytest
@@ -243,3 +245,25 @@ def test_a_step_from_a_module_level_function_pickles():
     assert back.settings()["apply"] is add_one
     out = sq.Pipeline([back]).learn(_data()).apply(_data(), out="numpy")
     assert out["a"].tolist() == [11.0, 21.0, 41.0]
+
+
+class Pairs:
+    """A callable object with the default repr, returning two columns."""
+
+    def __call__(self, x):
+        """Return two columns, so a step applying it is dynamic."""
+        return {"lo": x, "hi": x + 1}
+
+
+def test_a_callable_object_classifies_by_itself():
+    """A setting with the default repr (an address) keys ``KINDS`` by itself.
+
+    Keyed by its repr, a later object at the same address would take the
+    first one's answer; keyed by the object, it stays alive and distinct.
+    """
+    first = Pairs()
+    assert classify(sq.Step(apply=first, cols=["age"]), SCHEMA) == "dynamic"
+    held = weakref.ref(first)
+    del first
+    gc.collect()
+    assert held() is not None

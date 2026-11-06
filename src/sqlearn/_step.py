@@ -584,13 +584,40 @@ def _with_learned(
     return _DropLearned(fn) if len(positional) == 1 else fn
 
 
+class _Same:
+    """A setting compared by identity, keeping the object alive while keyed."""
+
+    __slots__ = ("value",)
+
+    def __init__(self, value: object) -> None:
+        self.value = value
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, _Same) and other.value is self.value
+
+    def __hash__(self) -> int:
+        return id(self.value)
+
+
+def _by_identity(value: object) -> bool:
+    """Whether a setting must be keyed by itself, not by its repr.
+
+    A function's repr, and the default repr of any object, hold an address
+    that can be reused once the object is collected: a later object could
+    share the repr. Aggregates and selectors have reprs of their own.
+    """
+    return isinstance(value, _FUNCTIONS) or type(value).__repr__ is object.__repr__
+
+
+def _setting_key(value: object) -> object:
+    """Return a setting's key: itself when keyed by identity, else its repr."""
+    if isinstance(value, _FUNCTIONS):
+        return value
+    return _Same(value) if _by_identity(value) else repr(value)
+
+
 def _key(step: Step) -> tuple[type, tuple[tuple[str, object], ...]]:
-    # A function is keyed by the object itself: its repr holds an address that
-    # can be reused once the function is collected.
-    return type(step), tuple(
-        (k, v if isinstance(v, _FUNCTIONS) else repr(v))
-        for k, v in step.settings().items()
-    )
+    return type(step), tuple((k, _setting_key(v)) for k, v in step.settings().items())
 
 
 def classify(step: Step, schema: Schema) -> Literal["static", "dynamic"]:
