@@ -6,7 +6,6 @@ import duckdb
 from duckdb import Expression
 from duckdb.sqltypes import INTEGER
 
-from sqlearn._errors import StepError
 from sqlearn._expr import const
 from sqlearn._selectors import Selector, _string
 from sqlearn._step import Learned, Step
@@ -38,6 +37,10 @@ class OneHot(Step):
     scikit-learn's ``OneHotEncoder(handle_unknown="ignore")`` does. NULL is
     its own category, named ``<column>_NULL``, only if NULL was seen when
     learning. Non-text values are named by their string form (``x_1``).
+    Names that clash, compared without regard to case, are numbered in sorted
+    order of their values, never refused: ``Oslo`` and ``oslo`` give
+    ``city_Oslo`` and ``city_oslo_2``; the text ``'NULL'`` beside a real NULL
+    gives ``city_NULL`` and ``city_NULL_2`` (ADR 0035).
 
     Parameters
     ----------
@@ -52,12 +55,6 @@ class OneHot(Step):
     ----------
     categories_ : dict of str to list
         After learning, the sorted distinct non-NULL values of each column.
-
-    Raises
-    ------
-    StepError
-        On learning, if a column holds the text ``'NULL'`` and also NULL, so
-        two new columns would share a name.
 
     Examples
     --------
@@ -108,7 +105,7 @@ class OneHot(Step):
             "has_null": duckdb.FunctionExpression("bool_or", x.isnull()),
         }
 
-    def apply(self, x: Expression, learned: Learned) -> Mapping[str, Expression]:
+    def apply(self, x: Expression, learned: Learned) -> list[tuple[str, Expression]]:
         """Build one 0/1 column per learned category.
 
         Parameters
@@ -120,14 +117,11 @@ class OneHot(Step):
 
         Returns
         -------
-        mapping of str to duckdb.Expression
-            ``<column>_<value>`` to an INTEGER 0/1 expression, plus
-            ``<column>_NULL`` when NULL was seen.
-
-        Raises
-        ------
-        StepError
-            If the text ``'NULL'`` is a category and NULL was also seen.
+        list of (str, duckdb.Expression)
+            Each value's label (its string form) and an INTEGER 0/1
+            expression, then the label ``NULL`` when NULL was seen; the
+            pipeline names them ``<column>_<label>``. A list of pairs, not a
+            mapping: the text ``'NULL'`` and a real NULL share a label.
 
         Examples
         --------
@@ -135,24 +129,16 @@ class OneHot(Step):
         >>> import sqlearn as sq
         >>> from sqlearn._step import Learned
         >>> learned = Learned.values({"categories": ["a", "b"], "has_null": False})
-        >>> list(sq.OneHot().apply(duckdb.ColumnExpression("c"), learned))
-        ['c_a', 'c_b']
+        >>> out = sq.OneHot().apply(duckdb.ColumnExpression("c"), learned)
+        >>> [label for label, _ in out]
+        ['a', 'b']
         """
-        column = x.get_name()
         categories = learned.categories
-        out: dict[str, Expression] = {}
+        out: list[tuple[str, Expression]] = []
         for value in categories if isinstance(categories, list) else []:
             hit = duckdb.CaseExpression(x == const(value), const(1))
-            out[f"{column}_{value}"] = hit.otherwise(const(0)).cast(INTEGER)
+            out.append((str(value), hit.otherwise(const(0)).cast(INTEGER)))
         if learned.raw("has_null") is True:
-            name = f"{column}_NULL"
-            if name in out:
-                msg = (
-                    f"cannot encode column {column!r}: it holds both NULL and "
-                    f"the text 'NULL', and both would be named {name!r}. Fix: "
-                    "replace one of them before this step."
-                )
-                raise StepError(msg, step="", position=0)
             hit = duckdb.CaseExpression(x.isnull(), const(1))
-            out[name] = hit.otherwise(const(0)).cast(INTEGER)
+            out.append(("NULL", hit.otherwise(const(0)).cast(INTEGER)))
         return out

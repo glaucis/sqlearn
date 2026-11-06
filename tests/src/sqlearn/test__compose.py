@@ -149,11 +149,39 @@ def test_keep_puts_the_output_beside_the_input(con):
     assert list(stage.columns) == ["age", "age_impute"]
 
 
-def test_duplicate_output_names_are_refused():
-    """Two output columns of one stage may not share a name."""
+def test_a_created_name_in_use_is_numbered():
+    """A created name taken by an input column is numbered; the input stays."""
     schema = [("age", DOUBLE), ("age_impute", DOUBLE)]
-    with pytest.raises(sq.errors.SqlearnError, match="age_impute"):
-        step_stage(1, "impute", FillZero("age", keep=True), schema, SOURCE)
+    stage = step_stage(1, "impute", FillZero("age", keep=True), schema, SOURCE)
+    assert list(stage.columns) == ["age", "age_impute_2", "age_impute"]
+
+
+def test_labels_name_the_created_columns():
+    """A mapping is keyed by labels; ``""`` is the input column itself."""
+
+    class Split(sq.Step):
+        def apply(self, x, learned):
+            return {"": x, "low": x - 1, "high": x + 1}
+
+    stage = step_stage(1, "split", Split("age"), SCHEMA, SOURCE)
+    assert list(stage.columns)[:3] == ["age", "age_low", "age_high"]
+
+
+def test_a_step_may_return_full_names():
+    """With names_are_labels False, the mapping's keys are the names."""
+
+    class Full(sq.Step):
+        names_are_labels = False
+
+        def apply(self, x, learned):
+            return {"a^2": x * x, "A^2": x}
+
+    stage = step_stage(1, "full", Full("age"), SCHEMA, SOURCE)
+    assert list(stage.columns)[:2] == ["a^2", "A^2_2"]
+
+
+def test_two_columns_of_one_stage_may_not_share_a_name():
+    """A stage built by hand with two equal names is refused."""
     col = duckdb.ColumnExpression("a")
     with pytest.raises(sq.errors.SqlearnError, match="s01_x"):
         build("t", [Stage("s01_x", {"a": col, "A": col})])

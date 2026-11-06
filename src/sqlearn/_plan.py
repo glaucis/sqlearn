@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from duckdb.sqltypes import DuckDBPyType
 
 from sqlearn._errors import StepError
+from sqlearn._names import name_columns
 from sqlearn._selectors import Schema, Selector, _Cols, to_selector
 from sqlearn._step import Step, classify
 
@@ -200,6 +201,7 @@ def _write(
     chosen = {id(c) for c in read}
     out: list[_Column] = []
     gone: list[_Column] = []
+    kept: list[int] = []  # where the new columns of a kept input go
     for c in columns:
         if id(c) not in chosen or step.keep:
             out.append(c)
@@ -211,8 +213,31 @@ def _write(
         else:
             gone.append(_Column(c.name, c.dtype, ready, deps))
         if id(c) in chosen and step.keep and not dynamic:
-            name = None if c.name is None else f"{c.name}_{step.suffix or step_name}"
-            out.append(_Column(name, c.dtype, ready, deps))
+            kept.append(len(out))
+            out.append(_Column(c.name, c.dtype, ready, deps))
+    _name_kept(out, kept, step.suffix or step_name)
     if dynamic and read:
         out.append(_Column(None, step.creates, ready, deps))
     return out, gone
+
+
+def _name_kept(out: list[_Column], kept: list[int], label: str) -> None:
+    """Name the new columns of kept inputs as the compositor will.
+
+    The names follow `name_columns`, so a name in use is numbered. If an
+    unknown column is present it might hold the name, so the new columns are
+    left unknown too.
+    """
+    if not kept:
+        return
+    new = set(kept)
+    known = [c.name for i, c in enumerate(out) if i not in new]
+    columns = [out[i].name for i in kept]
+    names: list[str | None] = [None] * len(kept)
+    if None not in known and None not in columns:
+        planned = [(name, label) for name in columns if name is not None]
+        taken = [name for name in known if name is not None]
+        names = list(name_columns(planned, taken))
+    for i, name in zip(kept, names, strict=True):
+        c = out[i]
+        out[i] = _Column(name, c.dtype, c.ready, c.deps)

@@ -144,27 +144,30 @@ def test_keep_adds_a_named_column(people):
     assert [r[0] for r in rel.fetchall()] == list(AGES)
 
 
-def test_a_name_collision_suggests_suffix():
-    """An output taking a name in use is refused, suggesting suffix=."""
-    data = connection().sql("SELECT 10.0 AS age, 1.0 AS age_scale")
-    pipe = sq.Pipeline([("scale", MyScale(cols=["age"], keep=True))])
-    with pytest.raises(sq.errors.StepError, match=r"'age_scale'.*suffix="):
-        pipe.learn(data)
+def test_a_kept_name_in_use_is_numbered():
+    """With keep, a new name taken by an input column is numbered (ADR 0035)."""
+    data = connection().sql(
+        "SELECT * FROM (VALUES (10.0::DOUBLE, 1.0::DOUBLE), (30.0, 2.0)) "
+        "t(age, age_scale)"
+    )
+    pipe = sq.Pipeline(
+        [
+            ("scale", MyScale(cols=["age"], keep=True)),
+            ("double", sq.Step(cols=["age_scale_2"], apply=lambda x: x * 2)),
+        ]
+    ).learn(data)
+    assert pipe.columns_out_ == ["age", "age_scale_2", "age_scale"]
+    alone = sq.Pipeline([MyScale(cols=["age"], keep=True)]).learn(data).apply(data)
+    doubled = [(a, 2 * s, k) for a, s, k in alone.fetchall()]
+    assert pipe.apply(data).fetchall() == doubled
+    assert [k for _, _, k in doubled] == [1.0, 2.0]
 
 
-def test_a_new_dynamic_column_may_not_take_a_name_in_use():
-    """A dynamic step's new column colliding with a column is refused.
-
-    Its columns are named after what it learned, so suffix= is not advised.
-    """
+def test_a_new_dynamic_column_never_renames_an_input_column():
+    """A dynamic step's new column taking a name in use is numbered."""
     data = connection().sql("SELECT 'a' AS city, 1 AS city_a")
-    pipe = sq.Pipeline([("onehot", MyEncoder())])
-    with pytest.raises(
-        sq.errors.StepError, match=r"onehot \(step 1\).*'city_a'"
-    ) as info:
-        pipe.learn(data)
-    assert "suffix=" not in str(info.value)
-    assert "issues/26" in str(info.value)
+    pipe = sq.Pipeline([("onehot", MyEncoder())]).learn(data)
+    assert pipe.columns_out_ == ["city_a_2", "city_a"]
 
 
 def test_selectors_are_fixed_at_learn(people):

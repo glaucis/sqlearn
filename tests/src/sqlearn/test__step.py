@@ -10,7 +10,7 @@ from steps_for_tests import MyEncoder, MyScale
 
 import sqlearn as sq
 from sqlearn._config import connection
-from sqlearn._step import Learned, Step, classify, output_names
+from sqlearn._step import Learned, Step, classify, output_labels
 
 SCHEMA = [("age", DOUBLE), ("city", VARCHAR), ("n", INTEGER)]
 
@@ -154,13 +154,18 @@ def test_learned_values():
         learned.other  # noqa: B018
 
 
-def test_output_names():
-    """One expression keeps or suffixes the column; a mapping names itself."""
+def test_output_labels():
+    """One expression is the column itself, or labelled with keep; else as given."""
     e = duckdb.ColumnExpression("a")
-    assert list(output_names("scale", "a", e, False, None)) == ["a"]
-    assert list(output_names("scale", "a", e, True, None)) == ["a_scale"]
-    assert list(output_names("scale", "a", e, True, "z")) == ["a_z"]
-    assert list(output_names("onehot", "a", {"x": e, "y": e}, True, "z")) == ["x", "y"]
+
+    def labels(*args):
+        return [label for label, _ in output_labels(*args)]
+
+    assert labels("scale", e, False, None) == [""]
+    assert labels("scale", e, True, None) == ["scale"]
+    assert labels("scale", e, True, "z") == ["z"]
+    assert labels("onehot", {"x": e, "y": e}, True, "z") == ["x", "y"]
+    assert labels("onehot", [("x", e), ("x", e)], False, None) == ["x", "x"]
 
 
 def test_a_declared_dynamic_step_is_trusted_without_calling_apply():

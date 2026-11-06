@@ -5,7 +5,6 @@ import time
 import duckdb
 import numpy as np
 import pandas as pd
-import pytest
 from duckdb.sqltypes import VARCHAR
 from sklearn.preprocessing import OneHotEncoder
 
@@ -113,11 +112,34 @@ def test_keep_and_categories_learned():
     ]
 
 
-def test_a_null_string_clashing_with_the_null_column_is_refused():
-    """The text 'NULL' and a real NULL would both be ``c_NULL``."""
-    data = connection().sql("SELECT * FROM (VALUES ('NULL'), (NULL)) t(c)")
-    with pytest.raises(sq.errors.StepError, match="c_NULL"):
-        sq.Pipeline([("hot", sq.OneHot())]).learn(data)
+def test_text_null_beside_a_real_null():
+    """The text 'NULL' and a real NULL share a label and are numbered.
+
+    Equal labels keep output order: learned categories first, the missing
+    category last.
+    """
+    data = connection().sql("SELECT * FROM (VALUES ('NULL'), (NULL)) t(city)")
+    pipe = sq.Pipeline([("hot", sq.OneHot())]).learn(data)
+    assert pipe.columns_out_ == ["city_NULL", "city_NULL_2"]
+    assert pipe.apply(data).fetchall() == [(1, 0), (0, 1)]
+
+
+def test_onehot_of_case_only_categories():
+    """Categories differing only in case are numbered, not refused (ADR 0035)."""
+    data = connection().sql("SELECT * FROM (VALUES ('Oslo'), ('oslo'), (NULL)) t(city)")
+    pipe = sq.Pipeline([("hot", sq.OneHot())]).learn(data)
+    assert pipe.columns_out_ == ["city_Oslo", "city_oslo_2", "city_NULL"]
+    assert pipe.apply(data).fetchall() == [(1, 0, 0), (0, 1, 0), (0, 0, 1)]
+
+
+def test_a_later_step_sees_the_numbered_names():
+    """A selector after OneHot matches the final, numbered names."""
+    data = connection().sql("SELECT * FROM (VALUES ('Oslo'), ('oslo')) t(city)")
+    pipe = sq.Pipeline(
+        [("hot", sq.OneHot()), ("scale", sq.Scale(cols=["city_oslo_2"]))]
+    ).learn(data)
+    assert pipe.columns_out_ == ["city_Oslo", "city_oslo_2"]
+    assert pipe.apply(data).fetchall() == [(1, -1.0), (0, 1.0)]
 
 
 def test_onehot_and_ordinal_learn_in_one_run():
@@ -201,20 +223,17 @@ def test_an_all_null_column_gives_one_null_column_as_in_sklearn():
     np.testing.assert_array_equal(got.to_numpy(), sk.transform(frame).astype(int))
 
 
-def test_a_clash_does_not_advise_suffix():
-    """OneHot ignores suffix=, so a clash points to the naming issue instead."""
+def test_a_new_column_never_renames_an_input_column():
+    """A created name taken by a column passing through is numbered instead."""
     data = connection().sql("SELECT 'a' AS city, 1 AS city_a")
-    with pytest.raises(
-        sq.errors.StepError, match=r"'city_a'.*rename.*issues/26"
-    ) as info:
-        sq.Pipeline([("hot", sq.OneHot())]).learn(data)
-    assert "suffix=" not in str(info.value)
+    pipe = sq.Pipeline([("hot", sq.OneHot())]).learn(data)
+    assert pipe.columns_out_ == ["city_a_2", "city_a"]
 
 
 def test_zero_categories_give_no_column():
     """With no category and no NULL learned, the column becomes nothing."""
     learned = Learned.values({"categories": [], "has_null": False})
-    assert sq.OneHot().apply(duckdb.ColumnExpression("c"), learned) == {}
+    assert sq.OneHot().apply(duckdb.ColumnExpression("c"), learned) == []
 
 
 def test_nan_in_a_float_column_is_its_own_category_as_in_sklearn():

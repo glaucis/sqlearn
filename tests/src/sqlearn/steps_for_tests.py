@@ -37,9 +37,7 @@ class MyEncoder(sq.Step):
 
     def apply(self, x, learned):
         """Apply what was learned."""
-        return {
-            f"city_{c}": (x == sq.fn.const(c)).cast(INTEGER) for c in learned.cities
-        }
+        return {c: (x == sq.fn.const(c)).cast(INTEGER) for c in learned.cities}
 
 
 @dataclass(frozen=True, repr=False)

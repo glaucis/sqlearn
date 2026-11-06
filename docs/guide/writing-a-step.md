@@ -42,8 +42,11 @@ class MyScale(sq.Step):
   rest), which leave missing values (NULL and NaN) out, or
   `sq.fn.const`. A step that learns nothing does not define it.
 - `apply(x, learned)` is called once per selected column. It returns one
-  expression, the column's new value, or a dict of name to expression, which
-  makes new columns.
+  expression, the column's new value, or a dict of **label** to expression,
+  which makes new columns: the label `"low"` on the column `x` makes `x_low`,
+  and the label `""` is the column `x` itself, replaced. sqlearn names the
+  columns; your step never builds a full name (see
+  [Names of new columns](#names-of-new-columns)).
 - `sq.agg.median`, `sq.agg.quantile(x, q=0.9)` and `sq.agg.iqr` are exact,
   computed by sorting, so they can run on data larger than memory; every
   quantile a step learns shares one sort. They may sit inside a larger
@@ -82,7 +85,7 @@ your code to find out:
   selector such as `sq.cols.numeric()`; `None` means every column).
 - **its outputs:** a replacing step writes its inputs. With `keep=True` it
   writes `<column>_<step>` as well (`suffix=` chooses another ending). A name
-  that already exists stops the run with a message naming it.
+  that already exists is numbered, never refused (see below).
 - **static or dynamic:** see below.
 
 ## Static or dynamic
@@ -105,7 +108,7 @@ class MyEncoder(sq.Step):
         return {"cities": sq.agg.distinct(x)}
 
     def apply(self, x, learned):
-        return {f"city_{c}": (x == sq.fn.const(c)).cast(INTEGER) for c in learned.cities}
+        return {c: (x == sq.fn.const(c)).cast(INTEGER) for c in learned.cities}
 
 
 encoder = sq.Pipeline([("encode", MyEncoder())])
@@ -113,9 +116,32 @@ encoder.learn(data)
 encoder.apply(data)
 ```
 
+The keys `"a"` and `"b"` are labels: the new columns are `city_a` and
+`city_b`.
+
 You may declare it with a class attribute, `static = True` or `dynamic = True`,
 and sqlearn trusts you. Or leave both out, and sqlearn finds out before the
 first run.
+
+(names-of-new-columns)=
+
+## Names of new columns
+
+Every step's new columns are named by one rule (ADR 0035): `<column>_<label>`.
+DuckDB compares column names without regard to case, so `city_Oslo` and
+`city_oslo` are the same name to it. Names that clash are numbered in sorted
+order of their labels: the first keeps its name, the next get `_2`, `_3`.
+Nothing is refused, and a column passing through is never renamed.
+
+```{code-cell} python
+cities = pd.DataFrame({"city": ["Oslo", "oslo", "Oslo"]})
+sq.Pipeline([MyEncoder()]).learn(cities).columns_out_
+```
+
+`columns_out_` shows the final names, and a later step selects the numbered
+column by that name. When two outputs share a label (the text `'NULL'` and a
+real NULL, say), return a list of `(label, expression)` pairs instead of a
+dict; they are numbered in the order given.
 
 ## Placeholders
 
@@ -178,7 +204,7 @@ except sq.errors.StepError as error:
 ```
 
 The rest of the cases follow the same form: an exception inside `learn` or
-`apply`, a name that already exists, a selector that matches nothing. When
+`apply`, a selector that matches nothing. When
 a built-in step fails, the failure is sqlearn's bug and is reported as an
 `sq.errors.InternalError`, with what is needed to reproduce it.
 

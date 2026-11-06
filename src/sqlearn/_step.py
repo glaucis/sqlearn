@@ -3,7 +3,7 @@
 import functools
 import inspect
 import types
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from typing import ClassVar, Literal
 
 import duckdb
@@ -12,10 +12,13 @@ from duckdb.sqltypes import DuckDBPyType
 
 from sqlearn._selectors import Schema, Selector, to_selector
 
-__all__ = ["KINDS", "Learned", "Step", "classify", "output_names"]
+__all__ = ["KINDS", "Learned", "Output", "Step", "classify", "output_labels"]
 
 KINDS: dict[tuple[type, tuple[tuple[str, object], ...]], str] = {}
 """Session cache of ``classify`` answers, keyed by class and settings."""
+
+Output = Expression | Mapping[str, Expression] | Sequence[tuple[str, Expression]]
+"""What ``apply`` returns: one expression, or new columns keyed by label."""
 
 
 class Learned:
@@ -178,6 +181,10 @@ class Step:
     changes_rows : bool
         True for a step that changes the rows (a filter, sampling); every
         later step then depends on it. No step does yet.
+    names_are_labels : bool
+        True (the default) when the keys of a mapping `apply` returns are
+        labels, each creating the column ``<column>_<label>``; False when they
+        are the full names of the new columns.
 
     Examples
     --------
@@ -199,6 +206,7 @@ class Step:
     dynamic: ClassVar[bool | None] = None
     creates: ClassVar[DuckDBPyType | None] = None
     changes_rows: ClassVar[bool] = False
+    names_are_labels: ClassVar[bool] = True
 
     def __init__(
         self,
@@ -207,7 +215,7 @@ class Step:
         suffix: str | None = None,
         *,
         learn: Callable[[Expression], Mapping[str, Expression]] | None = None,
-        apply: Callable[..., Expression | Mapping[str, Expression]] | None = None,
+        apply: Callable[..., Output] | None = None,
     ) -> None:
         self.cols = cols
         self.keep = keep
@@ -245,7 +253,7 @@ class Step:
         self,
         x: Expression,
         learned: Learned,
-    ) -> Expression | Mapping[str, Expression]:
+    ) -> Output:
         """Say what to produce from a column, using what was learned.
 
         Parameters
@@ -258,7 +266,11 @@ class Step:
         Returns
         -------
         duckdb.Expression or mapping of str to duckdb.Expression
-            One expression replacing the column, or named new columns.
+            One expression replacing the column, or new columns keyed by
+            label: ``"low"`` creates ``<column>_low`` and ``""`` is the
+            column itself. Names that clash are numbered (ADR 0035). When
+            two outputs share a label, return a sequence of
+            ``(label, expression)`` pairs instead of a mapping.
 
         Examples
         --------
@@ -374,22 +386,20 @@ _FUNCTIONS = (
 class _DropLearned:
     """An ``apply`` of one argument, called with ``(x, learned)``."""
 
-    def __init__(
-        self, fn: Callable[..., Expression | Mapping[str, Expression]]
-    ) -> None:
+    def __init__(self, fn: Callable[..., Output]) -> None:
         self.fn = fn
 
     def __call__(
         self,
         x: Expression,
         learned: Learned,
-    ) -> Expression | Mapping[str, Expression]:
+    ) -> Output:
         return self.fn(x)
 
 
 def _with_learned(
-    fn: Callable[..., Expression | Mapping[str, Expression]],
-) -> Callable[..., Expression | Mapping[str, Expression]]:
+    fn: Callable[..., Output],
+) -> Callable[..., Output]:
     """Wrap an ``apply`` callable so it may leave out ``learned``."""
     try:
         params = inspect.signature(fn).parameters.values()
@@ -463,43 +473,42 @@ def _inspect(step: Step, schema: Schema) -> Literal["static", "dynamic"]:
     return "static" if isinstance(result, Expression) else "dynamic"
 
 
-def output_names(
+def output_labels(
     step_name: str,
-    column: str,
-    result: Expression | Mapping[str, Expression],
+    result: Output,
     keep: bool,
     suffix: str | None,
-) -> dict[str, Expression]:
-    """Name the output expressions of a step for one input column.
+) -> list[tuple[str, Expression]]:
+    """Label the output expressions of a step for one input column.
 
     Parameters
     ----------
     step_name : str
-        The step's name, used as the default suffix.
-    column : str
-        The input column.
-    result : duckdb.Expression or mapping of str to duckdb.Expression
+        The step's name, the default label of a kept column's output.
+    result : duckdb.Expression, mapping or sequence of (str, duckdb.Expression)
         What ``apply`` returned.
     keep : bool
         Whether the input column is kept, so the output needs a new name.
     suffix : str, optional
-        Suffix replacing `step_name` when `keep` is True.
+        Label replacing `step_name` when `keep` is True.
 
     Returns
     -------
-    dict of str to duckdb.Expression
-        One expression is named ``column`` (or ``column_suffix`` with
-        `keep`); a mapping keeps its own names.
+    list of (str, duckdb.Expression)
+        ``(label, expression)`` per output, in order. One expression is
+        labelled ``""``, the column itself (or `suffix` or `step_name` with
+        `keep`); a mapping or a sequence of pairs keeps its own labels.
 
     Examples
     --------
     >>> import duckdb
-    >>> from sqlearn._step import output_names
+    >>> from sqlearn._step import output_labels
     >>> e = duckdb.ColumnExpression("a")
-    >>> list(output_names("scale", "a", e, True, None))
-    ['a_scale']
+    >>> [label for label, _ in output_labels("scale", e, True, None)]
+    ['scale']
     """
     if isinstance(result, Expression):
-        name = f"{column}_{suffix or step_name}" if keep else column
-        return {name: result}
-    return dict(result)
+        return [((suffix or step_name) if keep else "", result)]
+    if isinstance(result, Mapping):
+        return list(result.items())
+    return list(result)

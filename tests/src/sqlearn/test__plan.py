@@ -122,6 +122,17 @@ def test_a_kept_column_takes_its_input_type():
     assert p.depends_on[1] == frozenset({0})
 
 
+def test_a_kept_name_in_use_is_numbered_as_the_compositor_does():
+    """``age_z`` taken by an input: the kept column is ``age_z_2``."""
+    schema = [("age", DOUBLE), ("age_z", DOUBLE)]
+    steps = [static_step("age", keep=True, suffix="z"), static_step(["age_z_2"])]
+    p = plan([(f"s{i}", s) for i, s in enumerate(steps)], schema)
+    assert p.depends_on[1] == frozenset({0})
+    steps = [static_step("age", keep=True, suffix="z"), static_step(["age_z"])]
+    p = plan([(f"s{i}", s) for i, s in enumerate(steps)], schema)
+    assert p.depends_on[1] == frozenset()
+
+
 def test_a_kept_unknown_column_stays_unknown():
     """A static step keeping a new column adds another unknown column."""
     p = runs(
