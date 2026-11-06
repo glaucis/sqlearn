@@ -104,6 +104,21 @@ def test_a_skipped_reference_is_recorded_with_its_reason():
     assert got["ulps"] is None
 
 
+def test_a_recorded_case_has_no_bound_and_never_fails():
+    """An approximate answer is measured and recorded, not judged."""
+    got = _cases.recorded(
+        step="agg",
+        formula="approx_quantile(q=0.5)",
+        dataset="small",
+        rows=4,
+        type="DOUBLE",
+        reference="sqlearn",
+        value=1.0 + 2**-40,
+        exact=Fraction(1),
+    )
+    assert (got["result"], got["bound_ulps"], got["ulps"]) == ("recorded", None, 2**12)
+
+
 def test_datasets_are_the_same_on_every_call():
     """The datasets come from seed 0: two calls give the same values."""
     first = _cases.numbers()

@@ -7,7 +7,8 @@ import duckdb
 from duckdb import ColumnExpression, Expression
 
 from sqlearn._errors import SqlearnError
-from sqlearn._expr import avg, const, count
+from sqlearn._expr import const
+from sqlearn.agg.aggregates import mean
 
 __all__ = ["Metric", "accuracy"]
 
@@ -16,6 +17,11 @@ _FLOATS = frozenset({"FLOAT", "DOUBLE"})
 
 def _isnan(x: Expression) -> Expression:
     return duckdb.FunctionExpression("isnan", x)
+
+
+def _count(x: Expression) -> Expression:
+    """Count the non-NULL values of `x`, NaN among them (unlike `sq.agg.count`)."""
+    return duckdb.FunctionExpression("count", x)
 
 
 @dataclass(frozen=True)
@@ -91,15 +97,15 @@ class Metric:
         p = ColumnExpression(prediction)
         floats = [c for c in (target, prediction) if types[c] in _FLOATS]
         nans = [
-            count(duckdb.CaseExpression(_isnan(ColumnExpression(c)), const(1)))
+            _count(duckdb.CaseExpression(_isnan(ColumnExpression(c)), const(1)))
             for c in floats
         ]
         try:
             row = rel.aggregate(
                 [
-                    count(const(1)),
-                    count(y),
-                    count(p),
+                    _count(const(1)),
+                    _count(y),
+                    _count(p),
                     self.expression(y, p),
                     *nans,
                 ],
@@ -141,7 +147,7 @@ class Metric:
 
 accuracy = Metric(
     "accuracy",
-    lambda y, p: avg(
+    lambda y, p: mean(
         duckdb.CaseExpression(y == p, const(1.0)).otherwise(const(0.0)),
     ),
     True,

@@ -1541,6 +1541,7 @@
     "anomaly": "a reference library more than 4 times sqlearn's bound from the canonical value: it misses the precision its own algorithm should reach. Reported upstream, never a reason to loosen a bound.",
     "fail": "sqlearn only: outside its bound, or a mismatch with scikit-learn.",
     "pass": "sqlearn: within its bound (ULPs from the canonical value; 0 mismatches for encoders). A reference: within ANOMALY_FACTOR times sqlearn's bound, or refusing an input that has no answer.",
+    "recorded": "a measurement with no bound to pass (approx_quantile, approximate by name): its error against the canonical value is kept as a known number.",
     "skipped": "the reference cannot run on this input (no rows, or a value it does not take), or the input has no canonical value; the note says which. Kept so the table shows every combination."
   }
 }

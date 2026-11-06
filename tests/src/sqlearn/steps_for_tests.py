@@ -17,7 +17,7 @@ class MyScale(sq.Step):
 
     def learn(self, x):
         """Learn what the step needs."""
-        return {"mean": sq.avg(x), "scale": sq.stddev_pop(x)}
+        return {"mean": sq.agg.mean(x), "scale": sq.agg.std(x)}
 
     def apply(self, x, learned):
         """Apply what was learned."""
@@ -33,7 +33,7 @@ class MyEncoder(sq.Step):
 
     def learn(self, x):
         """Learn what the step needs."""
-        return {"cities": sq.distinct_values(x)}
+        return {"cities": sq.agg.distinct(x)}
 
     def apply(self, x, learned):
         """Apply what was learned."""

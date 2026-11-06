@@ -6,9 +6,10 @@ import duckdb
 from duckdb import Expression
 from duckdb.sqltypes import DOUBLE, INTEGER
 
-from sqlearn._expr import const, distinct_values
+from sqlearn._expr import const
 from sqlearn._selectors import Selector, string
 from sqlearn._step import Learned, Step
+from sqlearn.agg.aggregates import distinct
 
 __all__ = ["Ordinal"]
 
@@ -91,8 +92,7 @@ class Ordinal(Step):
         >>> list(sq.Ordinal().learn(duckdb.ColumnExpression("a")))
         ['categories']
         """
-        present = duckdb.CaseExpression(_is_nan(x), const(None)).otherwise(x)
-        return {"categories": distinct_values(present)}
+        return {"categories": distinct(x)}
 
     def apply(self, x: Expression, learned: Learned) -> Expression:
         """Replace the value by its position, -1 if unseen, NULL if missing.

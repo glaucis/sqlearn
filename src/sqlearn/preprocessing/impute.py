@@ -7,11 +7,11 @@ from duckdb import Expression
 from duckdb.sqltypes import DuckDBPyType
 
 from sqlearn._errors import SqlearnError, StepError
-from sqlearn._expr import avg, const, is_missing, median
+from sqlearn._expr import const, is_missing
 from sqlearn._selectors import Schema, Selector, numeric
 from sqlearn._step import Learned, Step
+from sqlearn.agg.aggregates import mean, median
 from sqlearn.preprocessing._missing import (
-    present,
     refuse_all_missing,
     refuse_infinite,
 )
@@ -140,13 +140,13 @@ class Impute(Step):
         >>> list(learned)
         ['value', 'infinite']
         """
-        aggregate = median if self.strategy == "median" else avg
+        aggregate = median if self.strategy == "median" else mean
         infinite = duckdb.CaseExpression(
             duckdb.FunctionExpression("isinf", x.cast("DOUBLE")),
             const(float("inf")),
         ).otherwise(const(0.0))
         return {
-            "value": aggregate(present(x)),
+            "value": aggregate(x),
             "infinite": duckdb.FunctionExpression("max", infinite),
         }
 

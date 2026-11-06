@@ -11,8 +11,8 @@ from sqlearn._compose import (
     SOURCE,
     Run,
     Stage,
-    _balanced,
     _learn_sql,
+    _markers,
     build,
     copy_sql,
     describe,
@@ -173,7 +173,7 @@ def test_nothing_to_learn_or_produce_runs_nothing(con):
 
 def test_produce_needs_a_way_to_remake_a_learning_stage(con):
     """A learning stage built by hand cannot be applied with values."""
-    agg = sq.avg(duckdb.ColumnExpression("age"))
+    agg = sq.agg.mean(duckdb.ColumnExpression("age"))
     stage = Stage("s01_x", {"age": duckdb.ColumnExpression("age")}, {"v0": agg})
     with pytest.raises(sq.errors.SqlearnError, match="s01_x"):
         execute(con, "t", [stage], produce=True)
@@ -261,7 +261,7 @@ class Middle(sq.Step):
 
     def learn(self, x):
         """Learn the median."""
-        return {"median": sq.median(x)}
+        return {"median": sq.agg.median(x)}
 
     def apply(self, x, learned):
         """Shift by the median, so a later step learns from the shifted values."""
@@ -327,8 +327,9 @@ def test_median_is_computed_by_sorting_with_odd_names_quoted():
     learn = run.statements[0]
     assert "row_number() OVER (ORDER BY" in learn
     assert "median(" not in learn
-    assert "__sqlearn_median" not in learn
-    assert '"l01_mid dle_median_values"' in learn
+    assert learn.count("row_number()") == 1
+    assert "__sqlearn_quantile" not in learn
+    assert '"l01_mid dle_quantile_values"' in learn
     assert '"c""d"' in learn
     assert values["s01_mid dle"]["median"] == {"a b": 2.0, 'c"d': 6.0}
     assert rel.fetchall() == [(-1.0, -1.0), (1.0, 1.0)]
@@ -359,23 +360,61 @@ class Doubled(sq.Step):
 
     def learn(self, x):
         """Learn the median, doubled."""
-        return {"twice": sq.median(x) * sq.fn.const(2)}
+        return {"twice": sq.agg.median(x) * sq.fn.const(2)}
 
 
-def test_a_median_inside_an_expression_is_refused(con):
-    """A median must be a whole learned value; the message names the step."""
+def test_a_median_inside_an_expression_is_computed(con):
+    """A median may sit inside a larger learned value (the core refused it)."""
     stage = step_stage(1, "double", Doubled(), SCHEMA, SOURCE)
+    values, _, _ = execute(con, "t", [stage], produce=False)
+    assert values["s01_double"]["twice"]["age"] == 40.0
+
+
+class Nested(sq.Step):
+    """Learn the median of a median: an aggregate of an aggregate."""
+
+    def learn(self, x):
+        """Learn the median of the median."""
+        return {"m": sq.agg.median(sq.agg.median(x))}
+
+
+def test_an_aggregate_of_an_aggregate_is_refused(con):
+    """A quantile of a quantile is refused, naming the step."""
+    stage = step_stage(1, "nest", Nested(), SCHEMA, SOURCE)
     with pytest.raises(
-        sq.errors.StepError, match=r"double \(step 1\).*whole learned value"
+        sq.errors.StepError, match=r"nest \(step 1\).*aggregate of an aggregate"
     ):
         execute(con, "t", [stage], produce=False)
 
 
-def test_a_marker_closed_before_the_end_is_not_a_whole_median():
-    """``median(a) * f(b)`` starts and ends like a median but is not one."""
-    assert _balanced("\"a\" = ')'")
-    assert not _balanced('"a") * f("b"')
-    assert not _balanced('f("a"')
+class HandMade(sq.Step):
+    """Learn a quantile marker not built by sq.agg (no method)."""
+
+    def learn(self, x):
+        """Learn the bad marker."""
+        return {"m": duckdb.FunctionExpression("__sqlearn_quantile", x)}
+
+
+def test_a_marker_sq_agg_did_not_build_is_refused(con):
+    """A marker with the wrong arguments is refused, naming sq.agg."""
+    stage = step_stage(1, "hand", HandMade(), SCHEMA, SOURCE)
+    with pytest.raises(sq.errors.StepError, match=r"hand \(step 1\).*sq\.agg"):
+        execute(con, "t", [stage], produce=False)
+
+
+def test_markers_are_found_outside_quotes_with_their_arguments():
+    """Quotes, brackets and longer names do not confuse the marker search."""
+    text = (
+        "(__sqlearn_quantile(f(\"a\", [1, 2]), 0.5::DOUBLE, 'linear') - "
+        "\"__sqlearn_mode(\" + my__sqlearn_mode(1) + __sqlearn_mode('x,)'))"
+    )
+    found = _markers(text)
+    assert [(m.kind, m.args) for m in found] == [
+        ("__sqlearn_quantile", ('f("a", [1, 2])', "0.5::DOUBLE", "'linear'")),
+        ("__sqlearn_mode", ("'x,)'",)),
+    ]
+    assert text[found[0].start : found[0].end].startswith("__sqlearn_quantile(f(")
+    assert _markers("__sqlearn_mode(1") == []
 
 
 def test_a_median_of_text_holding_parentheses_and_quotes(con):
@@ -385,6 +424,6 @@ def test_a_median_of_text_holding_parentheses_and_quotes(con):
     odd = duckdb.CaseExpression(
         age.cast("VARCHAR") == sq.fn.const(")'("), sq.fn.const(None)
     )
-    stage.learn = {"v0": sq.median(odd.otherwise(age))}
+    stage.learn = {"v0": sq.agg.median(odd.otherwise(age))}
     values, _, _ = execute(con, "t", [stage], produce=False)
     assert values["s01_middle"]["median"]["age"] == 20.0

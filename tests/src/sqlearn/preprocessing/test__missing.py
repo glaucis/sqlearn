@@ -7,20 +7,11 @@ import sqlearn as sq
 from sqlearn._config import connection
 from sqlearn._step import Learned
 from sqlearn.preprocessing._missing import (
-    present,
     refuse_all_missing,
     refuse_infinite,
 )
 
 X = duckdb.ColumnExpression("c")
-
-
-def test_present_nulls_nan_and_null_and_casts_to_double():
-    """NaN and NULL both become NULL; the rest is DOUBLE."""
-    rel = connection().sql("SELECT * FROM (VALUES (1), (NULL), (3)) t(c)")
-    assert rel.select(present(X)).fetchall() == [(1.0,), (None,), (3.0,)]
-    nan = connection().sql("SELECT 'NaN'::DOUBLE AS c")
-    assert nan.select(present(X)).fetchall() == [(None,)]
 
 
 def test_all_missing_is_judged_on_the_raw_value_not_its_text():

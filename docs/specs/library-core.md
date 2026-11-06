@@ -91,7 +91,7 @@ class Scale(sq.Step):
         self.keep = keep
 
     def learn(self, x):
-        return {"mean": sq.avg(x), "scale": sq.stddev_pop(x)}
+        return {"mean": sq.agg.mean(x), "scale": sq.agg.std(x)}
 
     def apply(self, x, learned):
         return (x - learned.mean) / learned.scale
@@ -117,10 +117,11 @@ class Scale(sq.Step):
   pipeline is indexed by step name (`pipe["scale"]`) or position, as in
   scikit-learn; `pipe.steps` keeps scikit-learn's `(name, step)` pairs
   (spec's call).
-- `sq.avg`, `sq.stddev_pop`, `sq.median` and the like are thin wrappers that
-  build DuckDB expression objects. The slice needs those its steps use; more
-  come with the steps that need them. `sq.avg` is the compensated mean
-  (DuckDB's `favg`). `sq.median` is an exact median computed by sorting, so it
+- `sq.agg.mean`, `sq.agg.std`, `sq.agg.median` and the like (the core named
+  them `sq.avg`, `sq.stddev_pop`, `sq.median`) build DuckDB expression objects.
+  The slice needs those its steps use; more come with the steps that need
+  them. `sq.agg.mean` is the compensated mean (DuckDB's `favg`).
+  `sq.agg.median` is an exact median computed by sorting, so it
   spills to disk: DuckDB's own `median` does not
   ([issue #27](https://github.com/glaucis/sqlearn/issues/27) tracks the sort's
   reach).

@@ -38,11 +38,22 @@ The API of the sqlearn package, generated from its docstrings.
    sqlearn.errors
    sqlearn.store
    sqlearn.metrics
-   sqlearn.avg
-   sqlearn.stddev_pop
-   sqlearn.median
-   sqlearn.count
-   sqlearn.distinct_values
+   sqlearn.agg
+   sqlearn.agg.Aggregate
+   sqlearn.agg.mean
+   sqlearn.agg.median
+   sqlearn.agg.quantile
+   sqlearn.agg.approx_quantile
+   sqlearn.agg.iqr
+   sqlearn.agg.mode
+   sqlearn.agg.min
+   sqlearn.agg.max
+   sqlearn.agg.range
+   sqlearn.agg.maxabs
+   sqlearn.agg.std
+   sqlearn.agg.var
+   sqlearn.agg.count
+   sqlearn.agg.distinct
    sqlearn.fn.const
    sqlearn.fn.is_missing
    sqlearn.get_config

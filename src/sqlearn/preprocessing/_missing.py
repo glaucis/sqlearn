@@ -2,44 +2,12 @@
 
 import math
 
-import duckdb
 from duckdb import Expression
 
 from sqlearn._errors import StepError
-from sqlearn._expr import is_missing
 from sqlearn._step import Learned
 
-__all__ = ["present", "refuse_all_missing", "refuse_infinite"]
-
-
-def present(x: Expression) -> Expression:
-    """Return `x` as DOUBLE, or NULL where it is missing (NULL or NaN).
-
-    Aggregates skip NULL, so wrapping a column in this makes an aggregate run
-    over the non-missing values only.
-
-    Parameters
-    ----------
-    x : duckdb.Expression
-        The column.
-
-    Returns
-    -------
-    duckdb.Expression
-        ``CASE WHEN is_missing(x) THEN NULL ELSE x::DOUBLE END``.
-
-    Examples
-    --------
-    >>> import duckdb
-    >>> from sqlearn.preprocessing._missing import present
-    >>> rel = duckdb.sql("SELECT * FROM (VALUES (1), (NULL)) t(a)")
-    >>> rel.select(present(duckdb.ColumnExpression("a"))).fetchall()
-    [(1.0,), (None,)]
-    """
-    return duckdb.CaseExpression(
-        is_missing(x),
-        duckdb.ConstantExpression(None),
-    ).otherwise(x.cast("DOUBLE"))
+__all__ = ["refuse_all_missing", "refuse_infinite"]
 
 
 def refuse_all_missing(x: Expression, learned: Learned, name: str) -> None:

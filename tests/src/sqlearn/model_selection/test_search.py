@@ -314,7 +314,7 @@ def test_a_metric_where_lower_is_better_picks_the_lowest():
     """With greater_is_better False, the best setting has the lowest score."""
     error = Metric(
         "error",
-        lambda y, p: sq.avg(
+        lambda y, p: sq.agg.mean(
             __import__("duckdb")
             .CaseExpression(y != p, sq.fn.const(1.0))
             .otherwise(sq.fn.const(0.0))

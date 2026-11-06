@@ -5,11 +5,11 @@ from collections.abc import Mapping
 import duckdb
 from duckdb import Expression
 
-from sqlearn._expr import avg, const, stddev_pop
+from sqlearn._expr import const
 from sqlearn._selectors import Selector, numeric
 from sqlearn._step import Learned, Step
+from sqlearn.agg.aggregates import mean, std
 from sqlearn.preprocessing._missing import (
-    present,
     refuse_all_missing,
     refuse_infinite,
 )
@@ -86,11 +86,11 @@ class Scale(Step):
         >>> list(sq.Scale().learn(duckdb.ColumnExpression("a")))
         ['mean', 'scale']
         """
-        spread = stddev_pop(present(x))
+        spread = std(x)
         scale = duckdb.CaseExpression(spread == const(0.0), const(1.0)).otherwise(
             spread,
         )
-        return {"mean": avg(present(x)), "scale": scale}
+        return {"mean": mean(x), "scale": scale}
 
     def apply(self, x: Expression, learned: Learned) -> Expression:
         """Centre the column and divide it by the learned divisor.

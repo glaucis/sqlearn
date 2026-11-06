@@ -7,11 +7,26 @@ from duckdb import Expression
 from duckdb.sqltypes import INTEGER
 
 from sqlearn._errors import StepError
-from sqlearn._expr import const, distinct_values
+from sqlearn._expr import const
 from sqlearn._selectors import Selector, string
 from sqlearn._step import Learned, Step
 
 __all__ = ["OneHot"]
+
+
+def _categories(x: Expression) -> Expression:
+    """Return the sorted distinct values of `x`, NULL left out, NaN kept.
+
+    Not `sqlearn.agg.distinct`, which leaves NaN out: to OneHot, as to
+    scikit-learn's ``OneHotEncoder``, NaN in a float column is a category.
+    """
+    keys = duckdb.FunctionExpression(
+        "list_sort",
+        duckdb.FunctionExpression(
+            "map_keys", duckdb.FunctionExpression("histogram", x)
+        ),
+    )
+    return duckdb.CoalesceOperator(keys, duckdb.ConstantExpression([]))
 
 
 class OneHot(Step):
@@ -89,7 +104,7 @@ class OneHot(Step):
         ['categories', 'has_null']
         """
         return {
-            "categories": distinct_values(x),
+            "categories": _categories(x),
             "has_null": duckdb.FunctionExpression("bool_or", x.isnull()),
         }
 

@@ -208,7 +208,7 @@ class CountText(sq.Step):
 
     def learn(self, x):
         """Count the values."""
-        return {"n": sq.count(x)}
+        return {"n": sq.agg.count(x)}
 
     def apply(self, x, learned):
         """Leave the column."""

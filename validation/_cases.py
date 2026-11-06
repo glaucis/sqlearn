@@ -50,6 +50,10 @@ RULES = {
         "from the canonical value: it misses the precision its own algorithm "
         "should reach. Reported upstream, never a reason to loosen a bound."
     ),
+    "recorded": (
+        "a measurement with no bound to pass (approx_quantile, approximate by "
+        "name): its error against the canonical value is kept as a known number."
+    ),
     "skipped": (
         "the reference cannot run on this input (no rows, or a value it does "
         "not take), or the input has no canonical value; the note says which. "
@@ -323,6 +327,40 @@ def skipped(
         "ulps": None,
         "result": result,
     }
+    return out
+
+
+def recorded(
+    *,
+    step: str,
+    formula: str,
+    dataset: str,
+    rows: int,
+    type: str,
+    reference: str,
+    value: float,
+    exact: Fraction | mpmath.mpf,
+    note: str = "",
+) -> dict:
+    """Measure `value` against the exact answer and record it, judging nothing.
+
+    For an answer approximate by name: it has no bound, so its result is
+    "recorded" and its bound None.
+    """
+    out = case(
+        step=step,
+        formula=formula,
+        dataset=dataset,
+        rows=rows,
+        type=type,
+        reference=reference,
+        value=value,
+        exact=exact,
+        bound=0,
+        note=note,
+    )
+    out["bound_ulps"] = None
+    out["result"] = "recorded"
     return out
 
 

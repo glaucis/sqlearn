@@ -16,6 +16,7 @@ from validation import _cases
 ROOT = Path(__file__).parent
 
 RUNNERS = (
+    "validation.sqlearn.agg.validate_aggregates",
     "validation.sqlearn.preprocessing.validate_impute",
     "validation.sqlearn.preprocessing.validate_scale",
     "validation.sqlearn.preprocessing.validate_onehot",

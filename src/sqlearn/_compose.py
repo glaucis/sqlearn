@@ -8,12 +8,15 @@ stage. Learned values are referenced there, never written in as numbers, so a
 later step learns from an earlier step's output. Every identifier written goes
 through `quote` (ADR 0015).
 
-A median (`sqlearn.median`, a marker) is not an aggregate DuckDB can compute
-larger than memory, so a learn stage's medians get stages of their own beside
-it: the present values of every median column, numbered in sorted order by one
-window (a sort, which spills to disk), and the one or two middle ones picked
-from each. Their one-row result is cross-joined into the learn stage, so a
-median comes back like any other learned value.
+An exact quantile (`sqlearn.agg.quantile`, `median`, `iqr`: a marker) is not
+an aggregate DuckDB can compute larger than memory, so a learn stage's
+quantiles get stages of their own beside it: the present values of every
+expression they sort, numbered in sorted order by one window (a sort, which
+spills to disk), and the one or two values each quantile needs picked from
+them. A mode (`sqlearn.agg.mode`, a marker too) is counted in a ``GROUP BY``
+stage of its own. A marker may sit anywhere in a learned value: it is
+replaced by a scalar subquery reading its stage's one row, so a quantile
+comes back like any other learned value.
 """
 
 from collections.abc import Callable, Mapping, Sequence
@@ -24,7 +27,7 @@ import duckdb
 from duckdb import Expression
 
 from sqlearn._errors import InternalError, SqlearnError, StepError
-from sqlearn._expr import MEDIAN, quote
+from sqlearn._expr import MODE, QUANTILE, quote
 from sqlearn._selectors import Schema
 from sqlearn._step import Learned, Step, output_names
 
@@ -225,7 +228,7 @@ def step_stage(
     >>> from sqlearn._compose import SOURCE, step_stage
     >>> class Centre(sq.Step):
     ...     def learn(self, x):
-    ...         return {"mean": sq.avg(x)}
+    ...         return {"mean": sq.agg.mean(x)}
     ...
     ...     def apply(self, x, learned):
     ...         return x - learned.mean
@@ -367,60 +370,179 @@ def _check(stage: Stage) -> None:
         raise SqlearnError(msg)
 
 
-def _balanced(sql: str) -> bool:
-    """Say whether no parenthesis in `sql` closes one opened before it."""
+_OPEN = "([{"
+_CLOSE = ")]}"
+
+
+@dataclass(frozen=True)
+class _Marker:
+    """One staged marker found in a learned value's SQL text.
+
+    `start` and `end` delimit the whole call in the text; `args` are its
+    arguments' texts, split at the commas outside any bracket or quote.
+    """
+
+    kind: str
+    start: int
+    end: int
+    args: tuple[str, ...]
+
+
+def _scan(text: str, start: int) -> tuple[int, list[str]]:
+    """Read a call's arguments from the ``(`` at `start` to its matching ``)``.
+
+    Returns the index after the ``)`` and the arguments' texts, or ``-1``
+    when the brackets do not close. Brackets inside quotes do not count; a
+    doubled quote inside a literal closes and reopens it, still inside.
+    """
     depth = 0
     quoted: str | None = None
-    for ch in sql:
+    args: list[str] = []
+    begin = start + 1
+    for i in range(start, len(text)):
+        ch = text[i]
         if quoted is not None:
-            # A doubled quote inside a literal closes and reopens: still inside.
             if ch == quoted:
                 quoted = None
         elif ch in "'\"":
             quoted = ch
-        elif ch == "(":
+        elif ch in _OPEN:
             depth += 1
-        elif ch == ")":
+        elif ch in _CLOSE:
             depth -= 1
-            if depth < 0:
-                return False
-    return depth == 0
+            if depth == 0:
+                args.append(text[begin:i].strip())
+                return i + 1, args
+        elif ch == "," and depth == 1:
+            args.append(text[begin:i].strip())
+            begin = i + 1
+    return -1, args
 
 
-def _median_of(stage: Stage, expression: Expression) -> str | None:
-    """Return the SQL a median marker wraps, or None when it is no median.
+def _markers(text: str) -> list[_Marker]:
+    """Find every staged marker (a quantile or a mode) in `text`, in order.
 
-    A marker anywhere but at the top of a learned value is refused: the
-    median is computed in stages of its own, so it must be a whole value.
+    A marker's name is matched only outside quotes and not as the end of a
+    longer name, so a column named after one is not taken for it.
     """
-    text = str(expression)
-    head = f"{MEDIAN}("
-    if text.startswith(head) and text.endswith(")"):
-        inner = text[len(head) : -1]
-        if MEDIAN not in inner and _balanced(inner):
-            return inner
-    if MEDIAN in text:
-        msg = (
-            f"{stage.step} (step {stage.position}) learns {text}, which uses "
-            "sq.median inside a larger expression; a median is computed by "
-            "sorting, in a stage of its own, so it must be a whole learned "
-            "value. Fix: learn the median as its own value, such as "
-            '{"median": sq.median(x)}, and combine it in apply.'
+    found: list[_Marker] = []
+    quoted: str | None = None
+    i = 0
+    while i < len(text):
+        ch = text[i]
+        if quoted is not None:
+            if ch == quoted:
+                quoted = None
+            i += 1
+            continue
+        if ch in "'\"":
+            quoted = ch
+            i += 1
+            continue
+        kind = next(
+            (k for k in (QUANTILE, MODE) if text.startswith(f"{k}(", i)),
+            None,
         )
-        raise StepError(msg, step=stage.step, position=stage.position)
-    return None
+        if kind is not None and (
+            i == 0 or not (text[i - 1].isalnum() or text[i - 1] == "_")
+        ):
+            end, args = _scan(text, i + len(kind))
+            if end < 0:
+                break
+            found.append(_Marker(kind, i, end, tuple(args)))
+            i = end
+            continue
+        i += 1
+    return found
 
 
-def _median_ctes(name: str, medians: dict[str, str], previous: str) -> list[str]:
-    """Return the stages computing a learn stage's medians, as one row.
+def _refuse(stage: Stage, text: str, why: str, fix: str) -> StepError:
+    msg = f"{stage.step} (step {stage.position}) learns {text}, {why} Fix: {fix}"
+    return StepError(msg, step=stage.step, position=stage.position)
 
-    Every median of the stage is computed in one sort: the present values of
-    each, tagged with the median's number, numbered in order of tag, then
-    value, by one window over all of them (no partitions), which spills to
-    disk. Each tag's values then hold the positions after those of the tags
-    before it, so its middle one or two are found from the counts per tag.
-    Each median is the middle value, or halfway between the two middle ones
-    (DuckDB's ``median`` interpolates so); NULL when there is no value.
+
+@dataclass
+class _Staged:
+    """The staged aggregates of one learn stage, and how to reference them.
+
+    `quantiles` maps ``(values, q, method)`` (SQL texts; `values` is the
+    expression sorted) to the column of the quantile stage holding it;
+    `modes` maps the expression counted to the mode stage holding its mode.
+    """
+
+    name: str
+    quantiles: dict[tuple[str, str, str], str] = field(default_factory=dict)
+    modes: dict[str, str] = field(default_factory=dict)
+
+    def reference(self, stage: Stage, text: str, marker: _Marker) -> str:
+        """Return the scalar subquery standing for `marker` in `text`."""
+        whole = text[marker.start : marker.end]
+        for arg in marker.args:
+            if _markers(arg):
+                raise _refuse(
+                    stage,
+                    whole,
+                    "an aggregate of an aggregate (a quantile or mode of "
+                    "one), which has no meaning over one column.",
+                    "learn each aggregate of the column on its own.",
+                )
+        if marker.kind == MODE and len(marker.args) == 1:
+            (values,) = marker.args
+            table = self.modes.setdefault(values, f"{self.name}_mode{len(self.modes)}")
+            return f"(SELECT {quote('m')} FROM {quote(table)})"
+        method = marker.args[-1] if len(marker.args) == 3 else ""
+        if marker.kind == QUANTILE and method in (
+            "'linear'",
+            "'averaged_inverted_cdf'",
+        ):
+            values, q, _ = marker.args
+            key = (values, q, method.strip("'"))
+            column = self.quantiles.setdefault(key, f"q{len(self.quantiles)}")
+            return f"(SELECT {quote(column)} FROM {quote(self.name + '_quantile')})"
+        raise _refuse(
+            stage,
+            whole,
+            "a marker sq.agg did not build.",
+            "build quantiles and modes with sq.agg, such as sq.agg.median(x).",
+        )
+
+
+def _ranks(method: str, q: str) -> tuple[str, str, str]:
+    """Return the SQL of the low rank, high rank and weight of a quantile.
+
+    In terms of ``n``, the number of present values, ranked from 1 in
+    ascending order. The quantile is ``low + weight * (high - low)``, or the
+    low value alone when the weight is 0, so no difference is formed for
+    nothing. The positions are computed in DOUBLE as numpy computes them,
+    so a position numpy finds whole is whole here too.
+    """
+    n = quote("n")
+    if method == "linear":
+        # numpy's virtual index (n - 1) * q, counted from 0; ranks from 1.
+        index = f"(({n} - 1) * {q})"
+        low = f"(floor({index}) + 1)"
+        return low, f"least({low} + 1, {n})", f"({index} - floor({index}))"
+    # averaged_inverted_cdf: g = n * q; a whole g averages ranks g and g + 1,
+    # else rank ceil(g); each rank held within [1, n].
+    g = f"({n} * {q})"
+    whole = f"({g} = floor({g}))"
+    low = f"greatest(least(ceil({g}), {n}), 1)"
+    high = f"CASE WHEN {whole} THEN greatest(least({g} + 1, {n}), 1) ELSE {low} END"
+    return low, high, f"CASE WHEN {whole} THEN 0.5 ELSE 0.0 END"
+
+
+def _quantile_ctes(
+    name: str, quantiles: dict[tuple[str, str, str], str], previous: str
+) -> list[str]:
+    """Return the stages computing a learn stage's quantiles, as one row.
+
+    Every quantile of the stage is computed in one sort: the present values
+    of each expression sorted, tagged with the expression's number, numbered
+    in order of tag, then value, by one window over all of them (no
+    partitions), which spills to disk. Each tag's values then hold the
+    positions after those of the tags before it, so the one or two values a
+    quantile needs are found from the counts per tag. Several quantiles of
+    one expression (an IQR and a median) share its tag.
 
     One sort, not one per column: two sorts running in one statement hold
     memory together, and do not fit where one does. Nor one partition per
@@ -428,53 +550,94 @@ def _median_ctes(name: str, medians: dict[str, str], previous: str) -> list[str]
     keeps a little memory per row, so this reaches as far as its ``ORDER BY``
     does: under 64 MB, 20 million rows of two columns, not 60 million.
     """
-    values, counts, each = (
-        quote(f"{name}_{part}") for part in ("values", "counts", "each")
+    values, counts, picked = (
+        quote(f"{name}_quantile_{part}") for part in ("values", "counts", "picked")
     )
-    t, x, r, n, start, m = (quote(c) for c in ("t", "x", "r", "n", "start", "m"))
+    t, x, r, n, start, k = (quote(c) for c in ("t", "x", "r", "n", "start", "k"))
+    tags: dict[str, int] = {}
+    for inner, _, _ in quantiles:
+        tags.setdefault(inner, len(tags))
     tagged = " UNION ALL ".join(
         f"SELECT {tag} AS {t}, CAST({inner} AS DOUBLE) AS {x} FROM {quote(previous)}"
-        for tag, inner in enumerate(medians.values())
+        for inner, tag in tags.items()
     )
-    pivot = ", ".join(
-        f"max({m}) FILTER (WHERE {t} = {tag}) AS {quote(key)}"
-        for tag, key in enumerate(medians)
-    )
+    wanted: list[str] = []
+    weights: list[str] = []
+    finals: list[str] = []
+    for (inner, q, method), column in quantiles.items():
+        tag = tags[inner]
+        low, high, weight = _ranks(method, q)
+        wanted.append(f"({t} = {tag} AND {k} IN ({low}, {high}))")
+        lo, hi, w = (quote(f"{column}_{part}") for part in ("lo", "hi", "w"))
+        weights += [
+            f"max({x}) FILTER (WHERE {t} = {tag} AND {k} = {low}) AS {lo}",
+            f"max({x}) FILTER (WHERE {t} = {tag} AND {k} = {high}) AS {hi}",
+            f"max({weight}) FILTER (WHERE {t} = {tag}) AS {w}",
+        ]
+        finals.append(
+            f"CASE WHEN {w} = 0 THEN {lo} ELSE {lo} + {w} * ({hi} - {lo}) END "
+            f"AS {quote(column)}"
+        )
     return [
         f"{values} AS (SELECT {t}, {x} FROM ({tagged}) "
         f"WHERE {x} IS NOT NULL AND NOT isnan({x}))",
         f"{counts} AS (SELECT {t}, {n}, sum({n}) OVER (ORDER BY {t}) - {n} AS {start} "
         f"FROM (SELECT {t}, count(*) AS {n} FROM {values} GROUP BY {t}))",
-        f"{each} AS (SELECT {t}, min({x}) + (max({x}) - min({x})) * 0.5 AS {m} "
+        f"{picked} AS (SELECT {t}, {x}, {k}, {n} FROM "
+        f"(SELECT {t}, {x}, {r} - {start} AS {k}, {n} "
         f"FROM (SELECT {t}, {x}, row_number() OVER (ORDER BY {t}, {x}) AS {r} "
-        f"FROM {values}) JOIN {counts} USING ({t}) "
-        f"WHERE {r} - {start} IN (({n} + 1) // 2, ({n} + 2) // 2) GROUP BY {t})",
-        f"{quote(name)} AS MATERIALIZED (SELECT {pivot} FROM {each})",
+        f"FROM {values}) JOIN {counts} USING ({t})) WHERE {' OR '.join(wanted)})",
+        f"{quote(name + '_quantile')} AS MATERIALIZED (SELECT {', '.join(finals)} "
+        f"FROM (SELECT {', '.join(weights)} FROM {picked}))",
+    ]
+
+
+def _mode_ctes(table: str, inner: str, previous: str) -> list[str]:
+    """Return the stages computing one mode: count each value, keep the most.
+
+    The count is a ``GROUP BY``, which spills to disk; of the values counted
+    most often, the smallest is kept. NULL when there is no value.
+    """
+    counts = quote(f"{table}_counts")
+    x, c, m = (quote(v) for v in ("x", "c", "m"))
+    return [
+        f"{counts} AS MATERIALIZED (SELECT {x}, count(*) AS {c} FROM "
+        f"(SELECT {inner} AS {x} FROM {quote(previous)}) "
+        f"WHERE {x} IS NOT NULL GROUP BY {x})",
+        f"{quote(table)} AS MATERIALIZED (SELECT min({x}) AS {m} FROM {counts} "
+        f"WHERE {c} = (SELECT max({c}) FROM {counts}))",
     ]
 
 
 def _learn_ctes(stage: Stage, learn: dict[str, Expression], previous: str) -> list[str]:
-    """Return a learn stage, after the stages of the medians it learns."""
-    ctes: list[str] = []
-    aggregates: dict[str, Expression] = {}
-    medians: dict[str, str] = {}
+    """Return a learn stage, after the stages of the quantiles and modes it learns.
+
+    Each staged marker in a learned value is replaced by a scalar subquery
+    reading the one row its stages computed, so a quantile may sit anywhere
+    in a learned value (``iqr`` is one quantile less another).
+    """
+    staged = _Staged(stage.learn_name)
+    items: list[str] = []
     for key, expression in learn.items():
-        inner = _median_of(stage, expression)
-        if inner is None:
-            aggregates[key] = expression
-        else:
-            medians[key] = inner
+        text = str(expression)
+        pieces: list[str] = []
+        last = 0
+        for marker in _markers(text):
+            pieces += [text[last : marker.start], staged.reference(stage, text, marker)]
+            last = marker.end
+        pieces.append(text[last:])
+        items.append(f"{''.join(pieces)} AS {quote(key)}")
+    ctes: list[str] = []
+    if staged.quantiles:
+        ctes.extend(_quantile_ctes(staged.name, staged.quantiles, previous))
+    for inner, table in staged.modes.items():
+        ctes.extend(_mode_ctes(table, inner, previous))
     # MATERIALIZED, never NOT MATERIALIZED: the one row is computed once.
     # The row count beside the values tells "no rows" from NULL values.
-    items = [_items(aggregates)] if aggregates else []
     select = (
         f"SELECT {', '.join([*items, f'count(*) AS {quote(_ROWS)}'])} "
         f"FROM {quote(previous)}"
     )
-    if medians:
-        name = f"{stage.learn_name}_median"
-        ctes.extend(_median_ctes(name, medians, previous))
-        select = f"SELECT * FROM ({select}) CROSS JOIN {quote(name)}"
     ctes.append(f"{quote(stage.learn_name)} AS MATERIALIZED ({select})")
     return ctes
 
@@ -699,7 +862,7 @@ def execute(
     >>> from sqlearn._compose import SOURCE, execute, step_stage
     >>> class Centre(sq.Step):
     ...     def learn(self, x):
-    ...         return {"mean": sq.avg(x)}
+    ...         return {"mean": sq.agg.mean(x)}
     ...
     ...     def apply(self, x, learned):
     ...         return x - learned.mean

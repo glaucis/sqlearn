@@ -233,7 +233,7 @@ class Pipeline:
     >>> from sqlearn._config import connection
     >>> class Centre(sq.Step):
     ...     def learn(self, x):
-    ...         return {"mean": sq.avg(x)}
+    ...         return {"mean": sq.agg.mean(x)}
     ...
     ...     def apply(self, x, learned):
     ...         return x - learned.mean

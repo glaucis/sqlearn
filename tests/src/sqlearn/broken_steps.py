@@ -13,7 +13,7 @@ class DeclaredStaticNeedsValues(sq.Step):
 
     def learn(self, x):
         """Learn the distinct values."""
-        return {"cities": sq.distinct_values(x)}
+        return {"cities": sq.agg.distinct(x)}
 
     def apply(self, x, learned):
         """Write one column per learned city."""
@@ -52,7 +52,7 @@ class FailsWhileRunning(sq.Step):
 
     def learn(self, x):
         """Cast text to integers, which fails on the first non-number."""
-        return {"total": sq.avg(x.cast(INTEGER))}
+        return {"total": sq.agg.mean(x.cast(INTEGER))}
 
 
 class FakeBuiltin(sq.Step):

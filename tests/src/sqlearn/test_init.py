@@ -45,7 +45,12 @@ def test_the_top_level_holds_only_the_builders():
         "InternalError",
         "SqlearnWarning",
         "DefaultsUsedWarning",
+        "avg",
+        "median",
+        "stddev_pop",
+        "count",
+        "distinct_values",
     ]:
         assert gone not in public  # moved names (the step ones go later)
     assert {"Pipeline", "Step", "Search", "set_config", "get_config"} <= public
-    assert {"cols", "fn", "out", "errors", "store", "metrics"} <= public
+    assert {"cols", "fn", "out", "errors", "store", "metrics", "agg"} <= public

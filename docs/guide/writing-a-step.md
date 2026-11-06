@@ -29,25 +29,29 @@ class MyScale(sq.Step):
         super().__init__(cols, keep, suffix)
 
     def learn(self, x):
-        return {"mean": sq.avg(x), "scale": sq.stddev_pop(x)}
+        return {"mean": sq.agg.mean(x), "scale": sq.agg.std(x)}
 
     def apply(self, x, learned):
         return (x - learned.mean) / learned.scale
 ```
 
 - `learn(x)` is called once per selected column; `x` is that column as an
-  expression. It returns a mapping of name to aggregate, built with `sq.avg`,
-  `sq.stddev_pop`, `sq.median`, `sq.count`, `sq.distinct_values` or
+  expression. It returns a mapping of name to aggregate, built with the
+  aggregates of `sq.agg` (`sq.agg.mean`, `sq.agg.std`, `sq.agg.median`,
+  `sq.agg.quantile`, `sq.agg.mode`, `sq.agg.count`, `sq.agg.distinct` and the
+  rest), which leave missing values (NULL and NaN) out, or
   `sq.fn.const`. A step that learns nothing does not define it.
 - `apply(x, learned)` is called once per selected column. It returns one
   expression, the column's new value, or a dict of name to expression, which
   makes new columns.
-- `sq.median` is an exact median computed by sorting, so it can run on data
-  larger than memory. Use it on its own as a learned value
-  (`{"middle": sq.median(x)}`), not inside a larger expression.
-- `sq.avg` is DuckDB's compensated mean, exact to about one unit in the last
-  place. It gives NaN, not infinity, when the data holds an infinity or the sum
-  overflows.
+- `sq.agg.median`, `sq.agg.quantile(x, q=0.9)` and `sq.agg.iqr` are exact,
+  computed by sorting, so they can run on data larger than memory; every
+  quantile a step learns shares one sort. They may sit inside a larger
+  expression (`{"spread": sq.agg.iqr(x) / sq.agg.median(x)}`). `sq.agg.mode`
+  is the most frequent value, a tie going to the smallest.
+- `sq.agg.mean` is DuckDB's compensated mean, exact to about one unit in the
+  last place. It gives NaN, not infinity, when the data holds an infinity or
+  the sum overflows.
 
 Run it on a small table:
 
@@ -98,7 +102,7 @@ class MyEncoder(sq.Step):
         super().__init__(cols, keep, suffix)
 
     def learn(self, x):
-        return {"cities": sq.distinct_values(x)}
+        return {"cities": sq.agg.distinct(x)}
 
     def apply(self, x, learned):
         return {f"city_{c}": (x == sq.fn.const(c)).cast(INTEGER) for c in learned.cities}
