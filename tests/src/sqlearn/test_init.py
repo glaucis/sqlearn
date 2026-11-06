@@ -26,47 +26,16 @@ def test_the_package_ships_py_typed():
 
 
 def test_the_top_level_holds_only_the_builders():
-    """Names that moved into groups are gone from the top level."""
+    """The top level is exactly ADR 0034's map, and nothing else."""
     import sqlearn as sq
 
-    public = {n for n in dir(sq) if not n.startswith("_")}
-    for gone in [
-        "make_pipeline",
-        "numeric",
-        "string",
-        "const",
-        "is_missing",
-        "out_csv",
-        "out_json",
-        "out_parquet",
-        "Metric",
-        "accuracy",
-        "SqlearnError",
-        "StepError",
-        "InternalError",
-        "SqlearnWarning",
-        "DefaultsUsedWarning",
-        "avg",
-        "median",
-        "stddev_pop",
-        "count",
-        "distinct_values",
-        "Impute",
-        "Scale",
-        "OneHot",
-        "Ordinal",
-    ]:
-        assert gone not in public  # moved names (the step ones go later)
-    assert {"Pipeline", "Step", "Search", "set_config", "get_config"} <= public
-    assert {
-        "cols",
-        "fn",
-        "out",
-        "errors",
-        "store",
-        "metrics",
-        "agg",
-        "impute",
-        "scale",
-        "encode",
-    } <= public
+    builders = {"Pipeline", "Step", "Search", "set_config", "get_config"}
+    groups = {"impute", "scale", "encode", "transform", "bin", "features", "agg"}
+    others = {"cols", "fn", "out", "metrics", "errors", "store"}
+    kept = {"Learned", "Output", "Grid", "KFold", "range", "Model", "__version__"}
+    allowed = builders | groups | others | kept
+    assert set(sq.__all__) == allowed
+    # Python also sets each imported subpackage on the package.
+    packages = {"model_selection", "preprocessing"}
+    public = {n for n in dir(sq) if not n.startswith("_")} | {"__version__"}
+    assert public == allowed | packages

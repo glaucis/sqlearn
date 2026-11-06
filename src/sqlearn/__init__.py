@@ -7,7 +7,7 @@ Examples
 True
 """
 
-from importlib.metadata import version
+from importlib import metadata as _metadata
 
 from sqlearn import agg, errors, fn, metrics, out, store
 from sqlearn._config import get_config, set_config
@@ -52,4 +52,4 @@ __all__ = [
     "transform",
 ]
 
-__version__: str = version("sqlearn")
+__version__: str = _metadata.version("sqlearn")
