@@ -251,10 +251,10 @@ def _write_row(
     except Exception:  # noqa: BLE001  (unknown outputs are planned as unknown)
         keys = None
     if keys is None:
-        out, _ = _write(step, step_name, columns, read, ready, deps, dynamic=False)
+        unknown, _ = _write(step, step_name, columns, read, ready, deps, dynamic=False)
         if read:
-            out.append(_Column(None, step.creates, ready, deps))
-        return out, []
+            unknown.append(_Column(None, step.creates, ready, deps))
+        return unknown, []
     owned: dict[str | None, list[str]] = {name: [] for name in names}
     for key in keys:
         owned[key if key in owned else names[-1]].append(key)

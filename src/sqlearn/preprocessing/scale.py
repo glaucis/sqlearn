@@ -749,8 +749,9 @@ class ScaleGroup(Group):
     sq.scale.normalize(norm='l1')
     """
 
+    # "normalize" is also a str, so the two overlap; the first is chosen.
     @overload
-    def __call__(
+    def __call__(  # type: ignore[overload-overlap]
         self,
         *names: object,
         method: Literal["normalize"],

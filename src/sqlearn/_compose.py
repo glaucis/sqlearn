@@ -293,8 +293,8 @@ def step_stage(
                 ((label, "") if full else (c, label), e)
                 for label, e in output_labels(step_name, result, step.keep, step.suffix)
             ]
-        for key, e in pairs:
-            out.append((key, e))
+        for wanted, e in pairs:
+            out.append((wanted, e))
             owner.append(c)
     taken = [k for k, _ in out if isinstance(k, str)]
     planned = [k for k, _ in out if not isinstance(k, str)]
