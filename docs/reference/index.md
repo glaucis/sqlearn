@@ -38,6 +38,12 @@ The API of the sqlearn package, generated from its docstrings.
    sqlearn.preprocessing.OneHot
    sqlearn.preprocessing.Ordinal
    sqlearn.preprocessing.TargetEncoder
+   sqlearn.bin
+   sqlearn.bin.uniform
+   sqlearn.bin.quantile
+   sqlearn.bin.binarize
+   sqlearn.preprocessing.Bin
+   sqlearn.preprocessing.Binarize
    sqlearn.Search
    sqlearn.Grid
    sqlearn.KFold

@@ -18,6 +18,7 @@ from sqlearn._selectors import cols
 from sqlearn._step import Learned, Step
 from sqlearn.model_selection import Grid, KFold, Search, range
 from sqlearn.preprocessing._encode import encode
+from sqlearn.preprocessing.bin import bin
 from sqlearn.preprocessing.impute import impute
 from sqlearn.preprocessing.scale import scale
 
@@ -32,6 +33,7 @@ __all__ = [
     "Step",
     "__version__",
     "agg",
+    "bin",
     "cols",
     "encode",
     "errors",

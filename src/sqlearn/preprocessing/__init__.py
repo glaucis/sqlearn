@@ -1,4 +1,4 @@
-"""Preprocessing steps: fill gaps and put columns on a common scale.
+"""Preprocessing steps: fill gaps, scale, encode and bin columns.
 
 Examples
 --------
@@ -7,10 +7,20 @@ Examples
 (sq.agg.median, 'standard')
 """
 
+from sqlearn.preprocessing.bin import Bin, Binarize
 from sqlearn.preprocessing.impute import Impute
 from sqlearn.preprocessing.onehot import OneHot
 from sqlearn.preprocessing.ordinal import Ordinal
 from sqlearn.preprocessing.scale import Normalize, Scale
 from sqlearn.preprocessing.target import TargetEncoder
 
-__all__ = ["Impute", "Normalize", "OneHot", "Ordinal", "Scale", "TargetEncoder"]
+__all__ = [
+    "Bin",
+    "Binarize",
+    "Impute",
+    "Normalize",
+    "OneHot",
+    "Ordinal",
+    "Scale",
+    "TargetEncoder",
+]
