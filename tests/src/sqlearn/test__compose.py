@@ -725,3 +725,43 @@ def test_spans_inside_aggregates_are_found_once():
     text = "sum(abs(\"x\" - m)) + f('sum(') + count(*) FILTER (WHERE y > m) + g(1)) "
     spans = [text[a:b] for a, b in _in_aggregates(text)]
     assert spans == ['abs("x" - m)', "*", "WHERE y > m"]
+
+
+CHAINED = """
+    SELECT
+        CASE WHEN i % 11 = 0 THEN NULL
+             ELSE 20 + (hash(i, 1) % 600) / 10 END::DOUBLE AS age,
+        CASE WHEN i % 13 = 0 THEN NULL
+             ELSE 1000 + hash(i, 2) % 100000 END::DOUBLE AS income,
+        (hash(i, 5) % 100 < 30)::INTEGER AS churned
+    FROM range(10000000) t(i)
+"""
+
+
+@pytest.mark.slow
+def test_two_chained_quantile_stages_spill(tmp_path):
+    """The median, then the robust scaler, learn 10 million rows within 64 MB.
+
+    Two learn stages, each sorting three columns, in one statement: the
+    second sorts the first's output. With a join of the ranks to the sorted
+    rows, it ran out of memory here; the core's plan, and this one, spill.
+    At 20 million rows it does not fit 64 MB, as it did not for the core.
+    """
+    path = tmp_path / "chained.parquet"
+    duckdb.execute(f"COPY ({CHAINED}) TO '{path}' (FORMAT parquet)")
+    con = duckdb.connect()
+    con.execute("set memory_limit = '64MB'")
+    con.execute("set threads = 1")
+    con.execute(f"set temp_directory = '{tmp_path / 'spill'}'")
+    sq.set_config(connection=con)
+    pipe = sq.Pipeline([sq.impute.median(), sq.scale.robust()]).learn(str(path))
+    data = f"read_parquet('{path}')"
+    (medians,) = (
+        duckdb.connect()
+        .sql(f"SELECT [median(age), median(income), median(churned)] FROM {data}")
+        .fetchall()[0]
+    )
+    assert pipe[0].value_ == pytest.approx(
+        dict(zip(["age", "income", "churned"], medians, strict=True))
+    )
+    assert pipe[1].center_ == pytest.approx(pipe[0].value_)

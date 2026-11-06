@@ -878,16 +878,14 @@ class _Staged:
         )
 
 
-def _ranks() -> tuple[str, str, str]:
+def _ranks(n: str, q: str, m: str) -> tuple[str, str, str]:
     """Return the SQL of the low rank, high rank and weight of a quantile.
 
-    In terms of the columns ``n`` (the number of present values, ranked from
-    1 in ascending order), ``q`` and ``m`` (the method: 0 for linear, 1 for
-    averaged_inverted_cdf), one row per quantile. The positions are computed
-    in DOUBLE as numpy computes them, so a position numpy finds whole is whole
-    here too.
+    In terms of the SQL of `n` (the number of present values, ranked from 1
+    in ascending order), `q` and `m` (the method: 0 for linear, 1 for
+    averaged_inverted_cdf). The positions are computed in DOUBLE as numpy
+    computes them, so a position numpy finds whole is whole here too.
     """
-    n, q, m = (quote(c) for c in ("n", "q", "m"))
     # linear: numpy's virtual index (n - 1) * q, counted from 0; ranks from 1.
     index = f"(({n} - 1) * {q})"
     linear_low = f"(floor({index}) + 1)"
@@ -936,21 +934,21 @@ def _quantile_ctes(
     does: under 64 MB, 20 million rows of two columns, not 60 million.
 
     The SQL grows linearly with the number of quantiles, which are data, not
-    expressions: the quantiles asked for are rows of a ``VALUES`` table
-    (number, tag, q, method) whose ranks are joined to the sorted values; the
-    result is one list, in the quantiles' order. A column and a filter per
+    expressions: the quantiles asked for are one constant list per tag
+    (number, q, method), turned into ranks beside the counts; each sorted row
+    keeps the quantiles it is a rank of, and the result is one list, in the
+    quantiles' order. Nothing but the join to the counts (as the core had)
+    and one aggregate reads the sorted rows. A column and a filter per
     quantile made DuckDB's planning grow faster than the number of quantiles
     (seconds for 50 columns). The values stay one ``UNION ALL`` branch per
     expression sorted: unnesting each row's values instead, which reads the
     previous stage once, ran out of memory under 64 MB where the branches
     spill.
     """
-    values, counts, specs, ranks, picked, each = (
-        quote(f"{name}_quantile_{part}")
-        for part in ("values", "counts", "specs", "ranks", "picked", "each")
-    )
+    values, counts = (quote(f"{name}_quantile_{part}") for part in ("values", "counts"))
     t, x, r, n, start, k = (quote(c) for c in ("t", "x", "r", "n", "start", "k"))
-    i, q, m, lo, hi, w, v = (quote(c) for c in ("i", "q", "m", "lo", "hi", "w", "v"))
+    i, q, m, lo, hi, w = (quote(c) for c in ("i", "q", "m", "lo", "hi", "w"))
+    g, u, f = quote("g"), quote("u"), quote("f")
     tags: dict[str, int] = {}
     for inner, _, _ in quantiles:
         tags.setdefault(inner, len(tags))
@@ -958,36 +956,54 @@ def _quantile_ctes(
         f"SELECT {tag} AS {t}, CAST({inner} AS DOUBLE) AS {x} FROM {quote(previous)}"
         for inner, tag in tags.items()
     )
-    rows = ", ".join(
-        f"({index}, {tags[inner]}, CAST({qq} AS DOUBLE), {_METHOD_CODES[method]})"
-        for (inner, qq, method), index in quantiles.items()
+    # The quantiles asked for, as one constant: per tag, a list of
+    # (number, q, method). Each tag's counts turn its list into ranks.
+    per_tag: list[list[str]] = [[] for _ in tags]
+    for (inner, qq, method), index in quantiles.items():
+        per_tag[tags[inner]].append(
+            f"{{'i': {index}, 'q': CAST({qq} AS DOUBLE), 'm': {_METHOD_CODES[method]}}}"
+        )
+    asked = "[" + ", ".join("[" + ", ".join(one) + "]" for one in per_tag) + "]"
+    low, high, weight = _ranks(n, f"s.{q}", f"s.{m}")
+    ranked = (
+        f"list_transform({asked}[{t} + 1], lambda s: {{'i': s.{i}, "
+        f"'lo': CAST({low} AS BIGINT), 'hi': CAST({high} AS BIGINT), "
+        f"'w': {weight}}})"
     )
-    low, high, weight = _ranks()
+    # Each sorted row is joined to its tag's counts and ranks (the small side,
+    # as at the core) and keeps the quantiles it is a rank of; the rows kept
+    # stream into one aggregate, and the quantiles are found from that one
+    # list. No other join, group or stage reads the sorted rows: each one
+    # added made DuckDB set memory aside beside the sort, and two chained
+    # quantile stages then failed under 64 MB where the core's spilled.
+    pick = f"list_filter({g}, lambda s: s.{lo} = {k} OR s.{hi} = {k})"
+
+    def of(field: str) -> str:
+        """Return the low or high entry (`field`) of quantile ``j``; NULL if none."""
+        return f"list_filter({f}, lambda e: e.{i} = j AND e.{field})[1]"
+
+    lo_x, hi_x = f"{of(quote('a'))}.{x}", f"{of(quote('b'))}.{x}"
+    weight_j = f"coalesce({of(quote('a'))}.{w}, {of(quote('b'))}.{w})"
+    value = (
+        f"CASE WHEN {weight_j} = 0 THEN {lo_x} WHEN {weight_j} >= 0.5 "
+        f"THEN {hi_x} - ({hi_x} - {lo_x}) * (1 - {weight_j}) "
+        f"ELSE {lo_x} + ({hi_x} - {lo_x}) * {weight_j} END"
+    )
     return [
         f"{values} AS (SELECT {t}, {x} FROM ({tagged}) "
         f"WHERE {x} IS NOT NULL AND NOT isnan({x}))",
-        f"{counts} AS MATERIALIZED (SELECT {t}, {n}, "
-        f"CAST(sum({n}) OVER (ORDER BY {t}) - {n} AS BIGINT) AS {start} "
+        f"{counts} AS (SELECT {t}, "
+        f"CAST(sum({n}) OVER (ORDER BY {t}) - {n} AS BIGINT) AS {start}, "
+        f"{ranked} AS {g} "
         f"FROM (SELECT {t}, count(*) AS {n} FROM {values} GROUP BY {t}))",
-        f"{specs} AS (SELECT * FROM (VALUES {rows}) s({i}, {t}, {q}, {m}))",
-        f"{ranks} AS MATERIALIZED (SELECT {i}, {t}, CAST({low} AS BIGINT) AS {lo}, "
-        f"CAST({high} AS BIGINT) AS {hi}, {weight} AS {w} "
-        f"FROM {specs} JOIN {counts} USING ({t}))",
-        f"{picked} AS MATERIALIZED (SELECT {t}, {k}, {x} FROM "
-        f"(SELECT {t}, {x}, {r} - {start} AS {k} "
+        f"{quote(name + '_quantile')} AS MATERIALIZED (SELECT "
+        f"list_transform(range({len(quantiles)}), lambda j: {value}) "
+        f"AS {quote('qs')} FROM (SELECT list({{'i': {u}.{i}, "
+        f"'a': {k} = {u}.{lo}, 'b': {k} = {u}.{hi}, 'w': {u}.{w}, 'x': {x}}}) "
+        f"AS {f} FROM (SELECT {k}, {x}, unnest({pick}) AS {u} FROM "
+        f"(SELECT {x}, {r} - {start} AS {k}, {g} "
         f"FROM (SELECT {t}, {x}, row_number() OVER (ORDER BY {t}, {x}) AS {r} "
-        f"FROM {values}) JOIN {counts} USING ({t})) SEMI JOIN "
-        f"(SELECT {t}, {lo} AS {k} FROM {ranks} UNION "
-        f"SELECT {t}, {hi} AS {k} FROM {ranks}) USING ({t}, {k}))",
-        f"{each} AS (SELECT s.{i}, "
-        f"CASE WHEN g.{w} = 0 THEN a.{x} WHEN g.{w} >= 0.5 "
-        f"THEN b.{x} - (b.{x} - a.{x}) * (1 - g.{w}) "
-        f"ELSE a.{x} + (b.{x} - a.{x}) * g.{w} END AS {v} "
-        f"FROM {specs} s LEFT JOIN {ranks} g ON g.{i} = s.{i} "
-        f"LEFT JOIN {picked} a ON a.{t} = g.{t} AND a.{k} = g.{lo} "
-        f"LEFT JOIN {picked} b ON b.{t} = g.{t} AND b.{k} = g.{hi})",
-        f"{quote(name + '_quantile')} AS MATERIALIZED "
-        f"(SELECT list({v} ORDER BY {i}) AS {quote('qs')} FROM {each})",
+        f"FROM {values}) JOIN {counts} USING ({t})))))",
     ]
 
 

@@ -103,19 +103,21 @@ BIG = """
 
 @pytest.mark.slow
 def test_the_preparation_runs_larger_than_memory(tmp_path, capsys):
-    """§2's preparation learns and applies 20 million rows within 256 MB.
+    """§2's preparation learns and applies 20 million rows within 128 MB.
 
     The rows take about 800 MB in DuckDB's memory (117 MB as Parquet). The
-    limit is 256 MB, not the slice's 64 MB: one learn statement here sorts
+    limit is 128 MB, not the slice's 64 MB: one learn statement here sorts
     for several exact quantiles in turn (the median, the robust scaler's
-    quartiles, the bins' edges) and counts a mode, and under 64 MB, or
-    128 MB, DuckDB cannot pin the blocks the later sorts need. The median
-    then the robust scaler alone fit 64 MB at 10 million rows, not at 20.
+    quartiles, the bins' edges) and counts a mode. Under 64 MB the first
+    sort, of three columns' 20 million rows, already fails beside the rest
+    of the statement, as it did before the quantiles' plan grew linear; 96
+    MB fails too. The median then the robust scaler alone fit 64 MB at 10
+    million rows, not at 20 (``test__compose``'s chained-stages test).
     """
     path = tmp_path / "big.parquet"
     duckdb.execute(f"COPY ({BIG}) TO '{path}' (FORMAT parquet)")
     con = duckdb.connect()
-    con.execute("set memory_limit = '256MB'")
+    con.execute("set memory_limit = '128MB'")
     con.execute("set threads = 1")
     con.execute(f"set temp_directory = '{tmp_path / 'spill'}'")
     sq.set_config(connection=con)
@@ -137,7 +139,7 @@ def test_the_preparation_runs_larger_than_memory(tmp_path, capsys):
     pipe.apply(str(path), out=sq.out.parquet(out))
     elapsed = time.perf_counter() - start
     with capsys.disabled():
-        print(f"\n20 million rows through §2's preparation in 256 MB: {elapsed:.1f} s")  # noqa: T201
+        print(f"\n20 million rows through §2's preparation in 128 MB: {elapsed:.1f} s")  # noqa: T201
 
     # DuckDB's own median and mode hold a column's values in memory: check
     # them on a connection without the limit.
