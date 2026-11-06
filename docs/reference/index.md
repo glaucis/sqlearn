@@ -55,6 +55,17 @@ The API of the sqlearn package, generated from its docstrings.
    sqlearn.agg.distinct
    sqlearn.fn.const
    sqlearn.fn.is_missing
+   sqlearn.fn.ln
+   sqlearn.fn.log10
+   sqlearn.fn.exp
+   sqlearn.fn.sqrt
+   sqlearn.fn.abs
+   sqlearn.fn.least
+   sqlearn.fn.greatest
+   sqlearn.fn.lower
+   sqlearn.fn.upper
+   sqlearn.fn.coalesce
+   sqlearn.store.clear
    sqlearn.get_config
    sqlearn.set_config
    sqlearn.errors.SqlearnError
