@@ -13,10 +13,11 @@ an aggregate DuckDB can compute larger than memory, so a learn stage's
 quantiles get stages of their own beside it: the present values of every
 expression they sort, numbered in sorted order by one window (a sort, which
 spills to disk), and the one or two values each quantile needs picked from
-them. A mode (`sqlearn.agg.mode`, a marker too) is counted in a ``GROUP BY``
-stage of its own. A marker may sit anywhere in a learned value: it is
-replaced by a scalar subquery reading its stage's one row, so a quantile
-comes back like any other learned value. The target's statistics
+them. A mode (`sqlearn.agg.mode`, a marker too) is counted in a ``GROUP BY``;
+a learn stage's modes share one stage. A marker may sit anywhere in a
+learned value: it is replaced by ``any_value`` of a column of its stage's one
+row, cross-joined into the learn stage, so a quantile comes back like any
+other learned value. The target's statistics
 (`sqlearn._expr.target_stats`, a step learning from the target) are grouped
 by inner fold and category in a ``GROUP BY`` stage, and come back as one
 list.
@@ -28,6 +29,7 @@ position in the data as read (`POSITION`, `inner_fold`). They pass through
 every stage untouched.
 """
 
+import re
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from functools import partial
@@ -696,34 +698,40 @@ class _Marker:
     args: tuple[str, ...]
 
 
+_TOKEN = re.compile(r"""'(?:[^']|'')*'|"(?:[^"]|"")*"|[()\[\]{},]""")
+"""A quoted literal or identifier (doubled quotes inside), a bracket or a comma."""
+
+_MARKER = re.compile(
+    r"""'(?:[^']|'')*'|"(?:[^"]|"")*"|(?<![A-Za-z0-9_])("""
+    + "|".join(re.escape(k) for k in (QUANTILE, MODE, TARGET_STATS))
+    + r")\("
+)
+"""A quoted literal or identifier, or a marker's name and its ``(``."""
+
+
 def _scan(text: str, start: int) -> tuple[int, list[str]]:
     """Read a call's arguments from the ``(`` at `start` to its matching ``)``.
 
     Returns the index after the ``)`` and the arguments' texts, or ``-1``
     when the brackets do not close. Brackets inside quotes do not count; a
-    doubled quote inside a literal closes and reopens it, still inside.
+    doubled quote inside a literal closes and reopens it, still inside. The
+    text is read once, by a regular expression jumping from token to token.
     """
     depth = 0
-    quoted: str | None = None
     args: list[str] = []
     begin = start + 1
-    for i in range(start, len(text)):
-        ch = text[i]
-        if quoted is not None:
-            if ch == quoted:
-                quoted = None
-        elif ch in "'\"":
-            quoted = ch
-        elif ch in _OPEN:
+    for token in _TOKEN.finditer(text, start):
+        ch = token.group()
+        if ch in _OPEN:
             depth += 1
         elif ch in _CLOSE:
             depth -= 1
             if depth == 0:
-                args.append(text[begin:i].strip())
-                return i + 1, args
+                args.append(text[begin : token.start()].strip())
+                return token.end(), args
         elif ch == "," and depth == 1:
-            args.append(text[begin:i].strip())
-            begin = i + 1
+            args.append(text[begin : token.start()].strip())
+            begin = token.end()
     return -1, args
 
 
@@ -731,36 +739,21 @@ def _markers(text: str) -> list[_Marker]:
     """Find every staged marker (a quantile, a mode, target statistics), in order.
 
     A marker's name is matched only outside quotes and not as the end of a
-    longer name, so a column named after one is not taken for it.
+    longer name, so a column named after one is not taken for it. The text
+    is read once from start to end: the search resumes after each marker.
     """
     found: list[_Marker] = []
-    quoted: str | None = None
     i = 0
-    while i < len(text):
-        ch = text[i]
-        if quoted is not None:
-            if ch == quoted:
-                quoted = None
-            i += 1
+    while (match := _MARKER.search(text, i)) is not None:
+        kind = match.group(1)
+        if kind is None:  # a quoted literal or identifier: skip it whole
+            i = match.end()
             continue
-        if ch in "'\"":
-            quoted = ch
-            i += 1
-            continue
-        kind = next(
-            (k for k in (QUANTILE, MODE, TARGET_STATS) if text.startswith(f"{k}(", i)),
-            None,
-        )
-        if kind is not None and (
-            i == 0 or not (text[i - 1].isalnum() or text[i - 1] == "_")
-        ):
-            end, args = _scan(text, i + len(kind))
-            if end < 0:
-                break
-            found.append(_Marker(kind, i, end, tuple(args)))
-            i = end
-            continue
-        i += 1
+        end, args = _scan(text, match.end() - 1)
+        if end < 0:
+            break
+        found.append(_Marker(kind, match.start(), end, tuple(args)))
+        i = end
     return found
 
 
@@ -774,19 +767,24 @@ class _Staged:
     """The staged aggregates of one learn stage, and how to reference them.
 
     `quantiles` maps ``(values, q, method)`` (SQL texts; `values` is the
-    expression sorted) to the column of the quantile stage holding it;
-    `modes` maps the expression counted to the mode stage holding its mode;
-    `stats` maps ``(x, y, fold)`` to the stage grouping the target's
-    statistics.
+    expression sorted) to its place (from 0) in the quantile stage's list;
+    `modes` maps the expression counted to its column (``m0``, ``m1``, ...)
+    of the mode stage; `stats` maps ``(x, y, fold)`` to its column (``l0``,
+    ...) of the target statistics stage.
     """
 
     name: str
-    quantiles: dict[tuple[str, str, str], str] = field(default_factory=dict)
-    modes: dict[str, str] = field(default_factory=dict)
-    stats: dict[tuple[str, str, str], str] = field(default_factory=dict)
+    quantiles: dict[tuple[str, str, str], int] = field(default_factory=dict)
+    modes: dict[str, int] = field(default_factory=dict)
+    stats: dict[tuple[str, str, str], int] = field(default_factory=dict)
 
     def reference(self, stage: Stage, text: str, marker: _Marker) -> str:
-        """Return the scalar subquery standing for `marker` in `text`."""
+        """Return the expression standing for `marker` in `text`.
+
+        It reads the one row the marker's stage computed, cross-joined into
+        the learn stage: ``any_value`` of a column of that row (one value,
+        computed once per stage, as DuckDB folds equal aggregates into one).
+        """
         whole = text[marker.start : marker.end]
         for arg in marker.args:
             if _markers(arg):
@@ -799,18 +797,12 @@ class _Staged:
                 )
         if marker.kind == TARGET_STATS and len(marker.args) == 3:
             x, y, fold = marker.args
-            table = self.stats.setdefault(
-                (x, y, fold), f"{self.name}_stats{len(self.stats)}"
-            )
-            f, c, n, total, squares = (quote(v) for v in ("f", "x", "n", "s", "ss"))
-            return (
-                f"(SELECT list(row({f}, {c}, {n}, {total}, {squares}) "
-                f"ORDER BY {f}, {c}) FROM {quote(table)})"
-            )
+            index = self.stats.setdefault((x, y, fold), len(self.stats))
+            return f"any_value({quote(self.name + '_stats')}.{quote(f'l{index}')})"
         if marker.kind == MODE and len(marker.args) == 1:
             (values,) = marker.args
-            table = self.modes.setdefault(values, f"{self.name}_mode{len(self.modes)}")
-            return f"(SELECT {quote('m')} FROM {quote(table)})"
+            index = self.modes.setdefault(values, len(self.modes))
+            return f"any_value({quote(self.name + '_modes')}.{quote(f'm{index}')})"
         method = marker.args[-1] if len(marker.args) == 3 else ""
         if marker.kind == QUANTILE and method in (
             "'linear'",
@@ -818,8 +810,9 @@ class _Staged:
         ):
             values, q, _ = marker.args
             key = (values, q, method.strip("'"))
-            column = self.quantiles.setdefault(key, f"q{len(self.quantiles)}")
-            return f"(SELECT {quote(column)} FROM {quote(self.name + '_quantile')})"
+            index = self.quantiles.setdefault(key, len(self.quantiles))
+            table = quote(self.name + "_quantile")
+            return f"any_value({table}.{quote('qs')})[{index + 1}]"
         raise _refuse(
             stage,
             whole,
@@ -828,36 +821,48 @@ class _Staged:
         )
 
 
-def _ranks(method: str, q: str) -> tuple[str, str, str]:
+def _ranks() -> tuple[str, str, str]:
     """Return the SQL of the low rank, high rank and weight of a quantile.
 
-    In terms of ``n``, the number of present values, ranked from 1 in
-    ascending order. The quantile is ``low + (high - low) * weight``, or,
-    from a weight of 0.5, ``high - (high - low) * (1 - weight)``, as numpy's
-    ``_lerp`` finds it; the low value alone when the weight is 0, so no
-    difference is formed for nothing. The positions are computed in DOUBLE
-    as numpy computes them, so a position numpy finds whole is whole here
-    too.
+    In terms of the columns ``n`` (the number of present values, ranked from
+    1 in ascending order), ``q`` and ``m`` (the method: 0 for linear, 1 for
+    averaged_inverted_cdf), one row per quantile. The positions are computed
+    in DOUBLE as numpy computes them, so a position numpy finds whole is whole
+    here too.
     """
-    n = quote("n")
-    if method == "linear":
-        # numpy's virtual index (n - 1) * q, counted from 0; ranks from 1.
-        index = f"(({n} - 1) * {q})"
-        low = f"(floor({index}) + 1)"
-        return low, f"least({low} + 1, {n})", f"({index} - floor({index}))"
+    n, q, m = (quote(c) for c in ("n", "q", "m"))
+    # linear: numpy's virtual index (n - 1) * q, counted from 0; ranks from 1.
+    index = f"(({n} - 1) * {q})"
+    linear_low = f"(floor({index}) + 1)"
+    linear_high = f"least({linear_low} + 1, {n})"
+    linear_weight = f"({index} - floor({index}))"
     # averaged_inverted_cdf: g = n * q; a whole g averages ranks g and g + 1,
     # else rank ceil(g); each rank held within [1, n].
     g = f"({n} * {q})"
     whole = f"({g} = floor({g}))"
-    low = f"greatest(least(ceil({g}), {n}), 1)"
-    high = f"CASE WHEN {whole} THEN greatest(least({g} + 1, {n}), 1) ELSE {low} END"
-    return low, high, f"CASE WHEN {whole} THEN 0.5 ELSE 0.0 END"
+    cdf_low = f"greatest(least(ceil({g}), {n}), 1)"
+    cdf_high = (
+        f"CASE WHEN {whole} THEN greatest(least({g} + 1, {n}), 1) ELSE {cdf_low} END"
+    )
+    cdf_weight = f"CASE WHEN {whole} THEN 0.5 ELSE 0.0 END"
+
+    def either(linear: str, cdf: str) -> str:
+        return f"CASE WHEN {m} = 0 THEN {linear} ELSE {cdf} END"
+
+    return (
+        either(linear_low, cdf_low),
+        either(linear_high, cdf_high),
+        either(linear_weight, cdf_weight),
+    )
+
+
+_METHOD_CODES = {"linear": 0, "averaged_inverted_cdf": 1}
 
 
 def _quantile_ctes(
-    name: str, quantiles: dict[tuple[str, str, str], str], previous: str
+    name: str, quantiles: dict[tuple[str, str, str], int], previous: str
 ) -> list[str]:
-    """Return the stages computing a learn stage's quantiles, as one row.
+    """Return the stages computing a learn stage's quantiles, as one list.
 
     Every quantile of the stage is computed in one sort: the present values
     of each expression sorted, tagged with the expression's number, numbered
@@ -872,11 +877,23 @@ def _quantile_ctes(
     column: a window over partitions needed more memory. DuckDB's sort itself
     keeps a little memory per row, so this reaches as far as its ``ORDER BY``
     does: under 64 MB, 20 million rows of two columns, not 60 million.
+
+    The SQL grows linearly with the number of quantiles, which are data, not
+    expressions: the quantiles asked for are rows of a ``VALUES`` table
+    (number, tag, q, method) whose ranks are joined to the sorted values; the
+    result is one list, in the quantiles' order. A column and a filter per
+    quantile made DuckDB's planning grow faster than the number of quantiles
+    (seconds for 50 columns). The values stay one ``UNION ALL`` branch per
+    expression sorted: unnesting each row's values instead, which reads the
+    previous stage once, ran out of memory under 64 MB where the branches
+    spill.
     """
-    values, counts, picked = (
-        quote(f"{name}_quantile_{part}") for part in ("values", "counts", "picked")
+    values, counts, specs, ranks, picked, each = (
+        quote(f"{name}_quantile_{part}")
+        for part in ("values", "counts", "specs", "ranks", "picked", "each")
     )
     t, x, r, n, start, k = (quote(c) for c in ("t", "x", "r", "n", "start", "k"))
+    i, q, m, lo, hi, w, v = (quote(c) for c in ("i", "q", "m", "lo", "hi", "w", "v"))
     tags: dict[str, int] = {}
     for inner, _, _ in quantiles:
         tags.setdefault(inner, len(tags))
@@ -884,81 +901,116 @@ def _quantile_ctes(
         f"SELECT {tag} AS {t}, CAST({inner} AS DOUBLE) AS {x} FROM {quote(previous)}"
         for inner, tag in tags.items()
     )
-    wanted: list[str] = []
-    weights: list[str] = []
-    finals: list[str] = []
-    for (inner, q, method), column in quantiles.items():
-        tag = tags[inner]
-        low, high, weight = _ranks(method, q)
-        wanted.append(f"({t} = {tag} AND {k} IN ({low}, {high}))")
-        lo, hi, w = (quote(f"{column}_{part}") for part in ("lo", "hi", "w"))
-        weights += [
-            f"max({x}) FILTER (WHERE {t} = {tag} AND {k} = {low}) AS {lo}",
-            f"max({x}) FILTER (WHERE {t} = {tag} AND {k} = {high}) AS {hi}",
-            f"max({weight}) FILTER (WHERE {t} = {tag}) AS {w}",
-        ]
-        finals.append(
-            f"CASE WHEN {w} = 0 THEN {lo} WHEN {w} >= 0.5 "
-            f"THEN {hi} - ({hi} - {lo}) * (1 - {w}) "
-            f"ELSE {lo} + ({hi} - {lo}) * {w} END AS {quote(column)}"
-        )
+    rows = ", ".join(
+        f"({index}, {tags[inner]}, CAST({qq} AS DOUBLE), {_METHOD_CODES[method]})"
+        for (inner, qq, method), index in quantiles.items()
+    )
+    low, high, weight = _ranks()
     return [
         f"{values} AS (SELECT {t}, {x} FROM ({tagged}) "
         f"WHERE {x} IS NOT NULL AND NOT isnan({x}))",
-        f"{counts} AS (SELECT {t}, {n}, sum({n}) OVER (ORDER BY {t}) - {n} AS {start} "
+        f"{counts} AS MATERIALIZED (SELECT {t}, {n}, "
+        f"CAST(sum({n}) OVER (ORDER BY {t}) - {n} AS BIGINT) AS {start} "
         f"FROM (SELECT {t}, count(*) AS {n} FROM {values} GROUP BY {t}))",
-        f"{picked} AS (SELECT {t}, {x}, {k}, {n} FROM "
-        f"(SELECT {t}, {x}, {r} - {start} AS {k}, {n} "
+        f"{specs} AS (SELECT * FROM (VALUES {rows}) s({i}, {t}, {q}, {m}))",
+        f"{ranks} AS MATERIALIZED (SELECT {i}, {t}, CAST({low} AS BIGINT) AS {lo}, "
+        f"CAST({high} AS BIGINT) AS {hi}, {weight} AS {w} "
+        f"FROM {specs} JOIN {counts} USING ({t}))",
+        f"{picked} AS MATERIALIZED (SELECT {t}, {k}, {x} FROM "
+        f"(SELECT {t}, {x}, {r} - {start} AS {k} "
         f"FROM (SELECT {t}, {x}, row_number() OVER (ORDER BY {t}, {x}) AS {r} "
-        f"FROM {values}) JOIN {counts} USING ({t})) WHERE {' OR '.join(wanted)})",
-        f"{quote(name + '_quantile')} AS MATERIALIZED (SELECT {', '.join(finals)} "
-        f"FROM (SELECT {', '.join(weights)} FROM {picked}))",
+        f"FROM {values}) JOIN {counts} USING ({t})) SEMI JOIN "
+        f"(SELECT {t}, {lo} AS {k} FROM {ranks} UNION "
+        f"SELECT {t}, {hi} AS {k} FROM {ranks}) USING ({t}, {k}))",
+        f"{each} AS (SELECT s.{i}, "
+        f"CASE WHEN g.{w} = 0 THEN a.{x} WHEN g.{w} >= 0.5 "
+        f"THEN b.{x} - (b.{x} - a.{x}) * (1 - g.{w}) "
+        f"ELSE a.{x} + (b.{x} - a.{x}) * g.{w} END AS {v} "
+        f"FROM {specs} s LEFT JOIN {ranks} g ON g.{i} = s.{i} "
+        f"LEFT JOIN {picked} a ON a.{t} = g.{t} AND a.{k} = g.{lo} "
+        f"LEFT JOIN {picked} b ON b.{t} = g.{t} AND b.{k} = g.{hi})",
+        f"{quote(name + '_quantile')} AS MATERIALIZED "
+        f"(SELECT list({v} ORDER BY {i}) AS {quote('qs')} FROM {each})",
     ]
 
 
-def _mode_ctes(table: str, inner: str, previous: str) -> list[str]:
-    """Return the stages computing one mode: count each value, keep the most.
+def _one_row(table: str, branches: list[tuple[str, str]]) -> str:
+    """Return one stage holding one row: each branch's one value as a column.
 
-    The count is a ``GROUP BY``, which spills to disk; of the values counted
-    most often, the smallest is kept. NULL when there is no value.
+    Each branch is ``(column, select)``, a select of one row and one column.
+    They are stacked with ``UNION ALL BY NAME``, each column NULL outside its
+    own branch, and read back with ``any_value``: the SQL grows linearly with
+    the branches, the stage is one, and each column keeps its own type. A
+    stage per branch, cross-joined, made DuckDB's planning grow faster than
+    the number of stages (4 s for 200 modes).
     """
-    counts = quote(f"{table}_counts")
-    x, c, m = (quote(v) for v in ("x", "c", "m"))
-    return [
-        f"{counts} AS MATERIALIZED (SELECT {x}, count(*) AS {c} FROM "
-        f"(SELECT {inner} AS {x} FROM {quote(previous)}) "
-        f"WHERE {x} IS NOT NULL GROUP BY {x})",
-        f"{quote(table)} AS MATERIALIZED (SELECT min({x}) AS {m} FROM {counts} "
-        f"WHERE {c} = (SELECT max({c}) FROM {counts}))",
+    stacked = " UNION ALL BY NAME ".join(select for _, select in branches)
+    picks = ", ".join(
+        f"any_value({quote(column)}) AS {quote(column)}" for column, _ in branches
+    )
+    return f"{quote(table)} AS MATERIALIZED (SELECT {picks} FROM ({stacked}))"
+
+
+def _mode_ctes(table: str, modes: dict[str, int], previous: str) -> list[str]:
+    """Return the stage computing a learn stage's modes, as one row.
+
+    Each mode counts each value in a ``GROUP BY``, which spills to disk; of
+    the values counted most often, the smallest is kept (``min_by`` over
+    count descending, then value). NULL when there is no value.
+    """
+    x, c = quote("x"), quote("c")
+    branches = [
+        (
+            f"m{index}",
+            f"SELECT min_by({x}, row(-{c}, {x})) AS {quote(f'm{index}')} FROM "
+            f"(SELECT {x}, count(*) AS {c} FROM "
+            f"(SELECT {inner} AS {x} FROM {quote(previous)}) "
+            f"WHERE {x} IS NOT NULL GROUP BY {x})",
+        )
+        for inner, index in modes.items()
     ]
+    return [_one_row(table, branches)]
 
 
-def _stats_ctes(table: str, key: tuple[str, str, str], previous: str) -> list[str]:
-    """Return the stage grouping the target's statistics by fold and category.
+def _stats_ctes(
+    table: str, stats: dict[tuple[str, str, str], int], previous: str
+) -> list[str]:
+    """Return the stage of the target's statistics by fold and category, as one row.
 
-    A ``GROUP BY``, which spills to disk; NULL (and NaN) is a category. The
-    target is shifted by its minimum first (one more scan, of one value), so
-    the sums hold ``y - min(y)``: whole values stay whole and small, and the
-    sum of squares loses no digits to a large offset. The sums are
-    compensated (``fsum``), as the mean is (ADR 0033).
+    Each is a ``GROUP BY``, which spills to disk; NULL (and NaN) is a
+    category; the groups are gathered in one list per column, sorted by fold
+    and category. The target is shifted by its minimum first (one more scan,
+    of one value), so the sums hold ``y - min(y)``: whole values stay whole
+    and small, and the sum of squares loses no digits to a large offset. The
+    sums are compensated (``fsum``), as the mean is (ADR 0033).
     """
-    x, y, fold = key
     f, c, v, n, total, squares = (quote(k) for k in ("f", "x", "y", "n", "s", "ss"))
-    low = f"(SELECT min(CAST({y} AS DOUBLE)) FROM {quote(previous)})"
-    return [
-        f"{quote(table)} AS MATERIALIZED (SELECT {f}, {c}, count(*) AS {n}, "
-        f"fsum({v}) AS {total}, fsum({v} * {v}) AS {squares} FROM "
-        f"(SELECT {x} AS {c}, CAST({y} AS DOUBLE) - {low} AS {v}, {fold} AS {f} "
-        f"FROM {quote(previous)}) GROUP BY {f}, {c})",
-    ]
+    branches = []
+    for (x, y, fold), index in stats.items():
+        low = f"(SELECT min(CAST({y} AS DOUBLE)) FROM {quote(previous)})"
+        branches.append(
+            (
+                f"l{index}",
+                f"SELECT list(row({f}, {c}, {n}, {total}, {squares}) "
+                f"ORDER BY {f}, {c}) AS {quote(f'l{index}')} FROM "
+                f"(SELECT {f}, {c}, count(*) AS {n}, "
+                f"fsum({v}) AS {total}, fsum({v} * {v}) AS {squares} FROM "
+                f"(SELECT {x} AS {c}, CAST({y} AS DOUBLE) - {low} AS {v}, "
+                f"{fold} AS {f} FROM {quote(previous)}) GROUP BY {f}, {c})",
+            )
+        )
+    return [_one_row(table, branches)]
 
 
 def _learn_ctes(stage: Stage, learn: dict[str, Expression], previous: str) -> list[str]:
     """Return a learn stage, after the stages of the quantiles and modes it learns.
 
-    Each staged marker in a learned value is replaced by a scalar subquery
-    reading the one row its stages computed, so a quantile may sit anywhere
-    in a learned value (``iqr`` is one quantile less another).
+    Each staged marker in a learned value is replaced by a reference to the
+    one row its stages computed, so a quantile may sit anywhere in a learned
+    value (``iqr`` is one quantile less another). Those rows are cross-joined
+    into the learn stage and read with ``any_value``; a scalar subquery per
+    reference instead made DuckDB plan one join per reference (4.6 s for 600
+    references, and past its expression depth at 1,000).
     """
     staged = _Staged(stage.learn_name)
     items: list[str] = []
@@ -972,17 +1024,22 @@ def _learn_ctes(stage: Stage, learn: dict[str, Expression], previous: str) -> li
         pieces.append(text[last:])
         items.append(f"{''.join(pieces)} AS {quote(key)}")
     ctes: list[str] = []
+    rows: list[str] = []  # the one-row stages, cross-joined below
     if staged.quantiles:
         ctes.extend(_quantile_ctes(staged.name, staged.quantiles, previous))
-    for inner, table in staged.modes.items():
-        ctes.extend(_mode_ctes(table, inner, previous))
-    for grouped, table in staged.stats.items():
-        ctes.extend(_stats_ctes(table, grouped, previous))
+        rows.append(staged.name + "_quantile")
+    if staged.modes:
+        ctes.extend(_mode_ctes(staged.name + "_modes", staged.modes, previous))
+        rows.append(staged.name + "_modes")
+    if staged.stats:
+        ctes.extend(_stats_ctes(staged.name + "_stats", staged.stats, previous))
+        rows.append(staged.name + "_stats")
+    joins = "".join(f" CROSS JOIN {quote(r)}" for r in rows)
     # MATERIALIZED, never NOT MATERIALIZED: the one row is computed once.
     # The row count beside the values tells "no rows" from NULL values.
     select = (
         f"SELECT {', '.join([*items, f'count(*) AS {quote(_ROWS)}'])} "
-        f"FROM {quote(previous)}"
+        f"FROM {quote(previous)}{joins}"
     )
     ctes.append(f"{quote(stage.learn_name)} AS MATERIALIZED ({select})")
     return ctes

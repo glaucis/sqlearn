@@ -1,5 +1,7 @@
 """Tests of the compositor: step pieces become one chain of SQL stages."""
 
+import time
+
 import duckdb
 import numpy as np
 import pytest
@@ -593,3 +595,41 @@ def test_row_values_are_computed_once_in_a_projection_of_their_own(con):
     _, rel, _ = produce(con, "SELECT * FROM r", [stage])
     # Means 2 and 4: the totals are -3 and 3.
     assert rel.fetchall() == [(-1 / 3, -2 / 3), (1.0, 2.0)]
+
+
+def wide(columns: int, rows: int = 200):
+    """Return a table of `columns` numeric columns and `rows` rows."""
+    con = connection()
+    picks = ", ".join(
+        f"(hash(i, {c}) % 1000)::DOUBLE / 7 AS c{c}" for c in range(columns)
+    )
+    con.execute(
+        f"CREATE OR REPLACE TABLE wide AS SELECT {picks} FROM range({rows}) r(i)"
+    )
+    return con.table("wide")
+
+
+@pytest.mark.parametrize(
+    "step",
+    [sq.scale.robust, sq.bin.quantile, sq.impute.mode],
+    ids=["scale.robust", "bin.quantile", "impute.mode"],
+)
+def test_a_cold_learn_of_many_staged_aggregates_is_fast(step):
+    """50 columns of 200 rows learn in under 2 s: the cost is not per column.
+
+    Each column brings quantiles (or a mode) computed in stages of their own;
+    the learn statement grows linearly with them, and DuckDB plans it fast.
+    It took 7 s (robust) and 13 s (bin.quantile) when each quantile had its
+    own column, filters and scalar subquery.
+    """
+    data = wide(50)
+    pipe = sq.Pipeline([step()])
+    start = time.perf_counter()
+    pipe.learn(data)
+    assert time.perf_counter() - start < 2.0
+
+
+def test_two_hundred_columns_of_quantiles_learn():
+    """200 columns' quantiles stay within DuckDB's expression depth."""
+    pipe = sq.Pipeline([sq.scale.robust()]).learn(wide(200, rows=20))
+    assert len(pipe[0].center_) == 200
