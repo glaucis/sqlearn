@@ -186,7 +186,7 @@ class Step:
     ...     def apply(self, x, learned):
     ...         return x * 2
     >>> Double(cols="a").settings()
-    {'cols': 'a', 'keep': False, 'suffix': None}
+    {'cols': 'a', 'keep': False, 'suffix': None, 'learn': None, 'apply': None}
 
     A step without a subclass, from callables:
 
@@ -302,7 +302,7 @@ class Step:
         --------
         >>> import sqlearn as sq
         >>> sq.Step(keep=True).settings()
-        {'cols': None, 'keep': True, 'suffix': None}
+        {'cols': None, 'keep': True, 'suffix': None, 'learn': None, 'apply': None}
         """
         params = inspect.signature(type(self).__init__).parameters
         given = self.__dict__.get("_callables", {})
