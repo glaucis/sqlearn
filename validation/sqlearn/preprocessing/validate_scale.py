@@ -14,15 +14,23 @@ comparison stays like for like. The near-constant rule itself is tested
 against scikit-learn in the step's tests. Beside sqlearn: scikit-learn's
 scaler of the same method (``StandardScaler``, ``RobustScaler``,
 ``MinMaxScaler``, ``MaxAbsScaler``) and numpy.
+
+``normalize`` learns nothing, so its cases are its outputs: the first
+column of each row of small three-column tables (DOUBLE, a row of zeros,
+INTEGER), divided by the row's ``l1``, ``l2`` or ``max`` norm, against the
+exact quotient (a `Fraction`; for ``l2`` the root at 50 digits). Beside
+sqlearn: scikit-learn's ``Normalizer`` and numpy.
 """
 
 from collections.abc import Callable
 from fractions import Fraction
 
+import mpmath
 import numpy as np
 from sklearn.preprocessing import (
     MaxAbsScaler,
     MinMaxScaler,
+    Normalizer,
     RobustScaler,
     StandardScaler,
 )
@@ -155,4 +163,89 @@ def cases() -> list[dict]:
                 answers=_answers(data, method, what),
                 notes=notes,
             )
+    return out + normalize_cases()
+
+
+# Set from the first measurement (ADR 0016), as BOUNDS above: worst 1 ULP
+# for l1 and l2 (one rounding in the sum or the root, then the division),
+# 0 for max (an exact maximum, one division).
+NORM_BOUNDS = {"l1": 1, "l2": 1, "max": 1}
+
+NORM_FORMULAS = {
+    "l1": "normalize l1: x / sum(abs(row))",
+    "l2": "normalize l2: x / sqrt(sum(row ** 2))",
+    "max": "normalize max: x / max(abs(row))",
+}
+
+COLUMNS = ("a", "b", "c")
+
+
+def _rows() -> list[tuple[str, str, list[tuple[float, ...]], str]]:
+    """Return the tables of rows normalize is measured on: name, type, rows, note."""
+    rng = np.random.default_rng(_cases.SEED)
+    small = [tuple(float(v) for v in row) for row in rng.normal(1_000.0, 100.0, (4, 3))]
+    zero = [(0.0, 0.0, 0.0), (3.0, -4.0, 12.0), (-0.5, 0.25, 2.0)]
+    whole = [tuple(float(v) for v in row) for row in rng.integers(-50, 50, (4, 3))]
+    return [
+        ("rows", "DOUBLE", small, "4 rows of 3, normal(1000, 100)"),
+        ("zero row", "DOUBLE", zero, "a row of zeros first"),
+        ("integer", "INTEGER", whole, "4 rows of 3 integers in [-50, 50)"),
+    ]
+
+
+def _exact_norm(norm: str, row: tuple[float, ...]) -> object:
+    """Return the row's first value over its exact norm (a norm of 0 counts as 1)."""
+    values = [Fraction(v) for v in row]
+    if norm == "l2":
+        total = sum((v * v for v in values), Fraction(0))
+        if total == 0:
+            return Fraction(0)
+        with mpmath.workdps(_cases.DIGITS):
+            root = mpmath.sqrt(mpmath.mpf(total.numerator) / total.denominator)
+            return (mpmath.mpf(values[0].numerator) / values[0].denominator) / root
+    size = sum(map(abs, values)) if norm == "l1" else max(map(abs, values))
+    return values[0] / (size if size != 0 else 1)
+
+
+def _normalized(kind: str, rows: list[tuple[float, ...]], norm: str) -> np.ndarray:
+    columns = {c: tuple(row[i] for row in rows) for i, c in enumerate(COLUMNS)}
+    rel = _cases.sqlearn_table(columns, kind)
+    pipe = sq.Pipeline([sq.scale.normalize(norm=norm)]).learn(rel)
+    return np.array(pipe.apply(rel).fetchall(), dtype=float)
+
+
+def _numpy_norm(norm: str, row: np.ndarray) -> float:
+    size = {
+        "l1": lambda r: np.sum(np.abs(r)),
+        "l2": lambda r: np.sqrt(np.sum(r * r)),
+        "max": lambda r: np.max(np.abs(r)),
+    }[norm](row)
+    return float(row[0] / (size if size != 0 else 1.0))
+
+
+def normalize_cases() -> list[dict]:
+    """Return sq.scale.normalize's cases: the first output of each row, per norm."""
+    out = []
+    for name, kind, rows, note in _rows():
+        array = np.array(rows, dtype=float)
+        for norm, bound in NORM_BOUNDS.items():
+            got = _normalized(kind, rows, norm)
+            sk = Normalizer(norm=norm).fit_transform(array)
+            for r, row in enumerate(rows):
+                data = _cases.Dataset(f"{name}, row {r + 1}", "a", row, note)
+                out += _cases.measure_all(
+                    step="scale.normalize",
+                    formula=NORM_FORMULAS[norm],
+                    data=data,
+                    type=kind,
+                    exact=_exact_norm(norm, row),  # type: ignore[arg-type]
+                    bound=bound,
+                    answers={
+                        "sqlearn": lambda got=got, r=r: got[r, 0],
+                        "scikit-learn": lambda sk=sk, r=r: sk[r, 0],
+                        "numpy": lambda array=array, r=r, norm=norm: _numpy_norm(
+                            norm, array[r]
+                        ),
+                    },
+                )
     return out
