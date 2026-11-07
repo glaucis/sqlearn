@@ -6,6 +6,7 @@ front loops fold first (ADR 0024): each fold's data is prepared once per
 distinct preparation and handed to every model setting.
 """
 
+import functools
 import itertools
 import json
 import warnings
@@ -19,9 +20,9 @@ from sqlearn._compose import POSITION, TARGET
 from sqlearn._config import connection
 from sqlearn._errors import DefaultsUsedWarning, SqlearnError
 from sqlearn._expr import quote
-from sqlearn._feed import WrongShapeError, fetch, stream_into
+from sqlearn._feed import WrongShapeError, fetch, stream_into, stream_trainer
 from sqlearn._inputs import Source, _release_later, read
-from sqlearn._model import Model, _numpy, missing_target, refuse_stream
+from sqlearn._model import Model, _numpy, missing_target
 from sqlearn._output import Output
 from sqlearn._pipeline import _ROW, Pipeline, _FoldTable, _positioned, _source_sql
 from sqlearn._store import FoldKey
@@ -438,21 +439,26 @@ class Search:
                 # distinct form and fitted to every model taking it.
                 feeds: dict[str, list[int]] = {}
                 for i, model in models.items():
-                    refuse_stream(model.feed)
                     feeds.setdefault(model.feed, []).append(i)
                 for n, (feed, takers) in enumerate(feeds.items()):
                     categories: dict[str, list[str]] = {}
-                    x_fit, y_fit = _fetch(
-                        table, folds.training(FOLD, k), feed, features, target,
-                        categories,
-                    )  # fmt: skip
+                    training = folds.training(FOLD, k)
+                    fitted: tuple[object, object] | duckdb.DuckDBPyRelation
+                    if feed == "stream":
+                        # Each model streams the training rows itself, with
+                        # its own batches, epochs and order.
+                        fitted = table.filter(training)
+                    else:
+                        fitted = _fetch(
+                            table, training, feed, features, target, categories
+                        )
                     if n == 0:
                         _check_held_targets(table, folds.held(FOLD, k), target)
                     self._fit_and_score(
-                        con, prepared_fold, folds, k, (x_fit, y_fit, categories),
+                        con, prepared_fold, folds, k, (fitted, target, categories),
                         [(i, settings[i], models[i]) for i in takers], scores,
                     )  # fmt: skip
-                    del x_fit, y_fit  # one form's rows in memory at a time
+                    del fitted  # one form's rows in memory at a time
         return scores
 
     def _fit_and_score(
@@ -461,24 +467,35 @@ class Search:
         prepared_fold: _FoldTable,
         folds: Folds,
         k: int,
-        fitted: tuple[object, object, dict[str, list[str]]],
+        fitted: tuple[
+            tuple[object, object] | duckdb.DuckDBPyRelation, str, dict[str, list[str]]
+        ],
         takers: Sequence[tuple[int, Params, Model]],
         scores: list[list[float]],
     ) -> None:
         """Fit each model to one fold's training rows, then score it in SQL.
 
-        `fitted` holds the training rows' features, target and text
-        categories. The held-out rows are streamed to each model in batches,
-        in its own form with those categories, and the score is written to
-        ``scores[i][k]``.
+        `fitted` holds the training rows, the target's name in the user's
+        data and the text categories. The rows are the features and the
+        target fetched in the takers' form, or for ``feed="stream"`` the
+        fold table's training rows, which each model streams through
+        ``partial_fit`` (what the stream refuses is refused as it is, not as
+        a fold's failure). The held-out rows are streamed to each model in
+        batches, in its own form with those categories, and the score is
+        written to ``scores[i][k]``.
         """
-        x_fit, y_fit, categories = fitted
+        rows, target, categories = fitted
         features = prepared_fold.features
         held = con.table(prepared_fold.name).filter(folds.held(FOLD, k))
         for i, params, model in takers:
+            if isinstance(rows, duckdb.DuckDBPyRelation):
+                fit = stream_trainer(con, rows, features, TARGET, model, named=target)
+            else:
+                x_fit, y_fit = rows
+                fit = functools.partial(model.estimator.fit, x_fit, y_fit)
             action = "fit"
             try:
-                model.estimator.fit(x_fit, y_fit)
+                fit()
                 action = "predict"
                 predictions, _ = stream_into(
                     con, held, features, _ROW, model, categories=categories

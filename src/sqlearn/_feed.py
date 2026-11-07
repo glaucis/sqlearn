@@ -4,22 +4,27 @@ A model the user brings (ADR 0017) is handed the prepared rows in the form
 its `Model.feed` names (ADR 0041): numpy, pandas, Polars or Arrow, each
 library imported only inside the hand-over that needs it, so sqlearn itself
 never needs them. Text columns reach pandas, Polars and Arrow as categories.
-Every prediction is streamed: the rows go
+A model that learns in pieces (``feed="stream"``) is trained the same way,
+one batch at a time through its ``partial_fit``. Every prediction is
+streamed: the rows go
 to the model one batch at a time, and each batch's predictions are inserted
 into a table in DuckDB beside the row numbers they belong to, so no step of
 a prediction holds all the rows in memory.
 """
 
 import contextlib
+import functools
 import importlib
+import inspect
 import itertools
 import warnings
 import weakref
-from collections.abc import Generator, Mapping, Sequence
+from collections.abc import Callable, Generator, Mapping, Sequence
 from typing import Any
 
 import duckdb
 
+from sqlearn._compose import number_rows
 from sqlearn._errors import SqlearnError, SqlearnWarning
 from sqlearn._expr import quote
 from sqlearn._inputs import _drop_later, _release_later
@@ -27,18 +32,28 @@ from sqlearn._model import Model, _numpy, check_feed, missing_target, target_val
 
 __all__ = [
     "BATCH_ROWS",
+    "MEGABYTES",
     "PROBA",
+    "ROW",
     "WrongShapeError",
     "fetch",
     "hand_over",
     "predict_streamed",
     "received",
     "stream_into",
+    "stream_trainer",
     "take",
+    "train_streamed",
 ]
 
 BATCH_ROWS = 65_536
 """How many rows streamed prediction hands the model at a time."""
+
+MEGABYTES = 100
+"""About how large a streamed training batch is when its size is not given."""
+
+ROW = "__sqlearn_row"
+"""The column numbering the rows, which the stream shuffles and sorts by."""
 
 PROBA = "__sqlearn_proba_"
 """The prefix of the columns ``predict_proba`` fills, one per class."""
@@ -643,3 +658,270 @@ def predict_streamed(
     # Drop the table once the relation is gone.
     weakref.finalize(out, _drop_later, con, name)
     return out
+
+
+def _batch_rows(model: Model, columns: Sequence[str]) -> int:
+    """Return how many rows each streamed training batch holds.
+
+    `Model.rows` when given; otherwise about `Model.megabytes` (or
+    `MEGABYTES`) of float64 features: ``megabytes * 1_000_000 // (8 *
+    features)`` rows, at least one.
+    """
+    if model.rows is not None:
+        return model.rows
+    megabytes = MEGABYTES if model.megabytes is None else model.megabytes
+    return max(1, megabytes * 1_000_000 // (8 * max(1, len(columns))))
+
+
+def _sized(reader: Any, size: int) -> Generator[Any]:  # noqa: ANN401  (a pyarrow reader)
+    """Yield an Arrow reader's rows as tables of exactly `size` rows.
+
+    DuckDB's batches may stop short of the size asked for (at a chunk's
+    end), so they are joined and cut: every table but the last holds
+    `size` rows, the last the rest; an empty one is never yielded. Memory
+    holds about two batches.
+    """
+    pa = importlib.import_module("pyarrow")
+    held: list[Any] = []
+    count = 0
+    for batch in reader:
+        if batch.num_rows == 0:
+            continue
+        held.append(batch)
+        count += batch.num_rows
+        if count < size:
+            continue
+        table = pa.Table.from_batches(held)
+        start = 0
+        while count - start >= size:
+            yield table.slice(start, size)
+            start += size
+        held = table.slice(start).to_batches() if start < count else []
+        count -= start
+    if count:
+        yield pa.Table.from_batches(held)
+
+
+def _takes_classes(partial_fit: Any) -> bool:  # noqa: ANN401  (any library's method)
+    """Say whether a ``partial_fit`` has a ``classes`` parameter."""
+    return "classes" in inspect.signature(partial_fit).parameters
+
+
+def train_streamed(
+    con: duckdb.DuckDBPyConnection,
+    rel: duckdb.DuckDBPyRelation,
+    columns: Sequence[str],
+    target: str,
+    model: Model,
+    *,
+    named: str | None = None,
+) -> None:
+    """Train a model one batch at a time through its ``partial_fit``.
+
+    Each epoch reads the rows from DuckDB as Arrow batches and hands each
+    one to ``partial_fit(X, y)`` as numpy, so memory holds one batch, never
+    all the rows. With ``shuffle=True`` epoch ``e`` streams the rows in the
+    order of ``hash(row, seed, e)``, a new order each epoch and the same
+    orders for the same seed; with ``shuffle=False`` in the input's order.
+    The rows are numbered (`ROW`) in the order read unless `rel` already
+    has the column, as a search's fold does. When ``partial_fit`` has a
+    ``classes`` parameter, its first call is given the sorted distinct
+    non-NULL target values, computed in SQL. A batch holds `Model.rows`
+    rows, or about `Model.megabytes` (by default `MEGABYTES`) of float64
+    features: ``max(1, megabytes * 1_000_000 // (8 * len(columns)))`` rows.
+    Everything that can be refused is refused before the first call (see
+    `stream_trainer`).
+
+    Parameters
+    ----------
+    con : duckdb.DuckDBPyConnection
+        The connection `rel` belongs to.
+    rel : duckdb.DuckDBPyRelation
+        The prepared rows, with every column of `columns` and `target`.
+    columns : sequence of str
+        The features, in order.
+    target : str
+        The target's column.
+    model : Model
+        The model; its stream settings (`Model.rows`, `Model.megabytes`,
+        `Model.epochs`, `Model.shuffle`, `Model.seed`) size and order the
+        batches.
+    named : str, optional
+        The target's name in the user's data, for the messages; `target`
+        when not given.
+
+    Raises
+    ------
+    SqlearnError
+        As for `stream_trainer`.
+
+    Examples
+    --------
+    >>> from sklearn.linear_model import SGDRegressor
+    >>> import sqlearn as sq
+    >>> from sqlearn._config import connection
+    >>> from sqlearn._feed import train_streamed
+    >>> con = connection()
+    >>> rel = con.sql("SELECT i::DOUBLE AS a, 2 * i AS y FROM range(10) t(i)")
+    >>> model = sq.Model(SGDRegressor(), feed="stream", rows=4)
+    >>> train_streamed(con, rel, ["a"], "y", model)
+    >>> int(model.estimator.t_)
+    11
+    """
+    stream_trainer(con, rel, columns, target, model, named=named)()
+
+
+def stream_trainer(
+    con: duckdb.DuckDBPyConnection,
+    rel: duckdb.DuckDBPyRelation,
+    columns: Sequence[str],
+    target: str,
+    model: Model,
+    *,
+    named: str | None = None,
+) -> Callable[[], None]:
+    """Check what the stream needs, then return the training to run.
+
+    `train_streamed` in two parts, so that a caller can tell a refusal,
+    which leaves the model as it was, from a ``partial_fit`` that failed
+    and may have half changed it.
+
+    Parameters
+    ----------
+    con : duckdb.DuckDBPyConnection
+        The connection `rel` belongs to.
+    rel : duckdb.DuckDBPyRelation
+        The prepared rows, with every column of `columns` and `target`.
+    columns : sequence of str
+        The features, in order.
+    target : str
+        The target's column.
+    model : Model
+        The model, with the stream's settings.
+    named : str, optional
+        The target's name in the user's data, for the messages; `target`
+        when not given.
+
+    Returns
+    -------
+    callable
+        Takes nothing; streams every epoch through ``partial_fit``.
+
+    Raises
+    ------
+    SqlearnError
+        If the model has no ``partial_fit``, pyarrow is not installed (the
+        rows cannot be streamed without it, and fetching them whole would
+        defeat the stream), a feature is not a number, the target is
+        missing (NULL) in a row, or there are no rows.
+
+    Examples
+    --------
+    >>> from sklearn.linear_model import SGDRegressor
+    >>> import sqlearn as sq
+    >>> from sqlearn._config import connection
+    >>> from sqlearn._feed import stream_trainer
+    >>> con = connection()
+    >>> rel = con.sql("SELECT i::DOUBLE AS a, 2 * i AS y FROM range(10) t(i)")
+    >>> model = sq.Model(SGDRegressor(), feed="stream", epochs=2)
+    >>> train = stream_trainer(con, rel, ["a"], "y", model)
+    >>> hasattr(model.estimator, "t_")
+    False
+    >>> train()
+    >>> int(model.estimator.t_)
+    21
+    """
+    name = named if named is not None else target
+    partial_fit = getattr(model.estimator, "partial_fit", None)
+    if not callable(partial_fit):
+        msg = (
+            f"feed='stream' trains the model through partial_fit one batch at "
+            f"a time, and a {type(model.estimator).__name__} has no "
+            "partial_fit: it learns from all the rows at once. Fix: pass "
+            "another feed, such as feed='numpy', or a model that learns in "
+            "pieces, such as sklearn.linear_model.SGDClassifier()."
+        )
+        raise SqlearnError(msg)
+    try:
+        import pyarrow  # noqa: F401  (only to know it is there)
+    except ImportError as exc:
+        msg = (
+            "feed='stream' reads the training rows from DuckDB in batches "
+            "through pyarrow, and pyarrow is not installed; fetching all the "
+            "rows at once would defeat the stream. Fix: install pyarrow (uv "
+            "add pyarrow), or pass another feed, such as feed='numpy'."
+        )
+        raise SqlearnError(msg) from exc
+    np = _numpy()
+    take(rel.limit(0), "stream", columns)  # refuses text before any batch
+    if ROW not in rel.columns:
+        rel = con.sql(number_rows(rel.sql_query(), ROW))
+    answer = duckdb.ColumnExpression(target)
+    counted = rel.aggregate(
+        [
+            duckdb.FunctionExpression("count_star"),
+            duckdb.FunctionExpression("count", answer),
+        ]
+    ).fetchall()[0]
+    rows, known = int(counted[0]), int(counted[1])
+    if rows == 0:
+        msg = (
+            "there are no rows to train on, so partial_fit would never be "
+            "called and the model would learn nothing. Fix: pass data with "
+            "rows."
+        )
+        raise SqlearnError(msg)
+    if known < rows:
+        raise missing_target(name, rows - known)
+    first: dict[str, Any] = {}
+    if _takes_classes(partial_fit):
+        distinct = rel.project(answer).distinct().order(target)
+        first["classes"] = np.ma.getdata(distinct.fetchnumpy()[target])
+    return functools.partial(
+        _stream_epochs, con, rel, columns, target, model,
+        name=name, first=first,
+    )  # fmt: skip
+
+
+def _stream_epochs(
+    con: duckdb.DuckDBPyConnection,
+    rel: duckdb.DuckDBPyRelation,
+    columns: Sequence[str],
+    target: str,
+    model: Model,
+    *,
+    name: str,
+    first: dict[str, Any],
+) -> None:
+    """Stream every epoch's batches of `rel` (numbered) through ``partial_fit``.
+
+    `first` holds the first call's extra arguments (``classes=``).
+    """
+    partial_fit = model.estimator.partial_fit
+    size = _batch_rows(model, columns)
+    row = duckdb.ColumnExpression(ROW)
+    picks = [duckdb.ColumnExpression(c) for c in [*columns, target]]
+    extra = first
+    cur = con.cursor()
+    try:
+        for epoch in range(model.epochs):
+            order = [row]
+            if model.shuffle:
+                shuffled = duckdb.FunctionExpression(
+                    "hash",
+                    row,
+                    duckdb.ConstantExpression(model.seed),
+                    duckdb.ConstantExpression(epoch),
+                )
+                order = [shuffled, row]
+            picked = rel.sort(*order).project(*picks)
+            reader = picked.to_arrow_reader(batch_size=size)
+            with contextlib.closing(reader):
+                for batch in _sized(reader, size):
+                    x, y = fetch(
+                        cur.from_arrow(batch), "stream", columns, target, named=name
+                    )
+                    partial_fit(x, y, **extra)
+                    extra = {}  # classes= on the very first call only
+    finally:
+        cur.close()

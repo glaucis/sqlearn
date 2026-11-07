@@ -32,9 +32,9 @@ from sqlearn._config import connection, get_config
 from sqlearn._diagnose import diagnose
 from sqlearn._errors import SqlearnError, StepError
 from sqlearn._expr import quote
-from sqlearn._feed import fetch, predict_streamed
+from sqlearn._feed import ROW, fetch, predict_streamed, stream_trainer
 from sqlearn._inputs import Source, read
-from sqlearn._model import Model, as_model, check_feed, is_model, refuse_stream
+from sqlearn._model import Model, as_model, check_feed, is_model
 from sqlearn._output import Output, to_output
 from sqlearn._plan import Plan, plan
 from sqlearn._selectors import Schema, _Cols, _is_numeric, to_selector
@@ -43,7 +43,7 @@ from sqlearn._store import STORE, Entry, FoldKey, StepKey, step_key
 
 __all__ = ["Pipeline"]
 
-_ROW = "__sqlearn_row"
+_ROW = ROW
 """The column numbering the rows that feed `predict`; never handed back."""
 _FOLD_TABLE = "__sqlearn_fold_"
 """The prefix of the temporary tables holding a search's prepared folds."""
@@ -967,8 +967,9 @@ class Pipeline:
         SqlearnError
             If the pipeline has no model, the target is not a column, the
             target is missing in a row, a feature is not a number (numpy),
-            `feed` is not a form or is ``"stream"`` (not built yet), or the
-            form's library is not installed.
+            `feed` is not a form, the form's library is not installed, or
+            (``"stream"``) the model has no ``partial_fit``, pyarrow is not
+            installed or the data has no rows.
         StepError
             As for `learn`.
 
@@ -1117,7 +1118,6 @@ class Pipeline:
     def _train(self, source: Source, target: str, feed: str) -> "Pipeline":
         """Train on data already read, as `train` describes."""
         steps, model = self._modelled()
-        refuse_stream(feed)
         con = connection()
         _source_sql(con, source)
         prepared = self._features(source, target)
@@ -1134,14 +1134,26 @@ class Pipeline:
         columns = [c for c, _ in out]
         sql = build(data_sql, stages)
         categories: dict[str, list[str]] = {}
-        x, y = fetch(
-            con.sql(sql), feed, columns, TARGET, named=target, categories=categories
-        )
+        fit: Callable[[], None]
+        if feed == "stream":
+            # Batch by batch through partial_fit; what the stream refuses is
+            # refused here, before the model is touched.
+            fit = stream_trainer(
+                con, con.sql(sql), columns, TARGET, model, named=target
+            )
+        else:
+            x, y = fetch(
+                con.sql(sql), feed, columns, TARGET, named=target, categories=categories
+            )
+
+            def fit() -> None:
+                model.estimator.fit(x, y)
+
         # All or nothing: until the model is fitted, the pipeline keeps what
         # it had. A fit that fails may leave the model half changed, so the
         # pipeline then counts as untrained.
         try:
-            model.estimator.fit(x, y)
+            fit()
         except BaseException:
             self._feed = None
             raise

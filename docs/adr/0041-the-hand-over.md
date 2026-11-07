@@ -62,7 +62,15 @@ had nowhere to go but swap.
   form's rows are in memory at a time.
 - **`"stream"` learns in pieces** through `partial_fit`, with `rows=` or
   `megabytes=` (about 100 MB by default), `epochs=1`, `shuffle=True` and
-  `seed=0`; these settings are refused with any other form.
+  `seed=0`; these settings are refused with any other form, and `rows=`
+  with `megabytes=`. Epoch `e` streams the rows in the order of
+  `hash(row, seed, e)` (`shuffle=False`: the input's order), the first call
+  is given `classes=` (the sorted distinct targets, computed in SQL) when
+  `partial_fit` takes it. A model without `partial_fit`, text, a missing
+  target and a missing pyarrow are refused before the first batch: without
+  pyarrow the rows cannot be read in batches, and fetching them whole
+  would defeat the stream. In a search each stream model streams its fold's
+  training rows itself.
 - **Never swap.** Before a form other than `"stream"` loads a fold, its size
   is estimated and compared with the memory budget; a fold that will not fit
   is refused before the fetch, suggesting `feed="stream"`.

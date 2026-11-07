@@ -9,7 +9,7 @@ import pandas as pd
 import polars as pl
 import pyarrow as pa
 import pytest
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegression, SGDClassifier
 
 import sqlearn as sq
 from sqlearn import _feed
@@ -418,3 +418,336 @@ def test_a_feature_named_like_the_null_helper_is_handed_over(con):
     x, y = fetch(rel, "pandas", ["__sqlearn_target_null"], "y")
     assert x["__sqlearn_target_null"].tolist() == [1.0, 2.0]
     assert y.tolist() == [0, 1]
+
+
+DATA_100_ROWS = pd.DataFrame(
+    {
+        "a": np.arange(100.0),
+        "b": np.cos(np.arange(100.0)),
+        "y": [0, 1, 1, 0, 1] * 20,
+    }
+)
+"""One hundred rows of two features and a target of two classes."""
+
+
+def numpy_of(data):
+    """Return the features and the target of `data` as numpy, in its order."""
+    return data[["a", "b"]].to_numpy(dtype=np.float64), data["y"].to_numpy()
+
+
+class Batches:
+    """A model learning in pieces that records every batch it is handed."""
+
+    def __init__(self):
+        self.seen = []
+        self.classes = []
+
+    def partial_fit(self, x, y, classes=None):
+        """Record the batch and the classes it was given."""
+        self.seen.append((x.copy(), y.copy()))
+        self.classes.append(classes)
+        return self
+
+    def fit(self, x, y):
+        """Refuse: the stream calls partial_fit only."""
+        raise AssertionError("fit called")
+
+    def predict(self, x):
+        """Predict nothing useful."""
+        return np.zeros(len(x))
+
+
+def record_first_rows(*, feed, rows, epochs, seed):
+    """Return each epoch's order of the rows, by their feature ``a``."""
+    model = Batches()
+    sq.Pipeline(
+        [sq.Model(model, feed=feed, rows=rows, epochs=epochs, seed=seed)]
+    ).train(DATA_100_ROWS, target="y")
+    order = [v for x, _ in model.seen for v in x[:, 0].tolist()]
+    return [tuple(order[e * 100 : (e + 1) * 100]) for e in range(epochs)]
+
+
+def test_stream_trains_in_batches_of_the_rows_given():
+    """rows= is each batch's size; each epoch streams every row once."""
+    sizes = []
+
+    class Count:
+        def partial_fit(self, x, y, classes=None):
+            sizes.append(len(x))
+            return self
+
+        def fit(self, x, y):
+            raise AssertionError("fit called")
+
+        def predict(self, x):
+            return np.zeros(len(x))
+
+    pipe = sq.Pipeline([sq.Model(Count(), feed="stream", rows=40, epochs=2)])
+    pipe.train(DATA_100_ROWS, target="y")
+    assert sizes == [40, 40, 20] * 2
+
+
+def test_stream_never_passes_an_empty_batch():
+    """A batch larger than the data is one batch of every row."""
+    sizes = []
+
+    class Count:
+        def partial_fit(self, x, y, classes=None):
+            sizes.append(len(x))
+            return self
+
+        def fit(self, x, y):
+            raise AssertionError
+
+        def predict(self, x):
+            return np.zeros(len(x))
+
+    sq.Pipeline([sq.Model(Count(), feed="stream", rows=1000)]).train(
+        DATA_100_ROWS, target="y"
+    )
+    assert sizes == [100] and 0 not in sizes
+
+
+def test_stream_shuffles_by_seed_and_epoch():
+    """The same seed gives the same orders; each epoch's order is new."""
+    orders = record_first_rows(feed="stream", rows=10, epochs=2, seed=0)
+    again = record_first_rows(feed="stream", rows=10, epochs=2, seed=0)
+    assert orders == again and orders[0] != orders[1]
+    other = record_first_rows(feed="stream", rows=10, epochs=2, seed=1)
+    assert other != orders
+    assert sorted(orders[0]) == sorted(orders[1]) == DATA_100_ROWS["a"].tolist()
+
+
+def test_stream_without_shuffle_keeps_the_input_order():
+    """shuffle=False streams the rows in the order they are read, every epoch."""
+    model = Batches()
+    sq.Pipeline(
+        [sq.Model(model, feed="stream", rows=30, epochs=2, shuffle=False)]
+    ).train(DATA_100_ROWS, target="y")
+    order = [v for x, _ in model.seen for v in x[:, 0].tolist()]
+    assert order == DATA_100_ROWS["a"].tolist() * 2
+
+
+def test_stream_matches_sgd_on_the_same_order():
+    """Streamed in order, the model learns as partial_fit on numpy slices."""
+    sgd = SGDClassifier(random_state=0, shuffle=False)
+    # The estimator's own shuffle= shuffles inside each batch: off in both.
+    streamed = SGDClassifier(random_state=0, shuffle=False)
+    pipe = sq.Pipeline([sq.Model(streamed, feed="stream", rows=25, shuffle=False)])
+    pipe.train(DATA_100_ROWS, target="y")
+    x, y = numpy_of(DATA_100_ROWS)
+    for start in range(0, 100, 25):
+        sgd.partial_fit(
+            x[start : start + 25], y[start : start + 25], classes=np.unique(y)
+        )
+    np.testing.assert_allclose(np.asarray(streamed.coef_), np.asarray(sgd.coef_))
+
+
+def test_stream_gives_the_classes_on_the_first_call_only():
+    """classes= is the sorted distinct targets, computed in SQL, given once."""
+    model = Batches()
+    sq.Pipeline([sq.Model(model, feed="stream", rows=40)]).train(
+        DATA_100_ROWS, target="y"
+    )
+    assert model.classes[0].tolist() == [0, 1]
+    assert model.classes[1:] == [None, None]
+    # Each row's target stays beside its features.
+    for x, y in model.seen:
+        assert y.tolist() == [[0, 1, 1, 0, 1][int(a) % 5] for a in x[:, 0]]
+
+
+def test_stream_gives_no_classes_to_a_model_that_takes_none():
+    """A partial_fit without a classes parameter is called with X and y only."""
+    calls = []
+
+    class Regressor:
+        def partial_fit(self, x, y):
+            calls.append(len(x))
+            return self
+
+        def fit(self, x, y):
+            raise AssertionError
+
+        def predict(self, x):
+            return np.zeros(len(x))
+
+    sq.Pipeline([sq.Model(Regressor(), feed="stream", rows=50)]).train(
+        DATA_100_ROWS, target="y"
+    )
+    assert calls == [50, 50]
+
+
+def test_megabytes_sets_the_batch_from_the_row_width(con):
+    """megabytes= gives max(1, megabytes * 1e6 // (8 * features)) rows."""
+    model = Batches()
+    rel = con.sql("SELECT i::DOUBLE AS a, i % 2 AS y FROM range(300000) t(i)")
+    _feed.train_streamed(con, rel, ["a"], "y", Model(model, feed="stream", megabytes=1))
+    assert [len(x) for x, _ in model.seen] == [125_000, 125_000, 50_000]
+
+
+def test_stream_defaults_to_batches_of_about_100_megabytes(con, monkeypatch):
+    """With neither rows= nor megabytes=, a batch is about 100 MB."""
+    seen = []
+    real = duckdb_reader_sizes(monkeypatch, seen)
+    rel = con.sql("SELECT i::DOUBLE AS a, i::DOUBLE AS b, 0 AS y FROM range(10) t(i)")
+    _feed.train_streamed(con, rel, ["a", "b"], "y", Model(Batches(), feed="stream"))
+    assert seen == [100 * 1_000_000 // 16]
+    assert real
+
+
+def duckdb_reader_sizes(monkeypatch, seen):
+    """Record the batch size of every Arrow reader the feed opens."""
+    import duckdb
+
+    real = duckdb.DuckDBPyRelation.to_arrow_reader
+
+    def reader(self, batch_size=1_000_000):
+        seen.append(batch_size)
+        return real(self, batch_size=batch_size)
+
+    monkeypatch.setattr(duckdb.DuckDBPyRelation, "to_arrow_reader", reader)
+    return real
+
+
+def test_a_model_without_partial_fit_is_refused_naming_other_forms():
+    """The stream needs partial_fit; the message suggests a form that fits."""
+    pipe = sq.Pipeline([sq.Model(LogisticRegression(), feed="stream")])
+    with pytest.raises(sq.errors.SqlearnError, match=r"partial_fit.*feed='numpy'"):
+        pipe.train(DATA_100_ROWS, target="y")
+
+
+def test_rows_and_megabytes_together_are_refused():
+    """A batch is sized by rows= or by megabytes=, not both."""
+    with pytest.raises(sq.errors.SqlearnError, match=r"rows=.*megabytes="):
+        sq.Model(SGDClassifier(), feed="stream", rows=10, megabytes=1)
+
+
+def test_the_stream_without_pyarrow_is_refused(monkeypatch):
+    """Training cannot stream without pyarrow: refused, never fetched whole."""
+    without_pyarrow(monkeypatch)
+    model = Batches()
+    pipe = sq.Pipeline([sq.Model(model, feed="stream")])
+    with pytest.raises(sq.errors.SqlearnError, match="uv add pyarrow"):
+        pipe.train(DATA_100_ROWS, target="y")
+    assert model.seen == []
+
+
+def test_the_stream_refuses_text_before_any_batch():
+    """Text reaches no model through the stream, as with numpy."""
+    model = Batches()
+    data = DATA_100_ROWS.assign(city="oslo")
+    pipe = sq.Pipeline([sq.Model(model, feed="stream", rows=10)])
+    with pytest.raises(sq.errors.SqlearnError, match=r"sq\.encode\.onehot"):
+        pipe.train(data, target="y")
+    assert model.seen == []
+
+
+def test_the_stream_refuses_a_missing_target_counting_every_row():
+    """A NULL target is refused before any batch, counted over all the rows."""
+    model = Batches()
+    data = DATA_100_ROWS.assign(y=DATA_100_ROWS["y"].astype("Int64"))
+    data.loc[[3, 57, 98], "y"] = pd.NA
+    pipe = sq.Pipeline([sq.Model(model, feed="stream", rows=10)])
+    with pytest.raises(sq.errors.SqlearnError, match=r"'y' is missing in 3 row"):
+        pipe.train(data, target="y")
+    assert model.seen == []
+
+
+def test_a_stream_model_predicts_in_numpy_batches(monkeypatch):
+    """Trained through the stream, the model predicts numpy batches."""
+    monkeypatch.setattr(_feed, "BATCH_ROWS", 30)
+    seen = []
+
+    class Mean(Batches):
+        def predict(self, x):
+            seen.append((type(x), len(x)))
+            return x[:, 0]
+
+    pipe = sq.Pipeline([sq.Model(Mean(), feed="stream", rows=40, epochs=3)])
+    pipe.train(DATA_100_ROWS, target="y")
+    out = pipe.predict(DATA_100_ROWS, out="numpy")["prediction"]
+    assert seen == [(np.ndarray, 30)] * 3 + [(np.ndarray, 10)]
+    assert out.tolist() == DATA_100_ROWS["a"].tolist()
+    assert pipe["model"].rows == 40 and pipe["model"].epochs == 3
+
+
+def test_a_search_trains_each_fold_through_the_stream():
+    """A search fits a stream model with partial_fit on each fold's rows."""
+    fitted = []
+
+    class Folded(Batches):
+        def partial_fit(self, x, y, classes=None):
+            fitted.append(len(x))
+            return super().partial_fit(x, y, classes)
+
+        def get_params(self, deep=True):
+            return {}
+
+    pipe = sq.Pipeline(
+        [
+            ("scale", sq.scale.standard()),
+            sq.Model(Folded(), feed="stream", rows=50),
+        ]
+    )
+    search = sq.search(
+        pipe,
+        params={"scale__method": ["standard", "minmax"]},
+        folds=sq.folds.kfold(4),
+    )
+    search.train(DATA_100_ROWS, target="y")
+    # Each of two settings on four folds (every row trains on three of
+    # them), in batches of at most 50 rows; then the best pipeline's 100.
+    assert fitted[-2:] == [50, 50]
+    assert sum(fitted[:-2]) == 2 * 3 * 100
+    assert all(0 < n <= 50 for n in fitted)
+
+
+def test_a_search_streams_folds_in_row_order_without_shuffle():
+    """Each fold's training rows stream in the data's order with shuffle=False."""
+    orders = []
+
+    class Folded(Batches):
+        def partial_fit(self, x, y, classes=None):
+            orders.append(x[:, 0].tolist())
+            return self
+
+        def get_params(self, deep=True):
+            return {}
+
+    pipe = sq.Pipeline([sq.Model(Folded(), feed="stream", rows=1000, shuffle=False)])
+    search = sq.search(pipe, params={}, folds=sq.folds.kfold(4))
+    search.train(DATA_100_ROWS, target="y")
+    for order in orders:
+        assert order == sorted(order)
+
+
+def test_a_search_refuses_a_stream_model_without_partial_fit_as_it_is():
+    """The stream's refusal is not reported as a fold's failure."""
+    pipe = sq.Pipeline([sq.Model(LogisticRegression(), feed="stream")])
+    search = sq.search(pipe, params={"model__C": [0.1, 1.0]})
+    with pytest.raises(sq.errors.SqlearnError, match="has no partial_fit") as caught:
+        search.train(DATA_100_ROWS, target="y")
+    assert "on fold" not in str(caught.value)
+
+
+def test_batches_are_cut_to_the_size_asked_for():
+    """DuckDB's short or empty Arrow batches are joined and cut exactly."""
+    parts = [pa.record_batch({"a": list(range(n))}) for n in (3, 0, 4, 1, 5)]
+    sizes = [t.num_rows for t in _feed._sized(iter(parts), 4)]
+    assert sizes == [4, 4, 4, 1]
+
+
+def test_the_stream_refuses_data_without_rows(con):
+    """With no rows, partial_fit would never be called: refused."""
+    model = Batches()
+    rel = con.sql("SELECT 1.0 AS a, 0 AS y WHERE false")
+    with pytest.raises(sq.errors.SqlearnError, match="no rows to train on"):
+        _feed.train_streamed(con, rel, ["a"], "y", Model(model, feed="stream"))
+    assert model.seen == []
+
+
+@pytest.mark.parametrize("setting", [{"rows": 0}, {"megabytes": -1}, {"epochs": 1.5}])
+def test_the_stream_s_counts_must_be_positive_ints(setting):
+    """rows=, megabytes= and epochs= are counts of at least 1."""
+    with pytest.raises(sq.errors.SqlearnError, match="not a count"):
+        sq.Model(SGDClassifier(), feed="stream", **setting)

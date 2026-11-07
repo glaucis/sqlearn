@@ -20,7 +20,6 @@ __all__ = [
     "copy_model",
     "is_model",
     "missing_target",
-    "refuse_stream",
     "target_values",
 ]
 
@@ -60,35 +59,6 @@ def check_feed(feed: str) -> None:
             f"feed={feed!r} is not a form sqlearn hands data to a model in; "
             f"the forms are {', '.join(FEEDS)}. Fix: pass feed= one of them, "
             "or leave it out for numpy."
-        )
-        raise SqlearnError(msg)
-
-
-def refuse_stream(feed: str) -> None:
-    """Refuse to train through the stream, which is not built yet.
-
-    Parameters
-    ----------
-    feed : str
-        The form a model is to be trained in.
-
-    Raises
-    ------
-    SqlearnError
-        If `feed` is ``"stream"``: training through ``partial_fit`` is
-        planned in issue #21.
-
-    Examples
-    --------
-    >>> from sqlearn._model import refuse_stream
-    >>> refuse_stream("pandas")
-    """
-    if feed == "stream":
-        msg = (
-            "feed='stream' trains the model through partial_fit one batch at "
-            "a time, which is not built yet "
-            "(https://github.com/glaucis/sqlearn/issues/21). Fix: pass another "
-            "feed for now, such as feed='numpy'."
         )
         raise SqlearnError(msg)
 
@@ -154,7 +124,10 @@ class Model:
     feed : {"numpy", "pandas", "polars", "arrow", "stream"}, default "numpy"
         The form the prepared data is handed over in, as in the table above.
     rows : int, optional
-        With ``feed="stream"`` only: the rows in each batch.
+        With ``feed="stream"`` only: the rows in each batch. The stream
+        calls ``partial_fit(X, y)`` once per batch, the first call with
+        ``classes=`` (the sorted distinct targets) when it takes them; it
+        needs pyarrow.
     megabytes : int, optional
         With ``feed="stream"`` only: about how large each batch is; about
         100 MB when neither this nor `rows` is given.
@@ -179,7 +152,9 @@ class Model:
     ------
     SqlearnError
         If the estimator lacks ``fit`` or ``predict``, `feed` is not a form,
-        or a setting of the stream is given with another feed.
+        a setting of the stream is given with another feed, `rows` and
+        `megabytes` are both given, or `rows`, `megabytes` or `epochs` is
+        not a positive int.
 
     Examples
     --------
@@ -229,6 +204,27 @@ class Model:
                         f"leave {name}= out."
                     )
                     raise SqlearnError(msg)
+        if rows is not None and megabytes is not None:
+            msg = (
+                f"rows={rows!r} and megabytes={megabytes!r} both size the "
+                "stream's batches, and a batch has one size. Fix: pass rows= "
+                "or megabytes=, not both."
+            )
+            raise SqlearnError(msg)
+        for name, value in (
+            ("rows", rows),
+            ("megabytes", megabytes),
+            ("epochs", epochs),
+        ):
+            if value is not None and (
+                isinstance(value, bool) or not isinstance(value, int) or value < 1
+            ):
+                msg = (
+                    f"{name}={value!r} is not a count: the stream needs a "
+                    f"whole number of at least 1 for {name}. Fix: pass "
+                    f"{name}= a positive int, or leave it out."
+                )
+                raise SqlearnError(msg)
         self.estimator: Any = estimator
         self.feed = feed
         self.rows = rows

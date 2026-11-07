@@ -252,13 +252,6 @@ def test_categories_map_by_value_whatever_the_batch_holds(monkeypatch):
     assert whole.tolist() == DATA_WITH_CITY["y"].tolist()
 
 
-def test_training_through_the_stream_is_not_built_yet():
-    """feed='stream' is a form, but partial_fit training comes later."""
-    pipe = sq.Pipeline([sq.Model(LogisticRegression(), feed="stream")])
-    with pytest.raises(SqlearnError, match="partial_fit"):
-        pipe.train(NUMERIC_DATA, target="y")
-
-
 class Codes:
     """A model that reads category codes: predict returns the city's codes."""
 
