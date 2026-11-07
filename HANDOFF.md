@@ -31,8 +31,10 @@ None.
 - A subagent that has handed back can still be running a background step
   while `ListAgents` shows it completed; check the agent panel and stop it
   with `TaskStop`. (2026-11-06)
-- Wall-clock tests must warm up first; the first learn pays DuckDB's start-up
-  and fails under load. (2026-11-07)
+- Wall-clock tests must warm up first, and set a limit between the normal
+  time under load and the regression's, not just above the normal time.
+  Never pipe `just test` through `tail` before `&&`: the pipe hides its
+  failure. (2026-11-07)
 - DuckDB 2.0: NaN sorts greatest, so `max` over a column with NaN is NaN
   (every aggregate filters missing values); a staged result read with
   `any_value` breaks inside another aggregate (plain column there); chained
@@ -46,7 +48,8 @@ None.
   encoder's inner folds by row position), the other rulings in a summary
   comment on #30; #26 closed by ADR 0035; #31 and #32 filed; #22, #27, #28
   detached from #30 to stand alone. (2026-11-07)
-- Timing test warmed up before its clock (passes 3/3 at load 22); merged
+- Timing test warmed up and its limit raised to 10 s (1.6 s at load 40 against
+  85 s when the basis is built; `just test` passes at load 56); merged
   worktrees `library-preprocessing` and `agent-af23…` removed, their branches
   deleted, the build ledger kept in `.superpowers/sdd/`. (2026-11-07)
 - `CLAUDE.md` carries the global Handoff and "Skills and routine work" rules

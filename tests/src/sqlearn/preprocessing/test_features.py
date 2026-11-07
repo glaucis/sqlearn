@@ -551,7 +551,11 @@ def test_the_group_lists_its_shortcuts():
 
 
 def test_a_wide_spline_learns_fast_when_nothing_reads_it_in_the_run():
-    """50 columns learn in well under 2 s: the unread basis is not built."""
+    """50 columns learn in under 10 s: the unread basis is not built.
+
+    At load 40 the learn took 1.6 s, and 85 s when a later step read the basis
+    and it was built: 10 s holds under load and still catches the regression.
+    """
     rng = np.random.default_rng(0)
     frame = pd.DataFrame({f"c{i}": rng.normal(size=200) for i in range(50)})
     warm_up = pd.DataFrame({"w": rng.normal(size=20)})
@@ -559,7 +563,7 @@ def test_a_wide_spline_learns_fast_when_nothing_reads_it_in_the_run():
     sq.store.clear()
     start = time.perf_counter()
     pipe = sq.Pipeline([sq.features.spline()]).learn(frame)
-    assert time.perf_counter() - start < 2.0
+    assert time.perf_counter() - start < 10.0
     assert len(pipe.runs_) == 1
     model = sklearn_spline(frame.c7)
     got = pipe.apply(frame, out="pandas")
