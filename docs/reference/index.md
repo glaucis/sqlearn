@@ -1,8 +1,8 @@
 ---
 type: note
-tags: [api, reference, autosummary, sqlearn, docstrings]
-summary: "Generated API reference page for the sqlearn package, listing its classes, functions, and exceptions via autosummary."
-mdindex: [type=edb465, tags=a2fd40, summary=2d62d8]
+tags: [api, reference, sqlearn, autosummary, docstrings]
+summary: Index page listing the generated API reference for the sqlearn package via Sphinx autosummary directives.
+mdindex: [type=edb465, tags=c685b2, summary=673e6c]
 ---
 # Reference
 

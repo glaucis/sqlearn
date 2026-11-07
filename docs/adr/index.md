@@ -1,9 +1,9 @@
 ---
 type: note
-tags: [decision-records, index, adr, architecture, sqlearn]
-summary: "Index of sqlearn's architecture decision records, grouped by topic: tooling, DuckDB execution, API, steps, store, models, and numerics."
-mdindex: [type=edb465, tags=8553db, summary=e6d370, related=497df0]
-related: [docs/adr/0001-uv-for-python-packaging.md, docs/adr/0002-sql-on-duckdb-execution-engine.md, docs/adr/0003-scikit-learn-style-api.md, docs/adr/0004-apache-2-licence.md, docs/adr/0005-runtime-dependencies.md, docs/adr/0006-local-and-offline.md, docs/adr/0007-python-3-12-floor.md, docs/adr/0008-just-task-runner.md]
+tags: [decision-records, adr, index, sqlearn, architecture]
+summary: "Index of sqlearn decision records (ADRs), grouped by topic such as tooling, execution in DuckDB, the API, and validation."
+mdindex: [type=edb465, tags=af7fe9, summary=e1bff3, related=14668e]
+related: [docs/adr/0001-uv-for-python-packaging.md, docs/adr/0004-apache-2-licence.md, docs/adr/0005-runtime-dependencies.md, docs/adr/0006-local-and-offline.md, docs/adr/0007-python-3-12-floor.md, docs/adr/0008-just-task-runner.md, docs/adr/0010-british-prose-american-identifiers.md, docs/adr/0025-results-stored-as-data-in-mirrored-folders.md]
 ---
 
 # Decision records

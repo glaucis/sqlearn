@@ -1,8 +1,8 @@
 ---
 type: guide
-tags: [guide, sqlearn, api, documentation, index]
+tags: [sqlearn, documentation, api, toctree, chapters]
 summary: "Index page for the sqlearn user guide: writing steps, inputs and the store, the preprocessing groups (imputing, scaling, encoding, binning, transforming, making features), column names, and moving from scikit-learn."
-mdindex: [type=83ca68, tags=78f095, summary=bdb396, related=776e9c]
+mdindex: [type=83ca68, tags=db65ab]
 related: [docs/guide/writing-a-step.md, docs/guide/inputs-and-the-store.md, docs/guide/from-scikit-learn.md, docs/guide/column-names.md]
 ---
 # Guide

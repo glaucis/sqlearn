@@ -1,8 +1,9 @@
 ---
 type: note
-tags: [benchmarks, performance, sqlearn]
-summary: "Index page for sqlearn benchmarks, comparing its speed against the libraries it imitates."
-mdindex: [type=edb465, tags=fd61b9, summary=cd70e5]
+tags: [benchmarks, performance, sqlearn, index]
+summary: "Index page for sqlearn benchmarks comparing its speed against the libraries it imitates, with a toctree to subpages."
+mdindex: [type=edb465, tags=8a3784, summary=10f423, related=fce417]
+related: [onehot-second-run]
 ---
 # Benchmarks
 
