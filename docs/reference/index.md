@@ -62,6 +62,9 @@ The API of the sqlearn package, generated from its docstrings.
    sqlearn.search.range
    sqlearn.folds
    sqlearn.folds.kfold
+   sqlearn.folds.stratified
+   sqlearn.folds.group
+   sqlearn.folds.holdout
    sqlearn.metrics.Metric
    sqlearn.metrics.accuracy
    sqlearn.Model

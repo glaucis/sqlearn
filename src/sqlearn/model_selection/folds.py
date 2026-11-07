@@ -7,7 +7,7 @@ import duckdb
 from sqlearn._errors import SqlearnError
 from sqlearn._expr import quote
 
-__all__ = ["ALIAS", "Folds", "KFold"]
+__all__ = ["ALIAS", "Folds", "Grouped", "Holdout", "KFold", "Stratified"]
 
 ALIAS = "__sqlearn_row_values"
 """The alias naming the whole row inside the fold expression."""
@@ -329,3 +329,461 @@ class KFold:
         k_value = duckdb.ConstantExpression(k)
         kept = aliased.filter(fold == k_value if held else fold != k_value)
         return kept.project(*(duckdb.ColumnExpression(c) for c in rel.columns))
+
+
+def _whole_row(rel: duckdb.DuckDBPyRelation) -> duckdb.DuckDBPyRelation:
+    """Return `rel` aliased so ``ALIAS`` names the whole row."""
+    if any(c.lower() == ALIAS for c in rel.columns):
+        msg = (
+            f"the data has a column named {ALIAS!r}, a name sqlearn keeps "
+            "for the whole row when it deals rows into folds. Fix: rename "
+            "that column."
+        )
+        raise SqlearnError(msg)
+    return rel.set_alias(ALIAS)
+
+
+def _whole_number(scheme: str, setting: str, value: object, example: str) -> None:
+    if isinstance(value, bool) or not isinstance(value, int):
+        msg = (
+            f"{scheme} got {setting}={value!r}; it must be a whole number. "
+            f"Fix: pass {setting}={example}, say."
+        )
+        raise SqlearnError(msg)
+
+
+def _check_folds(scheme: str, n: object, seed: object) -> None:
+    if isinstance(n, bool) or not isinstance(n, int) or n < 2:
+        msg = (
+            f"{scheme} got n={n!r}; a cross-validation needs at least 2 folds, "
+            "as a whole number. Fix: pass n=5, say."
+        )
+        raise SqlearnError(msg)
+    _whole_number(scheme, "seed", seed, "0")
+
+
+class _Scheme:
+    """What the schemes below share: the predicates, equality and hashing."""
+
+    n: int
+
+    @property
+    def splits(self) -> int:
+        """How many folds are scored."""
+        return self.n
+
+    @property
+    def key(self) -> tuple[object, ...]:
+        """The settings, stable across processes."""
+        raise NotImplementedError
+
+    def training(self, name: str, k: int) -> duckdb.Expression:
+        """Return the predicate for the rows fold `k` learns from."""
+        return duckdb.ColumnExpression(name) != duckdb.ConstantExpression(k)
+
+    def held(self, name: str, k: int) -> duckdb.Expression:
+        """Return the predicate for the rows fold `k` holds out."""
+        return duckdb.ColumnExpression(name) == duckdb.ConstantExpression(k)
+
+    def __eq__(self, other: object) -> bool:
+        """Compare by kind and settings."""
+        if type(other) is not type(self):
+            return NotImplemented
+        return self.key == getattr(other, "key", None)
+
+    def __hash__(self) -> int:
+        """Hash the settings."""
+        return hash(self.key)
+
+
+class Stratified(_Scheme):
+    """Split into `n` folds that each keep the target's class shares.
+
+    Within each class, rows are ordered by ``hash(row, seed)`` and dealt out
+    in turn, as scikit-learn's ``StratifiedKFold`` spreads each class, so each
+    fold holds the same share of every class to within one row.
+
+    Parameters
+    ----------
+    n : int, default 5
+        The number of folds, at least 2.
+    seed : int, default 0
+        The seed mixed into the hash.
+
+    Attributes
+    ----------
+    n : int
+        The number of folds.
+    seed : int
+        The seed.
+
+    Raises
+    ------
+    SqlearnError
+        If `n` is below 2 or either setting is not an integer.
+
+    Examples
+    --------
+    >>> import sqlearn as sq
+    >>> sq.folds.stratified(5, seed=0)
+    Stratified(n=5, seed=0)
+    """
+
+    def __init__(self, n: int = 5, seed: int = 0) -> None:
+        _check_folds("Stratified", n, seed)
+        self.n = n
+        self.seed = seed
+
+    @property
+    def key(self) -> tuple[object, ...]:
+        """The settings as ``("stratified", n, seed)``."""
+        return ("stratified", self.n, self.seed)
+
+    def __repr__(self) -> str:
+        """Show the settings.
+
+        Returns
+        -------
+        str
+            ``Stratified(n=..., seed=...)``.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> repr(sq.folds.stratified(3, seed=1))
+        'Stratified(n=3, seed=1)'
+        """
+        return f"Stratified(n={self.n}, seed={self.seed})"
+
+    def expression(self, row_alias: str, target: str) -> str:
+        """Return the SQL of a row's fold number.
+
+        Parameters
+        ----------
+        row_alias : str
+            The alias of the relation; in DuckDB it names the whole row.
+        target : str
+            The target column whose classes are spread.
+
+        Returns
+        -------
+        str
+            The row's place within its class, less one, modulo `n`.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> print(sq.folds.stratified(2).expression("d", "y"))
+        (row_number() OVER (PARTITION BY "y" ORDER BY hash("d", 0)) - 1) % 2
+        """
+        return (
+            f"(row_number() OVER (PARTITION BY {quote(target)} "
+            f"ORDER BY hash({quote(row_alias)}, {self.seed})) - 1) % {self.n}"
+        )
+
+    def numbered(
+        self, rel: duckdb.DuckDBPyRelation, name: str, target: str | None = None
+    ) -> duckdb.DuckDBPyRelation:
+        """Return every row with its fold number as one more column.
+
+        Parameters
+        ----------
+        rel : duckdb.DuckDBPyRelation
+            The data.
+        name : str
+            The name of the fold column.
+        target : str, optional
+            The target column; required.
+
+        Returns
+        -------
+        duckdb.DuckDBPyRelation
+            The data's columns, then `name`.
+
+        Raises
+        ------
+        SqlearnError
+            If there is no target, the target is not a column of the data, or
+            the data has a column named as the row alias, `ALIAS`.
+
+        Examples
+        --------
+        >>> import duckdb
+        >>> import sqlearn as sq
+        >>> rel = duckdb.sql("SELECT range AS i, range % 2 AS y FROM range(10)")
+        >>> sq.folds.stratified(2).numbered(rel, "fold", "y").columns
+        ['i', 'y', 'fold']
+        """
+        if target is None:
+            msg = (
+                "Stratified folds keep each class's share, so they need the "
+                "target. Fix: pass target= to train or to the search."
+            )
+            raise SqlearnError(msg)
+        if target not in rel.columns:
+            msg = (
+                f"Stratified folds got target={target!r}, which is not a "
+                f"column of the data (columns: {list(rel.columns)}). Fix: "
+                "name one of them."
+            )
+            raise SqlearnError(msg)
+        fold = duckdb.SQLExpression(self.expression(ALIAS, target))
+        return _whole_row(rel).project(duckdb.StarExpression(), fold.alias(name))
+
+
+class Grouped(_Scheme):
+    """Split into `n` folds so that every group falls wholly in one fold.
+
+    A row's fold is ``hash(by, seed) % n``, so rows sharing a value of `by`
+    (a customer, a patient) are never split between learning and scoring.
+
+    Parameters
+    ----------
+    by : str
+        The column naming each row's group.
+    n : int, default 5
+        The number of folds, at least 2.
+    seed : int, default 0
+        The seed mixed into the hash.
+
+    Attributes
+    ----------
+    by : str
+        The group column.
+    n : int
+        The number of folds.
+    seed : int
+        The seed.
+
+    Raises
+    ------
+    SqlearnError
+        If `by` is not a string, `n` is below 2 or a setting is not an integer.
+
+    Examples
+    --------
+    >>> import sqlearn as sq
+    >>> sq.folds.group("customer", 5)
+    Grouped(by='customer', n=5, seed=0)
+    """
+
+    def __init__(self, by: str, n: int = 5, seed: int = 0) -> None:
+        if not isinstance(by, str):
+            msg = (
+                f"Grouped got by={by!r}; it names the column that holds each "
+                "row's group, as text. Fix: pass by='customer', say."
+            )
+            raise SqlearnError(msg)
+        _check_folds("Grouped", n, seed)
+        self.by = by
+        self.n = n
+        self.seed = seed
+
+    @property
+    def key(self) -> tuple[object, ...]:
+        """The settings as ``("group", by, n, seed)``."""
+        return ("group", self.by, self.n, self.seed)
+
+    def __repr__(self) -> str:
+        """Show the settings.
+
+        Returns
+        -------
+        str
+            ``Grouped(by=..., n=..., seed=...)``.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> repr(sq.folds.group("g", 3, seed=1))
+        "Grouped(by='g', n=3, seed=1)"
+        """
+        return f"Grouped(by={self.by!r}, n={self.n}, seed={self.seed})"
+
+    def expression(self) -> str:
+        """Return the SQL of a row's fold number.
+
+        Returns
+        -------
+        str
+            ``hash(<by>, <seed>) % <n>``, the column quoted.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> sq.folds.group("g", 4, seed=2).expression()
+        'hash("g", 2) % 4'
+        """
+        return f"hash({quote(self.by)}, {self.seed}) % {self.n}"
+
+    def numbered(
+        self, rel: duckdb.DuckDBPyRelation, name: str, target: str | None = None
+    ) -> duckdb.DuckDBPyRelation:
+        """Return every row with its fold number as one more column.
+
+        Parameters
+        ----------
+        rel : duckdb.DuckDBPyRelation
+            The data.
+        name : str
+            The name of the fold column.
+        target : str, optional
+            The target column; unused.
+
+        Returns
+        -------
+        duckdb.DuckDBPyRelation
+            The data's columns, then `name`.
+
+        Raises
+        ------
+        SqlearnError
+            If the data has no column `by`.
+
+        Examples
+        --------
+        >>> import duckdb
+        >>> import sqlearn as sq
+        >>> rel = duckdb.sql("SELECT range AS i, range // 3 AS g FROM range(9)")
+        >>> sq.folds.group("g").numbered(rel, "fold").columns
+        ['i', 'g', 'fold']
+        """
+        if self.by not in rel.columns:
+            msg = (
+                f"Grouped folds got by={self.by!r}, which is not a column of "
+                f"the data (columns: {list(rel.columns)}). Fix: name one of "
+                "them."
+            )
+            raise SqlearnError(msg)
+        fold = duckdb.SQLExpression(self.expression())
+        return rel.project(duckdb.StarExpression(), fold.alias(name))
+
+
+class Holdout(_Scheme):
+    """One split: a share of the rows held out, the rest learned from.
+
+    A row is held out when ``hash(row, seed) / 2^64 < test``; the share is
+    about `test`, not exact. ``splits`` is 1, and fold 0 is the split.
+
+    Parameters
+    ----------
+    test : float, default 0.2
+        The share of rows held out, above 0 and below 1.
+    seed : int, default 0
+        The seed mixed into the hash.
+
+    Attributes
+    ----------
+    test : float
+        The share held out.
+    seed : int
+        The seed.
+
+    Raises
+    ------
+    SqlearnError
+        If `test` is not strictly between 0 and 1 or `seed` is not an integer.
+
+    Examples
+    --------
+    >>> import sqlearn as sq
+    >>> sq.folds.holdout(test=0.25)
+    Holdout(test=0.25, seed=0)
+    """
+
+    n = 1
+
+    def __init__(self, test: float = 0.2, seed: int = 0) -> None:
+        if (
+            isinstance(test, bool)
+            or not isinstance(test, (int, float))
+            or not 0 < test < 1
+        ):
+            msg = (
+                f"Holdout got test={test!r}; the share of rows held out must "
+                "be above 0 and below 1. Fix: pass test=0.2, say."
+            )
+            raise SqlearnError(msg)
+        _whole_number("Holdout", "seed", seed, "0")
+        self.test = test
+        self.seed = seed
+
+    @property
+    def key(self) -> tuple[object, ...]:
+        """The settings as ``("holdout", test, seed)``."""
+        return ("holdout", self.test, self.seed)
+
+    def __repr__(self) -> str:
+        """Show the settings.
+
+        Returns
+        -------
+        str
+            ``Holdout(test=..., seed=...)``.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> repr(sq.folds.holdout(0.5, seed=1))
+        'Holdout(test=0.5, seed=1)'
+        """
+        return f"Holdout(test={self.test}, seed={self.seed})"
+
+    def expression(self, row_alias: str) -> str:
+        """Return the SQL of a row's fold number, 0 when held out, else 1.
+
+        Parameters
+        ----------
+        row_alias : str
+            The alias of the relation; in DuckDB it names the whole row.
+
+        Returns
+        -------
+        str
+            A CASE on ``hash(<alias>, <seed>) / 2^64 < <test>``.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> print(sq.folds.holdout(0.5).expression("d"))
+        CASE WHEN hash("d", 0) / 18446744073709551616.0 < 0.5 THEN 0 ELSE 1 END
+        """
+        return (
+            f"CASE WHEN hash({quote(row_alias)}, {self.seed}) "
+            f"/ 18446744073709551616.0 < {self.test!r} THEN 0 ELSE 1 END"
+        )
+
+    def numbered(
+        self, rel: duckdb.DuckDBPyRelation, name: str, target: str | None = None
+    ) -> duckdb.DuckDBPyRelation:
+        """Return every row with 0 (held out) or 1 (learned from) as a column.
+
+        Parameters
+        ----------
+        rel : duckdb.DuckDBPyRelation
+            The data.
+        name : str
+            The name of the fold column.
+        target : str, optional
+            The target column; unused.
+
+        Returns
+        -------
+        duckdb.DuckDBPyRelation
+            The data's columns, then `name`.
+
+        Raises
+        ------
+        SqlearnError
+            If the data has a column named as the row alias, `ALIAS`.
+
+        Examples
+        --------
+        >>> import duckdb
+        >>> import sqlearn as sq
+        >>> rel = duckdb.sql("SELECT range AS i FROM range(10)")
+        >>> sq.folds.holdout().numbered(rel, "fold").columns
+        ['i', 'fold']
+        """
+        fold = duckdb.SQLExpression(self.expression(ALIAS))
+        return _whole_row(rel).project(duckdb.StarExpression(), fold.alias(name))

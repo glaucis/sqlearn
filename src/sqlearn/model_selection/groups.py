@@ -3,7 +3,7 @@
 from sqlearn._group import Group
 from sqlearn._pipeline import Pipeline
 from sqlearn.metrics import Metric, accuracy
-from sqlearn.model_selection.folds import Folds, KFold
+from sqlearn.model_selection.folds import Folds, Grouped, Holdout, KFold, Stratified
 from sqlearn.model_selection.methods import Grid, Method, Params, Range, range
 from sqlearn.model_selection.search import Search
 
@@ -138,6 +138,77 @@ class FoldsGroup(Group):
         KFold(n=3, seed=1)
         """
         return KFold(n, seed)
+
+    def stratified(self, n: int = 5, seed: int = 0) -> Stratified:
+        """Deal each class of the target out evenly across `n` folds.
+
+        Parameters
+        ----------
+        n : int, default 5
+            The number of folds, at least 2.
+        seed : int, default 0
+            Mixed into the hash that orders rows within a class.
+
+        Returns
+        -------
+        Stratified
+            The fold scheme; it needs the target.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> sq.folds.stratified(3)
+        Stratified(n=3, seed=0)
+        """
+        return Stratified(n, seed)
+
+    def group(self, by: str, n: int = 5, seed: int = 0) -> Grouped:
+        """Keep every group of rows, by column `by`, in one fold.
+
+        Parameters
+        ----------
+        by : str
+            The column naming each row's group.
+        n : int, default 5
+            The number of folds, at least 2.
+        seed : int, default 0
+            Mixed into the hash.
+
+        Returns
+        -------
+        Grouped
+            The fold scheme.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> sq.folds.group("customer", 3)
+        Grouped(by='customer', n=3, seed=0)
+        """
+        return Grouped(by, n, seed)
+
+    def holdout(self, test: float = 0.2, seed: int = 0) -> Holdout:
+        """Hold out one share of the rows, once.
+
+        Parameters
+        ----------
+        test : float, default 0.2
+            The share held out, above 0 and below 1.
+        seed : int, default 0
+            Mixed into the hash.
+
+        Returns
+        -------
+        Holdout
+            The fold scheme, with one split.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> sq.folds.holdout(0.25).splits
+        1
+        """
+        return Holdout(test, seed)
 
 
 search = SearchGroup("search")
