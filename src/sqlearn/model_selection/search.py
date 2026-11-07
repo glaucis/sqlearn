@@ -45,18 +45,21 @@ def _preparation(params: Params, model_name: str) -> str:
     return json.dumps(steps, sort_keys=True, default=repr)
 
 
+def _flag(predicate: duckdb.Expression) -> duckdb.Expression:
+    """Return 1 where the predicate is true, else 0 (NULL counts as false)."""
+    one, zero = duckdb.ConstantExpression(1), duckdb.ConstantExpression(0)
+    return duckdb.CaseExpression(predicate, one).otherwise(zero)
+
+
 def _check_folds(source: Source, folds: Folds, target: str) -> None:
     """Refuse a fold that holds out no row, counting every fold in one query."""
     numbered = folds.numbered(source.relation, FOLD, target)
     counts = [
-        duckdb.SQLExpression(
-            f"count(*) FILTER (WHERE {folds.held(FOLD, k)}) AS held_{k}"
-        )
+        duckdb.FunctionExpression("sum", _flag(folds.held(FOLD, k)))
         for k in range(folds.splits)
     ]
-    row = numbered.aggregate(
-        ", ".join(str(c) for c in counts) + ", count(*) AS total"
-    ).fetchall()[0]
+    row = numbered.aggregate([*counts, duckdb.FunctionExpression("count_star")])
+    row = row.fetchall()[0]
     sizes = [int(n) for n in row[:-1]]
     empty = [k for k, n in enumerate(sizes) if n == 0]
     if empty:
@@ -268,10 +271,11 @@ class Search:
         con = connection()
         _source_sql(con, source)
         self.pipe._features(source, target)  # refuses a target not in the data
-        if any(c.lower() == FOLD for c, _ in source.schema):
+        if any(c.lower().startswith(FOLD) for c, _ in source.schema):
             msg = (
-                f"the data has a column named {FOLD!r}, a name sqlearn keeps "
-                "for each row's fold during a search. Fix: rename that column."
+                f"the data has a column whose name starts with {FOLD!r}, a prefix "
+                "sqlearn keeps for each row's fold during a search. Fix: rename "
+                "that column."
             )
             raise SqlearnError(msg)
         _check_folds(source, folds, target)
@@ -304,7 +308,9 @@ class Search:
         self.used_ = {
             "params": used_params,
             "method": "given" if self.method is not None else f"default: {method!r}",
-            "folds": "given" if self.folds is not None else f"default: {folds!r}",
+            "folds": f"given: {folds!r}"
+            if self.folds is not None
+            else f"default: {folds!r}",
         }
         best_pipe = trial(self.pipe, self.best_params_)
         _, best_model = best_pipe._modelled()
@@ -339,8 +345,12 @@ class Search:
             # to fit on and to score are the scheme's, not inferred.
             marked = numbered.project(
                 duckdb.StarExpression(),
-                folds.training(FOLD, k).alias(_FIT),
-                folds.held(FOLD, k).alias(_HELD),
+                (_flag(folds.training(FOLD, k)) == duckdb.ConstantExpression(1)).alias(
+                    _FIT
+                ),
+                (_flag(folds.held(FOLD, k)) == duckdb.ConstantExpression(1)).alias(
+                    _HELD
+                ),
             )
             for members in groups.values():
                 prepared = trial(self.pipe, settings[members[0]])

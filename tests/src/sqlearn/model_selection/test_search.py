@@ -2,6 +2,7 @@
 
 import json
 import warnings
+from typing import ClassVar
 
 import numpy as np
 import pandas as pd
@@ -292,7 +293,11 @@ def test_given_settings_are_recorded_as_given():
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         search.train(customers(), target="churned")
-    assert search.used_ == {"params": "given", "method": "given", "folds": "given"}
+    assert search.used_ == {
+        "params": "given",
+        "method": "given",
+        "folds": "given: KFold(n=3, seed=1)",
+    }
     assert search.results_.count("*").fetchall() == [(18,)]
     assert search.transforms_ == 6
 
@@ -560,23 +565,60 @@ def test_a_search_over_the_inner_folds_of_a_target_step():
 
 
 def test_a_search_takes_any_scheme():
-    """A user's own scheme (even rows, odd rows) drives the search."""
+    """A user's own scheme decides which rows each fold fits and scores."""
     import duckdb
 
     class Halves:
         splits = 2
         key = ("halves",)
+        calls: ClassVar[list[object]] = []
 
         def numbered(self, rel, name, target):
-            return rel.project("*, (row_number() OVER () % 2) AS " + name)
+            self.calls.append("numbered")
+            order = "ORDER BY city, plan, churned, age, income"
+            return rel.project(f"*, (row_number() OVER ({order}) % 2) AS {name}")
 
         def training(self, name, k):
+            self.calls.append("training")
             return duckdb.ColumnExpression(name) != duckdb.ConstantExpression(k)
 
         def held(self, name, k):
+            self.calls.append("held")
             return duckdb.ColumnExpression(name) == duckdb.ConstantExpression(k)
 
-    search = sq.search(slice_pipe(), params={"model__C": [1.0]}, folds=Halves())
-    search.train(customers(), target="churned")
+        def __repr__(self):
+            return "Halves()"
+
+    class Sizes(Echo):
+        """Records how many rows each fold fits on and scores."""
+
+        seen: ClassVar[list[object]] = []
+
+        def fit(self, x, y):
+            type(self).seen.append(["fit", len(x)])
+            return super().fit(x, y)
+
+        def predict(self, x):
+            type(self).seen.append(["predict", len(x)])
+            return super().predict(x)
+
+    scheme = Halves()
+    search = sq.search(
+        slice_pipe(Sizes()), params={"model__label": [None]}, folds=scheme
+    )
+    search.train(customers(rows=101), target="churned")
     assert search.results_.count("*").fetchall()[0][0] == 2
-    assert search.used_["folds"] == "given"
+    assert {"numbered", "training", "held"} <= set(scheme.calls)
+    # 101 rows: positions 1..101 mod 2 give 51 rows in fold 1 and 50 in fold 0.
+    fold_runs = Sizes.seen[:4]
+    assert fold_runs == [["fit", 51], ["predict", 50], ["fit", 50], ["predict", 51]]
+    assert search.used_["folds"] == "given: Halves()"
+
+
+def test_a_column_starting_with_the_fold_prefix_is_refused():
+    """The masks and helpers share the prefix, so any such column is refused."""
+    data = customers(rows=50).assign(__sqlearn_fold_fit=1)
+    with pytest.raises(sq.errors.SqlearnError, match="starts with"):
+        sq.search(slice_pipe(), params={"model__C": [1.0]}).train(
+            data, target="churned"
+        )
