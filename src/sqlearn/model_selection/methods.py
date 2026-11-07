@@ -7,19 +7,26 @@ says so with ``knows_all = False``. `trial` applies one setting to a copy
 of a pipeline, refusing a setting that names nothing.
 """
 
+import builtins
+import contextlib
 import itertools
 import math
 import random as _random
-from collections.abc import Mapping, Sequence
+from collections.abc import Generator, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, Protocol, runtime_checkable
+from types import ModuleType
+from typing import TYPE_CHECKING, Any, Protocol, cast, runtime_checkable
 
 from sqlearn._errors import SqlearnError
 from sqlearn._model import Model, _clone, as_model, copy_model, is_model
 from sqlearn._pipeline import Pipeline
 from sqlearn._step import Step
 
-__all__ = ["Grid", "Method", "Random", "Range", "range", "trial"]
+__all__ = ["Grid", "Method", "Optuna", "Random", "Range", "range", "trial"]
+
+if TYPE_CHECKING:
+    import optuna
+    from optuna.samplers import BaseSampler
 
 Params = dict[str, Any]
 """One setting: values keyed ``step__setting`` (or ``"model"``)."""
@@ -458,6 +465,215 @@ class Random:
         [({'model__C': 1}, 0.5)]
         """
         self.scores_.append((params, score))
+
+
+@contextlib.contextmanager
+def _quiet_optuna(optuna: ModuleType) -> Generator[None]:
+    """Hold Optuna's own logging at warnings while a search runs."""
+    before = optuna.logging.get_verbosity()
+    optuna.logging.set_verbosity(optuna.logging.WARNING)
+    try:
+        yield
+    finally:
+        optuna.logging.set_verbosity(before)
+
+
+class Optuna:
+    """Pick settings with Optuna, one at a time from the scores so far.
+
+    Optuna's ask-and-tell interface chooses each setting from the scores of
+    those before it (its default sampler is TPE). A list of values is a
+    categorical choice, so any value, a model among them, can be chosen; a
+    `sq.search.range` is a float (log-scaled with ``log=True``), or an
+    integer when both bounds are integers. With several grids, Optuna first
+    chooses a grid, then that grid's settings. Optuna is not a dependency of
+    sqlearn: install it with ``uv add optuna``.
+
+    Parameters
+    ----------
+    trials : int, default 100
+        The number of settings to try, at least 1.
+    sampler : Optuna sampler, optional
+        Optuna's sampler; by default ``TPESampler(seed=seed)``.
+    seed : int, default 0
+        Seeds the default sampler (a given `sampler` has its own seed).
+
+    Attributes
+    ----------
+    knows_all : bool
+        False: each setting is picked after the scores of the last.
+    study_ : optuna.Study
+        The study of the running or last search; set by `start`.
+
+    Raises
+    ------
+    SqlearnError
+        If `trials` is below 1.
+
+    Examples
+    --------
+    >>> import sqlearn as sq
+    >>> sq.search.optuna(trials=30, seed=1)
+    Optuna(trials=30, seed=1)
+    """
+
+    knows_all = False
+
+    def __init__(
+        self, trials: int = 100, sampler: "BaseSampler | None" = None, seed: int = 0
+    ) -> None:
+        if trials < 1:
+            msg = (
+                f"sq.search.optuna got trials={trials!r}; it tries at least one "
+                "setting. Fix: pass trials=1 or more."
+            )
+            raise SqlearnError(msg)
+        self.trials = trials
+        self.sampler = sampler
+        self.seed = seed
+        self._optuna = cast("ModuleType", None)
+        self._space: list[Params] = []
+        self._asked = 0
+        self._open: list[tuple[Params, Any]] = []
+        self.study_: Any = None
+
+    def __repr__(self) -> str:
+        """Show the method.
+
+        Returns
+        -------
+        str
+            ``Optuna(trials=..., seed=...)``.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> repr(sq.search.optuna(trials=20, seed=3))
+        'Optuna(trials=20, seed=3)'
+        """
+        return f"Optuna(trials={self.trials}, seed={self.seed})"
+
+    def start(self, space: list[Params], *, maximize: bool) -> None:
+        """Create the study over the space.
+
+        Parameters
+        ----------
+        space : list of dict
+            One dict per grid, each setting a list of values or a range.
+        maximize : bool
+            Whether a higher score is better: the study's direction.
+
+        Raises
+        ------
+        SqlearnError
+            If Optuna is not installed, or a setting is a single value or an
+            empty list.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> method = sq.search.optuna(trials=3)
+        >>> method.start([{"model__C": [1, 2]}], maximize=True)
+        >>> method.study_.direction.name
+        'MAXIMIZE'
+        """
+        try:
+            import optuna
+        except ImportError as exc:
+            msg = (
+                "sq.search.optuna needs Optuna, which is not installed. Fix: "
+                "run `uv add optuna`, or use sq.search.grid() or "
+                "sq.search.random()."
+            )
+            raise SqlearnError(msg) from exc
+        self._space = [
+            {n: v if isinstance(v, Range) else _values(n, v) for n, v in grid.items()}
+            for grid in space
+        ]
+        sampler: BaseSampler | None = self.sampler
+        if sampler is None:
+            sampler = optuna.samplers.TPESampler(seed=self.seed)
+        with _quiet_optuna(optuna):
+            self.study_ = optuna.create_study(
+                direction="maximize" if maximize else "minimize", sampler=sampler
+            )
+        self._optuna = optuna
+        self._asked = 0
+        self._open = []
+
+    def ask(self) -> Params | None:
+        """Return the next setting Optuna chooses, or None after the last.
+
+        Returns
+        -------
+        dict or None
+            The setting.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> method = sq.search.optuna(trials=1)
+        >>> method.start([{"model__C": [0.5]}], maximize=True)
+        >>> method.ask(), method.ask()
+        ({'model__C': 0.5}, None)
+        """
+        if self._asked >= self.trials:
+            return None
+        self._asked += 1
+        with _quiet_optuna(self._optuna):
+            trial = self.study_.ask()
+            if len(self._space) > 1:
+                at = trial.suggest_categorical(
+                    "__grid", list(builtins.range(len(self._space)))
+                )
+            else:
+                at = 0
+            grid = self._space[at]
+            params: Params = {}
+            for name in sorted(grid):
+                params[name] = self._suggest(trial, f"{at}:{name}", grid[name])
+        self._open.append((params, trial))
+        return dict(params)
+
+    @staticmethod
+    def _suggest(
+        trial: "optuna.trial.Trial", key: str, values: Range | Sequence[object]
+    ) -> object:
+        """Have the trial choose one value of a list or a range."""
+        if not isinstance(values, Range):
+            return values[
+                trial.suggest_categorical(key, list(builtins.range(len(values))))
+            ]
+        low, high = values.low, values.high
+        if isinstance(low, int) and isinstance(high, int):
+            return trial.suggest_int(key, low, high, log=values.log)
+        return trial.suggest_float(key, low, high, log=values.log)
+
+    def tell(self, params: Params, score: float) -> None:
+        """Report a setting's score to the study.
+
+        Parameters
+        ----------
+        params : dict
+            The setting, as `ask` returned it.
+        score : float
+            Its score.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> method = sq.search.optuna(trials=1)
+        >>> method.start([{"model__C": [0.5]}], maximize=True)
+        >>> method.tell(method.ask(), 0.9)
+        >>> method.study_.best_value
+        0.9
+        """
+        for i, (asked, trial) in enumerate(self._open):
+            if asked == params:
+                del self._open[i]
+                with _quiet_optuna(self._optuna):
+                    self.study_.tell(trial, score)
+                return
 
 
 def _draw(rng: _random.Random, values: Range | Sequence[object]) -> object:

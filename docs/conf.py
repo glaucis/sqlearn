@@ -38,6 +38,8 @@ nitpick_ignore_regex = [
     ("py:class", r"sqlearn\.model_selection\.(methods|folds)\..*"),
     ("py:class", r"dict\[str"),
     ("py:class", r"_duckdb\..*"),
+    # Optuna is optional and has no inventory here.
+    ("py:class", r"BaseSampler"),
 ]
 # In docs/ but not on the site: specs, plans, open questions and the agents'
 # configuration; the folders' one-line READMEs; the build output; and

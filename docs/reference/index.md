@@ -59,6 +59,7 @@ The API of the sqlearn package, generated from its docstrings.
    sqlearn.preprocessing.Spline
    sqlearn.search
    sqlearn.search.grid
+   sqlearn.search.optuna
    sqlearn.search.random
    sqlearn.search.range
    sqlearn.folds

@@ -1,6 +1,7 @@
 """The search's names as groups: ``sq.search`` and ``sq.folds`` (ADR 0039)."""
 
 import os
+from typing import TYPE_CHECKING
 
 from sqlearn._group import Group
 from sqlearn._pipeline import Pipeline
@@ -13,8 +14,19 @@ from sqlearn.model_selection.folds import (
     Stratified,
     TimeSplit,
 )
-from sqlearn.model_selection.methods import Grid, Method, Params, Random, Range, range
+from sqlearn.model_selection.methods import (
+    Grid,
+    Method,
+    Optuna,
+    Params,
+    Random,
+    Range,
+    range,
+)
 from sqlearn.model_selection.search import Search
+
+if TYPE_CHECKING:
+    from optuna.samplers import BaseSampler
 
 __all__ = ["FoldsGroup", "SearchGroup", "folds", "search"]
 
@@ -24,7 +36,8 @@ class SearchGroup(Group):
 
     Called, it builds a `Search`. The shortcuts build what a search takes:
     ``grid`` the method that tries every setting, ``random`` the one that
-    draws a number of them, ``range`` a span of numbers.
+    draws a number of them, ``optuna`` the one that lets Optuna choose from
+    the scores so far, ``range`` a span of numbers.
 
     Examples
     --------
@@ -116,6 +129,38 @@ class SearchGroup(Group):
         Random(trials=20, seed=3)
         """
         return Random(trials, seed)
+
+    def optuna(
+        self,
+        trials: int = 100,
+        sampler: "BaseSampler | None" = None,
+        seed: int = 0,
+    ) -> Optuna:
+        """Return the method that lets Optuna pick `trials` settings.
+
+        Needs Optuna (``uv add optuna``).
+
+        Parameters
+        ----------
+        trials : int, default 100
+            The number of settings to try, at least 1.
+        sampler : Optuna sampler, optional
+            Optuna's sampler; by default ``TPESampler(seed=seed)``.
+        seed : int, default 0
+            Seeds the default sampler.
+
+        Returns
+        -------
+        Optuna
+            The Optuna method.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> sq.search.optuna(trials=30, seed=1)
+        Optuna(trials=30, seed=1)
+        """
+        return Optuna(trials, sampler, seed)
 
     def range(self, low: float, high: float, log: bool = False) -> Range:
         """Return a span of numbers to search, from `low` to `high`.

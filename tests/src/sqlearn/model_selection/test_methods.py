@@ -188,3 +188,145 @@ def assert_scores_match_grid_search(method):
 def test_random_search_matches_scikit_learn_on_its_draws():
     """Scores match GridSearchCV given the same draws and folds."""
     assert_scores_match_grid_search(method=sq.search.random(trials=8, seed=0))
+
+
+def separable(rows=120):
+    """Return two numbers and a label the first one decides."""
+    import numpy as np
+    import pandas as pd
+
+    rng = np.random.default_rng(0)
+    x = rng.normal(0, 1, rows)
+    return pd.DataFrame(
+        {"x": x, "z": rng.normal(0, 1, rows), "y": (x + rng.normal(0, 0.3, rows) > 0)}
+    ).astype({"y": int})
+
+
+def optuna_pipe(model=None):
+    """Return a scaler and a model."""
+    from sklearn.linear_model import LogisticRegression
+
+    return sq.Pipeline(
+        [
+            ("scale", sq.scale.standard()),
+            ("model", model if model is not None else LogisticRegression()),
+        ]
+    )
+
+
+def test_optuna_finds_the_better_setting():
+    """A log range of C: every trial is scored on every fold."""
+    search = sq.search(
+        optuna_pipe(),
+        params={"model__C": sq.search.range(1e-4, 10, log=True)},
+        method=sq.search.optuna(trials=15, seed=0),
+        folds=sq.folds.kfold(3),
+    )
+    search.train(separable(), target="y")
+    assert search.best_params_["model__C"] > 0.1
+    assert search.results_.count("*").fetchall()[0][0] == 45
+
+
+def test_optuna_is_repeatable_for_a_seed():
+    """The same seed picks the same best setting."""
+
+    def run():
+        return (
+            sq.search(
+                optuna_pipe(),
+                params={"model__C": sq.search.range(1e-3, 10, log=True)},
+                method=sq.search.optuna(trials=6, seed=1),
+                folds=sq.folds.kfold(2),
+            )
+            .train(separable(), target="y")
+            .best_params_
+        )
+
+    assert run() == run()
+
+
+def test_optuna_chooses_among_models():
+    """A list of models comes back as the model objects themselves."""
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.tree import DecisionTreeClassifier
+
+    models = [LogisticRegression(), DecisionTreeClassifier()]
+    search = sq.search(
+        optuna_pipe(),
+        params={"model": models},
+        method=sq.search.optuna(trials=4, seed=0),
+        folds=sq.folds.kfold(2),
+    )
+    best = search.train(separable(), target="y").best_params_["model"]
+    assert any(best is m for m in models)
+
+
+def test_optuna_integer_range_and_several_grids():
+    """Integer bounds give integers; several grids add a grid choice."""
+    method = sq.search.optuna(trials=12, seed=0)
+    space = [{"a": sq.search.range(1, 5)}, {"b": [True, False], "c": ["u", "v"]}]
+    drawn = asked(method, space)
+    assert len(drawn) == 12
+    assert all(
+        ("a" in d and isinstance(d["a"], int) and 1 <= d["a"] <= 5)
+        or set(d) == {"b", "c"}
+        for d in drawn
+    )
+    assert any("a" in d for d in drawn) and any("b" in d for d in drawn)
+
+
+def test_optuna_minimises_when_lower_is_better():
+    """A metric where lower is better makes a minimising study."""
+    import duckdb
+
+    from sqlearn.metrics import Metric
+
+    error = Metric(
+        "error",
+        lambda y, p: duckdb.FunctionExpression(
+            "avg",
+            duckdb.CaseExpression(y == p, duckdb.ConstantExpression(0.0)).otherwise(
+                duckdb.ConstantExpression(1.0)
+            ),
+        ),
+        False,
+    )
+    method = sq.search.optuna(trials=8, seed=0)
+    search = sq.search(
+        optuna_pipe(),
+        params={"model__C": sq.search.range(1e-4, 10, log=True)},
+        metric=error,
+        method=method,
+        folds=sq.folds.kfold(3),
+    )
+    search.train(separable(), target="y")
+    assert method.study_.direction.name == "MINIMIZE"
+    assert search.best_params_["model__C"] > 0.1
+
+
+def test_optuna_missing_names_how_to_install(monkeypatch):
+    """Without optuna the message says how to install it."""
+    monkeypatch.setitem(__import__("sys").modules, "optuna", None)
+    with pytest.raises(SqlearnError, match=r"uv add optuna"):
+        sq.search.optuna().start([{"a": [1]}], maximize=True)
+
+
+def test_optuna_refusals_and_repr():
+    """Bad trials and values are refused; the repr shows the settings."""
+    assert repr(sq.search.optuna(trials=7, seed=2)) == "Optuna(trials=7, seed=2)"
+    with pytest.raises(SqlearnError, match="trials"):
+        sq.search.optuna(trials=0)
+    with pytest.raises(SqlearnError, match="empty list"):
+        sq.search.optuna().start([{"a": []}], maximize=True)
+    with pytest.raises(SqlearnError, match="single value"):
+        sq.search.optuna().start([{"a": 1}], maximize=True)
+
+
+def test_optuna_takes_a_sampler():
+    """A given sampler is used instead of the default."""
+    import optuna
+
+    sampler = optuna.samplers.RandomSampler(seed=0)
+    method = sq.search.optuna(trials=2, sampler=sampler)
+    method.start([{"a": [1, 2]}], maximize=True)
+    assert method.study_.sampler is sampler
