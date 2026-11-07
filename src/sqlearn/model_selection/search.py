@@ -225,10 +225,14 @@ class Search:
     content; a table of a database file by the file, its name and row
     count), the target, each step's name, class and settings, the fold
     scheme, and the versions of sqlearn and DuckDB. Data with no such key (a
-    relation, a table of an in-memory database) is refused. A change to the
-    code of a step of your own, with the same class name and settings, is
-    not seen: clear the file with ``sq.store.clear(prepared=path)`` after
-    such a change. ``sq.store.prepared(path)`` lists what is kept.
+    relation, a table of an in-memory database) is refused, and so is a step
+    setting that cannot be keyed by its content. Not seen: a table edited
+    in place that keeps its row count (an ``UPDATE``); a change to the code
+    of a step of your own, with the same class name and settings; and a
+    change to sqlearn's code in an editable or git install, whose version
+    does not change with its code. After any of these, clear the file with
+    ``sq.store.clear(prepared=path)``. ``sq.store.prepared(path)`` lists
+    what is kept.
 
     Examples
     --------
@@ -324,7 +328,10 @@ class Search:
             the model fails to fit or predict on a fold (naming the setting
             and the fold), or ``keep_prepared`` is given with data that has
             no stable identity (a relation, a table of an in-memory
-            database) or a step setting with no repr of its own.
+            database), a step setting that cannot be keyed by its content
+            (a lambda, a ``functools.partial``, ...), or a file that cannot
+            be opened (locked by another process, or not a DuckDB
+            database).
         StepError
             As for `Pipeline.train`.
 

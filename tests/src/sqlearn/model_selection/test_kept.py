@@ -1,15 +1,18 @@
 """Tests of kept preparations: fold tables in a DuckDB file, across searches."""
 
+import functools
 import os
 import subprocess
 import sys
 import textwrap
 import time
+from typing import Any, ClassVar
 
 import duckdb
 import numpy as np
 import pandas as pd
 import pytest
+from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.linear_model import LogisticRegression
 
 import sqlearn as sq
@@ -91,7 +94,7 @@ def test_the_file_is_detached_after_train(tmp_path, data_file):
         folds=sq.folds.kfold(2),
         keep_prepared=tmp_path / "kept.duckdb",
     ).train(data_file, target="y")
-    assert "__sqlearn_kept" not in _attached()
+    assert not any(n.startswith("__sqlearn_kept") for n in _attached())
     with duckdb.connect(str(tmp_path / "kept.duckdb")) as other:
         assert other.sql("SELECT count(*) FROM sqlearn_prepared._index").fetchall() == [
             (2,)
@@ -112,7 +115,7 @@ def test_the_file_is_detached_when_train_raises(tmp_path, data_file, monkeypatch
             folds=sq.folds.kfold(2),
             keep_prepared=tmp_path / "kept.duckdb",
         ).train(data_file, target="y")
-    assert "__sqlearn_kept" not in _attached()
+    assert not any(n.startswith("__sqlearn_kept") for n in _attached())
     assert _count(sq.store.prepared(tmp_path / "kept.duckdb")) == 0
 
 
@@ -343,5 +346,164 @@ def test_a_lambda_or_an_object_without_a_repr_is_refused_for_keeping():
             super().__init__(cols=cols)
             self.thing = thing
 
-    with pytest.raises(SqlearnError, match="no repr of its own"):
+    with pytest.raises(SqlearnError, match="cannot key by its content"):
         kept.steps_identity([("step", WithObject(thing=Opaque()))])
+
+
+class WithSetting(sq.Step):
+    """A step whose one setting is anything, for keying tests."""
+
+    def __init__(self, thing=None, cols=None):
+        super().__init__(cols=cols)
+        self.thing = thing
+
+
+def _name_with(thing):
+    """Return the kept table name of a pipeline whose step holds `thing`."""
+    return kept.table_name(("d",), [("step", WithSetting(thing=thing))], ("k",), 0)
+
+
+def test_large_arrays_differing_in_one_value_get_other_names():
+    """A numpy array is keyed by its bytes, not by its summarised repr."""
+    a = np.arange(2000.0)
+    b = a.copy()
+    b[500] = -1.0
+    assert repr(a) == repr(b)  # numpy elides the middle
+    assert _name_with(a) != _name_with(b)
+    assert _name_with(a) == _name_with(a.copy())
+    assert _name_with(a) != _name_with(a.astype("float32"))
+    assert _name_with(a) != _name_with(a.reshape(40, 50))
+
+
+def test_dicts_sets_and_nested_steps_are_keyed_by_content():
+    """Containers and steps inside settings are followed, not printed."""
+    assert _name_with({"b": 1, "a": _plus_one}) == _name_with({"a": _plus_one, "b": 1})
+    assert _name_with({"a": 1}) != _name_with({"a": 1.0})
+    assert _name_with({3, 1, 2}) == _name_with({2, 3, 1})
+    assert _name_with(sq.scale.standard()) != _name_with(sq.scale.minmax())
+    assert _name_with(sq.agg.median) != _name_with(sq.agg.mean)
+    assert _name_with(sq.cols.numeric()) != _name_with(sq.cols("x"))
+
+
+def test_a_setting_not_keyable_by_content_is_refused():
+    """A partial (or any unknown type) is refused, never keyed by its repr."""
+    with pytest.raises(SqlearnError, match="keep_prepared"):
+        _name_with(functools.partial(_plus_one))
+    with pytest.raises(SqlearnError, match="keep_prepared"):
+        _name_with(pd.Series([1.0, 2.0]))
+
+
+def test_every_built_in_step_can_be_kept():
+    """The preprocessing steps' own settings (aggregates, selectors) key."""
+    steps = [
+        ("impute", sq.impute.median(cols=sq.cols.numeric())),
+        ("onehot", sq.encode.onehot(cols=["city"])),
+        ("target", sq.encode.target()),
+        ("scale", sq.scale.standard(cols=sq.cols.numeric() - sq.cols("y"))),
+        ("bin", sq.bin.quantile()),
+        ("spline", sq.features.spline()),
+        ("log", sq.transform.log1p()),
+    ]
+    assert kept.table_name(("d",), steps, ("k",), 0).startswith("fold_0_")
+
+
+def test_each_kept_folds_attaches_under_its_own_alias(tmp_path):
+    """Two files open at once never collide on the attach name."""
+    with (
+        kept.KeptFolds(tmp_path / "a.duckdb") as a,
+        kept.KeptFolds(tmp_path / "b.duckdb") as b,
+    ):
+        assert a.database != b.database
+        assert a.database.startswith("__sqlearn_kept")
+
+
+def test_a_file_locked_by_another_process_is_explained(tmp_path):
+    """The lock is reported naming the file and the fix."""
+    path = tmp_path / "locked.duckdb"
+    holder = subprocess.Popen(
+        [
+            sys.executable,
+            "-c",
+            "import duckdb, sys\n"
+            f"con = duckdb.connect({str(path)!r})\n"
+            "print('ready', flush=True)\n"
+            "sys.stdin.read()",
+        ],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        text=True,
+    )
+    try:
+        assert holder.stdout is not None
+        assert holder.stdout.readline().strip() == "ready"
+        with pytest.raises(SqlearnError, match=r"locked\.duckdb") as caught:
+            kept.KeptFolds(path)
+        assert "Fix:" in str(caught.value)
+    finally:
+        holder.communicate("")
+
+
+def test_a_file_that_is_not_a_database_is_explained(tmp_path):
+    """Any failure to attach is an error naming the file and the fix."""
+    path = tmp_path / "notes.duckdb"
+    path.write_text("not a database")
+    with pytest.raises(SqlearnError, match=r"notes\.duckdb") as caught:
+        kept.KeptFolds(path)
+    assert "Fix:" in str(caught.value)
+
+
+def test_a_failed_index_write_drops_the_table(tmp_path):
+    """A table is never left in the file without its index row."""
+    bad_row: Any = ("d", "s", "f", "not a fold")  # the fold is not an integer
+    with kept.KeptFolds(tmp_path / "k.duckdb") as folds:
+        with pytest.raises(duckdb.Error):
+            folds.put("fold_0_x", "SELECT 1 AS a", bad_row)
+        assert folds.tables() == []
+        assert folds.get("fold_0_x") is None
+
+
+class FailsOnSecondFit(BaseEstimator, ClassifierMixin):
+    """A model whose second fit in a search fails."""
+
+    fits: ClassVar[list[int]] = []
+
+    def fit(self, x, y):
+        """Fail on the second call."""
+        FailsOnSecondFit.fits.append(1)
+        if len(FailsOnSecondFit.fits) == 2:
+            raise ValueError("no")
+        self.classes_ = np.unique(y)
+        return self
+
+    def predict(self, x):
+        """Predict the first class."""
+        return np.full(len(x), self.classes_[0])
+
+
+def test_a_fit_failing_after_a_kept_table_was_read_leaves_the_file_whole(
+    tmp_path, data_file
+):
+    """The file is detached and its index still lists every kept table."""
+    kept_file = tmp_path / "kept.duckdb"
+    sq.search(
+        PIPE_WITH_SCALE,
+        params={"model__C": [1.0]},
+        folds=sq.folds.kfold(2),
+        keep_prepared=kept_file,
+    ).train(data_file, target="y")
+    FailsOnSecondFit.fits.clear()
+    failing = sq.Pipeline(
+        [("scale", sq.scale.standard()), ("model", FailsOnSecondFit())]
+    )
+    with pytest.raises(SqlearnError, match="fold 1"):
+        sq.search(
+            failing, params={}, folds=sq.folds.kfold(2), keep_prepared=kept_file
+        ).train(data_file, target="y")
+    assert not any(name.startswith("__sqlearn_kept") for name in _attached())
+    assert _count(sq.store.prepared(kept_file)) == 2
+    with duckdb.connect(str(kept_file)) as other:
+        tables = other.sql(
+            "SELECT count(*) FROM duckdb_tables() "
+            "WHERE schema_name = 'sqlearn_prepared' AND table_name <> '_index'"
+        ).fetchall()
+    assert tables == [(2,)]

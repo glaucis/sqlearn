@@ -310,9 +310,11 @@ A search with `keep_prepared` keeps prepared folds in a DuckDB file across
 sessions, under a key made of each step's class name and settings
 ([inputs and the store](inputs-and-the-store.md)). It does not see a change
 to your step's code: after editing `learn` or `apply`, run
-`sq.store.clear(prepared=path)`. It refuses a lambda or a function defined
-inside another as a setting, since nothing names those the same way in the
-next session; a module-level function is known by its dotted name.
+`sq.store.clear(prepared=path)`. It keys settings by their content, and
+refuses one it cannot: a lambda, a function defined inside another, a
+`functools.partial`, or an object of a type it does not know, since nothing
+names those the same way in the next session. A module-level function is known
+by its dotted name, a numpy array by its bytes.
 
 ## When something fails
 

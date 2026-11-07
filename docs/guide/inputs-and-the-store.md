@@ -89,13 +89,25 @@ read:
 | the versions | sqlearn's and DuckDB's |
 
 A relation, or a table of an in-memory database, is known only to the
-process that made it, and is refused with `keep_prepared`. So is a step
-setting known only by its address: a lambda, a function defined inside
-another, or an object without a `repr` of its own.
+process that made it, and is refused with `keep_prepared`. A step's settings
+are keyed by their content: plain values (numbers, text, `None`, and lists,
+tuples, dicts and sets of them), module-level functions by their dotted name,
+steps, sqlearn's selectors and aggregates, and numpy arrays by their bytes.
+Any other setting (a lambda, a function defined inside another, a
+`functools.partial`, a pandas object) is refused, since nothing names it the
+same way in the next session and its `repr` may hide a difference.
 
-What the key cannot see is a change to the **code** of a step of your own
-(or of a function it takes) that keeps its class name and settings. After
-such a change, remove what the file keeps:
+What the key cannot see:
+
+- a table of a database file edited in place that keeps its row count and
+  columns (an `UPDATE`, or as many rows deleted as inserted), as for the
+  store above;
+- a change to the **code** of a step of your own (or of a function it takes)
+  that keeps its class name and settings;
+- a change to sqlearn's own code in an editable or git install, where its
+  version does not change when its code does.
+
+After any of these, remove what the file keeps:
 
 ```python
 sq.store.prepared("project.duckdb")  # one row per kept table

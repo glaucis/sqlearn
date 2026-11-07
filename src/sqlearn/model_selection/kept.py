@@ -13,6 +13,7 @@ tables sqlearn owns (Ruling R1): every identifier goes through `quote()`,
 the path through literal quoting, and values are passed as parameters.
 """
 
+import dataclasses
 import datetime
 import functools
 import hashlib
@@ -23,7 +24,7 @@ import weakref
 from collections.abc import Sequence
 from importlib import metadata
 from pathlib import Path
-from typing import Self
+from typing import Any, Self
 
 import duckdb
 
@@ -31,7 +32,9 @@ from sqlearn._config import connection
 from sqlearn._errors import SqlearnError
 from sqlearn._expr import quote
 from sqlearn._inputs import _drop_later
+from sqlearn._selectors import Selector
 from sqlearn._step import Step
+from sqlearn.agg.aggregates import Aggregate
 
 __all__ = ["INDEX", "SCHEMA", "KeptFolds", "clear", "prepared", "table_name"]
 
@@ -40,7 +43,7 @@ SCHEMA = "sqlearn_prepared"
 INDEX = "_index"
 """The table listing each kept table: its data, steps, folds and fold."""
 _ALIAS = "__sqlearn_kept"
-"""The name the file is attached under while a search uses it."""
+"""The prefix of the name the file is attached under while it is used."""
 _COLUMNS = (
     ("table", "VARCHAR"),
     ("data", "VARCHAR"),
@@ -59,40 +62,73 @@ def _sqlearn_version() -> str:
     return metadata.version("sqlearn")
 
 
+def _unkeyable(step: str, name: str, what: str) -> SqlearnError:
+    """Explain a setting that a kept preparation cannot key by its content."""
+    msg = (
+        f"the setting {name!r} of the step {step!r} is {what}, which sqlearn "
+        "cannot key by its content, so with keep_prepared a kept preparation "
+        "could be read back for another value, in this session or a later "
+        "one. Fix: give a plain value (a number, text, None, or a list, "
+        "tuple, dict or set of them), a module-level function, a step or a "
+        "numpy array, or search without keep_prepared."
+    )
+    return SqlearnError(msg)
+
+
 def _stable_setting(step: str, name: str, value: object) -> object:
     """Return a setting in a form that is the same in every process.
 
-    Plain values keep their type (so ``True`` and ``1`` differ), lists and
-    tuples are followed, functions and classes are named by their dotted
-    path, and anything else by its repr. A lambda, a function defined inside
-    another, and an object whose repr is the default one (an address) have no
-    such form and are refused.
+    Only what can be keyed by content is accepted; a repr is never trusted
+    in general, since reprs elide (numpy, pandas) or print addresses. Plain
+    values keep their type (so ``True`` and ``1`` differ); lists, tuples,
+    dicts and sets are followed (dicts and sets sorted); a module-level
+    function or class is its dotted path; a step is its class and settings;
+    a numpy array its dtype, shape and the SHA-256 of its bytes. sqlearn's
+    own selectors and aggregates are followed through their fields and
+    params. Anything else is refused.
     """
+    keyed = functools.partial(_stable_setting, step, name)
+    kind = type(value)
     if isinstance(value, _PLAIN):
-        return (type(value).__qualname__, value)
+        return (kind.__qualname__, value)
     if isinstance(value, (list, tuple)):
-        return tuple(_stable_setting(step, name, v) for v in value)
+        return (kind.__qualname__, tuple(keyed(v) for v in value))
+    if isinstance(value, dict):
+        items = [(keyed(k), keyed(v)) for k, v in value.items()]
+        return ("dict", tuple(sorted(items, key=repr)))
+    if isinstance(value, (set, frozenset)):
+        return (kind.__qualname__, tuple(sorted((keyed(v) for v in value), key=repr)))
     if isinstance(value, _FUNCTIONS):
         path = f"{value.__module__}.{value.__qualname__}"
         if "<" in path:  # <lambda>, or a function defined inside another
-            msg = (
-                f"the setting {name!r} of the step {step!r} is {path}, a "
-                "function without a name of its own, so a kept preparation "
-                "cannot tell it from another in a later session. Fix: define "
-                "it at module level, or search without keep_prepared."
+            raise _unkeyable(
+                step, name, f"{path}, a function without a name of its own"
             )
-            raise SqlearnError(msg)
         return path
-    if type(value).__repr__ is object.__repr__:
-        msg = (
-            f"the setting {name!r} of the step {step!r} is a "
-            f"{type(value).__qualname__} with no repr of its own, so a kept "
-            "preparation cannot tell it from another in a later session. "
-            "Fix: give its class a __repr__ naming its settings, or search "
-            "without keep_prepared."
+    if isinstance(value, Step):
+        return steps_identity([(f"{step}.{name}", value)])[0][1:]
+    if isinstance(value, Selector) and dataclasses.is_dataclass(value):
+        fields = dataclasses.fields(value)
+        return (
+            f"{kind.__module__}.{kind.__qualname__}",
+            tuple((f.name, keyed(getattr(value, f.name))) for f in fields),
         )
-        raise SqlearnError(msg)
-    return repr(value)
+    if isinstance(value, Aggregate):
+        return ("sq.agg", value.name, keyed(dict(value.params)))
+    if kind.__module__ == "numpy" and kind.__name__ == "ndarray":
+        array: Any = value
+        if array.dtype.hasobject:
+            raise _unkeyable(step, name, "a numpy array of Python objects")
+        digest = hashlib.sha256(array.tobytes()).hexdigest()  # C order always
+        return ("ndarray", str(array.dtype), tuple(array.shape), digest)
+    if (
+        kind.__module__ == "numpy"
+        and hasattr(value, "dtype")
+        and hasattr(value, "item")
+    ):
+        scalar: Any = value
+        return ("numpy", str(scalar.dtype), keyed(scalar.item()))
+    raise _unkeyable(step, name, f"a {kind.__module__}.{kind.__qualname__}")
 
 
 _Identity = tuple[tuple[str, str, tuple[tuple[str, object], ...]], ...]
@@ -115,8 +151,9 @@ def steps_identity(steps: Sequence[tuple[str, Step]]) -> _Identity:
     Raises
     ------
     SqlearnError
-        If a setting is a lambda, a function defined inside another, or an
-        object with no repr of its own.
+        If a setting cannot be keyed by its content: a lambda, a function
+        defined inside another, or a value of a type not listed in
+        `_stable_setting` (a ``functools.partial``, a pandas object, ...).
 
     Examples
     --------
@@ -237,11 +274,25 @@ class KeptFolds:
         if known:
             self.database = known[0]
         else:
-            self.database = _ALIAS
+            # Each opening its own name: two files open at once never collide.
+            self.database = f"{_ALIAS}_{uuid.uuid4().hex}"
             mode = " (READ_ONLY)" if read_only else ""
-            self._con.execute(
-                f"ATTACH {_literal(self.path)} AS {quote(self.database)}{mode}"
-            )
+            try:
+                self._con.execute(
+                    f"ATTACH {_literal(self.path)} AS {quote(self.database)}{mode}"
+                )
+            except duckdb.Error as exc:
+                msg = (
+                    f"sqlearn could not open {self.path!r}, the file that "
+                    f"keep_prepared names: {exc}\nWhy: the prepared folds "
+                    "are kept in that DuckDB file, so it must be a DuckDB "
+                    "database this DuckDB version can write, not open in "
+                    "another process. Fix: close the other process that has "
+                    "it open (one process writes a DuckDB file at a time), "
+                    "or name another file, or delete this one if it is not "
+                    "a database you need."
+                )
+                raise SqlearnError(msg) from exc
             self._attached = True
         if not read_only:
             try:
@@ -268,7 +319,8 @@ class KeptFolds:
         Returns
         -------
         str
-            ``database.sqlearn_prepared.name``, quoted.
+            ``database.sqlearn_prepared.name``, quoted; the database is the
+            name the file is attached under.
 
         Examples
         --------
@@ -276,8 +328,8 @@ class KeptFolds:
         >>> from sqlearn.model_selection.kept import KeptFolds
         >>> path = pathlib.Path(tempfile.mkdtemp()) / "kept.duckdb"
         >>> with KeptFolds(path) as kept:
-        ...     kept.qualified("t")
-        '"__sqlearn_kept"."sqlearn_prepared"."t"'
+        ...     kept.qualified("t").split(".")[1:]
+        ['"sqlearn_prepared"', '"t"']
         """
         return f"{self._schema()}.{quote(name)}"
 
@@ -333,8 +385,8 @@ class KeptFolds:
         >>> path = pathlib.Path(tempfile.mkdtemp()) / "kept.duckdb"
         >>> with KeptFolds(path) as kept:
         ...     _ = kept.put("fold_0_x", "SELECT 1 AS a", ("d", "s", "f", 0))
-        ...     kept.get("fold_0_x")
-        '"__sqlearn_kept"."sqlearn_prepared"."fold_0_x"'
+        ...     kept.get("fold_0_x") == kept.qualified("fold_0_x")
+        True
         """
         listed = (
             self._con.table(self.qualified(INDEX))
