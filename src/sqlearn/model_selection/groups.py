@@ -13,7 +13,7 @@ from sqlearn.model_selection.folds import (
     Stratified,
     TimeSplit,
 )
-from sqlearn.model_selection.methods import Grid, Method, Params, Range, range
+from sqlearn.model_selection.methods import Grid, Method, Params, Random, Range, range
 from sqlearn.model_selection.search import Search
 
 __all__ = ["FoldsGroup", "SearchGroup", "folds", "search"]
@@ -23,7 +23,8 @@ class SearchGroup(Group):
     """Search over settings: ``sq.search(pipe, ...)`` and its shortcuts.
 
     Called, it builds a `Search`. The shortcuts build what a search takes:
-    ``grid`` the method that tries every setting, ``range`` a span of numbers.
+    ``grid`` the method that tries every setting, ``random`` the one that
+    draws a number of them, ``range`` a span of numbers.
 
     Examples
     --------
@@ -92,6 +93,29 @@ class SearchGroup(Group):
         True
         """
         return Grid()
+
+    def random(self, trials: int = 50, seed: int = 0) -> Random:
+        """Return the method that tries `trials` settings drawn at random.
+
+        Parameters
+        ----------
+        trials : int, default 50
+            The number of settings to draw, at least 1.
+        seed : int, default 0
+            Seeds the draws.
+
+        Returns
+        -------
+        Random
+            The random method.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> sq.search.random(trials=20, seed=3)
+        Random(trials=20, seed=3)
+        """
+        return Random(trials, seed)
 
     def range(self, low: float, high: float, log: bool = False) -> Range:
         """Return a span of numbers to search, from `low` to `high`.

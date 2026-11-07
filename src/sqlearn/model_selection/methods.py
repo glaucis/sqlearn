@@ -8,6 +8,8 @@ of a pipeline, refusing a setting that names nothing.
 """
 
 import itertools
+import math
+import random as _random
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Protocol, runtime_checkable
@@ -17,7 +19,7 @@ from sqlearn._model import Model, _clone, as_model, copy_model, is_model
 from sqlearn._pipeline import Pipeline
 from sqlearn._step import Step
 
-__all__ = ["Grid", "Method", "Range", "range", "trial"]
+__all__ = ["Grid", "Method", "Random", "Range", "range", "trial"]
 
 Params = dict[str, Any]
 """One setting: values keyed ``step__setting`` (or ``"model"``)."""
@@ -313,6 +315,166 @@ class Grid:
         [({'model__C': 1}, 0.5)]
         """
         self.scores_.append((params, score))
+
+
+class Random:
+    """Try a fixed number of settings drawn at random.
+
+    Each draw picks one grid of the space uniformly, then each setting of
+    it: a list gives one of its values uniformly; a `sq.search.range` gives
+    a number uniformly (log-uniformly with ``log=True``), an integer when
+    both bounds are integers. The draws are fixed by `seed`.
+
+    Parameters
+    ----------
+    trials : int, default 50
+        The number of settings to draw, at least 1.
+    seed : int, default 0
+        Seeds the draws.
+
+    Attributes
+    ----------
+    knows_all : bool
+        True: the draws are made at `start`.
+    scores_ : list of (dict, float)
+        Each setting told, with its score, in the order told.
+
+    Raises
+    ------
+    SqlearnError
+        If `trials` is below 1.
+
+    Examples
+    --------
+    >>> import sqlearn as sq
+    >>> method = sq.search.random(trials=2, seed=0)
+    >>> method.start([{"model__depth": sq.search.range(1, 9)}], maximize=True)
+    >>> sorted(method.ask()), method.ask() is not None, method.ask()
+    (['model__depth'], True, None)
+    """
+
+    knows_all = True
+
+    def __init__(self, trials: int = 50, seed: int = 0) -> None:
+        if trials < 1:
+            msg = (
+                f"sq.search.random got trials={trials!r}; it draws at least one "
+                "setting. Fix: pass trials=1 or more."
+            )
+            raise SqlearnError(msg)
+        self.trials = trials
+        self.seed = seed
+        self._settings: list[Params] = []
+        self._next = 0
+        self.scores_: list[tuple[Params, float]] = []
+
+    def __repr__(self) -> str:
+        """Show the method.
+
+        Returns
+        -------
+        str
+            ``Random(trials=..., seed=...)``.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> repr(sq.search.random(trials=20, seed=3))
+        'Random(trials=20, seed=3)'
+        """
+        return f"Random(trials={self.trials}, seed={self.seed})"
+
+    def start(self, space: list[Params], *, maximize: bool) -> None:
+        """Draw every setting of the search from the space.
+
+        Parameters
+        ----------
+        space : list of dict
+            One dict per grid, each setting a list of values or a range.
+        maximize : bool
+            Whether a higher score is better; random ignores it.
+
+        Raises
+        ------
+        SqlearnError
+            If a setting is a single value or an empty list.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> sq.search.random(trials=3).start([{"model__C": [1, 2]}], maximize=True)
+        """
+        checked = [
+            {n: v if isinstance(v, Range) else _values(n, v) for n, v in grid.items()}
+            for grid in space
+        ]
+        rng = _random.Random(self.seed)
+        settings: list[Params] = []
+        for _ in itertools.repeat(None, self.trials):
+            grid = rng.choice(checked)
+            settings.append({n: _draw(rng, grid[n]) for n in sorted(grid)})
+        self._settings = settings
+        self._next = 0
+        self.scores_ = []
+
+    def ask(self) -> Params | None:
+        """Return the next drawn setting, or None after the last.
+
+        Returns
+        -------
+        dict or None
+            The setting.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> method = sq.search.random(trials=1)
+        >>> method.start([{}], maximize=True)
+        >>> method.ask(), method.ask()
+        ({}, None)
+        """
+        if self._next >= len(self._settings):
+            return None
+        params = self._settings[self._next]
+        self._next += 1
+        return dict(params)
+
+    def tell(self, params: Params, score: float) -> None:
+        """Record a setting's score; random does not use it to choose.
+
+        Parameters
+        ----------
+        params : dict
+            The setting.
+        score : float
+            Its score.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> method = sq.search.random()
+        >>> method.tell({"model__C": 1}, 0.5)
+        >>> method.scores_
+        [({'model__C': 1}, 0.5)]
+        """
+        self.scores_.append((params, score))
+
+
+def _draw(rng: _random.Random, values: Range | Sequence[object]) -> object:
+    """Draw one value from a list or a range."""
+    if not isinstance(values, Range):
+        return rng.choice(values)
+    low, high = values.low, values.high
+    if isinstance(low, int) and isinstance(high, int):
+        if values.log:
+            return min(
+                high,
+                max(low, round(math.exp(rng.uniform(math.log(low), math.log(high))))),
+            )
+        return rng.randint(low, high)
+    if values.log:
+        return math.exp(rng.uniform(math.log(low), math.log(high)))
+    return rng.uniform(low, high)
 
 
 _FIX = "Fix: write settings as step__setting, such as 'model__C'"
