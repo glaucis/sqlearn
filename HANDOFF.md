@@ -30,8 +30,6 @@ Updated: 2026-11-07 · Branch: `main` · Last commit:
 ## Waiting on the user
 
 - Harden the timing test, then clean up as above? (since 2026-11-06)
-- Push `main` (51 commits ahead of `origin/main`). Pushing closes #29 (its
-  commit says `Closes #29`). (since 2026-11-06)
 - Where to record the build's rulings (listed in the last session's final
   message and in the ledger). User-visible ones: target encoder's inner folds
   by row position (T10a); text targets refused (T10b); column-order
@@ -51,7 +49,7 @@ Updated: 2026-11-07 · Branch: `main` · Last commit:
 
 ## Next up
 
-- Close out #30: summary comment, close #26 and #30 (and #29 after the push),
+- Close out #30: summary comment, close #26 and #30 (check #29 closed),
   move `CLAUDE.md`'s "Next" line (it still says the plan is being built) to
   the next 3.3 area. Model selection is the natural one: it owns #21, #25
   and grouping `Grid`/`KFold`/`range`/`Model`.
@@ -76,6 +74,9 @@ Updated: 2026-11-07 · Branch: `main` · Last commit:
   CodeGraph index covers the main checkout, not the worktrees. (2026-11-06)
 
 ## Just finished
+
+- `CLAUDE.md` carries the global Handoff and "Skills and routine work" rules
+  for web sessions; `main` pushed to `origin` (closes #29). (2026-11-07)
 
 - The preprocessing build: spec `docs/specs/library-preprocessing.md`, plan
   `docs/plans/2026-11-06-library-preprocessing.md`, ADRs 0034–0036, 16 tasks

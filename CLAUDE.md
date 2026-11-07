@@ -39,6 +39,16 @@ here, not `docs/superpowers/`.
 
 @HANDOFF.md
 
+`HANDOFF.md` is the current state of work: in progress, waiting on me, next
+up, dead ends. The `/handoff` skill creates and updates it, and it lives in
+the repository only, never in memory files.
+
+- Start every session from it, and re-check each item marked [assumed] before
+  relying on it.
+- When you finish an item it lists, update it in the same commit as the work:
+  move the item to "Just finished" with its commit or issue, and remove what
+  no longer applies.
+
 ## Commit conventions
 
 This repository's history must contain no AI or tool attribution.
@@ -84,6 +94,23 @@ commit both of these into it, without being asked:
 - **The conventions are in `docs/architecture/`**: the layout, the Python
   versions, how documentation and tests are written. Read the page for the
   work in hand.
+
+## Skills and routine work
+
+- TDD: follow superpowers test-driven-development. Watch each test fail for
+  the right reason, then run the whole suite and name every failure. Test
+  through public seams in vertical slices (one test, then its code), and name
+  tests in `GLOSSARY.md` terms. When mattpocock implement or implement-spec
+  calls `tdd`, follow this line instead.
+- Bugs: use mattpocock diagnosing-bugs. Before any fix, have one fast command
+  that fails on this exact bug. Tag debug logs `[DEBUG-xxxx]` and remove them
+  at the end. After 3 failed fixes, stop and rethink; if the bug still
+  resists, offer a workflow with parallel hypotheses.
+- Before each commit: the checks above, and name every failure.
+- GitHub: keep issues, milestones, labels and board status in sync as you work
+  (github-pm skill).
+- Docs: when behaviour changes, update the docs that describe it; `/docs-sync`
+  does a full pass.
 
 ## Project tools
 
