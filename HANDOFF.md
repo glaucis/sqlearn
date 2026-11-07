@@ -17,8 +17,8 @@ None.
 
 ## Next up
 
-- Model selection, the next 3.3 area: write its spec (owns #21, #25 and
-  grouping `Grid`/`KFold`/`range`/`Model`).
+- Model selection (#33): spec approved; write its plan with
+  `superpowers:writing-plans` into `docs/plans/`.
 - Ready for an agent: #28 compensated two-pass variance, then #27 (the
   median's reach); #32 (impute's filled copies typed INTEGER); #31 (the
   encoders' linear category lookup).
@@ -44,6 +44,8 @@ None.
 
 ## Just finished
 
+- Model-selection spec approved: `docs/specs/library-model-selection.md`,
+  tracked in #33 (#21 and #25 its sub-issues). (2026-11-07)
 - #30 closed out: ADRs 0037 (four step-contract additions) and 0038 (target
   encoder's inner folds by row position), the other rulings in a summary
   comment on #30; #26 closed by ADR 0035; #31 and #32 filed; #22, #27, #28
