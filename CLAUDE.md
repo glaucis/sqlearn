@@ -12,10 +12,12 @@ built.
   **How work runs:** `docs/architecture/workflow.md`. **Decisions:**
   `docs/adr/`. **Done:** the library core (part 3.2): spec
   `docs/specs/library-core.md`, decisions ADRs 0012–0033, summary and
-  deferred findings in issue #8. **Next:** the library breadth (part 3.3),
-  one spec per area. Its first area, preprocessing, is tracked in issue #30:
-  spec approved (`docs/specs/library-preprocessing.md`, ADRs 0034–0035); its
-  plan is `docs/plans/2026-11-06-library-preprocessing.md`, being built.
+  deferred findings in issue #8. The library breadth (part 3.3) goes one spec
+  per area. Its first area, preprocessing, is built: spec
+  `docs/specs/library-preprocessing.md`, plan
+  `docs/plans/2026-11-06-library-preprocessing.md`, ADRs 0034–0038, summary
+  in issue #30. **Next:** the 3.3 area model selection (issues #21 and #25,
+  and grouping `Grid`/`KFold`/`range`/`Model`); its spec is not written yet.
 
 Rules from the ADRs:
 

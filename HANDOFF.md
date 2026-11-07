@@ -12,31 +12,16 @@ None.
 
 ## Waiting on the user
 
-- Where to record the build's rulings (listed in the last session's final
-  message and in the ledger, now at
-  `.superpowers/sdd/2026-11-06-library-preprocessing/progress.md`). User-visible
-  ones: target encoder's inner folds by row position (T10a); text targets
-  refused (T10b); column-order differences from scikit-learn for the indicator,
-  the polynomial bias and OneHot's missing category (T6a, T13b, T5b); scale's
-  "default" sentinel (T7a); `sq.Learned`/`sq.Output` kept at the top level (F5);
-  step-contract additions (label pairs, `apply_row` row values, `Step.learned`,
-  `keeps_inputs`). Options: ADRs, or a summary comment on #30. Recommendation:
-  ADRs for the contract additions and T10a, the rest in #30. (since 2026-11-06)
 - #22 (OneHot as a list column): decide from the numbers in
   `docs/benchmarks/onehot-second-run.md`. (since 2026-11-06)
-- Two issues to file: the encoders' linear `list_position` category lookup
-  (slow past ~1,000 categories; Ruling F6), and impute with `keep=True` +
-  `indicator=True` + a fill value declaring the filled copies INTEGER.
-  (since 2026-11-06)
 
 ## Next up
 
-- Close out #30: summary comment, close #26 and #30 (check #29 closed),
-  move `CLAUDE.md`'s "Next" line (it still says the plan is being built) to
-  the next 3.3 area. Model selection is the natural one: it owns #21, #25
-  and grouping `Grid`/`KFold`/`range`/`Model`.
-- #28 compensated two-pass variance (ready for an agent), then #27 (measure
-  the median's reach; ready for an agent).
+- Model selection, the next 3.3 area: write its spec (owns #21, #25 and
+  grouping `Grid`/`KFold`/`range`/`Model`).
+- Ready for an agent: #28 compensated two-pass variance, then #27 (the
+  median's reach); #32 (impute's filled copies typed INTEGER); #31 (the
+  encoders' linear category lookup).
 
 ## Dead ends and traps
 
@@ -57,6 +42,10 @@ None.
 
 ## Just finished
 
+- #30 closed out: ADRs 0037 (four step-contract additions) and 0038 (target
+  encoder's inner folds by row position), the other rulings in a summary
+  comment on #30; #26 closed by ADR 0035; #31 and #32 filed; #22, #27, #28
+  detached from #30 to stand alone. (2026-11-07)
 - Timing test warmed up before its clock (passes 3/3 at load 22); merged
   worktrees `library-preprocessing` and `agent-af23…` removed, their branches
   deleted, the build ledger kept in `.superpowers/sdd/`. (2026-11-07)

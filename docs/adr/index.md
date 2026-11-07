@@ -56,6 +56,7 @@ The verbs and conventions users write against.
 - [0026: A step without `cols=` works on every column](0026-a-step-without-cols-works-on-every-column.md)
 - [0027: A user's step may declare itself dynamic](0027-a-user-step-may-declare-itself-dynamic.md)
 - [0028: A step returning a mapping counts as dynamic](0028-a-step-returning-a-mapping-counts-as-dynamic.md)
+- [0037: Four additions to the step contract](0037-four-additions-to-the-step-contract.md)
 
 ## Inputs and the learning store
 
@@ -79,6 +80,7 @@ Accuracy, and how it is measured.
 - [0032: The median is exact, by sorting](0032-the-median-is-exact-by-sorting.md)
 - [0033: The mean is summed with compensation](0033-the-mean-is-summed-with-compensation.md)
 - [0036: Staged aggregates anywhere in a learned value](0036-staged-aggregates-anywhere-in-a-learned-value.md)
+- [0038: The target encoder's inner folds follow row position](0038-the-target-encoders-inner-folds-follow-row-position.md)
 
 ```{toctree}
 :hidden:
