@@ -115,18 +115,22 @@ class Method(Protocol):
 
     knows_all: bool
 
-    def start(self, space: list[Params]) -> None:
+    def start(self, space: list[Params], *, maximize: bool) -> None:
         """Begin a search over a space: one dict of settings per grid.
 
         Parameters
         ----------
         space : list of dict
             Settings keyed ``step__setting``, each to a list or a range.
+        maximize : bool
+            True when a higher score is better (the metric's
+            ``greater_is_better``), so a method steering by the scores
+            knows which way to go.
 
         Examples
         --------
         >>> import sqlearn as sq
-        >>> sq.search.grid().start([{"model__C": [0.1, 1]}])
+        >>> sq.search.grid().start([{"model__C": [0.1, 1]}], maximize=True)
         """
 
     def ask(self) -> Params | None:
@@ -141,7 +145,7 @@ class Method(Protocol):
         --------
         >>> import sqlearn as sq
         >>> grid = sq.search.grid()
-        >>> grid.start([{"model__C": [0.1]}])
+        >>> grid.start([{"model__C": [0.1]}], maximize=True)
         >>> grid.ask()
         {'model__C': 0.1}
         """
@@ -206,7 +210,7 @@ class Grid:
     --------
     >>> import sqlearn as sq
     >>> grid = sq.search.grid()
-    >>> grid.start([{"model__C": [0.1, 1]}])
+    >>> grid.start([{"model__C": [0.1, 1]}], maximize=True)
     >>> grid.ask(), grid.ask(), grid.ask()
     ({'model__C': 0.1}, {'model__C': 1}, None)
     """
@@ -234,13 +238,16 @@ class Grid:
         """
         return "Grid()"
 
-    def start(self, space: list[Params]) -> None:
+    def start(self, space: list[Params], *, maximize: bool) -> None:
         """Expand the space into its settings, refusing what grid cannot try.
 
         Parameters
         ----------
         space : list of dict
             One dict per grid, each setting to a list of values.
+        maximize : bool
+            Whether a higher score is better; the grid tries every setting
+            either way.
 
         Raises
         ------
@@ -251,7 +258,7 @@ class Grid:
         Examples
         --------
         >>> import sqlearn as sq
-        >>> sq.search.grid().start([{"model__C": [1]}])
+        >>> sq.search.grid().start([{"model__C": [1]}], maximize=True)
         """
         settings: list[Params] = []
         for grid in space:
@@ -277,7 +284,7 @@ class Grid:
         --------
         >>> import sqlearn as sq
         >>> grid = sq.search.grid()
-        >>> grid.start([{}])
+        >>> grid.start([{}], maximize=True)
         >>> grid.ask()
         {}
         """

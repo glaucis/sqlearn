@@ -20,6 +20,10 @@ from sqlearn.model_selection import Grid
 from sqlearn.model_selection import search as search_module
 
 GRID = {"model__C": [0.1, 1, 10], "impute__value": ["median", "mean"]}
+PIPE_WITH_SCALE = sq.Pipeline(
+    [("scale", sq.scale.standard()), ("model", LogisticRegression())]
+)
+DATA = pd.DataFrame({"x": np.arange(30.0), "y": [0, 1, 1] * 10})
 
 
 def customers(seed=0, rows=600):
@@ -352,7 +356,7 @@ def test_a_method_asking_one_setting_at_a_time_gives_the_same_scores():
     )
     assert mean_scores(one) == mean_scores(grid)
     assert one.best_params_ == grid.best_params_
-    assert one.transforms_ == 30
+    assert one.transforms_ == 10  # two preparations, five folds: each once
 
 
 def test_predict_uses_the_best_pipeline():
@@ -665,3 +669,65 @@ def test_a_search_over_stratified_folds_passes_its_target_to_the_scheme():
     assert len(folds) == 5
     assert all(fit.sum() == 80 for fit in folds)
     assert sorted({f for _, f, _ in search.results_.fetchall()}) == [0, 1, 2, 3, 4]
+
+
+def test_a_setting_picked_twice_is_prepared_once():
+    """A method asking one setting twice reads each fold's table again."""
+
+    class Twice:  # asks the same setting twice, one at a time
+        knows_all = False
+
+        def start(self, space, *, maximize):
+            self.left = [{"model__C": 1.0}] * 2
+
+        def ask(self):
+            return self.left.pop() if self.left else None
+
+        def tell(self, params, score):
+            pass
+
+    search = sq.search(
+        PIPE_WITH_SCALE,
+        params={"model__C": [1.0]},
+        method=Twice(),
+        folds=sq.folds.kfold(3),
+    )
+    search.train(DATA, target="y")
+    assert search.transforms_ == 3  # three folds, once each
+
+
+def test_fold_tables_are_dropped_after_train():
+    """No temporary table outlives the train call that made it."""
+    search = sq.search(
+        PIPE_WITH_SCALE, params={"model__C": [1.0]}, folds=sq.folds.kfold(2)
+    )
+    search.train(DATA, target="y")
+    temp = (
+        connection()
+        .sql("SELECT count(*) FROM duckdb_tables() WHERE temporary")
+        .fetchall()[0][0]
+    )
+    assert temp == 0
+
+
+class Broken(LogisticRegression):
+    """LogisticRegression that fails every fit."""
+
+    def fit(self, x, y, sample_weight=None):
+        """Fail."""
+        msg = "broken"
+        raise ValueError(msg)
+
+
+def test_fold_tables_are_dropped_when_train_raises():
+    """A model failing on a fold still leaves no temporary table behind."""
+    pipe = sq.Pipeline([("scale", sq.scale.standard()), ("model", Broken())])
+    search = sq.search(pipe, params={"model__C": [1.0]}, folds=sq.folds.kfold(2))
+    with pytest.raises(sq.errors.SqlearnError, match="failed to fit"):
+        search.train(DATA, target="y")
+    temp = (
+        connection()
+        .sql("SELECT count(*) FROM duckdb_tables() WHERE temporary")
+        .fetchall()[0][0]
+    )
+    assert temp == 0

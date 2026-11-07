@@ -9,7 +9,7 @@ from sqlearn.model_selection.methods import Method, Range
 
 def asked(method, space):
     """Start a method on a space and ask until it ends."""
-    method.start(space)
+    method.start(space, maximize=True)
     out = []
     while (params := method.ask()) is not None:
         out.append(params)
@@ -46,15 +46,15 @@ def test_range_given_to_grid_is_refused():
     r = sq.search.range(0.01, 10, log=True)
     assert r == Range(0.01, 10, log=True)
     with pytest.raises(sq.errors.SqlearnError, match=r"'model__C'.*sq\.search\.range"):
-        sq.search.grid().start([{"model__C": r}])
+        sq.search.grid().start([{"model__C": r}], maximize=True)
 
 
 def test_a_single_value_is_refused():
     """Grid wants a list of values per setting, as scikit-learn's grid does."""
     with pytest.raises(sq.errors.SqlearnError, match=r"'model__C'.*\[1\.0\]"):
-        sq.search.grid().start([{"model__C": 1.0}])
+        sq.search.grid().start([{"model__C": 1.0}], maximize=True)
     with pytest.raises(sq.errors.SqlearnError, match=r"'model__C'.*no value"):
-        sq.search.grid().start([{"model__C": []}])
+        sq.search.grid().start([{"model__C": []}], maximize=True)
 
 
 def test_range_refuses_low_above_high_and_log_from_zero():

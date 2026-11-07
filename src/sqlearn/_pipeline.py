@@ -1,5 +1,6 @@
 """The pipeline: named steps that learn from data, then apply what they learned."""
 
+import itertools
 import weakref
 from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
@@ -30,6 +31,7 @@ from sqlearn._compose import (
 from sqlearn._config import connection, get_config
 from sqlearn._diagnose import diagnose
 from sqlearn._errors import SqlearnError, StepError
+from sqlearn._expr import quote
 from sqlearn._inputs import Source, read
 from sqlearn._model import (
     Model,
@@ -50,6 +52,9 @@ __all__ = ["Pipeline"]
 
 _ROW = "__sqlearn_row"
 """The column numbering the rows that feed `predict`; never handed back."""
+_FOLD_TABLE = "__sqlearn_fold_"
+"""The prefix of the temporary tables holding a search's prepared folds."""
+_fold_tables = itertools.count()
 
 
 def _default_name(step: Step | object) -> str:
@@ -1047,11 +1052,10 @@ class Pipeline:
         fold: FoldKey,
         data: duckdb.DuckDBPyRelation,
         target: str,
-        feed: str,
         *,
         keep: Sequence[str],
         held: Expression,
-    ) -> tuple[Any, dict[str, Any]]:
+    ) -> str:
         """Learn on one fold's training rows, then prepare all its rows once.
 
         `learn_from` holds the fold's training rows with the target set
@@ -1062,6 +1066,12 @@ class Pipeline:
         training rows are cross-fitted; the rows `held` is true for (those
         the fold holds out) take what was learned on all training rows.
         Nothing is kept on the pipeline.
+
+        The prepared rows are written to a temporary table, whose name is
+        returned: the features in order, then `TARGET`, the `keep` columns
+        and each row's number in the query's order (`_ROW`). DuckDB spills
+        the table to disk as it needs, so no fold is held in memory whole.
+        The caller drops it.
         """
         steps, _ = self._modelled()
         con = connection()
@@ -1073,9 +1083,14 @@ class Pipeline:
             con, data_sql, prepared.schema, steps, known,
             aside=_aside_of(prepared), cross=True, held=held,
         )  # fmt: skip
-        columns = [c for c, _ in out]
-        sql = build(data_sql, stages)
-        return take(con.sql(sql), feed, columns, [TARGET, *keep])
+        names = [*(c for c, _ in out), TARGET, *keep]
+        rel = con.sql(build(data_sql, stages))
+        rows = rel.project(*(duckdb.ColumnExpression(c) for c in names))
+        table = f"{_FOLD_TABLE}{next(_fold_tables)}"
+        con.execute(
+            f"CREATE TEMP TABLE {quote(table)} AS {number_rows(rows.sql_query(), _ROW)}"
+        )
+        return table
 
     def _train(self, source: Source, target: str, feed: str) -> "Pipeline":
         """Train on data already read, as `train` describes."""

@@ -18,10 +18,12 @@ import duckdb
 from sqlearn._compose import POSITION, TARGET
 from sqlearn._config import connection
 from sqlearn._errors import DefaultsUsedWarning, SqlearnError
+from sqlearn._expr import quote
 from sqlearn._inputs import Source, _release_later, read
-from sqlearn._model import Model, _numpy, _unregister, target_values
+from sqlearn._model import Model, _numpy, _unregister, take, target_values
 from sqlearn._output import Output
-from sqlearn._pipeline import Pipeline, _positioned, _source_sql
+from sqlearn._pipeline import _ROW, Pipeline, _positioned, _source_sql
+from sqlearn._store import FoldKey
 from sqlearn.metrics import Metric, accuracy
 from sqlearn.model_selection.defaults import default_space, hint
 from sqlearn.model_selection.folds import Folds, KFold
@@ -31,10 +33,6 @@ __all__ = ["FOLD", "Search"]
 
 FOLD = "__sqlearn_fold"
 """The column holding each row's fold number in a fold's feeding query."""
-
-_FIT = FOLD + "_fit"
-_HELD = FOLD + "_held"
-"""The columns marking a fold's training rows and its held-out rows."""
 
 _ids = itertools.count()
 
@@ -86,6 +84,18 @@ def _check_folds(source: Source, folds: Folds, target: str) -> None:
             "smaller gap, or pass more data."
         )
         raise SqlearnError(msg)
+
+
+def _fetch(
+    table: duckdb.DuckDBPyRelation,
+    rows: duckdb.Expression,
+    feed: str,
+    features: list[str],
+) -> tuple[Any, Any]:
+    """Fetch the rows of a fold's table a predicate picks, in the query's order."""
+    picked = table.filter(rows).sort(duckdb.ColumnExpression(_ROW))
+    x, aside = take(picked, feed, features, [TARGET])
+    return x, aside[TARGET]
 
 
 def _fold_error(
@@ -193,6 +203,7 @@ class Search:
         self.method = method
         self.folds = folds
         self.transforms_ = 0
+        self._fold_tables: dict[tuple[str, FoldKey], str] = {}
 
     def _space(self, model_name: str, model: Model) -> tuple[list[Params], str]:
         """Return the space to search and what `used_` says of it; warn on a default."""
@@ -222,10 +233,12 @@ class Search:
     def train(self, data: object, target: str) -> "Search":
         """Score every setting over the folds, then train the best on all data.
 
-        The data is read once. With a method that knows every setting up
-        front, each fold's data is prepared once per distinct preparation
-        (the settings of the steps) and every model setting is trained on
-        it; the steps' learned values come from the store when unchanged.
+        The data is read once. Each fold's data is prepared once per
+        distinct preparation (the settings of the steps) into a temporary
+        DuckDB table, which every model setting sharing it reads, so a
+        setting asked again is not prepared again; the tables are dropped
+        when this returns or raises. The steps' learned values come from the
+        store when unchanged.
 
         Parameters
         ----------
@@ -276,7 +289,7 @@ class Search:
         space, used_params = self._space(model_name, model)
         method = Grid() if self.method is None else self.method
         folds: Folds = KFold() if self.folds is None else self.folds
-        method.start(space)
+        method.start(space, maximize=self.metric.greater_is_better)
         asked: list[Params] = []
         if method.knows_all:
             while (params := method.ask()) is not None:
@@ -296,17 +309,24 @@ class Search:
         _check_folds(source, folds, target)
         self.transforms_ = 0
         scored: list[tuple[Params, list[float]]] = []
-        if method.knows_all:
-            scored = list(
-                zip(asked, self._evaluate(source, target, folds, asked), strict=True)
-            )
-            for params, scores in scored:
-                method.tell(params, sum(scores) / len(scores))
-        else:
-            while (params := method.ask()) is not None:
-                [scores] = self._evaluate(source, target, folds, [params])
-                scored.append((params, scores))
-                method.tell(params, sum(scores) / len(scores))
+        # Each (preparation, fold) is prepared once into a table, read by
+        # every setting that shares it; the tables live for this call only.
+        self._fold_tables = {}
+        try:
+            if method.knows_all:
+                scores_of = self._evaluate(source, target, folds, asked)
+                scored = list(zip(asked, scores_of, strict=True))
+                for params, scores in scored:
+                    method.tell(params, sum(scores) / len(scores))
+            else:
+                while (params := method.ask()) is not None:
+                    [scores] = self._evaluate(source, target, folds, [params])
+                    scored.append((params, scores))
+                    method.tell(params, sum(scores) / len(scores))
+        finally:
+            tables, self._fold_tables = self._fold_tables, {}
+            for table in tables.values():
+                con.execute(f"DROP TABLE IF EXISTS {quote(table)}")
         if not scored:
             msg = (
                 f"the method {method!r} gave no setting to try, so there is "
@@ -335,8 +355,13 @@ class Search:
     def _evaluate(
         self, source: Source, target: str, folds: Folds, settings: list[Params]
     ) -> list[list[float]]:
-        """Score each setting on each fold, fold first; return scores per setting."""
-        np = _numpy()
+        """Score each setting on each fold, fold first; return scores per setting.
+
+        A (preparation, fold) already in `_fold_tables` is read from its
+        table; any other is prepared into a new one and counted in
+        `transforms_`. The training rows and the held-out rows are fetched
+        from the table apart, each by the scheme's own predicate.
+        """
         con = connection()
         model_name = self.pipe.steps[-1][0]
         groups: dict[str, list[int]] = {}
@@ -354,45 +379,46 @@ class Search:
         scores = [[0.0] * folds.splits for _ in settings]
         helpers = [c for c in numbered.columns if c.lower().startswith(FOLD)]
         for k in range(folds.splits):
-            training = numbered.filter(folds.training(FOLD, k))
-            rows = training.project(*columns)
-            # The fold's two masks travel beside the features, so the rows
-            # to fit on and to score are the scheme's, not inferred.
-            marked = numbered.project(
-                duckdb.StarExpression(),
-                (_flag(folds.training(FOLD, k)) == duckdb.ConstantExpression(1)).alias(
-                    _FIT
-                ),
-                (_flag(folds.held(FOLD, k)) == duckdb.ConstantExpression(1)).alias(
-                    _HELD
-                ),
-            )
-            for members in groups.values():
+            fold: FoldKey = (folds.key, k)
+            rows = numbered.filter(folds.training(FOLD, k)).project(*columns)
+            for preparation, members in groups.items():
                 prepared = trial(self.pipe, settings[members[0]])
                 _, first = prepared._modelled()
-                # The setting's own steps: their inner folds travel beside.
-                learn_from = prepared._features(
-                    Source(rows, source.key, source.schema), target
+                name = self._fold_tables.get((preparation, fold))
+                if name is None:
+                    # The setting's own steps: their inner folds travel beside.
+                    learn_from = prepared._features(
+                        Source(rows, source.key, source.schema), target
+                    )
+                    name = prepared._prepare_fold(
+                        learn_from, fold, numbered, target,
+                        keep=helpers, held=folds.held(FOLD, k),
+                    )  # fmt: skip
+                    self._fold_tables[preparation, fold] = name
+                    self.transforms_ += 1
+                table = con.table(name)
+                # The table holds the features, then TARGET, the fold's
+                # helper columns and the row number.
+                features = table.columns[: len(table.columns) - len(helpers) - 2]
+                x_fit, y_fit = _fetch(
+                    table, folds.training(FOLD, k), first.feed, features
                 )
-                x, aside = prepared._prepare_fold(
-                    learn_from, (folds.key, k), marked, target,
-                    first.feed, keep=[*helpers, _FIT, _HELD], held=folds.held(FOLD, k),
-                )  # fmt: skip
-                self.transforms_ += 1
-                y = target_values(aside[TARGET], target)
-                fit = np.ma.getdata(aside[_FIT]).astype(bool)
-                in_held = np.ma.getdata(aside[_HELD]).astype(bool)
+                x_held, y_held = _fetch(
+                    table, folds.held(FOLD, k), first.feed, features
+                )
+                y_fit = target_values(y_fit, target)
+                y_held = target_values(y_held, target)
                 for i in members:
                     _, model = trial(self.pipe, settings[i])._modelled()
                     action = "fit"
                     try:
-                        model.estimator.fit(x[fit], y[fit])
+                        model.estimator.fit(x_fit, y_fit)
                         action = "predict"
-                        predicted = model.estimator.predict(x[in_held])
+                        predicted = model.estimator.predict(x_held)
                     except Exception as exc:
                         err = _fold_error(exc, action, settings[i], k, folds)
                         raise err from exc
-                    scores[i][k] = _score(con, self.metric, y[in_held], predicted)
+                    scores[i][k] = _score(con, self.metric, y_held, predicted)
         return scores
 
     @staticmethod
