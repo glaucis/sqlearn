@@ -271,7 +271,11 @@ class Codes:
         if isinstance(x, pd.DataFrame):
             return x["city"].cat.codes.to_numpy()
         if isinstance(x, pl.DataFrame):
-            return x["city"].to_physical().to_numpy()
+            physical = x["city"].to_physical().to_numpy()
+            arrow = x.to_arrow().column("city").combine_chunks().indices
+            pandas = x.to_pandas()["city"].cat.codes.to_numpy()
+            assert physical.tolist() == arrow.to_pylist() == pandas.tolist()
+            return physical
         return x.column("city").combine_chunks().indices.to_numpy()
 
 

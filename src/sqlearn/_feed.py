@@ -57,7 +57,10 @@ _AS_NUMPY = ("numpy", "stream")
 """The feeds whose rows are handed over as a numpy array."""
 
 _NULL = "__sqlearn_target_null"
-"""The column counting the target's SQL NULLs beside a pandas fetch."""
+"""The column counting the target's SQL NULLs beside a pandas fetch.
+
+Lengthened with underscores while a feature or the target has the name.
+"""
 
 _prediction_ids = itertools.count()
 _WARNED: set[str] = set()
@@ -176,7 +179,8 @@ def fetch(
     Each form comes from DuckDB's own method (``fetchnumpy``, ``df``,
     ``pl``, ``to_arrow_table``). With pandas, Polars and Arrow a text
     (``VARCHAR``) feature is cast to that library's categories after the
-    fetch; a NULL stays missing, never a category. numpy and the stream
+    fetch (pandas ``category``, Polars ``Enum``, Arrow dictionary); a NULL
+    stays missing, never a category. numpy and the stream
     refuse text, as `take` does.
 
     Parameters
@@ -237,9 +241,12 @@ def fetch(
     text = [c for c in columns if str(kinds[c]) == "VARCHAR"]
     known = {} if categories is None else categories
     picks = [duckdb.ColumnExpression(c) for c in [*columns, *aside]]
+    null = _NULL
+    while null in (*columns, *aside):
+        null += "_"  # never a feature's or the target's name
     if target is not None and feed == "pandas":
         # pandas reads NULL and NaN alike; the SQL NULLs are counted beside.
-        picks.append(duckdb.ColumnExpression(target).isnull().alias(_NULL))
+        picks.append(duckdb.ColumnExpression(target).isnull().alias(null))
     picked = rel.project(*picks)
     x: Any
     y: Any = None
@@ -248,7 +255,7 @@ def fetch(
         x = picked.df()
         missing = 0
         if target is not None:
-            missing = int(x.pop(_NULL).sum())
+            missing = int(x.pop(null).sum())
             y = x.pop(target).rename(name)
         for c in text:
             order = _order(known, c, x[c].dropna().unique().tolist())
@@ -261,13 +268,9 @@ def fetch(
             x = x.drop(target)
         for c in text:
             order = _order(known, c, x[c].drop_nulls().unique().to_list())
-            # A Categories gives codes in the order values are first cast,
-            # for as long as a cast series holds them: `seed` casts the
-            # order first and is kept until the column holds them too.
-            dtype = pl.Categorical(pl.Categories.random())
-            seed = pl.Series(order, dtype=pl.String).cast(dtype)
-            x = x.with_columns(x[c].cast(dtype))
-            del seed
+            # An Enum's codes are its list's order, kept through to_arrow
+            # and to_pandas; the order holds every value of this fetch.
+            x = x.with_columns(x[c].cast(pl.Enum(order)))
         missing = 0 if y is None else y.null_count()
     else:
         pa = _library("pyarrow", feed)

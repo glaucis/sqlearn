@@ -254,7 +254,7 @@ def test_text_arrives_as_each_form_s_categories(con):
     rel = con.sql("SELECT * FROM (VALUES ('Oslo', 1.5), ('Rome', NULL)) t(city, a)")
     x, y = fetch(rel, "polars", ["city", "a"], None)
     assert y is None
-    assert isinstance(x.schema["city"], pl.Categorical)
+    assert x.schema["city"] == pl.Enum(["Oslo", "Rome"])
     assert x["a"].to_list() == [1.5, None]
     table, _ = fetch(rel, "arrow", ["city", "a"], None)
     assert pa.types.is_dictionary(table.schema.field("city").type)
@@ -379,7 +379,12 @@ def codes(x, feed, column):
     if feed == "pandas":
         return [None if c < 0 else int(c) for c in x[column].cat.codes]
     if feed == "polars":
-        return x[column].to_physical().to_list()
+        # As the model would take the frame: each way must keep the codes.
+        physical = x[column].to_physical().to_list()
+        arrow = x.to_arrow().column(column).combine_chunks().indices.to_pylist()
+        pandas = [None if c < 0 else int(c) for c in x.to_pandas()[column].cat.codes]
+        assert physical == arrow == pandas
+        return physical
     return x.column(column).combine_chunks().indices.to_pylist()
 
 
@@ -403,3 +408,13 @@ def test_a_nan_target_is_not_missing_in_any_form(con):
     for feed in ("numpy", "pandas", "polars", "arrow"):
         _, y = fetch(rel, feed, ["a"], "y")
         assert len(y) == 2
+
+
+def test_a_feature_named_like_the_null_helper_is_handed_over(con):
+    """The pandas target's NULL count never takes a feature's name."""
+    rel = con.sql(
+        "SELECT * FROM (VALUES (1.0, 0), (2.0, 1)) t(__sqlearn_target_null, y)"
+    )
+    x, y = fetch(rel, "pandas", ["__sqlearn_target_null"], "y")
+    assert x["__sqlearn_target_null"].tolist() == [1.0, 2.0]
+    assert y.tolist() == [0, 1]

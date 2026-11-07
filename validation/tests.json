@@ -4556,6 +4556,12 @@
     },
     {
       "area": "sqlearn/_feed",
+      "name": "tests/src/sqlearn/test__feed.py::test_a_feature_named_like_the_null_helper_is_handed_over",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_feed",
       "name": "tests/src/sqlearn/test__feed.py::test_a_missing_library_says_to_install_it[arrow-pyarrow]",
       "outcome": "passed",
       "tier": "fast"

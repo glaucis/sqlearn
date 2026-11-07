@@ -26,7 +26,7 @@ had nowhere to go but swap.
 |---|---|---|
 | `"numpy"` (default) | a 2-D float64 array | refused, as before |
 | `"pandas"` | a `DataFrame` | `category` dtype |
-| `"polars"` | a `DataFrame` | `Categorical` |
+| `"polars"` | a `DataFrame` | `Enum` |
 | `"arrow"` | a `pyarrow.Table` | dictionary-encoded |
 | `"stream"` | one batch at a time, as numpy, through `partial_fit` | refused |
 
@@ -40,6 +40,12 @@ had nowhere to go but swap.
   strings, so each `VARCHAR` feature is cast after the fetch. A NULL stays
   missing (NaN, null), never a category of its own. CatBoost still takes
   `cat_features=` as it would without sqlearn.
+- **Polars gets an `Enum`, not a `Categorical`** (the spec said
+  `Categorical`; changed during the build, Ruling R9). An `Enum`'s codes are
+  its list's order, kept through `to_physical`, `to_arrow` and `to_pandas`,
+  which is how libraries take a Polars frame. A `Categorical`'s codes follow
+  a process-wide insertion order, and `to_arrow`/`to_pandas` re-encode it to
+  the values present, so no list could fix them.
 - **One category list per text column, from training.** Training records
   each text feature's categories, sorted, from its rows (per fold in a
   search); every prediction batch is cast with that list first and any new
@@ -65,7 +71,10 @@ had nowhere to go but swap.
 
 - Text no longer needs an encoding step for a model that reads categories.
 - A model that reads category codes rather than values (XGBoost before 3.1,
-  code reading `cat.codes`) reads the same code for a value at train and at
-  predict, in a search's held-out rows as at its fit.
+  code reading `cat.codes`) reads the same code for every value seen in
+  training, at train and at predict, in a search's held-out rows as at its
+  fit, in every form: pandas codes, Polars `Enum` codes (also after
+  `to_arrow` and `to_pandas`), Arrow dictionary indices. A value new at
+  predict gets a code after the training list, which the model never saw.
 - Further forms DuckDB produces (PyTorch tensors, say) are added the same
   way.

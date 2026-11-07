@@ -134,7 +134,7 @@ class Model:
     ============  ===========================  ===================
     ``"numpy"``   a 2-D float64 array          refused
     ``"pandas"``  a ``DataFrame``              ``category`` dtype
-    ``"polars"``  a ``DataFrame``              ``Categorical``
+    ``"polars"``  a ``DataFrame``              ``Enum``
     ``"arrow"``   a ``pyarrow.Table``          dictionary-encoded
     ``"stream"``  batches as numpy, through    refused
                   ``partial_fit``
