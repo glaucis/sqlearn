@@ -6,13 +6,15 @@ import sys
 
 import numpy as np
 import pandas as pd
+import polars as pl
+import pyarrow as pa
 import pytest
 from sklearn.linear_model import LogisticRegression
 
 import sqlearn as sq
 from sqlearn import _feed
 from sqlearn._config import connection
-from sqlearn._feed import hand_over, predict_streamed, received
+from sqlearn._feed import fetch, hand_over, predict_streamed, received
 from sqlearn._model import Model
 
 
@@ -223,14 +225,78 @@ def test_hand_over_refuses_a_column_that_is_not_a_number():
         hand_over(rel, "numpy")
 
 
-def test_feed_other_than_numpy_points_to_issue_21():
-    """Any other feed is not built yet, and the message says where it is planned."""
+def test_an_unknown_feed_is_refused_naming_the_forms():
+    """A feed that is not a form is refused by the hand-over and by Model."""
     rel = connection().sql("SELECT 1.0 AS a")
-    url = "https://github.com/glaucis/sqlearn/issues/21"
-    with pytest.raises(sq.errors.SqlearnError, match=url):
-        hand_over(rel, "arrow")
-    with pytest.raises(sq.errors.SqlearnError, match=url):
-        sq.Model(LogisticRegression(), feed="arrow")
+    with pytest.raises(sq.errors.SqlearnError, match=r"'parquet'.*arrow, stream"):
+        hand_over(rel, "parquet")
+    with pytest.raises(sq.errors.SqlearnError, match=r"'parquet'.*arrow, stream"):
+        sq.Model(LogisticRegression(), feed="parquet")
+
+
+def test_null_text_arrives_missing_in_every_form(con):
+    """Text arrives as categories, and a NULL stays missing, never a category."""
+    rel = con.sql("SELECT * FROM (VALUES ('Oslo'), (NULL)) t(city)")
+    assert fetch(rel, "pandas", ["city"], None)[0]["city"].isna().tolist() == [
+        False,
+        True,
+    ]
+    assert fetch(rel, "polars", ["city"], None)[0]["city"].is_null().to_list() == [
+        False,
+        True,
+    ]
+    assert fetch(rel, "arrow", ["city"], None)[0]["city"].null_count == 1
+    assert str(fetch(rel, "pandas", ["city"], None)[0]["city"].dtype) == "category"
+
+
+def test_text_arrives_as_each_form_s_categories(con):
+    """pandas category, Polars Categorical, Arrow dictionary-encoded."""
+    rel = con.sql("SELECT * FROM (VALUES ('Oslo', 1.5), ('Rome', NULL)) t(city, a)")
+    x, y = fetch(rel, "polars", ["city", "a"], None)
+    assert y is None
+    assert x.schema["city"] == pl.Categorical
+    assert x["a"].to_list() == [1.5, None]
+    table, _ = fetch(rel, "arrow", ["city", "a"], None)
+    assert pa.types.is_dictionary(table.schema.field("city").type)
+    assert table.column("city").to_pylist() == ["Oslo", "Rome"]
+    frame, _ = fetch(rel, "pandas", ["a", "city"], None)
+    assert list(frame.columns) == ["a", "city"]
+    assert frame["city"].cat.categories.tolist() == ["Oslo", "Rome"]
+
+
+def test_numpy_still_refuses_text_and_a_missing_target_is_named(con):
+    """numpy keeps today's refusal; every form refuses a missing target."""
+    rel = con.sql("SELECT * FROM (VALUES ('Oslo', 1), ('Rome', NULL)) t(city, y)")
+    with pytest.raises(sq.errors.SqlearnError, match=r"'city'.*onehot"):
+        fetch(rel, "numpy", ["city"], "y")
+    for feed in ("numpy", "pandas", "polars", "arrow"):
+        with pytest.raises(sq.errors.SqlearnError, match="'churned' is missing in 1"):
+            fetch(rel, feed, ["city"] if feed != "numpy" else [], "y", named="churned")
+
+
+def test_streamed_prediction_hands_each_batch_in_the_model_s_form(con, monkeypatch):
+    """Each batch reaches predict as the feed's form, text as categories."""
+    monkeypatch.setattr(_feed, "BATCH_ROWS", 2)
+    seen = []
+
+    class Look:
+        def fit(self, x, y):
+            return self
+
+        def predict(self, x):
+            seen.append(x)
+            return np.arange(len(x))
+
+    rel = con.sql("SELECT ['a', 'b', NULL][i + 1] AS city, i AS r FROM range(3) t(i)")
+    kinds = {"pandas": pd.DataFrame, "polars": pl.DataFrame, "arrow": pa.Table}
+    for feed, kind in kinds.items():
+        seen.clear()
+        out = predict_streamed(con, rel, ["city"], "r", Model(Look(), feed=feed))
+        assert out.fetchall() == [(0,), (1,), (0,)]
+        assert [len(x) for x in seen] == [2, 1]
+        assert all(isinstance(x, kind) for x in seen)
+    assert pa.types.is_dictionary(seen[0].schema.field("city").type)
+    assert seen[1].column("city").null_count == 1
 
 
 def test_missing_numpy_says_to_install_it(monkeypatch):
@@ -289,3 +355,20 @@ def test_a_model_failing_mid_stream_leaves_the_connection_usable(con, monkeypatc
     assert Second.calls == 2
     assert con.sql("SELECT 1").fetchall() == [(1,)]
     assert con.sql(query).fetchall()[0][0] == before
+
+
+@pytest.mark.parametrize(
+    ("feed", "module"), [("polars", "polars"), ("arrow", "pyarrow")]
+)
+def test_a_missing_library_says_to_install_it(con, monkeypatch, feed, module):
+    """Each form's library is imported only when used, and named when missing."""
+    monkeypatch.setitem(sys.modules, module, None)
+    rel = con.sql("SELECT 1.0 AS a")
+    with pytest.raises(sq.errors.SqlearnError, match=f"uv add {module}"):
+        fetch(rel, feed, ["a"], None)
+
+
+def test_take_hands_over_numpy_only(con):
+    """The other forms are fetch's: take refuses them."""
+    with pytest.raises(sq.errors.SqlearnError, match="fetch"):
+        _feed.take(con.sql("SELECT 1.0 AS a"), "pandas", ["a"])

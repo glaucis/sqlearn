@@ -32,9 +32,9 @@ from sqlearn._config import connection, get_config
 from sqlearn._diagnose import diagnose
 from sqlearn._errors import SqlearnError, StepError
 from sqlearn._expr import quote
-from sqlearn._feed import predict_streamed, take
+from sqlearn._feed import fetch, predict_streamed
 from sqlearn._inputs import Source, read
-from sqlearn._model import Model, as_model, check_feed, is_model, target_values
+from sqlearn._model import Model, as_model, check_feed, is_model, refuse_stream
 from sqlearn._output import Output, to_output
 from sqlearn._plan import Plan, plan
 from sqlearn._selectors import Schema, _Cols, _is_numeric, to_selector
@@ -950,9 +950,10 @@ class Pipeline:
             A file path or glob, a table name, a relation or a pandas frame.
         target : str
             The column the model learns to predict.
-        feed : str, optional
+        feed : {"numpy", "pandas", "polars", "arrow"}, optional
             The form of the hand-over for this call; by default the model's
-            own (``sq.Model(..., feed=...)``, which is ``"numpy"``).
+            own (``sq.Model(..., feed=...)``, ``"numpy"`` unless given). See
+            `Model` for what each form hands over.
 
         Returns
         -------
@@ -963,8 +964,9 @@ class Pipeline:
         ------
         SqlearnError
             If the pipeline has no model, the target is not a column, the
-            target is missing in a row, a feature is not a number, or `feed`
-            is not built.
+            target is missing in a row, a feature is not a number (numpy),
+            `feed` is not a form or is ``"stream"`` (not built yet), or the
+            form's library is not installed.
         StepError
             As for `learn`.
 
@@ -1113,6 +1115,7 @@ class Pipeline:
     def _train(self, source: Source, target: str, feed: str) -> "Pipeline":
         """Train on data already read, as `train` describes."""
         steps, model = self._modelled()
+        refuse_stream(feed)
         con = connection()
         _source_sql(con, source)
         prepared = self._features(source, target)
@@ -1128,8 +1131,7 @@ class Pipeline:
         )  # fmt: skip
         columns = [c for c, _ in out]
         sql = build(data_sql, stages)
-        x, aside = take(con.sql(sql), feed, columns, [TARGET])
-        y = target_values(aside[TARGET], target)
+        x, y = fetch(con.sql(sql), feed, columns, TARGET, named=target)
         # All or nothing: until the model is fitted, the pipeline keeps what
         # it had. A fit that fails may leave the model half changed, so the
         # pipeline then counts as untrained.

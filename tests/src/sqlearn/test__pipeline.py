@@ -655,9 +655,10 @@ def test_train_takes_a_model_or_a_wrapped_model_and_a_feed():
     pipe = sq.Pipeline([("model", sq.Model(Echo(), feed="numpy"))])
     pipe.train(frame, target="y")
     assert [r[0] for r in pipe.predict(frame).fetchall()] == [1.0, 2.0]
-    url = "https://github.com/glaucis/sqlearn/issues/21"
-    with pytest.raises(sq.errors.SqlearnError, match=url):
-        pipe.train(frame, target="y", feed="arrow")
+    with pytest.raises(sq.errors.SqlearnError, match=r"'parquet'.*numpy"):
+        pipe.train(frame, target="y", feed="parquet")
+    pipe.train(frame, target="y", feed="pandas")
+    assert isinstance(pipe["model"].estimator.y_, pd.Series)
 
 
 def test_train_and_predict_refuse_mistakes():

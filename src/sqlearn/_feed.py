@@ -1,14 +1,17 @@
 """The feed: handing prepared data to a model and its predictions back.
 
 A model the user brings (ADR 0017) is handed the prepared rows in the form
-its `Model.feed` names; numpy is imported only inside the numpy hand-over,
-so sqlearn itself never needs it. Every prediction is streamed: the rows go
+its `Model.feed` names (ADR 0041): numpy, pandas, Polars or Arrow, each
+library imported only inside the hand-over that needs it, so sqlearn itself
+never needs them. Text columns reach pandas, Polars and Arrow as categories.
+Every prediction is streamed: the rows go
 to the model one batch at a time, and each batch's predictions are inserted
 into a table in DuckDB beside the row numbers they belong to, so no step of
 a prediction holds all the rows in memory.
 """
 
 import contextlib
+import importlib
 import itertools
 import warnings
 import weakref
@@ -20,12 +23,13 @@ import duckdb
 from sqlearn._errors import SqlearnError, SqlearnWarning
 from sqlearn._expr import quote
 from sqlearn._inputs import _drop_later, _release_later
-from sqlearn._model import Model, _numpy, check_feed
+from sqlearn._model import Model, _numpy, check_feed, missing_target, target_values
 
 __all__ = [
     "BATCH_ROWS",
     "PROBA",
     "WrongShapeError",
+    "fetch",
     "hand_over",
     "predict_streamed",
     "received",
@@ -48,6 +52,9 @@ connection's temporary tables are its own: a database attached to the
 instance is seen by both. DuckDB spills it to disk as it does temporary
 tables.
 """
+
+_AS_NUMPY = ("numpy", "stream")
+"""The feeds whose rows are handed over as a numpy array."""
 
 _prediction_ids = itertools.count()
 _WARNED: set[str] = set()
@@ -75,14 +82,16 @@ def take(
     columns: Sequence[str],
     aside: Sequence[str] = (),
 ) -> tuple[Any, dict[str, Any]]:
-    """Run a relation once: the features in the feed's form, other columns aside.
+    """Run a relation once: the features as numpy, other columns aside.
+
+    The numpy hand-over of `fetch`, for ``"numpy"`` and ``"stream"``.
 
     Parameters
     ----------
     rel : duckdb.DuckDBPyRelation
         The prepared data, with every column of `columns` and `aside`.
     feed : str
-        The form of the features; ``"numpy"`` only.
+        The form of the features: ``"numpy"`` or ``"stream"``.
     columns : sequence of str
         The features, in order.
     aside : sequence of str, default ()
@@ -99,8 +108,8 @@ def take(
     Raises
     ------
     SqlearnError
-        If `feed` is not built, numpy is missing, or a feature is not a
-        number.
+        If `feed` is not ``"numpy"`` or ``"stream"``, numpy is missing, or a
+        feature is not a number.
 
     Examples
     --------
@@ -112,6 +121,9 @@ def take(
     ([[1.5]], ['yes'])
     """
     check_feed(feed)
+    if feed not in _AS_NUMPY:
+        msg = f"take hands over numpy only, not feed={feed!r}; fetch hands any form"
+        raise SqlearnError(msg)
     np = _numpy()
     picked = rel.project(*(duckdb.ColumnExpression(c) for c in [*columns, *aside]))
     arrays = picked.fetchnumpy()
@@ -134,27 +146,140 @@ def take(
     return x, {c: arrays[c] for c in aside}
 
 
+def _library(module: str, feed: str) -> Any:  # noqa: ANN401  (a module, imported here only)
+    """Import a form's library, or say how to install it."""
+    try:
+        return importlib.import_module(module)
+    except ImportError as exc:
+        msg = (
+            f"feed={feed!r} hands the data to the model through {module}, and "
+            f"{module} is not installed. Fix: install it (uv add {module}), or "
+            "pass another feed."
+        )
+        raise SqlearnError(msg) from exc
+
+
+def fetch(
+    rel: duckdb.DuckDBPyRelation,
+    feed: str,
+    columns: Sequence[str],
+    target: str | None,
+    *,
+    named: str | None = None,
+) -> tuple[Any, Any]:
+    """Run a relation once: the features and the target in the feed's form.
+
+    Each form comes from DuckDB's own method (``fetchnumpy``, ``df``,
+    ``pl``, ``to_arrow_table``). With pandas, Polars and Arrow a text
+    (``VARCHAR``) feature is cast to that library's categories after the
+    fetch; a NULL stays missing, never a category. numpy and the stream
+    refuse text, as `take` does.
+
+    Parameters
+    ----------
+    rel : duckdb.DuckDBPyRelation
+        The prepared data, with every column of `columns` and `target`.
+    feed : {"numpy", "pandas", "polars", "arrow", "stream"}
+        The form (``"stream"`` hands a batch over as numpy).
+    columns : sequence of str
+        The features, in order.
+    target : str or None
+        The target's column, fetched in the same query, or None for none.
+    named : str, optional
+        The target's name in the user's data, for the message when it is
+        missing; `target` when not given.
+
+    Returns
+    -------
+    features : object
+        A 2-D float64 array for numpy and the stream, NULL as NaN; a
+        ``DataFrame`` for pandas and Polars; a ``pyarrow.Table`` for Arrow.
+    target : object or None
+        An array for numpy and the stream; a ``Series`` named `named` (or
+        `target`) for pandas and Polars; a ``pyarrow.ChunkedArray`` for
+        Arrow. None without a target.
+
+    Raises
+    ------
+    SqlearnError
+        If `feed` is not a form, its library is not installed, the target
+        is missing (NULL) in a row, or (numpy, stream) a feature is not a
+        number.
+
+    Examples
+    --------
+    >>> from sqlearn._config import connection
+    >>> from sqlearn._feed import fetch
+    >>> rel = connection().sql("SELECT 1.5 AS a, 'Oslo' AS city, 0 AS y")
+    >>> x, y = fetch(rel, "pandas", ["a", "city"], "y")
+    >>> str(x["city"].dtype), y.tolist()
+    ('category', [0])
+    """
+    check_feed(feed)
+    name = named if named is not None else target
+    aside = [] if target is None else [target]
+    if feed in _AS_NUMPY:
+        matrix, other = take(rel, feed, columns, aside)
+        if target is None:
+            return matrix, None
+        return matrix, target_values(other[target], name or target)
+    picked = rel.project(*(duckdb.ColumnExpression(c) for c in [*columns, *aside]))
+    kinds = dict(zip(picked.columns, picked.types, strict=True))
+    text = [c for c in columns if str(kinds[c]) == "VARCHAR"]
+    x: Any
+    if feed == "pandas":
+        _library("pandas", feed)
+        frame = picked.df()
+        y = None if target is None else frame.pop(target).rename(name)
+        for c in text:
+            frame[c] = frame[c].astype("category")
+        missing = 0 if y is None else int(y.isna().sum())
+        x = frame
+    elif feed == "polars":
+        pl = _library("polars", feed)
+        frame = picked.pl()
+        y = None if target is None else frame.get_column(target).alias(name or "")
+        x = frame.select(
+            *(
+                pl.col(c).cast(pl.Categorical) if c in text else pl.col(c)
+                for c in columns
+            )
+        )
+        missing = 0 if y is None else y.null_count()
+    else:
+        _library("pyarrow", feed)
+        table = picked.to_arrow_table()
+        y = None if target is None else table.column(target)
+        x = table.select(list(columns))
+        for c in text:
+            x = x.set_column(
+                x.column_names.index(c), c, x.column(c).dictionary_encode()
+            )
+        missing = 0 if y is None else y.null_count
+    if missing:
+        raise missing_target(name or "", missing)
+    return x, y
+
+
 def hand_over(rel: duckdb.DuckDBPyRelation, feed: str) -> object:
     """Run a relation and hand its rows over in the form a model takes.
 
     Parameters
     ----------
     rel : duckdb.DuckDBPyRelation
-        The prepared data; every column is a feature.
-    feed : str
-        ``"numpy"``: a 2-D float64 array, columns in the relation's order,
-        NULL as NaN. Other forms are issue #21.
+        The prepared data; every column is a feature, in order.
+    feed : {"numpy", "pandas", "polars", "arrow", "stream"}
+        The form, as for `fetch`.
 
     Returns
     -------
-    numpy.ndarray
-        The features.
+    object
+        The features, as `fetch` returns them.
 
     Raises
     ------
     SqlearnError
-        If `feed` is not ``"numpy"`` (pointing to issue #21), numpy is not
-        installed, or a column is not a number.
+        As for `fetch`.
 
     Examples
     --------
@@ -163,7 +288,7 @@ def hand_over(rel: duckdb.DuckDBPyRelation, feed: str) -> object:
     >>> hand_over(connection().sql("SELECT 1 AS a, 2.5 AS b"), "numpy").tolist()
     [[1.0, 2.5]]
     """
-    x, _ = take(rel, feed, rel.columns)
+    x, _ = fetch(rel, feed, rel.columns, None)
     return x
 
 
@@ -237,6 +362,14 @@ def _checked(values: Any, rows: int, method: str) -> Any:  # noqa: ANN401  (nump
     return values
 
 
+def _fetched(
+    rel: duckdb.DuckDBPyRelation, feed: str, columns: Sequence[str], row: str
+) -> tuple[Any, Any]:
+    """Fetch the features in the feed's form and the row numbers as numpy."""
+    x, rows = fetch(rel, feed, columns, row)
+    return x, _numpy().asarray(rows)
+
+
 def _batches(
     cur: duckdb.DuckDBPyConnection,
     rel: duckdb.DuckDBPyRelation,
@@ -247,8 +380,9 @@ def _batches(
     """Yield the features and the row numbers of `rel`, a batch at a time.
 
     With pyarrow, the relation is read as Arrow batches of `BATCH_ROWS`
-    rows, each converted as `take` converts a whole relation (on `cur`, as
-    the relation's own connection has the read open). Without it, the rows
+    rows, each converted as `fetch` converts a whole relation (on `cur`, as
+    the relation's own connection has the read open), so a batch reaches
+    the model in its feed's form, text as categories. Without it, the rows
     go in one batch. A relation of no rows gives one empty batch, so the
     model is asked once, as for any input.
     """
@@ -265,8 +399,7 @@ def _batches(
                 "pyarrow) to predict in batches."
             )
             warnings.warn(text, SqlearnWarning, stacklevel=5)
-        x, aside = take(picked, feed, columns, [row])
-        yield x, aside[row]
+        yield _fetched(picked, feed, columns, row)
         return
     empty = True
     # Closed however the caller stops, so the connection's read is released.
@@ -275,11 +408,9 @@ def _batches(
             if batch.num_rows == 0:
                 continue
             empty = False
-            x, aside = take(cur.from_arrow(batch), feed, columns, [row])
-            yield x, aside[row]
+            yield _fetched(cur.from_arrow(batch), feed, columns, row)
     if empty:
-        x, aside = take(picked, feed, columns, [row])
-        yield x, aside[row]
+        yield _fetched(picked, feed, columns, row)
 
 
 def stream_into(

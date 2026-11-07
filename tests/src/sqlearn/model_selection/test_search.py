@@ -817,3 +817,45 @@ def test_a_sqlearn_error_inside_fit_keeps_the_setting_and_fold():
         match=r"failed to fit .*model__C.* fold 0.*inner refusal",
     ):
         search.train(DATA, target="y")
+
+
+class Forms(BaseEstimator, ClassifierMixin):
+    """A model recording the form of each fit's features, across copies."""
+
+    seen: ClassVar[list[str]] = []
+
+    def __init__(self, tag=0):
+        self.tag = tag
+
+    def fit(self, x, y):
+        """Record the form, then learn nothing."""
+        type(self).seen.append(type(x).__module__.partition(".")[0])
+        return self
+
+    def predict(self, x):
+        """Predict class 0 for every row."""
+        return np.zeros(len(x), dtype=int)
+
+
+def test_each_model_of_a_search_trains_in_its_own_form(monkeypatch):
+    """A preparation's rows are fetched once per distinct feed (Ruling R7)."""
+    fetched = []
+    real = search_module.fetch
+
+    def counted(rel, feed, *args, **kwargs):
+        fetched.append(feed)
+        return real(rel, feed, *args, **kwargs)
+
+    monkeypatch.setattr(search_module, "fetch", counted)
+    Forms.seen = []
+    candidates = [
+        sq.Model(Forms(0), feed="pandas"),
+        sq.Model(Forms(1), feed="polars"),
+        sq.Model(Forms(2), feed="pandas"),
+    ]
+    pipe = sq.Pipeline([("scale", sq.scale.standard()), ("model", Forms())])
+    sq.search(pipe, params={"model": candidates}, folds=sq.folds.kfold(n=2)).train(
+        DATA, target="y"
+    )
+    assert Forms.seen[:6] == ["pandas", "pandas", "polars"] * 2
+    assert fetched == ["pandas", "polars"] * 2

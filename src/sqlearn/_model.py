@@ -2,8 +2,9 @@
 
 sqlearn prepares the data in DuckDB and hands it to a model the user brings
 (ADR 0017): any object with scikit-learn's ``fit`` and ``predict``. The
-hand-over itself is in `sqlearn._feed`; numpy is imported only inside the
-functions that need it, so sqlearn itself never needs it.
+hand-over itself is in `sqlearn._feed`; numpy, pandas, Polars and pyarrow
+are imported only inside the functions that need them, so sqlearn itself
+never needs them.
 """
 
 import copy
@@ -19,17 +20,25 @@ __all__ = [
     "copy_model",
     "is_model",
     "missing_target",
+    "refuse_stream",
     "target_values",
 ]
 
-FEEDS = ("numpy",)
-"""The forms data can be handed to a model in, in the core."""
+FEEDS = ("numpy", "pandas", "polars", "arrow", "stream")
+"""The forms data can be handed to a model in (ADR 0041)."""
 
-_ISSUE_21 = "https://github.com/glaucis/sqlearn/issues/21"
+_STREAM_DEFAULTS: dict[str, object] = {
+    "rows": None,
+    "megabytes": None,
+    "epochs": 1,
+    "shuffle": True,
+    "seed": 0,
+}
+"""The stream's settings and their defaults, in `Model`'s order."""
 
 
 def check_feed(feed: str) -> None:
-    """Refuse a form of hand-over that is not built yet.
+    """Refuse a form of hand-over sqlearn does not know.
 
     Parameters
     ----------
@@ -39,19 +48,47 @@ def check_feed(feed: str) -> None:
     Raises
     ------
     SqlearnError
-        If `feed` is not ``"numpy"``; Arrow and batches are planned in issue
-        #21.
+        If `feed` is not one of `FEEDS`.
 
     Examples
     --------
     >>> from sqlearn._model import check_feed
-    >>> check_feed("numpy")
+    >>> check_feed("polars")
     """
     if feed not in FEEDS:
         msg = (
-            f"feed={feed!r} is not built yet: sqlearn hands models numpy only "
-            f"for now. Arrow and batches are planned in issue #21 ({_ISSUE_21}). "
-            "Fix: use feed='numpy'."
+            f"feed={feed!r} is not a form sqlearn hands data to a model in; "
+            f"the forms are {', '.join(FEEDS)}. Fix: pass feed= one of them, "
+            "or leave it out for numpy."
+        )
+        raise SqlearnError(msg)
+
+
+def refuse_stream(feed: str) -> None:
+    """Refuse to train through the stream, which is not built yet.
+
+    Parameters
+    ----------
+    feed : str
+        The form a model is to be trained in.
+
+    Raises
+    ------
+    SqlearnError
+        If `feed` is ``"stream"``: training through ``partial_fit`` is
+        planned in issue #21.
+
+    Examples
+    --------
+    >>> from sqlearn._model import refuse_stream
+    >>> refuse_stream("pandas")
+    """
+    if feed == "stream":
+        msg = (
+            "feed='stream' trains the model through partial_fit one batch at "
+            "a time, which is not built yet "
+            "(https://github.com/glaucis/sqlearn/issues/21). Fix: pass another "
+            "feed for now, such as feed='numpy'."
         )
         raise SqlearnError(msg)
 
@@ -88,15 +125,44 @@ class Model:
 
     Any object with scikit-learn's ``fit`` and ``predict`` is a model. A
     pipeline wraps a plain one as ``Model(estimator)`` itself; wrap it to
-    choose how data is handed to it.
+    choose the form the data is handed to it in (ADR 0041). Each form's
+    library is imported only when it is used, and none is a dependency of
+    sqlearn: install the one your model reads.
+
+    ============  ===========================  ===================
+    ``feed=``     ``fit(X, y)`` gets           text columns
+    ============  ===========================  ===================
+    ``"numpy"``   a 2-D float64 array          refused
+    ``"pandas"``  a ``DataFrame``              ``category`` dtype
+    ``"polars"``  a ``DataFrame``              ``Categorical``
+    ``"arrow"``   a ``pyarrow.Table``          dictionary-encoded
+    ``"stream"``  batches as numpy, through    refused
+                  ``partial_fit``
+    ============  ===========================  ===================
+
+    The target goes over in the same form as the features: a numpy array, a
+    pandas or Polars ``Series``, a ``pyarrow.ChunkedArray``. A NULL stays
+    missing (NaN or null), never a category of its own. Predictions are
+    asked for in the same form, one batch at a time.
 
     Parameters
     ----------
     estimator : object
         The model: an object with ``fit(X, y)`` and ``predict(X)``.
-    feed : str, default "numpy"
-        The form the prepared data is handed over in. Only ``"numpy"`` is
-        built (a 2-D float64 array); other forms are issue #21.
+    feed : {"numpy", "pandas", "polars", "arrow", "stream"}, default "numpy"
+        The form the prepared data is handed over in, as in the table above.
+    rows : int, optional
+        With ``feed="stream"`` only: the rows in each batch.
+    megabytes : int, optional
+        With ``feed="stream"`` only: about how large each batch is; about
+        100 MB when neither this nor `rows` is given.
+    epochs : int, default 1
+        With ``feed="stream"`` only: how many times the rows are streamed.
+    shuffle : bool, default True
+        With ``feed="stream"`` only: whether each epoch streams the rows in
+        a new order.
+    seed : int, default 0
+        With ``feed="stream"`` only: the seed of that order.
 
     Attributes
     ----------
@@ -104,21 +170,36 @@ class Model:
         The model, as given; `Pipeline.train` fits it in place.
     feed : str
         The form of the hand-over.
+    rows, megabytes, epochs, shuffle, seed
+        The stream's settings, as given.
 
     Raises
     ------
     SqlearnError
-        If the estimator lacks ``fit`` or ``predict``, or `feed` is not built.
+        If the estimator lacks ``fit`` or ``predict``, `feed` is not a form,
+        or a setting of the stream is given with another feed.
 
     Examples
     --------
     >>> import sqlearn as sq
     >>> from sklearn.linear_model import LogisticRegression
     >>> sq.Model(LogisticRegression(C=0.1))
-    Model(LogisticRegression(C=0.1), feed='numpy')
+    Model(LogisticRegression(C=0.1))
+    >>> sq.Model(LogisticRegression(), feed="pandas")
+    Model(LogisticRegression(), feed='pandas')
     """
 
-    def __init__(self, estimator: object, feed: str = "numpy") -> None:
+    def __init__(
+        self,
+        estimator: object,
+        feed: str = "numpy",
+        *,
+        rows: int | None = None,
+        megabytes: int | None = None,
+        epochs: int = 1,
+        shuffle: bool = True,
+        seed: int = 0,
+    ) -> None:
         missing = _missing(estimator)
         if missing:
             msg = (
@@ -129,25 +210,58 @@ class Model:
             )
             raise SqlearnError(msg)
         check_feed(feed)
+        stream = {
+            "rows": rows,
+            "megabytes": megabytes,
+            "epochs": epochs,
+            "shuffle": shuffle,
+            "seed": seed,
+        }
+        if feed != "stream":
+            for name, value in stream.items():
+                if value != _STREAM_DEFAULTS[name]:
+                    msg = (
+                        f"{name}={value!r} is a setting of the stream, and "
+                        f"feed={feed!r} hands the rows over at once, not in "
+                        f"batches. Fix: pass feed='stream' with {name}=, or "
+                        f"leave {name}= out."
+                    )
+                    raise SqlearnError(msg)
         self.estimator: Any = estimator
         self.feed = feed
+        self.rows = rows
+        self.megabytes = megabytes
+        self.epochs = epochs
+        self.shuffle = shuffle
+        self.seed = seed
+
+    def _settings(self) -> dict[str, Any]:
+        """Return the feed and the stream's settings, to build a copy with."""
+        return {"feed": self.feed, **{n: getattr(self, n) for n in _STREAM_DEFAULTS}}
 
     def __repr__(self) -> str:
-        """Show the estimator's own repr and the feed, the same every time.
+        """Show the estimator's own repr and what differs from the defaults.
 
         Returns
         -------
         str
-            ``Model(<estimator repr>, feed='numpy')``.
+            ``Model(<estimator repr>)``, then each setting not at its
+            default, in the signature's order.
 
         Examples
         --------
         >>> import sqlearn as sq
         >>> from sklearn.linear_model import LogisticRegression
-        >>> repr(sq.Model(LogisticRegression()))
-        "Model(LogisticRegression(), feed='numpy')"
+        >>> repr(sq.Model(LogisticRegression(), feed="stream", rows=500))
+        "Model(LogisticRegression(), feed='stream', rows=500)"
         """
-        return f"Model({self.estimator!r}, feed={self.feed!r})"
+        defaults = {"feed": "numpy", **_STREAM_DEFAULTS}
+        shown = [
+            f"{name}={value!r}"
+            for name, value in self._settings().items()
+            if value != defaults[name]
+        ]
+        return f"Model({', '.join([repr(self.estimator), *shown])})"
 
 
 def as_model(obj: object) -> Model:
@@ -215,10 +329,10 @@ def copy_model(m: Model) -> Model:
     >>> import sqlearn as sq
     >>> from sklearn.linear_model import LogisticRegression
     >>> from sqlearn._model import copy_model
-    >>> copy_model(sq.Model(LogisticRegression(C=0.1)))
-    Model(LogisticRegression(C=0.1), feed='numpy')
+    >>> copy_model(sq.Model(LogisticRegression(C=0.1), feed="polars"))
+    Model(LogisticRegression(C=0.1), feed='polars')
     """
-    return Model(_clone(m.estimator), feed=m.feed)
+    return Model(_clone(m.estimator), **m._settings())
 
 
 def _numpy() -> Any:  # noqa: ANN401  (the numpy module, imported here only)

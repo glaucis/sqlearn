@@ -19,9 +19,9 @@ from sqlearn._compose import POSITION, TARGET
 from sqlearn._config import connection
 from sqlearn._errors import DefaultsUsedWarning, SqlearnError
 from sqlearn._expr import quote
-from sqlearn._feed import WrongShapeError, stream_into, take
+from sqlearn._feed import WrongShapeError, fetch, stream_into
 from sqlearn._inputs import Source, _release_later, read
-from sqlearn._model import Model, _numpy, missing_target, target_values
+from sqlearn._model import Model, _numpy, missing_target, refuse_stream
 from sqlearn._output import Output
 from sqlearn._pipeline import _ROW, Pipeline, _FoldTable, _positioned, _source_sql
 from sqlearn._store import FoldKey
@@ -92,11 +92,15 @@ def _fetch(
     rows: duckdb.Expression,
     feed: str,
     features: Sequence[str],
+    target: str,
 ) -> tuple[Any, Any]:
-    """Fetch the rows of a fold's table a predicate picks, in the query's order."""
+    """Fetch the rows of a fold's table a predicate picks, in the query's order.
+
+    The features and the target come in the form `feed` names, the target
+    refused where it is missing (named `target`, as in the user's data).
+    """
     picked = table.filter(rows).sort(duckdb.ColumnExpression(_ROW))
-    x, aside = take(picked, feed, features, [TARGET])
-    return x, aside[TARGET]
+    return fetch(picked, feed, features, TARGET, named=target)
 
 
 def _check_held_targets(
@@ -411,7 +415,6 @@ class Search:
             rows = numbered.filter(folds.training(FOLD, k)).project(*columns)
             for preparation, members in groups.items():
                 prepared = trial(self.pipe, settings[members[0]])
-                _, first = prepared._modelled()
                 prepared_fold = self._fold_tables.get((preparation, fold))
                 if prepared_fold is None:
                     # The setting's own steps: their inner folds travel beside.
@@ -426,33 +429,63 @@ class Search:
                     self.transforms_ += 1
                 table = con.table(prepared_fold.name)
                 features = prepared_fold.features
-                x_fit, y_fit = _fetch(
-                    table, folds.training(FOLD, k), first.feed, features
-                )
-                y_fit = target_values(y_fit, target)
-                _check_held_targets(table, folds.held(FOLD, k), target)
-                # The held-out rows are streamed to each model in batches.
-                held = table.filter(folds.held(FOLD, k))
-                for i in members:
-                    _, model = trial(self.pipe, settings[i])._modelled()
-                    action = "fit"
-                    try:
-                        model.estimator.fit(x_fit, y_fit)
-                        action = "predict"
-                        predictions, _ = stream_into(con, held, features, _ROW, model)
-                    except WrongShapeError:
-                        raise  # the stream's own message says what to fix
-                    except Exception as exc:
-                        err = _fold_error(exc, action, settings[i], k, folds)
-                        raise err from exc
-                    try:
-                        scores[i][k] = _score(
-                            con, self.metric, prepared_fold.name,
-                            folds.held(FOLD, k), predictions,
-                        )  # fmt: skip
-                    finally:
-                        con.execute(f"DROP TABLE IF EXISTS {predictions}")
+                models = {
+                    i: trial(self.pipe, settings[i])._modelled()[1] for i in members
+                }
+                # Each model trains in its own form, the rows fetched once per
+                # distinct form and fitted to every model taking it.
+                feeds: dict[str, list[int]] = {}
+                for i, model in models.items():
+                    refuse_stream(model.feed)
+                    feeds.setdefault(model.feed, []).append(i)
+                for n, (feed, takers) in enumerate(feeds.items()):
+                    x_fit, y_fit = _fetch(
+                        table, folds.training(FOLD, k), feed, features, target
+                    )
+                    if n == 0:
+                        _check_held_targets(table, folds.held(FOLD, k), target)
+                    self._fit_and_score(
+                        con, prepared_fold, folds, k, x_fit, y_fit,
+                        [(i, settings[i], models[i]) for i in takers], scores,
+                    )  # fmt: skip
+                    del x_fit, y_fit  # one form's rows in memory at a time
         return scores
+
+    def _fit_and_score(
+        self,
+        con: duckdb.DuckDBPyConnection,
+        prepared_fold: _FoldTable,
+        folds: Folds,
+        k: int,
+        x_fit: object,
+        y_fit: object,
+        takers: Sequence[tuple[int, Params, Model]],
+        scores: list[list[float]],
+    ) -> None:
+        """Fit each model to one fold's training rows, then score it in SQL.
+
+        The held-out rows are streamed to each model in batches, in its own
+        form, and the score is written to ``scores[i][k]``.
+        """
+        features = prepared_fold.features
+        held = con.table(prepared_fold.name).filter(folds.held(FOLD, k))
+        for i, params, model in takers:
+            action = "fit"
+            try:
+                model.estimator.fit(x_fit, y_fit)
+                action = "predict"
+                predictions, _ = stream_into(con, held, features, _ROW, model)
+            except WrongShapeError:
+                raise  # the stream's own message says what to fix
+            except Exception as exc:
+                raise _fold_error(exc, action, params, k, folds) from exc
+            try:
+                scores[i][k] = _score(
+                    con, self.metric, prepared_fold.name,
+                    folds.held(FOLD, k), predictions,
+                )  # fmt: skip
+            finally:
+                con.execute(f"DROP TABLE IF EXISTS {predictions}")
 
     @staticmethod
     def _results(

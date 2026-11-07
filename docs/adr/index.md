@@ -72,6 +72,7 @@ The verbs and conventions users write against.
 - [0031: The defaults warning is about what to search](0031-the-defaults-warning-is-about-what-to-search.md)
 - [0039: The search's names as groups](0039-the-search-names-as-groups.md)
 - [0040: Fold schemes as SQL over rows](0040-fold-schemes-as-sql-over-rows.md)
+- [0041: The hand-over](0041-the-hand-over.md)
 
 ## Numerics and validation
 

@@ -1,11 +1,29 @@
 """Tests of models: the wrapper and copying it."""
 
 import numpy as np
+import pandas as pd
+import polars as pl
+import pyarrow as pa
 import pytest
+from catboost import CatBoostClassifier
+from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
 
 import sqlearn as sq
+from sqlearn import _feed
 from sqlearn._model import Model, as_model, copy_model
+from sqlearn.errors import SqlearnError
+
+DATA_WITH_CITY = pd.DataFrame(
+    {
+        "x": np.arange(40.0),
+        "city": ["oslo", "rome", "kyiv", "oslo"] * 10,
+        "y": [0, 1, 1, 0] * 10,
+    }
+)
+NUMERIC_DATA = pd.DataFrame(
+    {"a": np.arange(30.0), "b": np.arange(30.0) % 7, "y": [0, 1, 1] * 10}
+)
 
 
 class Plain:
@@ -27,8 +45,20 @@ def test_model_is_exported_with_a_deterministic_repr():
     """`sq.Model` shows the estimator's own repr and the feed."""
     model = sq.Model(LogisticRegression(C=0.1))
     assert sq.Model is Model
-    assert repr(model) == "Model(LogisticRegression(C=0.1), feed='numpy')"
+    assert repr(model) == "Model(LogisticRegression(C=0.1))"
     assert repr(model) == repr(sq.Model(LogisticRegression(C=0.1)))
+
+
+def test_the_repr_shows_only_what_differs_from_the_defaults():
+    """The feed and the stream's settings appear once they are not the defaults."""
+    model = LogisticRegression()
+    assert repr(sq.Model(model, feed="pandas")) == (
+        "Model(LogisticRegression(), feed='pandas')"
+    )
+    streamed = sq.Model(model, feed="stream", rows=1000, shuffle=False)
+    assert repr(streamed) == (
+        "Model(LogisticRegression(), feed='stream', rows=1000, shuffle=False)"
+    )
 
 
 def test_as_model_wraps_a_plain_estimator_and_keeps_a_model():
@@ -58,6 +88,8 @@ def test_copy_model_keeps_settings():
     assert copy.feed == model.feed
     assert not hasattr(copy.estimator, "coef_")
     assert repr(copy) == repr(model)
+    streamed = sq.Model(LogisticRegression(), feed="stream", megabytes=8, epochs=3)
+    assert repr(copy_model(streamed)) == repr(streamed)
 
 
 def test_copy_model_without_get_params_deep_copies():
@@ -100,3 +132,128 @@ def test_copy_model_rebuilds_from_settings_and_copies_nested_models():
     assert copy.estimator.inner is not inner
     assert copy.estimator.inner.C == 3.0
     assert not hasattr(copy.estimator.inner, "coef_")
+
+
+@pytest.mark.parametrize(
+    ("feed", "kind"),
+    [("pandas", pd.DataFrame), ("polars", pl.DataFrame), ("arrow", pa.Table)],
+)
+def test_each_form_reaches_fit(feed, kind):
+    """fit gets the features in the form the feed names, text columns kept."""
+    seen = {}
+
+    class Keep:
+        def fit(self, x, y):
+            seen["x"] = x
+            return self
+
+        def predict(self, x):
+            return np.zeros(len(x))
+
+    pipe = sq.Pipeline([sq.scale.standard(), sq.Model(Keep(), feed=feed)])
+    pipe.train(DATA_WITH_CITY, target="y")
+    assert isinstance(seen["x"], kind) and "city" in list(
+        seen["x"].columns if feed != "arrow" else seen["x"].column_names
+    )
+
+
+def test_the_target_goes_over_in_the_form_of_the_features():
+    """A Series for pandas and Polars, an Arrow array for arrow."""
+    seen = {}
+
+    class Keep:
+        def fit(self, x, y):
+            seen[type(x)] = y
+            return self
+
+        def predict(self, x):
+            return np.zeros(len(x))
+
+    for feed in ("numpy", "pandas", "polars", "arrow"):
+        sq.Pipeline([sq.Model(Keep(), feed=feed)]).train(NUMERIC_DATA, target="y")
+    assert isinstance(seen[np.ndarray], np.ndarray)
+    assert isinstance(seen[pd.DataFrame], pd.Series)
+    assert isinstance(seen[pl.DataFrame], pl.Series)
+    assert isinstance(seen[pa.Table], pa.ChunkedArray)
+    assert seen[pa.Table].to_pylist() == NUMERIC_DATA["y"].tolist()
+
+
+def test_histogram_boosting_takes_text_columns_through_pandas():
+    """scikit-learn's boosting reads the category dtype, at train and predict.
+
+    LightGBM, which the plan names here, needs the system's OpenMP library
+    on macOS (brew install libomp), so this test uses a model that reads the
+    same form without it.
+    """
+    model = HistGradientBoostingClassifier(
+        max_iter=5, categorical_features="from_dtype"
+    )
+    pipe = sq.Pipeline([sq.impute.median(), sq.Model(model, feed="pandas")])
+    pipe.train(DATA_WITH_CITY, target="y")
+    assert len(pipe.predict(DATA_WITH_CITY, out="numpy")["prediction"]) == len(
+        DATA_WITH_CITY
+    )
+
+
+def test_catboost_takes_text_columns_through_pandas():
+    """CatBoost still takes cat_features= as it would without sqlearn."""
+    model = CatBoostClassifier(
+        iterations=5, verbose=0, cat_features=["city"], allow_writing_files=False
+    )
+    pipe = sq.Pipeline([sq.impute.median(), sq.Model(model, feed="pandas")])
+    pipe.train(DATA_WITH_CITY, target="y")
+    assert pipe.predict(DATA_WITH_CITY, out="numpy")["prediction"].shape == (
+        len(DATA_WITH_CITY),
+    )
+
+
+def test_one_model_gives_the_same_predictions_through_every_form():
+    """The form changes how the data travels, not what the model learns."""
+    got = {}
+    for feed in ("numpy", "pandas", "polars", "arrow"):
+        pipe = sq.Pipeline(
+            [sq.scale.standard(), sq.Model(LogisticRegression(), feed=feed)]
+        )
+        got[feed] = pipe.train(NUMERIC_DATA, target="y").predict(
+            NUMERIC_DATA, out="numpy"
+        )["prediction"]
+    for feed in ("pandas", "polars", "arrow"):
+        np.testing.assert_array_equal(got[feed], got["numpy"])
+
+
+@pytest.mark.parametrize(
+    "setting",
+    [{"rows": 1000}, {"megabytes": 8}, {"epochs": 2}, {"shuffle": False}, {"seed": 1}],
+)
+def test_settings_of_the_stream_need_the_stream(setting):
+    """rows, megabytes, epochs, shuffle and seed belong to feed='stream'."""
+    with pytest.raises(SqlearnError, match=f"{next(iter(setting))}="):
+        sq.Model(LogisticRegression(), feed="pandas", **setting)
+    sq.Model(LogisticRegression(), feed="stream", **setting)
+
+
+def test_an_unknown_feed_names_the_forms():
+    """A feed that is not a form is refused, naming the five."""
+    with pytest.raises(SqlearnError, match=r"'parquet'.*numpy, pandas, polars"):
+        sq.Model(LogisticRegression(), feed="parquet")
+
+
+def test_categories_map_by_value_whatever_the_batch_holds(monkeypatch):
+    """A batch's categories are its own; the model still reads them by value."""
+    model = HistGradientBoostingClassifier(
+        max_iter=5, categorical_features="from_dtype"
+    )
+    pipe = sq.Pipeline([sq.Model(model, feed="pandas")])
+    pipe.train(DATA_WITH_CITY, target="y")
+    whole = pipe.predict(DATA_WITH_CITY, out="numpy")["prediction"]
+    monkeypatch.setattr(_feed, "BATCH_ROWS", 1)
+    one_by_one = pipe.predict(DATA_WITH_CITY, out="numpy")["prediction"]
+    np.testing.assert_array_equal(one_by_one, whole)
+    assert whole.tolist() == DATA_WITH_CITY["y"].tolist()
+
+
+def test_training_through_the_stream_is_not_built_yet():
+    """feed='stream' is a form, but partial_fit training comes later."""
+    pipe = sq.Pipeline([sq.Model(LogisticRegression(), feed="stream")])
+    with pytest.raises(SqlearnError, match="partial_fit"):
+        pipe.train(NUMERIC_DATA, target="y")
