@@ -73,7 +73,18 @@ had nowhere to go but swap.
   training rows itself.
 - **Never swap.** Before a form other than `"stream"` loads a fold, its size
   is estimated and compared with the memory budget; a fold that will not fit
-  is refused before the fetch, suggesting `feed="stream"`.
+  is refused before the fetch, suggesting `feed="stream"`. The budget is one
+  for the process, `sq.set_config(memory=...)` (bytes or a size such as
+  `"8GB"`), by default 80% of physical memory. DuckDB's share is its
+  connection's `memory_limit`, counted as at most half the budget, and the
+  hand-over may use the rest (Ruling R11). sqlearn's own connection is given
+  half the budget as its `memory_limit`, re-applied when the budget changes;
+  a connection the user passed is never changed, and its default limit (80%
+  of physical memory, the same as the budget) or no limit at all counts as
+  half, so a passed connection is not left with nothing. The estimate is
+  rows times 8 bytes per number column and 64 bytes plus the average length
+  per text column, from one aggregate query. Prediction batches are not
+  checked (each is small); prediction's one whole fetch without pyarrow is.
 
 ## Consequences
 

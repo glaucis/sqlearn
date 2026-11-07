@@ -1,4 +1,4 @@
-"""The global configuration: the output kind and the DuckDB connection."""
+"""The global configuration: the output kind, the connection, the memory budget."""
 
 from __future__ import annotations
 
@@ -6,6 +6,8 @@ from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
 import duckdb
+
+from sqlearn._errors import SqlearnError
 
 if TYPE_CHECKING:
     from sqlearn._output import Output
@@ -23,6 +25,8 @@ class Config:
         The default output kind, or None for the library's default.
     connection : duckdb.DuckDBPyConnection or None
         The connection to compute in, or None for a shared in-memory one.
+    memory : int or None
+        The memory budget in bytes, or None for 80% of physical memory.
 
     Examples
     --------
@@ -33,6 +37,7 @@ class Config:
 
     out: str | Output | None = None
     connection: duckdb.DuckDBPyConnection | None = None
+    memory: int | None = None
 
 
 _config = Config()
@@ -44,6 +49,7 @@ def set_config(
     *,
     out: str | Output | object | None = _UNSET,
     connection: duckdb.DuckDBPyConnection | object | None = _UNSET,
+    memory: int | str | object | None = _UNSET,
 ) -> None:
     """Set the global configuration; a field left out keeps its value.
 
@@ -53,6 +59,19 @@ def set_config(
         The default output kind; None restores the library's default.
     connection : duckdb.DuckDBPyConnection, optional
         The connection to compute in; None restores the shared in-memory one.
+        sqlearn never changes a connection passed here.
+    memory : int or str, optional
+        The memory budget the process shares between DuckDB and the data
+        handed to a model: bytes, or a size DuckDB reads (``"8GB"``,
+        ``"512MiB"``); None restores the default, 80% of physical memory.
+        sqlearn's own connection is given half of it as DuckDB's
+        ``memory_limit``; a fold that would not fit in the rest is refused
+        before it is fetched, never swapped.
+
+    Raises
+    ------
+    SqlearnError
+        If `memory` is not a positive number of bytes nor a size.
 
     Examples
     --------
@@ -68,7 +87,40 @@ def set_config(
         changes["out"] = out
     if connection is not _UNSET:
         changes["connection"] = connection
+    if memory is not _UNSET:
+        changes["memory"] = _bytes(memory)
     _config = replace(_config, **changes)  # type: ignore[arg-type]
+    if memory is not _UNSET and _default_connection is not None:
+        _limit(_default_connection)  # the shared connection follows (R3)
+
+
+def _bytes(memory: object) -> int | None:
+    """Return a memory budget in bytes, or refuse what is not a size."""
+    from sqlearn._memory import parse
+
+    if memory is None:
+        return None
+    if isinstance(memory, str):
+        size = parse(memory)
+    elif isinstance(memory, int) and not isinstance(memory, bool):
+        size = memory
+    else:
+        size = 0
+    if size <= 0:
+        msg = (
+            f"memory={memory!r} is not a size; the budget is a positive number "
+            "of bytes. Fix: pass bytes (8_000_000_000) or a string such as "
+            "'8GB', or None for the default."
+        )
+        raise SqlearnError(msg)
+    return size
+
+
+def _limit(con: duckdb.DuckDBPyConnection) -> None:
+    """Give sqlearn's own connection half the budget as DuckDB's limit."""
+    from sqlearn._memory import budget
+
+    con.execute("SET memory_limit = ?", [f"{budget() // 2}B"])
 
 
 def get_config() -> Config:
@@ -95,7 +147,8 @@ def connection() -> duckdb.DuckDBPyConnection:
     -------
     duckdb.DuckDBPyConnection
         The configured connection; failing that, one in-memory connection
-        opened on first use and reused.
+        opened on first use and reused, its ``memory_limit`` half the
+        memory budget.
 
     Examples
     --------
@@ -108,6 +161,7 @@ def connection() -> duckdb.DuckDBPyConnection:
         return _config.connection
     if _default_connection is None:
         _default_connection = duckdb.connect()
+        _limit(_default_connection)
     return _default_connection
 
 

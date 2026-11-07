@@ -4,6 +4,7 @@ import builtins
 import gc
 import sys
 
+import duckdb
 import numpy as np
 import pandas as pd
 import polars as pl
@@ -12,7 +13,7 @@ import pytest
 from sklearn.linear_model import LogisticRegression, SGDClassifier
 
 import sqlearn as sq
-from sqlearn import _feed
+from sqlearn import _feed, _memory
 from sqlearn._config import connection
 from sqlearn._feed import fetch, hand_over, predict_streamed, received
 from sqlearn._model import Model
@@ -751,3 +752,92 @@ def test_the_stream_s_counts_must_be_positive_ints(setting):
     """rows=, megabytes= and epochs= are counts of at least 1."""
     with pytest.raises(sq.errors.SqlearnError, match="not a count"):
         sq.Model(SGDClassifier(), feed="stream", **setting)
+
+
+def big(con):
+    """Return two number columns of five million rows, about 80 MB."""
+    return con.sql("SELECT i::DOUBLE AS a, i::DOUBLE AS b FROM range(5000000) t(i)")
+
+
+def test_a_fold_too_big_is_refused_before_fetching(con, monkeypatch):
+    """Over the allowance, every form but the stream refuses, naming the sizes."""
+    sq.set_config(memory="64MB")
+    con.execute("SET memory_limit = '32MB'")
+    sq.set_config(connection=con)
+    fetched = []
+    # Each form's fetch starts in one of these: neither may be reached.
+    monkeypatch.setattr(_feed, "take", lambda *a: fetched.append(a))
+    monkeypatch.setattr(_feed, "_library", lambda *a: fetched.append(a))
+    for feed in ("numpy", "pandas", "polars", "arrow"):
+        with pytest.raises(sq.errors.SqlearnError, match="stream") as err:
+            fetch(big(con), feed, ["a", "b"], None)
+        text = str(err.value)
+        assert "80 MB" in text
+        assert "32 MB" in text
+        assert "swap" in text
+        assert "sq.set_config(memory=" in text
+        assert "memory_limit" in text  # a passed connection: lower its limit
+    assert fetched == []
+
+
+def test_the_shared_connections_refusal_does_not_suggest_its_limit(con):
+    """On sqlearn's own connection the limit follows the budget: not a fix."""
+    sq.set_config(memory="64MB")
+    with pytest.raises(sq.errors.SqlearnError, match="stream") as err:
+        fetch(big(con), "numpy", ["a", "b"], None)
+    assert "memory_limit" not in str(err.value)
+
+
+def test_a_small_fetch_on_a_default_passed_connection_is_not_refused():
+    """DuckDB's default limit counts as half the budget, leaving the other half."""
+    other = duckdb.connect()
+    sq.set_config(connection=other)
+    x, _ = fetch(big(other), "numpy", ["a", "b"], None)
+    assert x.shape == (5_000_000, 2)
+
+
+def test_a_small_fetch_on_an_unlimited_connection_is_not_refused():
+    """An unlimited limit counts as half the budget too."""
+    other = duckdb.connect()
+    other.execute("SET memory_limit = '-1'")
+    sq.set_config(connection=other)
+    x, _ = fetch(other.sql("SELECT 1.0 AS a"), "numpy", ["a"], None)
+    assert x.tolist() == [[1.0]]
+
+
+def test_a_too_big_training_is_refused_and_the_pipeline_untouched(con):
+    """Pipeline.train stops before the fetch; the stream would still train."""
+    sq.set_config(memory="64MB")
+    pipe = sq.Pipeline([("model", LogisticRegression())])
+    rel = con.sql("SELECT i::DOUBLE AS a, i % 2 AS y FROM range(5000000) t(i)")
+    with pytest.raises(sq.errors.SqlearnError, match="partial_fit"):
+        pipe.train(rel, target="y")
+    with pytest.raises(sq.errors.SqlearnError, match="not been trained"):
+        pipe.predict(rel)
+
+
+def test_the_stream_is_not_checked(con, monkeypatch):
+    """The stream holds one batch, never the fold: no estimate, no refusal."""
+    sq.set_config(memory="64MB")
+    monkeypatch.setattr(_memory, "estimate", lambda *a: 10**15)
+    x, _ = fetch(con.sql("SELECT 1.0 AS a, 0 AS y"), "stream", ["a"], "y")
+    assert x.tolist() == [[1.0]]
+
+
+def test_streamed_predictions_are_not_checked_batch_by_batch(con, monkeypatch):
+    """Prediction batches are small by construction: never estimated."""
+    monkeypatch.setattr(_feed, "BATCH_ROWS", 3)
+    monkeypatch.setattr(_memory, "estimate", lambda *a: 10**15)
+    rel = con.sql("SELECT i::DOUBLE AS a, i + 1 AS r FROM range(8) t(i)")
+    out = predict_streamed(con, rel, ["a"], "r", Model(Tens())).fetchall()
+    assert len(out) == 8
+
+
+def test_the_fallback_without_pyarrow_is_checked(con, monkeypatch):
+    """Without pyarrow prediction is one whole fetch, so it is checked too."""
+    monkeypatch.setattr(_memory, "estimate", lambda *a: 10**15)
+    without_pyarrow(monkeypatch)
+    monkeypatch.setattr(_feed, "_WARNED", {"pyarrow"})
+    rel = con.sql("SELECT i::DOUBLE AS a, i + 1 AS r FROM range(8) t(i)")
+    with pytest.raises(sq.errors.SqlearnError, match="swap"):
+        predict_streamed(con, rel, ["a"], "r", Model(Tens())).fetchall()

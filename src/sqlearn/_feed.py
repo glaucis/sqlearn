@@ -25,9 +25,11 @@ from typing import Any
 import duckdb
 
 from sqlearn._compose import number_rows
+from sqlearn._config import connection
 from sqlearn._errors import SqlearnError, SqlearnWarning
 from sqlearn._expr import quote
 from sqlearn._inputs import _drop_later, _release_later
+from sqlearn._memory import check
 from sqlearn._model import Model, _numpy, check_feed, missing_target, target_values
 
 __all__ = [
@@ -188,8 +190,13 @@ def fetch(
     *,
     named: str | None = None,
     categories: dict[str, list[str]] | None = None,
+    sized: bool = True,
 ) -> tuple[Any, Any]:
     """Run a relation once: the features and the target in the feed's form.
+
+    Every form but ``"stream"`` (one batch at a time) first estimates the
+    data's size and refuses it, before fetching, when it is over what the
+    memory budget leaves the hand-over: swapping is never the fallback.
 
     Each form comes from DuckDB's own method (``fetchnumpy``, ``df``,
     ``pl``, ``to_arrow_table``). With pandas, Polars and Arrow a text
@@ -217,6 +224,9 @@ def fetch(
         prefix (values it lacks are appended, sorted); a column not in it
         learns its list here, the sorted values, and is recorded in it.
         Without it, each fetch has its own sorted list.
+    sized : bool, default True
+        Whether to check the size first; False for a batch, small by
+        construction.
 
     Returns
     -------
@@ -231,9 +241,9 @@ def fetch(
     Raises
     ------
     SqlearnError
-        If `feed` is not a form, its library is not installed, the target
-        is missing (NULL) in a row, or (numpy, stream) a feature is not a
-        number.
+        If `feed` is not a form, the data would not fit in memory, its
+        library is not installed, the target is missing (NULL) in a row, or
+        (numpy, stream) a feature is not a number.
 
     Examples
     --------
@@ -247,6 +257,8 @@ def fetch(
     check_feed(feed)
     name = named if named is not None else target
     aside = [] if target is None else [target]
+    if sized and feed != "stream":
+        check(connection(), rel, [*columns, *aside])
     if feed in _AS_NUMPY:
         matrix, other = take(rel, feed, columns, aside)
         if target is None:
@@ -426,9 +438,11 @@ def _fetched(
     columns: Sequence[str],
     row: str,
     categories: dict[str, list[str]],
+    *,
+    sized: bool,
 ) -> tuple[Any, Any]:
     """Fetch the features in the feed's form and the row numbers as numpy."""
-    x, rows = fetch(rel, feed, columns, row, categories=categories)
+    x, rows = fetch(rel, feed, columns, row, categories=categories, sized=sized)
     return x, _numpy().asarray(rows)
 
 
@@ -466,7 +480,8 @@ def _batches(
                 "pyarrow) to predict in batches."
             )
             warnings.warn(text, SqlearnWarning, stacklevel=5)
-        yield _fetched(picked, feed, columns, row, known)
+        # One whole fetch: it must fit, as a training fetch must.
+        yield _fetched(picked, feed, columns, row, known, sized=True)
         return
     empty = True
     # Closed however the caller stops, so the connection's read is released.
@@ -475,9 +490,11 @@ def _batches(
             if batch.num_rows == 0:
                 continue
             empty = False
-            yield _fetched(cur.from_arrow(batch), feed, columns, row, known)
+            yield _fetched(
+                cur.from_arrow(batch), feed, columns, row, known, sized=False
+            )
     if empty:
-        yield _fetched(picked, feed, columns, row, known)
+        yield _fetched(picked, feed, columns, row, known, sized=False)
 
 
 def stream_into(
