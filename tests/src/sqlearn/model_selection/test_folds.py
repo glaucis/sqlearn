@@ -166,3 +166,19 @@ def test_new_schemes_refuse_bad_settings():
         sq.folds.group("c", seed=1.5)  # ty: ignore[invalid-argument-type]
     with pytest.raises(SqlearnError, match="by="):
         sq.folds.group(3)  # ty: ignore[invalid-argument-type]
+
+
+def test_stratified_keeps_fold_sizes_within_one_row_with_many_small_classes():
+    """200 classes of 3 rows: every fold's size is within one of the others."""
+    rel = connection().sql("SELECT i, i // 3 AS y FROM range(600) t(i)")
+    numbered = sq.folds.stratified(5, seed=0).numbered(rel, "f", "y")
+    sizes = [n for _, n in numbered.aggregate("f, count(*) AS n", "f").fetchall()]
+    assert len(sizes) == 5 and max(sizes) - min(sizes) <= 1
+    rel = connection().sql("SELECT i, i // 3 AS y FROM range(601) t(i)")
+    numbered = sq.folds.stratified(5, seed=0).numbered(rel, "f", "y")
+    sizes = [n for _, n in numbered.aggregate("f, count(*) AS n", "f").fetchall()]
+    assert max(sizes) - min(sizes) <= 1
+    per_class = numbered.aggregate("y, f, count(*) AS n", "y, f").aggregate(
+        "y, max(n) - min(n) AS spread", "y"
+    )
+    assert per_class.filter("spread > 1").count("*").fetchall()[0][0] == 0

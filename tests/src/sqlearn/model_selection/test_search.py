@@ -622,3 +622,32 @@ def test_a_column_starting_with_the_fold_prefix_is_refused():
         sq.search(slice_pipe(), params={"model__C": [1.0]}).train(
             data, target="churned"
         )
+
+
+class SeenTargets(BaseEstimator, ClassifierMixin):
+    """A model that keeps the target of every fit."""
+
+    fits: ClassVar[list[np.ndarray]] = []
+
+    def fit(self, x, y):
+        """Keep the target."""
+        SeenTargets.fits.append(np.array(y))
+        self.classes_ = np.unique(y)
+        return self
+
+    def predict(self, x):
+        """Predict the first class."""
+        return np.full(len(x), self.classes_[0])
+
+
+def test_a_search_over_stratified_folds_passes_its_target_to_the_scheme():
+    """Each fold learns from the class shares of the whole: 10% positives."""
+    SeenTargets.fits.clear()
+    frame = pd.DataFrame({"a": np.arange(1000.0), "y": (np.arange(1000) % 10 == 0) * 1})
+    pipe = sq.Pipeline([SeenTargets()])
+    search = sq.search(pipe, params={}, folds=sq.folds.stratified(5, seed=0))
+    search.train(frame, target="y")
+    folds = [fit for fit in SeenTargets.fits if len(fit) == 800]
+    assert len(folds) == 5
+    assert all(fit.sum() == 80 for fit in folds)
+    assert sorted({f for _, f, _ in search.results_.fetchall()}) == [0, 1, 2, 3, 4]

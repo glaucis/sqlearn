@@ -62,7 +62,72 @@ class Folds(Protocol):
         ...
 
 
-class KFold:
+def _whole_row(rel: duckdb.DuckDBPyRelation) -> duckdb.DuckDBPyRelation:
+    """Return `rel` aliased so ``ALIAS`` names the whole row."""
+    if any(c.lower() == ALIAS for c in rel.columns):
+        msg = (
+            f"the data has a column named {ALIAS!r}, a name sqlearn keeps "
+            "for the whole row when it deals rows into folds. Fix: rename "
+            "that column."
+        )
+        raise SqlearnError(msg)
+    return rel.set_alias(ALIAS)
+
+
+def _whole_number(scheme: str, setting: str, value: object, example: str) -> None:
+    if isinstance(value, bool) or not isinstance(value, int):
+        msg = (
+            f"{scheme} got {setting}={value!r}; it must be a whole number. "
+            f"Fix: pass {setting}={example}, say."
+        )
+        raise SqlearnError(msg)
+
+
+def _check_folds(scheme: str, n: object, seed: object) -> None:
+    if isinstance(n, bool) or not isinstance(n, int) or n < 2:
+        msg = (
+            f"{scheme} got n={n!r}; a cross-validation needs at least 2 folds, "
+            "as a whole number. Fix: pass n=5, say."
+        )
+        raise SqlearnError(msg)
+    _whole_number(scheme, "seed", seed, "0")
+
+
+class _Scheme:
+    """What the schemes below share: the predicates, equality and hashing."""
+
+    n: int
+
+    @property
+    def splits(self) -> int:
+        """How many folds are scored."""
+        return self.n
+
+    @property
+    def key(self) -> tuple[object, ...]:
+        """The settings, stable across processes."""
+        raise NotImplementedError
+
+    def training(self, name: str, k: int) -> duckdb.Expression:
+        """Return the predicate for the rows fold `k` learns from."""
+        return duckdb.ColumnExpression(name) != duckdb.ConstantExpression(k)
+
+    def held(self, name: str, k: int) -> duckdb.Expression:
+        """Return the predicate for the rows fold `k` holds out."""
+        return duckdb.ColumnExpression(name) == duckdb.ConstantExpression(k)
+
+    def __eq__(self, other: object) -> bool:
+        """Compare by kind and settings."""
+        if type(other) is not type(self):
+            return NotImplemented
+        return self.key == getattr(other, "key", None)
+
+    def __hash__(self) -> int:
+        """Hash the settings."""
+        return hash(self.key)
+
+
+class KFold(_Scheme):
     """Split the rows into `n` folds by a hash of each row and a seed.
 
     A row's fold is ``hash(row, seed) % n``: the same in every query, with
@@ -97,76 +162,14 @@ class KFold:
     """
 
     def __init__(self, n: int = 5, seed: int = 0) -> None:
-        if isinstance(n, bool) or not isinstance(n, int) or n < 2:
-            msg = (
-                f"KFold got n={n!r}; a cross-validation needs at least 2 folds, "
-                "as a whole number. Fix: pass n=5, say."
-            )
-            raise SqlearnError(msg)
-        if isinstance(seed, bool) or not isinstance(seed, int):
-            msg = (
-                f"KFold got seed={seed!r}; the seed is mixed into a hash and "
-                "must be a whole number. Fix: pass seed=0, say."
-            )
-            raise SqlearnError(msg)
+        _check_folds("KFold", n, seed)
         self.n = n
         self.seed = seed
-
-    @property
-    def splits(self) -> int:
-        """The number of folds scored, `n`."""
-        return self.n
 
     @property
     def key(self) -> tuple[object, ...]:
         """The settings as ``("kfold", n, seed)``."""
         return ("kfold", self.n, self.seed)
-
-    def training(self, name: str, k: int) -> duckdb.Expression:
-        """Return the predicate for the rows fold `k` learns from.
-
-        Parameters
-        ----------
-        name : str
-            The fold column of `numbered`.
-        k : int
-            The fold.
-
-        Returns
-        -------
-        duckdb.Expression
-            ``name != k``.
-
-        Examples
-        --------
-        >>> import sqlearn as sq
-        >>> sq.folds.kfold().training("f", 1)
-        (f != 1)
-        """
-        return duckdb.ColumnExpression(name) != duckdb.ConstantExpression(k)
-
-    def held(self, name: str, k: int) -> duckdb.Expression:
-        """Return the predicate for the rows fold `k` holds out.
-
-        Parameters
-        ----------
-        name : str
-            The fold column of `numbered`.
-        k : int
-            The fold.
-
-        Returns
-        -------
-        duckdb.Expression
-            ``name == k``.
-
-        Examples
-        --------
-        >>> import sqlearn as sq
-        >>> sq.folds.kfold().held("f", 1)
-        (f = 1)
-        """
-        return duckdb.ColumnExpression(name) == duckdb.ConstantExpression(k)
 
     def __repr__(self) -> str:
         """Show the settings.
@@ -183,45 +186,6 @@ class KFold:
         'KFold(n=3, seed=1)'
         """
         return f"KFold(n={self.n}, seed={self.seed})"
-
-    def __eq__(self, other: object) -> bool:
-        """Compare by settings.
-
-        Parameters
-        ----------
-        other : object
-            The object compared.
-
-        Returns
-        -------
-        bool
-            True when `other` is a KFold with the same settings.
-
-        Examples
-        --------
-        >>> import sqlearn as sq
-        >>> sq.folds.kfold(3) == sq.folds.kfold(3, seed=0)
-        True
-        """
-        if not isinstance(other, KFold):
-            return NotImplemented
-        return (self.n, self.seed) == (other.n, other.seed)
-
-    def __hash__(self) -> int:
-        """Hash the settings.
-
-        Returns
-        -------
-        int
-            The hash.
-
-        Examples
-        --------
-        >>> import sqlearn as sq
-        >>> hash(sq.folds.kfold()) == hash(sq.folds.kfold())
-        True
-        """
-        return hash((self.n, self.seed))
 
     def expression(self, row_alias: str) -> str:
         """Return the SQL of a row's fold number.
@@ -247,14 +211,7 @@ class KFold:
     def _fold(
         self, rel: duckdb.DuckDBPyRelation
     ) -> tuple[duckdb.DuckDBPyRelation, duckdb.Expression]:
-        if any(c.lower() == ALIAS for c in rel.columns):
-            msg = (
-                f"the data has a column named {ALIAS!r}, a name sqlearn keeps "
-                "for the whole row when it deals rows into folds. Fix: rename "
-                "that column."
-            )
-            raise SqlearnError(msg)
-        return rel.set_alias(ALIAS), duckdb.SQLExpression(self.expression(ALIAS))
+        return _whole_row(rel), duckdb.SQLExpression(self.expression(ALIAS))
 
     def numbered(
         self, rel: duckdb.DuckDBPyRelation, name: str, target: str | None = None
@@ -331,77 +288,14 @@ class KFold:
         return kept.project(*(duckdb.ColumnExpression(c) for c in rel.columns))
 
 
-def _whole_row(rel: duckdb.DuckDBPyRelation) -> duckdb.DuckDBPyRelation:
-    """Return `rel` aliased so ``ALIAS`` names the whole row."""
-    if any(c.lower() == ALIAS for c in rel.columns):
-        msg = (
-            f"the data has a column named {ALIAS!r}, a name sqlearn keeps "
-            "for the whole row when it deals rows into folds. Fix: rename "
-            "that column."
-        )
-        raise SqlearnError(msg)
-    return rel.set_alias(ALIAS)
-
-
-def _whole_number(scheme: str, setting: str, value: object, example: str) -> None:
-    if isinstance(value, bool) or not isinstance(value, int):
-        msg = (
-            f"{scheme} got {setting}={value!r}; it must be a whole number. "
-            f"Fix: pass {setting}={example}, say."
-        )
-        raise SqlearnError(msg)
-
-
-def _check_folds(scheme: str, n: object, seed: object) -> None:
-    if isinstance(n, bool) or not isinstance(n, int) or n < 2:
-        msg = (
-            f"{scheme} got n={n!r}; a cross-validation needs at least 2 folds, "
-            "as a whole number. Fix: pass n=5, say."
-        )
-        raise SqlearnError(msg)
-    _whole_number(scheme, "seed", seed, "0")
-
-
-class _Scheme:
-    """What the schemes below share: the predicates, equality and hashing."""
-
-    n: int
-
-    @property
-    def splits(self) -> int:
-        """How many folds are scored."""
-        return self.n
-
-    @property
-    def key(self) -> tuple[object, ...]:
-        """The settings, stable across processes."""
-        raise NotImplementedError
-
-    def training(self, name: str, k: int) -> duckdb.Expression:
-        """Return the predicate for the rows fold `k` learns from."""
-        return duckdb.ColumnExpression(name) != duckdb.ConstantExpression(k)
-
-    def held(self, name: str, k: int) -> duckdb.Expression:
-        """Return the predicate for the rows fold `k` holds out."""
-        return duckdb.ColumnExpression(name) == duckdb.ConstantExpression(k)
-
-    def __eq__(self, other: object) -> bool:
-        """Compare by kind and settings."""
-        if type(other) is not type(self):
-            return NotImplemented
-        return self.key == getattr(other, "key", None)
-
-    def __hash__(self) -> int:
-        """Hash the settings."""
-        return hash(self.key)
-
-
 class Stratified(_Scheme):
     """Split into `n` folds that each keep the target's class shares.
 
-    Within each class, rows are ordered by ``hash(row, seed)`` and dealt out
-    in turn, as scikit-learn's ``StratifiedKFold`` spreads each class, so each
-    fold holds the same share of every class to within one row.
+    Rows are ordered by target, then by ``hash(row, seed)``, and dealt out
+    in turn along that order, as scikit-learn's ``StratifiedKFold`` spreads
+    each class. Each class is a run of the order, so every fold holds its
+    share of the class to within one row, and the dealing carries on from one
+    class to the next, so fold sizes stay within one row of each other.
 
     Parameters
     ----------
@@ -468,17 +362,17 @@ class Stratified(_Scheme):
         Returns
         -------
         str
-            The row's place within its class, less one, modulo `n`.
+            The row's place in the order by target then hash, less one, modulo `n`.
 
         Examples
         --------
         >>> import sqlearn as sq
         >>> print(sq.folds.stratified(2).expression("d", "y"))
-        (row_number() OVER (PARTITION BY "y" ORDER BY hash("d", 0)) - 1) % 2
+        (row_number() OVER (ORDER BY "y", hash("d", 0)) - 1) % 2
         """
         return (
-            f"(row_number() OVER (PARTITION BY {quote(target)} "
-            f"ORDER BY hash({quote(row_alias)}, {self.seed})) - 1) % {self.n}"
+            f"(row_number() OVER (ORDER BY {quote(target)}, "
+            f"hash({quote(row_alias)}, {self.seed})) - 1) % {self.n}"
         )
 
     def numbered(
