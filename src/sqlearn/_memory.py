@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import ctypes
 import os
+import pathlib
 import re
 from collections.abc import Sequence
 
@@ -57,6 +58,16 @@ _SIZE = re.compile(r"\s*(\d+(?:\.\d*)?|\.\d+)\s*([a-z]*)\s*", re.IGNORECASE)
 # Bytes a number holds in every form; a text value holds this plus its length.
 _NUMBER = 8
 _TEXT = 64
+# A fetch's peak holds two copies (DuckDB's result and the form built from it).
+_COPIES = 2
+# The type ids held as text: their size is their text's length.
+_VARIABLE = frozenset(
+    {"varchar", "blob", "bit", "list", "array", "struct", "map", "union", "varint",
+     "bignum", "variant"}
+)  # fmt: skip
+
+# cgroup v2's memory limit: a container's memory, when there is one.
+CGROUP = pathlib.Path("/sys/fs/cgroup/memory.max")
 
 
 def _split(text: str) -> tuple[float, int]:
@@ -111,7 +122,8 @@ def physical() -> int:
     -------
     int
         Physical memory: from ``sysconf`` on POSIX, from
-        ``GlobalMemoryStatusEx`` on Windows.
+        ``GlobalMemoryStatusEx`` on Windows; in a Linux container the
+        smaller of that and cgroup v2's ``memory.max`` (``"max"`` is none).
 
     Examples
     --------
@@ -121,7 +133,12 @@ def physical() -> int:
     """
     if os.name == "nt":  # pragma: no cover  (Windows only)
         return _windows()
-    return os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
+    machine = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
+    try:
+        text = CGROUP.read_text().strip()
+    except OSError:
+        return machine  # no cgroup v2 limit: not Linux, or not in one
+    return min(machine, int(text)) if text.isdigit() else machine
 
 
 def _windows() -> int:  # pragma: no cover  (Windows only)
@@ -231,12 +248,17 @@ def allowance(con: duckdb.DuckDBPyConnection) -> int:
     return total - min(duckdb_limit(con), total // 2)
 
 
-def estimate(rel: duckdb.DuckDBPyRelation, columns: Sequence[str]) -> int:
-    """Estimate the bytes `columns` of `rel` take once fetched.
+def estimate(rel: duckdb.DuckDBPyRelation, columns: Sequence[str], feed: str) -> int:
+    """Estimate the bytes `columns` of `rel` take at the peak of a fetch.
 
-    Rows times, per column, 8 bytes for a number and 64 bytes plus the
-    average length for a text value (a Python string's overhead), from
-    one aggregate query over `rel`. It errs towards a larger size.
+    Erring towards refusing (spec section 14, Ruling R12): each value is
+    counted twice, for the two copies a fetch holds at its peak (DuckDB's
+    result and the form built from it). A number is 8 bytes; a text value
+    64 bytes (a Python string's overhead) plus the column's average length;
+    any other column (a list, struct, map, blob) is counted as its text.
+    numpy holds a column with NULLs as a masked array: one more byte a
+    value. The row count, the lengths and the NULLs come from one aggregate
+    query over `rel`.
 
     Parameters
     ----------
@@ -244,6 +266,8 @@ def estimate(rel: duckdb.DuckDBPyRelation, columns: Sequence[str]) -> int:
         The data to be fetched.
     columns : sequence of str
         The columns that will be fetched.
+    feed : str
+        The form fetched into (a mask only for ``"numpy"`` and ``"stream"``).
 
     Returns
     -------
@@ -255,26 +279,37 @@ def estimate(rel: duckdb.DuckDBPyRelation, columns: Sequence[str]) -> int:
     >>> from sqlearn._config import connection
     >>> from sqlearn._memory import estimate
     >>> rel = connection().sql("SELECT 1.0 AS a, 'abcd' AS s")
-    >>> estimate(rel, ["a", "s"])
-    76
+    >>> estimate(rel, ["a", "s"], "pandas")
+    152
     """
     if not columns:
         return 0
     kinds = dict(zip(rel.columns, rel.types, strict=True))
-    text = [c for c in columns if str(kinds[c]) == "VARCHAR"]
+    variable = [c for c in columns if kinds[c].id in _VARIABLE]
+    varchar = duckdb.sqltype("VARCHAR")
     lengths = [
         duckdb.CoalesceOperator(
             duckdb.FunctionExpression(
-                "avg", duckdb.FunctionExpression("strlen", duckdb.ColumnExpression(c))
+                "avg",
+                duckdb.FunctionExpression(
+                    "strlen", duckdb.ColumnExpression(c).cast(varchar)
+                ),
             ),
             duckdb.ConstantExpression(0),
         )
-        for c in text
+        for c in variable
+    ]
+    masked = list(columns) if feed in ("numpy", "stream") else []
+    present = [
+        duckdb.FunctionExpression("count", duckdb.ColumnExpression(c)) for c in masked
     ]
     count = duckdb.FunctionExpression("count", duckdb.StarExpression())
-    rows, *averages = rel.aggregate([count, *lengths]).fetchall()[0]
-    per_row = _NUMBER * (len(columns) - len(text))
+    rows, *rest = rel.aggregate([count, *lengths, *present]).fetchall()[0]
+    averages, counts = rest[: len(variable)], rest[len(variable) :]
+    per_row = _NUMBER * (len(columns) - len(variable))
     per_row += sum(_TEXT + float(a) for a in averages)
+    per_row *= _COPIES
+    per_row += sum(1 for n in counts if n < rows)  # numpy's mask
     return int(rows * per_row + 0.999999)
 
 
@@ -287,6 +322,7 @@ def check(
     con: duckdb.DuckDBPyConnection,
     rel: duckdb.DuckDBPyRelation,
     columns: Sequence[str],
+    feed: str,
 ) -> None:
     """Refuse a fetch of `columns` of `rel` that would not fit in memory.
 
@@ -298,6 +334,8 @@ def check(
         The data to be fetched.
     columns : sequence of str
         The columns that will be fetched.
+    feed : str
+        The form fetched into.
 
     Raises
     ------
@@ -309,9 +347,9 @@ def check(
     --------
     >>> from sqlearn._config import connection
     >>> from sqlearn._memory import check
-    >>> check(connection(), connection().sql("SELECT 1.0 AS a"), ["a"])
+    >>> check(connection(), connection().sql("SELECT 1.0 AS a"), ["a"], "numpy")
     """
-    size = estimate(rel, columns)
+    size = estimate(rel, columns, feed)
     room = allowance(con)
     if size <= room:
         return

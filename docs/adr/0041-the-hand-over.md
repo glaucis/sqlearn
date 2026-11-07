@@ -81,10 +81,15 @@ had nowhere to go but swap.
   half the budget as its `memory_limit`, re-applied when the budget changes;
   a connection the user passed is never changed, and its default limit (80%
   of physical memory, the same as the budget) or no limit at all counts as
-  half, so a passed connection is not left with nothing. The estimate is
-  rows times 8 bytes per number column and 64 bytes plus the average length
-  per text column, from one aggregate query. Prediction batches are not
-  checked (each is small); prediction's one whole fetch without pyarrow is.
+  half, so a passed connection is not left with nothing. Physical memory is
+  `sysconf`'s (Windows: `GlobalMemoryStatusEx`), capped in a Linux container
+  by cgroup v2's `memory.max`. The estimate errs towards refusing (Ruling
+  R12): each value counts twice, for the two copies a fetch holds at its
+  peak; a number is 8 bytes, a text value 64 bytes plus its column's average
+  length, any other column (list, struct, map, blob) its text's; numpy adds
+  a byte a value for a column with NULLs (the mask). The rows, lengths and
+  NULLs come from one aggregate query. Prediction batches are not checked
+  (each is small); prediction's one whole fetch without pyarrow is.
 
 ## Consequences
 

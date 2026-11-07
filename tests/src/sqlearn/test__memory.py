@@ -4,6 +4,7 @@ import duckdb
 import pytest
 
 import sqlearn as sq
+from sqlearn import _memory
 from sqlearn._config import connection
 from sqlearn._memory import (
     allowance,
@@ -95,22 +96,56 @@ def test_an_unlimited_connection_counts_as_half_the_budget():
     assert allowance(con) == budget() - budget() // 2
 
 
-def test_the_estimate_counts_eight_bytes_a_number():
-    """Rows times eight bytes per number column."""
+def test_the_estimate_counts_a_number_twice_over():
+    """A number is 8 bytes, counted twice: the fetch's peak holds two copies."""
     rel = connection().sql("SELECT i::DOUBLE AS a, i AS b FROM range(1000) t(i)")
-    assert estimate(rel, ["a", "b"]) == 1000 * 2 * 8
+    assert estimate(rel, ["a", "b"], "pandas") == 1000 * 2 * 16
+    assert estimate(rel, ["a", "b"], "numpy") == 1000 * 2 * 16
 
 
 def test_the_estimate_counts_text_by_its_average_length():
-    """A text value is 64 bytes plus its average length; a NULL as 64."""
+    """A text value is 64 bytes plus its average length, twice; a NULL too."""
     rel = connection().sql(
         "SELECT * FROM (VALUES ('ab', 1.0), ('abcd', 2.0), (NULL, 3.0)) v(s, a)"
     )
-    assert estimate(rel, ["s", "a"]) == 3 * (64 + 3) + 3 * 8
+    assert estimate(rel, ["s", "a"], "pandas") == 3 * 2 * (64 + 3) + 3 * 16
+
+
+def test_numpy_counts_a_mask_byte_for_a_column_with_nulls():
+    """numpy holds a NULL column as a masked array: one more byte a value."""
+    rel = connection().sql(
+        "SELECT * FROM (VALUES (1.0, 1.0), (NULL, 2.0), (3.0, 3.0)) v(a, b)"
+    )
+    assert estimate(rel, ["a", "b"], "numpy") == 3 * (16 + 1) + 3 * 16
+    assert estimate(rel, ["a", "b"], "arrow") == 3 * 16 + 3 * 16
+
+
+def test_a_nested_column_is_counted_as_its_text():
+    """A list, struct or blob is 64 bytes plus its text's length, twice; never 8."""
+    rel = connection().sql(
+        "SELECT [1, 2, 3] AS l, {'q': 10} AS st, 'ab'::BLOB AS bl FROM range(10)"
+    )
+    # [1, 2, 3] is 9 characters, {'q': 10} is 9, the blob 'ab' is 2.
+    assert estimate(rel, ["l"], "pandas") == 10 * 2 * (64 + 9)
+    assert estimate(rel, ["st"], "pandas") == 10 * 2 * (64 + 9)
+    assert estimate(rel, ["bl"], "pandas") == 10 * 2 * (64 + 2)
 
 
 def test_the_estimate_of_no_columns_or_no_rows_is_zero():
     """Nothing to hand over is nothing to hold."""
     rel = connection().sql("SELECT 'x' AS s, 1.0 AS a WHERE false")
-    assert estimate(rel, ["s", "a"]) == 0
-    assert estimate(rel, []) == 0
+    assert estimate(rel, ["s", "a"], "numpy") == 0
+    assert estimate(rel, [], "numpy") == 0
+
+
+def test_physical_memory_is_capped_by_the_cgroup_limit(tmp_path, monkeypatch):
+    """In a container, cgroup v2's memory.max is the machine's memory."""
+    limit = tmp_path / "memory.max"
+    monkeypatch.setattr(_memory, "CGROUP", limit)
+    machine = physical()  # no such file: the machine's own
+    limit.write_text("1000000\n")
+    assert physical() == 1_000_000
+    limit.write_text(f"{machine * 2}\n")
+    assert physical() == machine
+    limit.write_text("max\n")
+    assert physical() == machine

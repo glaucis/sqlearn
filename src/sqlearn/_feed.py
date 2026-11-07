@@ -258,7 +258,7 @@ def fetch(
     name = named if named is not None else target
     aside = [] if target is None else [target]
     if sized and feed != "stream":
-        check(connection(), rel, [*columns, *aside])
+        check(connection(), rel, [*columns, *aside], feed)
     if feed in _AS_NUMPY:
         matrix, other = take(rel, feed, columns, aside)
         if target is None:

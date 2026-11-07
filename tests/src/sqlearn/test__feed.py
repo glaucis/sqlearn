@@ -772,7 +772,7 @@ def test_a_fold_too_big_is_refused_before_fetching(con, monkeypatch):
         with pytest.raises(sq.errors.SqlearnError, match="stream") as err:
             fetch(big(con), feed, ["a", "b"], None)
         text = str(err.value)
-        assert "80 MB" in text
+        assert "160 MB" in text  # two 8-byte copies of two columns
         assert "32 MB" in text
         assert "swap" in text
         assert "sq.set_config(memory=" in text
@@ -792,8 +792,9 @@ def test_a_small_fetch_on_a_default_passed_connection_is_not_refused():
     """DuckDB's default limit counts as half the budget, leaving the other half."""
     other = duckdb.connect()
     sq.set_config(connection=other)
-    x, _ = fetch(big(other), "numpy", ["a", "b"], None)
-    assert x.shape == (5_000_000, 2)
+    rel = other.sql("SELECT i::DOUBLE AS a, i::DOUBLE AS b FROM range(5000) t(i)")
+    x, _ = fetch(rel, "numpy", ["a", "b"], None)
+    assert x.shape == (5000, 2)
 
 
 def test_a_small_fetch_on_an_unlimited_connection_is_not_refused():
@@ -819,7 +820,7 @@ def test_a_too_big_training_is_refused_and_the_pipeline_untouched(con):
 def test_the_stream_is_not_checked(con, monkeypatch):
     """The stream holds one batch, never the fold: no estimate, no refusal."""
     sq.set_config(memory="64MB")
-    monkeypatch.setattr(_memory, "estimate", lambda *a: 10**15)
+    monkeypatch.setattr(_memory, "estimate", lambda *a, **k: 10**15)
     x, _ = fetch(con.sql("SELECT 1.0 AS a, 0 AS y"), "stream", ["a"], "y")
     assert x.tolist() == [[1.0]]
 
@@ -827,7 +828,7 @@ def test_the_stream_is_not_checked(con, monkeypatch):
 def test_streamed_predictions_are_not_checked_batch_by_batch(con, monkeypatch):
     """Prediction batches are small by construction: never estimated."""
     monkeypatch.setattr(_feed, "BATCH_ROWS", 3)
-    monkeypatch.setattr(_memory, "estimate", lambda *a: 10**15)
+    monkeypatch.setattr(_memory, "estimate", lambda *a, **k: 10**15)
     rel = con.sql("SELECT i::DOUBLE AS a, i + 1 AS r FROM range(8) t(i)")
     out = predict_streamed(con, rel, ["a"], "r", Model(Tens())).fetchall()
     assert len(out) == 8
@@ -835,9 +836,32 @@ def test_streamed_predictions_are_not_checked_batch_by_batch(con, monkeypatch):
 
 def test_the_fallback_without_pyarrow_is_checked(con, monkeypatch):
     """Without pyarrow prediction is one whole fetch, so it is checked too."""
-    monkeypatch.setattr(_memory, "estimate", lambda *a: 10**15)
+    monkeypatch.setattr(_memory, "estimate", lambda *a, **k: 10**15)
     without_pyarrow(monkeypatch)
     monkeypatch.setattr(_feed, "_WARNED", {"pyarrow"})
     rel = con.sql("SELECT i::DOUBLE AS a, i + 1 AS r FROM range(8) t(i)")
     with pytest.raises(sq.errors.SqlearnError, match="swap"):
         predict_streamed(con, rel, ["a"], "r", Model(Tens())).fetchall()
+
+
+def test_a_search_is_refused_at_a_folds_training_fetch(tmp_path):
+    """A fold's training rows that would not fit stop the search before fetching."""
+    other = duckdb.connect()
+    # DuckDB's share counts as at most half the budget (R11): 32 MB of its
+    # 1 GB, so the fold tables are built in room and the hand-over gets 32 MB.
+    other.execute("SET memory_limit = '1GB'")
+    other.execute(f"SET temp_directory = '{tmp_path}'")
+    sq.set_config(connection=other, memory="64MB")
+    rel = other.sql("SELECT i::DOUBLE AS a, i % 2 AS y FROM range(2000000) t(i)")
+    pipe = sq.Pipeline([("model", LogisticRegression())])
+    search = sq.search(
+        pipe, params={"model__C": [1.0]}, folds=sq.folds.holdout(test=0.2)
+    )
+    with pytest.raises(sq.errors.SqlearnError, match="swap") as err:
+        search.train(rel, target="y")
+    # 1.6 million training rows of two numbers: about 51 MB, over 32 MB.
+    assert "51 MB" in str(err.value)
+    assert any(
+        entry.name == "_fetch" and str(entry.path).endswith("search.py")
+        for entry in err.traceback
+    )
