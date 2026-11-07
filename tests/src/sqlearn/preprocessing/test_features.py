@@ -554,6 +554,8 @@ def test_a_wide_spline_learns_fast_when_nothing_reads_it_in_the_run():
     """50 columns learn in well under 2 s: the unread basis is not built."""
     rng = np.random.default_rng(0)
     frame = pd.DataFrame({f"c{i}": rng.normal(size=200) for i in range(50)})
+    warm_up = pd.DataFrame({"w": rng.normal(size=20)})
+    sq.Pipeline([sq.features.spline()]).learn(warm_up)  # DuckDB start-up, caches
     sq.store.clear()
     start = time.perf_counter()
     pipe = sq.Pipeline([sq.features.spline()]).learn(frame)
