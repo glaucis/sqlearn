@@ -19,7 +19,7 @@ from sqlearn._compose import POSITION, TARGET
 from sqlearn._config import connection
 from sqlearn._errors import DefaultsUsedWarning, SqlearnError
 from sqlearn._expr import quote
-from sqlearn._feed import stream_into, take
+from sqlearn._feed import WrongShapeError, stream_into, take
 from sqlearn._inputs import Source, _release_later, read
 from sqlearn._model import Model, _numpy, missing_target, target_values
 from sqlearn._output import Output
@@ -440,8 +440,8 @@ class Search:
                         model.estimator.fit(x_fit, y_fit)
                         action = "predict"
                         predictions, _ = stream_into(con, held, features, _ROW, model)
-                    except SqlearnError:
-                        raise
+                    except WrongShapeError:
+                        raise  # the stream's own message says what to fix
                     except Exception as exc:
                         err = _fold_error(exc, action, settings[i], k, folds)
                         raise err from exc

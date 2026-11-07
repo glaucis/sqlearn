@@ -797,3 +797,23 @@ def test_a_held_out_row_without_a_target_is_refused():
     search = sq.search(pipe, params={}, folds=sq.folds.time("t", n=2))
     with pytest.raises(sq.errors.SqlearnError, match=r"'y' is missing in 1 row"):
         search.train(data, target="y")
+
+
+class Refusing(LogisticRegression):
+    """A model whose fit raises sqlearn's own error, as a wrapped one might."""
+
+    def fit(self, X, y, sample_weight=None):  # noqa: N803  (scikit-learn's name)
+        """Fail with a SqlearnError."""
+        msg = "inner refusal"
+        raise sq.errors.SqlearnError(msg)
+
+
+def test_a_sqlearn_error_inside_fit_keeps_the_setting_and_fold():
+    """Only the stream's own shape error passes unwrapped; others get context."""
+    pipe = sq.Pipeline([("model", Refusing())])
+    search = sq.search(pipe, params={"model__C": [1.0]}, folds=sq.folds.kfold(2))
+    with pytest.raises(
+        sq.errors.SqlearnError,
+        match=r"failed to fit .*model__C.* fold 0.*inner refusal",
+    ):
+        search.train(DATA, target="y")

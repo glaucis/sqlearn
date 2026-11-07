@@ -10,13 +10,14 @@ a prediction holds all the rows in memory.
 
 import contextlib
 import itertools
+import warnings
 import weakref
 from collections.abc import Generator, Sequence
 from typing import Any
 
 import duckdb
 
-from sqlearn._errors import SqlearnError
+from sqlearn._errors import SqlearnError, SqlearnWarning
 from sqlearn._expr import quote
 from sqlearn._inputs import _drop_later, _release_later
 from sqlearn._model import Model, _numpy, check_feed
@@ -24,6 +25,7 @@ from sqlearn._model import Model, _numpy, check_feed
 __all__ = [
     "BATCH_ROWS",
     "PROBA",
+    "WrongShapeError",
     "hand_over",
     "predict_streamed",
     "received",
@@ -48,6 +50,23 @@ tables.
 """
 
 _prediction_ids = itertools.count()
+_WARNED: set[str] = set()
+"""The warnings already issued in this process, each issued once."""
+
+
+class WrongShapeError(SqlearnError):
+    """A model returned not one value (or one row of probabilities) per row.
+
+    Raised by the stream itself, so a search passes it on as it is, while
+    any other error of a fold gets the fold's setting and number.
+
+    Examples
+    --------
+    >>> from sqlearn._feed import WrongShapeError
+    >>> from sqlearn.errors import SqlearnError
+    >>> issubclass(WrongShapeError, SqlearnError)
+    True
+    """
 
 
 def take(
@@ -214,7 +233,7 @@ def _checked(values: Any, rows: int, method: str) -> Any:  # noqa: ANN401  (nump
             f"{returns}. Fix: use a model whose {method} returns {shape} per "
             "row."
         )
-        raise SqlearnError(msg)
+        raise WrongShapeError(msg)
     return values
 
 
@@ -237,6 +256,15 @@ def _batches(
     try:
         import pyarrow  # noqa: F401  (only to know it is there)
     except ImportError:
+        if "pyarrow" not in _WARNED:
+            _WARNED.add("pyarrow")
+            text = (
+                "pyarrow is not installed, so prediction is not streamed: "
+                "all the rows are fetched and handed to the model at once, "
+                "which needs them in memory. Fix: install pyarrow (uv add "
+                "pyarrow) to predict in batches."
+            )
+            warnings.warn(text, SqlearnWarning, stacklevel=5)
         x, aside = take(picked, feed, columns, [row])
         yield x, aside[row]
         return
@@ -292,8 +320,16 @@ def stream_into(
     Raises
     ------
     SqlearnError
-        As for `take`, or if the model does not return one value (or one
-        row of probabilities) per row.
+        As for `take`.
+    WrongShapeError
+        If the model does not return one value (or one row of
+        probabilities) per row.
+
+    Warns
+    -----
+    SqlearnWarning
+        Once per process, when pyarrow is missing and the rows go to the
+        model in one batch.
 
     Examples
     --------

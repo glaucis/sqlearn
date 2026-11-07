@@ -47,26 +47,112 @@ class Folds(Protocol):
 
     @property
     def splits(self) -> int:
-        """How many folds are scored."""
+        """How many folds are scored.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> sq.folds.kfold(3).splits
+        3
+        """
         ...
 
     @property
     def key(self) -> tuple[object, ...]:
-        """The settings, stable across processes."""
+        """The settings, stable across processes.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> sq.folds.kfold(3, seed=1).key
+        ('kfold', 3, 1)
+        """
         ...
 
     def numbered(
         self, rel: duckdb.DuckDBPyRelation, name: str, target: str | None
     ) -> duckdb.DuckDBPyRelation:
-        """Return every row, plus `name` and helper columns named from `name`."""
+        """Return every row, plus `name` and helper columns named from `name`.
+
+        Parameters
+        ----------
+        rel : duckdb.DuckDBPyRelation
+            The rows to deal into folds.
+        name : str
+            The column for each row's fold number; helper columns, if any,
+            are named with it as prefix.
+        target : str or None
+            The target column, for a scheme that deals by it (stratified).
+
+        Returns
+        -------
+        duckdb.DuckDBPyRelation
+            Every row of `rel`, with `name` (and any helper columns) added.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> from sqlearn._config import connection
+        >>> rel = connection().sql("SELECT range AS x FROM range(10)")
+        >>> sq.folds.kfold(2).numbered(rel, "f", None).columns
+        ['x', 'f']
+        """
         ...
 
     def training(self, name: str, k: int) -> duckdb.Expression:
-        """Return the predicate true for the rows fold `k` learns from."""
+        """Return the predicate true for the rows fold `k` learns from.
+
+        Parameters
+        ----------
+        name : str
+            The fold column `numbered` added.
+        k : int
+            The fold, from 0 to ``splits - 1``.
+
+        Returns
+        -------
+        duckdb.Expression
+            The predicate over the numbered relation.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> from sqlearn._config import connection
+        >>> scheme = sq.folds.kfold(2)
+        >>> rows = scheme.numbered(
+        ...     connection().sql("SELECT range AS x FROM range(10)"), "f", None
+        ... )
+        >>> rows.filter(scheme.training("f", 0)).count("*").fetchall()
+        [(4,)]
+        """
         ...
 
     def held(self, name: str, k: int) -> duckdb.Expression:
-        """Return the predicate true for the rows fold `k` holds out."""
+        """Return the predicate true for the rows fold `k` holds out.
+
+        Parameters
+        ----------
+        name : str
+            The fold column `numbered` added.
+        k : int
+            The fold, from 0 to ``splits - 1``.
+
+        Returns
+        -------
+        duckdb.Expression
+            The predicate over the numbered relation.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> from sqlearn._config import connection
+        >>> scheme = sq.folds.kfold(2)
+        >>> rows = scheme.numbered(
+        ...     connection().sql("SELECT range AS x FROM range(10)"), "f", None
+        ... )
+        >>> rows.filter(scheme.held("f", 0)).count("*").fetchall()
+        [(6,)]
+        """
         ...
 
 
@@ -176,7 +262,19 @@ class KFold(_Scheme):
 
     @property
     def key(self) -> tuple[object, ...]:
-        """The settings as ``("kfold", n, seed)``."""
+        """The settings as ``("kfold", n, seed)``.
+
+        Returns
+        -------
+        tuple
+            The scheme's name and settings.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> sq.folds.kfold(3, seed=1).key
+        ('kfold', 3, 1)
+        """
         return ("kfold", self.n, self.seed)
 
     def __repr__(self) -> str:
@@ -338,7 +436,19 @@ class Stratified(_Scheme):
 
     @property
     def key(self) -> tuple[object, ...]:
-        """The settings as ``("stratified", n, seed)``."""
+        """The settings as ``("stratified", n, seed)``.
+
+        Returns
+        -------
+        tuple
+            The scheme's name and settings.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> sq.folds.stratified(3, seed=1).key
+        ('stratified', 3, 1)
+        """
         return ("stratified", self.n, self.seed)
 
     def __repr__(self) -> str:
@@ -483,7 +593,19 @@ class Grouped(_Scheme):
 
     @property
     def key(self) -> tuple[object, ...]:
-        """The settings as ``("group", by, n, seed)``."""
+        """The settings as ``("group", by, n, seed)``.
+
+        Returns
+        -------
+        tuple
+            The scheme's name and settings.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> sq.folds.group("g", 3, seed=1).key
+        ('group', 'g', 3, 1)
+        """
         return ("group", self.by, self.n, self.seed)
 
     def __repr__(self) -> str:
@@ -612,7 +734,19 @@ class Holdout(_Scheme):
 
     @property
     def key(self) -> tuple[object, ...]:
-        """The settings as ``("holdout", test, seed)``."""
+        """The settings as ``("holdout", test, seed)``.
+
+        Returns
+        -------
+        tuple
+            The scheme's name and settings.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> sq.folds.holdout(0.5, seed=1).key
+        ('holdout', 0.5, 1)
+        """
         return ("holdout", self.test, self.seed)
 
     def __repr__(self) -> str:
@@ -752,7 +886,19 @@ class TimeSplit(_Scheme):
 
     @property
     def key(self) -> tuple[object, ...]:
-        """The settings as ``("time", by, n, gap)``."""
+        """The settings as ``("time", by, n, gap)``.
+
+        Returns
+        -------
+        tuple
+            The scheme's name and settings.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> sq.folds.time("t", 3).key
+        ('time', 't', 3, 0)
+        """
         return ("time", self.by, self.n, self.gap)
 
     def __repr__(self) -> str:
@@ -835,12 +981,65 @@ class TimeSplit(_Scheme):
         return duckdb.SQLExpression(f"{quote(name + '_rows')} - {back} * {size}")
 
     def training(self, name: str, k: int) -> duckdb.Expression:
-        """Return the predicate for the rows fold `k` learns from."""
+        """Return the predicate for the rows fold `k` learns from: those before it.
+
+        Parameters
+        ----------
+        name : str
+            The fold column `numbered` added: each row's position in time.
+        k : int
+            The fold, from 0 to ``n - 1``.
+
+        Returns
+        -------
+        duckdb.Expression
+            The predicate over the numbered relation.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> from sqlearn._config import connection
+        >>> scheme = sq.folds.time("t", 2)
+        >>> rows = scheme.numbered(
+        ...     connection().sql("SELECT range AS t FROM range(6)"), "f", None
+        ... )
+        >>> sorted(
+        ...     t
+        ...     for (t,) in rows.filter(scheme.training("f", 1)).project("t").fetchall()
+        ... )
+        [0, 1, 2, 3]
+        """
         edge = self._bound(name, self.n - k) - duckdb.ConstantExpression(self.gap)
         return duckdb.ColumnExpression(name) < edge
 
     def held(self, name: str, k: int) -> duckdb.Expression:
-        """Return the predicate for the rows fold `k` holds out."""
+        """Return the predicate for the rows fold `k` holds out: its block in time.
+
+        Parameters
+        ----------
+        name : str
+            The fold column `numbered` added: each row's position in time.
+        k : int
+            The fold, from 0 to ``n - 1``.
+
+        Returns
+        -------
+        duckdb.Expression
+            The predicate over the numbered relation.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> from sqlearn._config import connection
+        >>> scheme = sq.folds.time("t", 2)
+        >>> rows = scheme.numbered(
+        ...     connection().sql("SELECT range AS t FROM range(6)"), "f", None
+        ... )
+        >>> sorted(
+        ...     t for (t,) in rows.filter(scheme.held("f", 1)).project("t").fetchall()
+        ... )
+        [4, 5]
+        """
         position = duckdb.ColumnExpression(name)
         return (position >= self._bound(name, self.n - k)) & (
             position < self._bound(name, self.n - k - 1)

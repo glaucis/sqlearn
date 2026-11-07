@@ -97,10 +97,14 @@ def test_without_pyarrow_one_fetch_gives_the_same_predictions(con, monkeypatch):
     streamed = predict_streamed(con, rel, ["a"], "r", Model(Tens())).fetchall()
     assert Tens.calls == 3
     without_pyarrow(monkeypatch)
+    monkeypatch.setattr(_feed, "_WARNED", set())
     Tens.calls = 0
-    fetched = predict_streamed(con, rel, ["a"], "r", Model(Tens())).fetchall()
+    with pytest.warns(sq.errors.SqlearnWarning, match=r"not streamed.*uv add pyarrow"):
+        fetched = predict_streamed(con, rel, ["a"], "r", Model(Tens())).fetchall()
     assert Tens.calls == 1
     assert fetched == streamed
+    # Once per process: the second fallback is silent (warnings are errors).
+    predict_streamed(con, rel, ["a"], "r", Model(Tens())).fetchall()
 
 
 def test_a_search_without_pyarrow_scores_the_same(monkeypatch):
@@ -116,7 +120,9 @@ def test_a_search_without_pyarrow_scores_the_same(monkeypatch):
     monkeypatch.setattr(_feed, "BATCH_ROWS", 3)
     streamed, streamed_predicted = run()
     without_pyarrow(monkeypatch)
-    fetched, fetched_predicted = run()
+    monkeypatch.setattr(_feed, "_WARNED", set())
+    with pytest.warns(sq.errors.SqlearnWarning, match="uv add pyarrow"):
+        fetched, fetched_predicted = run()
     assert fetched == streamed
     np.testing.assert_array_equal(
         fetched_predicted["prediction"], streamed_predicted["prediction"]
