@@ -1,7 +1,7 @@
 ---
 type: guide
-tags: [inputs, learned-state, store, cache, tables, relations]
-summary: "How sqlearn notices that the data passed to learn or train has changed, and the one change it does not notice: a table or relation edited in place with the same row count."
+tags: [inputs, learned-state, store, cache, tables, relations, keep-prepared, search]
+summary: "How sqlearn notices that the data passed to learn or train has changed, and the one change it does not notice: a table or relation edited in place with the same row count; and how a search keeps prepared folds in a DuckDB file across sessions (keep_prepared)."
 related: [docs/adr/0014-learning-store.md, docs/adr/0021-inputs-and-how-the-store-knows-them.md, docs/specs/library-core.md]
 ---
 
@@ -53,3 +53,51 @@ The steps that learn from the data ([imputing](imputing.md),
 [scaling](scaling.md), [encoding](encoding.md), [binning](binning.md) and the
 spline in [making features](making-features.md)) use the store like any other:
 learning again on unchanged data learns nothing.
+
+## Prepared folds kept across sessions: `keep_prepared`
+
+The store lives only while the program runs. A search can also keep each
+fold's prepared rows in a DuckDB file, so a second search tomorrow, in a new
+process, on the same data, steps and folds prepares nothing:
+
+```python
+search = sq.search(
+    pipe, params={"model__C": [0.1, 1.0]}, keep_prepared="project.duckdb"
+)
+search.train("customers.parquet", target="churned")
+search.transforms_  # 5: each fold prepared once and written to the file
+# tomorrow, in a new session:
+search = sq.search(pipe, params={"model__C": [10.0]}, keep_prepared="project.duckdb")
+search.train("customers.parquet", target="churned")
+search.transforms_  # 0: every fold read back from the file
+```
+
+The tables sit in the file's schema `sqlearn_prepared`, one per fold and
+preparation, with an `_index` listing them. The file is attached only while
+`train` runs, so another process can open it afterwards. A table's name
+carries a key that is the same in every process, so a stale table is never
+read:
+
+| part of the key | known by |
+|---|---|
+| file or glob | the absolute paths, sizes and modification times |
+| pandas DataFrame | every value and the row order, the column names and types |
+| table in a DuckDB database file | the file, the table's name, its row count and columns |
+| the target | its name |
+| each step | its name, its class's module and name, and its settings |
+| the folds | the scheme and its settings, and the fold |
+| the versions | sqlearn's and DuckDB's |
+
+A relation, or a table of an in-memory database, is known only to the
+process that made it, and is refused with `keep_prepared`. So is a step
+setting known only by its address: a lambda, a function defined inside
+another, or an object without a `repr` of its own.
+
+What the key cannot see is a change to the **code** of a step of your own
+(or of a function it takes) that keeps its class name and settings. After
+such a change, remove what the file keeps:
+
+```python
+sq.store.prepared("project.duckdb")  # one row per kept table
+sq.store.clear(prepared="project.duckdb")  # drop every kept table
+```

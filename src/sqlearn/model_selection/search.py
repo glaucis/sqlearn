@@ -9,6 +9,7 @@ distinct preparation and handed to every model setting.
 import functools
 import itertools
 import json
+import os
 import warnings
 import weakref
 from collections.abc import Sequence
@@ -29,6 +30,7 @@ from sqlearn._store import FoldKey
 from sqlearn.metrics import Metric, accuracy
 from sqlearn.model_selection.defaults import default_space, hint
 from sqlearn.model_selection.folds import Folds, KFold
+from sqlearn.model_selection.kept import KeptFolds, steps_identity, table_name
 from sqlearn.model_selection.methods import Grid, Method, Params, trial
 
 __all__ = ["FOLD", "Search"]
@@ -130,6 +132,19 @@ def _fold_error(
     return SqlearnError(msg)
 
 
+def _unstable() -> SqlearnError:
+    """Explain that data with no stable identity cannot be kept prepared."""
+    msg = (
+        "keep_prepared keeps each fold's prepared rows for later searches, "
+        "even in another session, so it needs data known the same way in "
+        "every process: a file, a pandas frame, or a table in a DuckDB "
+        "database file. A relation, or a table of an in-memory database, is "
+        "known only to this process. Fix: pass a file, a pandas frame or a "
+        "table of a database file, or search without keep_prepared."
+    )
+    return SqlearnError(msg)
+
+
 def _score(
     con: duckdb.DuckDBPyConnection,
     metric: Metric,
@@ -180,6 +195,11 @@ class Search:
     folds : Folds, optional
         The fold scheme, any object with the `Folds` members; by default
         ``sq.folds.kfold(5, seed=0)``.
+    keep_prepared : str or os.PathLike, optional
+        A DuckDB file to keep each fold's prepared rows in, so a later
+        search on the same data, steps and folds (in this session or
+        another) prepares nothing. Off by default: the rows are kept in
+        temporary tables for one ``train`` only. See Notes.
 
     Attributes
     ----------
@@ -197,6 +217,18 @@ class Search:
         A copy of the pipeline with the best setting, trained on all data.
     transforms_ : int
         How many times a fold's data was prepared.
+
+    Notes
+    -----
+    With ``keep_prepared``, a kept table is found by a key of its data (a
+    file by its path, size and modification time; a pandas frame by its
+    content; a table of a database file by the file, its name and row
+    count), the target, each step's name, class and settings, the fold
+    scheme, and the versions of sqlearn and DuckDB. Data with no such key (a
+    relation, a table of an in-memory database) is refused. A change to the
+    code of a step of your own, with the same class name and settings, is
+    not seen: clear the file with ``sq.store.clear(prepared=path)`` after
+    such a change. ``sq.store.prepared(path)`` lists what is kept.
 
     Examples
     --------
@@ -219,14 +251,17 @@ class Search:
         metric: Metric = accuracy,
         method: Method | None = None,
         folds: Folds | None = None,
+        keep_prepared: str | os.PathLike[str] | None = None,
     ) -> None:
         self.pipe = pipe
         self.params = params
         self.metric = metric
         self.method = method
         self.folds = folds
+        self.keep_prepared = keep_prepared
         self.transforms_ = 0
         self._fold_tables: dict[tuple[str, FoldKey], _FoldTable] = {}
+        self._kept: tuple[KeptFolds, tuple[object, ...]] | None = None
 
     def _space(self, model_name: str, model: Model) -> tuple[list[Params], str]:
         """Return the space to search and what `used_` says of it; warn on a default."""
@@ -260,8 +295,11 @@ class Search:
         distinct preparation (the settings of the steps) into a temporary
         DuckDB table, which every model setting sharing it reads, so a
         setting asked again is not prepared again; the tables are dropped
-        when this returns or raises. The steps' learned values come from the
-        store when unchanged.
+        when this returns or raises. With ``keep_prepared``, the tables are
+        written to that file instead and kept, and a table already there is
+        read rather than prepared again; the file is attached only while
+        this runs. The steps' learned values come from the store when
+        unchanged.
 
         Parameters
         ----------
@@ -283,8 +321,10 @@ class Search:
             is not a column, the data has a column whose name starts with
             ``__sqlearn_fold`` or a column (or a step creates one) named
             ``__sqlearn_row``, a fold holds out no row, a target is missing,
-            or the model fails to fit or predict on a fold (naming the
-            setting and the fold).
+            the model fails to fit or predict on a fold (naming the setting
+            and the fold), or ``keep_prepared`` is given with data that has
+            no stable identity (a relation, a table of an in-memory
+            database) or a step setting with no repr of its own.
         StepError
             As for `Pipeline.train`.
 
@@ -309,6 +349,8 @@ class Search:
         >>> search.train(data, target="y").results_.count("*").fetchall()
         [(4,)]
         """
+        if self.keep_prepared is not None and isinstance(data, duckdb.DuckDBPyRelation):
+            raise _unstable()  # before any work: a relation has no stable key
         _, model = self.pipe._modelled()
         model_name = self.pipe.steps[-1][0]
         space, used_params = self._space(model_name, model)
@@ -321,6 +363,11 @@ class Search:
                 trial(self.pipe, params)  # refuses a bad setting before any work
                 asked.append(params)
         source = read(data)
+        stable = None
+        if self.keep_prepared is not None:
+            stable = source.stable_key()
+            if stable is None:
+                raise _unstable()
         con = connection()
         _source_sql(con, source)
         self.pipe._features(source, target)  # refuses a target not in the data
@@ -346,6 +393,10 @@ class Search:
         # every setting that shares it; the tables live for this call only.
         self._fold_tables = {}
         try:
+            if self.keep_prepared is not None:
+                # The target belongs to the key: it is set aside before the
+                # steps, so another target prepares other rows.
+                self._kept = (KeptFolds(self.keep_prepared), (stable, target))
             if method.knows_all:
                 scores_of = self._evaluate(source, target, folds, asked)
                 scored = list(zip(asked, scores_of, strict=True))
@@ -358,8 +409,12 @@ class Search:
                     method.tell(params, sum(scores) / len(scores))
         finally:
             tables, self._fold_tables = self._fold_tables, {}
-            for table in tables.values():
-                con.execute(f"DROP TABLE IF EXISTS {quote(table.name)}")
+            kept, self._kept = self._kept, None
+            if kept is None:
+                for table in tables.values():
+                    con.execute(f"DROP TABLE IF EXISTS {quote(table.name)}")
+            else:
+                kept[0].close()  # the kept tables stay in the file
         if not scored:
             msg = (
                 f"the method {method!r} gave no setting to try, so there is "
@@ -420,16 +475,11 @@ class Search:
                 prepared = trial(self.pipe, settings[members[0]])
                 prepared_fold = self._fold_tables.get((preparation, fold))
                 if prepared_fold is None:
-                    # The setting's own steps: their inner folds travel beside.
-                    learn_from = prepared._features(
-                        Source(rows, source.key, source.schema), target
-                    )
-                    prepared_fold = prepared._prepare_fold(
-                        learn_from, fold, numbered, target,
-                        keep=helpers, held=folds.held(FOLD, k),
+                    prepared_fold = self._prepared_fold(
+                        prepared, Source(rows, source.key, source.schema),
+                        (fold, numbered, target, helpers, folds),
                     )  # fmt: skip
                     self._fold_tables[preparation, fold] = prepared_fold
-                    self.transforms_ += 1
                 table = con.table(prepared_fold.name)
                 features = prepared_fold.features
                 models = {
@@ -460,6 +510,47 @@ class Search:
                     )  # fmt: skip
                     del fitted  # one form's rows in memory at a time
         return scores
+
+    def _prepared_fold(
+        self,
+        prepared: Pipeline,
+        rows: Source,
+        where: tuple[FoldKey, duckdb.DuckDBPyRelation, str, list[str], Folds],
+    ) -> _FoldTable:
+        """Return a fold's prepared table: kept already, or prepared now.
+
+        `rows` are the fold's training rows; `where` holds the fold, every
+        row numbered into folds, the target, the fold's helper columns and
+        the scheme. A table kept in the ``keep_prepared`` file under this
+        key is read as it is; any other is prepared (counted in
+        `transforms_`), into the file when one is given, else into a
+        temporary table.
+        """
+        fold, numbered, target, helpers, folds = where
+        k = fold[1]
+        steps, _ = prepared._modelled()
+        if self._kept is None:
+            # The setting's own steps: their inner folds travel beside.
+            table = prepared._prepare_fold(
+                prepared._features(rows, target), fold, numbered, target,
+                keep=helpers, held=folds.held(FOLD, k),
+            )  # fmt: skip
+            self.transforms_ += 1
+            return table
+        kept, stable = self._kept
+        name = table_name(stable, steps, folds.key, k)
+        found = kept.get(name)
+        if found is not None:
+            columns = connection().table(found).columns
+            return _FoldTable(found, tuple(columns[: columns.index(TARGET)]))
+        sql, features = prepared._fold_query(
+            prepared._features(rows, target), fold, numbered, target,
+            keep=helpers, held=folds.held(FOLD, k),
+        )  # fmt: skip
+        row = (repr(stable), repr(steps_identity(steps)), repr(folds.key), k)
+        table = _FoldTable(kept.put(name, sql, row), features)
+        self.transforms_ += 1
+        return table
 
     def _fit_and_score(
         self,

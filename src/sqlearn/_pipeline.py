@@ -1067,6 +1067,35 @@ class Pipeline:
     ) -> _FoldTable:
         """Learn on one fold's training rows, then prepare all its rows once.
 
+        As `_fold_query`, with the prepared rows written to a temporary
+        table, returned with its layout (`_FoldTable`). DuckDB spills the
+        table to disk as it needs, so no fold is held in memory whole. The
+        caller drops it.
+
+        Raises
+        ------
+        SqlearnError
+            If a step creates a column named `_ROW`, the table's row number.
+        """
+        sql, features = self._fold_query(
+            learn_from, fold, data, target, keep=keep, held=held
+        )
+        table = f"{_FOLD_TABLE}{next(_fold_tables)}"
+        connection().execute(f"CREATE TEMP TABLE {quote(table)} AS {sql}")
+        return _FoldTable(table, features)
+
+    def _fold_query(
+        self,
+        learn_from: Source,
+        fold: FoldKey,
+        data: duckdb.DuckDBPyRelation,
+        target: str,
+        *,
+        keep: Sequence[str],
+        held: Expression,
+    ) -> tuple[str, tuple[str, ...]]:
+        """Learn on one fold's training rows; return the query preparing all.
+
         `learn_from` holds the fold's training rows with the target set
         aside (see `_features`), keyed by the whole data; `fold` completes
         the keys. `data` holds every row with the `keep` columns (the fold
@@ -1076,11 +1105,9 @@ class Pipeline:
         the fold holds out) take what was learned on all training rows.
         Nothing is kept on the pipeline.
 
-        The prepared rows are written to a temporary table, returned with
-        its layout (`_FoldTable`): the features in order, then `TARGET`, the
-        `keep` columns and each row's number in the query's order (`_ROW`).
-        DuckDB spills the table to disk as it needs, so no fold is held in
-        memory whole. The caller drops it.
+        Returns the query of the prepared rows and the features: the
+        query's columns are the features in order, then `TARGET`, the `keep`
+        columns and each row's number in the query's order (`_ROW`).
 
         Raises
         ------
@@ -1109,11 +1136,7 @@ class Pipeline:
         names = [*features, TARGET, *keep]
         rel = con.sql(build(data_sql, stages))
         rows = rel.project(*(duckdb.ColumnExpression(c) for c in names))
-        table = f"{_FOLD_TABLE}{next(_fold_tables)}"
-        con.execute(
-            f"CREATE TEMP TABLE {quote(table)} AS {number_rows(rows.sql_query(), _ROW)}"
-        )
-        return _FoldTable(table, features)
+        return number_rows(rows.sql_query(), _ROW), features
 
     def _train(self, source: Source, target: str, feed: str) -> "Pipeline":
         """Train on data already read, as `train` describes."""

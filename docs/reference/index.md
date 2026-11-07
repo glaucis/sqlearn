@@ -108,6 +108,7 @@ The API of the sqlearn package, generated from its docstrings.
    sqlearn.fn.upper
    sqlearn.fn.coalesce
    sqlearn.store.clear
+   sqlearn.store.prepared
    sqlearn.get_config
    sqlearn.set_config
    sqlearn.errors.SqlearnError

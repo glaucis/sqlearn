@@ -2,6 +2,7 @@
 
 import gc
 import os
+import subprocess
 import sys
 import weakref
 
@@ -371,3 +372,76 @@ def test_a_frame_is_not_copied_in_the_normal_case(monkeypatch):
     assert len(registered) == 1
     assert registered[0] is df
     assert source.relation.fetchall() == [(1,), (2,)]
+
+
+def _stable(data):
+    """Return the stable key of an input that has one."""
+    stable = read(data).stable_key()
+    assert stable is not None
+    return stable
+
+
+def test_a_file_stable_key_is_its_absolute_path_size_and_mtime(tmp_path, monkeypatch):
+    """A file's stable key is its absolute path, size and mtime."""
+    path = tmp_path / "d.csv"
+    _write(path, "a\n1\n", 1_000_000_000)
+    monkeypatch.chdir(tmp_path)
+    stable = _stable("d.csv")
+    assert stable == ("file", ((str(path.resolve()), 4, 1_000_000_000),))
+    _write(path, "a\n1\n", 2_000_000_000)
+    assert read(path).stable_key() != stable
+
+
+def test_a_frame_stable_key_is_its_content_in_any_process():
+    """A frame's stable key is its content, the same in any process."""
+    frame_code = "pd.DataFrame({'x': [1.0, 2.0], 's': ['a', 'b']})"
+    frame = pd.DataFrame({"x": [1.0, 2.0], "s": ["a", "b"]})
+    code = (
+        "import pandas as pd\nfrom sqlearn._inputs import read\n"
+        f"print(repr(read({frame_code}).stable_key()))"
+    )
+    done = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True, check=True
+    )
+    assert done.stdout.strip() == repr(read(frame).stable_key())
+    assert _stable(frame)[0] == "frame"
+
+
+def test_a_table_in_a_database_file_is_keyed_by_file_name_and_rows(tmp_path):
+    """A table in a database file is keyed by file, name and rows."""
+    path = tmp_path / "db.duckdb"
+    con = duckdb.connect(str(path))
+    con.execute("CREATE TABLE t AS SELECT 1 AS a")
+    sq.set_config(connection=con)
+    stable = _stable("t")
+    assert stable[0] == "table"
+    assert str(path.resolve()) in stable
+    assert "main.t" in stable
+    con.execute("INSERT INTO t VALUES (2)")
+    assert read("t").stable_key() != stable
+
+
+def test_an_in_memory_table_or_relation_has_no_stable_key():
+    """An in-memory table or a relation has no stable key."""
+    con = _config.connection()
+    con.execute("CREATE OR REPLACE TABLE stable_none AS SELECT 1 AS a")
+    try:
+        assert read("stable_none").stable_key() is None
+        assert read(con.sql("SELECT 1 AS a")).stable_key() is None
+    finally:
+        con.execute("DROP TABLE stable_none")
+
+
+def test_a_qualified_or_temporary_table_name_is_resolved(tmp_path):
+    """A qualified or temporary table name is resolved."""
+    path = tmp_path / "db.duckdb"
+    con = duckdb.connect(str(path))
+    con.execute("CREATE SCHEMA s; CREATE TABLE s.t AS SELECT 1 AS a")
+    sq.set_config(connection=con)
+    assert _stable("s.t")[2] == "s.t"
+    assert read("db.s.t").stable_key() == read("s.t").stable_key()
+    con.execute("CREATE TABLE u AS SELECT 1 AS a; CREATE VIEW v AS FROM u")
+    assert _stable("db.u")[2] == "main.u"
+    assert read("v").stable_key() is None  # a view: no identity of its own
+    con.execute("CREATE TEMP TABLE u AS SELECT 2 AS a")
+    assert read("u").stable_key() is None  # the temporary table shadows it

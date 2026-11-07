@@ -86,6 +86,9 @@ class Source:
         A hashable key that changes whenever the data changes.
     schema : list of tuple of (str, DuckDBPyType)
         The ordered ``(name, type)`` pairs of the relation.
+    stable : tuple, optional
+        A key that names the same data in any process, or None when the
+        input has none; read it with `stable_key`.
 
     Examples
     --------
@@ -99,6 +102,31 @@ class Source:
     relation: duckdb.DuckDBPyRelation
     key: DataKey
     schema: Schema
+    stable: DataKey | None = None
+
+    def stable_key(self) -> DataKey | None:
+        """Return a key naming the same data in any process, or None.
+
+        `key` may hold a connection's token, valid in this process only.
+        This key does not: a file by its absolute path, size and
+        modification time; a pandas frame by its content hash (DuckDB's,
+        the same in every process for one DuckDB version); a table in a
+        database file by the file, its name, row count and columns. A
+        relation, or a table of an in-memory database, has none.
+
+        Returns
+        -------
+        tuple or None
+            The key, or None when the input has no stable identity.
+
+        Examples
+        --------
+        >>> from sqlearn._config import connection
+        >>> from sqlearn._inputs import read
+        >>> read(connection().sql("SELECT 1 AS a")).stable_key() is None
+        True
+        """
+        return self.stable
 
 
 def _schema(relation: duckdb.DuckDBPyRelation) -> Schema:
@@ -166,7 +194,58 @@ def _read_files(pattern: str) -> Source:
         stats.append((path, info.st_size, info.st_mtime_ns))
     paths = ", ".join("'" + p.replace("'", "''") + "'" for p in matches)
     relation = connection().sql(f"SELECT * FROM {_READERS[suffix]}([{paths}])")
-    return Source(relation, ("file", tuple(stats)), _schema(relation))
+    stable = ("file", tuple((os.path.realpath(p), n, t) for p, n, t in stats))
+    return Source(relation, ("file", tuple(stats)), _schema(relation), stable)
+
+
+def _file_table(con: duckdb.DuckDBPyConnection, name: str) -> tuple[str, str] | None:
+    """Return the database file and qualified name of a base table, or None.
+
+    `name` is ``table``, ``schema.table``, ``database.table`` or
+    ``database.schema.table``, unquoted. None when it names a view, a
+    temporary table or a table of an in-memory database: those have no
+    identity outside this process.
+    """
+    parts = name.split(".")
+    if len(parts) > 3 or any(not p for p in parts):
+        return None
+    current = con.sql("SELECT current_database(), current_schema()").fetchall()[0]
+    if len(parts) == 1:
+        candidates = [(current[0], current[1], parts[0])]
+    elif len(parts) == 2:
+        candidates = [(current[0], parts[0], parts[1]), (parts[0], "main", parts[1])]
+    else:
+        candidates = [(parts[0], parts[1], parts[2])]
+    tables = con.sql("FROM duckdb_tables()")
+    column = duckdb.ColumnExpression
+
+    def same(col: str, value: str) -> duckdb.Expression:
+        lowered = duckdb.FunctionExpression("lower", column(col))
+        return lowered == duckdb.ConstantExpression(value.lower())
+
+    temporary = tables.filter(
+        column("temporary") & same("table_name", parts[-1])
+    ).count("*")
+    if len(parts) == 1 and temporary.fetchall()[0][0]:
+        return None  # a temporary table shadows the database's
+    for database, schema, table in candidates:
+        found = (
+            tables.filter(
+                same("database_name", database)
+                & same("schema_name", schema)
+                & same("table_name", table)
+                & ~column("temporary")
+            )
+            .join(con.sql("FROM duckdb_databases()").set_alias("d"), "database_name")
+            .project(column("path"), column("schema_name"), column("table_name"))
+            .fetchall()
+        )
+        if found:
+            path, schema_name, table_name = found[0]
+            if path is None:
+                return None  # an in-memory database
+            return os.path.realpath(str(path)), f"{schema_name}.{table_name}"
+    return None
 
 
 def _read_table(name: str) -> Source:
@@ -177,14 +256,15 @@ def _read_table(name: str) -> Source:
         msg = f"{name!r} is not a file or a table on the connection. Pass {_ACCEPTED}."
         raise SqlearnError(msg) from exc
     schema = _schema(relation)
-    key = (
-        "table",
-        _connection_token(con),
-        name,
-        _row_count(relation),
-        _names_and_types(schema),
+    rows = _row_count(relation)
+    key = ("table", _connection_token(con), name, rows, _names_and_types(schema))
+    where = _file_table(con, name)
+    stable = (
+        None
+        if where is None
+        else ("table", where[0], where[1], rows, _names_and_types(schema))
     )
-    return Source(relation, key, schema)
+    return Source(relation, key, schema, stable)
 
 
 def _read_frame(frame: _Frame) -> Source:
@@ -199,7 +279,9 @@ def _read_frame(frame: _Frame) -> Source:
     relation = con.table(name)
     rows, digest = _fingerprint(name)
     schema = _schema(relation)
-    source = Source(relation, ("frame", rows, digest, _names_and_types(schema)), schema)
+    key = ("frame", rows, digest, _names_and_types(schema))
+    # Every part is the frame's content, so the same in any process.
+    source = Source(relation, key, schema, key)
     # Release the registration (and so the reference to the frame) once the
     # source is dropped: the store never keeps the user's data alive.
     weakref.finalize(source, _release_later, con, name)

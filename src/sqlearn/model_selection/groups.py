@@ -1,5 +1,7 @@
 """The search's names as groups: ``sq.search`` and ``sq.folds`` (ADR 0039)."""
 
+import os
+
 from sqlearn._group import Group
 from sqlearn._pipeline import Pipeline
 from sqlearn.metrics import Metric, accuracy
@@ -39,6 +41,7 @@ class SearchGroup(Group):
         metric: Metric = accuracy,
         method: Method | None = None,
         folds: Folds | None = None,
+        keep_prepared: str | os.PathLike[str] | None = None,
     ) -> Search:
         """Build the search of a pipeline over settings.
 
@@ -54,6 +57,9 @@ class SearchGroup(Group):
             How settings are picked; by default ``sq.search.grid()``.
         folds : Folds, optional
             The folds; by default ``sq.folds.kfold(5, seed=0)``.
+        keep_prepared : str or os.PathLike, optional
+            A DuckDB file keeping each fold's prepared rows across searches
+            and sessions (see `Search`); off by default.
 
         Returns
         -------
@@ -69,7 +75,7 @@ class SearchGroup(Group):
         >>> search.params
         {'model__C': [1.0]}
         """
-        return Search(pipe, params, metric, method, folds)
+        return Search(pipe, params, metric, method, folds, keep_prepared)
 
     def grid(self) -> Grid:
         """Return the method that tries every setting of the grid.

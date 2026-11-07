@@ -306,6 +306,14 @@ so defining a lambda again relearns. A step built from a lambda cannot be
 pickled, since lambdas cannot; use a module-level function for that. A subclass
 is still the form for a step with settings of its own.
 
+A search with `keep_prepared` keeps prepared folds in a DuckDB file across
+sessions, under a key made of each step's class name and settings
+([inputs and the store](inputs-and-the-store.md)). It does not see a change
+to your step's code: after editing `learn` or `apply`, run
+`sq.store.clear(prepared=path)`. It refuses a lambda or a function defined
+inside another as a setting, since nothing names those the same way in the
+next session; a module-level function is known by its dotted name.
+
 ## When something fails
 
 Diagnosis runs only after a failure; a run that works pays nothing for it.
