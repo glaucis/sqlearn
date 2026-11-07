@@ -3,7 +3,7 @@
 from sqlearn._group import Group
 from sqlearn._pipeline import Pipeline
 from sqlearn.metrics import Metric, accuracy
-from sqlearn.model_selection.folds import KFold
+from sqlearn.model_selection.folds import Folds, KFold
 from sqlearn.model_selection.methods import Grid, Method, Params, Range, range
 from sqlearn.model_selection.search import Search
 
@@ -31,7 +31,7 @@ class SearchGroup(Group):
         params: Params | list[Params] | None = None,
         metric: Metric = accuracy,
         method: Method | None = None,
-        folds: KFold | None = None,
+        folds: Folds | None = None,
     ) -> Search:
         """Build the search of a pipeline over settings.
 
@@ -45,7 +45,7 @@ class SearchGroup(Group):
             The score, computed in SQL on each fold's held-out rows.
         method : Method, optional
             How settings are picked; by default ``sq.search.grid()``.
-        folds : KFold, optional
+        folds : Folds, optional
             The folds; by default ``sq.folds.kfold(5, seed=0)``.
 
         Returns

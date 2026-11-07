@@ -1,14 +1,65 @@
 """Folds: each row's fold number, from a hash of its values and a seed."""
 
+from typing import Protocol, runtime_checkable
+
 import duckdb
 
 from sqlearn._errors import SqlearnError
 from sqlearn._expr import quote
 
-__all__ = ["ALIAS", "KFold"]
+__all__ = ["ALIAS", "Folds", "KFold"]
 
 ALIAS = "__sqlearn_row_values"
 """The alias naming the whole row inside the fold expression."""
+
+
+@runtime_checkable
+class Folds(Protocol):
+    """A fold scheme: SQL over the rows that says which rows each fold holds out.
+
+    A search takes any object with these members (ADR 0040). The scheme
+    numbers the rows in one query, and each fold is two predicates over the
+    numbered relation, so nothing is held in Python memory.
+
+    Attributes
+    ----------
+    splits : int
+        How many folds are scored.
+    key : tuple
+        The scheme's settings, stable across processes, for the learning
+        store's keys (for example ``("kfold", 5, 0)``).
+
+    Examples
+    --------
+    >>> import sqlearn as sq
+    >>> from sqlearn.model_selection import Folds
+    >>> isinstance(sq.folds.kfold(), Folds)
+    True
+    """
+
+    @property
+    def splits(self) -> int:
+        """How many folds are scored."""
+        ...
+
+    @property
+    def key(self) -> tuple[object, ...]:
+        """The settings, stable across processes."""
+        ...
+
+    def numbered(
+        self, rel: duckdb.DuckDBPyRelation, name: str, target: str | None
+    ) -> duckdb.DuckDBPyRelation:
+        """Return every row, plus `name` and helper columns named from `name`."""
+        ...
+
+    def training(self, name: str, k: int) -> duckdb.Expression:
+        """Return the predicate true for the rows fold `k` learns from."""
+        ...
+
+    def held(self, name: str, k: int) -> duckdb.Expression:
+        """Return the predicate true for the rows fold `k` holds out."""
+        ...
 
 
 class KFold:
@@ -60,6 +111,62 @@ class KFold:
             raise SqlearnError(msg)
         self.n = n
         self.seed = seed
+
+    @property
+    def splits(self) -> int:
+        """The number of folds scored, `n`."""
+        return self.n
+
+    @property
+    def key(self) -> tuple[object, ...]:
+        """The settings as ``("kfold", n, seed)``."""
+        return ("kfold", self.n, self.seed)
+
+    def training(self, name: str, k: int) -> duckdb.Expression:
+        """Return the predicate for the rows fold `k` learns from.
+
+        Parameters
+        ----------
+        name : str
+            The fold column of `numbered`.
+        k : int
+            The fold.
+
+        Returns
+        -------
+        duckdb.Expression
+            ``name != k``.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> sq.folds.kfold().training("f", 1)
+        (f != 1)
+        """
+        return duckdb.ColumnExpression(name) != duckdb.ConstantExpression(k)
+
+    def held(self, name: str, k: int) -> duckdb.Expression:
+        """Return the predicate for the rows fold `k` holds out.
+
+        Parameters
+        ----------
+        name : str
+            The fold column of `numbered`.
+        k : int
+            The fold.
+
+        Returns
+        -------
+        duckdb.Expression
+            ``name == k``.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> sq.folds.kfold().held("f", 1)
+        (f = 1)
+        """
+        return duckdb.ColumnExpression(name) == duckdb.ConstantExpression(k)
 
     def __repr__(self) -> str:
         """Show the settings.
@@ -150,7 +257,7 @@ class KFold:
         return rel.set_alias(ALIAS), duckdb.SQLExpression(self.expression(ALIAS))
 
     def numbered(
-        self, rel: duckdb.DuckDBPyRelation, name: str
+        self, rel: duckdb.DuckDBPyRelation, name: str, target: str | None = None
     ) -> duckdb.DuckDBPyRelation:
         """Return every row with its fold number as one more column.
 
@@ -160,6 +267,8 @@ class KFold:
             The data.
         name : str
             The name of the fold column.
+        target : str, optional
+            The target column; unused, a k-fold deals rows by value alone.
 
         Returns
         -------

@@ -10,8 +10,8 @@ from sqlearn._step import Step, _by_identity, _setting_key
 
 __all__ = ["STORE", "Entry", "FoldKey", "StepKey", "Store", "step_key"]
 
-FoldKey = tuple[int, int, int]
-"""A fold as ``(n, seed, k)``: the number of folds, the seed, the fold index."""
+FoldKey = tuple[tuple[object, ...], int]
+"""A fold as ``(scheme key, k)``: the scheme's settings, the fold index."""
 
 StepKey = tuple[
     DataKey,
@@ -62,8 +62,8 @@ def step_key(
     ----------
     data : tuple
         The data key of the input.
-    fold : tuple of int, optional
-        ``(n, seed, k)`` for a fold of a cross-validation, else None.
+    fold : tuple, optional
+        ``(scheme key, k)`` for a fold of a cross-validation, else None.
     steps : sequence of tuple of (str, Step)
         The named steps of the pipeline.
     index : int

@@ -557,3 +557,26 @@ def test_a_search_over_the_inner_folds_of_a_target_step():
     search.train(frame, target="churned")
     assert search.results_.count("*").fetchall() == [(4,)]
     assert search.best_pipeline_["target"].cv in (2, 3)
+
+
+def test_a_search_takes_any_scheme():
+    """A user's own scheme (even rows, odd rows) drives the search."""
+    import duckdb
+
+    class Halves:
+        splits = 2
+        key = ("halves",)
+
+        def numbered(self, rel, name, target):
+            return rel.project("*, (row_number() OVER () % 2) AS " + name)
+
+        def training(self, name, k):
+            return duckdb.ColumnExpression(name) != duckdb.ConstantExpression(k)
+
+        def held(self, name, k):
+            return duckdb.ColumnExpression(name) == duckdb.ConstantExpression(k)
+
+    search = sq.search(slice_pipe(), params={"model__C": [1.0]}, folds=Halves())
+    search.train(customers(), target="churned")
+    assert search.results_.count("*").fetchall()[0][0] == 2
+    assert search.used_["folds"] == "given"

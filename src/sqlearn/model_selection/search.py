@@ -24,13 +24,17 @@ from sqlearn._output import Output
 from sqlearn._pipeline import Pipeline, _positioned, _source_sql
 from sqlearn.metrics import Metric, accuracy
 from sqlearn.model_selection.defaults import default_space, hint
-from sqlearn.model_selection.folds import KFold
+from sqlearn.model_selection.folds import Folds, KFold
 from sqlearn.model_selection.methods import Grid, Method, Params, trial
 
 __all__ = ["FOLD", "Search"]
 
 FOLD = "__sqlearn_fold"
 """The column holding each row's fold number in a fold's feeding query."""
+
+_FIT = FOLD + "_fit"
+_HELD = FOLD + "_held"
+"""The columns marking a fold's training rows and its held-out rows."""
 
 _ids = itertools.count()
 
@@ -41,29 +45,33 @@ def _preparation(params: Params, model_name: str) -> str:
     return json.dumps(steps, sort_keys=True, default=repr)
 
 
-def _check_folds(source: Source, folds: KFold) -> None:
+def _check_folds(source: Source, folds: Folds, target: str) -> None:
     """Refuse a fold that holds out no row, counting every fold in one query."""
-    fold = duckdb.ColumnExpression(FOLD)
-    counted = folds.numbered(source.relation, FOLD).aggregate(
-        [fold, duckdb.FunctionExpression("count_star")], fold
-    )
-    sizes = dict.fromkeys(range(folds.n), 0)
-    sizes.update({int(k): int(n) for k, n in counted.fetchall()})
-    empty = [k for k, n in sizes.items() if n == 0]
+    numbered = folds.numbered(source.relation, FOLD, target)
+    counts = [
+        duckdb.SQLExpression(
+            f"count(*) FILTER (WHERE {folds.held(FOLD, k)}) AS held_{k}"
+        )
+        for k in range(folds.splits)
+    ]
+    row = numbered.aggregate(
+        ", ".join(str(c) for c in counts) + ", count(*) AS total"
+    ).fetchall()[0]
+    sizes = [int(n) for n in row[:-1]]
+    empty = [k for k, n in enumerate(sizes) if n == 0]
     if empty:
-        rows = sum(sizes.values())
-        listed = ", ".join(str(n) for n in sizes.values())
+        listed = ", ".join(str(n) for n in sizes)
         msg = (
-            f"fold {empty[0]} of {folds!r} holds out no row: the {rows} rows "
-            f"were dealt into folds of {listed} rows, and a fold with nothing "
-            "held out cannot be scored. Fix: use fewer folds, or pass more "
-            "data."
+            f"fold {empty[0]} of {folds!r} holds out no row: the {row[-1]} "
+            f"rows were dealt into folds of {listed} rows, and a fold with "
+            "nothing held out cannot be scored. Fix: use fewer folds, or "
+            "pass more data."
         )
         raise SqlearnError(msg)
 
 
 def _fold_error(
-    exc: Exception, action: str, params: Params, k: int, folds: KFold
+    exc: Exception, action: str, params: Params, k: int, folds: Folds
 ) -> SqlearnError:
     """Explain a model failing on one fold, naming the setting and the fold."""
     setting = json.dumps(params, default=repr)
@@ -118,8 +126,9 @@ class Search:
         The score, computed in SQL on each fold's held-out rows.
     method : Method, optional
         How settings are picked; by default ``sq.search.grid()``.
-    folds : KFold, optional
-        The folds; by default ``sq.folds.kfold(5, seed=0)``.
+    folds : Folds, optional
+        The fold scheme, any object with the `Folds` members; by default
+        ``sq.folds.kfold(5, seed=0)``.
 
     Attributes
     ----------
@@ -158,7 +167,7 @@ class Search:
         params: Params | list[Params] | None = None,
         metric: Metric = accuracy,
         method: Method | None = None,
-        folds: KFold | None = None,
+        folds: Folds | None = None,
     ) -> None:
         self.pipe = pipe
         self.params = params
@@ -248,7 +257,7 @@ class Search:
         model_name = self.pipe.steps[-1][0]
         space, used_params = self._space(model_name, model)
         method = Grid() if self.method is None else self.method
-        folds = KFold() if self.folds is None else self.folds
+        folds: Folds = KFold() if self.folds is None else self.folds
         method.start(space)
         asked: list[Params] = []
         if method.knows_all:
@@ -265,7 +274,7 @@ class Search:
                 "for each row's fold during a search. Fix: rename that column."
             )
             raise SqlearnError(msg)
-        _check_folds(source, folds)
+        _check_folds(source, folds, target)
         self.transforms_ = 0
         scored: list[tuple[Params, list[float]]] = []
         if method.knows_all:
@@ -303,7 +312,7 @@ class Search:
         return self
 
     def _evaluate(
-        self, source: Source, target: str, folds: KFold, settings: list[Params]
+        self, source: Source, target: str, folds: Folds, settings: list[Params]
     ) -> list[list[float]]:
         """Score each setting on each fold, fold first; return scores per setting."""
         np = _numpy()
@@ -312,7 +321,7 @@ class Search:
         groups: dict[str, list[int]] = {}
         for i, params in enumerate(settings):
             groups.setdefault(_preparation(params, model_name), []).append(i)
-        numbered = folds.numbered(source.relation, FOLD)
+        numbered = folds.numbered(source.relation, FOLD, target)
         if any(s.uses_target for _, s in self.pipe._split()[0]):
             # Every row numbered once, before the folds split them, so a
             # fold's training rows keep the positions their inner folds
@@ -321,12 +330,18 @@ class Search:
         columns = [duckdb.ColumnExpression(c) for c, _ in source.schema]
         if POSITION in numbered.columns:
             columns.append(duckdb.ColumnExpression(POSITION))
-        scores = [[0.0] * folds.n for _ in settings]
-        for k in range(folds.n):
-            training = numbered.filter(
-                duckdb.ColumnExpression(FOLD) != duckdb.ConstantExpression(k)
-            )
+        scores = [[0.0] * folds.splits for _ in settings]
+        helpers = [c for c in numbered.columns if c.lower().startswith(FOLD)]
+        for k in range(folds.splits):
+            training = numbered.filter(folds.training(FOLD, k))
             rows = training.project(*columns)
+            # The fold's two masks travel beside the features, so the rows
+            # to fit on and to score are the scheme's, not inferred.
+            marked = numbered.project(
+                duckdb.StarExpression(),
+                folds.training(FOLD, k).alias(_FIT),
+                folds.held(FOLD, k).alias(_HELD),
+            )
             for members in groups.values():
                 prepared = trial(self.pipe, settings[members[0]])
                 _, first = prepared._modelled()
@@ -334,25 +349,25 @@ class Search:
                 learn_from = prepared._features(
                     Source(rows, source.key, source.schema), target
                 )
-                held = duckdb.ColumnExpression(FOLD) == duckdb.ConstantExpression(k)
                 x, aside = prepared._prepare_fold(
-                    learn_from, (folds.n, folds.seed, k), numbered, target,
-                    first.feed, keep=[FOLD], held=held,
+                    learn_from, (folds.key, k), marked, target,
+                    first.feed, keep=[*helpers, _FIT, _HELD], held=folds.held(FOLD, k),
                 )  # fmt: skip
                 self.transforms_ += 1
                 y = target_values(aside[TARGET], target)
-                fit = np.ma.getdata(aside[FOLD]) != k
+                fit = np.ma.getdata(aside[_FIT]).astype(bool)
+                in_held = np.ma.getdata(aside[_HELD]).astype(bool)
                 for i in members:
                     _, model = trial(self.pipe, settings[i])._modelled()
                     action = "fit"
                     try:
                         model.estimator.fit(x[fit], y[fit])
                         action = "predict"
-                        predicted = model.estimator.predict(x[~fit])
+                        predicted = model.estimator.predict(x[in_held])
                     except Exception as exc:
                         err = _fold_error(exc, action, settings[i], k, folds)
                         raise err from exc
-                    scores[i][k] = _score(con, self.metric, y[~fit], predicted)
+                    scores[i][k] = _score(con, self.metric, y[in_held], predicted)
         return scores
 
     @staticmethod

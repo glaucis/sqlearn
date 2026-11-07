@@ -4,7 +4,7 @@ import pytest
 
 import sqlearn as sq
 from sqlearn._config import connection
-from sqlearn.model_selection.folds import ALIAS
+from sqlearn.model_selection.folds import ALIAS, Folds
 
 
 def folds_of(rel, kfold):
@@ -70,3 +70,23 @@ def test_a_column_named_as_the_row_alias_is_refused():
     rel = connection().sql(f'SELECT 1 AS "{ALIAS}"')
     with pytest.raises(sq.errors.SqlearnError, match=ALIAS):
         sq.folds.kfold().numbered(rel, "k")
+
+
+def test_kfold_implements_the_scheme_interface():
+    """KFold is a Folds: splits, a stable key, and two predicates per fold."""
+    rel = connection().sql("SELECT * FROM range(20) t(i)")
+    folds = sq.folds.kfold(4, seed=0)
+    assert isinstance(folds, Folds) and folds.splits == 4
+    assert folds.key == ("kfold", 4, 0)
+    numbered = folds.numbered(rel, "f", None)
+    held = [
+        numbered.filter(folds.held("f", k)).count("*").fetchall()[0][0]
+        for k in range(4)
+    ]
+    train = [
+        numbered.filter(folds.training("f", k)).count("*").fetchall()[0][0]
+        for k in range(4)
+    ]
+    assert sum(held) == 20 and all(
+        h + t == 20 for h, t in zip(held, train, strict=True)
+    )
