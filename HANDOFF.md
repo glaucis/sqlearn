@@ -17,8 +17,9 @@ None.
 
 ## Next up
 
-- Model selection (#33): spec approved; write its plan with
-  `superpowers:writing-plans` into `docs/plans/`.
+- Model selection (#33): plan `docs/plans/2026-11-07-library-model-selection.md`
+  (15 tasks) awaits Tomas's review and choice of execution method; then build
+  in the worktree `.claude/worktrees/library-model-selection`.
 - Ready for an agent: #28 compensated two-pass variance, then #27 (the
   median's reach); #32 (impute's filled copies typed INTEGER); #31 (the
   encoders' linear category lookup).
