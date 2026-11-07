@@ -60,7 +60,7 @@ pipe = sq.Pipeline(
         sq.scale.standard(),
         sq.Model(
             CatBoostClassifier(verbose=0), feed="pandas"
-        ),  # text reaches it as text
+        ),  # text reaches it as categories
     ]
 )
 
@@ -112,16 +112,18 @@ sq.Model(model, feed="stream", megabytes=256)  # batches of about 256 MB
 | `feed=` | `fit(X, y)` gets | text columns |
 |---|---|---|
 | `"numpy"` (default) | a 2-D float64 array, as today | refused, as today |
-| `"pandas"` | a DataFrame | text |
-| `"polars"` | a DataFrame | text |
-| `"arrow"` | a `pyarrow.Table` | text |
+| `"pandas"` | a DataFrame | `category` dtype |
+| `"polars"` | a DataFrame | `Categorical` |
+| `"arrow"` | a `pyarrow.Table` | dictionary-encoded |
 | `"stream"` | one batch at a time, as numpy, through `partial_fit` | refused |
 
 - **The default stays `"numpy"`**, as the core has it.
-- **Text columns reach the model as text** with pandas, Polars and Arrow; a
-  model that handles categories itself (CatBoost, LightGBM) takes them, and
-  the user tells it which columns they are in the model's own settings, as
-  they would without sqlearn. Only `"numpy"` and `"stream"` keep today's
+- **Text columns reach the model as categories** with pandas, Polars and
+  Arrow (decided 2026-11-07 with the plan): CatBoost, LightGBM, XGBoost
+  (`enable_categorical`) and scikit-learn's histogram boosting
+  (`categorical_features="from_dtype"`) all read that form, and CatBoost
+  still takes `cat_features=` as it would without sqlearn. A NULL stays
+  missing, never a category. Only `"numpy"` and `"stream"` keep today's
   refusal and its fix.
 - **The target** goes over in the same form as the features (a Series, an
   Arrow array, a numpy array).
@@ -297,9 +299,9 @@ The old names are removed, not kept as aliases: nothing is released yet.
   against its scikit-learn twin (`StratifiedKFold`, `GroupKFold`,
   `TimeSeriesSplit`) on the properties that define it (class balance, groups
   kept together, order kept), since the assignment of rows differs.
-- **Each form:** the same model trained through every form it takes gives
-  the same predictions within bounds set from measurement; text columns reach
-  a model through pandas, Polars and Arrow as text (CatBoost and LightGBM as
+- **Each form:** the same model trained through every form it takes gives the
+  same predictions within bounds set from measurement; text columns reach a
+  model through pandas, Polars and Arrow as categories (CatBoost and LightGBM as
   the test models, test-only).
 - **Larger than memory:** §2's streamed pipeline under a memory limit several
   times smaller than the data, as the core's slow test: peak memory stays under
@@ -328,7 +330,7 @@ development dependencies with permissive licences, recorded as ADR 0005 asks.
 
 ADRs, written with the plan:
 
-- The hand-over: the forms, text reaching the model as text, streaming
+- The hand-over: the forms, text reaching the model as categories, streaming
   through `partial_fit`, never swap (§3).
 - The search's names as groups (§8).
 - Fold schemes as SQL over rows, including the time split (§6).

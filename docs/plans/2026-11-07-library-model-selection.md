@@ -30,7 +30,8 @@ DuckDB file under a key that survives a restart.
 **Tech Stack:** Python 3.12+, duckdb 2.0 (the one runtime dependency;
 `to_arrow_reader(batch_size=...)`, `to_arrow_table()`, `df()`, `pl()`); tests
 and validation: pytest, scikit-learn 1.9.1, numpy, pandas, and new test-only
-dependencies pyarrow, polars, catboost, optuna (ADR 0005 leaves tools free).
+dependencies pyarrow, polars, catboost, lightgbm, optuna (ADR 0005 leaves tools
+free).
 
 **Spec:**
 [`docs/specs/library-model-selection.md`](../specs/library-model-selection.md).
@@ -567,7 +568,7 @@ registration is today.
 - Modify: `src/sqlearn/_feed.py`, `src/sqlearn/_model.py` (`Model`,
   `FEEDS`, `check_feed`), `src/sqlearn/_pipeline.py` (`_train`),
   `src/sqlearn/model_selection/search.py`, `pyproject.toml` (test group:
-  `pyarrow`, `polars`, `catboost`)
+  `pyarrow`, `polars`, `catboost`, `lightgbm`)
 - Test: `tests/src/sqlearn/test__feed.py`, `tests/src/sqlearn/test__model.py`
 
 **Interfaces:**
@@ -582,7 +583,8 @@ registration is today.
     tuple[object, object | None]` in `_feed.py`: the features and the target
     in the form `feed` names: numpy (today's matrix and array), pandas
     (`DataFrame`, `Series`), polars (`DataFrame`, `Series`), arrow
-    (`pyarrow.Table`, `pyarrow.ChunkedArray`). Text columns are refused only
+    (`pyarrow.Table`, `pyarrow.ChunkedArray`). Text columns arrive as
+    categories; they are refused only
     for numpy and stream.
 - `_train`, the search's fold training and `predict_streamed` hand over
   through `fetch` in the model's form.
@@ -623,6 +625,20 @@ def test_null_text_arrives_missing_in_every_form(con):
         True,
     ]
     assert fetch(rel, "arrow", ["city"], None)[0]["city"].null_count == 1
+    assert str(fetch(rel, "pandas", ["city"], None)[0]["city"].dtype) == "category"
+
+
+def test_lightgbm_takes_text_columns_through_pandas():
+    pipe = sq.Pipeline(
+        [
+            sq.impute.median(),
+            sq.Model(LGBMClassifier(n_estimators=5, verbose=-1), feed="pandas"),
+        ]
+    )
+    pipe.train(DATA_WITH_CITY, target="y")
+    assert len(pipe.predict(DATA_WITH_CITY, out="numpy")["prediction"]) == len(
+        DATA_WITH_CITY
+    )
 
 
 def test_catboost_takes_text_columns_through_pandas():
@@ -662,10 +678,11 @@ Expected: FAIL (`feed='pandas' is not built yet`).
 - [ ] **Step 3: Implement**
 
 Through DuckDB's own methods: `df()`, `pl()`, `to_arrow_table()`,
-`fetchnumpy()`. Text columns stay text (VARCHAR to `str`/`object`, Polars
-`String`, Arrow `string`), as the spec says. In the search, training rows
-come from Task 5's table in the model's form; no slicing of an in-memory
-fold remains. Write ADR 0041 (spec §3: the forms, text as text, streaming
+`fetchnumpy()`. Text columns become categories (spec §3.1): pandas `category`
+dtype, Polars `Categorical`, Arrow dictionary-encoded, cast after the fetch
+(DuckDB gives plain strings); NULL stays missing. In the search, training rows
+come from Task 5's table in the model's form; no slicing of an in-memory fold
+remains. Write ADR 0041 (spec §3: the forms, text as categories, streaming
 through `partial_fit`, never swap, numpy staying the default), indexed under
 "Models and search".
 
