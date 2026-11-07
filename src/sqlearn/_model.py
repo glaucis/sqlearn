@@ -143,7 +143,9 @@ class Model:
     The target goes over in the same form as the features: a numpy array, a
     pandas or Polars ``Series``, a ``pyarrow.ChunkedArray``. A NULL stays
     missing (NaN or null), never a category of its own. Predictions are
-    asked for in the same form, one batch at a time.
+    asked for in the same form, one batch at a time; a text column's
+    categories are those of the training rows, sorted, with values new at
+    predict after them, so each value keeps its code.
 
     Parameters
     ----------

@@ -93,14 +93,16 @@ def _fetch(
     feed: str,
     features: Sequence[str],
     target: str,
+    categories: dict[str, list[str]],
 ) -> tuple[Any, Any]:
     """Fetch the rows of a fold's table a predicate picks, in the query's order.
 
     The features and the target come in the form `feed` names, the target
-    refused where it is missing (named `target`, as in the user's data).
+    refused where it is missing (named `target`, as in the user's data);
+    each text feature's categories are recorded in `categories`.
     """
     picked = table.filter(rows).sort(duckdb.ColumnExpression(_ROW))
-    return fetch(picked, feed, features, TARGET, named=target)
+    return fetch(picked, feed, features, TARGET, named=target, categories=categories)
 
 
 def _check_held_targets(
@@ -439,13 +441,15 @@ class Search:
                     refuse_stream(model.feed)
                     feeds.setdefault(model.feed, []).append(i)
                 for n, (feed, takers) in enumerate(feeds.items()):
+                    categories: dict[str, list[str]] = {}
                     x_fit, y_fit = _fetch(
-                        table, folds.training(FOLD, k), feed, features, target
-                    )
+                        table, folds.training(FOLD, k), feed, features, target,
+                        categories,
+                    )  # fmt: skip
                     if n == 0:
                         _check_held_targets(table, folds.held(FOLD, k), target)
                     self._fit_and_score(
-                        con, prepared_fold, folds, k, x_fit, y_fit,
+                        con, prepared_fold, folds, k, (x_fit, y_fit, categories),
                         [(i, settings[i], models[i]) for i in takers], scores,
                     )  # fmt: skip
                     del x_fit, y_fit  # one form's rows in memory at a time
@@ -457,16 +461,18 @@ class Search:
         prepared_fold: _FoldTable,
         folds: Folds,
         k: int,
-        x_fit: object,
-        y_fit: object,
+        fitted: tuple[object, object, dict[str, list[str]]],
         takers: Sequence[tuple[int, Params, Model]],
         scores: list[list[float]],
     ) -> None:
         """Fit each model to one fold's training rows, then score it in SQL.
 
-        The held-out rows are streamed to each model in batches, in its own
-        form, and the score is written to ``scores[i][k]``.
+        `fitted` holds the training rows' features, target and text
+        categories. The held-out rows are streamed to each model in batches,
+        in its own form with those categories, and the score is written to
+        ``scores[i][k]``.
         """
+        x_fit, y_fit, categories = fitted
         features = prepared_fold.features
         held = con.table(prepared_fold.name).filter(folds.held(FOLD, k))
         for i, params, model in takers:
@@ -474,7 +480,9 @@ class Search:
             try:
                 model.estimator.fit(x_fit, y_fit)
                 action = "predict"
-                predictions, _ = stream_into(con, held, features, _ROW, model)
+                predictions, _ = stream_into(
+                    con, held, features, _ROW, model, categories=categories
+                )
             except WrongShapeError:
                 raise  # the stream's own message says what to fix
             except Exception as exc:

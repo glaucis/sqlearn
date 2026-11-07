@@ -859,3 +859,37 @@ def test_each_model_of_a_search_trains_in_its_own_form(monkeypatch):
     )
     assert Forms.seen[:6] == ["pandas", "pandas", "polars"] * 2
     assert fetched == ["pandas", "polars"] * 2
+
+
+class ByCode(BaseEstimator, ClassifierMixin):
+    """A model that learns each city code's class and predicts by code."""
+
+    def fit(self, x, y):
+        """Learn the class of each code."""
+        self.classes_ = np.unique(np.asarray(y))
+        self.by_code_ = dict(zip(x["city"].cat.codes, np.asarray(y), strict=True))
+        return self
+
+    def predict(self, x):
+        """Look each row's code up."""
+        return np.array([self.by_code_.get(c, -1) for c in x["city"].cat.codes])
+
+
+def test_a_search_scores_held_rows_with_their_training_codes(monkeypatch):
+    """Each held-out batch is cast with its fold's training categories."""
+    monkeypatch.setattr(_feed, "BATCH_ROWS", 1)
+    data = pd.DataFrame(
+        {
+            "n": np.arange(30.0),
+            "city": ["kyiv", "oslo", "rome"] * 10,
+            "y": [0, 1, 2] * 10,
+        }
+    )
+    pipe = sq.Pipeline([("model", sq.Model(ByCode(), feed="pandas"))])
+    search = sq.search(
+        pipe,
+        params={"model": [sq.Model(ByCode(), feed="pandas")]},
+        folds=sq.folds.kfold(3),
+    )
+    search.train(data, target="y")
+    assert search.best_score_ == 1.0

@@ -470,6 +470,8 @@ class Pipeline:
         self._names: list[dict[str, list[str]]] = []
         self._columns_out: list[str] = []
         self._feed: str | None = None
+        # Each text feature's categories at train, so predict keeps the codes.
+        self._categories: dict[str, list[str]] = {}
         # The target the steps learned with: left out of the data at apply.
         self._target: str | None = None
 
@@ -1131,7 +1133,10 @@ class Pipeline:
         )  # fmt: skip
         columns = [c for c, _ in out]
         sql = build(data_sql, stages)
-        x, y = fetch(con.sql(sql), feed, columns, TARGET, named=target)
+        categories: dict[str, list[str]] = {}
+        x, y = fetch(
+            con.sql(sql), feed, columns, TARGET, named=target, categories=categories
+        )
         # All or nothing: until the model is fitted, the pipeline keeps what
         # it had. A fit that fails may leave the model half changed, so the
         # pipeline then counts as untrained.
@@ -1149,6 +1154,7 @@ class Pipeline:
         else:
             runs.append((the_plan.feed_run, Run([sql])))
         self._feed = feed
+        self._categories = categories
         self.runs_ = [run for _, run in runs]
         return self
 
@@ -1232,6 +1238,9 @@ class Pipeline:
         # Streamed: the model is handed one batch at a time, in the feed the
         # pipeline was trained with.
         fed = Model(model.estimator, self._feed)
-        rel = predict_streamed(con, con.sql(sql), self._columns_out, _ROW, fed)
+        rel = predict_streamed(
+            con, con.sql(sql), self._columns_out, _ROW, fed,
+            categories=self._categories,
+        )  # fmt: skip
         self.runs_ = [Run([sql])]
         return to_output(rel, out if out is not None else get_config().out)

@@ -15,7 +15,7 @@ import importlib
 import itertools
 import warnings
 import weakref
-from collections.abc import Generator, Sequence
+from collections.abc import Generator, Mapping, Sequence
 from typing import Any
 
 import duckdb
@@ -55,6 +55,9 @@ tables.
 
 _AS_NUMPY = ("numpy", "stream")
 """The feeds whose rows are handed over as a numpy array."""
+
+_NULL = "__sqlearn_target_null"
+"""The column counting the target's SQL NULLs beside a pandas fetch."""
 
 _prediction_ids = itertools.count()
 _WARNED: set[str] = set()
@@ -166,6 +169,7 @@ def fetch(
     target: str | None,
     *,
     named: str | None = None,
+    categories: dict[str, list[str]] | None = None,
 ) -> tuple[Any, Any]:
     """Run a relation once: the features and the target in the feed's form.
 
@@ -188,6 +192,12 @@ def fetch(
     named : str, optional
         The target's name in the user's data, for the message when it is
         missing; `target` when not given.
+    categories : dict of str to list of str, optional
+        Each text feature's categories, shared by every fetch of one model
+        so a value keeps its code. A column in it keeps its list as the
+        prefix (values it lacks are appended, sorted); a column not in it
+        learns its list here, the sorted values, and is recorded in it.
+        Without it, each fetch has its own sorted list.
 
     Returns
     -------
@@ -223,42 +233,72 @@ def fetch(
         if target is None:
             return matrix, None
         return matrix, target_values(other[target], name or target)
-    picked = rel.project(*(duckdb.ColumnExpression(c) for c in [*columns, *aside]))
-    kinds = dict(zip(picked.columns, picked.types, strict=True))
+    kinds = dict(zip(rel.columns, rel.types, strict=True))
     text = [c for c in columns if str(kinds[c]) == "VARCHAR"]
+    known = {} if categories is None else categories
+    picks = [duckdb.ColumnExpression(c) for c in [*columns, *aside]]
+    if target is not None and feed == "pandas":
+        # pandas reads NULL and NaN alike; the SQL NULLs are counted beside.
+        picks.append(duckdb.ColumnExpression(target).isnull().alias(_NULL))
+    picked = rel.project(*picks)
     x: Any
+    y: Any = None
     if feed == "pandas":
-        _library("pandas", feed)
-        frame = picked.df()
-        y = None if target is None else frame.pop(target).rename(name)
+        pd = _library("pandas", feed)
+        x = picked.df()
+        missing = 0
+        if target is not None:
+            missing = int(x.pop(_NULL).sum())
+            y = x.pop(target).rename(name)
         for c in text:
-            frame[c] = frame[c].astype("category")
-        missing = 0 if y is None else int(y.isna().sum())
-        x = frame
+            order = _order(known, c, x[c].dropna().unique().tolist())
+            x[c] = pd.Categorical(x[c], categories=order)
     elif feed == "polars":
         pl = _library("polars", feed)
-        frame = picked.pl()
-        y = None if target is None else frame.get_column(target).alias(name or "")
-        x = frame.select(
-            *(
-                pl.col(c).cast(pl.Categorical) if c in text else pl.col(c)
-                for c in columns
-            )
-        )
+        x = picked.pl()
+        if target is not None:
+            y = x.get_column(target).alias(name or "")
+            x = x.drop(target)
+        for c in text:
+            order = _order(known, c, x[c].drop_nulls().unique().to_list())
+            # A Categories gives codes in the order values are first cast,
+            # for as long as a cast series holds them: `seed` casts the
+            # order first and is kept until the column holds them too.
+            dtype = pl.Categorical(pl.Categories.random())
+            seed = pl.Series(order, dtype=pl.String).cast(dtype)
+            x = x.with_columns(x[c].cast(dtype))
+            del seed
         missing = 0 if y is None else y.null_count()
     else:
-        _library("pyarrow", feed)
+        pa = _library("pyarrow", feed)
+        pc = _library("pyarrow.compute", feed)
         table = picked.to_arrow_table()
         y = None if target is None else table.column(target)
         x = table.select(list(columns))
         for c in text:
-            x = x.set_column(
-                x.column_names.index(c), c, x.column(c).dictionary_encode()
-            )
+            values = x.column(c).combine_chunks()
+            order = _order(known, c, pc.unique(values.drop_null()).to_pylist())
+            dictionary = pa.array(order, type=pa.string())
+            indices = pc.index_in(values, value_set=dictionary)
+            encoded = pa.DictionaryArray.from_arrays(indices, dictionary)
+            x = x.set_column(x.column_names.index(c), c, encoded)
         missing = 0 if y is None else y.null_count
     if missing:
         raise missing_target(name or "", missing)
     return x, y
+
+
+def _order(known: dict[str, list[str]], column: str, values: list[str]) -> list[str]:
+    """Return a text column's categories: the known ones, then new values.
+
+    A column not in `known` learns its list here, sorted, and records it;
+    one in `known` keeps that list as the prefix, so its values keep their
+    codes, and the values it lacks follow, sorted (never dropped to missing).
+    """
+    if column not in known:
+        known[column] = sorted(values)
+    seen = set(known[column])
+    return [*known[column], *sorted(v for v in values if v not in seen)]
 
 
 def hand_over(rel: duckdb.DuckDBPyRelation, feed: str) -> object:
@@ -363,10 +403,14 @@ def _checked(values: Any, rows: int, method: str) -> Any:  # noqa: ANN401  (nump
 
 
 def _fetched(
-    rel: duckdb.DuckDBPyRelation, feed: str, columns: Sequence[str], row: str
+    rel: duckdb.DuckDBPyRelation,
+    feed: str,
+    columns: Sequence[str],
+    row: str,
+    categories: dict[str, list[str]],
 ) -> tuple[Any, Any]:
     """Fetch the features in the feed's form and the row numbers as numpy."""
-    x, rows = fetch(rel, feed, columns, row)
+    x, rows = fetch(rel, feed, columns, row, categories=categories)
     return x, _numpy().asarray(rows)
 
 
@@ -376,17 +420,22 @@ def _batches(
     feed: str,
     columns: Sequence[str],
     row: str,
+    categories: Mapping[str, Sequence[str]] | None,
 ) -> Generator[tuple[Any, Any]]:
     """Yield the features and the row numbers of `rel`, a batch at a time.
 
     With pyarrow, the relation is read as Arrow batches of `BATCH_ROWS`
     rows, each converted as `fetch` converts a whole relation (on `cur`, as
     the relation's own connection has the read open), so a batch reaches
-    the model in its feed's form, text as categories. Without it, the rows
+    the model in its feed's form, text as categories: those of
+    `categories` first, shared by every batch (without it, the first
+    batch's, sorted). Without pyarrow, the rows
     go in one batch. A relation of no rows gives one empty batch, so the
     model is asked once, as for any input.
     """
     picked = rel.project(*(duckdb.ColumnExpression(c) for c in [*columns, row]))
+    # A copy: what a batch learns is not kept for the model.
+    known = {c: list(v) for c, v in (categories or {}).items()}
     try:
         import pyarrow  # noqa: F401  (only to know it is there)
     except ImportError:
@@ -399,7 +448,7 @@ def _batches(
                 "pyarrow) to predict in batches."
             )
             warnings.warn(text, SqlearnWarning, stacklevel=5)
-        yield _fetched(picked, feed, columns, row)
+        yield _fetched(picked, feed, columns, row, known)
         return
     empty = True
     # Closed however the caller stops, so the connection's read is released.
@@ -408,9 +457,9 @@ def _batches(
             if batch.num_rows == 0:
                 continue
             empty = False
-            yield _fetched(cur.from_arrow(batch), feed, columns, row)
+            yield _fetched(cur.from_arrow(batch), feed, columns, row, known)
     if empty:
-        yield _fetched(picked, feed, columns, row)
+        yield _fetched(picked, feed, columns, row, known)
 
 
 def stream_into(
@@ -421,6 +470,7 @@ def stream_into(
     model: Model,
     *,
     method: str = "predict",
+    categories: Mapping[str, Sequence[str]] | None = None,
 ) -> tuple[str, list[str]]:
     """Predict a relation batch by batch into a table; the caller drops it.
 
@@ -438,6 +488,9 @@ def stream_into(
         The fitted model; `Model.feed` names the form of the hand-over.
     method : str, default "predict"
         The model's method to call: ``"predict"`` or ``"predict_proba"``.
+    categories : mapping of str to sequence of str, optional
+        Each text feature's categories as the model was trained on them
+        (see `fetch`): every batch keeps their codes.
 
     Returns
     -------
@@ -485,7 +538,7 @@ def stream_into(
     batch_name = f"_sqlearn_batch_{next(_prediction_ids)}"
     outputs: list[str] = []
     cur = con.cursor()
-    batches = _batches(cur, rel, model.feed, columns, row)
+    batches = _batches(cur, rel, model.feed, columns, row, categories)
     try:
         for x, rows in batches:
             values = _checked(np.asarray(predict(x)), len(rows), method)
@@ -524,6 +577,7 @@ def predict_streamed(
     model: Model,
     *,
     method: str = "predict",
+    categories: Mapping[str, Sequence[str]] | None = None,
 ) -> duckdb.DuckDBPyRelation:
     """Predict a relation one batch at a time, sorted back by row number.
 
@@ -546,6 +600,9 @@ def predict_streamed(
         The fitted model.
     method : str, default "predict"
         The model's method to call: ``"predict"`` or ``"predict_proba"``.
+    categories : mapping of str to sequence of str, optional
+        Each text feature's categories as the model was trained on them
+        (see `fetch`): every batch keeps their codes.
 
     Returns
     -------
@@ -572,7 +629,9 @@ def predict_streamed(
     >>> predict_streamed(con, rel, ["a"], "r", model).fetchall()
     [('no',), ('no',), ('no',)]
     """
-    name, outputs = stream_into(con, rel, columns, row, model, method=method)
+    name, outputs = stream_into(
+        con, rel, columns, row, model, method=method, categories=categories
+    )
     out = (
         con.sql(f"FROM {name}")
         .order(duckdb.ColumnExpression(row))

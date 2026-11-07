@@ -40,9 +40,15 @@ had nowhere to go but swap.
   strings, so each `VARCHAR` feature is cast after the fetch. A NULL stays
   missing (NaN, null), never a category of its own. CatBoost still takes
   `cat_features=` as it would without sqlearn.
+- **One category list per text column, from training.** Training records
+  each text feature's categories, sorted, from its rows (per fold in a
+  search); every prediction batch is cast with that list first and any new
+  values after it, sorted, so a known value keeps its code and a new one is
+  never dropped to missing. The lists travel with the trained pipeline.
 - **The target goes over in the same form** as the features: a numpy array, a
   pandas or Polars `Series`, a `pyarrow.ChunkedArray`. A missing target is
-  refused in every form.
+  refused in every form, counted as SQL NULLs
+  (a NaN target is a value).
 - **Predictions are asked for in the same form**, one batch at a time: each
   Arrow batch is converted as a whole fetch is, text as categories.
 - **In a search, each model trains in its own form**: a preparation's
@@ -58,8 +64,8 @@ had nowhere to go but swap.
 ## Consequences
 
 - Text no longer needs an encoding step for a model that reads categories.
-- A batch's categories are the batch's own values: a model that reads
-  categories by code rather than by value would mislead at predict.
-  LightGBM, CatBoost and scikit-learn's histogram boosting map by value.
+- A model that reads category codes rather than values (XGBoost before 3.1,
+  code reading `cat.codes`) reads the same code for a value at train and at
+  predict, in a search's held-out rows as at its fit.
 - Further forms DuckDB produces (PyTorch tensors, say) are added the same
   way.

@@ -257,3 +257,29 @@ def test_training_through_the_stream_is_not_built_yet():
     pipe = sq.Pipeline([sq.Model(LogisticRegression(), feed="stream")])
     with pytest.raises(SqlearnError, match="partial_fit"):
         pipe.train(NUMERIC_DATA, target="y")
+
+
+class Codes:
+    """A model that reads category codes: predict returns the city's codes."""
+
+    def fit(self, x, y):
+        """Learn nothing."""
+        return self
+
+    def predict(self, x):
+        """Return each row's city code, as XGBoost before 3.1 would read it."""
+        if isinstance(x, pd.DataFrame):
+            return x["city"].cat.codes.to_numpy()
+        if isinstance(x, pl.DataFrame):
+            return x["city"].to_physical().to_numpy()
+        return x.column("city").combine_chunks().indices.to_numpy()
+
+
+@pytest.mark.parametrize("feed", ["pandas", "polars", "arrow"])
+def test_prediction_reads_training_s_codes_batch_by_batch(feed, monkeypatch):
+    """A batch lacking a training value, or holding a new one, keeps the codes."""
+    train = pd.DataFrame({"city": ["rome", "oslo", "kyiv"], "y": [0, 1, 0]})
+    pipe = sq.Pipeline([sq.Model(Codes(), feed=feed)]).train(train, target="y")
+    monkeypatch.setattr(_feed, "BATCH_ROWS", 1)
+    later = pd.DataFrame({"city": ["rome", "paris", "kyiv"]})
+    assert pipe.predict(later, out="numpy")["prediction"].tolist() == [2, 3, 0]

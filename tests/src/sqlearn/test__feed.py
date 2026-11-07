@@ -254,7 +254,7 @@ def test_text_arrives_as_each_form_s_categories(con):
     rel = con.sql("SELECT * FROM (VALUES ('Oslo', 1.5), ('Rome', NULL)) t(city, a)")
     x, y = fetch(rel, "polars", ["city", "a"], None)
     assert y is None
-    assert x.schema["city"] == pl.Categorical
+    assert isinstance(x.schema["city"], pl.Categorical)
     assert x["a"].to_list() == [1.5, None]
     table, _ = fetch(rel, "arrow", ["city", "a"], None)
     assert pa.types.is_dictionary(table.schema.field("city").type)
@@ -372,3 +372,34 @@ def test_take_hands_over_numpy_only(con):
     """The other forms are fetch's: take refuses them."""
     with pytest.raises(sq.errors.SqlearnError, match="fetch"):
         _feed.take(con.sql("SELECT 1.0 AS a"), "pandas", ["a"])
+
+
+def codes(x, feed, column):
+    """Return the category codes of a column as the model would read them."""
+    if feed == "pandas":
+        return [None if c < 0 else int(c) for c in x[column].cat.codes]
+    if feed == "polars":
+        return x[column].to_physical().to_list()
+    return x.column(column).combine_chunks().indices.to_pylist()
+
+
+@pytest.mark.parametrize("feed", ["pandas", "polars", "arrow"])
+def test_known_categories_keep_their_codes_and_new_ones_follow(con, feed):
+    """Training's sorted list is the prefix; a new value is appended, not lost."""
+    train = con.sql("SELECT * FROM (VALUES ('rome'), ('oslo'), ('kyiv')) t(city)")
+    known = {}
+    x, _ = fetch(train, feed, ["city"], None, categories=known)
+    assert known == {"city": ["kyiv", "oslo", "rome"]}
+    assert codes(x, feed, "city") == [2, 1, 0]
+    later = con.sql("SELECT * FROM (VALUES ('rome'), ('paris'), (NULL)) t(city)")
+    x, _ = fetch(later, feed, ["city"], None, categories=known)
+    assert codes(x, feed, "city") == [2, 3, None]
+    assert known == {"city": ["kyiv", "oslo", "rome"]}
+
+
+def test_a_nan_target_is_not_missing_in_any_form(con):
+    """Only NULL is a missing target: NaN is a value, the same in every form."""
+    rel = con.sql("SELECT * FROM (VALUES (1.0, 'NaN'::DOUBLE), (2.0, 1.0)) t(a, y)")
+    for feed in ("numpy", "pandas", "polars", "arrow"):
+        _, y = fetch(rel, feed, ["a"], "y")
+        assert len(y) == 2

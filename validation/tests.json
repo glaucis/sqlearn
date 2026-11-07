@@ -1340,6 +1340,12 @@
     },
     {
       "area": "sqlearn/model_selection/search",
+      "name": "tests/src/sqlearn/model_selection/test_search.py::test_a_search_scores_held_rows_with_their_training_codes",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/search",
       "name": "tests/src/sqlearn/model_selection/test_search.py::test_a_search_takes_any_scheme",
       "outcome": "passed",
       "tier": "fast"
@@ -4568,6 +4574,12 @@
     },
     {
       "area": "sqlearn/_feed",
+      "name": "tests/src/sqlearn/test__feed.py::test_a_nan_target_is_not_missing_in_any_form",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_feed",
       "name": "tests/src/sqlearn/test__feed.py::test_a_prediction_per_row_is_required_in_every_batch",
       "outcome": "passed",
       "tier": "fast"
@@ -4593,6 +4605,24 @@
     {
       "area": "sqlearn/_feed",
       "name": "tests/src/sqlearn/test__feed.py::test_hand_over_refuses_a_column_that_is_not_a_number",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_feed",
+      "name": "tests/src/sqlearn/test__feed.py::test_known_categories_keep_their_codes_and_new_ones_follow[arrow]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_feed",
+      "name": "tests/src/sqlearn/test__feed.py::test_known_categories_keep_their_codes_and_new_ones_follow[pandas]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_feed",
+      "name": "tests/src/sqlearn/test__feed.py::test_known_categories_keep_their_codes_and_new_ones_follow[polars]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -4965,6 +4995,24 @@
     {
       "area": "sqlearn/_model",
       "name": "tests/src/sqlearn/test__model.py::test_one_model_gives_the_same_predictions_through_every_form",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_model",
+      "name": "tests/src/sqlearn/test__model.py::test_prediction_reads_training_s_codes_batch_by_batch[arrow]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_model",
+      "name": "tests/src/sqlearn/test__model.py::test_prediction_reads_training_s_codes_batch_by_batch[pandas]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_model",
+      "name": "tests/src/sqlearn/test__model.py::test_prediction_reads_training_s_codes_batch_by_batch[polars]",
       "outcome": "passed",
       "tier": "fast"
     },
