@@ -5,7 +5,7 @@ import weakref
 from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import replace
-from typing import Any
+from typing import Any, NamedTuple
 
 import duckdb
 from duckdb import Expression
@@ -32,16 +32,9 @@ from sqlearn._config import connection, get_config
 from sqlearn._diagnose import diagnose
 from sqlearn._errors import SqlearnError, StepError
 from sqlearn._expr import quote
+from sqlearn._feed import predict_streamed, take
 from sqlearn._inputs import Source, read
-from sqlearn._model import (
-    Model,
-    as_model,
-    check_feed,
-    is_model,
-    received,
-    take,
-    target_values,
-)
+from sqlearn._model import Model, as_model, check_feed, is_model, target_values
 from sqlearn._output import Output, to_output
 from sqlearn._plan import Plan, plan
 from sqlearn._selectors import Schema, _Cols, _is_numeric, to_selector
@@ -55,6 +48,17 @@ _ROW = "__sqlearn_row"
 _FOLD_TABLE = "__sqlearn_fold_"
 """The prefix of the temporary tables holding a search's prepared folds."""
 _fold_tables = itertools.count()
+
+
+class _FoldTable(NamedTuple):
+    """A search's prepared fold: its temporary table and the table's layout.
+
+    The table holds the features (`features`, in order), then `TARGET`,
+    the fold's helper columns and `_ROW`, each row's number.
+    """
+
+    name: str
+    features: tuple[str, ...]
 
 
 def _default_name(step: Step | object) -> str:
@@ -1055,7 +1059,7 @@ class Pipeline:
         *,
         keep: Sequence[str],
         held: Expression,
-    ) -> str:
+    ) -> _FoldTable:
         """Learn on one fold's training rows, then prepare all its rows once.
 
         `learn_from` holds the fold's training rows with the target set
@@ -1067,11 +1071,16 @@ class Pipeline:
         the fold holds out) take what was learned on all training rows.
         Nothing is kept on the pipeline.
 
-        The prepared rows are written to a temporary table, whose name is
-        returned: the features in order, then `TARGET`, the `keep` columns
-        and each row's number in the query's order (`_ROW`). DuckDB spills
-        the table to disk as it needs, so no fold is held in memory whole.
-        The caller drops it.
+        The prepared rows are written to a temporary table, returned with
+        its layout (`_FoldTable`): the features in order, then `TARGET`, the
+        `keep` columns and each row's number in the query's order (`_ROW`).
+        DuckDB spills the table to disk as it needs, so no fold is held in
+        memory whole. The caller drops it.
+
+        Raises
+        ------
+        SqlearnError
+            If a step creates a column named `_ROW`, the table's row number.
         """
         steps, _ = self._modelled()
         con = connection()
@@ -1083,14 +1092,23 @@ class Pipeline:
             con, data_sql, prepared.schema, steps, known,
             aside=_aside_of(prepared), cross=True, held=held,
         )  # fmt: skip
-        names = [*(c for c, _ in out), TARGET, *keep]
+        features = tuple(c for c, _ in out)
+        if any(c.lower() == _ROW for c in features):
+            msg = (
+                f"a step creates a column named {_ROW!r}, a name sqlearn keeps "
+                "for numbering each fold's rows during a search, so the rows "
+                "could not be told apart. Fix: rename what that step creates "
+                "(or the data values it names its columns after)."
+            )
+            raise SqlearnError(msg)
+        names = [*features, TARGET, *keep]
         rel = con.sql(build(data_sql, stages))
         rows = rel.project(*(duckdb.ColumnExpression(c) for c in names))
         table = f"{_FOLD_TABLE}{next(_fold_tables)}"
         con.execute(
             f"CREATE TEMP TABLE {quote(table)} AS {number_rows(rows.sql_query(), _ROW)}"
         )
-        return table
+        return _FoldTable(table, features)
 
     def _train(self, source: Source, target: str, feed: str) -> "Pipeline":
         """Train on data already read, as `train` describes."""
@@ -1136,8 +1154,10 @@ class Pipeline:
         """Prepare data with the learned values and predict with the model.
 
         One query prepares the data, its rows numbered in the order they are
-        read; the model's predictions are sorted back by that number, so row
-        ``i`` of the result is the prediction for row ``i`` of the input.
+        read. The rows are handed to the model one batch at a time
+        (streamed), and the predictions, kept in DuckDB beside those
+        numbers, are sorted back by them, so row ``i`` of the result is the
+        prediction for row ``i`` of the input.
 
         Parameters
         ----------
@@ -1207,7 +1227,9 @@ class Pipeline:
             )
             raise SqlearnError(msg)
         sql = build(numbered, stages)
-        x, aside = take(con.sql(sql), self._feed, self._columns_out, [_ROW])
-        rel = received(con, aside[_ROW], model.estimator.predict(x))
+        # Streamed: the model is handed one batch at a time, in the feed the
+        # pipeline was trained with.
+        fed = Model(model.estimator, self._feed)
+        rel = predict_streamed(con, con.sql(sql), self._columns_out, _ROW, fed)
         self.runs_ = [Run([sql])]
         return to_output(rel, out if out is not None else get_config().out)

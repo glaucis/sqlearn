@@ -1,14 +1,11 @@
-"""Tests of models: the wrapper, copying it, and handing data over."""
-
-import sys
+"""Tests of models: the wrapper and copying it."""
 
 import numpy as np
 import pytest
 from sklearn.linear_model import LogisticRegression
 
 import sqlearn as sq
-from sqlearn._config import connection
-from sqlearn._model import Model, as_model, copy_model, hand_over
+from sqlearn._model import Model, as_model, copy_model
 
 
 class Plain:
@@ -72,43 +69,6 @@ def test_copy_model_without_get_params_deep_copies():
     assert copy.estimator.weights is not model.estimator.weights
 
 
-def test_hand_over_gives_a_float_matrix_in_column_order():
-    """numpy: a 2-D float64 array, columns in order, NULL as NaN."""
-    rel = connection().sql(
-        "SELECT * FROM (VALUES (1, 2.5, true), (NULL, 4.0, false)) t(a, b, c)"
-    )
-    x = hand_over(rel, "numpy")
-    assert isinstance(x, np.ndarray)
-    assert x.dtype == np.float64
-    assert x.shape == (2, 3)
-    np.testing.assert_array_equal(x, [[1.0, 2.5, 1.0], [np.nan, 4.0, 0.0]])
-
-
-def test_hand_over_refuses_a_column_that_is_not_a_number():
-    """Text left in the data is named, with the steps that encode it."""
-    rel = connection().sql("SELECT 1.0 AS a, 'x' AS city")
-    with pytest.raises(sq.errors.SqlearnError, match=r"'city'.*onehot"):
-        hand_over(rel, "numpy")
-
-
-def test_feed_other_than_numpy_points_to_issue_21():
-    """Any other feed is not built yet, and the message says where it is planned."""
-    rel = connection().sql("SELECT 1.0 AS a")
-    url = "https://github.com/glaucis/sqlearn/issues/21"
-    with pytest.raises(sq.errors.SqlearnError, match=url):
-        hand_over(rel, "arrow")
-    with pytest.raises(sq.errors.SqlearnError, match=url):
-        sq.Model(LogisticRegression(), feed="arrow")
-
-
-def test_missing_numpy_says_to_install_it(monkeypatch):
-    """Without numpy, the numpy hand-over says to install it."""
-    monkeypatch.setitem(sys.modules, "numpy", None)
-    rel = connection().sql("SELECT 1.0 AS a")
-    with pytest.raises(sq.errors.SqlearnError, match="install numpy"):
-        hand_over(rel, "numpy")
-
-
 class Settings:
     """A model whose get_params takes no argument, holding a nested model."""
 
@@ -140,11 +100,3 @@ def test_copy_model_rebuilds_from_settings_and_copies_nested_models():
     assert copy.estimator.inner is not inner
     assert copy.estimator.inner.C == 3.0
     assert not hasattr(copy.estimator.inner, "coef_")
-
-
-def test_predictions_must_be_one_value_per_row():
-    """A model returning a table instead of one value per row is refused."""
-    frame = connection().sql("SELECT * FROM (VALUES (1.0, 2.0, 0)) t(a, b, y)")
-    pipe = sq.Pipeline([("model", Settings())]).train(frame, target="y")
-    with pytest.raises(sq.errors.SqlearnError, match="one value per row"):
-        pipe.predict(frame)

@@ -31,8 +31,8 @@ _connection_tokens: weakref.WeakKeyDictionary[duckdb.DuckDBPyConnection, int] = 
     weakref.WeakKeyDictionary()
 )
 _token_ids = itertools.count()
-_pending: list[tuple[weakref.ref[duckdb.DuckDBPyConnection], str]] = []
-"""Registrations whose owner is gone, unregistered at the next `read`."""
+_pending: list[tuple[weakref.ref[duckdb.DuckDBPyConnection], str, bool]] = []
+"""Registrations (False) and tables (True) whose owner is gone, released at the next `read`."""  # noqa: E501
 
 
 def _release_later(con: duckdb.DuckDBPyConnection, name: str) -> None:
@@ -43,17 +43,29 @@ def _release_later(con: duckdb.DuckDBPyConnection, name: str) -> None:
     connection: it only queues the name, and the next `read` (the start of
     every public call) unregisters it.
     """
-    _pending.append((weakref.ref(con), name))
+    _pending.append((weakref.ref(con), name, False))
+
+
+def _drop_later(con: duckdb.DuckDBPyConnection, table: str) -> None:
+    """Queue a table sqlearn made for dropping at the next `read`.
+
+    As `_release_later`, for a table: `table` is its qualified name, each
+    part quoted.
+    """
+    _pending.append((weakref.ref(con), table, True))
 
 
 def _release_pending() -> None:
-    """Unregister every queued registration whose connection is still open."""
+    """Release every queued registration and table whose connection is open."""
     while _pending:
-        ref, name = _pending.pop()
+        ref, name, table = _pending.pop()
         con = ref()
         if con is not None:
             with contextlib.suppress(duckdb.Error):
-                con.unregister(name)
+                if table:
+                    con.execute(f"DROP TABLE IF EXISTS {name}")
+                else:
+                    con.unregister(name)
 
 
 class _Frame(Protocol):

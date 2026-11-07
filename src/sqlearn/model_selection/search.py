@@ -19,10 +19,11 @@ from sqlearn._compose import POSITION, TARGET
 from sqlearn._config import connection
 from sqlearn._errors import DefaultsUsedWarning, SqlearnError
 from sqlearn._expr import quote
+from sqlearn._feed import stream_into, take
 from sqlearn._inputs import Source, _release_later, read
-from sqlearn._model import Model, _numpy, _unregister, take, target_values
+from sqlearn._model import Model, _numpy, missing_target, target_values
 from sqlearn._output import Output
-from sqlearn._pipeline import _ROW, Pipeline, _positioned, _source_sql
+from sqlearn._pipeline import _ROW, Pipeline, _FoldTable, _positioned, _source_sql
 from sqlearn._store import FoldKey
 from sqlearn.metrics import Metric, accuracy
 from sqlearn.model_selection.defaults import default_space, hint
@@ -90,12 +91,22 @@ def _fetch(
     table: duckdb.DuckDBPyRelation,
     rows: duckdb.Expression,
     feed: str,
-    features: list[str],
+    features: Sequence[str],
 ) -> tuple[Any, Any]:
     """Fetch the rows of a fold's table a predicate picks, in the query's order."""
     picked = table.filter(rows).sort(duckdb.ColumnExpression(_ROW))
     x, aside = take(picked, feed, features, [TARGET])
     return x, aside[TARGET]
+
+
+def _check_held_targets(
+    table: duckdb.DuckDBPyRelation, held: duckdb.Expression, target: str
+) -> None:
+    """Refuse held-out rows whose target is missing: they cannot be scored."""
+    unknown = held & duckdb.ColumnExpression(TARGET).isnull()
+    missing = table.filter(unknown).count("*").fetchall()[0][0]
+    if missing:
+        raise missing_target(target, missing)
 
 
 def _fold_error(
@@ -115,25 +126,30 @@ def _fold_error(
 def _score(
     con: duckdb.DuckDBPyConnection,
     metric: Metric,
-    y: Any,  # noqa: ANN401  (numpy arrays)
-    predicted: object,
+    fold_table: str,
+    held: duckdb.Expression,
+    predictions: str,
 ) -> float:
-    """Compute the metric in SQL over the held-out targets and predictions."""
-    np = _numpy()
-    values = np.asarray(predicted)
-    if values.ndim != 1 or len(values) != len(y):
-        msg = (
-            f"the model's predict returned an array of shape {values.shape}, "
-            f"not one value for each of the {len(y)} held-out rows. Fix: use "
-            "a model whose predict returns one value per row."
+    """Compute the metric in SQL: each held-out row's target beside its prediction.
+
+    `predictions` (a table `stream_into` filled) is joined to the fold's
+    table by row number; both are tables sqlearn owns (Ruling R1).
+    """
+    row = quote(_ROW)
+    scored = (
+        con.table(fold_table)
+        .filter(held)
+        .set_alias("held")
+        .join(
+            con.sql(f"FROM {predictions}").set_alias("predicted"),
+            f"held.{row} = predicted.{row}",
         )
-        raise SqlearnError(msg)
-    name = f"_sqlearn_scored_{next(_ids)}"
-    con.register(name, {"target": y, "prediction": values})
-    try:
-        return metric.compute(con.table(name), "target", "prediction")
-    finally:
-        _unregister(con, name)
+        .project(
+            duckdb.ColumnExpression("held", TARGET).alias("target"),
+            duckdb.ColumnExpression("predicted", "prediction"),
+        )
+    )
+    return metric.compute(scored, "target", "prediction")
 
 
 class Search:
@@ -203,7 +219,7 @@ class Search:
         self.method = method
         self.folds = folds
         self.transforms_ = 0
-        self._fold_tables: dict[tuple[str, FoldKey], str] = {}
+        self._fold_tables: dict[tuple[str, FoldKey], _FoldTable] = {}
 
     def _space(self, model_name: str, model: Model) -> tuple[list[Params], str]:
         """Return the space to search and what `used_` says of it; warn on a default."""
@@ -257,9 +273,11 @@ class Search:
         SqlearnError
             If the pipeline has no model, a setting names a step or setting
             that does not exist, the method refuses the params, the target
-            is not a column, the data has a column named ``__sqlearn_fold``,
-            a fold holds out no row, or the model fails to fit or predict on
-            a fold (naming the setting and the fold).
+            is not a column, the data has a column whose name starts with
+            ``__sqlearn_fold`` or a column (or a step creates one) named
+            ``__sqlearn_row``, a fold holds out no row, a target is missing,
+            or the model fails to fit or predict on a fold (naming the
+            setting and the fold).
         StepError
             As for `Pipeline.train`.
 
@@ -306,6 +324,14 @@ class Search:
                 "that column."
             )
             raise SqlearnError(msg)
+        if any(c.lower() == _ROW for c, _ in source.schema):
+            msg = (
+                f"the data has a column named {_ROW!r}, a name sqlearn keeps "
+                "for numbering each fold's rows during a search, so "
+                "predictions line up with their targets. Fix: rename that "
+                "column."
+            )
+            raise SqlearnError(msg)
         _check_folds(source, folds, target)
         self.transforms_ = 0
         scored: list[tuple[Params, list[float]]] = []
@@ -326,7 +352,7 @@ class Search:
         finally:
             tables, self._fold_tables = self._fold_tables, {}
             for table in tables.values():
-                con.execute(f"DROP TABLE IF EXISTS {quote(table)}")
+                con.execute(f"DROP TABLE IF EXISTS {quote(table.name)}")
         if not scored:
             msg = (
                 f"the method {method!r} gave no setting to try, so there is "
@@ -359,8 +385,10 @@ class Search:
 
         A (preparation, fold) already in `_fold_tables` is read from its
         table; any other is prepared into a new one and counted in
-        `transforms_`. The training rows and the held-out rows are fetched
-        from the table apart, each by the scheme's own predicate.
+        `transforms_`. The training rows are fetched from the table by the
+        scheme's own predicate; the held-out rows, picked by its other, are
+        streamed to each model in batches and scored in SQL against their
+        targets.
         """
         con = connection()
         model_name = self.pipe.steps[-1][0]
@@ -384,41 +412,46 @@ class Search:
             for preparation, members in groups.items():
                 prepared = trial(self.pipe, settings[members[0]])
                 _, first = prepared._modelled()
-                name = self._fold_tables.get((preparation, fold))
-                if name is None:
+                prepared_fold = self._fold_tables.get((preparation, fold))
+                if prepared_fold is None:
                     # The setting's own steps: their inner folds travel beside.
                     learn_from = prepared._features(
                         Source(rows, source.key, source.schema), target
                     )
-                    name = prepared._prepare_fold(
+                    prepared_fold = prepared._prepare_fold(
                         learn_from, fold, numbered, target,
                         keep=helpers, held=folds.held(FOLD, k),
                     )  # fmt: skip
-                    self._fold_tables[preparation, fold] = name
+                    self._fold_tables[preparation, fold] = prepared_fold
                     self.transforms_ += 1
-                table = con.table(name)
-                # The table holds the features, then TARGET, the fold's
-                # helper columns and the row number.
-                features = table.columns[: len(table.columns) - len(helpers) - 2]
+                table = con.table(prepared_fold.name)
+                features = prepared_fold.features
                 x_fit, y_fit = _fetch(
                     table, folds.training(FOLD, k), first.feed, features
                 )
-                x_held, y_held = _fetch(
-                    table, folds.held(FOLD, k), first.feed, features
-                )
                 y_fit = target_values(y_fit, target)
-                y_held = target_values(y_held, target)
+                _check_held_targets(table, folds.held(FOLD, k), target)
+                # The held-out rows are streamed to each model in batches.
+                held = table.filter(folds.held(FOLD, k))
                 for i in members:
                     _, model = trial(self.pipe, settings[i])._modelled()
                     action = "fit"
                     try:
                         model.estimator.fit(x_fit, y_fit)
                         action = "predict"
-                        predicted = model.estimator.predict(x_held)
+                        predictions, _ = stream_into(con, held, features, _ROW, model)
+                    except SqlearnError:
+                        raise
                     except Exception as exc:
                         err = _fold_error(exc, action, settings[i], k, folds)
                         raise err from exc
-                    scores[i][k] = _score(con, self.metric, y_held, predicted)
+                    try:
+                        scores[i][k] = _score(
+                            con, self.metric, prepared_fold.name,
+                            folds.held(FOLD, k), predictions,
+                        )  # fmt: skip
+                    finally:
+                        con.execute(f"DROP TABLE IF EXISTS {predictions}")
         return scores
 
     @staticmethod

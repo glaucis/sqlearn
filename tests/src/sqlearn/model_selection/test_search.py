@@ -11,8 +11,10 @@ from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import TargetEncoder
 from sklearn.tree import DecisionTreeClassifier
+from steps_for_tests import MyEncoder
 
 import sqlearn as sq
+from sqlearn import _feed
 from sqlearn._config import connection
 from sqlearn._store import STORE
 from sqlearn.metrics import Metric
@@ -731,3 +733,67 @@ def test_fold_tables_are_dropped_when_train_raises():
         .fetchall()[0][0]
     )
     assert temp == 0
+
+
+def test_a_column_named_as_the_row_number_is_refused():
+    """The fold tables number their rows under a name the search keeps."""
+    data = customers(rows=50).assign(__sqlearn_row=1)
+    with pytest.raises(sq.errors.SqlearnError, match=r"'__sqlearn_row'.*Fix"):
+        sq.search(slice_pipe(), params={"model__C": [1.0]}).train(
+            data, target="churned"
+        )
+
+
+def test_a_step_output_named_as_the_row_number_is_refused():
+    """A step creating a column named as the row number is refused too."""
+    # The encoder names its columns column_value: "_" and "sqlearn_row".
+    data = pd.DataFrame({"_": ["sqlearn_row", "oslo"] * 10, "y": [0, 0, 1, 1] * 5})
+    pipe = sq.Pipeline([MyEncoder(cols=["_"]), LogisticRegression()])
+    with pytest.raises(sq.errors.SqlearnError, match=r"'__sqlearn_row'.*Fix"):
+        sq.search(pipe, params={}, folds=sq.folds.kfold(2)).train(data, target="y")
+
+
+def test_each_held_out_fold_is_scored_in_batches(monkeypatch):
+    """The held-out rows reach predict one batch at a time; scores unchanged."""
+    expected = sq.search(
+        PIPE_WITH_SCALE, params={"model__C": [1.0]}, folds=sq.folds.kfold(2)
+    ).train(DATA, target="y")
+    monkeypatch.setattr(_feed, "BATCH_ROWS", 4)
+    seen = []
+
+    class Batches(LogisticRegression):
+        def predict(self, X):  # noqa: N803  (scikit-learn's name)
+            seen.append(len(X))
+            return super().predict(X)
+
+    pipe = sq.Pipeline([("scale", sq.scale.standard()), ("model", Batches())])
+    search = sq.search(pipe, params={"model__C": [1.0]}, folds=sq.folds.kfold(2))
+    search.train(DATA, target="y")
+    assert sum(seen) == len(DATA)  # every row held out once
+    assert max(seen) == 4
+    assert len(seen) >= 8
+    assert search.results_.fetchall() == expected.results_.fetchall()
+
+
+def test_no_predictions_table_outlives_the_search():
+    """Each fold's predictions are dropped once scored."""
+    search = sq.search(
+        PIPE_WITH_SCALE, params={"model__C": [0.1, 1.0]}, folds=sq.folds.kfold(2)
+    )
+    search.train(DATA, target="y")
+    query = (
+        "SELECT count(*) FROM duckdb_tables() "
+        f"WHERE database_name = '{_feed._DATABASE}'"
+    )
+    assert connection().sql(query).fetchall()[0][0] == 0
+
+
+def test_a_held_out_row_without_a_target_is_refused():
+    """The last rows in time are only ever held out; a missing target there."""
+    data = pd.DataFrame(
+        {"t": np.arange(30), "x": np.arange(30.0), "y": [0.0, 1.0] * 14 + [1.0, None]}
+    )
+    pipe = sq.Pipeline([("model", LogisticRegression())])
+    search = sq.search(pipe, params={}, folds=sq.folds.time("t", n=2))
+    with pytest.raises(sq.errors.SqlearnError, match=r"'y' is missing in 1 row"):
+        search.train(data, target="y")
