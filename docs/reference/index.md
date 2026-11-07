@@ -70,6 +70,9 @@ The API of the sqlearn package, generated from its docstrings.
    sqlearn.folds.holdout
    sqlearn.metrics.Metric
    sqlearn.metrics.accuracy
+   sqlearn.metrics.rmse
+   sqlearn.metrics.mae
+   sqlearn.metrics.r2
    sqlearn.Model
    sqlearn.Output
    sqlearn.out.parquet

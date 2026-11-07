@@ -1045,6 +1045,66 @@
       "tier": "fast"
     },
     {
+      "area": "sqlearn/metrics/regression",
+      "name": "tests/src/sqlearn/metrics/test_regression.py::test_a_search_minimises_rmse",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/regression",
+      "name": "tests/src/sqlearn/metrics/test_regression.py::test_r2_of_a_constant_target_follows_scikit_learn",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/regression",
+      "name": "tests/src/sqlearn/metrics/test_regression.py::test_r2_survives_a_large_offset",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/regression",
+      "name": "tests/src/sqlearn/metrics/test_regression.py::test_regression_metrics_match_scikit_learn[metric0-root_mean_squared_error]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/regression",
+      "name": "tests/src/sqlearn/metrics/test_regression.py::test_regression_metrics_match_scikit_learn[metric1-mean_absolute_error]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/regression",
+      "name": "tests/src/sqlearn/metrics/test_regression.py::test_regression_metrics_match_scikit_learn[metric2-r2_score]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/regression",
+      "name": "tests/src/sqlearn/metrics/test_regression.py::test_regression_metrics_refuse_missing_values_and_no_rows[metric0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/regression",
+      "name": "tests/src/sqlearn/metrics/test_regression.py::test_regression_metrics_refuse_missing_values_and_no_rows[metric1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/regression",
+      "name": "tests/src/sqlearn/metrics/test_regression.py::test_regression_metrics_refuse_missing_values_and_no_rows[metric2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/regression",
+      "name": "tests/src/sqlearn/metrics/test_regression.py::test_the_direction_of_each_metric",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
       "area": "sqlearn/model_selection/defaults",
       "name": "tests/src/sqlearn/model_selection/test_defaults.py::test_default_space_is_looked_up_by_package_and_class",
       "outcome": "passed",
@@ -1231,6 +1291,168 @@
       "tier": "fast"
     },
     {
+      "area": "sqlearn/model_selection/kept",
+      "name": "tests/src/sqlearn/model_selection/test_kept.py::test_a_changed_file_is_prepared_again",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/kept",
+      "name": "tests/src/sqlearn/model_selection/test_kept.py::test_a_failed_index_write_drops_the_table",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/kept",
+      "name": "tests/src/sqlearn/model_selection/test_kept.py::test_a_file_locked_by_another_process_is_explained",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/kept",
+      "name": "tests/src/sqlearn/model_selection/test_kept.py::test_a_file_that_is_not_a_database_is_explained",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/kept",
+      "name": "tests/src/sqlearn/model_selection/test_kept.py::test_a_fit_failing_after_a_kept_table_was_read_leaves_the_file_whole",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/kept",
+      "name": "tests/src/sqlearn/model_selection/test_kept.py::test_a_frame_is_kept_by_its_content",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/kept",
+      "name": "tests/src/sqlearn/model_selection/test_kept.py::test_a_lambda_or_an_object_without_a_repr_is_refused_for_keeping",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/kept",
+      "name": "tests/src/sqlearn/model_selection/test_kept.py::test_a_relation_or_in_memory_table_of_the_connection_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/kept",
+      "name": "tests/src/sqlearn/model_selection/test_kept.py::test_a_second_search_prepares_nothing",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/kept",
+      "name": "tests/src/sqlearn/model_selection/test_kept.py::test_a_setting_not_keyable_by_content_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/kept",
+      "name": "tests/src/sqlearn/model_selection/test_kept.py::test_a_step_function_is_known_by_its_dotted_name",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/kept",
+      "name": "tests/src/sqlearn/model_selection/test_kept.py::test_a_step_setting_searched_is_kept_per_setting",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/kept",
+      "name": "tests/src/sqlearn/model_selection/test_kept.py::test_an_input_without_a_stable_identity_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/kept",
+      "name": "tests/src/sqlearn/model_selection/test_kept.py::test_clear_removes_the_kept_tables",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/kept",
+      "name": "tests/src/sqlearn/model_selection/test_kept.py::test_dicts_sets_and_nested_steps_are_keyed_by_content",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/kept",
+      "name": "tests/src/sqlearn/model_selection/test_kept.py::test_each_kept_folds_attaches_under_its_own_alias",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/kept",
+      "name": "tests/src/sqlearn/model_selection/test_kept.py::test_every_built_in_step_can_be_kept",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/kept",
+      "name": "tests/src/sqlearn/model_selection/test_kept.py::test_kept_folds_score_as_temporary_ones",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/kept",
+      "name": "tests/src/sqlearn/model_selection/test_kept.py::test_large_arrays_differing_in_one_value_get_other_names",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/kept",
+      "name": "tests/src/sqlearn/model_selection/test_kept.py::test_other_steps_settings_or_folds_are_prepared_again",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/kept",
+      "name": "tests/src/sqlearn/model_selection/test_kept.py::test_prepared_of_a_missing_file_is_empty",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/kept",
+      "name": "tests/src/sqlearn/model_selection/test_kept.py::test_the_connection_own_database_file_can_keep_them",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/kept",
+      "name": "tests/src/sqlearn/model_selection/test_kept.py::test_the_file_is_detached_after_train",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/kept",
+      "name": "tests/src/sqlearn/model_selection/test_kept.py::test_the_file_is_detached_when_train_raises",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/kept",
+      "name": "tests/src/sqlearn/model_selection/test_kept.py::test_the_index_names_each_kept_table",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/kept",
+      "name": "tests/src/sqlearn/model_selection/test_kept.py::test_the_table_name_carries_the_key",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/kept",
+      "name": "tests/src/sqlearn/model_selection/test_kept.py::test_the_table_name_is_the_same_in_another_process",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
       "area": "sqlearn/model_selection/methods",
       "name": "tests/src/sqlearn/model_selection/test_methods.py::test_a_single_value_is_refused",
       "outcome": "passed",
@@ -1251,6 +1473,84 @@
     {
       "area": "sqlearn/model_selection/methods",
       "name": "tests/src/sqlearn/model_selection/test_methods.py::test_grid_knows_all_and_records_scores",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/methods",
+      "name": "tests/src/sqlearn/model_selection/test_methods.py::test_integer_bounds_draw_integers",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/methods",
+      "name": "tests/src/sqlearn/model_selection/test_methods.py::test_optuna_chooses_among_models",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/methods",
+      "name": "tests/src/sqlearn/model_selection/test_methods.py::test_optuna_finds_the_better_setting",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/methods",
+      "name": "tests/src/sqlearn/model_selection/test_methods.py::test_optuna_integer_range_and_several_grids",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/methods",
+      "name": "tests/src/sqlearn/model_selection/test_methods.py::test_optuna_is_repeatable_for_a_seed",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/methods",
+      "name": "tests/src/sqlearn/model_selection/test_methods.py::test_optuna_minimises_when_lower_is_better",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/methods",
+      "name": "tests/src/sqlearn/model_selection/test_methods.py::test_optuna_missing_names_how_to_install",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/methods",
+      "name": "tests/src/sqlearn/model_selection/test_methods.py::test_optuna_refusals_and_repr",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/methods",
+      "name": "tests/src/sqlearn/model_selection/test_methods.py::test_optuna_takes_a_sampler",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/methods",
+      "name": "tests/src/sqlearn/model_selection/test_methods.py::test_random_chooses_among_the_grids_and_lists_uniformly",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/methods",
+      "name": "tests/src/sqlearn/model_selection/test_methods.py::test_random_draws_the_same_settings_for_a_seed",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/methods",
+      "name": "tests/src/sqlearn/model_selection/test_methods.py::test_random_repr_and_refusals",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/methods",
+      "name": "tests/src/sqlearn/model_selection/test_methods.py::test_random_search_matches_scikit_learn_on_its_draws",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -4424,6 +4724,12 @@
     },
     {
       "area": "sqlearn/_config",
+      "name": "tests/src/sqlearn/test__config.py::test_a_passed_connection_is_never_changed",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_config",
       "name": "tests/src/sqlearn/test__config.py::test_config_is_reset_between_tests",
       "outcome": "passed",
       "tier": "fast"
@@ -4436,6 +4742,42 @@
     },
     {
       "area": "sqlearn/_config",
+      "name": "tests/src/sqlearn/test__config.py::test_memory_is_kept_in_bytes",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_config",
+      "name": "tests/src/sqlearn/test__config.py::test_memory_that_is_not_a_size_is_refused[-5]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_config",
+      "name": "tests/src/sqlearn/test__config.py::test_memory_that_is_not_a_size_is_refused[0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_config",
+      "name": "tests/src/sqlearn/test__config.py::test_memory_that_is_not_a_size_is_refused[1.5]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_config",
+      "name": "tests/src/sqlearn/test__config.py::test_memory_that_is_not_a_size_is_refused[True]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_config",
+      "name": "tests/src/sqlearn/test__config.py::test_memory_that_is_not_a_size_is_refused[lots]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_config",
       "name": "tests/src/sqlearn/test__config.py::test_set_config_connection_is_used",
       "outcome": "passed",
       "tier": "fast"
@@ -4443,6 +4785,18 @@
     {
       "area": "sqlearn/_config",
       "name": "tests/src/sqlearn/test__config.py::test_set_config_out_keeps_the_connection",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_config",
+      "name": "tests/src/sqlearn/test__config.py::test_the_shared_connection_follows_a_new_budget",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_config",
+      "name": "tests/src/sqlearn/test__config.py::test_the_shared_connection_takes_half_the_budget",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -4562,6 +4916,12 @@
     },
     {
       "area": "sqlearn/_feed",
+      "name": "tests/src/sqlearn/test__feed.py::test_a_fold_too_big_is_refused_before_fetching",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_feed",
       "name": "tests/src/sqlearn/test__feed.py::test_a_missing_library_says_to_install_it[arrow-pyarrow]",
       "outcome": "passed",
       "tier": "fast"
@@ -4580,6 +4940,12 @@
     },
     {
       "area": "sqlearn/_feed",
+      "name": "tests/src/sqlearn/test__feed.py::test_a_model_without_partial_fit_is_refused_naming_other_forms",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_feed",
       "name": "tests/src/sqlearn/test__feed.py::test_a_nan_target_is_not_missing_in_any_form",
       "outcome": "passed",
       "tier": "fast"
@@ -4592,13 +4958,67 @@
     },
     {
       "area": "sqlearn/_feed",
+      "name": "tests/src/sqlearn/test__feed.py::test_a_search_is_refused_at_a_folds_training_fetch",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_feed",
+      "name": "tests/src/sqlearn/test__feed.py::test_a_search_refuses_a_stream_model_without_partial_fit_as_it_is",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_feed",
+      "name": "tests/src/sqlearn/test__feed.py::test_a_search_streams_folds_in_row_order_without_shuffle",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_feed",
+      "name": "tests/src/sqlearn/test__feed.py::test_a_search_trains_each_fold_through_the_stream",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_feed",
       "name": "tests/src/sqlearn/test__feed.py::test_a_search_without_pyarrow_scores_the_same",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "sqlearn/_feed",
+      "name": "tests/src/sqlearn/test__feed.py::test_a_small_fetch_on_a_default_passed_connection_is_not_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_feed",
+      "name": "tests/src/sqlearn/test__feed.py::test_a_small_fetch_on_an_unlimited_connection_is_not_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_feed",
+      "name": "tests/src/sqlearn/test__feed.py::test_a_stream_model_predicts_in_numpy_batches",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_feed",
+      "name": "tests/src/sqlearn/test__feed.py::test_a_too_big_training_is_refused_and_the_pipeline_untouched",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_feed",
       "name": "tests/src/sqlearn/test__feed.py::test_an_unknown_feed_is_refused_naming_the_forms",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_feed",
+      "name": "tests/src/sqlearn/test__feed.py::test_batches_are_cut_to_the_size_asked_for",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -4629,6 +5049,12 @@
     {
       "area": "sqlearn/_feed",
       "name": "tests/src/sqlearn/test__feed.py::test_known_categories_keep_their_codes_and_new_ones_follow[polars]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_feed",
+      "name": "tests/src/sqlearn/test__feed.py::test_megabytes_sets_the_batch_from_the_row_width",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -4688,7 +5114,67 @@
     },
     {
       "area": "sqlearn/_feed",
+      "name": "tests/src/sqlearn/test__feed.py::test_rows_and_megabytes_together_are_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_feed",
+      "name": "tests/src/sqlearn/test__feed.py::test_stream_defaults_to_batches_of_about_100_megabytes",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_feed",
+      "name": "tests/src/sqlearn/test__feed.py::test_stream_gives_no_classes_to_a_model_that_takes_none",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_feed",
+      "name": "tests/src/sqlearn/test__feed.py::test_stream_gives_the_classes_on_the_first_call_only",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_feed",
+      "name": "tests/src/sqlearn/test__feed.py::test_stream_matches_sgd_on_the_same_order",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_feed",
+      "name": "tests/src/sqlearn/test__feed.py::test_stream_never_passes_an_empty_batch",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_feed",
+      "name": "tests/src/sqlearn/test__feed.py::test_stream_shuffles_by_seed_and_epoch",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_feed",
+      "name": "tests/src/sqlearn/test__feed.py::test_stream_trains_in_batches_of_the_rows_given",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_feed",
+      "name": "tests/src/sqlearn/test__feed.py::test_stream_without_shuffle_keeps_the_input_order",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_feed",
       "name": "tests/src/sqlearn/test__feed.py::test_streamed_prediction_hands_each_batch_in_the_model_s_form",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_feed",
+      "name": "tests/src/sqlearn/test__feed.py::test_streamed_predictions_are_not_checked_batch_by_batch",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -4712,7 +5198,67 @@
     },
     {
       "area": "sqlearn/_feed",
+      "name": "tests/src/sqlearn/test__feed.py::test_the_fallback_without_pyarrow_is_checked",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_feed",
       "name": "tests/src/sqlearn/test__feed.py::test_the_predictions_table_is_dropped_with_the_relation",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_feed",
+      "name": "tests/src/sqlearn/test__feed.py::test_the_shared_connections_refusal_does_not_suggest_its_limit",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_feed",
+      "name": "tests/src/sqlearn/test__feed.py::test_the_stream_is_not_checked",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_feed",
+      "name": "tests/src/sqlearn/test__feed.py::test_the_stream_refuses_a_missing_target_counting_every_row",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_feed",
+      "name": "tests/src/sqlearn/test__feed.py::test_the_stream_refuses_data_without_rows",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_feed",
+      "name": "tests/src/sqlearn/test__feed.py::test_the_stream_refuses_text_before_any_batch",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_feed",
+      "name": "tests/src/sqlearn/test__feed.py::test_the_stream_s_counts_must_be_positive_ints[setting0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_feed",
+      "name": "tests/src/sqlearn/test__feed.py::test_the_stream_s_counts_must_be_positive_ints[setting1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_feed",
+      "name": "tests/src/sqlearn/test__feed.py::test_the_stream_s_counts_must_be_positive_ints[setting2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_feed",
+      "name": "tests/src/sqlearn/test__feed.py::test_the_stream_without_pyarrow_is_refused",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -4778,6 +5324,12 @@
     },
     {
       "area": "sqlearn/_inputs",
+      "name": "tests/src/sqlearn/test__inputs.py::test_a_file_stable_key_is_its_absolute_path_size_and_mtime",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_inputs",
       "name": "tests/src/sqlearn/test__inputs.py::test_a_finaliser_never_calls_the_connection",
       "outcome": "passed",
       "tier": "fast"
@@ -4785,6 +5337,12 @@
     {
       "area": "sqlearn/_inputs",
       "name": "tests/src/sqlearn/test__inputs.py::test_a_frame_is_not_copied_in_the_normal_case",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_inputs",
+      "name": "tests/src/sqlearn/test__inputs.py::test_a_frame_stable_key_is_its_content_in_any_process",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -4809,6 +5367,12 @@
     {
       "area": "sqlearn/_inputs",
       "name": "tests/src/sqlearn/test__inputs.py::test_a_polars_frame_is_refused_with_the_reason",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_inputs",
+      "name": "tests/src/sqlearn/test__inputs.py::test_a_qualified_or_temporary_table_name_is_resolved",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -4856,6 +5420,12 @@
     },
     {
       "area": "sqlearn/_inputs",
+      "name": "tests/src/sqlearn/test__inputs.py::test_a_table_in_a_database_file_is_keyed_by_file_name_and_rows",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_inputs",
       "name": "tests/src/sqlearn/test__inputs.py::test_a_table_name_is_keyed_by_row_count",
       "outcome": "passed",
       "tier": "fast"
@@ -4869,6 +5439,12 @@
     {
       "area": "sqlearn/_inputs",
       "name": "tests/src/sqlearn/test__inputs.py::test_an_edited_frame_gets_a_new_key",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_inputs",
+      "name": "tests/src/sqlearn/test__inputs.py::test_an_in_memory_table_or_relation_has_no_stable_key",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -4917,6 +5493,180 @@
     {
       "area": "sqlearn/_inputs",
       "name": "tests/src/sqlearn/test__inputs.py::test_two_frames_do_not_collide",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_memory",
+      "name": "tests/src/sqlearn/test__memory.py::test_a_nested_column_is_counted_as_its_text",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_memory",
+      "name": "tests/src/sqlearn/test__memory.py::test_a_passed_connections_allowance_is_the_budget_minus_its_limit",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_memory",
+      "name": "tests/src/sqlearn/test__memory.py::test_a_passed_default_connection_counts_as_half_the_budget",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_memory",
+      "name": "tests/src/sqlearn/test__memory.py::test_an_unlimited_connection_counts_as_half_the_budget",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_memory",
+      "name": "tests/src/sqlearn/test__memory.py::test_duckdb_limit_reads_the_connections_memory_limit",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_memory",
+      "name": "tests/src/sqlearn/test__memory.py::test_numpy_counts_a_mask_byte_for_a_column_with_nulls",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_memory",
+      "name": "tests/src/sqlearn/test__memory.py::test_parse_reads_the_byte_strings_duckdb_reads_and_prints[100B-100]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_memory",
+      "name": "tests/src/sqlearn/test__memory.py::test_parse_reads_the_byte_strings_duckdb_reads_and_prints[12.7 GiB-13636521164]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_memory",
+      "name": "tests/src/sqlearn/test__memory.py::test_parse_reads_the_byte_strings_duckdb_reads_and_prints[16383.9 PiB-18446631483718866944]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_memory",
+      "name": "tests/src/sqlearn/test__memory.py::test_parse_reads_the_byte_strings_duckdb_reads_and_prints[1TB-1000000000000]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_memory",
+      "name": "tests/src/sqlearn/test__memory.py::test_parse_reads_the_byte_strings_duckdb_reads_and_prints[2 kb-2000]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_memory",
+      "name": "tests/src/sqlearn/test__memory.py::test_parse_reads_the_byte_strings_duckdb_reads_and_prints[3KiB-3072]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_memory",
+      "name": "tests/src/sqlearn/test__memory.py::test_parse_reads_the_byte_strings_duckdb_reads_and_prints[512 bytes-512]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_memory",
+      "name": "tests/src/sqlearn/test__memory.py::test_parse_reads_the_byte_strings_duckdb_reads_and_prints[61.0 MiB-63963136]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_memory",
+      "name": "tests/src/sqlearn/test__memory.py::test_parse_reads_the_byte_strings_duckdb_reads_and_prints[64MB-64000000]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_memory",
+      "name": "tests/src/sqlearn/test__memory.py::test_parse_reads_the_byte_strings_duckdb_reads_and_prints[8GB-8000000000]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_memory",
+      "name": "tests/src/sqlearn/test__memory.py::test_parse_refuses_what_is_not_a_size[-1GB]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_memory",
+      "name": "tests/src/sqlearn/test__memory.py::test_parse_refuses_what_is_not_a_size[8 XB]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_memory",
+      "name": "tests/src/sqlearn/test__memory.py::test_parse_refuses_what_is_not_a_size[GB]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_memory",
+      "name": "tests/src/sqlearn/test__memory.py::test_parse_refuses_what_is_not_a_size[]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_memory",
+      "name": "tests/src/sqlearn/test__memory.py::test_parse_refuses_what_is_not_a_size[lots]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_memory",
+      "name": "tests/src/sqlearn/test__memory.py::test_physical_memory_is_capped_by_the_cgroup_limit",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_memory",
+      "name": "tests/src/sqlearn/test__memory.py::test_physical_memory_is_found",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_memory",
+      "name": "tests/src/sqlearn/test__memory.py::test_the_budget_is_four_fifths_of_physical_memory_by_default",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_memory",
+      "name": "tests/src/sqlearn/test__memory.py::test_the_budget_is_the_configured_memory",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_memory",
+      "name": "tests/src/sqlearn/test__memory.py::test_the_estimate_counts_a_number_twice_over",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_memory",
+      "name": "tests/src/sqlearn/test__memory.py::test_the_estimate_counts_text_by_its_average_length",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_memory",
+      "name": "tests/src/sqlearn/test__memory.py::test_the_estimate_of_no_columns_or_no_rows_is_zero",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_memory",
+      "name": "tests/src/sqlearn/test__memory.py::test_the_shared_connections_allowance_is_half_the_budget",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -5061,12 +5811,6 @@
     {
       "area": "sqlearn/_model",
       "name": "tests/src/sqlearn/test__model.py::test_the_target_goes_over_in_the_form_of_the_features",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "sqlearn/_model",
-      "name": "tests/src/sqlearn/test__model.py::test_training_through_the_stream_is_not_built_yet",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -6561,6 +7305,18 @@
     {
       "area": "sqlearn/slice",
       "name": "tests/src/sqlearn/test_slice.py::test_the_slice_script_runs",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/store",
+      "name": "tests/src/sqlearn/test_store.py::test_clear_of_a_missing_prepared_file_does_nothing",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/store",
+      "name": "tests/src/sqlearn/test_store.py::test_prepared_lists_the_index_columns",
       "outcome": "passed",
       "tier": "fast"
     },
