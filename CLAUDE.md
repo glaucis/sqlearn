@@ -35,6 +35,10 @@ Rules from the ADRs:
 Superpowers skills save specs to `docs/specs/` and plans to `docs/plans/`
 here, not `docs/superpowers/`.
 
+## Current state of work
+
+@HANDOFF.md
+
 ## Commit conventions
 
 This repository's history must contain no AI or tool attribution.
