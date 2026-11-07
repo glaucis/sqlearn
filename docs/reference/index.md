@@ -57,10 +57,11 @@ The API of the sqlearn package, generated from its docstrings.
    sqlearn.features.spline
    sqlearn.preprocessing.Polynomial
    sqlearn.preprocessing.Spline
-   sqlearn.Search
-   sqlearn.Grid
-   sqlearn.KFold
-   sqlearn.range
+   sqlearn.search
+   sqlearn.search.grid
+   sqlearn.search.range
+   sqlearn.folds
+   sqlearn.folds.kfold
    sqlearn.metrics.Metric
    sqlearn.metrics.accuracy
    sqlearn.Model

@@ -30,12 +30,12 @@ extensions = [
 nitpicky = True
 # Types that docstrings name and the reference does not list: the internal
 # (underscored) classes, such as the selectors and a group's settings, the
-# search-method classes, DuckDB's private type module,
+# search-method and fold classes, DuckDB's private type module,
 # and the part of a type such as "dict[str, list]" that numpydoc splits at its
 # comma.
 nitpick_ignore_regex = [
     ("py:class", r"sqlearn\.(.*\.)?_.*"),
-    ("py:class", r"sqlearn\.model_selection\.methods\..*"),
+    ("py:class", r"sqlearn\.model_selection\.(methods|folds)\..*"),
     ("py:class", r"dict\[str"),
     ("py:class", r"_duckdb\..*"),
 ]
@@ -110,6 +110,10 @@ sphinx_gallery_conf = {
     "filename_pattern": ".",
     "doc_module": ("sqlearn",),
     "backreferences_dir": "reference/generated/backreferences",
+    # The class `Search` is found as ``sqlearn.Search``, which differs from the
+    # group ``sqlearn.search`` only by case, and the two backreference files
+    # are one file on a case-insensitive file system.
+    "exclude_implicit_doc": {r"sqlearn\.Search(\..*)?"},
     "image_scrapers": (),
     "reset_modules": (),
     "write_computation_times": False,
