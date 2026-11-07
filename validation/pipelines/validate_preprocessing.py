@@ -48,6 +48,7 @@ from sklearn.preprocessing import (
 
 import sqlearn as sq
 from sqlearn._config import connection
+from sqlearn.model_selection import Search
 from validation import _cases
 
 ROWS = 10_000
@@ -129,7 +130,7 @@ def write_data(root: Path) -> None:
         duckdb.from_df(part.reset_index(drop=True)).write_parquet(str(path))
 
 
-def run_the_script() -> tuple[sq.Search, pd.DataFrame]:
+def run_the_script() -> tuple[Search, pd.DataFrame]:
     """Run spec §2's script, as written there, from the current directory."""
     pipe = sq.Pipeline(
         [
@@ -145,7 +146,7 @@ def run_the_script() -> tuple[sq.Search, pd.DataFrame]:
         ]
     )
 
-    search = sq.Search(
+    search = sq.search(
         pipe,
         params={"robust__center": [sq.agg.median, sq.agg.mean], "model__C": [0.1, 1]},
         metric=sq.metrics.accuracy,
@@ -155,14 +156,14 @@ def run_the_script() -> tuple[sq.Search, pd.DataFrame]:
 
 
 def inner_folds(rows: int, cv: int = CV, seed: int = 0) -> np.ndarray:
-    """Return ``sq.KFold(cv, seed)``'s fold of each position from 1 to `rows`.
+    """Return ``sq.folds.kfold(cv, seed)``'s fold of each position from 1 to `rows`.
 
     The target encoder deals its inner folds by the row's position in the
     data as read, numbered once before a search splits the outer folds
     (as ``position_folds`` in the target encoder's tests).
     """
     positions = connection().sql(f"SELECT range + 1 AS p FROM range({rows})")
-    fold = sq.KFold(cv, seed).expression("d")
+    fold = sq.folds.kfold(cv, seed).expression("d")
     return np.array([r[0] for r in positions.set_alias("d").project(fold).fetchall()])
 
 
@@ -303,7 +304,7 @@ def _for_sklearn(frame: pd.DataFrame) -> pd.DataFrame:
 def read_training() -> tuple[pd.DataFrame, np.ndarray]:
     """Return the training rows as sqlearn reads them, and each row's outer fold."""
     rel = connection().read_parquet("data/train/*.parquet")
-    numbered = sq.KFold(CV, 0).numbered(rel, "__fold").df()
+    numbered = sq.folds.kfold(CV, 0).numbered(rel, "__fold").df()
     outer = numbered.pop("__fold").to_numpy()
     return numbered, outer
 
@@ -325,7 +326,7 @@ def in_directory(root: Path) -> Iterator[None]:
         os.chdir(before)
 
 
-def prepared(search: sq.Search, new: pd.DataFrame) -> pd.DataFrame:
+def prepared(search: Search, new: pd.DataFrame) -> pd.DataFrame:
     """Return the new data as sqlearn's best pipeline prepares it.
 
     Its steps learn on every training row (``learn`` then ``apply``, as
@@ -341,7 +342,7 @@ def prepared(search: sq.Search, new: pd.DataFrame) -> pd.DataFrame:
 class Compared:
     """What each side gave, in sqlearn's names."""
 
-    search: sq.Search
+    search: Search
     """sqlearn's search, trained."""
     best: dict
     """scikit-learn's best setting."""

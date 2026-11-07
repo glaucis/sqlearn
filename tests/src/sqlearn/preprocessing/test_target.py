@@ -43,7 +43,7 @@ def inner_folds(frame, target="y", cv=5, seed=0):
 def position_folds(rows, cv=5, seed=0):
     """Return KFold(cv, seed)'s fold of positions 1 to `rows`."""
     positions = connection().sql(f"SELECT range + 1 AS p FROM range({rows})")
-    fold = sq.KFold(cv, seed).expression("d")
+    fold = sq.folds.kfold(cv, seed).expression("d")
     return np.array(
         [r[0] for r in positions.set_alias("d").project(fold).fetchall()],
     )

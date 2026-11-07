@@ -205,7 +205,9 @@ def test_a_search_over_a_dict_step_is_refused():
         {"age": [1.0, np.nan, 3.0, 4.0] * 5, "y": [0, 1, 0, 1] * 5},
     )
     pipe = sq.Pipeline([sq.impute({"age": "median"}), LogisticRegression()])
-    search = sq.Search(pipe, params={"impute__value": ["mean"]}, folds=sq.KFold(2))
+    search = sq.search(
+        pipe, params={"impute__value": ["mean"]}, folds=sq.folds.kfold(2)
+    )
     with pytest.raises(SqlearnError, match=r"impute__value.*one step per column"):
         search.train(frame, target="y")
 

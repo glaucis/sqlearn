@@ -39,7 +39,7 @@ class Range:
     Examples
     --------
     >>> import sqlearn as sq
-    >>> sq.range(0.01, 10, log=True)
+    >>> sq.search.range(0.01, 10, log=True)
     Range(low=0.01, high=10, log=True)
     """
 
@@ -76,18 +76,18 @@ def range(low: float, high: float, log: bool = False) -> Range:
     Examples
     --------
     >>> import sqlearn as sq
-    >>> sq.range(1, 5).high
+    >>> sq.search.range(1, 5).high
     5
     """
     if low > high:
         msg = (
-            f"sq.range got low={low!r} above high={high!r}; a range runs from "
+            f"sq.search.range got low={low!r} above high={high!r}; a range runs from "
             "low to high. Fix: swap them."
         )
         raise SqlearnError(msg)
     if log and low <= 0:
         msg = (
-            f"sq.range got log=True with low={low!r}; a log scale starts above "
+            f"sq.search.range got log=True with low={low!r}; a log scale starts above "
             "zero. Fix: pass a low above 0, or log=False."
         )
         raise SqlearnError(msg)
@@ -109,7 +109,7 @@ class Method(Protocol):
     --------
     >>> import sqlearn as sq
     >>> from sqlearn.model_selection.methods import Method
-    >>> isinstance(sq.Grid(), Method)
+    >>> isinstance(sq.search.grid(), Method)
     True
     """
 
@@ -126,7 +126,7 @@ class Method(Protocol):
         Examples
         --------
         >>> import sqlearn as sq
-        >>> sq.Grid().start([{"model__C": [0.1, 1]}])
+        >>> sq.search.grid().start([{"model__C": [0.1, 1]}])
         """
 
     def ask(self) -> Params | None:
@@ -140,7 +140,7 @@ class Method(Protocol):
         Examples
         --------
         >>> import sqlearn as sq
-        >>> grid = sq.Grid()
+        >>> grid = sq.search.grid()
         >>> grid.start([{"model__C": [0.1]}])
         >>> grid.ask()
         {'model__C': 0.1}
@@ -159,7 +159,7 @@ class Method(Protocol):
         Examples
         --------
         >>> import sqlearn as sq
-        >>> sq.Grid().tell({"model__C": 0.1}, 0.8)
+        >>> sq.search.grid().tell({"model__C": 0.1}, 0.8)
         """
 
 
@@ -167,7 +167,7 @@ def _values(name: str, values: object) -> Sequence[object]:
     """Return a grid setting's values, refusing what grid cannot try."""
     if isinstance(values, Range):
         msg = (
-            f"Grid got {name!r}: {values!r}, made with sq.range; a grid tries "
+            f"Grid got {name!r}: {values!r}, made with sq.search.range; a grid tries "
             "a list of values and cannot draw from a range. Fix: list the "
             f"values ({name!r}: [0.1, 1, 10]), or use a method that draws "
             "from ranges."
@@ -205,7 +205,7 @@ class Grid:
     Examples
     --------
     >>> import sqlearn as sq
-    >>> grid = sq.Grid()
+    >>> grid = sq.search.grid()
     >>> grid.start([{"model__C": [0.1, 1]}])
     >>> grid.ask(), grid.ask(), grid.ask()
     ({'model__C': 0.1}, {'model__C': 1}, None)
@@ -229,7 +229,7 @@ class Grid:
         Examples
         --------
         >>> import sqlearn as sq
-        >>> repr(sq.Grid())
+        >>> repr(sq.search.grid())
         'Grid()'
         """
         return "Grid()"
@@ -245,13 +245,13 @@ class Grid:
         Raises
         ------
         SqlearnError
-            If a setting is a range (`sq.range`), a single value or an empty
+            If a setting is a range (`sq.search.range`), a single value or an empty
             list.
 
         Examples
         --------
         >>> import sqlearn as sq
-        >>> sq.Grid().start([{"model__C": [1]}])
+        >>> sq.search.grid().start([{"model__C": [1]}])
         """
         settings: list[Params] = []
         for grid in space:
@@ -276,7 +276,7 @@ class Grid:
         Examples
         --------
         >>> import sqlearn as sq
-        >>> grid = sq.Grid()
+        >>> grid = sq.search.grid()
         >>> grid.start([{}])
         >>> grid.ask()
         {}
@@ -300,7 +300,7 @@ class Grid:
         Examples
         --------
         >>> import sqlearn as sq
-        >>> grid = sq.Grid()
+        >>> grid = sq.search.grid()
         >>> grid.tell({"model__C": 1}, 0.5)
         >>> grid.scores_
         [({'model__C': 1}, 0.5)]

@@ -9,7 +9,18 @@ Examples
 
 from sqlearn.model_selection.defaults import DEFAULT_SPACES
 from sqlearn.model_selection.folds import KFold
+from sqlearn.model_selection.groups import FoldsGroup, SearchGroup
 from sqlearn.model_selection.methods import Grid, Method, Range, range
 from sqlearn.model_selection.search import Search
 
-__all__ = ["DEFAULT_SPACES", "Grid", "KFold", "Method", "Range", "Search", "range"]
+__all__ = [
+    "DEFAULT_SPACES",
+    "FoldsGroup",
+    "Grid",
+    "KFold",
+    "Method",
+    "Range",
+    "Search",
+    "SearchGroup",
+    "range",
+]

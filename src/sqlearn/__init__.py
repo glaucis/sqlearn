@@ -16,7 +16,7 @@ from sqlearn._output import Output
 from sqlearn._pipeline import Pipeline
 from sqlearn._selectors import cols
 from sqlearn._step import Learned, Step
-from sqlearn.model_selection import Grid, KFold, Search, range
+from sqlearn.model_selection.groups import folds, search
 from sqlearn.preprocessing._encode import encode
 from sqlearn.preprocessing.bin import bin
 from sqlearn.preprocessing.features import features
@@ -25,13 +25,10 @@ from sqlearn.preprocessing.scale import scale
 from sqlearn.preprocessing.transform import transform
 
 __all__ = [
-    "Grid",
-    "KFold",
     "Learned",
     "Model",
     "Output",
     "Pipeline",
-    "Search",
     "Step",
     "__version__",
     "agg",
@@ -41,12 +38,13 @@ __all__ = [
     "errors",
     "features",
     "fn",
+    "folds",
     "get_config",
     "impute",
     "metrics",
     "out",
-    "range",
     "scale",
+    "search",
     "set_config",
     "store",
     "transform",

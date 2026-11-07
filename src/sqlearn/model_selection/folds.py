@@ -41,7 +41,7 @@ class KFold:
     Examples
     --------
     >>> import sqlearn as sq
-    >>> sq.KFold(5, seed=0)
+    >>> sq.folds.kfold(5, seed=0)
     KFold(n=5, seed=0)
     """
 
@@ -72,7 +72,7 @@ class KFold:
         Examples
         --------
         >>> import sqlearn as sq
-        >>> repr(sq.KFold(3, seed=1))
+        >>> repr(sq.folds.kfold(3, seed=1))
         'KFold(n=3, seed=1)'
         """
         return f"KFold(n={self.n}, seed={self.seed})"
@@ -93,7 +93,7 @@ class KFold:
         Examples
         --------
         >>> import sqlearn as sq
-        >>> sq.KFold(3) == sq.KFold(3, seed=0)
+        >>> sq.folds.kfold(3) == sq.folds.kfold(3, seed=0)
         True
         """
         if not isinstance(other, KFold):
@@ -111,7 +111,7 @@ class KFold:
         Examples
         --------
         >>> import sqlearn as sq
-        >>> hash(sq.KFold()) == hash(sq.KFold())
+        >>> hash(sq.folds.kfold()) == hash(sq.folds.kfold())
         True
         """
         return hash((self.n, self.seed))
@@ -132,7 +132,7 @@ class KFold:
         Examples
         --------
         >>> import sqlearn as sq
-        >>> sq.KFold(5, seed=0).expression("d")
+        >>> sq.folds.kfold(5, seed=0).expression("d")
         'hash("d", 0) % 5'
         """
         return f"hash({quote(row_alias)}, {self.seed}) % {self.n}"
@@ -176,7 +176,7 @@ class KFold:
         >>> import duckdb
         >>> import sqlearn as sq
         >>> rel = duckdb.sql("SELECT 1 AS a")
-        >>> sq.KFold().numbered(rel, "fold").columns
+        >>> sq.folds.kfold().numbered(rel, "fold").columns
         ['a', 'fold']
         """
         aliased, fold = self._fold(rel)
@@ -211,7 +211,7 @@ class KFold:
         >>> import duckdb
         >>> import sqlearn as sq
         >>> rel = duckdb.sql("SELECT range AS i FROM range(10)")
-        >>> kfold = sq.KFold()
+        >>> kfold = sq.folds.kfold()
         >>> rows = kfold.rows(rel, 0, held=True).count("*").fetchall()[0][0]
         >>> rows + kfold.rows(rel, 0, held=False).count("*").fetchall()[0][0]
         10

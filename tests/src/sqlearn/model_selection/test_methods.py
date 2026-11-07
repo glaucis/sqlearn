@@ -22,17 +22,17 @@ def test_grid_expands_as_parameter_grid():
         {"model__C": [0.1, 1, 10], "impute__value": ["median", "mean"]},
         {"model": ["a", "b"]},
     ]
-    assert asked(sq.Grid(), space) == list(ParameterGrid(space))
+    assert asked(sq.search.grid(), space) == list(ParameterGrid(space))
 
 
 def test_an_empty_grid_is_one_trial():
     """No settings to vary: one trial, with the pipeline's own settings."""
-    assert asked(sq.Grid(), [{}]) == [{}]
+    assert asked(sq.search.grid(), [{}]) == [{}]
 
 
 def test_grid_knows_all_and_records_scores():
     """Grid knows its settings up front; tell records each score."""
-    grid = sq.Grid()
+    grid = sq.search.grid()
     assert grid.knows_all
     assert isinstance(grid, Method)
     settings = asked(grid, [{"a": [1, 2]}])
@@ -43,23 +43,23 @@ def test_grid_knows_all_and_records_scores():
 
 def test_range_given_to_grid_is_refused():
     """A range has no list of values to try: grid names the setting."""
-    r = sq.range(0.01, 10, log=True)
+    r = sq.search.range(0.01, 10, log=True)
     assert r == Range(0.01, 10, log=True)
-    with pytest.raises(sq.errors.SqlearnError, match=r"'model__C'.*sq\.range"):
-        sq.Grid().start([{"model__C": r}])
+    with pytest.raises(sq.errors.SqlearnError, match=r"'model__C'.*sq\.search\.range"):
+        sq.search.grid().start([{"model__C": r}])
 
 
 def test_a_single_value_is_refused():
     """Grid wants a list of values per setting, as scikit-learn's grid does."""
     with pytest.raises(sq.errors.SqlearnError, match=r"'model__C'.*\[1\.0\]"):
-        sq.Grid().start([{"model__C": 1.0}])
+        sq.search.grid().start([{"model__C": 1.0}])
     with pytest.raises(sq.errors.SqlearnError, match=r"'model__C'.*no value"):
-        sq.Grid().start([{"model__C": []}])
+        sq.search.grid().start([{"model__C": []}])
 
 
 def test_range_refuses_low_above_high_and_log_from_zero():
     """A range runs from low to high; a log range starts above zero."""
     with pytest.raises(sq.errors.SqlearnError, match="low"):
-        sq.range(2, 1)
+        sq.search.range(2, 1)
     with pytest.raises(sq.errors.SqlearnError, match="log"):
-        sq.range(0, 1, log=True)
+        sq.search.range(0, 1, log=True)

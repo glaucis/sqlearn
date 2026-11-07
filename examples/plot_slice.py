@@ -68,7 +68,7 @@ pipe = sq.Pipeline(
 # scaler learn once per fold and imputer setting; changing only ``C`` learns
 # nothing new.
 
-search = sq.Search(
+search = sq.search(
     pipe,
     params={"model__C": [0.1, 1, 10], "impute__value": ["median", "mean"]},
     metric=sq.metrics.accuracy,

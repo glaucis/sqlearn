@@ -110,7 +110,7 @@ class TargetEncoder(Step):
     In ``train`` the rows the model trains on are cross-fitted, as
     scikit-learn's ``fit_transform``: each row is encoded with what was
     learned on the rows outside its own inner fold, and later steps learn
-    from those values. The inner folds are sqlearn's: ``sq.KFold(cv, seed)``
+    from those values. The inner folds are sqlearn's: ``sq.folds.kfold(cv, seed)``
     dealt by each row's position in the data as read (rows alike get folds
     of their own, as scikit-learn's ``KFold`` deals them). ``apply`` after
     ``learn(data, target=...)``, and ``predict``, use what was learned on all

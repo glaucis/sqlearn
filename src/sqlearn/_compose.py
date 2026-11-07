@@ -112,7 +112,7 @@ def inner_name(cv: int, seed: int) -> str:
 def inner_fold(position: str, cv: int, seed: int) -> Expression:
     """Return a row's inner fold, dealt by its position: ``KFold(cv, seed)``'s.
 
-    ``hash(row(<position>), seed) % cv``: the fold `sqlearn.KFold` deals a
+    ``hash(row(<position>), seed) % cv``: the fold `sq.folds.kfold` deals a
     row into over a relation of the position alone (its expression,
     ``hash(<alias>, seed) % n``, hashes a row as the struct of its values).
     The position is the row's number in the data as read, so every row gets

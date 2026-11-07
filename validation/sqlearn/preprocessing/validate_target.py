@@ -136,7 +136,7 @@ def _table(plans: Sequence, ys: Sequence, kind: str):
 
 def _folds(rows: int) -> np.ndarray:
     """Return sqlearn's inner folds: KFold over each row's position, from 1."""
-    fold = sq.KFold(CV, 0).expression("d")
+    fold = sq.folds.kfold(CV, 0).expression("d")
     positions = _cases.sqlearn_table({"p": tuple(range(1, rows + 1))}, "BIGINT")
     return np.array([r[0] for r in positions.set_alias("d").project(fold).fetchall()])
 

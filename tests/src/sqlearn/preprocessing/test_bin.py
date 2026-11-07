@@ -443,7 +443,7 @@ def test_a_search_warns_once_for_its_final_training_not_per_fold():
     x = np.r_[np.zeros(30), rng.normal(5, 1, 30)]
     frame = pd.DataFrame({"x": x, "id": np.arange(60.0), "y": (x > 0).astype(int)})
     pipe = sq.Pipeline([("bin", sq.bin.quantile("x")), LogisticRegression()])
-    search = sq.Search(pipe, params={"bin__n": [3, 4]}, folds=sq.KFold(2))
+    search = sq.search(pipe, params={"bin__n": [3, 4]}, folds=sq.folds.kfold(2))
     caught = bin_warnings(lambda: search.train(frame, target="y"))
     assert len(caught) == 1
     assert caught[0].filename == __file__

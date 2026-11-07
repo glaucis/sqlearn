@@ -60,7 +60,7 @@ def run_the_slice():
         ]
     )
 
-    search = sq.Search(
+    search = sq.search(
         pipe,
         params={"model__C": [0.1, 1, 10], "impute__value": ["median", "mean"]},
         metric=sq.metrics.accuracy,

@@ -15,6 +15,7 @@ import sqlearn as sq
 from sqlearn._config import connection
 from sqlearn._store import STORE
 from sqlearn.metrics import Metric
+from sqlearn.model_selection import Grid
 from sqlearn.model_selection import search as search_module
 
 GRID = {"model__C": [0.1, 1, 10], "impute__value": ["median", "mean"]}
@@ -101,7 +102,7 @@ def test_grid_matches_gridsearchcv():
     con.register("search_data", data)
     folds = [
         k
-        for (k,) in sq.KFold(5, seed=0)
+        for (k,) in sq.folds.kfold(5, seed=0)
         .numbered(con.table("search_data"), "k")
         .project("k")
         .fetchall()
@@ -128,7 +129,7 @@ def test_grid_matches_gridsearchcv():
         cv=PredefinedSplit(folds),
     ).fit(data.drop(columns="churned"), data["churned"])
 
-    search = sq.Search(slice_pipe(), params=GRID, metric=sq.metrics.accuracy)
+    search = sq.search(slice_pipe(), params=GRID, metric=sq.metrics.accuracy)
     search.train(data, target="churned")
 
     sk_best = sk_grid.best_params_
@@ -157,10 +158,10 @@ def test_changing_only_c_learns_nothing():
 
     The final training on all the data learns each step once more.
     """
-    sq.Search(slice_pipe(), params=GRID).train(customers(), target="churned")
+    sq.search(slice_pipe(), params=GRID).train(customers(), target="churned")
     assert dict(STORE.learns) == {"impute": 11, "scale": 11, "onehot": 6, "ordinal": 6}
     STORE.clear()
-    sq.Search(slice_pipe(), params={"model__C": [0.1, 1, 10]}).train(
+    sq.search(slice_pipe(), params={"model__C": [0.1, 1, 10]}).train(
         customers(), target="churned"
     )
     assert dict(STORE.learns) == {"impute": 6, "scale": 6, "onehot": 6, "ordinal": 6}
@@ -169,7 +170,7 @@ def test_changing_only_c_learns_nothing():
 def test_fold_first_prepares_once_per_fold_and_preparation():
     """30 trainings, 10 preparations; then one more training on all the data."""
     Counted.fits = 0
-    search = sq.Search(slice_pipe(Counted()), params=GRID)
+    search = sq.search(slice_pipe(Counted()), params=GRID)
     search.train(customers(), target="churned")
     assert search.transforms_ == 10
     assert Counted.fits == 31
@@ -180,7 +181,7 @@ def test_the_users_pipe_is_unchanged():
     """The search trains copies: the user's steps and model stay as they were."""
     pipe = slice_pipe()
     before = [(name, dict(vars(step))) for name, step in pipe.steps]
-    search = sq.Search(pipe, params=GRID).train(customers(), target="churned")
+    search = sq.search(pipe, params=GRID).train(customers(), target="churned")
     assert [(name, dict(vars(step))) for name, step in pipe.steps] == before
     assert pipe._feed is None
     assert pipe._entries is None
@@ -200,7 +201,7 @@ def test_list_of_grids_for_two_models():
         {"model": [LogisticRegression()], "model__C": [0.1, 1]},
         {"model": [tree], "model__max_depth": [2, 3]},
     ]
-    search = sq.Search(slice_pipe(), params=params).train(customers(), target="churned")
+    search = sq.search(slice_pipe(), params=params).train(customers(), target="churned")
     settings = mean_scores(search)
     assert len(settings) == 4
     assert search.results_.count("*").fetchall() == [(20,)]
@@ -226,31 +227,33 @@ def test_unknown_setting_is_named():
     ]
     for params, message in cases:
         with pytest.raises(sq.errors.SqlearnError, match=message):
-            sq.Search(slice_pipe(), params=params).train(data, target="churned")
+            sq.search(slice_pipe(), params=params).train(data, target="churned")
 
 
 def test_a_setting_of_a_model_without_get_params_is_checked_by_attribute():
     """A model of no library: its settings are its attributes."""
     data = customers(rows=100)
-    search = sq.Search(slice_pipe(Echo()), params={"model__label": [None]})
+    search = sq.search(slice_pipe(Echo()), params={"model__label": [None]})
     search.train(data, target="churned")
     assert search.best_params_ == {"model__label": None}
     with pytest.raises(sq.errors.SqlearnError, match=r"Echo.*'nope'"):
-        sq.Search(slice_pipe(Echo()), params={"model__nope": [1]}).train(
+        sq.search(slice_pipe(Echo()), params={"model__nope": [1]}).train(
             data, target="churned"
         )
 
 
 def test_range_given_to_grid_is_refused():
     """Grid cannot try a range: the search refuses it, naming the setting."""
-    search = sq.Search(slice_pipe(), params={"model__C": sq.range(0.01, 10, log=True)})
+    search = sq.search(
+        slice_pipe(), params={"model__C": sq.search.range(0.01, 10, log=True)}
+    )
     with pytest.raises(sq.errors.SqlearnError, match=r"'model__C'.*range"):
         search.train(customers(rows=50), target="churned")
 
 
 def test_no_params_uses_default_space_and_warns():
     """No params: LogisticRegression's default space, and a warning saying so."""
-    search = sq.Search(slice_pipe())
+    search = sq.search(slice_pipe())
     with pytest.warns(
         sq.errors.DefaultsUsedWarning, match="LogisticRegression"
     ) as caught:
@@ -270,7 +273,7 @@ def test_no_params_uses_default_space_and_warns():
 
 def test_unknown_model_runs_one_trial_and_warns():
     """A model with no default space is scored with its own settings."""
-    search = sq.Search(slice_pipe(Echo()))
+    search = sq.search(slice_pipe(Echo()))
     with pytest.warns(sq.errors.DefaultsUsedWarning, match="no default space for Echo"):
         search.train(customers(rows=100), target="churned")
     assert search.results_.count("*").fetchall() == [(5,)]
@@ -280,8 +283,11 @@ def test_unknown_model_runs_one_trial_and_warns():
 
 def test_given_settings_are_recorded_as_given():
     """What the user passes is recorded as given, with no warning."""
-    search = sq.Search(
-        slice_pipe(), params=GRID, method=sq.Grid(), folds=sq.KFold(3, seed=1)
+    search = sq.search(
+        slice_pipe(),
+        params=GRID,
+        method=sq.search.grid(),
+        folds=sq.folds.kfold(3, seed=1),
     )
     with warnings.catch_warnings():
         warnings.simplefilter("error")
@@ -293,7 +299,7 @@ def test_given_settings_are_recorded_as_given():
 
 def test_results_hold_one_row_per_setting_and_fold():
     """`results_` is a relation; `best_score_` is the best setting's mean."""
-    search = sq.Search(slice_pipe(), params=GRID).train(customers(), target="churned")
+    search = sq.search(slice_pipe(), params=GRID).train(customers(), target="churned")
     assert search.results_.columns == ["setting", "fold", "score"]
     assert [str(t) for t in search.results_.types] == ["VARCHAR", "BIGINT", "DOUBLE"]
     rows = search.results_.fetchall()
@@ -305,7 +311,7 @@ def test_results_hold_one_row_per_setting_and_fold():
 
 def test_ties_go_to_the_first_setting_in_grid_order():
     """When scores tie, the first setting wins, as in scikit-learn."""
-    search = sq.Search(slice_pipe(Echo()), params={"model__label": [None, None]})
+    search = sq.search(slice_pipe(Echo()), params={"model__label": [None, None]})
     search.train(customers(rows=100), target="churned")
     scores = mean_scores(search)
     assert len(set(scores.values())) == 1
@@ -323,7 +329,7 @@ def test_a_metric_where_lower_is_better_picks_the_lowest():
         ),
         False,
     )
-    search = sq.Search(slice_pipe(), params=GRID, metric=error)
+    search = sq.search(slice_pipe(), params=GRID, metric=error)
     search.train(customers(), target="churned")
     assert search.best_score_ == pytest.approx(min(mean_scores(search).values()))
 
@@ -331,12 +337,12 @@ def test_a_metric_where_lower_is_better_picks_the_lowest():
 def test_a_method_asking_one_setting_at_a_time_gives_the_same_scores():
     """A method that does not know all its settings loops setting first."""
 
-    class OneByOne(sq.Grid):
+    class OneByOne(Grid):
         knows_all = False
 
     data = customers()
-    grid = sq.Search(slice_pipe(), params=GRID).train(data, target="churned")
-    one = sq.Search(slice_pipe(), params=GRID, method=OneByOne()).train(
+    grid = sq.search(slice_pipe(), params=GRID).train(data, target="churned")
+    one = sq.search(slice_pipe(), params=GRID, method=OneByOne()).train(
         data, target="churned"
     )
     assert mean_scores(one) == mean_scores(grid)
@@ -347,7 +353,7 @@ def test_a_method_asking_one_setting_at_a_time_gives_the_same_scores():
 def test_predict_uses_the_best_pipeline():
     """`predict` is the best pipeline's, trained on all the data."""
     data = customers()
-    search = sq.Search(slice_pipe(), params=GRID)
+    search = sq.search(slice_pipe(), params=GRID)
     with pytest.raises(sq.errors.SqlearnError, match="train"):
         search.predict(data)
     search.train(data, target="churned")
@@ -369,7 +375,7 @@ def test_the_input_is_read_once(monkeypatch):
         return real(name)
 
     monkeypatch.setattr(_inputs, "_fingerprint", counting)
-    sq.Search(slice_pipe(), params=GRID).train(customers(), target="churned")
+    sq.search(slice_pipe(), params=GRID).train(customers(), target="churned")
     assert len(calls) == 1
 
 
@@ -378,13 +384,13 @@ def test_a_column_named_as_the_fold_column_is_refused():
     data = customers(rows=50)
     data[search_module.FOLD] = 1
     with pytest.raises(sq.errors.SqlearnError, match=search_module.FOLD):
-        sq.Search(slice_pipe(), params=GRID).train(data, target="churned")
+        sq.search(slice_pipe(), params=GRID).train(data, target="churned")
 
 
 def test_the_target_must_be_a_column():
     """A missing target is refused before any work."""
     with pytest.raises(sq.errors.SqlearnError, match="'nope' is not a column"):
-        sq.Search(slice_pipe(), params=GRID).train(customers(rows=50), target="nope")
+        sq.search(slice_pipe(), params=GRID).train(customers(rows=50), target="nope")
 
 
 class Wide(Echo):
@@ -398,7 +404,7 @@ class Wide(Echo):
 def test_a_candidate_that_is_not_a_model_is_refused():
     """``"model"`` lists models; anything else is named."""
     with pytest.raises(sq.errors.SqlearnError, match=r"'model': 'tree'.*not a model"):
-        sq.Search(slice_pipe(), params={"model": ["tree"]}).train(
+        sq.search(slice_pipe(), params={"model": ["tree"]}).train(
             customers(rows=50), target="churned"
         )
 
@@ -412,19 +418,19 @@ def test_settings_are_checked_before_the_data_is_read(monkeypatch):
         "sqlearn._inputs._fingerprint", lambda name: calls.append(name) or (0, 0)
     )
     with pytest.raises(sq.errors.SqlearnError, match="nope"):
-        sq.Search(slice_pipe(), params={"model__nope": [1]}).train(
+        sq.search(slice_pipe(), params={"model__nope": [1]}).train(
             customers(rows=50), target="churned"
         )
     assert calls == []
     monkeypatch.setattr("sqlearn._inputs._fingerprint", _fingerprint)
     with pytest.raises(sq.errors.SqlearnError, match="no setting to try"):
-        sq.Search(slice_pipe(), params=[]).train(customers(rows=50), target="churned")
+        sq.search(slice_pipe(), params=[]).train(customers(rows=50), target="churned")
 
 
 def test_a_model_predicting_the_wrong_shape_is_refused():
     """One prediction per held-out row, or the score cannot be computed."""
     with pytest.raises(sq.errors.SqlearnError, match=r"shape \(\d+, 2\)"):
-        sq.Search(slice_pipe(Wide()), params={}).train(
+        sq.search(slice_pipe(Wide()), params={}).train(
             customers(rows=100), target="churned"
         )
 
@@ -435,7 +441,9 @@ def test_an_empty_fold_is_refused_before_any_work():
     pipe = sq.Pipeline(
         [("scale", sq.scale.standard()), ("model", LogisticRegression())]
     )
-    search = sq.Search(pipe, params={"model__C": [1.0]}, folds=sq.KFold(5, seed=0))
+    search = sq.search(
+        pipe, params={"model__C": [1.0]}, folds=sq.folds.kfold(5, seed=0)
+    )
     with pytest.raises(
         sq.errors.SqlearnError, match=r"fold 3 .*4, 1, 2, 0, 3 rows.*Fix: .*fewer folds"
     ):
@@ -449,7 +457,7 @@ def test_a_failing_fit_names_the_setting_and_the_fold():
     pipe = sq.Pipeline(
         [("scale", sq.scale.standard()), ("model", LogisticRegression())]
     )
-    search = sq.Search(pipe, params={"model__C": [1.0]}, folds=sq.KFold(2))
+    search = sq.search(pipe, params={"model__C": [1.0]}, folds=sq.folds.kfold(2))
     with pytest.raises(
         sq.errors.SqlearnError, match=r'"model__C": 1.0.*fold 0'
     ) as info:
@@ -481,11 +489,13 @@ def test_settings_changing_a_later_steps_inputs_score_as_if_alone():
         )
 
     grid = {"onehot__cols": [["city", "region"], ["city"]]}
-    both = sq.Search(pipe(), params=grid, folds=sq.KFold(3)).train(df, target="y")
+    both = sq.search(pipe(), params=grid, folds=sq.folds.kfold(3)).train(df, target="y")
     city = json.dumps({"onehot__cols": ["city"]})
     got = [r for r in both.results_.fetchall() if r[0] == city]
     STORE.clear()
-    alone = sq.Search(pipe(), params={"onehot__cols": [["city"]]}, folds=sq.KFold(3))
+    alone = sq.search(
+        pipe(), params={"onehot__cols": [["city"]]}, folds=sq.folds.kfold(3)
+    )
     assert got == alone.train(df, target="y").results_.fetchall()
 
 
@@ -512,17 +522,17 @@ def test_a_target_step_cross_fits_within_each_folds_training_rows():
     Recorder.seen.clear()
     frame = customers()[["plan", "age", "churned"]].fillna({"age": 0.0})
     pipe = sq.Pipeline([sq.encode.target("plan"), Recorder()])
-    sq.Search(pipe, params={"target__cv": [5]}, folds=sq.KFold(2)).train(
+    sq.search(pipe, params={"target__cv": [5]}, folds=sq.folds.kfold(2)).train(
         frame, target="churned"
     )
     rel = connection().from_df(frame)
-    outer = np.array([r[-1] for r in sq.KFold(2).numbered(rel, "f").fetchall()])
+    outer = np.array([r[-1] for r in sq.folds.kfold(2).numbered(rel, "f").fetchall()])
     positions = connection().sql(f"SELECT range + 1 AS p FROM range({len(frame)})")
     inner = np.array(
         [
             r[0]
             for r in positions.set_alias("d")
-            .project(sq.KFold(5, 0).expression("d"))
+            .project(sq.folds.kfold(5, 0).expression("d"))
             .fetchall()
         ]
     )
@@ -543,7 +553,7 @@ def test_a_search_over_the_inner_folds_of_a_target_step():
     """Each setting's own inner folds are dealt: cv=2 and cv=3 both run."""
     frame = customers()[["plan", "age", "churned"]].fillna({"age": 0.0})
     pipe = sq.Pipeline([sq.encode.target("plan"), LogisticRegression()])
-    search = sq.Search(pipe, params={"target__cv": [2, 3]}, folds=sq.KFold(2))
+    search = sq.search(pipe, params={"target__cv": [2, 3]}, folds=sq.folds.kfold(2))
     search.train(frame, target="churned")
     assert search.results_.count("*").fetchall() == [(4,)]
     assert search.best_pipeline_["target"].cv in (2, 3)

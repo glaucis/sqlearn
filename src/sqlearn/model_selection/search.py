@@ -117,9 +117,9 @@ class Search:
     metric : Metric, default sq.metrics.accuracy
         The score, computed in SQL on each fold's held-out rows.
     method : Method, optional
-        How settings are picked; by default ``sq.Grid()``.
+        How settings are picked; by default ``sq.search.grid()``.
     folds : KFold, optional
-        The folds; by default ``sq.KFold(5, seed=0)``.
+        The folds; by default ``sq.folds.kfold(5, seed=0)``.
 
     Attributes
     ----------
@@ -147,7 +147,7 @@ class Search:
     >>> pipe = sq.Pipeline(
     ...     [("scale", sq.scale.standard()), ("model", LogisticRegression())]
     ... )
-    >>> search = sq.Search(pipe, params={"model__C": [1.0]}, folds=sq.KFold(2))
+    >>> search = sq.search(pipe, params={"model__C": [1.0]}, folds=sq.folds.kfold(2))
     >>> search.train(data, target="y").best_params_
     {'model__C': 1.0}
     """
@@ -238,7 +238,9 @@ class Search:
         >>> from sklearn.linear_model import LogisticRegression
         >>> data = pd.DataFrame({"x": range(20), "y": [0, 1] * 5 + [1, 0] * 5})
         >>> pipe = sq.Pipeline([("model", LogisticRegression())])
-        >>> search = sq.Search(pipe, params={"model__C": [0.1, 1.0]}, folds=sq.KFold(2))
+        >>> search = sq.search(
+        ...     pipe, params={"model__C": [0.1, 1.0]}, folds=sq.folds.kfold(2)
+        ... )
         >>> search.train(data, target="y").results_.count("*").fetchall()
         [(4,)]
         """
@@ -400,7 +402,9 @@ class Search:
         >>> from sklearn.linear_model import LogisticRegression
         >>> data = pd.DataFrame({"x": range(20), "y": [0] * 10 + [1] * 10})
         >>> pipe = sq.Pipeline([("model", LogisticRegression())])
-        >>> search = sq.Search(pipe, params={"model__C": [1.0]}, folds=sq.KFold(2))
+        >>> search = sq.search(
+        ...     pipe, params={"model__C": [1.0]}, folds=sq.folds.kfold(2)
+        ... )
         >>> search.train(data, target="y").predict(data, out="numpy")[
         ...     "prediction"
         ... ].tolist()[:3]

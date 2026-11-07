@@ -70,6 +70,7 @@ The verbs and conventions users write against.
 - [0017: Models come from other libraries, for now](0017-models-from-other-libraries.md)
 - [0022: One search, with pluggable methods](0022-one-search-with-pluggable-methods.md)
 - [0031: The defaults warning is about what to search](0031-the-defaults-warning-is-about-what-to-search.md)
+- [0039: The search's names as groups](0039-the-search-names-as-groups.md)
 
 ## Numerics and validation
 

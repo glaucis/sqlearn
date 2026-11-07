@@ -273,8 +273,8 @@ def test_a_search_over_a_dict_step_is_refused():
     """Searching a dict step's methods is refused, saying to use one step per column."""
     frame = pd.DataFrame({"age": [1.0, 2.0, 3.0, 4.0] * 5, "y": [0, 1, 0, 1] * 5})
     pipe = sq.Pipeline([sq.scale({"age": "robust"}), LogisticRegression()])
-    search = sq.Search(
-        pipe, params={"scale__method": [{"age": "minmax"}]}, folds=sq.KFold(2)
+    search = sq.search(
+        pipe, params={"scale__method": [{"age": "minmax"}]}, folds=sq.folds.kfold(2)
     )
     with pytest.raises(SqlearnError, match=r"scale__method.*one step per column"):
         search.train(frame, target="y")
@@ -288,10 +288,10 @@ def test_a_search_over_the_method_takes_its_defaults():
     rng = np.random.default_rng(0)
     frame = pd.DataFrame({"a": rng.normal(0, 1, 40), "y": [0, 1] * 20})
     pipe = sq.Pipeline([("scale", sq.scale.standard()), LogisticRegression()])
-    search = sq.Search(
+    search = sq.search(
         pipe,
         params={"scale__method": ["standard", "robust", "minmax", "maxabs"]},
-        folds=sq.KFold(2),
+        folds=sq.folds.kfold(2),
     ).train(frame, target="y")
     assert len({row[0] for row in search.results_.fetchall()}) == 4
 
@@ -531,8 +531,8 @@ def test_a_search_over_the_robust_center():
     )
     pipe = sq.Pipeline([sq.scale.robust(), LogisticRegression()])
     centers = [sq.agg.median, sq.agg.mean]
-    search = sq.Search(
-        pipe, params={"robust__center": centers}, folds=sq.KFold(2)
+    search = sq.search(
+        pipe, params={"robust__center": centers}, folds=sq.folds.kfold(2)
     ).train(frame, target="y")
     settings = {row[0] for row in search.results_.fetchall()}
     assert settings == {

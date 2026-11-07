@@ -29,10 +29,20 @@ def test_the_top_level_holds_only_the_builders():
     """The top level is exactly ADR 0034's map, and nothing else."""
     import sqlearn as sq
 
-    builders = {"Pipeline", "Step", "Search", "set_config", "get_config"}
-    groups = {"impute", "scale", "encode", "transform", "bin", "features", "agg"}
+    builders = {"Pipeline", "Step", "set_config", "get_config"}
+    groups = {
+        "impute",
+        "scale",
+        "encode",
+        "transform",
+        "bin",
+        "features",
+        "agg",
+        "search",
+        "folds",
+    }
     others = {"cols", "fn", "out", "metrics", "errors", "store"}
-    kept = {"Learned", "Output", "Grid", "KFold", "range", "Model", "__version__"}
+    kept = {"Learned", "Output", "Model", "__version__"}
     allowed = builders | groups | others | kept
     assert set(sq.__all__) == allowed
     # Python also sets each imported subpackage on the package.
