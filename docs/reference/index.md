@@ -64,6 +64,7 @@ The API of the sqlearn package, generated from its docstrings.
    sqlearn.folds.kfold
    sqlearn.folds.stratified
    sqlearn.folds.group
+   sqlearn.folds.time
    sqlearn.folds.holdout
    sqlearn.metrics.Metric
    sqlearn.metrics.accuracy

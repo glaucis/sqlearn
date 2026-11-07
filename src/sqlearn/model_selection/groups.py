@@ -3,7 +3,14 @@
 from sqlearn._group import Group
 from sqlearn._pipeline import Pipeline
 from sqlearn.metrics import Metric, accuracy
-from sqlearn.model_selection.folds import Folds, Grouped, Holdout, KFold, Stratified
+from sqlearn.model_selection.folds import (
+    Folds,
+    Grouped,
+    Holdout,
+    KFold,
+    Stratified,
+    TimeSplit,
+)
 from sqlearn.model_selection.methods import Grid, Method, Params, Range, range
 from sqlearn.model_selection.search import Search
 
@@ -186,6 +193,31 @@ class FoldsGroup(Group):
         Grouped(by='customer', n=3, seed=0)
         """
         return Grouped(by, n, seed)
+
+    def time(self, by: str, n: int = 5, gap: int = 0) -> TimeSplit:
+        """Hold out each later period of `by`, learning from what came before.
+
+        Parameters
+        ----------
+        by : str
+            The column that orders the rows (a date, say).
+        n : int, default 5
+            The number of folds, at least 2.
+        gap : int, default 0
+            Rows dropped between the learning rows and the held-out ones.
+
+        Returns
+        -------
+        TimeSplit
+            The fold scheme.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> sq.folds.time("day", 3).key
+        ('time', 'day', 3, 0)
+        """
+        return TimeSplit(by, n, gap)
 
     def holdout(self, test: float = 0.2, seed: int = 0) -> Holdout:
         """Hold out one share of the rows, once.

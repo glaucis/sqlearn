@@ -52,15 +52,21 @@ def _flag(predicate: duckdb.Expression) -> duckdb.Expression:
 
 
 def _check_folds(source: Source, folds: Folds, target: str) -> None:
-    """Refuse a fold that holds out no row, counting every fold in one query."""
+    """Refuse a fold that holds out or learns from no row, in one query."""
     numbered = folds.numbered(source.relation, FOLD, target)
     counts = [
         duckdb.FunctionExpression("sum", _flag(folds.held(FOLD, k)))
         for k in range(folds.splits)
     ]
-    row = numbered.aggregate([*counts, duckdb.FunctionExpression("count_star")])
-    row = row.fetchall()[0]
-    sizes = [int(n) for n in row[:-1]]
+    trained = [
+        duckdb.FunctionExpression("sum", _flag(folds.training(FOLD, k)))
+        for k in range(folds.splits)
+    ]
+    row = numbered.aggregate(
+        [*counts, *trained, duckdb.FunctionExpression("count_star")]
+    ).fetchall()[0]
+    sizes = [int(n) for n in row[: folds.splits]]
+    learns = [int(n or 0) for n in row[folds.splits : -1]]
     empty = [k for k, n in enumerate(sizes) if n == 0]
     if empty:
         listed = ", ".join(str(n) for n in sizes)
@@ -69,6 +75,15 @@ def _check_folds(source: Source, folds: Folds, target: str) -> None:
             f"rows were dealt into folds of {listed} rows, and a fold with "
             "nothing held out cannot be scored. Fix: use fewer folds, or "
             "pass more data."
+        )
+        raise SqlearnError(msg)
+    bare = [k for k, n in enumerate(learns) if n == 0]
+    if bare:
+        msg = (
+            f"fold {bare[0]} of {folds!r} learns from no row: its training "
+            f"rows number {', '.join(str(n) for n in learns)} per fold, and "
+            "nothing can be learned from none. Fix: use fewer folds, a "
+            "smaller gap, or pass more data."
         )
         raise SqlearnError(msg)
 

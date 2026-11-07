@@ -7,7 +7,15 @@ import duckdb
 from sqlearn._errors import SqlearnError
 from sqlearn._expr import quote
 
-__all__ = ["ALIAS", "Folds", "Grouped", "Holdout", "KFold", "Stratified"]
+__all__ = [
+    "ALIAS",
+    "Folds",
+    "Grouped",
+    "Holdout",
+    "KFold",
+    "Stratified",
+    "TimeSplit",
+]
 
 ALIAS = "__sqlearn_row_values"
 """The alias naming the whole row inside the fold expression."""
@@ -681,3 +689,159 @@ class Holdout(_Scheme):
         """
         fold = duckdb.SQLExpression(self.expression(ALIAS))
         return _whole_row(rel).project(duckdb.StarExpression(), fold.alias(name))
+
+
+class TimeSplit(_Scheme):
+    """Hold out each later period of `by` and learn from everything before it.
+
+    The rows, ordered by `by`, are cut into ``n + 1`` chunks of equal row
+    counts, as scikit-learn's ``TimeSeriesSplit`` does. Fold ``k`` holds out
+    chunk ``k + 1`` and learns from the rows before it, less the `gap` rows
+    nearest it, so early folds learn from fewer rows. Rows sharing a value of
+    `by` always fall on one side: a boundary moves to the end of its tie.
+
+    Parameters
+    ----------
+    by : str
+        The column that orders the rows; it may not be NULL in any row.
+    n : int, default 5
+        The number of folds, at least 2.
+    gap : int, default 0
+        Rows dropped between the learning rows and the held-out ones.
+
+    Attributes
+    ----------
+    by : str
+        The ordering column.
+    n : int
+        The number of folds.
+    gap : int
+        The number of rows dropped.
+
+    Raises
+    ------
+    SqlearnError
+        If `by` is not a string, `n` is below 2 or `gap` is not a whole
+        number of at least 0.
+
+    Examples
+    --------
+    >>> import sqlearn as sq
+    >>> sq.folds.time("day", 3, gap=1)
+    TimeSplit(by='day', n=3, gap=1)
+    """
+
+    def __init__(self, by: str, n: int = 5, gap: int = 0) -> None:
+        if not isinstance(by, str):
+            msg = (
+                f"TimeSplit got by={by!r}; it names the column that orders "
+                "the rows, as text. Fix: pass by='day', say."
+            )
+            raise SqlearnError(msg)
+        _check_folds("TimeSplit", n, 0)
+        _whole_number("TimeSplit", "gap", gap, "0")
+        if gap < 0:
+            msg = (
+                f"TimeSplit got gap={gap!r}; the rows dropped between learning "
+                "and scoring cannot be negative. Fix: pass gap=0, say."
+            )
+            raise SqlearnError(msg)
+        self.by = by
+        self.n = n
+        self.gap = gap
+
+    @property
+    def key(self) -> tuple[object, ...]:
+        """The settings as ``("time", by, n, gap)``."""
+        return ("time", self.by, self.n, self.gap)
+
+    def __repr__(self) -> str:
+        """Show the settings.
+
+        Returns
+        -------
+        str
+            ``TimeSplit(by=..., n=..., gap=...)``.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> repr(sq.folds.time("t", 3))
+        "TimeSplit(by='t', n=3, gap=0)"
+        """
+        return f"TimeSplit(by={self.by!r}, n={self.n}, gap={self.gap})"
+
+    def numbered(
+        self, rel: duckdb.DuckDBPyRelation, name: str, target: str | None = None
+    ) -> duckdb.DuckDBPyRelation:
+        """Return every row with its position in time, and the row count.
+
+        The column `name` holds the position (from 0) of the last row of the
+        row's tie on `by`; ``<name>_rows`` holds the number of rows.
+
+        Parameters
+        ----------
+        rel : duckdb.DuckDBPyRelation
+            The data.
+        name : str
+            The name of the position column; the row count column is named
+            from it.
+        target : str, optional
+            The target column; unused.
+
+        Returns
+        -------
+        duckdb.DuckDBPyRelation
+            The data's columns, then `name` and ``<name>_rows``.
+
+        Raises
+        ------
+        SqlearnError
+            If the data has no column `by`, or `by` is NULL in some row.
+
+        Examples
+        --------
+        >>> import duckdb
+        >>> import sqlearn as sq
+        >>> rel = duckdb.sql("SELECT range AS t FROM range(6)")
+        >>> sq.folds.time("t", 2).numbered(rel, "pos").columns
+        ['t', 'pos', 'pos_rows']
+        """
+        if self.by not in rel.columns:
+            msg = (
+                f"TimeSplit got by={self.by!r}, which is not a column of the "
+                f"data (columns: {list(rel.columns)}). Fix: name one of them."
+            )
+            raise SqlearnError(msg)
+        column = duckdb.ColumnExpression(self.by)
+        if rel.filter(column.isnull()).limit(1).fetchall():
+            msg = (
+                f"TimeSplit got a NULL in {self.by!r}, so those rows have no "
+                "place in time. Fix: drop or fill the rows with a NULL in "
+                f"{self.by!r} before the search."
+            )
+            raise SqlearnError(msg)
+        by = quote(self.by)
+        # Peers share a frame, so the count runs to the end of the tie.
+        position = duckdb.SQLExpression(f"count(*) OVER (ORDER BY {by}) - 1")
+        rows = duckdb.SQLExpression("count(*) OVER ()")
+        return rel.project(
+            duckdb.StarExpression(), position.alias(name), rows.alias(f"{name}_rows")
+        )
+
+    def _bound(self, name: str, back: int) -> duckdb.Expression:
+        """Return the position ``back`` folds' sizes before the end."""
+        size = f"({quote(name + '_rows')} // {self.n + 1})"
+        return duckdb.SQLExpression(f"{quote(name + '_rows')} - {back} * {size}")
+
+    def training(self, name: str, k: int) -> duckdb.Expression:
+        """Return the predicate for the rows fold `k` learns from."""
+        edge = self._bound(name, self.n - k) - duckdb.ConstantExpression(self.gap)
+        return duckdb.ColumnExpression(name) < edge
+
+    def held(self, name: str, k: int) -> duckdb.Expression:
+        """Return the predicate for the rows fold `k` holds out."""
+        position = duckdb.ColumnExpression(name)
+        return (position >= self._bound(name, self.n - k)) & (
+            position < self._bound(name, self.n - k - 1)
+        )

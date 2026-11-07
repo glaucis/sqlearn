@@ -456,6 +456,20 @@ def test_an_empty_fold_is_refused_before_any_work():
     assert STORE.learns == {}
 
 
+def test_a_fold_with_nothing_to_learn_from_is_refused_before_any_work():
+    """A time fold whose gap leaves no training row is refused, with sizes."""
+    df = pd.DataFrame({"t": np.arange(12.0), "x": np.arange(12.0), "y": [0, 1] * 6})
+    pipe = sq.Pipeline([("model", LogisticRegression())])
+    search = sq.search(
+        pipe, params={"model__C": [1.0]}, folds=sq.folds.time("t", 2, gap=5)
+    )
+    with pytest.raises(
+        sq.errors.SqlearnError, match=r"fold 0 .*learns from no row.*Fix: .*gap"
+    ):
+        search.train(df, target="y")
+    assert STORE.learns == {}
+
+
 def test_a_failing_fit_names_the_setting_and_the_fold():
     """A model that cannot fit a fold is named with its setting and fold."""
     dup = pd.DataFrame({"x": [1.0] * 6 + [2.0] * 6, "y": [0] * 6 + [1] * 6})

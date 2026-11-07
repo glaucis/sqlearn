@@ -1,6 +1,7 @@
 """Tests of the folds: a fold number from a hash of each row and a seed."""
 
 import pytest
+from sklearn.model_selection import TimeSeriesSplit
 
 import sqlearn as sq
 from sqlearn._config import connection
@@ -182,3 +183,59 @@ def test_stratified_keeps_fold_sizes_within_one_row_with_many_small_classes():
         "y, max(n) - min(n) AS spread", "y"
     )
     assert per_class.filter("spread > 1").count("*").fetchall()[0][0] == 0
+
+
+def test_time_matches_time_series_split_without_ties():
+    """Shuffled rows, no ties: the same train and test rows as scikit-learn."""
+    rel = connection().sql("SELECT i AS t FROM range(103) r(i) ORDER BY hash(i)")
+    folds = sq.folds.time("t", 4, gap=2)
+    numbered = folds.numbered(rel, "f", None)
+    for k, (train, test) in enumerate(TimeSeriesSplit(4, gap=2).split(range(103))):
+        got_train = sorted(
+            r[0]
+            for r in numbered.filter(folds.training("f", k)).project("t").fetchall()
+        )
+        got_test = sorted(
+            r[0] for r in numbered.filter(folds.held("f", k)).project("t").fetchall()
+        )
+        assert got_train == list(train)
+        assert got_test == list(test)
+
+
+def test_time_keeps_a_tie_on_one_side():
+    """Rows sharing a day are never split between learning and scoring."""
+    rel = connection().sql("SELECT i // 10 AS day FROM range(100) r(i)")
+    folds = sq.folds.time("day", 3)
+    numbered = folds.numbered(rel, "f", None)
+    for k in range(3):
+        train_days = {
+            r[0]
+            for r in numbered.filter(folds.training("f", k)).project("day").fetchall()
+        }
+        test_days = {
+            r[0] for r in numbered.filter(folds.held("f", k)).project("day").fetchall()
+        }
+        assert test_days
+        assert not train_days & test_days
+
+
+def test_time_names_its_settings_and_refuses_bad_ones():
+    """Key, repr, equality, and refusals of bad settings and data."""
+    folds = sq.folds.time("t", 4, gap=1)
+    assert folds.splits == 4
+    assert folds.key == ("time", "t", 4, 1)
+    assert repr(folds) == "TimeSplit(by='t', n=4, gap=1)"
+    assert folds == sq.folds.time("t", 4, 1)
+    assert isinstance(folds, Folds)
+    with pytest.raises(SqlearnError, match="n=1"):
+        sq.folds.time("t", 1)
+    with pytest.raises(SqlearnError, match="gap="):
+        sq.folds.time("t", gap=-1)
+    with pytest.raises(SqlearnError, match="by="):
+        sq.folds.time(3)  # ty: ignore[invalid-argument-type]
+    rel = connection().sql("SELECT i AS t FROM range(5) r(i)")
+    with pytest.raises(SqlearnError, match="'u'"):
+        sq.folds.time("u").numbered(rel, "f", None)
+    nulls = connection().sql("SELECT NULLIF(i, 2) AS t FROM range(5) r(i)")
+    with pytest.raises(SqlearnError, match="NULL in 't'"):
+        sq.folds.time("t").numbered(nulls, "f", None)
