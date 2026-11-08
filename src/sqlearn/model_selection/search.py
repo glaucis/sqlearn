@@ -73,10 +73,10 @@ def _check_folds(source: Source, folds: Folds, target: str) -> None:
     if empty:
         listed = ", ".join(str(n) for n in sizes)
         msg = (
-            f"fold {empty[0]} of {folds!r} holds out no row: the {row[-1]} "
-            f"rows were dealt into folds of {listed} rows, and a fold with "
-            "nothing held out cannot be scored. Fix: use fewer folds, or "
-            "pass more data."
+            f"fold {empty[0]} of {folds!r} holds out no row: of the {row[-1]} "
+            f"rows, the folds hold out {listed} rows in turn, and a fold with "
+            "nothing held out cannot be scored. Fix: use fewer folds (or, for "
+            "a holdout, a larger test share), or pass more data."
         )
         raise SqlearnError(msg)
     bare = [k for k, n in enumerate(learns) if n == 0]
@@ -205,12 +205,39 @@ def _no_classes(metric: Metric, model: Model) -> SqlearnError:
 def _one_class(
     exc: MissingClassError, metric: Metric, k: int, folds: Folds
 ) -> SqlearnError:
-    """Explain a held-out fold that holds one class only, naming the fold."""
+    """Explain a held-out fold that holds one class only, naming the fold.
+
+    The fix depends on the scheme: time folds keep their order, so the fix
+    is fewer folds or a later cut-off, not stratified folds.
+    """
+    scheme = getattr(folds, "key", ("",))[0]
+    if scheme == "time":
+        fix = (
+            "use fewer folds, or a later cut-off (data whose later periods "
+            "hold every class)"
+        )
+    elif scheme == "stratified":
+        fix = "use fewer folds, or pass more rows of each class"
+    else:
+        fix = (
+            "use fewer folds, or sq.folds.stratified, which holds out every "
+            "class in every fold"
+        )
     msg = (
         f"fold {k} of {folds!r} cannot be scored by {metric.name}: among its "
-        f"held-out rows, {exc.reason}. Fix: use fewer "
-        "folds, or sq.folds.stratified, which holds out every class in "
-        "every fold."
+        f"held-out rows, {exc.reason}. Fix: {fix}."
+    )
+    return SqlearnError(msg)
+
+
+def _unscored(
+    exc: SqlearnError, metric: Metric, params: Params, k: int, folds: Folds
+) -> SqlearnError:
+    """Give a metric's refusal on one fold the fold and the setting."""
+    setting = json.dumps(params, default=repr)
+    msg = (
+        f"fold {k} of {folds!r} cannot be scored by {metric.name} with the "
+        f"setting {setting}, on its held-out rows: {exc}"
     )
     return SqlearnError(msg)
 
@@ -440,7 +467,8 @@ class Search:
         self.transforms_ = 0
         scored: list[tuple[Params, list[float]]] = []
         # Each (preparation, fold) is prepared once into a table, read by
-        # every setting that shares it; the tables live for this call only.
+        # every setting that shares it; the tables live for this call only,
+        # and one setting at a time keeps only the current preparation's.
         self._fold_tables = {}
         try:
             if self.keep_prepared is not None:
@@ -455,6 +483,7 @@ class Search:
             else:
                 while (params := method.ask()) is not None:
                     _check_method(self.metric, trial(self.pipe, params)._modelled()[1])
+                    self._keep_only(con, _preparation(params, model_name))
                     [scores] = self._evaluate(source, target, folds, [params])
                     scored.append((params, scores))
                     method.tell(params, sum(scores) / len(scores))
@@ -490,6 +519,21 @@ class Search:
         _, best_model = best_pipe._modelled()
         self.best_pipeline_ = best_pipe._train(source, target, best_model.feed)
         return self
+
+    def _keep_only(self, con: duckdb.DuckDBPyConnection, preparation: str) -> None:
+        """Drop the temporary fold tables of every preparation but this one.
+
+        A method asking one setting at a time (``knows_all`` False) may ask
+        any number of preparations, so only the current one's tables are
+        kept: a setting asked again with the same preparation reads them,
+        and memory holds one preparation's folds at most. Tables in the
+        ``keep_prepared`` file are kept there by design.
+        """
+        if self._kept is not None:
+            return
+        for key in [key for key in self._fold_tables if key[0] != preparation]:
+            table = self._fold_tables.pop(key)
+            con.execute(f"DROP TABLE IF EXISTS {quote(table.name)}")
 
     def _evaluate(
         self, source: Source, target: str, folds: Folds, settings: list[Params]
@@ -557,7 +601,7 @@ class Search:
                         _check_held_targets(table, folds.held(FOLD, k), target)
                     self._fit_and_score(
                         con, prepared_fold, folds, k, (fitted, target, categories),
-                        [(i, settings[i], models[i]) for i in takers], scores,
+                        [(i, settings[i]) for i in takers], models, scores,
                     )  # fmt: skip
                     del fitted  # one form's rows in memory at a time
         return scores
@@ -612,7 +656,8 @@ class Search:
         fitted: tuple[
             tuple[object, object] | duckdb.DuckDBPyRelation, str, dict[str, list[str]]
         ],
-        takers: Sequence[tuple[int, Params, Model]],
+        takers: Sequence[tuple[int, Params]],
+        models: dict[int, Model],
         scores: list[list[float]],
     ) -> None:
         """Fit each model to one fold's training rows, then score it in SQL.
@@ -624,12 +669,15 @@ class Search:
         ``partial_fit`` (what the stream refuses is refused as it is, not as
         a fold's failure). The held-out rows are streamed to each model in
         batches, in its own form with those categories, and the score is
-        written to ``scores[i][k]``.
+        written to ``scores[i][k]``. Each model is taken out of `models` as
+        it is fitted, so it is dropped once scored rather than kept alive
+        beside the next.
         """
         rows, target, categories = fitted
         features = prepared_fold.features
         held = con.table(prepared_fold.name).filter(folds.held(FOLD, k))
-        for i, params, model in takers:
+        for i, params in takers:
+            model = models.pop(i)
             if isinstance(rows, duckdb.DuckDBPyRelation):
                 fit = stream_trainer(con, rows, features, TARGET, model, named=target)
             else:
@@ -651,12 +699,15 @@ class Search:
                 classes = getattr(model.estimator, "classes_", None)
                 if self.metric.needs == "predict_proba" and classes is None:
                     raise _no_classes(self.metric, model)
-                scores[i][k] = _score(
-                    con, self.metric, prepared_fold.name,
-                    folds.held(FOLD, k), (predictions, outputs, classes),
-                )  # fmt: skip
-            except MissingClassError as exc:
-                raise _one_class(exc, self.metric, k, folds) from exc
+                try:
+                    scores[i][k] = _score(
+                        con, self.metric, prepared_fold.name,
+                        folds.held(FOLD, k), (predictions, outputs, classes),
+                    )  # fmt: skip
+                except MissingClassError as exc:
+                    raise _one_class(exc, self.metric, k, folds) from exc
+                except SqlearnError as exc:
+                    raise _unscored(exc, self.metric, params, k, folds) from exc
             finally:
                 con.execute(f"DROP TABLE IF EXISTS {predictions}")
 

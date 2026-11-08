@@ -2,6 +2,7 @@
 
 import json
 import warnings
+import weakref
 from typing import ClassVar
 
 import numpy as np
@@ -723,6 +724,70 @@ def test_a_setting_picked_twice_is_prepared_once():
     assert search.transforms_ == 3  # three folds, once each
 
 
+def _fold_tables_alive():
+    """Return how many temporary tables of prepared folds exist now."""
+    return (
+        connection()
+        .sql(
+            "SELECT count(*) FROM duckdb_tables() "
+            "WHERE temporary AND starts_with(table_name, '__sqlearn_fold_')"
+        )
+        .fetchall()[0][0]
+    )
+
+
+def test_one_at_a_time_keeps_only_the_current_preparations_fold_tables():
+    """Alternating two preparations, one preparation's tables live at a time."""
+
+    class Alternating:  # an Optuna-style method: one setting at a time
+        knows_all = False
+
+        def start(self, space, *, maximize):
+            self.left = [{"impute__value": v} for v in ["mean", "median"] * 2]
+            self.alive = []
+
+        def ask(self):
+            self.alive.append(_fold_tables_alive())
+            return self.left.pop() if self.left else None
+
+        def tell(self, params, score):
+            pass
+
+    method = Alternating()
+    search = sq.search(slice_pipe(), params=GRID, method=method)
+    search.train(customers(), target="churned")
+    assert max(method.alive) == 5  # five folds of one preparation
+    assert search.transforms_ == 20  # each preparation asked anew is prepared anew
+    assert _fold_tables_alive() == 0
+
+
+class Tracked(LogisticRegression):
+    """LogisticRegression noting, at each fit, how many fitted copies are alive."""
+
+    fitted: ClassVar[list[weakref.ref[LogisticRegression]]] = []
+    alive_at_fit: ClassVar[list[int]] = []
+
+    def fit(self, x, y, sample_weight=None):
+        """Count the fitted copies still alive, then fit."""
+        type(self).alive_at_fit.append(sum(r() is not None for r in self.fitted))
+        super().fit(x, y, sample_weight)
+        type(self).fitted.append(weakref.ref(self))
+        return self
+
+
+def test_each_model_is_dropped_once_it_is_scored():
+    """Three settings of one preparation: no fitted model outlives its score."""
+    Tracked.fitted.clear()
+    Tracked.alive_at_fit.clear()
+    pipe = sq.Pipeline([("scale", sq.scale.standard()), ("model", Tracked())])
+    search = sq.search(
+        pipe, params={"model__C": [0.1, 1.0, 10.0]}, folds=sq.folds.kfold(2)
+    )
+    search.train(DATA, target="y")
+    # The fits over the folds; the last is the best pipeline's, on all data.
+    assert Tracked.alive_at_fit[:6] == [0] * 6
+
+
 def test_fold_tables_are_dropped_after_train():
     """No temporary table outlives the train call that made it."""
     search = sq.search(
@@ -954,15 +1019,60 @@ def test_a_search_scores_by_roc_auc_as_scikit_learn_on_each_fold():
     assert scores == pytest.approx(expected, rel=1e-9)
 
 
-def test_roc_auc_on_a_one_class_fold_is_refused():
-    """A held-out fold of one class has no ranking to score: the fix is named."""
-    with pytest.raises(sq.errors.SqlearnError, match=r"fold 1 .*stratified"):
+def test_roc_auc_on_a_one_class_time_fold_names_a_fix_for_time():
+    """A held-out time fold of one class: fewer folds or a later cut-off."""
+    with pytest.raises(sq.errors.SqlearnError, match=r"fold 1 .*fewer folds") as e:
         sq.search(
             PIPE_WITH_SCALE,
             params={"model__C": [1.0]},
             metric=sq.metrics.roc_auc,
             folds=sq.folds.time("t", 3),
         ).train(SORTED_BY_CLASS, target="y")
+    assert "later cut-off" in str(e.value)
+    assert "stratified" not in str(e.value)
+
+
+def test_roc_auc_on_a_one_class_kfold_fold_names_stratified():
+    """Under folds dealt by a hash, the fix names stratified folds."""
+    rare = pd.DataFrame({"x": np.arange(40.0), "y": [1] * 37 + [0] * 3})
+    with pytest.raises(sq.errors.SqlearnError, match=r"fold \d .*stratified"):
+        sq.search(
+            PIPE_WITH_SCALE,
+            params={"model__C": [1.0]},
+            metric=sq.metrics.roc_auc,
+            folds=sq.folds.kfold(5),
+        ).train(rare, target="y")
+
+
+def test_a_label_no_training_row_held_names_the_fold_and_setting():
+    """A held-out class the fold's model never saw: the fold and setting named."""
+    late = pd.DataFrame(
+        {"t": np.arange(120), "x": np.arange(120.0), "y": [0, 1] * 45 + [0, 1, 2] * 10}
+    )
+    with pytest.raises(
+        sq.errors.SqlearnError,
+        match=r"fold 2 of TimeSplit.*model__C.*none of the classes \[0, 1\]",
+    ):
+        sq.search(
+            PIPE_WITH_SCALE,
+            params={"model__C": [1.0]},
+            metric=sq.metrics.log_loss,
+            folds=sq.folds.time("t", 3),
+        ).train(late, target="y")
+
+
+def test_an_empty_held_out_fold_is_worded_for_any_scheme():
+    """A holdout holding out no row is refused without words of dealing."""
+    tiny = pd.DataFrame({"x": np.arange(10.0), "y": [0, 1] * 5})
+    with pytest.raises(
+        sq.errors.SqlearnError, match=r"of the 10 rows, the folds hold out 0 rows"
+    ) as e:
+        sq.search(
+            PIPE_WITH_SCALE,
+            params={"model__C": [1.0]},
+            folds=sq.folds.holdout(test=0.01, seed=1),
+        ).train(tiny, target="y")
+    assert "dealt" not in str(e.value)
 
 
 def test_a_model_without_predict_proba_is_refused_before_the_data_is_read(

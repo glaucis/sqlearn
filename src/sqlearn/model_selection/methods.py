@@ -12,6 +12,7 @@ import contextlib
 import inspect
 import itertools
 import math
+import numbers
 import random as _random
 from collections.abc import Generator, Mapping, Sequence
 from dataclasses import dataclass
@@ -350,7 +351,7 @@ class Random:
     Raises
     ------
     SqlearnError
-        If `trials` is below 1.
+        If `trials` is not a whole number (a bool among them) or is below 1.
 
     Examples
     --------
@@ -364,12 +365,7 @@ class Random:
     knows_all = True
 
     def __init__(self, trials: int = 50, seed: int = 0) -> None:
-        if trials < 1:
-            msg = (
-                f"sq.search.random got trials={trials!r}; it draws at least one "
-                "setting. Fix: pass trials=1 or more."
-            )
-            raise SqlearnError(msg)
+        _check_trials("random", trials, "draws")
         self.trials = trials
         self.seed = seed
         self._settings: list[Params] = []
@@ -468,6 +464,23 @@ class Random:
         self.scores_.append((params, score))
 
 
+def _check_trials(method: str, trials: object, verb: str) -> None:
+    """Refuse a number of trials that is not a whole number of 1 or more."""
+    if isinstance(trials, bool) or not isinstance(trials, numbers.Integral):
+        msg = (
+            f"sq.search.{method} got trials={trials!r}; it {verb} a whole "
+            "number of settings, so trials must be a whole number (an int, "
+            "not a bool). Fix: pass trials=1 or more, such as trials=50."
+        )
+        raise SqlearnError(msg)
+    if trials < 1:
+        msg = (
+            f"sq.search.{method} got trials={trials!r}; it {verb} at least one "
+            "setting. Fix: pass trials=1 or more."
+        )
+        raise SqlearnError(msg)
+
+
 @contextlib.contextmanager
 def _quiet_optuna(optuna: ModuleType) -> Generator[None]:
     """Hold Optuna's own logging at warnings while a search runs."""
@@ -509,7 +522,7 @@ class Optuna:
     Raises
     ------
     SqlearnError
-        If `trials` is below 1.
+        If `trials` is not a whole number (a bool among them) or is below 1.
 
     Examples
     --------
@@ -523,12 +536,7 @@ class Optuna:
     def __init__(
         self, trials: int = 100, sampler: "BaseSampler | None" = None, seed: int = 0
     ) -> None:
-        if trials < 1:
-            msg = (
-                f"sq.search.optuna got trials={trials!r}; it tries at least one "
-                "setting. Fix: pass trials=1 or more."
-            )
-            raise SqlearnError(msg)
+        _check_trials("optuna", trials, "tries")
         self.trials = trials
         self.sampler = sampler
         self.seed = seed

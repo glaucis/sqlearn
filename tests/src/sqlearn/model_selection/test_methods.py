@@ -330,3 +330,11 @@ def test_optuna_takes_a_sampler():
     method = sq.search.optuna(trials=2, sampler=sampler)
     method.start([{"a": [1, 2]}], maximize=True)
     assert method.study_.sampler is sampler
+
+
+@pytest.mark.parametrize("make", [sq.search.random, sq.search.optuna])
+@pytest.mark.parametrize("trials", [True, 2.5, "3", None])
+def test_trials_must_be_a_whole_number(make, trials):
+    """A bool, a fraction or text is refused by name, before any work."""
+    with pytest.raises(SqlearnError, match=rf"trials={trials!r}.*whole number"):
+        make(trials=trials)
