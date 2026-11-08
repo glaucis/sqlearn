@@ -161,10 +161,16 @@ given to `sq.search` is never changed: every trial runs on a copy.
 
 ## Keeping prepared folds: `keep_prepared`
 
-Optuna tries one setting at a time, and a user tries several searches: each
-would prepare the folds again. With `keep_prepared="project.duckdb"`, each
-fold's prepared rows are written once to that DuckDB file and read back for
-every later trial, in this session or another:
+Within one `train`, each fold's prepared rows live in a temporary table for
+that call, so trials sharing a preparation read them again rather than
+prepare them: a grid prepares each (preparation, fold) once, and Optuna,
+which tries one setting at a time, keeps the current preparation's tables
+and drops the others when it asks for a different one, so the temporary
+tables hold one preparation's folds at most. The tables are dropped when
+`train` returns, so a later search, in this session or another, prepares
+the folds again. With `keep_prepared="project.duckdb"`, each fold's
+prepared rows are written once to that DuckDB file and read back by every
+later trial and search on the same data, steps and folds:
 
 ```python
 search = sq.search(
@@ -176,6 +182,12 @@ search = sq.search(
 search.train("data/train/*.parquet", target="churned")
 search.transforms_  # 5: each fold prepared once, then read for 40 trials
 ```
+
+The file keeps every preparation it is given, by design: an Optuna search
+over the steps' settings writes one set of folds per preparation it tries,
+and the file grows with them. `sq.store.prepared(path)` lists what is kept,
+and `sq.store.clear(prepared=path)` empties the file when it is no longer
+wanted.
 
 A kept table is found by a key of the data, the target, the steps and their
 settings, the folds and the versions, the same in every process. What the

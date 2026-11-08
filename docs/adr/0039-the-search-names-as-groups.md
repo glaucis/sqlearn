@@ -36,8 +36,9 @@ as the step groups are. `sq.search` is callable, as `sq.impute` is.
 
 `sq.Model` stays at the top level, as `sq.Learned` and `sq.Output` do
 (ruling F5 of the preprocessing build). The classes (`Search`, `Grid`,
-`KFold`, `Range`) stay importable from `sqlearn.model_selection`, for type
-annotations and `isinstance`.
+`Random`, `Optuna`, `Range`, and the fold schemes `KFold`, `Stratified`,
+`Grouped`, `Holdout`, `TimeSplit`) stay importable from
+`sqlearn.model_selection`, for type annotations and `isinstance`.
 
 The old names are removed, not kept as aliases: nothing is released yet.
 
@@ -46,4 +47,6 @@ The old names are removed, not kept as aliases: nothing is released yet.
 - The top level loses `Search`, `Grid`, `KFold` and `range` (which also
   stops shadowing the built-in) and gains `search` and `folds`.
 - Later tasks add shortcuts to the two groups without touching the top level.
-- Messages and reprs print the new paths (`sq.search.range`).
+- Messages print the new paths (`sq.search.range`). Reprs print the class
+  and its settings, as scikit-learn's do: `KFold(n=5, seed=0)`, `Grid()`,
+  `Range(low=..., high=..., log=...)`.

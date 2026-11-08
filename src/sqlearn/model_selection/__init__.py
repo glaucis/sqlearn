@@ -8,7 +8,14 @@ Examples
 """
 
 from sqlearn.model_selection.defaults import DEFAULT_SPACES
-from sqlearn.model_selection.folds import Folds, KFold
+from sqlearn.model_selection.folds import (
+    Folds,
+    Grouped,
+    Holdout,
+    KFold,
+    Stratified,
+    TimeSplit,
+)
 from sqlearn.model_selection.groups import FoldsGroup, SearchGroup
 from sqlearn.model_selection.methods import (
     Grid,
@@ -25,6 +32,8 @@ __all__ = [
     "Folds",
     "FoldsGroup",
     "Grid",
+    "Grouped",
+    "Holdout",
     "KFold",
     "Method",
     "Optuna",
@@ -32,5 +41,7 @@ __all__ = [
     "Range",
     "Search",
     "SearchGroup",
+    "Stratified",
+    "TimeSplit",
     "range",
 ]

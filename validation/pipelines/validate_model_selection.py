@@ -3,9 +3,9 @@
 The script itself (``run_the_script``) runs as the spec writes it, scaled
 down: CatBoost through ``feed="pandas"``, Optuna over two ranges, stratified
 folds, the log loss, the prepared folds kept in a DuckDB file, then a
-streamed ``SGDClassifier``. One line differs from §2: the streamed pipeline
-one-hot encodes the text columns, which §2's data has for CatBoost and the
-stream refuses (spec §3.1: it hands numbers only). Its test is
+streamed ``SGDClassifier`` that one-hot encodes the text first (the stream
+hands numbers only, spec §3.1). Only the scale differs from §2: fewer
+trials, smaller CatBoosts, smaller stream batches. Its test is
 ``tests/src/sqlearn/test_model_selection_script.py``.
 
 The cases compare what a search computes with scikit-learn's, handed
@@ -172,7 +172,7 @@ def run_the_script(trials: int = 40, **catboost: object) -> tuple[Search, sq.Pip
         [
             sq.impute.median(),
             sq.scale.standard(),
-            sq.encode.onehot(),  # not in §2: the stream takes numbers only
+            sq.encode.onehot(),  # the stream takes numbers only
             sq.Model(
                 SGDClassifier(loss="log_loss"), feed="stream", rows=1_000
             ),  # §2 says 100,000 rows: here a fold is smaller than that

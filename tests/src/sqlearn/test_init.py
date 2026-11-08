@@ -49,3 +49,20 @@ def test_the_top_level_holds_only_the_builders():
     packages = {"model_selection", "preprocessing"}
     public = {n for n in dir(sq) if not n.startswith("_")} | {"__version__"}
     assert public == allowed | packages
+
+
+def test_every_fold_class_is_importable_for_annotations():
+    """The fold schemes' classes stay importable from model_selection (ADR 0039)."""
+    import sqlearn as sq
+    from sqlearn import model_selection
+
+    made = {
+        "KFold": sq.folds.kfold(),
+        "Stratified": sq.folds.stratified(),
+        "Grouped": sq.folds.group("g"),
+        "Holdout": sq.folds.holdout(),
+        "TimeSplit": sq.folds.time("t"),
+    }
+    for name, scheme in made.items():
+        assert name in model_selection.__all__
+        assert isinstance(scheme, getattr(model_selection, name))

@@ -366,8 +366,11 @@ class Search:
         The data is read once. Each fold's data is prepared once per
         distinct preparation (the settings of the steps) into a temporary
         DuckDB table, which every model setting sharing it reads, so a
-        setting asked again is not prepared again; the tables are dropped
-        when this returns or raises. With ``keep_prepared``, the tables are
+        setting asked again is not prepared again. A method asking one
+        setting at a time (``knows_all`` False) keeps only the current
+        preparation's tables, dropping the others when it asks a different
+        one, so they hold one preparation's folds at most. The tables are
+        dropped when this returns or raises. With ``keep_prepared``, the tables are
         written to that file instead and kept, and a table already there is
         read rather than prepared again; the file is attached only while
         this runs. The steps' learned values come from the store when

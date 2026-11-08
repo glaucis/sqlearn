@@ -47,7 +47,14 @@ and keeping the best. It is not about building models.
 ## 2. The script this area must run
 
 The area is done when this runs end to end, the streamed pipeline on data
-larger than the machine's memory with memory use staying bounded:
+larger than the machine's memory with memory use staying bounded. This is
+the script as it runs (Ruling R18 of the build): the text columns (here
+`city` and `plan`) hold no NULL, since CatBoost refuses a missing category,
+and CatBoost is told which columns are text with `cat_features=`, as it
+would be without sqlearn; the stream takes numbers only, so its pipeline
+one-hot encodes the text first. The validation runner
+(`validation/pipelines/validate_model_selection.py`, `run_the_script`) runs
+this code, scaled down.
 
 ```python
 import sqlearn as sq
@@ -59,7 +66,8 @@ pipe = sq.Pipeline(
         sq.impute.median(),
         sq.scale.standard(),
         sq.Model(
-            CatBoostClassifier(verbose=0), feed="pandas"
+            CatBoostClassifier(verbose=0, cat_features=["city", "plan"]),
+            feed="pandas",
         ),  # text reaches it as categories
     ]
 )
@@ -84,6 +92,7 @@ stream = sq.Pipeline(
     [
         sq.impute.median(),
         sq.scale.standard(),
+        sq.encode.onehot(),  # the stream takes numbers only
         sq.Model(SGDClassifier(loss="log_loss"), feed="stream", rows=100_000),
     ]
 )

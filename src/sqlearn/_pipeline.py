@@ -952,7 +952,7 @@ class Pipeline:
             A file path or glob, a table name, a relation or a pandas frame.
         target : str
             The column the model learns to predict.
-        feed : {"numpy", "pandas", "polars", "arrow"}, optional
+        feed : {"numpy", "pandas", "polars", "arrow", "stream"}, optional
             The form of the hand-over for this call; by default the model's
             own (``sq.Model(..., feed=...)``, ``"numpy"`` unless given). See
             `Model` for what each form hands over.
