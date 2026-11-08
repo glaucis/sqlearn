@@ -73,6 +73,9 @@ The API of the sqlearn package, generated from its docstrings.
    sqlearn.metrics.rmse
    sqlearn.metrics.mae
    sqlearn.metrics.r2
+   sqlearn.metrics.log_loss
+   sqlearn.metrics.roc_auc
+   sqlearn.metrics.MissingClassError
    sqlearn.Model
    sqlearn.Output
    sqlearn.out.parquet

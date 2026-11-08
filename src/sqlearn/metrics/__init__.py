@@ -7,7 +7,17 @@ Examples
 'accuracy'
 """
 
-from sqlearn.metrics.accuracy import Metric, accuracy
+from sqlearn.metrics.accuracy import Metric, MissingClassError, accuracy
+from sqlearn.metrics.probability import log_loss, roc_auc
 from sqlearn.metrics.regression import mae, r2, rmse
 
-__all__ = ["Metric", "accuracy", "mae", "r2", "rmse"]
+__all__ = [
+    "Metric",
+    "MissingClassError",
+    "accuracy",
+    "log_loss",
+    "mae",
+    "r2",
+    "rmse",
+    "roc_auc",
+]

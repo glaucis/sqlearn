@@ -10,7 +10,9 @@ import pytest
 from search_data_for_tests import customers, slice_pipe
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import roc_auc_score
 from sklearn.preprocessing import TargetEncoder
+from sklearn.svm import LinearSVC
 from sklearn.tree import DecisionTreeClassifier
 from steps_for_tests import MyEncoder
 
@@ -27,6 +29,26 @@ PIPE_WITH_SCALE = sq.Pipeline(
     [("scale", sq.scale.standard()), ("model", LogisticRegression())]
 )
 DATA = pd.DataFrame({"x": np.arange(30.0), "y": [0, 1, 1] * 10})
+
+
+def _separable(rows=90):
+    """Return two columns that decide the class, with a little noise."""
+    rng = np.random.default_rng(1)
+    x = rng.normal(size=(rows, 2))
+    y = (x[:, 0] + 0.5 * x[:, 1] + rng.normal(scale=0.3, size=rows) > 0).astype(int)
+    return pd.DataFrame({"a": x[:, 0], "b": x[:, 1], "y": y})
+
+
+SEPARABLE = _separable()
+# Ordered by t: the first half mixes the classes, the second half is all
+# class 1, so a time fold holding out a later chunk sees one class only.
+SORTED_BY_CLASS = pd.DataFrame(
+    {
+        "t": np.arange(120),
+        "x": np.random.default_rng(2).normal(size=120),
+        "y": [0, 1] * 30 + [1] * 60,
+    }
+)
 
 
 def mean_scores(search):
@@ -860,3 +882,94 @@ def test_a_search_scores_held_rows_with_their_training_codes(monkeypatch):
     )
     search.train(data, target="y")
     assert search.best_score_ == 1.0
+
+
+def test_a_search_scores_by_log_loss():
+    """Lower log loss wins: a weak penalty beats a crushing one on separable data."""
+    search = sq.search(
+        PIPE_WITH_SCALE,
+        params={"model__C": [0.001, 10.0]},
+        metric=sq.metrics.log_loss,
+        folds=sq.folds.stratified(3),
+    )
+    assert search.train(SEPARABLE, target="y").best_params_ == {"model__C": 10.0}
+
+
+def test_a_search_scores_by_roc_auc_as_scikit_learn_on_each_fold():
+    """Each fold's score is roc_auc_score of the fold's model on its held rows."""
+    folds = sq.folds.stratified(3)
+    search = sq.search(
+        PIPE_WITH_SCALE,
+        params={"model__C": [1.0]},
+        metric=sq.metrics.roc_auc,
+        folds=folds,
+    )
+    search.train(SEPARABLE, target="y")
+    scores = [s for *_, s in search.results_.order("fold").fetchall()]
+    numbered = folds.numbered(connection().from_df(SEPARABLE), "f", "y")
+    expected = []
+    for k in range(3):
+        train = numbered.filter(folds.training("f", k)).df()
+        held = numbered.filter(folds.held("f", k)).df()
+        mean, std = train[["a", "b"]].mean(), train[["a", "b"]].std(ddof=0)
+        model = LogisticRegression().fit((train[["a", "b"]] - mean) / std, train["y"])
+        proba = model.predict_proba((held[["a", "b"]] - mean) / std)
+        expected.append(roc_auc_score(held["y"], proba[:, 1]))
+    assert scores == pytest.approx(expected, rel=1e-9)
+
+
+def test_roc_auc_on_a_one_class_fold_is_refused():
+    """A held-out fold of one class has no ranking to score: the fix is named."""
+    with pytest.raises(sq.errors.SqlearnError, match=r"fold 1 .*stratified"):
+        sq.search(
+            PIPE_WITH_SCALE,
+            params={"model__C": [1.0]},
+            metric=sq.metrics.roc_auc,
+            folds=sq.folds.time("t", 3),
+        ).train(SORTED_BY_CLASS, target="y")
+
+
+def test_a_model_without_predict_proba_is_refused_before_the_data_is_read(
+    monkeypatch,
+):
+    """A probability metric needs predict_proba: refused before any work."""
+
+    def unread(data):
+        raise AssertionError("the data was read")
+
+    monkeypatch.setattr(search_module, "read", unread)
+    pipe = sq.Pipeline([("scale", sq.scale.standard()), ("model", LinearSVC())])
+    with pytest.raises(
+        sq.errors.SqlearnError, match=r"log_loss.*LinearSVC.*predict_proba"
+    ):
+        sq.search(pipe, params={"model__C": [1.0]}, metric=sq.metrics.log_loss).train(
+            SEPARABLE, target="y"
+        )
+
+
+class Unnamed(LogisticRegression):
+    """A classifier whose fitted probabilities name no classes."""
+
+    def fit(self, X, y):  # noqa: N803  (scikit-learn's name)
+        """Fit, then forget the classes."""
+        super().fit(X, y)
+        self.labels_ = self.classes_
+        del self.classes_
+        return self
+
+    def predict_proba(self, X):  # noqa: N803  (scikit-learn's name)
+        """Return the probabilities with the classes put back for the call."""
+        self.classes_ = self.labels_
+        try:
+            return super().predict_proba(X)
+        finally:
+            del self.classes_
+
+
+def test_probabilities_without_classes_are_refused():
+    """A fitted model with no classes_ leaves its columns unnamed: refused."""
+    pipe = sq.Pipeline([("model", Unnamed())])
+    with pytest.raises(sq.errors.SqlearnError, match="Unnamed has no classes_"):
+        sq.search(pipe, params={"model__C": [1.0]}, metric=sq.metrics.log_loss).train(
+            SEPARABLE, target="y"
+        )

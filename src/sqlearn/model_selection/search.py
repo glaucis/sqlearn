@@ -27,7 +27,7 @@ from sqlearn._model import Model, _numpy, missing_target
 from sqlearn._output import Output
 from sqlearn._pipeline import _ROW, Pipeline, _FoldTable, _positioned, _source_sql
 from sqlearn._store import FoldKey
-from sqlearn.metrics import Metric, accuracy
+from sqlearn.metrics import Metric, MissingClassError, accuracy
 from sqlearn.model_selection.defaults import default_space, hint
 from sqlearn.model_selection.folds import Folds, KFold
 from sqlearn.model_selection.kept import KeptFolds, steps_identity, table_name
@@ -150,13 +150,17 @@ def _score(
     metric: Metric,
     fold_table: str,
     held: duckdb.Expression,
-    predictions: str,
+    predicted: tuple[str, list[str], Sequence[object] | None],
 ) -> float:
     """Compute the metric in SQL: each held-out row's target beside its prediction.
 
-    `predictions` (a table `stream_into` filled) is joined to the fold's
-    table by row number; both are tables sqlearn owns (Ruling R1).
+    `predicted` holds a table `stream_into` filled, its prediction columns
+    (``prediction``, or one probability column per class) and the model's
+    classes, which a ``"predict_proba"`` metric reads. The table is joined
+    to the fold's table by row number; both are tables sqlearn owns
+    (Ruling R1).
     """
+    predictions, outputs, classes = predicted
     row = quote(_ROW)
     scored = (
         con.table(fold_table)
@@ -168,10 +172,47 @@ def _score(
         )
         .project(
             duckdb.ColumnExpression("held", TARGET).alias("target"),
-            duckdb.ColumnExpression("predicted", "prediction"),
+            *(duckdb.ColumnExpression("predicted", c) for c in outputs),
         )
     )
-    return metric.compute(scored, "target", "prediction")
+    return metric.compute(scored, "target", "prediction", classes=classes)
+
+
+def _check_method(metric: Metric, model: Model) -> None:
+    """Refuse a model without the method the metric reads, before any work."""
+    if not hasattr(model.estimator, metric.needs):
+        msg = (
+            f"the metric {metric.name} reads the model's {metric.needs}, and "
+            f"the model {type(model.estimator).__name__} has none. Fix: pick "
+            f"a metric that reads predict (sq.metrics.accuracy, say), or a "
+            f"model with {metric.needs}."
+        )
+        raise SqlearnError(msg)
+
+
+def _no_classes(metric: Metric, model: Model) -> SqlearnError:
+    """Explain a fitted model whose probabilities have no classes to name them."""
+    msg = (
+        f"the metric {metric.name} reads one probability column per class, "
+        f"and the fitted model {type(model.estimator).__name__} has no "
+        "classes_ naming them, so no column can be matched to a label. Fix: "
+        "use a classifier that sets classes_ when fitted, as scikit-learn's "
+        "do."
+    )
+    return SqlearnError(msg)
+
+
+def _one_class(
+    exc: MissingClassError, metric: Metric, k: int, folds: Folds
+) -> SqlearnError:
+    """Explain a held-out fold that holds one class only, naming the fold."""
+    msg = (
+        f"fold {k} of {folds!r} cannot be scored by {metric.name}: among its "
+        f"held-out rows, {exc.reason}. Fix: use fewer "
+        "folds, or sq.folds.stratified, which holds out every class in "
+        "every fold."
+    )
+    return SqlearnError(msg)
 
 
 class Search:
@@ -367,7 +408,9 @@ class Search:
         asked: list[Params] = []
         if method.knows_all:
             while (params := method.ask()) is not None:
-                trial(self.pipe, params)  # refuses a bad setting before any work
+                # Refuses a bad setting, or a model the metric cannot read,
+                # before any work.
+                _check_method(self.metric, trial(self.pipe, params)._modelled()[1])
                 asked.append(params)
         source = read(data)
         stable = None
@@ -411,6 +454,7 @@ class Search:
                     method.tell(params, sum(scores) / len(scores))
             else:
                 while (params := method.ask()) is not None:
+                    _check_method(self.metric, trial(self.pipe, params)._modelled()[1])
                     [scores] = self._evaluate(source, target, folds, [params])
                     scored.append((params, scores))
                     method.tell(params, sum(scores) / len(scores))
@@ -595,18 +639,24 @@ class Search:
             try:
                 fit()
                 action = "predict"
-                predictions, _ = stream_into(
-                    con, held, features, _ROW, model, categories=categories
-                )
+                predictions, outputs = stream_into(
+                    con, held, features, _ROW, model,
+                    method=self.metric.needs, categories=categories,
+                )  # fmt: skip
             except WrongShapeError:
                 raise  # the stream's own message says what to fix
             except Exception as exc:
                 raise _fold_error(exc, action, params, k, folds) from exc
             try:
+                classes = getattr(model.estimator, "classes_", None)
+                if self.metric.needs == "predict_proba" and classes is None:
+                    raise _no_classes(self.metric, model)
                 scores[i][k] = _score(
                     con, self.metric, prepared_fold.name,
-                    folds.held(FOLD, k), predictions,
+                    folds.held(FOLD, k), (predictions, outputs, classes),
                 )  # fmt: skip
+            except MissingClassError as exc:
+                raise _one_class(exc, self.metric, k, folds) from exc
             finally:
                 con.execute(f"DROP TABLE IF EXISTS {predictions}")
 

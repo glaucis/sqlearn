@@ -1045,6 +1045,54 @@
       "tier": "fast"
     },
     {
+      "area": "sqlearn/metrics/probability",
+      "name": "tests/src/sqlearn/metrics/test_probability.py::test_a_label_outside_the_classes_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/probability",
+      "name": "tests/src/sqlearn/metrics/test_probability.py::test_a_probability_metric_needs_the_classes",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/probability",
+      "name": "tests/src/sqlearn/metrics/test_probability.py::test_log_loss_and_roc_auc_match_scikit_learn_binary_and_multiclass",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/probability",
+      "name": "tests/src/sqlearn/metrics/test_probability.py::test_log_loss_clips_certain_probabilities_as_scikit_learn",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/probability",
+      "name": "tests/src/sqlearn/metrics/test_probability.py::test_probability_metrics_refuse_missing_values_and_no_rows",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/probability",
+      "name": "tests/src/sqlearn/metrics/test_probability.py::test_roc_auc_of_one_class_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/probability",
+      "name": "tests/src/sqlearn/metrics/test_probability.py::test_text_classes_follow_the_order_given",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/probability",
+      "name": "tests/src/sqlearn/metrics/test_probability.py::test_the_direction_and_method_of_each_metric",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
       "area": "sqlearn/metrics/regression",
       "name": "tests/src/sqlearn/metrics/test_regression.py::test_a_search_minimises_rmse",
       "outcome": "passed",
@@ -1628,6 +1676,12 @@
     },
     {
       "area": "sqlearn/model_selection/search",
+      "name": "tests/src/sqlearn/model_selection/test_search.py::test_a_model_without_predict_proba_is_refused_before_the_data_is_read",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/search",
       "name": "tests/src/sqlearn/model_selection/test_search.py::test_a_search_over_stratified_folds_passes_its_target_to_the_scheme",
       "outcome": "passed",
       "tier": "fast"
@@ -1635,6 +1689,18 @@
     {
       "area": "sqlearn/model_selection/search",
       "name": "tests/src/sqlearn/model_selection/test_search.py::test_a_search_over_the_inner_folds_of_a_target_step",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/search",
+      "name": "tests/src/sqlearn/model_selection/test_search.py::test_a_search_scores_by_log_loss",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/search",
+      "name": "tests/src/sqlearn/model_selection/test_search.py::test_a_search_scores_by_roc_auc_as_scikit_learn_on_each_fold",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1760,6 +1826,12 @@
     },
     {
       "area": "sqlearn/model_selection/search",
+      "name": "tests/src/sqlearn/model_selection/test_search.py::test_probabilities_without_classes_are_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/search",
       "name": "tests/src/sqlearn/model_selection/test_search.py::test_range_given_to_grid_is_refused",
       "outcome": "passed",
       "tier": "fast"
@@ -1767,6 +1839,12 @@
     {
       "area": "sqlearn/model_selection/search",
       "name": "tests/src/sqlearn/model_selection/test_search.py::test_results_hold_one_row_per_setting_and_fold",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/search",
+      "name": "tests/src/sqlearn/model_selection/test_search.py::test_roc_auc_on_a_one_class_fold_is_refused",
       "outcome": "passed",
       "tier": "fast"
     },
