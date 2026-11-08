@@ -144,7 +144,8 @@ class Metric:
         SqlearnError
             If the relation is empty, a column is missing or holds NULL or
             NaN, or, for a ``"predict_proba"`` metric, the classes are not
-            given or a target is none of them.
+            given, a probability is below 0 or above 1, or a target is none
+            of them.
         MissingClassError
             If the metric ranks each class against the rest and a class has
             every row or none.
@@ -202,9 +203,13 @@ class Metric:
             per_class = [
                 _count(duckdb.CaseExpression(y == c, const(1))) for c in consts
             ]
+            outside = [
+                _count(duckdb.CaseExpression((v < const(0)) | (v > const(1)), const(1)))
+                for v in values
+            ]
         else:
             score = self.expression(y, *given)
-            known, per_class = [], []
+            known, per_class, outside = [], [], []
         floats = [c for c in columns if types[c] in _FLOATS]
         nans = [
             _count(duckdb.CaseExpression(_isnan(ColumnExpression(c)), const(1)))
@@ -219,6 +224,7 @@ class Metric:
                     *nans,
                     *known,
                     *per_class,
+                    *outside,
                 ],
             ).fetchall()[0]
         except duckdb.Error as exc:
@@ -264,7 +270,19 @@ class Metric:
                 )
                 raise SqlearnError(msg)
         if proba:
-            n_known, *counts = rest[len(floats) :]
+            n_known, *after = rest[len(floats) :]
+            counts, beyond = after[: len(labels)], after[len(labels) :]
+            for column, n_out in zip(columns[1:], beyond, strict=True):
+                if n_out:
+                    msg = (
+                        f"{self.name} cannot be computed: column {column!r} "
+                        f"has {n_out} of {total} rows with a probability "
+                        "below 0 or above 1. A probability lies between 0 "
+                        "and 1, and scikit-learn refuses such values too. "
+                        "Fix: check the model's predict_proba, or score "
+                        "with a model whose probabilities lie in [0, 1]."
+                    )
+                    raise SqlearnError(msg)
             if n_known != total:
                 msg = (
                     f"{self.name} cannot be computed: column {target!r} has "

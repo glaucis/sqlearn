@@ -135,3 +135,15 @@ def test_probability_metrics_refuse_missing_values_and_no_rows(con):
         )
         with pytest.raises(SqlearnError, match="NULL"):
             metric.compute(null, "y", classes=[0, 1])
+
+
+@pytest.mark.parametrize("bad", [1.2, -0.1])
+def test_probability_metrics_refuse_a_probability_outside_zero_and_one(con, bad):
+    """As scikit-learn 1.9.1, a probability above 1 or below 0 is refused."""
+    y = np.array([0, 1, 1])
+    proba = np.array([[0.5, 0.5], [0.3, bad], [0.4, 0.6]])
+    for metric in (sq.metrics.log_loss, sq.metrics.roc_auc):
+        with pytest.raises(
+            SqlearnError, match=rf"'{PROBA}1' has 1 of 3 rows .* below 0 or above 1"
+        ):
+            metric.compute(proba_relation(con, y, proba), "y", classes=[0, 1])

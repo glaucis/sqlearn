@@ -2,6 +2,10 @@
 
 Each probability column belongs to one class, in the order of the model's
 ``classes_`` (spec §7); both metrics take two classes or more.
+
+As scikit-learn 1.9.1, a probability below 0 or above 1 is refused. Unlike
+it, a row whose probabilities do not sum to 1 is neither warned about nor
+refused: 1.9.1 warns, and that warning is not copied.
 """
 
 import sys
@@ -30,6 +34,8 @@ def _log_loss(
     # [eps, 1 - eps] with float64's eps, so a certain wrong answer costs a
     # finite loss; a row's probabilities are not normalised (1.9.1 only warns
     # when they do not sum to 1). The mean is compensated (favg, ADR 0033).
+    # A probability below 0 or above 1 is refused, as 1.9.1 refuses it, by
+    # Metric.compute before this value is read.
     own = duckdb.CaseExpression(y == const(classes[0]), probabilities[0])
     for label, p in zip(classes[1:], probabilities[1:], strict=True):
         own = own.when(y == const(label), p)
