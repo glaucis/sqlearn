@@ -369,6 +369,40 @@ def _imbalance(held: list[np.ndarray], labels: np.ndarray) -> float:
     return worst
 
 
+def _split_copies(held: list[np.ndarray], copy_of: np.ndarray) -> int:
+    """Return how many repeated rows have copies held out in more than one fold."""
+    fold_of: dict[int, set[int]] = {}
+    for k, rows in enumerate(held):
+        for c in np.unique(copy_of[rows]):
+            fold_of.setdefault(int(c), set()).add(k)
+    repeated = set(np.flatnonzero(np.bincount(copy_of) > 1).tolist())
+    return sum(len(f) > 1 for c, f in fold_of.items() if c in repeated)
+
+
+def stratified_duplicates_case() -> dict:
+    """Repeated rows: every copy of a row is held out in the same fold."""
+    data = fold_data()
+    rng = np.random.default_rng(_cases.SEED + 2)
+    picks = rng.integers(0, len(data), len(data))
+    repeated = data.iloc[picks].reset_index(drop=True)
+    repeated["copy_of"] = picks
+    flags = assigned(sq.folds.stratified(FOLDS, seed=0), repeated, "label")
+    copy_of = flags["copy_of"].to_numpy()
+    ours = [np.flatnonzero(flags[f"held_{k}"]) for k in range(FOLDS)]
+    twin = StratifiedKFold(FOLDS, shuffle=True, random_state=0)
+    theirs = [t for _, t in twin.split(repeated, repeated["label"])]
+    many = int((np.bincount(picks) > 1).sum())
+    return _fold_case(
+        "stratified: every copy of a repeated row held out in one fold",
+        len(repeated),
+        _split_copies(ours, copy_of),
+        many,
+        "scikit-learn StratifiedKFold(5, shuffle=True)",
+        f"{many} rows repeat (drawn with replacement); scikit-learn holds out "
+        f"copies of {_split_copies(theirs, picks)} of them in more than one fold",
+    )
+
+
 def stratified_cases() -> list[dict]:
     """Class balance: each fold holds each class's share, to within a row."""
     data = fold_data()
@@ -399,6 +433,7 @@ def stratified_cases() -> list[dict]:
             "scikit-learn StratifiedKFold(5, shuffle=True)",
             "each row in exactly one held-out fold",
         ),
+        stratified_duplicates_case(),
     ]
 
 

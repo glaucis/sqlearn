@@ -409,9 +409,13 @@ class Stratified(_Scheme):
 
     Rows are ordered by target, then by ``hash(row, seed)``, and dealt out
     in turn along that order, as scikit-learn's ``StratifiedKFold`` spreads
-    each class. Each class is a run of the order, so every fold holds its
-    share of the class to within one row, and the dealing carries on from one
-    class to the next, so fold sizes stay within one row of each other.
+    each class. The dealing goes by ``dense_rank``, so identical rows share a
+    rank and a fold, as with the other schemes that deal by value, and are
+    never both trained on and scored. Each class is a run of the order, and
+    the dealing carries on from one class to the next: without repeated rows
+    every fold holds its share of each class to within one row and the fold
+    sizes stay within one row of each other; repeated rows move together, so
+    the sizes vary with how many times rows repeat.
 
     Parameters
     ----------
@@ -490,16 +494,17 @@ class Stratified(_Scheme):
         Returns
         -------
         str
-            The row's place in the order by target then hash, less one, modulo `n`.
+            The row's dense rank in the order by target then hash, less
+            one, modulo `n`: identical rows share it.
 
         Examples
         --------
         >>> import sqlearn as sq
         >>> print(sq.folds.stratified(2).expression("d", "y"))
-        (row_number() OVER (ORDER BY "y", hash("d", 0)) - 1) % 2
+        (dense_rank() OVER (ORDER BY "y", hash("d", 0)) - 1) % 2
         """
         return (
-            f"(row_number() OVER (ORDER BY {quote(target)}, "
+            f"(dense_rank() OVER (ORDER BY {quote(target)}, "
             f"hash({quote(row_alias)}, {self.seed})) - 1) % {self.n}"
         )
 

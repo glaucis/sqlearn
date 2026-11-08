@@ -100,7 +100,9 @@ is stored, and the answer is the same in every query.
 
 - `kfold`, `stratified` and `group` deal by value, so identical rows always
   share a fold and are never both trained on and scored.
-- `stratified` keeps each class's share in every fold to within a row.
+- `stratified` keeps each class's share in every fold to within a row when
+  no row repeats. Identical rows move together, so with repeated rows the
+  shares and fold sizes vary with how many times each row repeats.
 - `group` deals the groups by a hash, so fold sizes vary with the groups'
   sizes; scikit-learn's `GroupKFold` balances them instead.
 - `time` cuts the rows, ordered by `by`, into `n + 1` chunks of equal row

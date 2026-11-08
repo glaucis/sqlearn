@@ -239,3 +239,14 @@ def test_time_names_its_settings_and_refuses_bad_ones():
     nulls = connection().sql("SELECT NULLIF(i, 2) AS t FROM range(5) r(i)")
     with pytest.raises(SqlearnError, match="NULL in 't'"):
         sq.folds.time("t").numbered(nulls, "f", None)
+
+
+def test_stratified_puts_identical_rows_in_one_fold():
+    """Ten identical rows per class, among distinct ones, land in one fold each."""
+    rel = connection().sql(
+        "SELECT -1 AS i, c AS y FROM range(3) t(c), range(10) "
+        "UNION ALL SELECT i, i % 3 AS y FROM range(90) t(i)"
+    )
+    numbered = sq.folds.stratified(5, seed=0).numbered(rel, "f", "y")
+    spread = numbered.filter("i = -1").aggregate("y, count(DISTINCT f) AS k", "y")
+    assert sorted(spread.fetchall()) == [(0, 1), (1, 1), (2, 1)]
