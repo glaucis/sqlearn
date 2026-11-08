@@ -190,7 +190,7 @@ sq.set_config(memory=None)
   `test_the_stream_trains_larger_than_memory` trains and predicts 20 million
   rows (about 1 GB of numbers) with a 256 MB budget, on one DuckDB thread;
   each of training and predicting adds under 384 MB to the process's peak
-  (about 130 to 250 MB measured), against 3.6 GB for training without the
+  (about 130 to 280 MB measured), against 3.6 GB for training without the
   budget. At a small `memory_limit`, run DuckDB on fewer threads: each
   thread holds its own buffers, and eight of them in 128 MB run out of
   memory in a large sort. Pass a connection of your own for that:
