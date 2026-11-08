@@ -3,23 +3,35 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-07 · Branch: `main` · Checks: passing · Verify with:
-`just verify`
+Updated: 2026-11-08 · Branch: `library-model-selection` · Checks: passing ·
+Verify with: `just verify`
 
 ## In progress
 
-None.
+- [verified] Model selection (#33) is built on branch `library-model-selection`
+  (worktree `.claude/worktrees/library-model-selection`): 15 tasks, each
+  reviewed, plus a whole-branch review and fix wave; `just verify` passed. Build
+  ledger with every ruling and deferred minor:
+  `.claude/worktrees/library-model-selection/.superpowers/sdd/2026-11-07-library-model-selection/progress.md`
+  (git-ignored: copy it to the main checkout's `.superpowers/sdd/` before
+  removing the worktree).
 
 ## Waiting on the user
 
+- Merge `library-model-selection` into `main`, open a PR, or keep it.
+  (since 2026-11-08)
+- Check the build's rulings, chiefly R8 (no LightGBM: needs `brew install
+  libomp`), R11/R22 (a passed connection's DuckDB counts as at most half the
+  budget; a warning when its limit is higher, which DuckDB's default is),
+  R13 (an in-place UPDATE of a database table keeping its row count is not
+  seen by `keep_prepared`), R21 (one-at-a-time searches keep only the current
+  preparation's fold tables). (since 2026-11-08)
+- File the final review's "can stay" minors as issues? (since 2026-11-08)
 - #22 (OneHot as a list column): decide from the numbers in
   `docs/benchmarks/onehot-second-run.md`. (since 2026-11-06)
 
 ## Next up
 
-- Model selection (#33): plan `docs/plans/2026-11-07-library-model-selection.md`
-  (15 tasks) awaits Tomas's review and choice of execution method; then build
-  in the worktree `.claude/worktrees/library-model-selection`.
 - Ready for an agent: #28 compensated two-pass variance, then #27 (the
   median's reach); #32 (impute's filled copies typed INTEGER); #31 (the
   encoders' linear category lookup).
@@ -45,6 +57,10 @@ None.
 
 ## Just finished
 
+- The model-selection build (#33, closes #21 and #25 on merge): spec
+  `docs/specs/library-model-selection.md`, plan
+  `docs/plans/2026-11-07-library-model-selection.md`, ADRs 0039-0041.
+  (2026-11-08)
 - Model-selection spec approved: `docs/specs/library-model-selection.md`,
   tracked in #33 (#21 and #25 its sub-issues). (2026-11-07)
 - #30 closed out: ADRs 0037 (four step-contract additions) and 0038 (target
