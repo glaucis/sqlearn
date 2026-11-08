@@ -14,12 +14,13 @@ import ctypes
 import os
 import pathlib
 import re
+import warnings
 from collections.abc import Sequence
 
 import duckdb
 
 from sqlearn._config import get_config
-from sqlearn._errors import SqlearnError
+from sqlearn._errors import SqlearnError, SqlearnWarning
 
 __all__ = [
     "allowance",
@@ -60,11 +61,16 @@ _NUMBER = 8
 _TEXT = 64
 # A fetch's peak holds two copies (DuckDB's result and the form built from it).
 _COPIES = 2
+# numpy and the stream may hold a column as a masked array: a byte a value.
+_MASK = 1
 # The type ids held as text: their size is their text's length.
 _VARIABLE = frozenset(
     {"varchar", "blob", "bit", "list", "array", "struct", "map", "union", "varint",
      "bignum", "variant"}
 )  # fmt: skip
+
+# A limit this large is DuckDB's "no limit" (it prints about 16 EiB).
+_UNLIMITED = 2**60
 
 # cgroup v2's memory limit: a container's memory, when there is one.
 CGROUP = pathlib.Path("/sys/fs/cgroup/memory.max")
@@ -123,7 +129,8 @@ def physical() -> int:
     int
         Physical memory: from ``sysconf`` on POSIX, from
         ``GlobalMemoryStatusEx`` on Windows; in a Linux container the
-        smaller of that and cgroup v2's ``memory.max`` (``"max"`` is none).
+        smaller of that and cgroup v2's ``memory.max`` (``"max"`` or 0 is
+        none).
 
     Examples
     --------
@@ -138,7 +145,8 @@ def physical() -> int:
         text = CGROUP.read_text().strip()
     except OSError:
         return machine  # no cgroup v2 limit: not Linux, or not in one
-    return min(machine, int(text)) if text.isdigit() else machine
+    limit = int(text) if text.isdigit() else 0
+    return min(machine, limit) if limit > 0 else machine
 
 
 def _windows() -> int:  # pragma: no cover  (Windows only)
@@ -245,7 +253,49 @@ def allowance(con: duckdb.DuckDBPyConnection) -> int:
     >>> sq.set_config(memory=None)
     """
     total = budget()
-    return total - min(duckdb_limit(con), total // 2)
+    limit = duckdb_limit(con)
+    # Read limits are rounded up a little (duckdb_limit), so 1% of slack.
+    if limit > total // 2 * 1.01 and get_config().connection is con:
+        _warn_over_half(limit, total)
+    return total - min(limit, total // 2)
+
+
+_warned_over_half = False
+
+
+def _warn_over_half(limit: int, total: int) -> None:
+    """Warn, once per process, that a passed connection's limit is over its share.
+
+    DuckDB's share counts as half the budget (Ruling R11), so with a higher
+    ``memory_limit`` DuckDB and the hand-over together may exceed the
+    budget (Ruling R22).
+    """
+    global _warned_over_half
+    if _warned_over_half:
+        return
+    _warned_over_half = True
+    stated = (
+        "no memory_limit"
+        if limit >= _UNLIMITED
+        else f"a memory_limit of about {_megabytes(limit)}"
+    )
+    half = _megabytes(total // 2)
+    msg = (
+        f"the DuckDB connection passed to sqlearn has {stated}, while sqlearn "
+        f"counts DuckDB's share as half the memory budget ({half} of "
+        f"{_megabytes(total)}). DuckDB and the data handed to a model "
+        "together may then use more memory than the budget, and swap. Fix: "
+        f"SET memory_limit = '{half.replace(',', '')}' (or less) on that "
+        "connection, or give a larger budget with sq.set_config(memory=...). "
+        "This warning is given once per process."
+    )
+    warnings.warn(msg, SqlearnWarning, stacklevel=4)
+
+
+def _reset() -> None:
+    """Let the once-per-process warning be given again (for tests)."""
+    global _warned_over_half
+    _warned_over_half = False
 
 
 def estimate(rel: duckdb.DuckDBPyRelation, columns: Sequence[str], feed: str) -> int:
@@ -256,9 +306,11 @@ def estimate(rel: duckdb.DuckDBPyRelation, columns: Sequence[str], feed: str) ->
     result and the form built from it). A number is 8 bytes; a text value
     64 bytes (a Python string's overhead) plus the column's average length;
     any other column (a list, struct, map, blob) is counted as its text.
-    numpy holds a column with NULLs as a masked array: one more byte a
-    value. The row count, the lengths and the NULLs come from one aggregate
-    query over `rel`.
+    numpy and the stream may hold a column as a masked array, so each value
+    counts one more byte there, NULL or not: the NULLs are not counted,
+    which would compute every column. The row count and the text columns'
+    average lengths come from one aggregate query over `rel`, so a fetch of
+    numbers alone needs only ``count(*)``.
 
     Parameters
     ----------
@@ -299,17 +351,13 @@ def estimate(rel: duckdb.DuckDBPyRelation, columns: Sequence[str], feed: str) ->
         )
         for c in variable
     ]
-    masked = list(columns) if feed in ("numpy", "stream") else []
-    present = [
-        duckdb.FunctionExpression("count", duckdb.ColumnExpression(c)) for c in masked
-    ]
     count = duckdb.FunctionExpression("count", duckdb.StarExpression())
-    rows, *rest = rel.aggregate([count, *lengths, *present]).fetchall()[0]
-    averages, counts = rest[: len(variable)], rest[len(variable) :]
+    rows, *averages = rel.aggregate([count, *lengths]).fetchall()[0]
     per_row: float = _NUMBER * (len(columns) - len(variable))
     per_row += sum(_TEXT + float(a) for a in averages)
     per_row *= _COPIES
-    per_row += sum(1 for n in counts if n < rows)  # numpy's mask
+    if feed in ("numpy", "stream"):
+        per_row += _MASK * len(columns)
     return int(rows * per_row + 0.999999)
 
 

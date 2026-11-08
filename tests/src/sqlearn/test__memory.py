@@ -1,5 +1,7 @@
 """Tests of the memory budget: what a hand-over may use, and its estimate."""
 
+import warnings
+
 import duckdb
 import pytest
 
@@ -14,7 +16,7 @@ from sqlearn._memory import (
     parse,
     physical,
 )
-from sqlearn.errors import SqlearnError
+from sqlearn.errors import SqlearnError, SqlearnWarning
 
 
 @pytest.mark.parametrize(
@@ -85,7 +87,8 @@ def test_a_passed_default_connection_counts_as_half_the_budget():
     """DuckDB's own default limit (80%) counts as half the budget (Ruling R11)."""
     con = duckdb.connect()
     sq.set_config(connection=con)
-    assert allowance(con) == budget() - budget() // 2
+    with pytest.warns(SqlearnWarning, match="memory_limit of about"):
+        assert allowance(con) == budget() - budget() // 2
 
 
 def test_an_unlimited_connection_counts_as_half_the_budget():
@@ -93,14 +96,15 @@ def test_an_unlimited_connection_counts_as_half_the_budget():
     con = duckdb.connect()
     con.execute("SET memory_limit = '-1'")
     sq.set_config(connection=con)
-    assert allowance(con) == budget() - budget() // 2
+    with pytest.warns(SqlearnWarning, match="no memory_limit"):
+        assert allowance(con) == budget() - budget() // 2
 
 
 def test_the_estimate_counts_a_number_twice_over():
     """A number is 8 bytes, counted twice: the fetch's peak holds two copies."""
     rel = connection().sql("SELECT i::DOUBLE AS a, i AS b FROM range(1000) t(i)")
     assert estimate(rel, ["a", "b"], "pandas") == 1000 * 2 * 16
-    assert estimate(rel, ["a", "b"], "numpy") == 1000 * 2 * 16
+    assert estimate(rel, ["a", "b"], "numpy") == 1000 * 2 * (16 + 1)
 
 
 def test_the_estimate_counts_text_by_its_average_length():
@@ -109,15 +113,6 @@ def test_the_estimate_counts_text_by_its_average_length():
         "SELECT * FROM (VALUES ('ab', 1.0), ('abcd', 2.0), (NULL, 3.0)) v(s, a)"
     )
     assert estimate(rel, ["s", "a"], "pandas") == 3 * 2 * (64 + 3) + 3 * 16
-
-
-def test_numpy_counts_a_mask_byte_for_a_column_with_nulls():
-    """numpy holds a NULL column as a masked array: one more byte a value."""
-    rel = connection().sql(
-        "SELECT * FROM (VALUES (1.0, 1.0), (NULL, 2.0), (3.0, 3.0)) v(a, b)"
-    )
-    assert estimate(rel, ["a", "b"], "numpy") == 3 * (16 + 1) + 3 * 16
-    assert estimate(rel, ["a", "b"], "arrow") == 3 * 16 + 3 * 16
 
 
 def test_a_nested_column_is_counted_as_its_text():
@@ -149,3 +144,59 @@ def test_physical_memory_is_capped_by_the_cgroup_limit(tmp_path, monkeypatch):
     assert physical() == machine
     limit.write_text("max\n")
     assert physical() == machine
+
+
+def test_the_estimate_counts_a_flat_mask_byte_for_numpy_and_the_stream():
+    """numpy and the stream count one byte a value for a mask, NULL or not."""
+    rel = connection().sql(
+        "SELECT * FROM (VALUES (1.0, 1.0), (NULL, 2.0), (3.0, 3.0)) v(a, b)"
+    )
+    for feed in ("numpy", "stream"):
+        assert estimate(rel, ["a", "b"], feed) == 3 * (16 + 1) * 2
+    assert estimate(rel, ["a", "b"], "arrow") == 3 * 16 * 2
+
+
+def test_a_number_only_estimate_reads_the_row_count_alone(monkeypatch):
+    """With no text column, the estimate's query is count(*) and nothing else."""
+    seen = []
+    real = duckdb.DuckDBPyRelation.aggregate
+
+    def spy(self, expressions, *args):
+        seen.append([str(e) for e in expressions])
+        return real(self, expressions, *args)
+
+    monkeypatch.setattr(duckdb.DuckDBPyRelation, "aggregate", spy)
+    rel = connection().sql("SELECT i::DOUBLE AS a, i AS b FROM range(10) t(i)")
+    estimate(rel, ["a", "b"], "numpy")
+    assert seen == [["count(*)"]]
+
+
+def test_a_cgroup_limit_of_zero_is_no_limit(tmp_path, monkeypatch):
+    """A memory.max of 0 is not a limit of no memory: the machine's is kept."""
+    limit = tmp_path / "memory.max"
+    monkeypatch.setattr(_memory, "CGROUP", limit)
+    machine = physical()
+    limit.write_text("0\n")
+    assert physical() == machine
+
+
+def test_a_passed_connection_above_half_the_budget_warns_once():
+    """DuckDB's limit over half the budget: one warning per process, with a fix."""
+    con = duckdb.connect()
+    con.execute("SET memory_limit = '3GB'")
+    sq.set_config(connection=con, memory="4GB")
+    with pytest.warns(SqlearnWarning, match=r"memory_limit.*SET memory_limit"):
+        allowance(con)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        allowance(con)  # once per process: no second warning
+
+
+def test_a_passed_connection_within_half_the_budget_does_not_warn():
+    """A limit of half the budget or less is DuckDB's share as counted."""
+    con = duckdb.connect()
+    con.execute("SET memory_limit = '1GB'")
+    sq.set_config(connection=con, memory="4GB")
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        allowance(con)

@@ -28,7 +28,7 @@ from sqlearn._compose import number_rows
 from sqlearn._config import connection
 from sqlearn._errors import SqlearnError, SqlearnWarning
 from sqlearn._expr import quote
-from sqlearn._inputs import _drop_later, _release_later
+from sqlearn._inputs import _drop_later
 from sqlearn._memory import check
 from sqlearn._model import Model, _numpy, check_feed, missing_target, target_values
 
@@ -41,7 +41,6 @@ __all__ = [
     "fetch",
     "hand_over",
     "predict_streamed",
-    "received",
     "stream_into",
     "stream_trainer",
     "take",
@@ -360,60 +359,6 @@ def hand_over(rel: duckdb.DuckDBPyRelation, feed: str) -> object:
     """
     x, _ = fetch(rel, feed, rel.columns, None)
     return x
-
-
-def received(
-    con: duckdb.DuckDBPyConnection,
-    rows: Any,  # noqa: ANN401  (numpy arrays)
-    predicted: object,
-) -> duckdb.DuckDBPyRelation:
-    """Bring a model's predictions into DuckDB, sorted into the input's order.
-
-    The predictions are registered on the connection as numpy arrays (no
-    pandas or pyarrow) beside the row numbers they belong to, and the
-    relation returned sorts by those numbers. The registration lasts as long
-    as the relation does.
-
-    Parameters
-    ----------
-    con : duckdb.DuckDBPyConnection
-        The connection.
-    rows : numpy.ndarray
-        Each prediction's row number in the input, counting from 1.
-    predicted : array-like
-        What the model's ``predict`` returned: one value per row.
-
-    Returns
-    -------
-    duckdb.DuckDBPyRelation
-        One column, ``prediction``, one row per input row, in input order.
-
-    Raises
-    ------
-    SqlearnError
-        If the model did not return one value per row.
-
-    Examples
-    --------
-    >>> import numpy as np
-    >>> from sqlearn._config import connection
-    >>> from sqlearn._feed import received
-    >>> rel = received(connection(), np.array([2, 1]), np.array(["b", "a"]))
-    >>> rel.fetchall()
-    [('a',), ('b',)]
-    """
-    np = _numpy()
-    values = _checked(np.asarray(predicted), len(rows), "predict")
-    name = f"_sqlearn_predictions_{next(_prediction_ids)}"
-    con.register(name, {"row": np.ma.getdata(rows), "prediction": values})
-    rel = (
-        con.table(name)
-        .order(duckdb.ColumnExpression("row"))
-        .project(duckdb.ColumnExpression("prediction"))
-    )
-    # Release the registration (and the arrays) once the relation is gone.
-    weakref.finalize(rel, _release_later, con, name)
-    return rel
 
 
 def _checked(values: Any, rows: int, method: str) -> Any:  # noqa: ANN401  (numpy arrays)

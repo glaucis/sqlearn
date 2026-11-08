@@ -739,6 +739,7 @@ def test_predict_refuses_the_row_number_name():
 def test_predict_refuses_a_connection_not_keeping_order():
     """Without preserve_insertion_order, rows could not be matched: refused."""
     con = duckdb.connect()
+    con.execute("SET memory_limit = '256MB'")  # under half the budget: no warning
     sq.set_config(connection=con)
     frame = pd.DataFrame({"x": [1.0, 2.0], "y": [0, 1]})
     pipe = sq.Pipeline([("model", Echo())]).train(frame, target="y")

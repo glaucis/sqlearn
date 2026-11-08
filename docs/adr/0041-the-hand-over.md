@@ -71,25 +71,30 @@ had nowhere to go but swap.
   pyarrow the rows cannot be read in batches, and fetching them whole
   would defeat the stream. In a search each stream model streams its fold's
   training rows itself.
-- **Never swap.** Before a form other than `"stream"` loads a fold, its size
-  is estimated and compared with the memory budget; a fold that will not fit
-  is refused before the fetch, suggesting `feed="stream"`. The budget is one
-  for the process, `sq.set_config(memory=...)` (bytes or a size such as
-  `"8GB"`), by default 80% of physical memory. DuckDB's share is its
-  connection's `memory_limit`, counted as at most half the budget, and the
-  hand-over may use the rest (Ruling R11). sqlearn's own connection is given
-  half the budget as its `memory_limit`, re-applied when the budget changes;
-  a connection the user passed is never changed, and its default limit (80%
-  of physical memory, the same as the budget) or no limit at all counts as
-  half, so a passed connection is not left with nothing. Physical memory is
-  `sysconf`'s (Windows: `GlobalMemoryStatusEx`), capped in a Linux container
-  by cgroup v2's `memory.max`. The estimate errs towards refusing (Ruling
-  R12): each value counts twice, for the two copies a fetch holds at its
+- **Never swap.** Before a form other than `"stream"` loads a fold, its size is
+  estimated and compared with the memory budget; a fold that will not fit is
+  refused before the fetch, suggesting `feed="stream"`. The budget is one for
+  the process, `sq.set_config(memory=...)` (bytes or a size such as `"8GB"`), by
+  default 80% of physical memory. DuckDB's share is its connection's
+  `memory_limit`, counted as at most half the budget, and the hand-over may use
+  the rest (Ruling R11). sqlearn's own connection is given half the budget as
+  its `memory_limit`, re-applied when the budget changes; a connection the user
+  passed is never changed, and its default limit (80% of physical memory, the
+  same as the budget) or no limit at all counts as half, so a passed connection
+  is not left with nothing. Physical memory is `sysconf`'s (Windows:
+  `GlobalMemoryStatusEx`), capped in a Linux container by cgroup v2's
+  `memory.max` (`max` or 0 is no limit). The estimate errs towards refusing
+  (Ruling R12): each value counts twice, for the two copies a fetch holds at its
   peak; a number is 8 bytes, a text value 64 bytes plus its column's average
-  length, any other column (list, struct, map, blob) its text's; numpy adds
-  a byte a value for a column with NULLs (the mask). The rows, lengths and
-  NULLs come from one aggregate query. Prediction batches are not checked
-  (each is small); prediction's one whole fetch without pyarrow is.
+  length, any other column (list, struct, map, blob) its text's; numpy and the
+  stream add a byte a value for a possible mask, whether or not the column holds
+  NULLs, so the NULLs are not counted (counting them would compute every
+  column). The rows and the text columns' lengths come from one aggregate query,
+  which for numbers alone is a `count(*)`. A passed connection whose
+  `memory_limit` is above half the budget gets a `SqlearnWarning`, once per
+  process, that DuckDB and the hand-over together may exceed it (Ruling R22).
+  Prediction batches are not checked (each is small); prediction's one whole
+  fetch without pyarrow is.
 
 ## Consequences
 

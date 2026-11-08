@@ -233,6 +233,7 @@ def test_the_connection_own_database_file_can_keep_them(tmp_path):
     """Kept in the database sqlearn computes in: used as it is, never detached."""
     path = tmp_path / "project.duckdb"
     con = duckdb.connect(str(path))
+    con.execute("SET memory_limit = '256MB'")  # under half the budget: no warning
     con.execute("CREATE TABLE data AS FROM DATA")
     sq.set_config(connection=con)
     run = lambda: sq.search(  # noqa: E731
@@ -507,3 +508,42 @@ def test_a_fit_failing_after_a_kept_table_was_read_leaves_the_file_whole(
             "WHERE schema_name = 'sqlearn_prepared' AND table_name <> '_index'"
         ).fetchall()
     assert tables == [(2,)]
+
+
+TEXT_SEARCH = """
+import numpy as np
+import pandas as pd
+import sqlearn as sq
+from sklearn.ensemble import HistGradientBoostingClassifier
+
+frame = pd.DataFrame(
+    {
+        "x": np.arange(60.0),
+        "city": ["vilnius", "kaunas", "riga", None] * 15,
+        "y": [0, 1, 1, 0, 1, 0] * 10,
+    }
+)
+model = HistGradientBoostingClassifier(categorical_features="from_dtype", max_iter=5)
+search = sq.search(
+    sq.Pipeline([("model", sq.Model(model, feed="pandas"))]),
+    params={"model__max_depth": [2, 3]},
+    folds=sq.folds.kfold(2),
+    keep_prepared=KEPT,
+).train(frame, target="y")
+"""
+
+
+def test_a_frame_with_text_is_kept_for_another_session(tmp_path):
+    """Text handed to pandas as categories, kept, then read in a new session."""
+    kept_file = tmp_path / "kept.duckdb"
+    script = f"KEPT = {str(kept_file)!r}\n{TEXT_SEARCH}\n"
+    script += "print(search.transforms_, repr(search.best_score_))"
+    done = subprocess.run(
+        [sys.executable, "-c", script], capture_output=True, text=True, check=True
+    )
+    transforms, score = done.stdout.split()
+    assert transforms == "2"
+    here: dict[str, Any] = {"KEPT": str(kept_file)}
+    exec(TEXT_SEARCH, here)
+    assert here["search"].transforms_ == 0  # read from the file, not prepared
+    assert repr(here["search"].best_score_) == score

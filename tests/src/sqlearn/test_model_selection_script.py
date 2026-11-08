@@ -69,16 +69,18 @@ def test_the_search_matches_scikit_learn():
 PEAK_BOUND = 384_000_000
 """The most a run may add to the process's peak memory: the budget and a half.
 
-Measured on an 8-core macOS machine with 16 GB (2026-11-08), at 20 million
-rows, over two runs: training added 162 to 188 MB to the peak (about 55 s),
+The budget is 256 MB; the bound is 384 MB. Measured on an 8-core macOS
+machine with 16 GB (2026-11-08), at 20 million rows, over two runs of the
+test alone: training added 162 to 188 MB to the peak (about 55 s),
 and predicting all 20 million rows into a Parquet file 148 to 150 MB (3 s,
 with the model trained on 10,000 rows so that training leaves no higher
 peak); the whole test takes about 65 s. Without the budget
 (``memory="16GB"``) the same training added 3.6 GB and the prediction
 655 MB: the bound is what the budget holds, and the prediction's table in
 DuckDB's attached in-memory database spills as a temporary table does. In
-``just verify`` (four runs, under load) training added 131 to 244 MB and
-predicting 148 to 167 MB, so the bound is half as much again as the budget,
+one ``just verify`` the test runs four times under load (once per Python of
+the matrix, then once more in ``just validate``): training added 131 to 244
+MB and predicting 148 to 167 MB, so the bound is half as much again as the budget,
 still a tenth of what training adds without it.
 """
 
@@ -176,9 +178,10 @@ def run_part(part, path, tmp_path):
 
 @pytest.mark.slow
 def test_the_stream_trains_larger_than_memory(tmp_path, capsys):
-    """§2's streamed pipeline on 20 million rows within a 256 MB budget.
+    """§2's streamed pipeline on 20 million rows, with a 256 MB budget.
 
-    Training and predicting each add less than `PEAK_BOUND` to the peak, and
+    Training and predicting each add less than `PEAK_BOUND` (384 MB, the
+    budget and a half) to the process's peak, and
     a model handed the rows whole is refused before the fetch, suggesting
     the stream.
     """
@@ -188,9 +191,9 @@ def test_the_stream_trains_larger_than_memory(tmp_path, capsys):
     predicted = run_part("predict", path, tmp_path)
     with capsys.disabled():
         print(  # noqa: T201
-            f"\n20 million rows streamed in a 256 MB budget: training added "
+            f"\n20 million rows streamed with a 256 MB budget: training added "
             f"{trained['grown'] / 1e6:.0f} MB to the peak, predicting "
-            f"{predicted['grown'] / 1e6:.0f} MB"
+            f"{predicted['grown'] / 1e6:.0f} MB (bound {PEAK_BOUND / 1e6:.0f} MB)"
         )
     assert trained["grown"] < PEAK_BOUND
     assert predicted["grown"] < PEAK_BOUND

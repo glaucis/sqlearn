@@ -174,15 +174,24 @@ sq.set_config(memory=None)
   a Linux container, capped by its cgroup's limit).
 - **DuckDB's share.** sqlearn's own connection is given half the budget as
   DuckDB's `memory_limit`, and the hand-over may use the rest. A connection
-  you pass with `sq.set_config(connection=...)` is never changed: its
-  `memory_limit` counts as at most half the budget.
+  you pass with `sq.set_config(connection=...)` keeps its settings: its
+  `memory_limit` counts as at most half the budget. When that limit is above
+  half (DuckDB's default, 80% of memory, is), DuckDB and the hand-over
+  together may use more than the budget, and a `SqlearnWarning` says so once
+  per process; `SET memory_limit` on that connection to half the budget or
+  less to stay within it. sqlearn adds one thing to a connection you pass:
+  the first streamed prediction attaches a private in-memory database,
+  `__sqlearn_feed`, which holds the predictions and stays attached.
 - **The estimate errs towards refusing:** each value counts twice, for the
   two copies a fetch holds at its peak; a number is 8 bytes, a text value 64
-  bytes plus its column's average length.
+  bytes plus its column's average length; numpy and the stream add a byte a
+  value for a possible mask.
 - **Larger than memory.** The stream is the way: the slow test
   `test_the_stream_trains_larger_than_memory` trains and predicts 20 million
-  rows (about 1 GB of numbers) within a 256 MB budget, on one DuckDB
-  thread. At a small `memory_limit`, run DuckDB on fewer threads: each
+  rows (about 1 GB of numbers) with a 256 MB budget, on one DuckDB thread;
+  each of training and predicting adds under 384 MB to the process's peak
+  (about 130 to 250 MB measured), against 3.6 GB for training without the
+  budget. At a small `memory_limit`, run DuckDB on fewer threads: each
   thread holds its own buffers, and eight of them in 128 MB run out of
   memory in a large sort. Pass a connection of your own for that:
 

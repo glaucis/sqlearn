@@ -15,8 +15,9 @@ from sklearn.linear_model import LogisticRegression, SGDClassifier
 import sqlearn as sq
 from sqlearn import _feed, _memory
 from sqlearn._config import connection
-from sqlearn._feed import fetch, hand_over, predict_streamed, received
+from sqlearn._feed import fetch, hand_over, predict_streamed
 from sqlearn._model import Model
+from sqlearn.errors import SqlearnWarning
 
 
 @pytest.fixture
@@ -199,12 +200,6 @@ def test_pipeline_predict_streams_in_batches(monkeypatch):
     predicted = pipe.predict(frame, out="numpy")["prediction"]
     assert Tens.calls == 3
     np.testing.assert_array_equal(predicted, np.arange(10.0) * 10)
-
-
-def test_received_sorts_predictions_by_row(con):
-    """received registers the arrays and sorts them by row number."""
-    rel = received(con, np.array([2, 1]), np.array(["b", "a"]))
-    assert rel.fetchall() == [("a",), ("b",)]
 
 
 def test_hand_over_gives_a_float_matrix_in_column_order():
@@ -589,11 +584,10 @@ def test_megabytes_sets_the_batch_from_the_row_width(con):
 def test_stream_defaults_to_batches_of_about_100_megabytes(con, monkeypatch):
     """With neither rows= nor megabytes=, a batch is about 100 MB."""
     seen = []
-    real = duckdb_reader_sizes(monkeypatch, seen)
+    duckdb_reader_sizes(monkeypatch, seen)
     rel = con.sql("SELECT i::DOUBLE AS a, i::DOUBLE AS b, 0 AS y FROM range(10) t(i)")
     _feed.train_streamed(con, rel, ["a", "b"], "y", Model(Batches(), feed="stream"))
     assert seen == [100 * 1_000_000 // 16]
-    assert real
 
 
 def duckdb_reader_sizes(monkeypatch, seen):
@@ -772,7 +766,8 @@ def test_a_fold_too_big_is_refused_before_fetching(con, monkeypatch):
         with pytest.raises(sq.errors.SqlearnError, match="stream") as err:
             fetch(big(con), feed, ["a", "b"], None)
         text = str(err.value)
-        assert "160 MB" in text  # two 8-byte copies of two columns
+        # Two 8-byte copies of two columns; numpy a mask byte a value more.
+        assert ("170 MB" if feed == "numpy" else "160 MB") in text
         assert "32 MB" in text
         assert "swap" in text
         assert "sq.set_config(memory=" in text
@@ -793,7 +788,8 @@ def test_a_small_fetch_on_a_default_passed_connection_is_not_refused():
     other = duckdb.connect()
     sq.set_config(connection=other)
     rel = other.sql("SELECT i::DOUBLE AS a, i::DOUBLE AS b FROM range(5000) t(i)")
-    x, _ = fetch(rel, "numpy", ["a", "b"], None)
+    with pytest.warns(SqlearnWarning, match="memory_limit of about"):  # R22
+        x, _ = fetch(rel, "numpy", ["a", "b"], None)
     assert x.shape == (5000, 2)
 
 
@@ -802,7 +798,8 @@ def test_a_small_fetch_on_an_unlimited_connection_is_not_refused():
     other = duckdb.connect()
     other.execute("SET memory_limit = '-1'")
     sq.set_config(connection=other)
-    x, _ = fetch(other.sql("SELECT 1.0 AS a"), "numpy", ["a"], None)
+    with pytest.warns(SqlearnWarning, match="no memory_limit"):  # R22
+        x, _ = fetch(other.sql("SELECT 1.0 AS a"), "numpy", ["a"], None)
     assert x.tolist() == [[1.0]]
 
 
@@ -857,10 +854,14 @@ def test_a_search_is_refused_at_a_folds_training_fetch(tmp_path):
     search = sq.search(
         pipe, params={"model__C": [1.0]}, folds=sq.folds.holdout(test=0.2)
     )
-    with pytest.raises(sq.errors.SqlearnError, match="swap") as err:
+    with (
+        pytest.warns(SqlearnWarning, match="memory_limit of about 1,000 MB"),
+        pytest.raises(sq.errors.SqlearnError, match="swap") as err,
+    ):
         search.train(rel, target="y")
-    # 1.6 million training rows of two numbers: about 51 MB, over 32 MB.
-    assert "51 MB" in str(err.value)
+    # 1.6 million training rows of two numbers, two copies and a mask byte
+    # each: about 54 MB, over 32 MB.
+    assert "54 MB" in str(err.value)
     assert any(
         entry.name == "_fetch" and str(entry.path).endswith("search.py")
         for entry in err.traceback
