@@ -238,6 +238,42 @@ def test_a_setting_of_a_model_without_get_params_is_checked_by_attribute():
         )
 
 
+class Sparse(Echo):
+    """A model whose get_params lists only the settings it was given, as CatBoost's."""
+
+    def __init__(self, depth=6, verbose=None):
+        super().__init__()
+        self._given = {"verbose": verbose} if verbose is not None else {}
+        self.depth = depth
+
+    def get_params(self, deep=True):
+        """Return the settings given to the constructor, and no others."""
+        return dict(self._given)
+
+    def set_params(self, **params):
+        """Record and set each setting."""
+        self._given.update(params)
+        for name, value in params.items():
+            setattr(self, name, value)
+        return self
+
+
+def test_a_setting_get_params_leaves_out_is_found_in_the_constructor():
+    """CatBoost lists in get_params only the settings it was given.
+
+    A setting of its constructor is still a setting; one of neither is
+    refused, listing both.
+    """
+    data = customers(rows=100)
+    search = sq.search(slice_pipe(Sparse(verbose=0)), params={"model__depth": [2, 3]})
+    search.train(data, target="churned")
+    assert search.best_pipeline_["model"].depth in {2, 3}
+    with pytest.raises(sq.errors.SqlearnError, match=r"Sparse.*'nope'.*depth"):
+        sq.search(slice_pipe(Sparse(verbose=0)), params={"model__nope": [1]}).train(
+            data, target="churned"
+        )
+
+
 def test_range_given_to_grid_is_refused():
     """Grid cannot try a range: the search refuses it, naming the setting."""
     search = sq.search(

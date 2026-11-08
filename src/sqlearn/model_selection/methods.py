@@ -9,6 +9,7 @@ of a pipeline, refusing a setting that names nothing.
 
 import builtins
 import contextlib
+import inspect
 import itertools
 import math
 import random as _random
@@ -696,17 +697,32 @@ def _draw(rng: _random.Random, values: Range | Sequence[object]) -> object:
 _FIX = "Fix: write settings as step__setting, such as 'model__C'"
 
 
+def _constructor_settings(cls: type) -> list[str]:
+    """Return the named arguments of a class's constructor, or none if unreadable."""
+    try:
+        parameters = inspect.signature(cls).parameters.values()
+    except (TypeError, ValueError):  # pragma: no cover  (a builtin's constructor)
+        return []
+    named = (inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY)
+    return [p.name for p in parameters if p.kind in named]
+
+
 def _set_on_model(model: Model, key: str, name: str, value: object) -> None:
     """Set one setting on a copied model, refusing one it does not have.
 
-    A model with ``get_params`` is checked against its keys and set with
-    ``set_params`` (the value copied, as scikit-learn's search does); any
-    other is checked and set as an attribute.
+    A model with ``get_params`` is checked against its keys, and the named
+    arguments of its constructor (CatBoost's ``get_params`` lists only the
+    settings it was given), and set with ``set_params`` (the value copied,
+    as scikit-learn's search does); any other is checked and set as an
+    attribute.
     """
     est = model.estimator
     setting = key.partition("__")[2]
     get_params = getattr(est, "get_params", None)
-    have = list(get_params()) if callable(get_params) else None
+    have = None
+    if callable(get_params):
+        have = list(get_params())
+        have += [p for p in _constructor_settings(type(est)) if p not in have]
     if (setting not in have) if have is not None else not hasattr(est, setting):
         listed = f"; its settings are {', '.join(have)}" if have else ""
         msg = (
