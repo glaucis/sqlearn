@@ -5,8 +5,8 @@ kernelspec:
   display_name: Python 3
   language: python
 type: guide
-tags: [scikit-learn, migration, equivalents, pipeline, preprocessing]
-summary: "A table of every scikit-learn name sqlearn's preprocessing implements and its sqlearn counterpart, with the differences that matter."
+tags: [scikit-learn, migration, equivalents, pipeline, preprocessing, search, folds]
+summary: "A table of every scikit-learn name sqlearn's preprocessing and model selection implement and its sqlearn counterpart, with the differences that matter."
 related: [docs/specs/library-preprocessing.md, docs/adr/0003-scikit-learn-style-api.md, docs/adr/0034-a-grouped-api.md]
 ---
 
@@ -15,8 +15,8 @@ related: [docs/specs/library-preprocessing.md, docs/adr/0003-scikit-learn-style-
 sqlearn follows scikit-learn's conventions
 ([ADR 0003](../adr/0003-scikit-learn-style-api.md)) with its own verbs: a step
 `learn`s and `apply`s where a scikit-learn transformer `fit`s and
-`transform`s. The table maps each scikit-learn name this area implements to
-its counterpart.
+`transform`s. The table maps each scikit-learn name sqlearn implements to its
+counterpart.
 
 | scikit-learn | sqlearn |
 |---|---|
@@ -45,6 +45,20 @@ its counterpart.
 | `FunctionTransformer(np.clip, kw_args={"a_min": 0, "a_max": 1})` | `sq.transform.clip(lower=0, upper=1)` |
 | `PolynomialFeatures(degree=2)` | `sq.features.polynomial(degree=2)` |
 | `SplineTransformer(n_knots=5, degree=3)` | `sq.features.spline(n_knots=5, degree=3)` |
+| `GridSearchCV(pipe, grid)` | `sq.search(pipe, params=grid)` |
+| `RandomizedSearchCV(pipe, distributions, n_iter=50)` | `sq.search(pipe, params=..., method=sq.search.random(trials=50))` |
+| `scipy.stats.loguniform(0.01, 10)` | `sq.search.range(0.01, 10, log=True)` |
+| `KFold(5, shuffle=True)` | `sq.folds.kfold(5)` |
+| `StratifiedKFold(5, shuffle=True)` | `sq.folds.stratified(5)` |
+| `GroupKFold(5)` with `groups=customer` | `sq.folds.group("customer", 5)` |
+| `TimeSeriesSplit(5, gap=0)` | `sq.folds.time("day", 5, gap=0)` |
+| `PredefinedSplit(test_fold)` | a fold scheme of your own ([tuning a model](tuning-a-model.md)) |
+| `scoring="accuracy"` | `metric=sq.metrics.accuracy` |
+| `scoring="neg_log_loss"` | `metric=sq.metrics.log_loss` |
+| `scoring="roc_auc"` (`"roc_auc_ovr"` for more than two classes) | `metric=sq.metrics.roc_auc` |
+| `scoring="neg_root_mean_squared_error"` | `metric=sq.metrics.rmse` |
+| `scoring="neg_mean_absolute_error"` | `metric=sq.metrics.mae` |
+| `scoring="r2"` | `metric=sq.metrics.r2` |
 
 For example, scikit-learn's
 
@@ -83,6 +97,18 @@ pipe.learn(data).apply(data, out="pandas")
   is off by default.
 - **Target encoding.** Cross-fitting happens in `train` only. Learn-then-apply
   does not cross-fit, and a text target is refused.
+- **Scores keep their sign.** A metric where lower is better (`log_loss`,
+  `rmse`, `mae`) is reported as it is, and the search keeps the lowest;
+  scikit-learn negates it and keeps the highest.
+- **Folds are dealt by value.** `sq.folds.kfold`, `stratified` and `group`
+  deal rows by a hash of their values, so identical rows share a fold; the
+  rows of a fold differ from scikit-learn's for the same seed. `group` does
+  not balance fold sizes as `GroupKFold` does, and `time` never splits rows
+  sharing a time between training and held-out rows.
+- **`random` has its own sampler.** The same seed gives the same settings
+  in sqlearn, not the settings `RandomizedSearchCV` would draw.
 
 Each page of this guide for a group (imputing, scaling, encoding, binning,
-transforming, making features) lists its own edge cases.
+transforming, making features) lists its own edge cases; [tuning a
+model](tuning-a-model.md) and [handing data to
+models](handing-data-to-models.md) cover the search and `sq.Model`.

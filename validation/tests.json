@@ -1718,6 +1718,12 @@
     },
     {
       "area": "sqlearn/model_selection/search",
+      "name": "tests/src/sqlearn/model_selection/test_search.py::test_a_setting_get_params_leaves_out_is_found_in_the_constructor",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/search",
       "name": "tests/src/sqlearn/model_selection/test_search.py::test_a_setting_of_a_model_without_get_params_is_checked_by_attribute",
       "outcome": "passed",
       "tier": "fast"
@@ -7229,6 +7235,24 @@
       "name": "tests/src/sqlearn/test_init.py::test_the_version_is_a_string",
       "outcome": "passed",
       "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection_script",
+      "name": "tests/src/sqlearn/test_model_selection_script.py::test_the_script_runs",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection_script",
+      "name": "tests/src/sqlearn/test_model_selection_script.py::test_the_search_matches_scikit_learn",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection_script",
+      "name": "tests/src/sqlearn/test_model_selection_script.py::test_the_stream_trains_larger_than_memory",
+      "outcome": "passed",
+      "tier": "slow"
     },
     {
       "area": "sqlearn/out",

@@ -113,7 +113,7 @@ sq.Model(model, feed="stream", megabytes=256)  # batches of about 256 MB
 |---|---|---|
 | `"numpy"` (default) | a 2-D float64 array, as today | refused, as today |
 | `"pandas"` | a DataFrame | `category` dtype |
-| `"polars"` | a DataFrame | `Categorical` |
+| `"polars"` | a DataFrame | `Enum` (the build's change, [ADR 0041](../adr/0041-the-hand-over.md)) |
 | `"arrow"` | a `pyarrow.Table` | dictionary-encoded |
 | `"stream"` | one batch at a time, as numpy, through `partial_fit` | refused |
 
