@@ -107,8 +107,8 @@ def _stable_setting(step: str, name: str, value: object) -> object:
         return path
     if isinstance(value, Step):
         return steps_identity([(f"{step}.{name}", value)])[0][1:]
-    if isinstance(value, Selector) and dataclasses.is_dataclass(value):
-        fields = dataclasses.fields(value)
+    if isinstance(value, Selector) and dataclasses.is_dataclass(kind):
+        fields = dataclasses.fields(kind)
         return (
             f"{kind.__module__}.{kind.__qualname__}",
             tuple((f.name, keyed(getattr(value, f.name))) for f in fields),

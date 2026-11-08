@@ -177,6 +177,16 @@ def _whole_number(scheme: str, setting: str, value: object, example: str) -> Non
         raise SqlearnError(msg)
 
 
+def _check_by(scheme: str, by: object, holds: str, example: str) -> None:
+    """Refuse a `by` that is not a column name, as text."""
+    if not isinstance(by, str):
+        msg = (
+            f"{scheme} got by={by!r}; it names the column that {holds}, as "
+            f"text. Fix: pass by={example!r}, say."
+        )
+        raise SqlearnError(msg)
+
+
 def _check_folds(scheme: str, n: object, seed: object) -> None:
     if isinstance(n, bool) or not isinstance(n, int) or n < 2:
         msg = (
@@ -580,12 +590,7 @@ class Grouped(_Scheme):
     """
 
     def __init__(self, by: str, n: int = 5, seed: int = 0) -> None:
-        if not isinstance(by, str):
-            msg = (
-                f"Grouped got by={by!r}; it names the column that holds each "
-                "row's group, as text. Fix: pass by='customer', say."
-            )
-            raise SqlearnError(msg)
+        _check_by("Grouped", by, "holds each row's group", "customer")
         _check_folds("Grouped", n, seed)
         self.by = by
         self.n = n
@@ -866,12 +871,7 @@ class TimeSplit(_Scheme):
     """
 
     def __init__(self, by: str, n: int = 5, gap: int = 0) -> None:
-        if not isinstance(by, str):
-            msg = (
-                f"TimeSplit got by={by!r}; it names the column that orders "
-                "the rows, as text. Fix: pass by='day', say."
-            )
-            raise SqlearnError(msg)
+        _check_by("TimeSplit", by, "orders the rows", "day")
         _check_folds("TimeSplit", n, 0)
         _whole_number("TimeSplit", "gap", gap, "0")
         if gap < 0:

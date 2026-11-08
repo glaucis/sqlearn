@@ -159,7 +159,7 @@ def _windows() -> int:  # pragma: no cover  (Windows only)
 
     status = Status()
     status.dwLength = ctypes.sizeof(Status)
-    kernel = ctypes.windll.kernel32  # ty: ignore[unresolved-attribute]
+    kernel = ctypes.windll.kernel32  # type: ignore[attr-defined]  # ty: ignore[unresolved-attribute]
     kernel.GlobalMemoryStatusEx(ctypes.byref(status))
     return int(status.ullTotalPhys)
 
@@ -306,7 +306,7 @@ def estimate(rel: duckdb.DuckDBPyRelation, columns: Sequence[str], feed: str) ->
     count = duckdb.FunctionExpression("count", duckdb.StarExpression())
     rows, *rest = rel.aggregate([count, *lengths, *present]).fetchall()[0]
     averages, counts = rest[: len(variable)], rest[len(variable) :]
-    per_row = _NUMBER * (len(columns) - len(variable))
+    per_row: float = _NUMBER * (len(columns) - len(variable))
     per_row += sum(_TEXT + float(a) for a in averages)
     per_row *= _COPIES
     per_row += sum(1 for n in counts if n < rows)  # numpy's mask
