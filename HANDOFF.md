@@ -3,16 +3,18 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-09 · Branch: `library-metrics` · Last commit: Task 6 of the
-metrics plan · Checks: passing
+Updated: 2026-11-09 · Branch: `library-metrics` · Last commit: `22cb093 fix:
+match scikit-learn on weighted NaN averages` · Checks: passing
 Verify with: `just verify`
 
 ## In progress
 
-- Metrics area (#34): built on branch `library-metrics`
-  (`.claude/worktrees/library-metrics`), 6 tasks, ledger in
-  `.superpowers/sdd/2026-11-09-library-metrics/progress.md`. Final
-  whole-branch review, then merge on Tomas's word. (since 2026-11-09)
+- Metrics area (#34): built and reviewed on branch `library-metrics`
+  (`.claude/worktrees/library-metrics`): 6 tasks, final review, one fix
+  pass, `just verify` passing. Waiting on Tomas to merge. Rulings and
+  deferred minors in
+  `.superpowers/sdd/2026-11-09-library-metrics/progress.md`.
+  (since 2026-11-09)
 
 ## Waiting on the user
 
@@ -34,12 +36,17 @@ Verify with: `just verify`
 
 - Ready for an agent: #28 compensated two-pass variance, then #27 (the
   median's reach); #32 (impute's filled copies typed INTEGER); #31 (the
-  encoders' linear category lookup); #35 (accuracy's label checks).
+  encoders' linear category lookup); #35 (accuracy's label checks); #36
+  (a seeded search is not repeatable under load).
 - Choose the next 3.3 area: datasets, or more metrics (confusion matrix,
   report, curves, fbeta).
 
 ## Dead ends and traps
 
+- `just verify` can fail under CPU load on
+  `test_model_selection_script.py`'s "run twice" case: DuckDB threads make a
+  score differ by 1 ULP (#36, on `main` too). Rerun with the machine idle;
+  the reproducer is in #36. (2026-11-09)
 - `just test` does not run the Sphinx doctests, and an incremental docs build
   reuses stale generated pages: check docs with
   `rm -rf docs/reference/generated docs/_build && just build-docs`. (2026-11-06)
