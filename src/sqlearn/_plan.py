@@ -308,6 +308,9 @@ def _write(
             # once it has learned (sq.impute.indicator passes it through).
             if not step.keep:
                 out.append(_Column(c.name, c.dtype, ready, deps))
+            elif step.copies_inputs:
+                # The copy's name is known after learning; its type is the input's.
+                out.append(_Column(None, c.dtype, ready, deps))
         elif dynamic and not _consumes(step, c):
             # The step may read only part of an unknown group: the rest stays.
             if not step.keep:

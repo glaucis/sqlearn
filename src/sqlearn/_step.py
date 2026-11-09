@@ -193,6 +193,11 @@ class Step:
         `static` and `dynamic` as True is refused.
     creates : DuckDBPyType or None
         The type of the columns a dynamic step creates.
+    copies_inputs : bool
+        True for a dynamic step with ``keep`` that also creates a copy of each
+        input, of the input's own type (``creates`` then types only the
+        other columns it creates): ``sq.impute`` with a fill value, ``keep``
+        and the indicator creates the filled copy beside the flag.
     keeps_inputs : bool
         True for a dynamic step whose outputs include each input under its
         own name (the label ``""``), of the same kind (numbers stay numbers,
@@ -240,6 +245,7 @@ class Step:
     static: bool | None = None
     dynamic: bool | None = None
     creates: DuckDBPyType | None = None
+    copies_inputs: bool = False
     keeps_inputs: bool = False
     changes_rows: ClassVar[bool] = False
     names_are_labels: ClassVar[bool] = True

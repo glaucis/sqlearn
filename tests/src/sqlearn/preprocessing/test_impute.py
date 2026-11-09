@@ -522,3 +522,20 @@ def test_later_steps_see_the_columns_filled_with_an_indicator():
         "city_rome",
         "city_missing",
     ]
+
+
+def test_impute_keeping_and_flagging_keeps_the_filled_copies_type():
+    """The filled copy stays text, so one-hot encodes it; the flag is INTEGER."""
+    frame = pd.DataFrame({"city": ["Oslo", None, "Oslo", "Rome"]})
+    pipe = sq.Pipeline(
+        [
+            sq.impute("city", value="mode", keep=True, indicator=True),
+            sq.encode.onehot(sq.cols.string()),
+        ]
+    ).learn(frame)
+    assert "city_mode" not in pipe.columns_out_
+    assert any(c.startswith("city_mode_") for c in pipe.columns_out_)
+    got = pipe.apply(frame, out="pandas")
+    assert "city_missing" in got.columns
+    assert got["city_missing"].tolist() == [0, 1, 0, 0]
+    assert str(got["city_missing"].dtype).lower().startswith("int")

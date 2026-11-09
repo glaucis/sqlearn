@@ -251,6 +251,8 @@ class Impute(Step):
         self.dynamic = indicator
         self.keeps_inputs = indicator  # the filled (or unfilled) input stays
         self.creates = INTEGER if indicator else None
+        # With keep and a fill value, the filled copy is made beside the flag.
+        self.copies_inputs = indicator and keep and resolved is not None
 
     def __getstate__(self) -> dict[str, object]:
         """Return the state to pickle: a DuckDB type does not pickle."""
