@@ -169,7 +169,11 @@ class Method(Protocol):
         params : dict
             The setting, as `ask` returned it.
         score : float
-            Its score.
+            Its score. For a method that picks one setting at a time
+            (``knows_all`` false), it is NaN when evaluating the setting
+            raised; the error is re-raised right after and nothing more is
+            asked. A method that knows every setting up front gets no NaN
+            tell on a failure.
 
         Examples
         --------
@@ -690,9 +694,9 @@ class Optuna:
                         self.study_.tell(trial, score)
                 return
         msg = (
-            f"the setting {params!r} was never asked of this method, so there "
-            "is no trial to report its score to. Fix: tell only the settings "
-            "`ask` returned, each once."
+            f"the setting {params!r} was not asked of this method, or was "
+            "already told, so there is no open trial to report its score to. "
+            "Fix: tell only the settings `ask` returned, each once."
         )
         raise SqlearnError(msg)
 

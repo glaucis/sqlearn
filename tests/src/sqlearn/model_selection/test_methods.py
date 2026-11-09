@@ -363,5 +363,8 @@ def test_telling_optuna_a_setting_it_never_asked_is_refused():
     method = sq.search.optuna(trials=2, seed=0)
     method.start([{"model__C": [0.5, 1.0]}], maximize=True)
     method.ask()
-    with pytest.raises(SqlearnError, match=r"model__C.*99.*never asked"):
+    with pytest.raises(
+        SqlearnError,
+        match=r"model__C.*99.*not asked of this method, or was already told",
+    ):
         method.tell({"model__C": 99}, 0.5)
