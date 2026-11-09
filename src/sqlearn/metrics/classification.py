@@ -10,6 +10,7 @@ import math
 import warnings
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
+from fractions import Fraction
 from typing import Literal
 
 import duckdb
@@ -87,17 +88,24 @@ def _counts(rel: duckdb.DuckDBPyRelation, target: str, prediction: str) -> Count
     return [(lab, int(a), int(b), int(c)) for lab, a, b, c in grouped.fetchall()]
 
 
-def _nanmean(values: Sequence[float], weights: Sequence[int] | None = None) -> float:
-    """Average leaving NaN out, as scikit-learn's ``_nanaverage``; all NaN is NaN."""
+def _nanmean(
+    values: Sequence[Fraction | None], weights: Sequence[int] | None = None
+) -> float:
+    """Average exactly, leaving undefined (NaN) scores out; all NaN is NaN.
+
+    As scikit-learn's ``_nanaverage``, but in fractions of the whole counts,
+    rounded to a double once, so the answer is the double nearest the exact
+    score (ADR 0016).
+    """
     kept = [
         (v, 1 if weights is None else weights[i])
         for i, v in enumerate(values)
-        if not math.isnan(v)
+        if v is not None
     ]
     total = sum(w for _, w in kept)
     if not kept or total == 0:
         return math.nan
-    return sum(v * w for v, w in kept) / total
+    return float(sum((v * w for v, w in kept), Fraction(0)) / total)
 
 
 def _valid_zero_division(value: object) -> bool:
@@ -343,7 +351,7 @@ class ClassificationMetric(Metric):
                 stacklevel=2,
             )
         if self.average in ("binary", "micro"):
-            return scores[0]
+            return math.nan if scores[0] is None else float(scores[0])
         weights = [c[1] for c in counts] if self.average == "weighted" else None
         return _nanmean(scores, weights)
 
@@ -375,13 +383,19 @@ class ClassificationMetric(Metric):
             return tp + fn
         return 2 * tp + fp + fn
 
-    def _divide(self, numerator: int, denominator: int) -> float:
-        """Divide; a zero denominator gives zero_division's value."""
-        if denominator:
-            return numerator / denominator
-        return 0.0 if self.zero_division == "warn" else float(self.zero_division)
+    def _divide(self, numerator: int, denominator: int) -> Fraction | None:
+        """Divide exactly; a zero denominator gives zero_division's value.
 
-    def _of(self, tp: int, fp: int, fn: int) -> float:
+        None stands for NaN, which the averages leave out.
+        """
+        if denominator:
+            return Fraction(numerator, denominator)
+        if self.zero_division == "warn":
+            return Fraction(0)
+        value = float(self.zero_division)
+        return None if math.isnan(value) else Fraction(value)
+
+    def _of(self, tp: int, fp: int, fn: int) -> Fraction | None:
         """Return this score from one class's counts."""
         numerator = 2 * tp if self.score == "f1" else tp
         return self._divide(numerator, self._denominator(tp, fp, fn))
