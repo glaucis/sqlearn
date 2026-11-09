@@ -12,9 +12,6 @@ None.
 
 ## Waiting on the user
 
-- Push `main` (the model-selection build, merged locally). Pushing closes
-  #21 and #25 (their commits say `Closes`); then a summary on #33 and close
-  it. (since 2026-11-09)
 - Check the build's rulings, chiefly R8 (no LightGBM: needs `brew install
   libomp`), R11/R22 (a passed connection's DuckDB counts as at most half the
   budget; a warning when its limit is higher, which DuckDB's default is),
@@ -52,7 +49,8 @@ None.
 
 ## Just finished
 
-- The model-selection build (#33), fast-forwarded into `main` at `2fc0059`;
+- The model-selection build (#33, closed with a summary; #21 and #25 closed
+  by its commits; pushed 2026-11-09), fast-forwarded into `main` at `2fc0059`;
   worktree and branch removed. Build ledger with every ruling and deferred
   minor: `.superpowers/sdd/2026-11-07-library-model-selection/progress.md`
   (git-ignored). Spec
