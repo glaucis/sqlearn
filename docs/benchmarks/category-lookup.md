@@ -99,6 +99,18 @@ The forms, 1,000,000 rows in memory:
 | 10,000 | json_extract | 91.872 | yes |
 | 10,000 | MD5 perfect hash | 0.742 | yes |
 
+How each form grows from 100 to 10,000 categories (a hundred times as many):
+
+| form | 100 s | 10,000 s | growth |
+|---|---|---|---|
+| list_position (today) | 0.013 | 1.280 | about 98x |
+| map_extract_value(MAP {...}, x) | 0.020 | 1.431 | about 72x |
+| MAP {...}[x] | 0.019 | 1.503 | about 79x |
+| CASE chain | 0.058 | 3.017 | about 52x |
+| TRY_CAST(x AS ENUM(...)) | 0.022 | 1.004 | about 46x |
+| json_extract | 0.638 | 91.872 (one run) | about 144x |
+| MD5 perfect hash | 0.322 | 0.742 | about 2.3x |
+
 The two costs that grow with the count:
 
 | categories | read a constant list, 1,000,000 rows | failing ENUM cast, 20,000 rows | list_position, the same 20,000 rows |
@@ -133,7 +145,11 @@ At 10,000 categories on 1,000,000 rows, `list_position` takes 1.280 s; the
 MD5 perfect hash 0.742 s, the ENUM cast 1.004 s, the two MAP forms 1.431 s and
 1.503 s, the `CASE` chain 3.017 s and `json_extract` 91.872 s (one run).
 
-No form's time stays flat from 100 to 10,000 categories:
+With a hundred times as many categories, `list_position` takes about 98 times as
+long, in step with the count, and the MD5 perfect hash about 2.3 times as long,
+far less than the count, which makes the hash the fastest form at 10,000
+categories; the other forms take between 46 and 144 times as long. None takes
+the same time at every count:
 
 - A constant list costs time in proportion to its length on every batch of
   rows, wherever it is used: reading one element of a 10,000-element list on
@@ -149,7 +165,8 @@ No form's time stays flat from 100 to 10,000 categories:
 - The MAP lookups take as long as `list_position` or longer, at every count.
 
 Read from Parquet, the same `list_position` lookup takes 0.306 s at 10,000
-categories, against 1.280 s over the table in memory.
+categories (from the second run), against 1.280 s over the table in memory (the
+first run).
 
 The ordinal encoder's apply, Parquet in and out, takes 0.177 s at 100
 categories and 0.460 s at 10,000. The target encoder's learning takes 5.081 s
