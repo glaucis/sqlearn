@@ -125,3 +125,32 @@ def test_the_text_nan_is_a_category():
     rel = connection().sql("SELECT * FROM (VALUES ('nan'), ('a')) t(c)")
     pipe = sq.Pipeline([("ord", sq.encode.ordinal())]).learn(rel)
     assert pipe.apply(rel).fetchall() == [(1,), (0,)]
+
+
+def test_encoders_give_the_same_codes_for_ten_thousand_categories():
+    """With 10,000 categories the codes are list_position's, unseen and NULL too.
+
+    The expected codes come from ``list_position`` over the learned list, the
+    step's lookup when #31 measured the others, written here in the test: a
+    lookup that replaces it must give the same.
+    """
+    learn = connection().sql(
+        "SELECT 'c' || lpad((i % 10000)::VARCHAR, 5, '0') AS c FROM range(20000) t(i)"
+    )
+    pipe = sq.Pipeline([("ord", sq.encode.ordinal())]).learn(learn)
+    categories = pipe["ord"].categories_["c"]
+    assert len(categories) == 10_000
+    new = connection().sql(
+        "SELECT CASE WHEN i % 7 = 0 THEN NULL WHEN i % 5 = 0 THEN 'unseen' || i "
+        "ELSE 'c' || lpad((hash(i) % 10000)::VARCHAR, 5, '0') END AS c "
+        "FROM range(30000) t(i) ORDER BY i"
+    )
+    listed = "[" + ", ".join(f"'{c}'" for c in categories) + "]"
+    expected = new.select(
+        f"CASE WHEN c IS NULL THEN NULL "
+        f"ELSE coalesce(list_position({listed}, c) - 1, -1) END::INTEGER"
+    ).fetchall()
+    got = pipe.apply(new).fetchall()
+    assert got == expected
+    assert (None,) in got
+    assert (-1,) in got

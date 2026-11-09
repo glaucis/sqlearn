@@ -411,3 +411,36 @@ def test_rows_read_in_any_order_are_refused():
             sq.Pipeline([sq.encode.target("plan")]).learn(sample(), target="y")
     finally:
         con.execute("SET preserve_insertion_order = true")
+
+
+def test_encoders_give_the_same_codes_for_ten_thousand_categories():
+    """With 10,000 categories the encodings are list_position's, unseen and NULL too.
+
+    The expected values come from ``list_position`` over the learned list, the
+    step's lookup when #31 measured the others, written here in the test: a
+    lookup that replaces it must give the same.
+    """
+    learn = connection().sql(
+        "SELECT CASE WHEN i >= 10000 AND i % 2 = 0 THEN NULL "
+        "ELSE 'c' || lpad((i % 10000)::VARCHAR, 5, '0') END AS c, "
+        "(hash(i) % 2)::INTEGER AS y FROM range(12000) t(i) ORDER BY i"
+    )
+    pipe = sq.Pipeline([sq.encode.target("c")]).learn(learn, target="y")
+    step = pipe["target"]
+    categories, encodings = step.categories_["c"], step.encodings_["c"]
+    assert len(categories) == 10_000
+    assert step.null_["c"] is not None
+    new = connection().sql(
+        "SELECT CASE WHEN i % 7 = 0 THEN NULL WHEN i % 5 = 0 THEN 'unseen' || i "
+        "ELSE 'c' || lpad((hash(i) % 10000)::VARCHAR, 5, '0') END AS c "
+        "FROM range(30000) t(i) ORDER BY i"
+    )
+    listed = "[" + ", ".join(f"'{c}'" for c in categories) + "]"
+    values = "[" + ", ".join(repr(float(e)) for e in encodings) + "]::DOUBLE[]"
+    mean, null = repr(step.target_mean_["c"]), repr(step.null_["c"])
+    expected = new.select(
+        f"CASE WHEN c IS NULL THEN {null}::DOUBLE ELSE coalesce("
+        f"list_extract({values}, list_position({listed}, c)), {mean}::DOUBLE) END"
+    ).fetchall()
+    got = [r[0] for r in pipe.apply(new).fetchall()]
+    assert got == pytest.approx([r[0] for r in expected], rel=1e-15)
