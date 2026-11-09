@@ -10,20 +10,18 @@ from sqlearn._errors import SqlearnError
 from sqlearn._expr import const
 from sqlearn._feed import PROBA
 from sqlearn.agg.aggregates import mean
+from sqlearn.metrics._labels import (
+    _FLOATS,
+    _column_types,
+    _count,
+    _isnan,
+    _refuse_gaps,
+    check_labels_with,
+)
 
 __all__ = ["Metric", "MissingClassError", "accuracy"]
 
-_FLOATS = frozenset({"FLOAT", "DOUBLE"})
 _STAGE = "__sqlearn_stage_"
-
-
-def _isnan(x: Expression) -> Expression:
-    return duckdb.FunctionExpression("isnan", x)
-
-
-def _count(x: Expression) -> Expression:
-    """Count the non-NULL values of `x`, NaN among them (unlike `sq.agg.count`)."""
-    return duckdb.FunctionExpression("count", x)
 
 
 class MissingClassError(SqlearnError):
@@ -62,67 +60,6 @@ def _plain(value: object) -> object:
     return item() if callable(item) else value
 
 
-def _noun(column: str, target: str, proba: bool) -> str:
-    """Name what a column holds: a label, or a probability."""
-    return "probability" if proba and column != target else "label"
-
-
-def _column_types(
-    name: str, rel: duckdb.DuckDBPyRelation, columns: Sequence[str]
-) -> dict[str, str]:
-    """Return each column's type, refusing a column not in the relation."""
-    names = list(rel.columns)
-    types = {n: str(t) for n, t in zip(names, rel.types, strict=True)}
-    for column in columns:
-        if column not in types:
-            msg = (
-                f"{name} cannot be computed: column {column!r} is "
-                f"not in the relation (columns: {names}). Pass the name "
-                "of an existing column."
-            )
-            raise SqlearnError(msg)
-    return types
-
-
-def _refuse_gaps(
-    name: str,
-    target: str,
-    columns: Sequence[str],
-    floats: Sequence[str],
-    total: int,
-    seen: Sequence[int],
-    nan_counts: Sequence[int],
-    *,
-    proba: bool = False,
-) -> None:
-    """Refuse no rows, and a column holding NULL or NaN, from their counts."""
-    if total == 0:
-        msg = (
-            f"{name} cannot be computed: the relation has no rows. "
-            "A score needs at least one row; check the data was not "
-            "filtered away."
-        )
-        raise SqlearnError(msg)
-    for column, n_seen in zip(columns, seen, strict=True):
-        if n_seen != total:
-            msg = (
-                f"{name} cannot be computed: column {column!r} has "
-                f"{total - n_seen} NULL of {total} rows. A missing "
-                f"{_noun(column, target, proba)} has no right answer; "
-                "drop or fill those rows first."
-            )
-            raise SqlearnError(msg)
-    for column, n_nan in zip(floats, nan_counts, strict=True):
-        if n_nan:
-            msg = (
-                f"{name} cannot be computed: column {column!r} has "
-                f"{n_nan} NaN of {total} rows. A NaN "
-                f"{_noun(column, target, proba)} has no right answer; "
-                "drop or fill those rows first."
-            )
-            raise SqlearnError(msg)
-
-
 @dataclass(frozen=True)
 class Metric:
     """A score computed by one aggregate query.
@@ -150,6 +87,10 @@ class Metric:
         probability expressions and returns window expressions, computed
         for every row before the aggregate, which then receives them in
         place of the probabilities.
+    checks_labels : bool, default False
+        Whether the target and prediction are class labels, which the
+        metric refuses unless they are whole numbers or text of one kind
+        on both sides, as scikit-learn does.
 
     Examples
     --------
@@ -165,6 +106,7 @@ class Metric:
     greater_is_better: bool
     needs: str = "predict"
     windows: Callable[[list[Expression]], list[Expression]] | None = None
+    checks_labels: bool = False
 
     def __call__(self, **settings: object) -> "Metric":
         """Refuse settings: this metric takes none (ADR 0042).
@@ -194,6 +136,26 @@ class Metric:
             f"settings. Fix: use sq.metrics.{self.name} as it is."
         )
         raise SqlearnError(msg)
+
+    def _score_labels(
+        self, rel: duckdb.DuckDBPyRelation, target: str, prediction: str
+    ) -> float:
+        """Score a label metric, checking the labels in the same pass."""
+        y, p = ColumnExpression(target), ColumnExpression(prediction)
+        try:
+            _, (value,) = check_labels_with(
+                self.name, rel, target, prediction, [self.expression(y, p)]
+            )
+        except duckdb.Error as exc:
+            types = _column_types(self.name, rel, [target, prediction])
+            msg = (
+                f"{self.name} cannot be computed: DuckDB cannot compare "
+                f"column {target!r} ({types[target]}) with column "
+                f"{prediction!r} ({types[prediction]}): {exc} "
+                "Cast one so both hold the same kind of label."
+            )
+            raise SqlearnError(msg) from exc
+        return float(value)
 
     def compute(
         self,
@@ -243,6 +205,8 @@ class Metric:
         >>> sq.metrics.accuracy.compute(rel, "y")
         0.5
         """
+        if self.checks_labels:
+            return self._score_labels(rel, target, prediction)
         proba = self.needs == "predict_proba"
         if proba:
             if classes is None:
@@ -370,4 +334,5 @@ accuracy = Metric(
         duckdb.CaseExpression(y == p, const(1.0)).otherwise(const(0.0)),
     ),
     True,
+    checks_labels=True,
 )

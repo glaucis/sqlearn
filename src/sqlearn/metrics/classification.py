@@ -23,14 +23,8 @@ from sqlearn._errors import (
     UndefinedMetricWarning,
 )
 from sqlearn._expr import const
-from sqlearn.metrics.accuracy import (
-    _FLOATS,
-    Metric,
-    _column_types,
-    _count,
-    _isnan,
-    _refuse_gaps,
-)
+from sqlearn.metrics._labels import check_labels
+from sqlearn.metrics.accuracy import Metric
 
 __all__ = ["ClassificationMetric", "f1", "precision", "recall"]
 
@@ -130,11 +124,6 @@ _UNDEFINED = {
     "recall": "no true samples",
     "f1": "no true nor predicted samples",
 }
-
-
-def _kind(dtype: str) -> str:
-    """Name the kind of label a column type holds: text or number."""
-    return "text" if dtype.startswith(("VARCHAR", "ENUM")) else "number"
 
 
 def _some(labels: list[object], shown: int = 10) -> str:
@@ -296,55 +285,7 @@ class ClassificationMetric(Metric):
         >>> sq.metrics.precision.compute(rel, "y")
         0.5
         """
-        columns = [target, prediction]
-        types = _column_types(self.name, rel, columns)
-        if _kind(types[target]) != _kind(types[prediction]):
-            msg = (
-                f"{self.name} cannot be computed: column {target!r} "
-                f"({types[target]}) holds {_kind(types[target])} labels and "
-                f"column {prediction!r} ({types[prediction]}) "
-                f"{_kind(types[prediction])} labels, so no label can match. "
-                "scikit-learn refuses such a mix too. Fix: cast one so both "
-                "hold the same kind of label."
-            )
-            raise SqlearnError(msg)
-        floats = [c for c in columns if types[c] in _FLOATS]
-        fractional = [
-            c for c in columns if types[c] in _FLOATS or types[c].startswith("DECIMAL")
-        ]
-        whole = [
-            _count(
-                duckdb.CaseExpression(
-                    ColumnExpression(c) != _fn("floor", ColumnExpression(c)), const(1)
-                )
-            )
-            for c in fractional
-        ]
-        row = rel.aggregate(
-            [
-                _count(const(1)),
-                *(_count(ColumnExpression(c)) for c in columns),
-                *(
-                    _count(duckdb.CaseExpression(_isnan(ColumnExpression(c)), const(1)))
-                    for c in floats
-                ),
-                *whole,
-            ]
-        ).fetchall()[0]
-        total, seen = row[0], row[1:3]
-        nans, parts = row[3 : 3 + len(floats)], row[3 + len(floats) :]
-        _refuse_gaps(self.name, target, columns, floats, total, seen, nans)
-        for column, n_part in zip(fractional, parts, strict=True):
-            if n_part:
-                msg = (
-                    f"{self.name} cannot be computed: column {column!r} has "
-                    f"{n_part} of {total} rows that are not whole numbers, so "
-                    "it holds continuous values, not class labels. "
-                    "scikit-learn refuses continuous targets too. Fix: score "
-                    "a classifier's predict, or a regression with "
-                    "sq.metrics.rmse, mae or r2."
-                )
-                raise SqlearnError(msg)
+        check_labels(self.name, rel, target, prediction)
         counts = _counts(rel, target, prediction)
         labels = [c[0] for c in counts]
         if self.average == "binary":

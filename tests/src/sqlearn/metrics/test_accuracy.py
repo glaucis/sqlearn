@@ -106,3 +106,32 @@ def test_incomparable_types_are_refused():
     frame = pd.DataFrame({"y": ["a", "b"], "prediction": [1, 2]})
     with pytest.raises(sq.errors.SqlearnError, match=r"column 'y' \(VARCHAR\)"):
         sq.metrics.accuracy.compute(rel(frame), "y")
+
+
+def test_accuracy_refuses_a_continuous_target():
+    """Accuracy refuses a target of non-whole numbers, as scikit-learn does."""
+    frame = pd.DataFrame({"y": [1.5, 2.0], "prediction": [1, 2]})
+    with pytest.raises(sq.errors.SqlearnError, match=r"not whole numbers"):
+        sq.metrics.accuracy.compute(rel(frame), "y")
+
+
+def test_accuracy_refuses_a_continuous_prediction():
+    """Accuracy refuses a prediction of non-whole numbers."""
+    frame = pd.DataFrame({"y": [1, 2], "prediction": [1.0, 2.5]})
+    with pytest.raises(sq.errors.SqlearnError, match=r"column 'prediction'.*not whole"):
+        sq.metrics.accuracy.compute(rel(frame), "y")
+
+
+def test_accuracy_refuses_text_labels_against_numbers():
+    """Accuracy refuses text labels against numbers."""
+    frame = pd.DataFrame({"y": ["a", "b"], "prediction": [1, 2]})
+    with pytest.raises(
+        sq.errors.SqlearnError, match=r"(?s)labels.*scikit-learn refuses"
+    ):
+        sq.metrics.accuracy.compute(rel(frame), "y")
+
+
+def test_accuracy_still_scores_whole_floats():
+    """Accuracy still scores floats that are whole numbers."""
+    frame = pd.DataFrame({"y": [1.0, 2.0], "prediction": [1, 3]})
+    assert sq.metrics.accuracy.compute(rel(frame), "y") == 0.5
