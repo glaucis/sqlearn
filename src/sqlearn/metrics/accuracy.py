@@ -67,6 +67,62 @@ def _noun(column: str, target: str, proba: bool) -> str:
     return "probability" if proba and column != target else "label"
 
 
+def column_types(
+    name: str, rel: duckdb.DuckDBPyRelation, columns: Sequence[str]
+) -> dict[str, str]:
+    """Return each column's type, refusing a column not in the relation."""
+    names = list(rel.columns)
+    types = {n: str(t) for n, t in zip(names, rel.types, strict=True)}
+    for column in columns:
+        if column not in types:
+            msg = (
+                f"{name} cannot be computed: column {column!r} is "
+                f"not in the relation (columns: {names}). Pass the name "
+                "of an existing column."
+            )
+            raise SqlearnError(msg)
+    return types
+
+
+def refuse_gaps(
+    name: str,
+    target: str,
+    columns: Sequence[str],
+    floats: Sequence[str],
+    total: int,
+    seen: Sequence[int],
+    nan_counts: Sequence[int],
+    *,
+    proba: bool = False,
+) -> None:
+    """Refuse no rows, and a column holding NULL or NaN, from their counts."""
+    if total == 0:
+        msg = (
+            f"{name} cannot be computed: the relation has no rows. "
+            "A score needs at least one row; check the data was not "
+            "filtered away."
+        )
+        raise SqlearnError(msg)
+    for column, n_seen in zip(columns, seen, strict=True):
+        if n_seen != total:
+            msg = (
+                f"{name} cannot be computed: column {column!r} has "
+                f"{total - n_seen} NULL of {total} rows. A missing "
+                f"{_noun(column, target, proba)} has no right answer; "
+                "drop or fill those rows first."
+            )
+            raise SqlearnError(msg)
+    for column, n_nan in zip(floats, nan_counts, strict=True):
+        if n_nan:
+            msg = (
+                f"{name} cannot be computed: column {column!r} has "
+                f"{n_nan} NaN of {total} rows. A NaN "
+                f"{_noun(column, target, proba)} has no right answer; "
+                "drop or fill those rows first."
+            )
+            raise SqlearnError(msg)
+
+
 @dataclass(frozen=True)
 class Metric:
     """A score computed by one aggregate query.
@@ -173,16 +229,7 @@ class Metric:
         else:
             labels = []
             columns = [target, prediction]
-        names = list(rel.columns)
-        types = {n: str(t) for n, t in zip(names, rel.types, strict=True)}
-        for column in columns:
-            if column not in types:
-                msg = (
-                    f"{self.name} cannot be computed: column {column!r} is "
-                    f"not in the relation (columns: {names}). Pass the name "
-                    "of an existing column."
-                )
-                raise SqlearnError(msg)
+        types = column_types(self.name, rel, columns)
         y = ColumnExpression(target)
         values = [ColumnExpression(c) for c in columns[1:]]
         if proba and self.windows is not None:
@@ -244,31 +291,9 @@ class Metric:
         value = row[1 + len(columns)]
         rest = row[2 + len(columns) :]
         nan_counts = rest[: len(floats)]
-        if total == 0:
-            msg = (
-                f"{self.name} cannot be computed: the relation has no rows. "
-                "A score needs at least one row; check the data was not "
-                "filtered away."
-            )
-            raise SqlearnError(msg)
-        for column, n_seen in zip(columns, seen, strict=True):
-            if n_seen != total:
-                msg = (
-                    f"{self.name} cannot be computed: column {column!r} has "
-                    f"{total - n_seen} NULL of {total} rows. A missing "
-                    f"{_noun(column, target, proba)} has no right answer; "
-                    "drop or fill those rows first."
-                )
-                raise SqlearnError(msg)
-        for column, n_nan in zip(floats, nan_counts, strict=True):
-            if n_nan:
-                msg = (
-                    f"{self.name} cannot be computed: column {column!r} has "
-                    f"{n_nan} NaN of {total} rows. A NaN "
-                    f"{_noun(column, target, proba)} has no right answer; "
-                    "drop or fill those rows first."
-                )
-                raise SqlearnError(msg)
+        refuse_gaps(
+            self.name, target, columns, floats, total, seen, nan_counts, proba=proba
+        )
         if proba:
             n_known, *after = rest[len(floats) :]
             counts, beyond = after[: len(labels)], after[len(labels) :]
