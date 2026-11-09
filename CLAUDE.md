@@ -16,9 +16,11 @@ built.
   per area. Its first area, preprocessing, is built: spec
   `docs/specs/library-preprocessing.md`, plan
   `docs/plans/2026-11-06-library-preprocessing.md`, ADRs 0034–0038, summary
-  in issue #30. **Next:** the 3.3 area model selection, tracked in issue
-  #33: spec approved (`docs/specs/library-model-selection.md`); its plan is
-  next.
+  in issue #30. Its second, model selection, is built: spec
+  `docs/specs/library-model-selection.md`, plan
+  `docs/plans/2026-11-07-library-model-selection.md`, ADRs 0039–0041, summary
+  in issue #33. **Next:** the next 3.3 area (metrics or datasets), not chosen
+  yet.
 
 Rules from the ADRs:
 
