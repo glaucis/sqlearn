@@ -866,3 +866,88 @@ def test_a_search_is_refused_at_a_folds_training_fetch(tmp_path):
         entry.name == "_fetch" and str(entry.path).endswith("search.py")
         for entry in err.traceback
     )
+
+
+MOOD = ["sad", "ok", "happy"]
+
+
+def moods(con):
+    """Return a table whose ENUM column holds only some of its values."""
+    con.execute("DROP TABLE IF EXISTS enum_feed_t")
+    con.execute("DROP TYPE IF EXISTS enum_feed_mood")
+    con.execute("CREATE TYPE enum_feed_mood AS ENUM ('sad', 'ok', 'happy')")
+    con.execute("CREATE TABLE enum_feed_t (m enum_feed_mood, a DOUBLE)")
+    con.execute(
+        "INSERT INTO enum_feed_t VALUES ('happy', 1.0), ('sad', 2.0), (NULL, 3.0)"
+    )
+    return con.table("enum_feed_t")
+
+
+def test_an_enum_feature_reaches_pandas_as_its_categories(con):
+    """The ENUM's declared values, in declared order, not the fetched ones."""
+    known = {}
+    x, _ = fetch(moods(con), "pandas", ["m", "a"], None, categories=known)
+    assert str(x["m"].dtype) == "category"
+    assert x["m"].cat.categories.tolist() == MOOD
+    assert known == {"m": MOOD}
+    x, _ = fetch(moods(con).filter("a > 2"), "pandas", ["m"], None)
+    assert x["m"].cat.categories.tolist() == MOOD
+
+
+def test_an_enum_feature_reaches_polars_as_its_categories(con):
+    """The ENUM's declared values make the pl.Enum, in declared order."""
+    x, _ = fetch(moods(con), "polars", ["m", "a"], None)
+    assert x.schema["m"] == pl.Enum(MOOD)
+    x, _ = fetch(moods(con).filter("a > 2"), "polars", ["m"], None)
+    assert x.schema["m"] == pl.Enum(MOOD)
+
+
+def test_an_enum_feature_reaches_arrow_as_its_categories(con):
+    """The ENUM's declared values are the dictionary, in declared order."""
+    table, _ = fetch(moods(con), "arrow", ["m"], None)
+    assert table.column("m").combine_chunks().dictionary.to_pylist() == MOOD
+    assert table.column("m").to_pylist() == ["happy", "sad", None]
+
+
+def collated(con):
+    """Return a table with a case-insensitive text column."""
+    con.execute("DROP TABLE IF EXISTS collated_feed_t")
+    con.execute("CREATE TABLE collated_feed_t (c VARCHAR COLLATE nocase, a DOUBLE)")
+    con.execute(
+        "INSERT INTO collated_feed_t VALUES ('b', 1.0), ('a', 2.0), (NULL, 3.0)"
+    )
+    return con.table("collated_feed_t")
+
+
+def test_a_collated_text_feature_reaches_pandas_as_categories(con):
+    """DuckDB reports the type as VARCHAR: the collation does not hide the text."""
+    x, _ = fetch(collated(con), "pandas", ["c", "a"], None)
+    assert str(x["c"].dtype) == "category"
+    assert x["c"].cat.categories.tolist() == ["a", "b"]
+
+
+def test_a_collated_text_feature_reaches_polars_as_categories(con):
+    """The same column reaches Polars as an Enum."""
+    x, _ = fetch(collated(con), "polars", ["c", "a"], None)
+    assert x.schema["c"] == pl.Enum(["a", "b"])
+
+
+def test_streamed_prediction_codes_an_enum_alike_in_every_batch(con, monkeypatch):
+    """A batch holding one ENUM value is cast with the declared list."""
+    monkeypatch.setattr(_feed, "BATCH_ROWS", 1)
+    seen = []
+
+    class Spy:
+        def fit(self, x, y):
+            return self
+
+        def predict(self, x):
+            seen.append(x["m"].cat.categories.tolist())
+            return np.zeros(len(x), dtype=int)
+
+    model = Model(Spy(), feed="pandas")
+    table, _ = _feed.stream_into(
+        con, moods(con).project("m, a, row_number() OVER () AS r"), ["m"], "r", model
+    )
+    con.execute(f"DROP TABLE {table}")
+    assert seen == [MOOD] * 3

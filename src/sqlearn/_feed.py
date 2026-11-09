@@ -23,6 +23,7 @@ from collections.abc import Callable, Generator, Mapping, Sequence
 from typing import Any
 
 import duckdb
+from duckdb.sqltypes import DuckDBPyType
 
 from sqlearn._compose import number_rows
 from sqlearn._config import connection
@@ -199,7 +200,7 @@ def fetch(
 
     Each form comes from DuckDB's own method (``fetchnumpy``, ``df``,
     ``pl``, ``to_arrow_table``). With pandas, Polars and Arrow a text
-    (``VARCHAR``) feature is cast to that library's categories after the
+    (``VARCHAR`` or ``ENUM``) feature is cast to that library's categories after the
     fetch (pandas ``category``, Polars ``Enum``, Arrow dictionary); a NULL
     stays missing, never a category. numpy and the stream
     refuse text, as `take` does.
@@ -221,7 +222,8 @@ def fetch(
         Each text feature's categories, shared by every fetch of one model
         so a value keeps its code. A column in it keeps its list as the
         prefix (values it lacks are appended, sorted); a column not in it
-        learns its list here, the sorted values, and is recorded in it.
+        learns its list here, recorded in it: an ``ENUM``'s declared values
+        in their order, otherwise the sorted values.
         Without it, each fetch has its own sorted list.
     sized : bool, default True
         Whether to check the size first; False for a batch, small by
@@ -264,8 +266,12 @@ def fetch(
             return matrix, None
         return matrix, target_values(other[target], name or target)
     kinds = dict(zip(rel.columns, rel.types, strict=True))
-    text = [c for c in columns if str(kinds[c]) == "VARCHAR"]
+    text = [c for c in columns if is_text(kinds[c])]
     known = {} if categories is None else categories
+    for c in text:
+        declared = _declared(kinds[c])
+        if declared is not None:
+            known.setdefault(c, declared)
     picks = [duckdb.ColumnExpression(c) for c in [*columns, *aside]]
     null = _NULL
     while null in (*columns, *aside):
@@ -315,6 +321,42 @@ def fetch(
     if missing:
         raise missing_target(name or "", missing)
     return x, y
+
+
+def is_text(dtype: DuckDBPyType) -> bool:
+    """Say whether a DuckDB type is text for the hand-over to a model.
+
+    ``VARCHAR`` is text, with or without a collation (DuckDB reports the
+    collated column's type as ``VARCHAR``: the collation lives on the
+    expression), and so is any ``ENUM``.
+
+    Parameters
+    ----------
+    dtype : DuckDBPyType
+        A column's type, as ``rel.types`` gives it.
+
+    Returns
+    -------
+    bool
+        True for text.
+
+    Examples
+    --------
+    >>> from sqlearn._config import connection
+    >>> from sqlearn._feed import is_text
+    >>> rel = connection().sql("SELECT 'a' AS t, 1 AS n, 'a'::ENUM('a') AS e")
+    >>> [is_text(kind) for kind in rel.types]
+    [True, False, True]
+    """
+    return dtype.id in {"varchar", "enum"}
+
+
+def _declared(dtype: DuckDBPyType) -> list[str] | None:
+    """Return an ENUM's declared values in order, or None for other text."""
+    if dtype.id != "enum":
+        return None
+    values = dict(dtype.children)["values"]
+    return [str(v) for v in values] if isinstance(values, list) else None
 
 
 def _order(known: dict[str, list[str]], column: str, values: list[str]) -> list[str]:
@@ -413,6 +455,12 @@ def _batches(
     picked = rel.project(*(duckdb.ColumnExpression(c) for c in [*columns, row]))
     # A copy: what a batch learns is not kept for the model.
     known = {c: list(v) for c, v in (categories or {}).items()}
+    # A batch is read back from Arrow, which keeps only the values it holds:
+    # an ENUM's declared list comes from the relation's type.
+    for c, kind in zip(picked.columns, picked.types, strict=True):
+        declared = _declared(kind)
+        if declared is not None:
+            known.setdefault(c, declared)
     try:
         import pyarrow  # noqa: F401  (only to know it is there)
     except ImportError:

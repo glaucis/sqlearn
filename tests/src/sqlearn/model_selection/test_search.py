@@ -1265,3 +1265,43 @@ def test_a_fold_of_one_class_scores_and_does_not_stop_the_search():
             folds=sq.folds.time("t", 3),
         ).train(SORTED_BY_CLASS, target="y")
     assert search.best_params_ == {"model__label": 1}
+
+
+class SeesCategories(ByCode):
+    """A model that records the category list it is fitted and scored on."""
+
+    lists: ClassVar[list[list[str]]] = []
+
+    def fit(self, x, y):
+        """Record the list and learn nothing else."""
+        self.lists.append(x["m"].cat.categories.tolist())
+        self.classes_ = np.unique(np.asarray(y))
+        return self
+
+    def predict(self, x):
+        """Record the list and predict the first class."""
+        self.lists.append(x["m"].cat.categories.tolist())
+        return np.full(len(x), self.classes_[0])
+
+
+def test_a_search_codes_an_enum_feature_alike_in_every_fold(monkeypatch):
+    """A fold whose training rows lack an ENUM value still sees its declared list."""
+    monkeypatch.setattr(_feed, "BATCH_ROWS", 2)
+    con = connection()
+    con.execute("DROP TABLE IF EXISTS search_enum_t")
+    con.execute("DROP TYPE IF EXISTS search_enum_mood")
+    con.execute("CREATE TYPE search_enum_mood AS ENUM ('sad', 'ok', 'happy')")
+    con.execute("CREATE TABLE search_enum_t (n DOUBLE, m search_enum_mood, y INTEGER)")
+    con.execute(
+        "INSERT INTO search_enum_t SELECT range, 'sad', range % 2 FROM range(10)"
+        " UNION ALL SELECT 10 + range, 'ok', range % 2 FROM range(10)"
+    )
+    SeesCategories.lists.clear()
+    pipe = sq.Pipeline([("model", sq.Model(SeesCategories(), feed="pandas"))])
+    sq.search(
+        pipe,
+        params={"model": [sq.Model(SeesCategories(), feed="pandas")]},
+        folds=sq.folds.kfold(2),
+    ).train(con.table("search_enum_t"), target="y")
+    assert SeesCategories.lists
+    assert all(c == ["sad", "ok", "happy"] for c in SeesCategories.lists)

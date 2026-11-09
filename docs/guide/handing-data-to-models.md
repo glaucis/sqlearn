@@ -80,6 +80,10 @@ pipe = sq.Pipeline([sq.impute.median(), sq.Model(model, feed="pandas")])
 pipe.train(data, target="churned").predict(data, out="pandas").head(4)
 ```
 
+- **Text is `VARCHAR` (with any collation) or an `ENUM`.** An `ENUM`
+  column keeps its declared values in their declared order as its
+  categories, whether or not a fold or batch holds them all, so every fold
+  and every prediction batch codes it alike.
 - **Codes stay fixed.** Training records each text column's categories,
   sorted; every prediction batch is cast with that list first and any new
   values after it, sorted. A known value keeps its code from training to
