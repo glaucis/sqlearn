@@ -54,7 +54,11 @@ takes a list of models to choose between.
 ## Methods: how settings are picked
 
 `method=` says which settings are tried. Every method is seeded: the same
-seed gives the same settings and the same `results_`, byte for byte.
+seed tries the same settings and picks the same best. The scores agree to
+the last digit or so: DuckDB adds up decimals on several threads, and the
+order they finish in can move a score by one rounding step (an ULP) between
+runs. So scores within a few ULPs of the best count as a tie
+([ADR 0043](../adr/0043-repeatable-within-rounding.md)).
 
 | method | tries | for |
 |---|---|---|
@@ -177,7 +181,7 @@ search where every setting is NaN is refused.
 
 | attribute | holds |
 |---|---|
-| `best_params_` | the best setting; on a tie, the first the method tried |
+| `best_params_` | the best setting; on a tie (scores within a few ULPs), the first the method tried |
 | `best_score_` | its score, the mean over the folds |
 | `results_` | a DuckDB relation: `setting` (JSON text), `fold`, `score` |
 | `best_pipeline_` | a copy of the pipeline with the best setting, trained on all data |

@@ -3416,6 +3416,12 @@
     },
     {
       "area": "sqlearn/model_selection/search",
+      "name": "tests/src/sqlearn/model_selection/test_search.py::test_a_better_score_beyond_the_tolerance_still_wins",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/search",
       "name": "tests/src/sqlearn/model_selection/test_search.py::test_a_candidate_that_is_not_a_model_is_refused",
       "outcome": "passed",
       "tier": "fast"
@@ -3705,6 +3711,12 @@
     {
       "area": "sqlearn/model_selection/search",
       "name": "tests/src/sqlearn/model_selection/test_search.py::test_roc_auc_on_a_one_class_time_fold_names_a_fix_for_time",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/search",
+      "name": "tests/src/sqlearn/model_selection/test_search.py::test_scores_one_rounding_step_apart_tie_and_the_first_tried_wins",
       "outcome": "passed",
       "tier": "fast"
     },

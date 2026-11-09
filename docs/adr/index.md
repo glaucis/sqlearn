@@ -74,6 +74,7 @@ The verbs and conventions users write against.
 - [0040: Fold schemes as SQL over rows](0040-fold-schemes-as-sql-over-rows.md)
 - [0041: The hand-over](0041-the-hand-over.md)
 - [0042: A metric's settings are a call](0042-a-metrics-settings-are-a-call.md)
+- [0043: Repeatable within rounding](0043-repeatable-within-rounding.md)
 
 ## Numerics and validation
 

@@ -321,6 +321,8 @@ The old names are removed, not kept as aliases: nothing is released yet.
   nothing.
 - **Metrics:** each against the mathematics and scikit-learn (ADR 0016).
 - **Repeatable:** the same seeds give the same `results_`, byte for byte.
+  Changed by [ADR 0043](../adr/0043-repeatable-within-rounding.md): the same
+  settings and best, each score within a measured bound of ULPs.
 
 Test-only dependencies (catboost, lightgbm, optuna, pyarrow, polars) are
 development dependencies with permissive licences, recorded as ADR 0005 asks.

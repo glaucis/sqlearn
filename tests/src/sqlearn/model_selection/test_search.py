@@ -6,6 +6,7 @@ import warnings
 import weakref
 from typing import ClassVar
 
+import duckdb
 import numpy as np
 import pandas as pd
 import pytest
@@ -354,6 +355,49 @@ def test_ties_go_to_the_first_setting_in_grid_order():
     scores = mean_scores(search)
     assert len(set(scores.values())) == 1
     assert search.best_params_ == {"model__label": None}
+
+
+def test_scores_one_rounding_step_apart_tie_and_the_first_tried_wins():
+    """A score 1 ULP better is a tie (ADR 0043): the first setting tried wins."""
+    from sqlearn.metrics import Metric
+
+    one_ulp_more = math.nextafter(0.6, 1.0)
+    tiny = Metric(
+        "tiny",
+        lambda y, p: sq.agg.mean(
+            duckdb.CaseExpression(
+                p == sq.fn.const(1), sq.fn.const(one_ulp_more)
+            ).otherwise(sq.fn.const(0.6))
+        ),
+        True,
+    )
+    search = sq.search(
+        sq.Pipeline([("model", Constant())]),
+        params={"model__label": [0, 1]},
+        metric=tiny,
+    ).train(SEPARABLE, target="y")
+    assert mean_scores(search)[json.dumps({"model__label": 1})] == one_ulp_more
+    assert search.best_params_ == {"model__label": 0}
+
+
+def test_a_better_score_beyond_the_tolerance_still_wins():
+    """Scores further apart than the tie tolerance are not a tie."""
+    better = 0.6 + 1e-12
+    clear = sq.metrics.Metric(
+        "clear",
+        lambda y, p: sq.agg.mean(
+            duckdb.CaseExpression(p == sq.fn.const(1), sq.fn.const(better)).otherwise(
+                sq.fn.const(0.6)
+            )
+        ),
+        True,
+    )
+    search = sq.search(
+        sq.Pipeline([("model", Constant())]),
+        params={"model__label": [0, 1]},
+        metric=clear,
+    ).train(SEPARABLE, target="y")
+    assert search.best_params_ == {"model__label": 1}
 
 
 def test_a_metric_where_lower_is_better_picks_the_lowest():

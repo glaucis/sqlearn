@@ -11,6 +11,7 @@ import itertools
 import json
 import math
 import os
+import sys
 import warnings
 import weakref
 from collections.abc import Sequence
@@ -144,6 +145,10 @@ def _unstable() -> SqlearnError:
         "table of a database file, or search without keep_prepared."
     )
     return SqlearnError(msg)
+
+
+TIE_TOLERANCE = 16 * sys.float_info.epsilon
+"""Mean scores this close (relative) tie: a few ULPs, measured at 1 (ADR 0043)."""
 
 
 def _score(
@@ -520,7 +525,13 @@ class Search:
             )
             raise SqlearnError(msg)
         pick = max if self.metric.greater_is_better else min
-        best = pick(scorable, key=means.__getitem__)
+        top = means[pick(scorable, key=means.__getitem__)]
+        # Scores within rounding of the best tie, and the first tried wins:
+        # DuckDB's parallel sums can move a score by an ULP between runs, so
+        # that wobble must never change the best (ADR 0043).
+        best = next(
+            i for i in scorable if math.isclose(means[i], top, rel_tol=TIE_TOLERANCE)
+        )
         self.best_params_ = scored[best][0]
         self.best_score_ = means[best]
         self.results_ = self._results(con, scored)

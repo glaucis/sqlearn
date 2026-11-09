@@ -23,8 +23,9 @@ sqlearn's own folds (``PredefinedSplit``):
   (``StratifiedKFold``), groups kept together (``GroupKFold``), and the
   order in time kept (``TimeSeriesSplit``, whose folds sqlearn's equal row
   for row when no two rows share a time).
-- the same seeds giving the same ``results_``, byte for byte, for the
-  random and the Optuna methods.
+- the same seeds trying the same settings and picking the same best, with
+  every score within ``REPEAT_BOUND`` ULPs, for the random and the Optuna
+  methods (ADR 0043).
 """
 
 import json
@@ -534,8 +535,12 @@ def time_cases() -> list[dict]:
     return out
 
 
-def results_bytes(method: object) -> bytes:
-    """Return a fresh search's ``results_``, as bytes, for `method`."""
+REPEAT_BOUND = 1
+"""ULPs two runs' scores may differ by (ADR 0043): measured at 1 under load."""
+
+
+def repeat_run(method: object) -> tuple[list[tuple], dict]:
+    """Return a fresh search's ``results_`` rows, ordered, and its best setting."""
     STORE.clear()
     search = sq.search(
         sqlearn_pipe(),
@@ -544,29 +549,47 @@ def results_bytes(method: object) -> bytes:
         folds=sq.folds.stratified(FOLDS, seed=0),
         metric=sq.metrics.log_loss,
     ).train(numbers(), target="churned")
-    rows = search.results_.order("setting, fold").fetchall()
-    return json.dumps([list(r) for r in rows]).encode() + repr(rows).encode()
+    return search.results_.order("setting, fold").fetchall(), search.best_params_
+
+
+def repeat_mismatches(
+    first: tuple[list[tuple], dict], second: tuple[list[tuple], dict]
+) -> int:
+    """Count what two runs disagree on: a setting or fold, a score beyond the
+    bound, or the best setting."""
+    (rows_a, best_a), (rows_b, best_b) = first, second
+    if [r[:2] for r in rows_a] != [r[:2] for r in rows_b]:
+        return max(len(rows_a), len(rows_b))
+    beyond = sum(
+        _cases.ulps(a[2], b[2]) > REPEAT_BOUND
+        for a, b in zip(rows_a, rows_b, strict=True)
+    )
+    return beyond + (best_a != best_b)
 
 
 def repeat_cases() -> list[dict]:
-    """The same seed gives the same ``results_``, byte for byte."""
+    """The same seed tries the same settings, picks the same best, and scores
+    each fold within `REPEAT_BOUND` ULPs (ADR 0043)."""
     out = []
     for name, make in (
         ("random", lambda: sq.search.random(trials=6, seed=3)),
         ("optuna", lambda: sq.search.optuna(trials=6, seed=3)),
     ):
-        first, second = results_bytes(make()), results_bytes(make())
+        first, second = repeat_run(make()), repeat_run(make())
         out.append(
             _cases.exact_case(
                 step="search",
-                formula=f"{name} search: results_ for one seed, run twice",
+                formula=(
+                    f"{name} search, one seed, run twice: the same settings and "
+                    f"best, scores within {REPEAT_BOUND} ULP"
+                ),
                 dataset="generated",
                 rows=ROWS,
                 type="DOUBLE",
-                mismatches=int(first != second),
-                cells=1,
+                mismatches=repeat_mismatches(first, second),
+                cells=len(first[0]) + 1,
                 compared_with="sqlearn",
-                note=f"{len(first)} bytes compared",
+                note=f"{len(first[0])} scores and the best setting compared",
             )
         )
     return out

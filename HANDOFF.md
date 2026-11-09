@@ -35,17 +35,17 @@ None.
 
 - Ready for an agent: #28 compensated two-pass variance, then #27 (the
   median's reach); #32 (impute's filled copies typed INTEGER); #31 (the
-  encoders' linear category lookup); #35 (accuracy's label checks); #36
-  (a seeded search is not repeatable under load).
+  encoders' linear category lookup); #35 (accuracy's label checks).
 - Choose the next 3.3 area: datasets, or more metrics (confusion matrix,
   report, curves, fbeta).
 
 ## Dead ends and traps
 
-- `just verify` can fail under CPU load on
-  `test_model_selection_script.py`'s "run twice" case: DuckDB threads make a
-  score differ by 1 ULP (#36, on `main` too). Rerun with the machine idle;
-  the reproducer is in #36. (2026-11-09)
+- DuckDB sums doubles on several threads in the order they finish, so a
+  learned mean or standard deviation (and any score) can differ by one ULP
+  between runs on a busy machine; compare runs within a bound, never byte
+  for byte (ADR 0043). Median, quantiles, min, max and counts are exact.
+  (2026-11-09)
 - `just test` does not run the Sphinx doctests, and an incremental docs build
   reuses stale generated pages: check docs with
   `rm -rf docs/reference/generated docs/_build && just build-docs`. (2026-11-06)
@@ -72,6 +72,9 @@ None.
 
 ## Just finished
 
+- #36: a seeded search is repeatable within rounding (ADR 0043): same
+  settings and best, scores within 1 ULP; scores within 16 ULPs of the best
+  tie, the first tried winning. (2026-11-09)
 - Metrics area (#34): precision, recall and f1 with scikit-learn's `average`,
   `pos_label` and `zero_division`, counted per class in DuckDB and exact to the
   double; spec `docs/specs/library-metrics.md`, plan
