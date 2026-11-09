@@ -420,16 +420,19 @@ def test_encoders_give_the_same_codes_for_ten_thousand_categories():
     step's lookup when #31 measured the others, written here in the test: a
     lookup that replaces it must give the same.
     """
+    nulls = "i >= 10000 AND i % 2 = 0"  # every NULL row has y = 1: NULL is not the mean
     learn = connection().sql(
-        "SELECT CASE WHEN i >= 10000 AND i % 2 = 0 THEN NULL "
+        f"SELECT CASE WHEN {nulls} THEN NULL "
         "ELSE 'c' || lpad((i % 10000)::VARCHAR, 5, '0') END AS c, "
-        "(hash(i) % 2)::INTEGER AS y FROM range(12000) t(i) ORDER BY i"
+        f"CASE WHEN {nulls} THEN 1 ELSE (hash(i) % 2)::INTEGER END AS y "
+        "FROM range(12000) t(i) ORDER BY i"
     )
     pipe = sq.Pipeline([sq.encode.target("c")]).learn(learn, target="y")
     step = pipe["target"]
     categories, encodings = step.categories_["c"], step.encodings_["c"]
     assert len(categories) == 10_000
     assert step.null_["c"] is not None
+    assert step.null_["c"] != pytest.approx(step.target_mean_["c"])
     new = connection().sql(
         "SELECT CASE WHEN i % 7 = 0 THEN NULL WHEN i % 5 = 0 THEN 'unseen' || i "
         "ELSE 'c' || lpad((hash(i) % 10000)::VARCHAR, 5, '0') END AS c "
@@ -444,3 +447,5 @@ def test_encoders_give_the_same_codes_for_ten_thousand_categories():
     ).fetchall()
     got = [r[0] for r in pipe.apply(new).fetchall()]
     assert got == pytest.approx([r[0] for r in expected], rel=1e-15)
+    for value in (step.null_["c"], step.target_mean_["c"]):  # NULL, then unseen
+        assert any(g == pytest.approx(value, rel=1e-15) for g in got)
