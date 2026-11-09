@@ -5,6 +5,7 @@ import pickle
 
 import duckdb
 import numpy as np
+import pandas as pd
 import pytest
 from duckdb.sqltypes import DOUBLE
 
@@ -14,6 +15,7 @@ from sqlearn._config import connection
 from sqlearn._store import STORE
 from sqlearn.agg.aggregates import lookup, present
 from sqlearn.errors import SqlearnError
+from validation import _cases
 
 NAN = float("nan")
 X = duckdb.ColumnExpression("a")
@@ -404,3 +406,69 @@ def test_an_aggregate_pickles_by_name_and_params():
     for a in (sq.agg.median, sq.agg.quantile(q=0.9), sq.agg.iqr(q=(0.1, 0.9))):
         back = pickle.loads(pickle.dumps(a))
         assert back == a and repr(back) == repr(a)
+
+
+def test_std_is_within_two_ulps_of_the_exact_value_on_100k_rows():
+    """The validation's 100,000 values near 1,000: two passes, within 2 ULPs.
+
+    DuckDB's one-pass ``stddev_pop`` was 12 ULPs from the exact population
+    standard deviation (mpmath at 50 digits) here; numpy is 1 (issue #28).
+    """
+    (large,) = (d for d in _cases.numbers() if d.name == "large")
+    values = _cases.present(large.values)
+    exact = _cases.nearest(_cases.exact_stddev_pop(values))
+    data = pd.DataFrame({"a": values})
+    got = sq.Pipeline([("learn", Learn(value=sq.agg.std))]).learn(data)
+    assert _cases.ulps(got["learn"].v_["a"], exact) <= 2
+
+
+@pytest.mark.parametrize(
+    ("value", "n"), [(1 / 3, 100_000), (0.1, 3), (1e300, 7), (1000.123, 1)]
+)
+def test_std_of_a_constant_column_is_exactly_zero(value, n):
+    """Every value the same, or one value: exactly 0, whatever the mean rounds to.
+
+    The compensated mean of 100,000 copies of 1/3 is not 1/3 itself, so the
+    deviations from it are not 0; Scale's zero-spread rule needs 0 here.
+    """
+    data = pd.DataFrame({"a": [value] * n + [None, NAN]})
+    got = sq.Pipeline([("learn", Learn(value=sq.agg.std))]).learn(data)
+    assert got["learn"].v_["a"] == 0.0
+
+
+def test_std_is_two_passes_and_may_sit_anywhere_in_a_learned_value():
+    """Inside another aggregate, beside a median, in an expression: numpy's values.
+
+    The learn statement holds no ``stddev_pop``: the two passes are stages
+    of their own, shared by every standard deviation of the stage.
+    """
+
+    class Spreads(sq.Step):
+        def learn(self, x):
+            return {
+                "ratio": sq.agg.mean(x / sq.agg.std(x)),
+                "both": sq.agg.std(x) * sq.fn.const(2) + sq.agg.median(x),
+                "sd": sq.agg.std(x),
+            }
+
+        def apply(self, x, learned):
+            return x
+
+    con = duckdb.connect()
+    con.sql(
+        "CREATE TABLE t AS SELECT * FROM "
+        "(VALUES (1.0, 4.0), (2.0, NULL), (6.0, 5.0)) v(a, b)"
+    )
+    schema = [("a", DOUBLE), ("b", DOUBLE)]
+    stage = step_stage(1, "spreads", Spreads(), schema, SOURCE)
+    values, _, run = execute(con, "t", [stage], produce=False)
+    assert "stddev_pop" not in run.statements[0]
+    assert "__sqlearn_std" not in run.statements[0]
+    got = values["s01_spreads"]
+    for column, present_values in {"a": [1.0, 2.0, 6.0], "b": [4.0, 5.0]}.items():
+        v = np.array(present_values)
+        assert got["sd"][column] == pytest.approx(np.std(v), rel=1e-15)
+        assert got["ratio"][column] == pytest.approx(np.mean(v / np.std(v)), rel=1e-15)
+        assert got["both"][column] == pytest.approx(
+            2 * np.std(v) + np.median(v), rel=1e-15
+        )

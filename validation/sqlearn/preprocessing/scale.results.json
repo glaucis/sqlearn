@@ -49,24 +49,24 @@
       "value": 1018.4737031349603
     },
     {
-      "abs_error": 9.110424854990103e-15,
-      "bound_ulps": 16,
+      "abs_error": 2.0049974973891016e-15,
+      "bound_ulps": 2,
       "canonical": 28.191040517044986,
       "dataset": "small",
       "formula": "standard scale: population standard deviation",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 3.231673853784049e-16,
+      "rel_error": 7.112179829534251e-17,
       "result": "pass",
       "rows": 4,
       "step": "scale",
       "type": "DOUBLE",
-      "ulps": 3,
-      "value": 28.191040517044975
+      "ulps": 1,
+      "value": 28.191040517044982
     },
     {
       "abs_error": 2.0049974973891016e-15,
-      "bound_ulps": 16,
+      "bound_ulps": 2,
       "canonical": 28.191040517044986,
       "dataset": "small",
       "formula": "standard scale: population standard deviation",
@@ -82,7 +82,7 @@
     },
     {
       "abs_error": 2.0049974973891016e-15,
-      "bound_ulps": 16,
+      "bound_ulps": 2,
       "canonical": 28.191040517044986,
       "dataset": "small",
       "formula": "standard scale: population standard deviation",
@@ -385,24 +385,24 @@
       "value": 995.3178501666819
     },
     {
-      "abs_error": 7.757166852461116e-14,
-      "bound_ulps": 16,
+      "abs_error": 6.5173949486011475e-15,
+      "bound_ulps": 2,
       "canonical": 97.7398563752915,
       "dataset": "medium",
       "formula": "standard scale: population standard deviation",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 7.936544149068464e-16,
+      "rel_error": 6.668103668554947e-17,
       "result": "pass",
       "rows": 1000,
       "step": "scale",
       "type": "DOUBLE",
-      "ulps": 5,
-      "value": 97.73985637529157
+      "ulps": 0,
+      "value": 97.7398563752915
     },
     {
       "abs_error": 7.693459766600855e-15,
-      "bound_ulps": 16,
+      "bound_ulps": 2,
       "canonical": 97.7398563752915,
       "dataset": "medium",
       "formula": "standard scale: population standard deviation",
@@ -418,7 +418,7 @@
     },
     {
       "abs_error": 7.693459766600855e-15,
-      "bound_ulps": 16,
+      "bound_ulps": 2,
       "canonical": 97.7398563752915,
       "dataset": "medium",
       "formula": "standard scale: population standard deviation",
@@ -721,24 +721,24 @@
       "value": 999.9861113604584
     },
     {
-      "abs_error": 1.7651667451031724e-13,
-      "bound_ulps": 16,
+      "abs_error": 8.224436787308813e-15,
+      "bound_ulps": 2,
       "canonical": 100.0064396183522,
       "dataset": "large",
       "formula": "standard scale: population standard deviation",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 1.7650530824209506e-15,
+      "rel_error": 8.223907199071553e-17,
       "result": "pass",
       "rows": 100000,
       "step": "scale",
       "type": "DOUBLE",
-      "ulps": 12,
-      "value": 100.00643961835203
+      "ulps": 1,
+      "value": 100.00643961835222
     },
     {
       "abs_error": 8.224436787308813e-15,
-      "bound_ulps": 16,
+      "bound_ulps": 2,
       "canonical": 100.0064396183522,
       "dataset": "large",
       "formula": "standard scale: population standard deviation",
@@ -754,7 +754,7 @@
     },
     {
       "abs_error": 8.224436787308813e-15,
-      "bound_ulps": 16,
+      "bound_ulps": 2,
       "canonical": 100.0064396183522,
       "dataset": "large",
       "formula": "standard scale: population standard deviation",
@@ -1057,24 +1057,24 @@
       "value": 996.6889355365514
     },
     {
-      "abs_error": 1.3551849035132291e-14,
-      "bound_ulps": 16,
+      "abs_error": 6.590056800697135e-16,
+      "bound_ulps": 2,
       "canonical": 104.33232929489972,
       "dataset": "null",
       "formula": "standard scale: population standard deviation",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 1.298911768453613e-16,
+      "rel_error": 6.316409156427498e-18,
       "result": "pass",
       "rows": 1000,
       "step": "scale",
       "type": "DOUBLE",
-      "ulps": 1,
-      "value": 104.33232929489971
+      "ulps": 0,
+      "value": 104.33232929489972
     },
     {
       "abs_error": 1.3551849035132291e-14,
-      "bound_ulps": 16,
+      "bound_ulps": 2,
       "canonical": 104.33232929489972,
       "dataset": "null",
       "formula": "standard scale: population standard deviation",
@@ -1090,7 +1090,7 @@
     },
     {
       "abs_error": 6.590056800697135e-16,
-      "bound_ulps": 16,
+      "bound_ulps": 2,
       "canonical": 104.33232929489972,
       "dataset": "null",
       "formula": "standard scale: population standard deviation",
@@ -1393,24 +1393,24 @@
       "value": 999.3564990513224
     },
     {
-      "abs_error": 2.13398102835418e-14,
-      "bound_ulps": 16,
+      "abs_error": 7.081899146862209e-15,
+      "bound_ulps": 2,
       "canonical": 98.590428324361,
       "dataset": "nan",
       "formula": "standard scale: population standard deviation",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 2.1644910815616046e-16,
+      "rel_error": 7.18315080604262e-17,
       "result": "pass",
       "rows": 1000,
       "step": "scale",
       "type": "DOUBLE",
-      "ulps": 2,
-      "value": 98.59042832436097
+      "ulps": 0,
+      "value": 98.590428324361
     },
     {
       "abs_error": 7.081899146862209e-15,
-      "bound_ulps": 16,
+      "bound_ulps": 2,
       "canonical": 98.590428324361,
       "dataset": "nan",
       "formula": "standard scale: population standard deviation",
@@ -1426,7 +1426,7 @@
     },
     {
       "abs_error": 7.081899146862209e-15,
-      "bound_ulps": 16,
+      "bound_ulps": 2,
       "canonical": 98.590428324361,
       "dataset": "nan",
       "formula": "standard scale: population standard deviation",
@@ -1730,7 +1730,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 16,
+      "bound_ulps": 2,
       "canonical": null,
       "dataset": "empty",
       "formula": "standard scale: population standard deviation",
@@ -1746,7 +1746,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 16,
+      "bound_ulps": 2,
       "canonical": null,
       "dataset": "empty",
       "formula": "standard scale: population standard deviation",
@@ -1762,7 +1762,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 16,
+      "bound_ulps": 2,
       "canonical": null,
       "dataset": "empty",
       "formula": "standard scale: population standard deviation",
@@ -2066,7 +2066,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 16,
+      "bound_ulps": 2,
       "canonical": 1.0,
       "dataset": "single",
       "formula": "standard scale: population standard deviation",
@@ -2082,7 +2082,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 16,
+      "bound_ulps": 2,
       "canonical": 1.0,
       "dataset": "single",
       "formula": "standard scale: population standard deviation",
@@ -2098,7 +2098,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 16,
+      "bound_ulps": 2,
       "canonical": 1.0,
       "dataset": "single",
       "formula": "standard scale: population standard deviation",
@@ -2401,24 +2401,24 @@
       "value": 997.4032472437177
     },
     {
-      "abs_error": 7.079294037652689e-14,
-      "bound_ulps": 16,
+      "abs_error": 2.613331994831274e-16,
+      "bound_ulps": 2,
       "canonical": 99.25111465625183,
       "dataset": "reserved",
       "formula": "standard scale: population standard deviation",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 7.132709856379194e-16,
+      "rel_error": 2.6330505243012505e-18,
       "result": "pass",
       "rows": 1000,
       "step": "scale",
       "type": "DOUBLE",
-      "ulps": 5,
-      "value": 99.25111465625176
+      "ulps": 0,
+      "value": 99.25111465625183
     },
     {
       "abs_error": 2.613331994831274e-16,
-      "bound_ulps": 16,
+      "bound_ulps": 2,
       "canonical": 99.25111465625183,
       "dataset": "reserved",
       "formula": "standard scale: population standard deviation",
@@ -2434,7 +2434,7 @@
     },
     {
       "abs_error": 2.613331994831274e-16,
-      "bound_ulps": 16,
+      "bound_ulps": 2,
       "canonical": 99.25111465625183,
       "dataset": "reserved",
       "formula": "standard scale: population standard deviation",

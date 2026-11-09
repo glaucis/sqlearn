@@ -26,6 +26,7 @@ from sqlearn._config import connection
 from sqlearn._step import classify
 from sqlearn.errors import SqlearnError, StepError
 from sqlearn.preprocessing.scale import Normalize, Scale
+from validation import _cases
 
 
 @pytest.fixture
@@ -512,6 +513,27 @@ def test_a_near_constant_column_is_constant_as_in_sklearn(method, scaler, values
     assert pipe[method].scale_["x"] == 1.0 == sk.scale_[0]
     got = pipe.apply(frame, out="pandas")["x"]
     assert_allclose(got, sk.transform(frame)[:, 0], rtol=1e-15, atol=1e-15)
+
+
+def test_the_standard_divisor_is_within_two_ulps_on_100k_rows():
+    """The validation's 100,000 values: the divisor within 2 ULPs of the exact.
+
+    The standard deviation is computed in two compensated passes (issue
+    #28); DuckDB's one-pass ``stddev_pop`` was 12 ULPs off here.
+    """
+    (large,) = (d for d in _cases.numbers() if d.name == "large")
+    values = _cases.present(large.values)
+    exact = _cases.nearest(_cases.exact_stddev_pop(values))
+    pipe = sq.Pipeline([sq.scale.standard()]).learn(pd.DataFrame({"x": values}))
+    assert _cases.ulps(pipe["standard"].scale_["x"], exact) <= 2
+
+
+def test_a_constant_column_whose_mean_rounds_off_scales_to_zero():
+    """100,000 copies of 1/3: the rounded mean is not 1/3, the spread still 0."""
+    frame = pd.DataFrame({"x": [1 / 3] * 100_000})
+    pipe = sq.Pipeline([sq.scale.standard()]).learn(frame)
+    assert pipe["standard"].scale_["x"] == 1.0
+    assert pipe.apply(frame, out="pandas")["x"].abs().max() < 1e-15
 
 
 def test_a_spread_just_above_the_threshold_divides():

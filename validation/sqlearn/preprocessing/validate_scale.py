@@ -44,14 +44,17 @@ from validation.sqlearn.agg.validate_aggregates import exact_quantile
 # needs a written reason here, never a quiet edit. First measured: the mean
 # 119 ULPs with DuckDB's plain `avg`; tightened to 1 when the mean moved to
 # the compensated `favg` (ADR 0033), worst then 1 ULP (medium set). Standard
-# deviation: 12 ULPs on the large set (`stddev_pop` alone shows the same).
+# deviation: 12 ULPs on the large set (`stddev_pop` alone shows the same);
+# tightened to 2 when it moved to two compensated passes (issue #28), worst
+# then 1 ULP (small and large sets), with 1 ULP more for the order DuckDB's
+# threads finish in (ADR 0043: the large set gave 0 in 2 of 30 runs).
 # The median, the extremes, the range and the largest absolute value: 0 ULPs.
 # The IQR: 32 on the small set, as `sq.agg.iqr`'s own (each quartile is
 # rounded at values near 1,000, and their difference keeps those errors at
 # its own finer ULPs; numpy and scikit-learn show the same).
 BOUNDS = {
     ("standard", "center"): 1,
-    ("standard", "scale"): 16,
+    ("standard", "scale"): 2,
     ("robust", "center"): 1,
     ("robust", "scale"): 32,
     ("minmax", "center"): 1,

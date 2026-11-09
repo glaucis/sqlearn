@@ -39,7 +39,7 @@ import duckdb
 from duckdb import Expression
 
 from sqlearn._errors import InternalError, SqlearnError, StepError
-from sqlearn._expr import MODE, QUANTILE, TARGET_STATS, const, quote
+from sqlearn._expr import MODE, QUANTILE, STD, TARGET_STATS, const, quote
 from sqlearn._names import name_columns
 from sqlearn._selectors import Schema
 from sqlearn._step import (
@@ -713,7 +713,7 @@ _TOKEN = re.compile(r"""'(?:[^']|'')*'|"(?:[^"]|"")*"|[()\[\]{},]""")
 
 _MARKER = re.compile(
     r"""'(?:[^']|'')*'|"(?:[^"]|"")*"|(?<![A-Za-z0-9_])("""
-    + "|".join(re.escape(k) for k in (QUANTILE, MODE, TARGET_STATS))
+    + "|".join(re.escape(k) for k in (QUANTILE, MODE, STD, TARGET_STATS))
     + r")\("
 )
 """A quoted literal or identifier, or a marker's name and its ``(``."""
@@ -746,7 +746,7 @@ def _scan(text: str, start: int) -> tuple[int, list[str]]:
 
 
 def _markers(text: str) -> list[_Marker]:
-    """Find every staged marker (a quantile, a mode, target statistics), in order.
+    """Find every staged marker (quantile, mode, std, target statistics), in order.
 
     A marker's name is matched only outside quotes and not as the end of a
     longer name, so a column named after one is not taken for it. The text
@@ -830,13 +830,16 @@ class _Staged:
     `quantiles` maps ``(values, q, method)`` (SQL texts; `values` is the
     expression sorted) to its place (from 0) in the quantile stage's list;
     `modes` maps the expression counted to its column (``m0``, ``m1``, ...)
-    of the mode stage; `stats` maps ``(x, y, fold)`` to its column (``l0``,
-    ...) of the target statistics stage.
+    of the mode stage; `stds` maps the expression whose standard deviation
+    is learned to its column (``s0``, ...) of the standard deviation stage;
+    `stats` maps ``(x, y, fold)`` to its column (``l0``, ...) of the target
+    statistics stage.
     """
 
     name: str
     quantiles: dict[tuple[str, str, str], int] = field(default_factory=dict)
     modes: dict[str, int] = field(default_factory=dict)
+    stds: dict[str, int] = field(default_factory=dict)
     stats: dict[tuple[str, str, str], int] = field(default_factory=dict)
 
     def reference(
@@ -857,8 +860,9 @@ class _Staged:
                 raise _refuse(
                     stage,
                     whole,
-                    "an aggregate of an aggregate (a quantile or mode of "
-                    "one), which has no meaning over one column.",
+                    "an aggregate of an aggregate (a quantile, mode or "
+                    "standard deviation of one), which has no meaning over "
+                    "one column.",
                     "learn each aggregate of the column on its own.",
                 )
         if marker.kind == TARGET_STATS and len(marker.args) == 3:
@@ -869,6 +873,10 @@ class _Staged:
             (values,) = marker.args
             index = self.modes.setdefault(values, len(self.modes))
             return _read(f"{quote(self.name + '_modes')}.{quote(f'm{index}')}", nested)
+        if marker.kind == STD and len(marker.args) == 1:
+            (values,) = marker.args
+            index = self.stds.setdefault(values, len(self.stds))
+            return _read(f"{quote(self.name + '_std')}.{quote(f's{index}')}", nested)
         method = marker.args[-1] if len(marker.args) == 3 else ""
         if marker.kind == QUANTILE and method in (
             "'linear'",
@@ -1055,6 +1063,37 @@ def _mode_ctes(table: str, modes: dict[str, int], previous: str) -> list[str]:
     return [_one_row(table, branches)]
 
 
+def _std_ctes(name: str, stds: dict[str, int], previous: str) -> list[str]:
+    """Return the two stages computing a learn stage's standard deviations.
+
+    The population standard deviation in two passes over the previous stage
+    (issue #28): one stage of every column's mean, compensated (``favg``, as
+    ``sq.agg.mean``), then one row of ``sqrt(favg((x - mean) ^ 2))`` per
+    column, over the rows cross-joined with that one row of means. Each
+    pass is one streaming aggregate, so nothing waits in memory but a few
+    numbers per column. Every value the same (or one value) gives exactly 0,
+    by ``min = max``: the rounded mean may differ from the value itself
+    (100,000 copies of 1/3), and Scale's zero-spread rule needs 0 there. NULL
+    when there is no value; NaN, as the mean, beside an infinity.
+    """
+    means, table = quote(name + "_std_means"), quote(name + "_std")
+    xs = {index: quote(f"x{index}") for index in stds.values()}
+    mus = {index: quote(f"u{index}") for index in stds.values()}
+    columns = ", ".join(f"{inner} AS {xs[index]}" for inner, index in stds.items())
+    present = f"(SELECT {columns} FROM {quote(previous)})"
+    averages = ", ".join(f"favg({xs[i]}) AS {mus[i]}" for i in stds.values())
+    spreads = ", ".join(
+        f"CASE WHEN min({xs[i]}) = max({xs[i]}) AND isfinite(min({xs[i]})) "
+        f"THEN 0.0 ELSE sqrt(favg(({xs[i]} - {mus[i]}) ^ 2)) END "
+        f"AS {quote(f's{i}')}"
+        for i in stds.values()
+    )
+    return [
+        f"{means} AS MATERIALIZED (SELECT {averages} FROM {present})",
+        f"{table} AS MATERIALIZED (SELECT {spreads} FROM {present} CROSS JOIN {means})",
+    ]
+
+
 def _stats_ctes(
     table: str, stats: dict[tuple[str, str, str], int], previous: str
 ) -> list[str]:
@@ -1086,7 +1125,7 @@ def _stats_ctes(
 
 
 def _learn_ctes(stage: Stage, learn: dict[str, Expression], previous: str) -> list[str]:
-    """Return a learn stage, after the stages of the quantiles and modes it learns.
+    """Return a learn stage, after the stages of the staged markers it learns.
 
     Each staged marker in a learned value is replaced by a reference to the
     one row its stages computed, so a quantile may sit anywhere in a learned
@@ -1121,6 +1160,9 @@ def _learn_ctes(stage: Stage, learn: dict[str, Expression], previous: str) -> li
     if staged.modes:
         ctes.extend(_mode_ctes(staged.name + "_modes", staged.modes, previous))
         rows.append(staged.name + "_modes")
+    if staged.stds:
+        ctes.extend(_std_ctes(staged.name, staged.stds, previous))
+        rows.append(staged.name + "_std")
     if staged.stats:
         ctes.extend(_stats_ctes(staged.name + "_stats", staged.stats, previous))
         rows.append(staged.name + "_stats")

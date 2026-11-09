@@ -6,6 +6,7 @@ from duckdb import Expression
 __all__ = [
     "MODE",
     "QUANTILE",
+    "STD",
     "TARGET_STATS",
     "const",
     "is_missing",
@@ -33,6 +34,16 @@ MODE = "__sqlearn_mode"
 Not a DuckDB function. The compositor computes the mode by counting each
 value in a ``GROUP BY``, which spills to disk, and breaks a tie to the
 smallest value, which DuckDB's ``mode`` does not promise.
+"""
+
+STD = "__sqlearn_std"
+"""The name of the standard deviation marker: ``__sqlearn_std(x)``.
+
+Not a DuckDB function. The compositor computes the population standard
+deviation of `x` (its present values, as DOUBLE) in two passes, each a stage
+of its own: the mean with the compensated ``favg``, then
+``sqrt(favg((x - mean) ^ 2))`` over the rows beside that one mean (issue
+#28). DuckDB's one-pass ``stddev_pop`` drifts further from the exact value.
 """
 
 

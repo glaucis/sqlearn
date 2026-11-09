@@ -3,8 +3,9 @@
 An aggregate is a value a step takes (``sq.impute("age", value=sq.agg.median)``)
 and, given a column, the expression a step learns
 (``{"m": sq.agg.median(x)}``). Missing values (NULL, and NaN in a float
-column) are left out of every one. The exact quantiles and the mode are
-markers the compositor computes in stages of its own (see `sqlearn._compose`).
+column) are left out of every one. The exact quantiles, the mode and the
+standard deviation are markers the compositor computes in stages of its own
+(see `sqlearn._compose`).
 """
 
 from collections.abc import Callable, Mapping
@@ -14,7 +15,7 @@ import duckdb
 from duckdb import Expression
 
 from sqlearn._errors import SqlearnError
-from sqlearn._expr import MODE, QUANTILE, const, is_missing
+from sqlearn._expr import MODE, QUANTILE, STD, const, is_missing
 
 __all__ = [
     "Aggregate",
@@ -503,16 +504,20 @@ maxabs = Aggregate(
 )
 std = Aggregate(
     "std",
-    lambda x: _fn("stddev_pop", present(x)),
-    doc="""The population standard deviation (``ddof=0``), DuckDB's ``stddev_pop``.
+    lambda x: _fn(STD, present(x)),
+    doc="""The population standard deviation (``ddof=0``), in two compensated passes.
 
-    As StandardScaler's. A two-pass compensated variance is issue #28.
+    As StandardScaler's: the mean with ``favg`` (as `mean`), then
+    ``sqrt(favg((x - mean) ^ 2))``, each pass a stage of its own (issue #28).
+    It lands within 1 ULP of the exact value where DuckDB's one-pass
+    ``stddev_pop`` drifted 12 (``validation/``). Exactly 0 when every value
+    is the same. It may sit anywhere in a learned expression.
 
     Examples
     --------
     >>> import duckdb
     >>> import sqlearn as sq
-    >>> str(sq.agg.std(duckdb.ColumnExpression("a"))).startswith("stddev_pop(")
+    >>> str(sq.agg.std(duckdb.ColumnExpression("a"))).startswith("__sqlearn_std(")
     True
     """,
 )

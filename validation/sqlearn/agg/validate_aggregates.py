@@ -35,7 +35,12 @@ from validation import _cases
 # `stddev_pop` and `var_pop` alone show the same, issue #28); 32 for the IQR
 # (small set): each quantile is rounded at values near 1,000, and their
 # difference, about 21, keeps those errors at its own finer ULPs, as every
-# reference (DuckDB, numpy, pandas) shows the same 32.
+# reference (DuckDB, numpy, pandas) shows the same 32. The standard deviation
+# was tightened to 2 when it moved to two compensated passes (issue #28):
+# worst then 1 ULP (small and large sets), and the large set's 1 was 0 in 2
+# of 30 runs, as DuckDB's threads finish in another order (ADR 0043); 2, not
+# 1, leaves that ULP of thread order beside the worst case. DuckDB's own
+# `stddev_pop`, 12 ULPs on the large set, is an anomaly against it.
 BOUNDS = {
     "mean": 1,
     "median": 1,
@@ -46,7 +51,7 @@ BOUNDS = {
     "max": 1,
     "range": 1,
     "maxabs": 1,
-    "std": 16,
+    "std": 2,
     "var": 32,
     "count": 1,
 }

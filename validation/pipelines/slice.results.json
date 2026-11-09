@@ -1,7 +1,7 @@
 {
   "cases": [
     {
-      "abs_error": 4.440892098500626e-16,
+      "abs_error": 0.0,
       "bound_ulps": 128,
       "canonical": null,
       "compared_with": "scikit-learn",
@@ -9,17 +9,17 @@
       "formula": "prepared column age",
       "note": "compared row by row with scikit-learn Pipeline(ColumnTransformer(SimpleImputer(median), OneHotEncoder, OrdinalEncoder), StandardScaler); ulps is the worst absolute difference in units of 2^-52 (columns have unit spread), ulps_at_value the worst ULP count at a value",
       "reference": "sqlearn",
-      "rel_error": 3.9512883617409495e-16,
+      "rel_error": 0.0,
       "result": "pass",
       "rows": 4,
       "step": "slice",
       "type": "DOUBLE",
-      "ulps": 2,
-      "ulps_at_value": 2,
-      "value": -1.1239098977185138
+      "ulps": 0,
+      "ulps_at_value": 0,
+      "value": -0.20931050849482866
     },
     {
-      "abs_error": 4.440892098500626e-16,
+      "abs_error": 0.0,
       "bound_ulps": 128,
       "canonical": null,
       "compared_with": "scikit-learn",
@@ -27,14 +27,14 @@
       "formula": "prepared column income",
       "note": "compared row by row with scikit-learn Pipeline(ColumnTransformer(SimpleImputer(median), OneHotEncoder, OrdinalEncoder), StandardScaler); ulps is the worst absolute difference in units of 2^-52 (columns have unit spread), ulps_at_value the worst ULP count at a value",
       "reference": "sqlearn",
-      "rel_error": 3.434678292512489e-16,
+      "rel_error": 0.0,
       "result": "pass",
       "rows": 4,
       "step": "slice",
       "type": "DOUBLE",
-      "ulps": 2,
-      "ulps_at_value": 3,
-      "value": 1.7217193306909893
+      "ulps": 0,
+      "ulps_at_value": 0,
+      "value": -0.7520014152937187
     },
     {
       "abs_error": 0.0,
@@ -73,7 +73,7 @@
       "value": -0.5773502691896258
     },
     {
-      "abs_error": 2.220446049250313e-16,
+      "abs_error": 0.0,
       "bound_ulps": 128,
       "canonical": null,
       "compared_with": "scikit-learn",
@@ -81,14 +81,14 @@
       "formula": "prepared column city_rome",
       "note": "compared row by row with scikit-learn Pipeline(ColumnTransformer(SimpleImputer(median), OneHotEncoder, OrdinalEncoder), StandardScaler); ulps is the worst absolute difference in units of 2^-52 (columns have unit spread), ulps_at_value the worst ULP count at a value",
       "reference": "sqlearn",
-      "rel_error": 1.9229626863835636e-16,
+      "rel_error": 0.0,
       "result": "pass",
       "rows": 4,
       "step": "slice",
       "type": "DOUBLE",
-      "ulps": 1,
-      "ulps_at_value": 1,
-      "value": 1.7320508075688772
+      "ulps": 0,
+      "ulps_at_value": 0,
+      "value": -0.5773502691896258
     },
     {
       "abs_error": 0.0,
@@ -109,7 +109,7 @@
       "value": -1.0
     },
     {
-      "abs_error": 2.6645352591003757e-15,
+      "abs_error": 0.0,
       "bound_ulps": 128,
       "canonical": null,
       "compared_with": "scikit-learn",
@@ -117,17 +117,17 @@
       "formula": "prepared column age",
       "note": "compared row by row with scikit-learn Pipeline(ColumnTransformer(SimpleImputer(median), OneHotEncoder, OrdinalEncoder), StandardScaler); ulps is the worst absolute difference in units of 2^-52 (columns have unit spread), ulps_at_value the worst ULP count at a value",
       "reference": "sqlearn",
-      "rel_error": 6.608375316040908e-16,
+      "rel_error": 0.0,
       "result": "pass",
       "rows": 1000,
       "step": "slice",
       "type": "DOUBLE",
-      "ulps": 12,
-      "ulps_at_value": 5,
-      "value": -4.190393145507501
+      "ulps": 0,
+      "ulps_at_value": 0,
+      "value": -0.08771703643203893
     },
     {
-      "abs_error": 1.3322676295501878e-15,
+      "abs_error": 0.0,
       "bound_ulps": 128,
       "canonical": null,
       "compared_with": "scikit-learn",
@@ -135,14 +135,14 @@
       "formula": "prepared column income",
       "note": "compared row by row with scikit-learn Pipeline(ColumnTransformer(SimpleImputer(median), OneHotEncoder, OrdinalEncoder), StandardScaler); ulps is the worst absolute difference in units of 2^-52 (columns have unit spread), ulps_at_value the worst ULP count at a value",
       "reference": "sqlearn",
-      "rel_error": 4.509046218555773e-16,
+      "rel_error": 0.0,
       "result": "pass",
       "rows": 1000,
       "step": "slice",
       "type": "DOUBLE",
-      "ulps": 6,
-      "ulps_at_value": 3,
-      "value": -3.1475184759810446
+      "ulps": 0,
+      "ulps_at_value": 0,
+      "value": -1.607180018544951
     },
     {
       "abs_error": 2.220446049250313e-16,
@@ -163,7 +163,7 @@
       "value": 1.3568010505999364
     },
     {
-      "abs_error": 6.661338147750939e-16,
+      "abs_error": 4.440892098500626e-16,
       "bound_ulps": 128,
       "canonical": null,
       "compared_with": "scikit-learn",
@@ -171,17 +171,17 @@
       "formula": "prepared column city_oslo",
       "note": "compared row by row with scikit-learn Pipeline(ColumnTransformer(SimpleImputer(median), OneHotEncoder, OrdinalEncoder), StandardScaler); ulps is the worst absolute difference in units of 2^-52 (columns have unit spread), ulps_at_value the worst ULP count at a value",
       "reference": "sqlearn",
-      "rel_error": 5.198859822159914e-16,
+      "rel_error": 3.4659065481066097e-16,
       "result": "pass",
       "rows": 1000,
       "step": "slice",
       "type": "DOUBLE",
-      "ulps": 3,
-      "ulps_at_value": 3,
-      "value": 1.5609055438553887
+      "ulps": 2,
+      "ulps_at_value": 2,
+      "value": 1.560905543855389
     },
     {
-      "abs_error": 4.440892098500626e-16,
+      "abs_error": 2.220446049250313e-16,
       "bound_ulps": 128,
       "canonical": null,
       "compared_with": "scikit-learn",
@@ -189,17 +189,17 @@
       "formula": "prepared column city_rome",
       "note": "compared row by row with scikit-learn Pipeline(ColumnTransformer(SimpleImputer(median), OneHotEncoder, OrdinalEncoder), StandardScaler); ulps is the worst absolute difference in units of 2^-52 (columns have unit spread), ulps_at_value the worst ULP count at a value",
       "reference": "sqlearn",
-      "rel_error": 3.309015814341282e-16,
+      "rel_error": 1.654507907170641e-16,
       "result": "pass",
       "rows": 1000,
       "step": "slice",
       "type": "DOUBLE",
-      "ulps": 2,
-      "ulps_at_value": 2,
-      "value": 1.34205828792168
+      "ulps": 1,
+      "ulps_at_value": 1,
+      "value": 1.3420582879216802
     },
     {
-      "abs_error": 1.1102230246251565e-15,
+      "abs_error": 0.0,
       "bound_ulps": 128,
       "canonical": null,
       "compared_with": "scikit-learn",
@@ -207,17 +207,17 @@
       "formula": "prepared column plan",
       "note": "compared row by row with scikit-learn Pipeline(ColumnTransformer(SimpleImputer(median), OneHotEncoder, OrdinalEncoder), StandardScaler); ulps is the worst absolute difference in units of 2^-52 (columns have unit spread), ulps_at_value the worst ULP count at a value",
       "reference": "sqlearn",
-      "rel_error": 9.116698116941615e-16,
+      "rel_error": 0.0,
       "result": "pass",
       "rows": 1000,
       "step": "slice",
       "type": "DOUBLE",
-      "ulps": 5,
-      "ulps_at_value": 6,
-      "value": 1.2177907071004372
+      "ulps": 0,
+      "ulps_at_value": 0,
+      "value": 1.2177907071004384
     },
     {
-      "abs_error": 1.865174681370263e-14,
+      "abs_error": 8.881784197001252e-16,
       "bound_ulps": 128,
       "canonical": null,
       "compared_with": "scikit-learn",
@@ -225,17 +225,17 @@
       "formula": "prepared column age",
       "note": "compared row by row with scikit-learn Pipeline(ColumnTransformer(SimpleImputer(median), OneHotEncoder, OrdinalEncoder), StandardScaler); ulps is the worst absolute difference in units of 2^-52 (columns have unit spread), ulps_at_value the worst ULP count at a value",
       "reference": "sqlearn",
-      "rel_error": 3.792678820477806e-15,
+      "rel_error": 3.1114072834488505e-16,
       "result": "pass",
       "rows": 100000,
       "step": "slice",
       "type": "DOUBLE",
-      "ulps": 84,
-      "ulps_at_value": 33,
-      "value": 4.987643920951076
+      "ulps": 4,
+      "ulps_at_value": 2,
+      "value": -3.147830045409468
     },
     {
-      "abs_error": 8.881784197001252e-15,
+      "abs_error": 0.0,
       "bound_ulps": 128,
       "canonical": null,
       "compared_with": "scikit-learn",
@@ -243,17 +243,17 @@
       "formula": "prepared column income",
       "note": "compared row by row with scikit-learn Pipeline(ColumnTransformer(SimpleImputer(median), OneHotEncoder, OrdinalEncoder), StandardScaler); ulps is the worst absolute difference in units of 2^-52 (columns have unit spread), ulps_at_value the worst ULP count at a value",
       "reference": "sqlearn",
-      "rel_error": 2.157452512387665e-15,
+      "rel_error": 0.0,
       "result": "pass",
       "rows": 100000,
       "step": "slice",
       "type": "DOUBLE",
-      "ulps": 40,
-      "ulps_at_value": 18,
-      "value": -4.436783396708512
+      "ulps": 0,
+      "ulps_at_value": 0,
+      "value": -0.034555372292611006
     },
     {
-      "abs_error": 1.5543122344752192e-15,
+      "abs_error": 0.0,
       "bound_ulps": 128,
       "canonical": null,
       "compared_with": "scikit-learn",
@@ -261,17 +261,17 @@
       "formula": "prepared column city_kyiv",
       "note": "compared row by row with scikit-learn Pipeline(ColumnTransformer(SimpleImputer(median), OneHotEncoder, OrdinalEncoder), StandardScaler); ulps is the worst absolute difference in units of 2^-52 (columns have unit spread), ulps_at_value the worst ULP count at a value",
       "reference": "sqlearn",
-      "rel_error": 1.0992543151952696e-15,
+      "rel_error": 0.0,
       "result": "pass",
       "rows": 100000,
       "step": "slice",
       "type": "DOUBLE",
-      "ulps": 7,
-      "ulps_at_value": 7,
-      "value": 1.4139696455948099
+      "ulps": 0,
+      "ulps_at_value": 0,
+      "value": -0.7072287606141181
     },
     {
-      "abs_error": 6.661338147750939e-16,
+      "abs_error": 0.0,
       "bound_ulps": 128,
       "canonical": null,
       "compared_with": "scikit-learn",
@@ -279,17 +279,17 @@
       "formula": "prepared column city_oslo",
       "note": "compared row by row with scikit-learn Pipeline(ColumnTransformer(SimpleImputer(median), OneHotEncoder, OrdinalEncoder), StandardScaler); ulps is the worst absolute difference in units of 2^-52 (columns have unit spread), ulps_at_value the worst ULP count at a value",
       "reference": "sqlearn",
-      "rel_error": 4.71232708982813e-16,
+      "rel_error": 0.0,
       "result": "pass",
       "rows": 100000,
       "step": "slice",
       "type": "DOUBLE",
-      "ulps": 3,
-      "ulps_at_value": 3,
-      "value": 1.4148289683865247
+      "ulps": 0,
+      "ulps_at_value": 0,
+      "value": 1.414828968386524
     },
     {
-      "abs_error": 2.886579864025407e-15,
+      "abs_error": 2.220446049250313e-16,
       "bound_ulps": 128,
       "canonical": null,
       "compared_with": "scikit-learn",
@@ -297,17 +297,17 @@
       "formula": "prepared column city_rome",
       "note": "compared row by row with scikit-learn Pipeline(ColumnTransformer(SimpleImputer(median), OneHotEncoder, OrdinalEncoder), StandardScaler); ulps is the worst absolute difference in units of 2^-52 (columns have unit spread), ulps_at_value the worst ULP count at a value",
       "reference": "sqlearn",
-      "rel_error": 2.0416560137916785e-15,
+      "rel_error": 1.570504625993599e-16,
       "result": "pass",
       "rows": 100000,
       "step": "slice",
       "type": "DOUBLE",
-      "ulps": 13,
-      "ulps_at_value": 13,
-      "value": 1.4138424124956177
+      "ulps": 1,
+      "ulps_at_value": 1,
+      "value": 1.4138424124956146
     },
     {
-      "abs_error": 3.3306690738754696e-15,
+      "abs_error": 0.0,
       "bound_ulps": 128,
       "canonical": null,
       "compared_with": "scikit-learn",
@@ -315,14 +315,14 @@
       "formula": "prepared column plan",
       "note": "compared row by row with scikit-learn Pipeline(ColumnTransformer(SimpleImputer(median), OneHotEncoder, OrdinalEncoder), StandardScaler); ulps is the worst absolute difference in units of 2^-52 (columns have unit spread), ulps_at_value the worst ULP count at a value",
       "reference": "sqlearn",
-      "rel_error": 2.8221948812482246e-15,
+      "rel_error": 0.0,
       "result": "pass",
       "rows": 100000,
       "step": "slice",
       "type": "DOUBLE",
-      "ulps": 15,
-      "ulps_at_value": 21,
-      "value": -1.228812653839523
+      "ulps": 0,
+      "ulps_at_value": 0,
+      "value": -1.2288126538395197
     }
   ],
   "rules": {
