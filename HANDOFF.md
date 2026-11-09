@@ -3,21 +3,22 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-09 · Branch: `library-metrics` · Last commit: `22cb093 fix:
-match scikit-learn on weighted NaN averages` · Checks: passing
+Updated: 2026-11-09 · Branch: `main` · Last commit: `e0b247f docs: record the
+reviewed metrics build in the handoff` · Checks: passing
 Verify with: `just verify`
 
 ## In progress
 
-- Metrics area (#34): built and reviewed on branch `library-metrics`
-  (`.claude/worktrees/library-metrics`): 6 tasks, final review, one fix
-  pass, `just verify` passing. Waiting on Tomas to merge. Rulings and
-  deferred minors in
-  `.superpowers/sdd/2026-11-09-library-metrics/progress.md`.
-  (since 2026-11-09)
+None.
 
 ## Waiting on the user
 
+- Push `main` (the metrics build is merged locally, not pushed), then close
+  #34 with its summary. (since 2026-11-09)
+- Check the metrics build's rulings (11, with cost-if-wrong) and its 4
+  deferred minors in
+  `.superpowers/sdd/2026-11-09-library-metrics/progress.md`; file the minors
+  you want as issues. (since 2026-11-09)
 - Check the model-selection build's rulings (listed in #33's summary, all 22
   in `.superpowers/sdd/2026-11-07-library-model-selection/progress.md`),
   chiefly R8 (no LightGBM test), R11/R22 (a passed connection's DuckDB counts
@@ -73,6 +74,11 @@ Verify with: `just verify`
 
 ## Just finished
 
+- Metrics area (#34): precision, recall and f1 with scikit-learn's
+  `average`, `pos_label` and `zero_division`, counted per class in DuckDB
+  and exact to the double; spec `docs/specs/library-metrics.md`, plan
+  `docs/plans/2026-11-09-library-metrics.md`, ADR 0042; 6 tasks, final
+  review, one fix pass; fast-forwarded into `main` at `e0b247f`. (2026-11-09)
 - Model selection (#33, closed with a summary; #21 and #25 closed): spec
   `docs/specs/library-model-selection.md`, plan
   `docs/plans/2026-11-07-library-model-selection.md`, ADRs 0039–0041; 15
