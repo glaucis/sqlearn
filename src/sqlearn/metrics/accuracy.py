@@ -67,7 +67,7 @@ def _noun(column: str, target: str, proba: bool) -> str:
     return "probability" if proba and column != target else "label"
 
 
-def column_types(
+def _column_types(
     name: str, rel: duckdb.DuckDBPyRelation, columns: Sequence[str]
 ) -> dict[str, str]:
     """Return each column's type, refusing a column not in the relation."""
@@ -84,7 +84,7 @@ def column_types(
     return types
 
 
-def refuse_gaps(
+def _refuse_gaps(
     name: str,
     target: str,
     columns: Sequence[str],
@@ -166,6 +166,35 @@ class Metric:
     needs: str = "predict"
     windows: Callable[[list[Expression]], list[Expression]] | None = None
 
+    def __call__(self, **settings: object) -> "Metric":
+        """Refuse settings: this metric takes none (ADR 0042).
+
+        Parameters
+        ----------
+        **settings : object
+            Any setting.
+
+        Raises
+        ------
+        SqlearnError
+            Always: only precision, recall and f1 take settings.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> sq.metrics.accuracy(average="macro")
+        Traceback (most recent call last):
+        ...
+        sqlearn.errors.SqlearnError: accuracy takes no settings, ...
+        """
+        given = ", ".join(f"{k}=" for k in settings) or "a call"
+        msg = (
+            f"{self.name} takes no settings, and was given {given}. Why: "
+            "only the classification metrics precision, recall and f1 have "
+            f"settings. Fix: use sq.metrics.{self.name} as it is."
+        )
+        raise SqlearnError(msg)
+
     def compute(
         self,
         rel: duckdb.DuckDBPyRelation,
@@ -229,7 +258,7 @@ class Metric:
         else:
             labels = []
             columns = [target, prediction]
-        types = column_types(self.name, rel, columns)
+        types = _column_types(self.name, rel, columns)
         y = ColumnExpression(target)
         values = [ColumnExpression(c) for c in columns[1:]]
         if proba and self.windows is not None:
@@ -291,7 +320,7 @@ class Metric:
         value = row[1 + len(columns)]
         rest = row[2 + len(columns) :]
         nan_counts = rest[: len(floats)]
-        refuse_gaps(
+        _refuse_gaps(
             self.name, target, columns, floats, total, seen, nan_counts, proba=proba
         )
         if proba:
