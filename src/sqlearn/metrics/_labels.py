@@ -122,6 +122,12 @@ def check_labels(
     ------
     SqlearnError
         If a label check fails.
+
+    Examples
+    --------
+    >>> import duckdb
+    >>> check_labels("accuracy", duckdb.sql("SELECT 1 AS y, 1 AS p"), "y", "p")
+    {'y': 'INTEGER', 'p': 'INTEGER'}
     """
     return check_labels_with(name, rel, target, prediction, ())[0]
 
@@ -157,6 +163,21 @@ def check_labels_with(
     ------
     SqlearnError
         If a label check fails. A DuckDB error from `extra` passes through.
+
+    Examples
+    --------
+    >>> import duckdb
+    >>> from duckdb import ColumnExpression
+    >>> rel = duckdb.sql("SELECT 1 AS y, 1 AS p")
+    >>> types, (rows,) = check_labels_with(
+    ...     "accuracy",
+    ...     rel,
+    ...     "y",
+    ...     "p",
+    ...     [duckdb.FunctionExpression("count", ColumnExpression("y"))],
+    ... )
+    >>> rows
+    1
     """
     columns = [target, prediction]
     types = _column_types(name, rel, columns)

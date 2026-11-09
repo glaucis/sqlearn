@@ -1,7 +1,7 @@
 """Metric and accuracy: the share of rows where prediction equals target."""
 
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import duckdb
 from duckdb import ColumnExpression, Expression
@@ -87,10 +87,6 @@ class Metric:
         probability expressions and returns window expressions, computed
         for every row before the aggregate, which then receives them in
         place of the probabilities.
-    checks_labels : bool, default False
-        Whether the target and prediction are class labels, which the
-        metric refuses unless they are whole numbers or text of one kind
-        on both sides, as scikit-learn does.
 
     Examples
     --------
@@ -106,7 +102,7 @@ class Metric:
     greater_is_better: bool
     needs: str = "predict"
     windows: Callable[[list[Expression]], list[Expression]] | None = None
-    checks_labels: bool = False
+    _checks_labels: bool = field(default=False, init=False, repr=False)
 
     def __call__(self, **settings: object) -> "Metric":
         """Refuse settings: this metric takes none (ADR 0042).
@@ -205,7 +201,7 @@ class Metric:
         >>> sq.metrics.accuracy.compute(rel, "y")
         0.5
         """
-        if self.checks_labels:
+        if self._checks_labels:
             return self._score_labels(rel, target, prediction)
         proba = self.needs == "predict_proba"
         if proba:
@@ -334,5 +330,5 @@ accuracy = Metric(
         duckdb.CaseExpression(y == p, const(1.0)).otherwise(const(0.0)),
     ),
     True,
-    checks_labels=True,
 )
+object.__setattr__(accuracy, "_checks_labels", True)

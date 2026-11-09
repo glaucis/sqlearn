@@ -102,9 +102,9 @@ def test_missing_column_is_refused():
 
 
 def test_incomparable_types_are_refused():
-    """Incomparable types are refused."""
-    frame = pd.DataFrame({"y": ["a", "b"], "prediction": [1, 2]})
-    with pytest.raises(sq.errors.SqlearnError, match=r"column 'y' \(VARCHAR\)"):
+    """Types DuckDB cannot compare are refused with DuckDB's reason."""
+    frame = pd.DataFrame({"y": pd.to_datetime(["2024-01-01"]), "prediction": [1]})
+    with pytest.raises(sq.errors.SqlearnError, match=r"DuckDB cannot compare"):
         sq.metrics.accuracy.compute(rel(frame), "y")
 
 
