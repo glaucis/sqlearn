@@ -490,6 +490,50 @@ def _batches(
         yield _fetched(picked, feed, columns, row, known, sized=False)
 
 
+def _types(cur: duckdb.DuckDBPyConnection, source: str) -> dict[str, str]:
+    """Return the names and types of `source`'s columns."""
+    rel = cur.sql(f"FROM {source}")
+    return {c: str(t) for c, t in zip(rel.columns, rel.types, strict=True)}
+
+
+def _widen(
+    cur: duckdb.DuckDBPyConnection,
+    table: str,
+    batch: str,
+    columns: Mapping[str, Any],
+    model: Model,
+    method: str,
+) -> None:
+    """Widen the table's columns to the types DuckDB gives them with a batch's.
+
+    A column whose batch has the table's type costs nothing. Text meeting a
+    number has no common type but VARCHAR, which would turn the numbers into
+    text: that is refused.
+    """
+    have = _types(cur, table)
+    new = _types(cur, quote(batch))
+    for column in columns:
+        old, now = have[column], new[column]
+        if old == now:
+            continue
+        ((common,),) = cur.execute(
+            f"SELECT typeof(x) FROM (SELECT NULL::{old} AS x "
+            f"UNION ALL SELECT NULL::{now}) LIMIT 1"
+        ).fetchall()
+        if common == "VARCHAR" and "VARCHAR" in (old, now):
+            text = (
+                f"{type(model.estimator).__name__}.{method} returned {old} for "
+                f"earlier rows and {now} for later ones, which share no "
+                "type but text. Fix: make the model return one kind of "
+                "value."
+            )
+            raise SqlearnError(text)
+        if common != old:
+            cur.execute(
+                f"ALTER TABLE {table} ALTER COLUMN {quote(column)} TYPE {common}"
+            )
+
+
 def stream_into(
     con: duckdb.DuckDBPyConnection,
     rel: duckdb.DuckDBPyRelation,
@@ -581,6 +625,7 @@ def stream_into(
             cur.register(batch_name, {row: np.ma.getdata(rows), **arrays})
             try:
                 if outputs:
+                    _widen(cur, name, batch_name, arrays, model, method)
                     cur.execute(f"INSERT INTO {name} BY NAME FROM {quote(batch_name)}")
                 else:
                     cur.execute(f"CREATE TABLE {name} AS FROM {quote(batch_name)}")

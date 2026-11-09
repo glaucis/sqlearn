@@ -17,7 +17,7 @@ from sqlearn import _feed, _memory
 from sqlearn._config import connection
 from sqlearn._feed import fetch, hand_over, predict_streamed
 from sqlearn._model import Model
-from sqlearn.errors import SqlearnWarning
+from sqlearn.errors import SqlearnError, SqlearnWarning
 
 
 @pytest.fixture
@@ -74,6 +74,39 @@ def test_text_predictions_keep_order_across_batches(con, monkeypatch):
     out = predict_streamed(con, rel, ["a"], "r", Model(Words()))
     assert str(out.types[0]) == "VARCHAR"
     assert [v for (v,) in out.fetchall()] == ["no", "no", "no", "yes", "yes", "yes"]
+
+
+class Shifting:
+    """A model whose output type changes from the second batch on."""
+
+    def __init__(self, early, late):
+        self.early, self.late = early, late
+
+    def fit(self, x, y):
+        """Do nothing."""
+        return self
+
+    def predict(self, x):
+        """Return `early` for rows before the third and `late` after."""
+        return np.full(len(x), self.early if x[0, 0] < 2 else self.late)
+
+
+def test_streamed_predictions_keep_fractions_after_whole_batches(con, monkeypatch):
+    """A later batch of fractions widens the integers of the first."""
+    monkeypatch.setattr(_feed, "BATCH_ROWS", 2)
+    model = Model(Shifting(2, 1.5))
+    rel = con.sql("SELECT i::DOUBLE AS a, i + 1 AS r FROM range(4) t(i)")
+    out = predict_streamed(con, rel, ["a"], "r", model)
+    assert [v for (v,) in out.fetchall()] == [2.0, 2.0, 1.5, 1.5]
+
+
+def test_streamed_predictions_refuse_text_after_numbers(con, monkeypatch):
+    """Text after numbers cannot share a column: the refusal names both."""
+    monkeypatch.setattr(_feed, "BATCH_ROWS", 2)
+    model = Model(Shifting(2, "yes"))
+    rel = con.sql("SELECT i::DOUBLE AS a, i + 1 AS r FROM range(4) t(i)")
+    with pytest.raises(SqlearnError, match=r"BIGINT.*VARCHAR|VARCHAR.*BIGINT"):
+        predict_streamed(con, rel, ["a"], "r", model)
 
 
 class Tens:
