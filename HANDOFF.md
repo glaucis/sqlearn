@@ -3,23 +3,18 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-08 · Branch: `library-model-selection` · Checks: passing ·
+Updated: 2026-11-09 · Branch: `main` · Checks: passing ·
 Verify with: `just verify`
 
 ## In progress
 
-- [verified] Model selection (#33) is built on branch `library-model-selection`
-  (worktree `.claude/worktrees/library-model-selection`): 15 tasks, each
-  reviewed, plus a whole-branch review and fix wave; `just verify` passed. Build
-  ledger with every ruling and deferred minor:
-  `.claude/worktrees/library-model-selection/.superpowers/sdd/2026-11-07-library-model-selection/progress.md`
-  (git-ignored: copy it to the main checkout's `.superpowers/sdd/` before
-  removing the worktree).
+None.
 
 ## Waiting on the user
 
-- Merge `library-model-selection` into `main`, open a PR, or keep it.
-  (since 2026-11-08)
+- Push `main` (the model-selection build, merged locally). Pushing closes
+  #21 and #25 (their commits say `Closes`); then a summary on #33 and close
+  it. (since 2026-11-09)
 - Check the build's rulings, chiefly R8 (no LightGBM: needs `brew install
   libomp`), R11/R22 (a passed connection's DuckDB counts as at most half the
   budget; a warning when its limit is higher, which DuckDB's default is),
@@ -57,7 +52,10 @@ Verify with: `just verify`
 
 ## Just finished
 
-- The model-selection build (#33, closes #21 and #25 on merge): spec
+- The model-selection build (#33), fast-forwarded into `main` at `2fc0059`;
+  worktree and branch removed. Build ledger with every ruling and deferred
+  minor: `.superpowers/sdd/2026-11-07-library-model-selection/progress.md`
+  (git-ignored). Spec
   `docs/specs/library-model-selection.md`, plan
   `docs/plans/2026-11-07-library-model-selection.md`, ADRs 0039-0041.
   (2026-11-08)
