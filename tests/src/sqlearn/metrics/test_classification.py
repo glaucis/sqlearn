@@ -1,8 +1,12 @@
 """Tests of precision, recall and f1 against scikit-learn's."""
 
+import math
+import warnings
+
 import numpy as np
 import pandas as pd
 import pytest
+from sklearn.exceptions import UndefinedMetricWarning
 from sklearn.metrics import f1_score, precision_score, recall_score
 
 import sqlearn as sq
@@ -154,3 +158,81 @@ def test_an_unknown_setting_is_refused():
         sq.errors.SqlearnError, match="average, pos_label, zero_division"
     ):
         sq.metrics.precision(beta=2)
+
+
+def test_binary_on_three_classes_is_refused_naming_the_averages():
+    """The binary default refuses three classes, as scikit-learn, naming the others."""
+    with pytest.raises(sq.errors.SqlearnError, match=r"average=.*'macro'"):
+        sq.metrics.f1.compute(rel(three_classes([0, 1, 2])), "y")
+
+
+def test_text_labels_with_the_default_pos_label_are_refused():
+    """Two text labels and pos_label=1: refused, naming pos_label= and the labels."""
+    frame = pd.DataFrame({"y": ["a", "b"], "prediction": ["a", "b"]})
+    with pytest.raises(sq.errors.SqlearnError, match=r"pos_label=.*'a', 'b'"):
+        sq.metrics.precision.compute(rel(frame), "y")
+
+
+def test_text_labels_with_their_pos_label_are_scored():
+    """Naming the positive text label scores it, as scikit-learn."""
+    frame = pd.DataFrame({"y": ["a", "b", "b"], "prediction": ["a", "b", "a"]})
+    got = sq.metrics.recall(pos_label="b").compute(rel(frame), "y")
+    assert got == recall_score(frame["y"], frame["prediction"], pos_label="b")
+
+
+def test_one_label_only_scores_pos_label_as_absent():
+    """One label, pos_label absent: no refusal; 0 with a warning, as scikit-learn."""
+    frame = pd.DataFrame({"y": [0, 0], "prediction": [0, 0]})
+    with pytest.warns(sq.errors.UndefinedMetricWarning):
+        got = sq.metrics.f1.compute(rel(frame), "y")
+    assert got == 0.0
+
+
+def test_int_target_and_float_prediction_are_the_same_classes():
+    """An INTEGER target and a DOUBLE prediction of whole numbers share classes."""
+    sql = "SELECT * FROM (VALUES (0, 0.0), (1, 1.0), (1, 0.0)) t(y, prediction)"
+    got = sq.metrics.recall.compute(connection().sql(sql), "y")
+    assert got == recall_score([0, 1, 1], [0.0, 1.0, 0.0])
+
+
+def test_a_non_whole_number_label_is_refused_as_continuous():
+    """A prediction of 1.5 is a continuous value, not a label: refused."""
+    sql = "SELECT * FROM (VALUES (0, 0.0), (1, 1.5)) t(y, prediction)"
+    with pytest.raises(sq.errors.SqlearnError, match=r"'prediction'.*continuous"):
+        sq.metrics.precision.compute(connection().sql(sql), "y")
+
+
+def test_text_against_numbers_is_refused():
+    """A text target against a number prediction is refused, naming both types."""
+    frame = pd.DataFrame({"y": ["a", "b"], "prediction": [0, 1]})
+    with pytest.raises(sq.errors.SqlearnError, match=r"VARCHAR.*BIGINT"):
+        sq.metrics.f1.compute(rel(frame), "y")
+
+
+ZERO_DIVISION_CASES = {
+    "never predicted": ([0, 0, 1, 1], [0, 0, 0, 0]),
+    "one label": ([0, 0], [0, 0]),
+    "only predicted": ([0, 0, 1, 1], [0, 2, 1, 1]),
+}
+
+
+@pytest.mark.parametrize("case", list(ZERO_DIVISION_CASES))
+@pytest.mark.parametrize("zero_division", ["warn", 0.0, 1.0, math.nan])
+@pytest.mark.parametrize("average", ["binary", "macro", "micro", "weighted"])
+@pytest.mark.parametrize("name", ["precision", "recall", "f1"])
+def test_zero_division_matches_sklearn(name, average, zero_division, case):
+    """Each undefined score takes scikit-learn's value, warning when it warns."""
+    y, p = ZERO_DIVISION_CASES[case]
+    if average == "binary" and len(set(y) | set(p)) > 2:
+        pytest.skip("binary refuses three classes")
+    with warnings.catch_warnings(record=True) as sk_warned:
+        warnings.simplefilter("always")
+        want = SCORES[name](y, p, average=average, zero_division=zero_division)
+    metric = getattr(sq.metrics, name)(average=average, zero_division=zero_division)
+    with warnings.catch_warnings(record=True) as warned:
+        warnings.simplefilter("always")
+        got = metric.compute(rel(pd.DataFrame({"y": y, "prediction": p})), "y")
+    assert got == pytest.approx(want, nan_ok=True, rel=1e-15)
+    sk_undefined = any(w.category is UndefinedMetricWarning for w in sk_warned)
+    ours = any(w.category is sq.errors.UndefinedMetricWarning for w in warned)
+    assert ours == sk_undefined

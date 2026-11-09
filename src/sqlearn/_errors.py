@@ -69,3 +69,17 @@ class DefaultsUsedWarning(SqlearnWarning):
     >>> issubclass(DefaultsUsedWarning, SqlearnWarning)
     True
     """
+
+
+class UndefinedMetricWarning(SqlearnWarning):
+    """A score divided by zero and took ``zero_division``'s value.
+
+    Raised by precision, recall and f1 under ``zero_division="warn"``, as
+    scikit-learn raises its own ``UndefinedMetricWarning``.
+
+    Examples
+    --------
+    >>> from sqlearn.errors import SqlearnWarning, UndefinedMetricWarning
+    >>> issubclass(UndefinedMetricWarning, SqlearnWarning)
+    True
+    """

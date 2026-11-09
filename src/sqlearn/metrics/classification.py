@@ -7,6 +7,7 @@ the scores are arithmetic on those few counts (ADR 0042).
 """
 
 import math
+import warnings
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from typing import Literal
@@ -14,7 +15,7 @@ from typing import Literal
 import duckdb
 from duckdb import ColumnExpression, Expression
 
-from sqlearn._errors import InternalError, SqlearnError
+from sqlearn._errors import InternalError, SqlearnError, UndefinedMetricWarning
 from sqlearn._expr import const
 from sqlearn.metrics.accuracy import (
     _FLOATS,
@@ -105,6 +106,18 @@ def _valid_zero_division(value: object) -> bool:
     if isinstance(value, bool) or not isinstance(value, int | float):
         return False
     return math.isnan(value) or value in (0, 1)
+
+
+_UNDEFINED = {
+    "precision": "no predicted samples",
+    "recall": "no true samples",
+    "f1": "no true nor predicted samples",
+}
+
+
+def _kind(dtype: str) -> str:
+    """Name the kind of label a column type holds: text or number."""
+    return "text" if dtype.startswith(("VARCHAR", "ENUM")) else "number"
 
 
 def _same(a: object, b: object) -> bool:
@@ -252,7 +265,28 @@ class ClassificationMetric(Metric):
         """
         columns = [target, prediction]
         types = _column_types(self.name, rel, columns)
+        if _kind(types[target]) != _kind(types[prediction]):
+            msg = (
+                f"{self.name} cannot be computed: column {target!r} "
+                f"({types[target]}) holds {_kind(types[target])} labels and "
+                f"column {prediction!r} ({types[prediction]}) "
+                f"{_kind(types[prediction])} labels, so no label can match. "
+                "scikit-learn refuses such a mix too. Fix: cast one so both "
+                "hold the same kind of label."
+            )
+            raise SqlearnError(msg)
         floats = [c for c in columns if types[c] in _FLOATS]
+        fractional = [
+            c for c in columns if types[c] in _FLOATS or types[c].startswith("DECIMAL")
+        ]
+        whole = [
+            _count(
+                duckdb.CaseExpression(
+                    ColumnExpression(c) != _fn("floor", ColumnExpression(c)), const(1)
+                )
+            )
+            for c in fractional
+        ]
         row = rel.aggregate(
             [
                 _count(const(1)),
@@ -261,25 +295,85 @@ class ClassificationMetric(Metric):
                     _count(duckdb.CaseExpression(_isnan(ColumnExpression(c)), const(1)))
                     for c in floats
                 ),
+                *whole,
             ]
         ).fetchall()[0]
-        total, seen, nans = row[0], row[1:3], row[3:]
+        total, seen = row[0], row[1:3]
+        nans, parts = row[3 : 3 + len(floats)], row[3 + len(floats) :]
         _refuse_gaps(self.name, target, columns, floats, total, seen, nans)
+        for column, n_part in zip(fractional, parts, strict=True):
+            if n_part:
+                msg = (
+                    f"{self.name} cannot be computed: column {column!r} has "
+                    f"{n_part} of {total} rows that are not whole numbers, so "
+                    "it holds continuous values, not class labels. "
+                    "scikit-learn refuses continuous targets too. Fix: score "
+                    "a classifier's predict, or a regression with "
+                    "sq.metrics.rmse, mae or r2."
+                )
+                raise SqlearnError(msg)
         counts = _counts(rel, target, prediction)
+        labels = [c[0] for c in counts]
         if self.average == "binary":
+            self._check_binary(labels)
             found = [c for c in counts if c[0] == self.pos_label]
-            _, n_target, n_prediction, tp = found[0] if found else (None, 0, 0, 0)
-            return self._of(tp, n_prediction - tp, n_target - tp)
-        if self.average == "micro":
+            scored = found or [(self.pos_label, 0, 0, 0)]
+        elif self.average == "micro":
             tp = sum(c[3] for c in counts)
-            return self._of(
-                tp, sum(c[2] for c in counts) - tp, sum(c[1] for c in counts) - tp
-            )
+            scored = [
+                ("micro", sum(c[1] for c in counts), sum(c[2] for c in counts), tp)
+            ]
+        else:
+            scored = counts
         scores = [
-            self._of(both, pred - both, tgt - both) for _, tgt, pred, both in counts
+            self._of(both, pred - both, tgt - both) for _, tgt, pred, both in scored
         ]
+        undefined = [
+            lab
+            for (lab, tgt, pred, both), _ in zip(scored, scores, strict=True)
+            if self._denominator(both, pred - both, tgt - both) == 0
+        ]
+        if undefined and self.zero_division == "warn":
+            name = self.score.capitalize() if self.score != "f1" else "F-score"
+            warnings.warn(
+                f"{name} is ill-defined and being set to 0.0 in labels with "
+                f"{_UNDEFINED[self.score]}: {undefined}. Fix: pass "
+                "zero_division= to choose the value (0.0, 1.0 or nan).",
+                UndefinedMetricWarning,
+                stacklevel=2,
+            )
+        if self.average in ("binary", "micro"):
+            return scores[0]
         weights = [c[1] for c in counts] if self.average == "weighted" else None
         return _nanmean(scores, weights)
+
+    def _check_binary(self, labels: list[object]) -> None:
+        """Refuse what scikit-learn refuses under ``average="binary"``."""
+        if len(labels) > 2:
+            msg = (
+                f"{self.name} with average='binary' scores one class of two, "
+                f"and the target and prediction hold {len(labels)} classes "
+                f"({labels}). Fix: pass average= one of 'macro', 'micro' or "
+                f"'weighted', as sq.metrics.{self.name}(average='macro')."
+            )
+            raise SqlearnError(msg)
+        if len(labels) == 2 and not any(lab == self.pos_label for lab in labels):
+            found = ", ".join(repr(lab) for lab in labels)
+            msg = (
+                f"{self.name} with average='binary' scores the class "
+                f"pos_label={self.pos_label!r}, which is none of the labels "
+                f"found ({found}). Fix: pass pos_label= the positive one, as "
+                f"sq.metrics.{self.name}(pos_label={labels[-1]!r})."
+            )
+            raise SqlearnError(msg)
+
+    def _denominator(self, tp: int, fp: int, fn: int) -> int:
+        """Return what this score divides by, for one class's counts."""
+        if self.score == "precision":
+            return tp + fp
+        if self.score == "recall":
+            return tp + fn
+        return 2 * tp + fp + fn
 
     def _divide(self, numerator: int, denominator: int) -> float:
         """Divide; a zero denominator gives zero_division's value."""
@@ -289,11 +383,8 @@ class ClassificationMetric(Metric):
 
     def _of(self, tp: int, fp: int, fn: int) -> float:
         """Return this score from one class's counts."""
-        if self.score == "precision":
-            return self._divide(tp, tp + fp)
-        if self.score == "recall":
-            return self._divide(tp, tp + fn)
-        return self._divide(2 * tp, 2 * tp + fp + fn)
+        numerator = 2 * tp if self.score == "f1" else tp
+        return self._divide(numerator, self._denominator(tp, fp, fn))
 
 
 precision = ClassificationMetric(

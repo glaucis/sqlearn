@@ -6,6 +6,7 @@ from sqlearn._errors import (
     SqlearnError,
     SqlearnWarning,
     StepError,
+    UndefinedMetricWarning,
 )
 
 __all__ = [
@@ -14,4 +15,5 @@ __all__ = [
     "SqlearnError",
     "SqlearnWarning",
     "StepError",
+    "UndefinedMetricWarning",
 ]
