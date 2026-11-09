@@ -3,8 +3,8 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-09 · Branch: `main` · Last commit: `4b9bf1f docs: record the
-merged metrics build in the handoff` · Checks: passing
+Updated: 2026-11-09 · Branch: `main` · Last commit: `8668fff fix: make a seeded
+search repeatable within rounding (#36)` · Checks: passing
 Verify with: `just verify`
 
 ## In progress
@@ -30,14 +30,18 @@ None.
   categories; Optuna trial left RUNNING on a failing fold). (since 2026-11-08)
 - #22 (OneHot as a list column): decide from the numbers in
   `docs/benchmarks/onehot-second-run.md`. (since 2026-11-06)
+- `docs/guide/index.md` and `docs/reference/index.md` hold uncommitted
+  frontmatter tag edits made by the docs tagger, not by a session: commit
+  or discard them. (since 2026-11-09)
 
 ## Next up
 
-- Ready for an agent: #28 compensated two-pass variance, then #27 (the
-  median's reach); #32 (impute's filled copies typed INTEGER); #31 (the
-  encoders' linear category lookup); #35 (accuracy's label checks).
-- Choose the next 3.3 area: datasets, or more metrics (confusion matrix,
-  report, curves, fbeta).
+- Choose the next 3.3 area: datasets (recommended: the learning site needs
+  sample data) or more metrics (confusion matrix, report, curves, fbeta).
+- Ready for an agent: #28 compensated two-pass variance (accuracy of
+  `scale.standard`, 12 ULPs on 100k rows), then #27 (the median's reach);
+  #32 (impute's filled copies typed INTEGER); #31 (the encoders' linear
+  category lookup); #35 (accuracy's label checks).
 
 ## Dead ends and traps
 
@@ -81,8 +85,3 @@ None.
   `docs/plans/2026-11-09-library-metrics.md`, ADR 0042; 6 tasks, final review,
   one fix pass; fast-forwarded into `main` and pushed; #34 closed with its
   summary. (2026-11-09)
-- Model selection (#33, closed with a summary; #21 and #25 closed): spec
-  `docs/specs/library-model-selection.md`, plan
-  `docs/plans/2026-11-07-library-model-selection.md`, ADRs 0039–0041; 15
-  reviewed tasks, final review and fix wave; fast-forwarded into `main` at
-  `2fc0059` and pushed. (2026-11-09)
