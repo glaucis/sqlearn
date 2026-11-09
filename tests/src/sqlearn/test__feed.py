@@ -109,6 +109,56 @@ def test_streamed_predictions_refuse_text_after_numbers(con, monkeypatch):
         predict_streamed(con, rel, ["a"], "r", model)
 
 
+def _shifted(con, monkeypatch, early, late):
+    """Predict four rows in batches of two; `early` then `late` values."""
+    monkeypatch.setattr(_feed, "BATCH_ROWS", 2)
+    rel = con.sql("SELECT i::DOUBLE AS a, i + 1 AS r FROM range(4) t(i)")
+    out = predict_streamed(con, rel, ["a"], "r", Model(Shifting(early, late)))
+    return [v for (v,) in out.fetchall()]
+
+
+def test_streamed_predictions_keep_text_after_nulls(con, monkeypatch):
+    """Text after a batch of NULLs only is kept."""
+    assert _shifted(con, monkeypatch, None, "yes") == [None, None, "yes", "yes"]
+
+
+def test_streamed_predictions_keep_nulls_after_text(con, monkeypatch):
+    """A batch of NULLs only after text leaves the column as text."""
+    assert _shifted(con, monkeypatch, "a", None) == ["a", "a", None, None]
+
+
+def test_streamed_predictions_keep_numbers_after_nulls(con, monkeypatch):
+    """Numbers after a batch of NULLs only are kept."""
+    assert _shifted(con, monkeypatch, None, 1.5) == [None, None, 1.5, 1.5]
+
+
+class ShiftingProba:
+    """A classifier whose probabilities change type from the second batch."""
+
+    def fit(self, x, y):
+        """Do nothing."""
+        return self
+
+    def predict(self, x):
+        """Return the first class."""
+        return np.zeros(len(x))
+
+    def predict_proba(self, x):
+        """Return whole numbers, then fractions."""
+        value = 1 if x[0, 0] < 2 else 0.25
+        return np.full((len(x), 2), value)
+
+
+def test_streamed_probabilities_widen_with_later_batches(con, monkeypatch):
+    """Each probability column widens like a prediction column."""
+    monkeypatch.setattr(_feed, "BATCH_ROWS", 2)
+    rel = con.sql("SELECT i::DOUBLE AS a, i + 1 AS r FROM range(4) t(i)")
+    out = predict_streamed(
+        con, rel, ["a"], "r", Model(ShiftingProba()), method="predict_proba"
+    )
+    assert out.fetchall() == [(1, 1), (1, 1), (0.25, 0.25), (0.25, 0.25)]
+
+
 class Tens:
     """A model predicting ten times its first column, counting its calls."""
 

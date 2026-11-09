@@ -490,6 +490,10 @@ def _batches(
         yield _fetched(picked, feed, columns, row, known, sized=False)
 
 
+# How DuckDB names the type of a column of NULLs only.
+_NULL = '"NULL"'
+
+
 def _types(cur: duckdb.DuckDBPyConnection, source: str) -> dict[str, str]:
     """Return the names and types of `source`'s columns."""
     rel = cur.sql(f"FROM {source}")
@@ -514,13 +518,16 @@ def _widen(
     new = _types(cur, quote(batch))
     for column in columns:
         old, now = have[column], new[column]
-        if old == now:
-            continue
-        ((common,),) = cur.execute(
-            f"SELECT typeof(x) FROM (SELECT NULL::{old} AS x "
-            f"UNION ALL SELECT NULL::{now}) LIMIT 1"
-        ).fetchall()
-        if common == "VARCHAR" and "VARCHAR" in (old, now):
+        if old == now or now == _NULL:
+            continue  # nothing new, or only NULLs, which fit any type
+        if old == _NULL:
+            common = now
+        else:
+            ((common,),) = cur.execute(
+                f"SELECT typeof(x) FROM (SELECT NULL::{old} AS x "
+                f"UNION ALL SELECT NULL::{now}) LIMIT 1"
+            ).fetchall()
+        if common == "VARCHAR" and "VARCHAR" in (old, now) and _NULL not in (old, now):
             text = (
                 f"{type(model.estimator).__name__}.{method} returned {old} for "
                 f"earlier rows and {now} for later ones, which share no "
