@@ -89,6 +89,15 @@ def _refuse_gaps(
             raise SqlearnError(msg)
 
 
+def _isinf(x: Expression) -> Expression:
+    return duckdb.FunctionExpression("isinf", x)
+
+
+def _is_nested(dtype: str) -> bool:
+    """Whether a DuckDB type holds a LIST, ARRAY, STRUCT, MAP or UNION."""
+    return dtype.endswith("]") or dtype.startswith(("STRUCT", "MAP", "UNION"))
+
+
 def _kind(dtype: str) -> str:
     """Name the kind of label a column type holds: text or number."""
     return "text" if dtype.startswith(("VARCHAR", "ENUM")) else "number"
@@ -99,8 +108,9 @@ def check_labels(
 ) -> dict[str, str]:
     """Refuse labels scikit-learn refuses, and return each column's type.
 
-    Refused: a missing column, no rows, NULL, NaN, text labels against
-    numbers, and numbers that are not whole.
+    Refused: a missing column, no rows, NULL, NaN, infinity, list or record
+    labels, columns DuckDB cannot compare, text labels against numbers, and
+    numbers that are not whole.
 
     Parameters
     ----------
@@ -181,6 +191,15 @@ def check_labels_with(
     """
     columns = [target, prediction]
     types = _column_types(name, rel, columns)
+    for c in columns:
+        if _is_nested(types[c]):
+            msg = (
+                f"{name} cannot be computed: column {c!r} has the type "
+                f"{types[c]}, which holds lists or records, not class "
+                "labels. scikit-learn refuses such labels too. Fix: pass "
+                "a column of one number or one text per row."
+            )
+            raise SqlearnError(msg)
     if _kind(types[target]) != _kind(types[prediction]):
         msg = (
             f"{name} cannot be computed: column {target!r} "
@@ -205,11 +224,28 @@ def check_labels_with(
         counts[f"nan {c}"] = _count(
             duckdb.CaseExpression(_isnan(column(c)), const(1)),
         )
+    for c in floats:
+        counts[f"inf {c}"] = _count(
+            duckdb.CaseExpression(_isinf(column(c)), const(1)),
+        )
+    # Compared in the pass, so two columns DuckDB cannot compare fail here.
+    counts["comparable"] = _count(
+        duckdb.CaseExpression(column(target) == column(prediction), const(1)),
+    )
     for c in fractional:
         counts[f"fraction {c}"] = _count(
             duckdb.CaseExpression(column(c) != floor("floor", column(c)), const(1)),
         )
-    row = rel.aggregate([*counts.values(), *extra]).fetchall()[0]
+    try:
+        row = rel.aggregate([*counts.values(), *extra]).fetchall()[0]
+    except duckdb.Error as exc:
+        msg = (
+            f"{name} cannot be computed: DuckDB cannot compare column "
+            f"{target!r} ({types[target]}) with column {prediction!r} "
+            f"({types[prediction]}): {exc} Fix: cast one so both hold the "
+            "same kind of label."
+        )
+        raise SqlearnError(msg) from exc
     got = dict(zip(counts, row, strict=False))
     _refuse_gaps(
         name,
@@ -220,13 +256,22 @@ def check_labels_with(
         [got[f"seen {c}"] for c in columns],
         [got[f"nan {c}"] for c in floats],
     )
+    for c in floats:
+        if got[f"inf {c}"]:
+            msg = (
+                f"{name} cannot be computed: column {c!r} has "
+                f"{got[f'inf {c}']} infinite of {got['rows']} rows. "
+                "scikit-learn refuses infinity too, since it is not a class "
+                "label. Fix: drop or replace those rows first."
+            )
+            raise SqlearnError(msg)
     for c in fractional:
         if got[f"fraction {c}"]:
             msg = (
                 f"{name} cannot be computed: column {c!r} has "
                 f"{got[f'fraction {c}']} of {got['rows']} rows that are not "
                 "whole numbers, so it holds continuous values, not class "
-                "labels. scikit-learn refuses continuous targets too. Fix: "
+                "labels. scikit-learn refuses continuous values here too. Fix: "
                 "score a classifier's predict, or a regression with "
                 "sq.metrics.rmse, mae or r2."
             )

@@ -259,3 +259,70 @@ def test_binary_on_many_classes_names_only_the_first_ten():
     with pytest.raises(sq.errors.SqlearnError, match="1000 in all") as e:
         sq.metrics.f1.compute(rel(frame), "y")
     assert len(str(e.value)) < 600
+
+
+def sql_rel(values):
+    """Return a relation of `values` as (y, prediction) rows."""
+    return connection().sql(f"SELECT * FROM (VALUES {values}) t(y, prediction)")
+
+
+@pytest.mark.parametrize("name", ["precision", "recall", "f1"])
+def test_an_infinite_label_is_refused(name):
+    """An infinite label is refused, as scikit-learn refuses infinity."""
+    values = "('inf'::DOUBLE, 'inf'::DOUBLE), (1.0, 0.0)"
+    metric = getattr(sq.metrics, name)(average="macro")
+    with pytest.raises(sq.errors.SqlearnError, match="infinity"):
+        metric.compute(sql_rel(values), "y")
+
+
+@pytest.mark.parametrize("name", ["precision", "recall", "f1"])
+@pytest.mark.parametrize(
+    "values",
+    ["([1], [1]), ([2], [1])", "({'a': 1}, {'a': 1}), ({'a': 2}, {'a': 1})"],
+)
+def test_nested_labels_are_refused(name, values):
+    """A LIST or STRUCT label is refused from its type."""
+    metric = getattr(sq.metrics, name)(average="macro")
+    with pytest.raises(sq.errors.SqlearnError, match=r"LIST|\[\]|STRUCT"):
+        metric.compute(sql_rel(values), "y")
+
+
+def test_map_labels_are_refused():
+    """A MAP label is refused from its type."""
+    values = "(MAP {'a': 1}, MAP {'a': 1})"
+    with pytest.raises(sq.errors.SqlearnError, match="MAP"):
+        sq.metrics.precision.compute(sql_rel(values), "y")
+
+
+@pytest.mark.parametrize("name", ["precision", "recall", "f1"])
+def test_a_date_target_against_integer_predictions_is_refused(name):
+    """Columns DuckDB cannot compare are refused, naming both and their types."""
+    values = "(DATE '2020-01-01', 1), (DATE '2020-01-02', 0)"
+    with pytest.raises(sq.errors.SqlearnError, match=r"(?s)'y'.*DATE.*'prediction'"):
+        getattr(sq.metrics, name).compute(sql_rel(values), "y")
+
+
+def test_boolean_labels_are_scored():
+    """True and false labels are scored as scikit-learn scores them."""
+    y = [True, False, True, True]
+    p = [True, False, False, True]
+    values = ", ".join(f"({a}, {b})" for a, b in zip(y, p, strict=True))
+    got = sq.metrics.precision(pos_label=True).compute(sql_rel(values), "y")
+    assert got == precision_score(y, p, pos_label=True)
+
+
+def test_micro_warning_names_no_label_micro(monkeypatch):
+    """A micro score with nothing predicted warns in scikit-learn's words."""
+    with warnings.catch_warnings(record=True) as sk_warned:
+        warnings.simplefilter("always")
+        precision_score([0, 0], [0, 0], labels=[2], average="micro")
+    want = str(sk_warned[0].message).split(" Use `zero_division`")[0]
+    monkeypatch.setattr(
+        "sqlearn.metrics.classification._counts", lambda *_: [(2, 0, 0, 0)]
+    )
+    metric = sq.metrics.precision(average="micro")
+    with pytest.warns(sq.errors.UndefinedMetricWarning) as record:
+        metric.compute(sql_rel("(0, 0), (0, 0)"), "y")
+    got = str(record[0].message)
+    assert got.startswith(want)
+    assert "'micro'" not in got

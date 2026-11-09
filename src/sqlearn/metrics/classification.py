@@ -309,9 +309,13 @@ class ClassificationMetric(Metric):
         ]
         if undefined and self.zero_division == "warn":
             name = self.score.capitalize() if self.score != "f1" else "F-score"
+            where = (
+                f"due to {_UNDEFINED[self.score]}"
+                if self.average == "micro"
+                else f"in labels with {_UNDEFINED[self.score]}: {undefined}"
+            )
             warnings.warn(
-                f"{name} is ill-defined and being set to 0.0 in labels with "
-                f"{_UNDEFINED[self.score]}: {undefined}. Fix: pass "
+                f"{name} is ill-defined and being set to 0.0 {where}. Fix: pass "
                 "zero_division= to choose the value (0.0, 1.0 or nan).",
                 UndefinedMetricWarning,
                 stacklevel=2,

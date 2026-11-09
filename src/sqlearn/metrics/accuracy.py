@@ -138,19 +138,9 @@ class Metric:
     ) -> float:
         """Score a label metric, checking the labels in the same pass."""
         y, p = ColumnExpression(target), ColumnExpression(prediction)
-        try:
-            _, (value,) = check_labels_with(
-                self.name, rel, target, prediction, [self.expression(y, p)]
-            )
-        except duckdb.Error as exc:
-            types = _column_types(self.name, rel, [target, prediction])
-            msg = (
-                f"{self.name} cannot be computed: DuckDB cannot compare "
-                f"column {target!r} ({types[target]}) with column "
-                f"{prediction!r} ({types[prediction]}): {exc} "
-                "Cast one so both hold the same kind of label."
-            )
-            raise SqlearnError(msg) from exc
+        _, (value,) = check_labels_with(
+            self.name, rel, target, prediction, [self.expression(y, p)]
+        )
         return float(value)
 
     def compute(

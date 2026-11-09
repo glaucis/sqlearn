@@ -135,3 +135,24 @@ def test_accuracy_still_scores_whole_floats():
     """Accuracy still scores floats that are whole numbers."""
     frame = pd.DataFrame({"y": [1.0, 2.0], "prediction": [1, 3]})
     assert sq.metrics.accuracy.compute(rel(frame), "y") == 0.5
+
+
+def test_accuracy_refuses_an_infinite_label():
+    """Accuracy refuses an infinite label, as scikit-learn does."""
+    sql = "SELECT * FROM (VALUES ('inf'::DOUBLE, 1.0), (1.0, 1.0)) t(y, prediction)"
+    with pytest.raises(sq.errors.SqlearnError, match="infinity"):
+        sq.metrics.accuracy.compute(connection().sql(sql), "y")
+
+
+def test_accuracy_refuses_list_labels():
+    """Accuracy refuses a LIST label from its type."""
+    sql = "SELECT * FROM (VALUES ([1], [1]), ([2], [1])) t(y, prediction)"
+    with pytest.raises(sq.errors.SqlearnError, match=r"LIST|\[\]"):
+        sq.metrics.accuracy.compute(connection().sql(sql), "y")
+
+
+def test_accuracy_refuses_a_date_target_against_integers():
+    """Accuracy names both columns and types for incomparable columns."""
+    sql = "SELECT * FROM (VALUES (DATE '2020-01-01', 1)) t(y, prediction)"
+    with pytest.raises(sq.errors.SqlearnError, match=r"(?s)'y'.*DATE.*'prediction'"):
+        sq.metrics.accuracy.compute(connection().sql(sql), "y")
