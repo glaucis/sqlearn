@@ -3,13 +3,16 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-09 · Branch: `main` · Last commit: `3034de6 docs: record the
-pushed model-selection build in the handoff` · Checks: passing
+Updated: 2026-11-09 · Branch: `library-metrics` · Last commit: Task 6 of the
+metrics plan · Checks: passing
 Verify with: `just verify`
 
 ## In progress
 
-None.
+- Metrics area (#34): built on branch `library-metrics`
+  (`.claude/worktrees/library-metrics`), 6 tasks, ledger in
+  `.superpowers/sdd/2026-11-09-library-metrics/progress.md`. Final
+  whole-branch review, then merge on Tomas's word. (since 2026-11-09)
 
 ## Waiting on the user
 
@@ -24,7 +27,6 @@ None.
   ledger, triaged. Recommendation: file the few that can bite (later batches
   cast to the first batch's types; ENUM/collated VARCHAR not cast to
   categories; Optuna trial left RUNNING on a failing fold). (since 2026-11-08)
-- Choose the next 3.3 area: metrics or datasets. (since 2026-11-09)
 - #22 (OneHot as a list column): decide from the numbers in
   `docs/benchmarks/onehot-second-run.md`. (since 2026-11-06)
 
@@ -32,7 +34,9 @@ None.
 
 - Ready for an agent: #28 compensated two-pass variance, then #27 (the
   median's reach); #32 (impute's filled copies typed INTEGER); #31 (the
-  encoders' linear category lookup).
+  encoders' linear category lookup); #35 (accuracy's label checks).
+- Choose the next 3.3 area: datasets, or more metrics (confusion matrix,
+  report, curves, fbeta).
 
 ## Dead ends and traps
 

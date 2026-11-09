@@ -133,6 +133,7 @@ default is `sq.metrics.accuracy`.
 | metric | kind | better |
 |---|---|---|
 | `sq.metrics.accuracy` | classification | higher |
+| `sq.metrics.precision`, `sq.metrics.recall`, `sq.metrics.f1` | classification | higher |
 | `sq.metrics.log_loss` | classification, from `predict_proba` | lower |
 | `sq.metrics.roc_auc` | classification, from `predict_proba` | higher |
 | `sq.metrics.rmse`, `sq.metrics.mae` | regression | lower |
@@ -144,6 +145,33 @@ is one-vs-rest, averaged over the classes (scikit-learn's
 `multi_class="ovr"`, `average="macro"`). A metric that needs probabilities
 refuses a model without `predict_proba` before any work. Where lower is
 better, the best setting is the lowest.
+
+`precision`, `recall` and `f1` behave as scikit-learn's `precision_score`,
+`recall_score` and `f1_score`. As there, they score the class `1` of two by
+default (`average="binary"`, `pos_label=1`). Call a metric to change its
+settings; the call returns a new metric and leaves the one called as it was:
+
+```python
+sq.search(pipe, params=grid, metric=sq.metrics.f1(average="macro"))
+sq.metrics.precision(pos_label="churned")
+sq.metrics.recall(average="weighted", zero_division=0.0)
+```
+
+| setting | values | default |
+|---|---|---|
+| `average` | `"binary"`, `"macro"`, `"micro"`, `"weighted"` | `"binary"` |
+| `pos_label` | a label | `1` |
+| `zero_division` | `"warn"`, `0.0`, `1.0`, `nan` | `"warn"` |
+
+DuckDB counts each class's rows in the target, in the prediction and in
+both, in one grouped query; the scores are exact fractions of those counts.
+They refuse what scikit-learn refuses: `"binary"` on more than two classes,
+a `pos_label` that is not one of two labels found, a column of non-whole
+numbers, and text labels against numbers. A score that divides by zero
+takes `zero_division`'s value, and under `"warn"` (counted as 0) raises
+`sq.errors.UndefinedMetricWarning`. With `zero_division=nan` a fold can score
+NaN: as in `GridSearchCV`, a setting whose mean is NaN ranks last, and a
+search where every setting is NaN is refused.
 
 ## What a search gives back
 

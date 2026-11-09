@@ -54,6 +54,10 @@ counterpart.
 | `TimeSeriesSplit(5, gap=0)` | `sq.folds.time("day", 5, gap=0)` |
 | `PredefinedSplit(test_fold)` | a fold scheme of your own ([tuning a model](tuning-a-model.md)) |
 | `scoring="accuracy"` | `metric=sq.metrics.accuracy` |
+| `scoring="precision"`, `"recall"`, `"f1"` | `metric=sq.metrics.precision`, `recall`, `f1` |
+| `scoring="f1_macro"` (and `"_micro"`, `"_weighted"`; the same for precision and recall) | `metric=sq.metrics.f1(average="macro")` |
+| `make_scorer(f1_score, pos_label="yes", zero_division=0.0)` | `metric=sq.metrics.f1(pos_label="yes", zero_division=0.0)` |
+| `precision_score(y, p, average="macro")` | `sq.metrics.precision(average="macro").compute(rel, "y", "p")` |
 | `scoring="neg_log_loss"` | `metric=sq.metrics.log_loss` |
 | `scoring="roc_auc"` (`"roc_auc_ovr"` for more than two classes) | `metric=sq.metrics.roc_auc` |
 | `scoring="neg_root_mean_squared_error"` | `metric=sq.metrics.rmse` |

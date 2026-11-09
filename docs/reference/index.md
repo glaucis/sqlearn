@@ -75,6 +75,10 @@ The API of the sqlearn package, generated from its docstrings.
    sqlearn.metrics.r2
    sqlearn.metrics.log_loss
    sqlearn.metrics.roc_auc
+   sqlearn.metrics.precision
+   sqlearn.metrics.recall
+   sqlearn.metrics.f1
+   sqlearn.metrics.ClassificationMetric
    sqlearn.metrics.MissingClassError
    sqlearn.Model
    sqlearn.Output
@@ -124,4 +128,5 @@ The API of the sqlearn package, generated from its docstrings.
    sqlearn.errors.StepError
    sqlearn.errors.InternalError
    sqlearn.errors.DefaultsUsedWarning
+   sqlearn.errors.UndefinedMetricWarning
 ```
