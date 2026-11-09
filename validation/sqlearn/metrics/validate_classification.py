@@ -118,7 +118,7 @@ def cases() -> list[dict]:
         pos_label = labels[-1]
         for name in SCORES:
             for average in AVERAGES:
-                if (average == "binary") != two and answerable:
+                if average == "binary" and not two and answerable:
                     continue
                 settings = {"average": average}
                 if average == "binary":

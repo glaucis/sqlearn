@@ -25,7 +25,8 @@ ADR 0003 asks that a departure from scikit-learn's form gets its own ADR.
   scikit-learn's default (`average="binary"`, `pos_label=1`,
   `zero_division="warn"`); `sq.metrics.f1(average="macro")` is a new metric
   with that setting, and `f1` itself is unchanged (metrics are frozen). The
-  settings are keyword-only and take scikit-learn's names and values.
+  settings are keywords, checked by name, and take scikit-learn's names and
+  values; an unknown one is refused.
 - **A metric without settings refuses a call** (`accuracy(average=...)`),
   saying it takes none.
 - **The classification metrics count per class.** One grouped query over the

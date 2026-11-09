@@ -213,6 +213,8 @@ ZERO_DIVISION_CASES = {
     "never predicted": ([0, 0, 1, 1], [0, 0, 0, 0]),
     "one label": ([0, 0], [0, 0]),
     "only predicted": ([0, 0, 1, 1], [0, 2, 1, 1]),
+    "no target class predicted": ([0, 0], [1, 1]),
+    "three, none predicted right": ([0, 0, 1], [2, 2, 2]),
 }
 
 
@@ -236,3 +238,24 @@ def test_zero_division_matches_sklearn(name, average, zero_division, case):
     sk_undefined = any(w.category is UndefinedMetricWarning for w in sk_warned)
     ours = any(w.category is sq.errors.UndefinedMetricWarning for w in warned)
     assert ours == sk_undefined
+
+
+def test_pos_label_with_another_average_warns_it_is_ignored():
+    """As scikit-learn: a pos_label other than 1 is ignored outside binary, and said."""
+    with pytest.warns(sq.errors.SqlearnWarning, match=r"pos_label=2 is ignored"):
+        sq.metrics.f1(average="macro", pos_label=2)
+
+
+def test_the_default_pos_label_with_another_average_is_quiet():
+    """pos_label=1 is the default, so macro with it says nothing."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        sq.metrics.f1(average="macro")
+
+
+def test_binary_on_many_classes_names_only_the_first_ten():
+    """A regression target scored by f1 by mistake: the refusal stays short."""
+    frame = pd.DataFrame({"y": range(1000), "prediction": range(1000)})
+    with pytest.raises(sq.errors.SqlearnError, match="1000 in all") as e:
+        sq.metrics.f1.compute(rel(frame), "y")
+    assert len(str(e.value)) < 600

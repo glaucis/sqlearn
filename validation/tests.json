@@ -1178,6 +1178,12 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_binary_on_many_classes_names_only_the_first_ten",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_binary_on_three_classes_is_refused_naming_the_averages",
       "outcome": "passed",
       "tier": "fast"
@@ -1268,6 +1274,12 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_pos_label_with_another_average_warns_it_is_ignored",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_repr_names_the_settings_changed",
       "outcome": "passed",
       "tier": "fast"
@@ -1287,6 +1299,12 @@
     {
       "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_text_labels_with_their_pos_label_are_scored",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_the_default_pos_label_with_another_average_is_quiet",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1316,6 +1334,12 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-binary-0.0-no target class predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-binary-0.0-one label]",
       "outcome": "passed",
       "tier": "fast"
@@ -1328,7 +1352,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-binary-0.0-three, none predicted right]",
+      "outcome": "skipped",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-binary-1.0-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-binary-1.0-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1346,7 +1382,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-binary-1.0-three, none predicted right]",
+      "outcome": "skipped",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-binary-nan-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-binary-nan-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1364,7 +1412,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-binary-nan-three, none predicted right]",
+      "outcome": "skipped",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-binary-warn-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-binary-warn-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1382,7 +1442,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-binary-warn-three, none predicted right]",
+      "outcome": "skipped",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-macro-0.0-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-macro-0.0-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1400,7 +1472,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-macro-0.0-three, none predicted right]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-macro-1.0-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-macro-1.0-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1418,7 +1502,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-macro-1.0-three, none predicted right]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-macro-nan-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-macro-nan-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1436,7 +1532,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-macro-nan-three, none predicted right]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-macro-warn-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-macro-warn-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1454,7 +1562,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-macro-warn-three, none predicted right]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-micro-0.0-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-micro-0.0-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1472,7 +1592,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-micro-0.0-three, none predicted right]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-micro-1.0-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-micro-1.0-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1490,7 +1622,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-micro-1.0-three, none predicted right]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-micro-nan-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-micro-nan-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1508,7 +1652,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-micro-nan-three, none predicted right]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-micro-warn-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-micro-warn-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1526,7 +1682,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-micro-warn-three, none predicted right]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-weighted-0.0-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-weighted-0.0-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1544,7 +1712,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-weighted-0.0-three, none predicted right]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-weighted-1.0-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-weighted-1.0-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1562,7 +1742,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-weighted-1.0-three, none predicted right]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-weighted-nan-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-weighted-nan-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1580,7 +1772,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-weighted-nan-three, none predicted right]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-weighted-warn-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-weighted-warn-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1598,7 +1802,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[f1-weighted-warn-three, none predicted right]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-binary-0.0-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-binary-0.0-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1616,7 +1832,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-binary-0.0-three, none predicted right]",
+      "outcome": "skipped",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-binary-1.0-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-binary-1.0-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1634,7 +1862,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-binary-1.0-three, none predicted right]",
+      "outcome": "skipped",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-binary-nan-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-binary-nan-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1652,7 +1892,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-binary-nan-three, none predicted right]",
+      "outcome": "skipped",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-binary-warn-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-binary-warn-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1670,7 +1922,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-binary-warn-three, none predicted right]",
+      "outcome": "skipped",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-macro-0.0-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-macro-0.0-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1688,7 +1952,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-macro-0.0-three, none predicted right]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-macro-1.0-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-macro-1.0-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1706,7 +1982,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-macro-1.0-three, none predicted right]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-macro-nan-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-macro-nan-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1724,7 +2012,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-macro-nan-three, none predicted right]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-macro-warn-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-macro-warn-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1742,7 +2042,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-macro-warn-three, none predicted right]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-micro-0.0-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-micro-0.0-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1760,7 +2072,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-micro-0.0-three, none predicted right]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-micro-1.0-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-micro-1.0-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1778,7 +2102,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-micro-1.0-three, none predicted right]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-micro-nan-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-micro-nan-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1796,7 +2132,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-micro-nan-three, none predicted right]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-micro-warn-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-micro-warn-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1814,7 +2162,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-micro-warn-three, none predicted right]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-weighted-0.0-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-weighted-0.0-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1832,7 +2192,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-weighted-0.0-three, none predicted right]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-weighted-1.0-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-weighted-1.0-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1850,7 +2222,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-weighted-1.0-three, none predicted right]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-weighted-nan-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-weighted-nan-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1868,7 +2252,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-weighted-nan-three, none predicted right]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-weighted-warn-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-weighted-warn-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1886,7 +2282,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[precision-weighted-warn-three, none predicted right]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-binary-0.0-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-binary-0.0-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1904,7 +2312,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-binary-0.0-three, none predicted right]",
+      "outcome": "skipped",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-binary-1.0-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-binary-1.0-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1922,7 +2342,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-binary-1.0-three, none predicted right]",
+      "outcome": "skipped",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-binary-nan-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-binary-nan-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1940,7 +2372,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-binary-nan-three, none predicted right]",
+      "outcome": "skipped",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-binary-warn-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-binary-warn-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1958,7 +2402,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-binary-warn-three, none predicted right]",
+      "outcome": "skipped",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-macro-0.0-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-macro-0.0-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1976,7 +2432,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-macro-0.0-three, none predicted right]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-macro-1.0-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-macro-1.0-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1994,7 +2462,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-macro-1.0-three, none predicted right]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-macro-nan-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-macro-nan-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -2012,7 +2492,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-macro-nan-three, none predicted right]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-macro-warn-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-macro-warn-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -2030,7 +2522,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-macro-warn-three, none predicted right]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-micro-0.0-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-micro-0.0-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -2048,7 +2552,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-micro-0.0-three, none predicted right]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-micro-1.0-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-micro-1.0-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -2066,7 +2582,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-micro-1.0-three, none predicted right]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-micro-nan-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-micro-nan-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -2084,7 +2612,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-micro-nan-three, none predicted right]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-micro-warn-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-micro-warn-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -2102,7 +2642,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-micro-warn-three, none predicted right]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-weighted-0.0-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-weighted-0.0-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -2120,7 +2672,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-weighted-0.0-three, none predicted right]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-weighted-1.0-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-weighted-1.0-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -2138,7 +2702,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-weighted-1.0-three, none predicted right]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-weighted-nan-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-weighted-nan-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -2156,7 +2732,19 @@
     },
     {
       "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-weighted-nan-three, none predicted right]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-weighted-warn-never predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-weighted-warn-no target class predicted]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -2169,6 +2757,12 @@
     {
       "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-weighted-warn-only predicted]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/classification",
+      "name": "tests/src/sqlearn/metrics/test_classification.py::test_zero_division_matches_sklearn[recall-weighted-warn-three, none predicted right]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -2690,6 +3284,12 @@
     },
     {
       "area": "sqlearn/model_selection/methods",
+      "name": "tests/src/sqlearn/model_selection/test_methods.py::test_optuna_fails_a_nan_trial_quietly",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/methods",
       "name": "tests/src/sqlearn/model_selection/test_methods.py::test_optuna_finds_the_better_setting",
       "outcome": "passed",
       "tier": "fast"
@@ -2846,6 +3446,12 @@
     },
     {
       "area": "sqlearn/model_selection/search",
+      "name": "tests/src/sqlearn/model_selection/test_search.py::test_a_fold_of_one_class_scores_and_does_not_stop_the_search",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/search",
       "name": "tests/src/sqlearn/model_selection/test_search.py::test_a_fold_with_nothing_to_learn_from_is_refused_before_any_work",
       "outcome": "passed",
       "tier": "fast"
@@ -2883,6 +3489,12 @@
     {
       "area": "sqlearn/model_selection/search",
       "name": "tests/src/sqlearn/model_selection/test_search.py::test_a_model_without_predict_proba_is_refused_before_the_data_is_read",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/search",
+      "name": "tests/src/sqlearn/model_selection/test_search.py::test_a_nan_mean_ranks_last_as_gridsearchcv",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -2991,6 +3603,18 @@
     {
       "area": "sqlearn/model_selection/search",
       "name": "tests/src/sqlearn/model_selection/test_search.py::test_each_model_of_a_search_trains_in_its_own_form",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/search",
+      "name": "tests/src/sqlearn/model_selection/test_search.py::test_every_setting_nan_is_refused_naming_zero_division",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/search",
+      "name": "tests/src/sqlearn/model_selection/test_search.py::test_f1_macro_matches_gridsearchcv",
       "outcome": "passed",
       "tier": "fast"
     },

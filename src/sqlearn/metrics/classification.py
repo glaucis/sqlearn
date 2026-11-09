@@ -16,7 +16,12 @@ from typing import Literal
 import duckdb
 from duckdb import ColumnExpression, Expression
 
-from sqlearn._errors import InternalError, SqlearnError, UndefinedMetricWarning
+from sqlearn._errors import (
+    InternalError,
+    SqlearnError,
+    SqlearnWarning,
+    UndefinedMetricWarning,
+)
 from sqlearn._expr import const
 from sqlearn.metrics.accuracy import (
     _FLOATS,
@@ -102,9 +107,13 @@ def _nanmean(
         for i, v in enumerate(values)
         if v is not None
     ]
-    total = sum(w for _, w in kept)
-    if not kept or total == 0:
+    if not kept:
         return math.nan
+    total = sum(w for _, w in kept)
+    if total == 0:
+        # Every class left has no target rows: scikit-learn's _nanaverage
+        # falls back to the plain mean of the scores left.
+        return float(sum((v for v, _ in kept), Fraction(0)) / len(kept))
     return float(sum((v * w for v, w in kept), Fraction(0)) / total)
 
 
@@ -126,6 +135,12 @@ _UNDEFINED = {
 def _kind(dtype: str) -> str:
     """Name the kind of label a column type holds: text or number."""
     return "text" if dtype.startswith(("VARCHAR", "ENUM")) else "number"
+
+
+def _some(labels: list[object], shown: int = 10) -> str:
+    """Name the first labels, and how many there are in all when more."""
+    head = ", ".join(repr(lab) for lab in labels[:shown])
+    return head if len(labels) <= shown else f"{head}, ...; {len(labels)} in all"
 
 
 def _same(a: object, b: object) -> bool:
@@ -219,7 +234,17 @@ class ClassificationMetric(Metric):
                 "1.0 or nan, as scikit-learn. Fix: use one of them."
             )
             raise SqlearnError(msg)
-        return replace(self, **changes)  # type: ignore[arg-type]
+        configured = replace(self, **changes)  # type: ignore[arg-type]
+        if configured.average != "binary" and not _same(configured.pos_label, 1):
+            warnings.warn(
+                f"pos_label={configured.pos_label!r} is ignored when "
+                f"average={configured.average!r}: only average='binary' scores "
+                "one class, as in scikit-learn. Fix: leave pos_label= out, or "
+                "use average='binary'.",
+                SqlearnWarning,
+                stacklevel=2,
+            )
+        return configured
 
     def __repr__(self) -> str:
         """Return the name, with the settings away from the defaults."""
@@ -361,7 +386,7 @@ class ClassificationMetric(Metric):
             msg = (
                 f"{self.name} with average='binary' scores one class of two, "
                 f"and the target and prediction hold {len(labels)} classes "
-                f"({labels}). Fix: pass average= one of 'macro', 'micro' or "
+                f"({_some(labels)}). Fix: pass average= one of 'macro', 'micro' or "
                 f"'weighted', as sq.metrics.{self.name}(average='macro')."
             )
             raise SqlearnError(msg)
