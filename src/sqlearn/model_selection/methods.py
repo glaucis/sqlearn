@@ -689,6 +689,12 @@ class Optuna:
                     else:
                         self.study_.tell(trial, score)
                 return
+        msg = (
+            f"the setting {params!r} was never asked of this method, so there "
+            "is no trial to report its score to. Fix: tell only the settings "
+            "`ask` returned, each once."
+        )
+        raise SqlearnError(msg)
 
 
 def _draw(rng: _random.Random, values: Range | Sequence[object]) -> object:

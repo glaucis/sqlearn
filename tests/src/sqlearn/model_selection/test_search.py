@@ -1305,3 +1305,26 @@ def test_a_search_codes_an_enum_feature_alike_in_every_fold(monkeypatch):
     ).train(con.table("search_enum_t"), target="y")
     assert SeesCategories.lists
     assert all(c == ["sad", "ok", "happy"] for c in SeesCategories.lists)
+
+
+def test_a_failing_fold_leaves_no_optuna_trial_running():
+    """A setting whose fold raises fails its trial; the error is unchanged."""
+    pytest.importorskip("optuna")
+    from optuna.trial import TrialState
+
+    dup = pd.DataFrame({"x": [1.0] * 6 + [2.0] * 6, "y": [0] * 6 + [1] * 6})
+    pipe = sq.Pipeline(
+        [("scale", sq.scale.standard()), ("model", LogisticRegression())]
+    )
+    method = sq.search.optuna(trials=3, seed=0)
+    search = sq.search(
+        pipe,
+        params={"model__C": [1.0, 2.0]},
+        method=method,
+        folds=sq.folds.kfold(2),
+    )
+    with pytest.raises(sq.errors.SqlearnError, match="fold 0"):
+        search.train(dup, target="y")
+    states = [t.state for t in method.study_.trials]
+    assert states
+    assert set(states) == {TrialState.FAIL}

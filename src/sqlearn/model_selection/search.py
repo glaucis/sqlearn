@@ -6,6 +6,7 @@ front loops fold first (ADR 0024): each fold's data is prepared once per
 distinct preparation and handed to every model setting.
 """
 
+import contextlib
 import functools
 import itertools
 import json
@@ -491,9 +492,19 @@ class Search:
                     method.tell(params, sum(scores) / len(scores))
             else:
                 while (params := method.ask()) is not None:
-                    _check_method(self.metric, trial(self.pipe, params)._modelled()[1])
-                    self._keep_only(con, _preparation(params, model_name))
-                    [scores] = self._evaluate(source, target, folds, [params])
+                    try:
+                        _check_method(
+                            self.metric, trial(self.pipe, params)._modelled()[1]
+                        )
+                        self._keep_only(con, _preparation(params, model_name))
+                        [scores] = self._evaluate(source, target, folds, [params])
+                    except BaseException:
+                        # The asked setting gets no score: tell the method
+                        # so (Optuna fails the trial instead of leaving it
+                        # running), then the error goes on unchanged.
+                        with contextlib.suppress(Exception):
+                            method.tell(params, math.nan)
+                        raise
                     scored.append((params, scores))
                     method.tell(params, sum(scores) / len(scores))
         finally:

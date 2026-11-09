@@ -355,3 +355,13 @@ def test_optuna_fails_a_nan_trial_quietly():
         warnings.simplefilter("error")
         method.tell(asked, math.nan)
     assert method.study_.trials[-1].state == TrialState.FAIL
+
+
+def test_telling_optuna_a_setting_it_never_asked_is_refused():
+    """A setting that was not asked cannot be told."""
+    pytest.importorskip("optuna")
+    method = sq.search.optuna(trials=2, seed=0)
+    method.start([{"model__C": [0.5, 1.0]}], maximize=True)
+    method.ask()
+    with pytest.raises(SqlearnError, match=r"model__C.*99.*never asked"):
+        method.tell({"model__C": 99}, 0.5)
