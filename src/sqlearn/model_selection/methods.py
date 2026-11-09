@@ -681,7 +681,13 @@ class Optuna:
             if asked == params:
                 del self._open[i]
                 with _quiet_optuna(self._optuna):
-                    self.study_.tell(trial, score)
+                    if math.isnan(score):
+                        # Optuna fails a NaN value itself, with a warning;
+                        # sqlearn says so plainly (spec §4 of the metrics).
+                        state = self._optuna.trial.TrialState.FAIL
+                        self.study_.tell(trial, state=state)
+                    else:
+                        self.study_.tell(trial, score)
                 return
 
 

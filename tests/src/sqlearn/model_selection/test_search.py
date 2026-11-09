@@ -1,6 +1,7 @@
 """Tests of the search: grid over settings, fold first, on copies of the pipe."""
 
 import json
+import math
 import warnings
 import weakref
 from typing import ClassVar
@@ -1119,3 +1120,104 @@ def test_probabilities_without_classes_are_refused():
         sq.search(pipe, params={"model__C": [1.0]}, metric=sq.metrics.log_loss).train(
             SEPARABLE, target="y"
         )
+
+
+class Constant(BaseEstimator, ClassifierMixin):
+    """Predicts `label` for every row, whatever it was trained on."""
+
+    def __init__(self, label=0):
+        self.label = label
+
+    def fit(self, x, y):
+        """Remember the classes."""
+        self.classes_ = np.unique(y)
+        return self
+
+    def predict(self, x):
+        """Predict `label` for every row."""
+        return np.full(len(x), self.label)
+
+
+def _kfold_of(data):
+    """Return sqlearn's default fold of each row, for PredefinedSplit."""
+    con = connection()
+    con.register("nan_data", data)
+    try:
+        return [
+            k
+            for (k,) in sq.folds.kfold(5, seed=0)
+            .numbered(con.table("nan_data"), "k")
+            .project("k")
+            .fetchall()
+        ]
+    finally:
+        con.unregister("nan_data")
+
+
+def test_a_nan_mean_ranks_last_as_gridsearchcv():
+    """A setting scoring NaN is never the best, and the best is scikit-learn's."""
+    from sklearn.metrics import make_scorer, precision_score
+    from sklearn.model_selection import GridSearchCV, PredefinedSplit
+
+    data = SEPARABLE[["a", "b", "y"]]
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")  # scikit-learn warns of the NaN mean
+        sk = GridSearchCV(
+            Constant(),
+            {"label": [0, 1]},
+            scoring=make_scorer(precision_score, zero_division=np.nan),
+            cv=PredefinedSplit(_kfold_of(data)),
+        ).fit(data[["a", "b"]], data["y"])
+    search = sq.search(
+        sq.Pipeline([("model", Constant())]),
+        params={"model__label": [0, 1]},
+        metric=sq.metrics.precision(zero_division=math.nan),
+    ).train(data, target="y")
+    assert search.best_params_ == {"model__label": sk.best_params_["label"]}
+    assert search.best_score_ == pytest.approx(sk.best_score_, rel=1e-12)
+
+
+def test_every_setting_nan_is_refused_naming_zero_division():
+    """When no setting has a score, the search refuses, naming zero_division."""
+    with pytest.raises(sq.errors.SqlearnError, match="zero_division"):
+        sq.search(
+            sq.Pipeline([("model", Constant())]),
+            params={"model__label": [0]},
+            metric=sq.metrics.precision(zero_division=math.nan),
+        ).train(SEPARABLE, target="y")
+
+
+def test_f1_macro_matches_gridsearchcv():
+    """f1(average="macro") scores as scikit-learn's "f1_macro"."""
+    from sklearn.model_selection import GridSearchCV, PredefinedSplit
+
+    data = SEPARABLE[["a", "b", "y"]]
+    sk = GridSearchCV(
+        LogisticRegression(),
+        {"C": [0.01, 1.0]},
+        scoring="f1_macro",
+        cv=PredefinedSplit(_kfold_of(data)),
+    ).fit(data[["a", "b"]], data["y"])
+    search = sq.search(
+        sq.Pipeline([("model", LogisticRegression())]),
+        params={"model__C": [0.01, 1.0]},
+        metric=sq.metrics.f1(average="macro"),
+    ).train(data, target="y")
+    ours = mean_scores(search)
+    for params, sk_mean in zip(
+        sk.cv_results_["params"], sk.cv_results_["mean_test_score"], strict=True
+    ):
+        setting = json.dumps({"model__C": params["C"]})
+        assert ours[setting] == pytest.approx(sk_mean, rel=1e-12)
+
+
+def test_a_fold_of_one_class_scores_and_does_not_stop_the_search():
+    """Held-out rows of one class score with a warning; the search goes on."""
+    with pytest.warns(sq.errors.UndefinedMetricWarning):
+        search = sq.search(
+            sq.Pipeline([("model", Constant())]),
+            params={"model__label": [0, 1]},
+            metric=sq.metrics.precision,
+            folds=sq.folds.time("t", 3),
+        ).train(SORTED_BY_CLASS, target="y")
+    assert search.best_params_ == {"model__label": 1}

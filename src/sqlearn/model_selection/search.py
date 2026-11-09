@@ -9,6 +9,7 @@ distinct preparation and handed to every model setting.
 import functools
 import itertools
 import json
+import math
 import os
 import warnings
 import weakref
@@ -506,8 +507,20 @@ class Search:
             )
             raise SqlearnError(msg)
         means = [sum(s) / len(s) for _, s in scored]
+        # A NaN mean (a fold scored NaN under zero_division=nan) ranks last,
+        # as GridSearchCV ranks it; with every mean NaN there is no best.
+        scorable = [i for i, m in enumerate(means) if not math.isnan(m)]
+        if not scorable:
+            msg = (
+                f"every setting scored NaN with {self.metric!r}, so none is "
+                "the best. Why: a fold of each setting divided by zero, and "
+                "zero_division=nan makes that score NaN. Fix: give the "
+                'metric zero_division=0.0 (or "warn"), or use folds where '
+                "every class is predicted."
+            )
+            raise SqlearnError(msg)
         pick = max if self.metric.greater_is_better else min
-        best = pick(range(len(means)), key=means.__getitem__)
+        best = pick(scorable, key=means.__getitem__)
         self.best_params_ = scored[best][0]
         self.best_score_ = means[best]
         self.results_ = self._results(con, scored)

@@ -1,6 +1,7 @@
 """Tests of the methods: the grid, ranges, and ask and tell."""
 
 import json
+import math
 
 import pytest
 from search_data_for_tests import customers, slice_pipe
@@ -338,3 +339,19 @@ def test_trials_must_be_a_whole_number(make, trials):
     """A bool, a fraction or text is refused by name, before any work."""
     with pytest.raises(SqlearnError, match=rf"trials={trials!r}.*whole number"):
         make(trials=trials)
+
+
+def test_optuna_fails_a_nan_trial_quietly():
+    """A NaN score marks the trial failed, without Optuna's warning."""
+    import warnings
+
+    from optuna.trial import TrialState
+
+    method = sq.search.optuna(trials=2, seed=0)
+    method.start([{"model__C": [0.5, 1.0]}], maximize=True)
+    asked = method.ask()
+    assert asked is not None
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        method.tell(asked, math.nan)
+    assert method.study_.trials[-1].state == TrialState.FAIL
