@@ -7,6 +7,9 @@ related: [docs/adr/0016-validation-method.md, docs/adr/0032-the-median-is-exact-
 # 0033: The mean is summed with compensation
 
 Status: accepted (2026-11-05). Made during the core build, reviewed after it.
+Superseded in part by
+[ADR 0044](0044-the-standard-deviation-in-two-staged-passes.md): the standard
+deviation is now two compensated passes, not `stddev_pop`.
 
 ## Context
 

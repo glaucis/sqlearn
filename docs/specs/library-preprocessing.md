@@ -216,9 +216,11 @@ sq.Step(
   does, and share one sort per learn stage. `approx_quantile` is never chosen
   for the user; there is no `approx_median` (Tomas, 2026-11-05):
   `approx_quantile(0.5)` is the approximate median.
-- `std` and `var` use DuckDB's `stddev_pop` and `var_pop` until
-  [#28](https://github.com/glaucis/sqlearn/issues/28) gives a two-pass
-  compensated variance; then every step using them improves at once.
+- `std` is two compensated passes since
+  [#28](https://github.com/glaucis/sqlearn/issues/28)
+  ([ADR 0044](../adr/0044-the-standard-deviation-in-two-staged-passes.md)),
+  and every step using it improved at once; `var` is still DuckDB's
+  `var_pop`.
 
 ### 4.2 Two uses, one name
 

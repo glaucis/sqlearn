@@ -7,6 +7,8 @@ related: [docs/adr/0032-the-median-is-exact-by-sorting.md, docs/adr/0033-the-mea
 # 0036: Staged aggregates anywhere in a learned value
 
 Status: accepted (2026-11-06). Made during the preprocessing build.
+Extended by [ADR 0044](0044-the-standard-deviation-in-two-staged-passes.md):
+the standard deviation is staged too, with two orderings refused.
 Supersedes the part of [ADR 0032](0032-the-median-is-exact-by-sorting.md) that
 says a median marker must be a whole learned value.
 

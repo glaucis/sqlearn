@@ -86,6 +86,7 @@ Accuracy, and how it is measured.
 - [0033: The mean is summed with compensation](0033-the-mean-is-summed-with-compensation.md)
 - [0036: Staged aggregates anywhere in a learned value](0036-staged-aggregates-anywhere-in-a-learned-value.md)
 - [0038: The target encoder's inner folds follow row position](0038-the-target-encoders-inner-folds-follow-row-position.md)
+- [0044: The standard deviation in two staged passes](0044-the-standard-deviation-in-two-staged-passes.md)
 
 ```{toctree}
 :hidden:

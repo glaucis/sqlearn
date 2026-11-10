@@ -51,10 +51,16 @@ class MyScale(sq.Step):
   computed by sorting, so they can run on data larger than memory; every
   quantile a step learns shares one sort. They may sit inside a larger
   expression (`{"spread": sq.agg.iqr(x) / sq.agg.median(x)}`). `sq.agg.mode` is
-  the most frequent value, a tie going to the smallest. They may sit anywhere in
-  a learned value, inside another aggregate too, such as the mean absolute
-  deviation about the median
-  ([ADR 0036](../adr/0036-staged-aggregates-anywhere-in-a-learned-value.md)).
+  the most frequent value, a tie going to the smallest. `sq.agg.std` is the
+  population standard deviation in two compensated passes, the mean first
+  ([ADR 0044](../adr/0044-the-standard-deviation-in-two-staged-passes.md)).
+  They may sit anywhere in a learned value, inside another aggregate too, such
+  as the mean absolute deviation about the median
+  ([ADR 0036](../adr/0036-staged-aggregates-anywhere-in-a-learned-value.md)),
+  and a standard deviation may hold the others (`sq.agg.std(x -
+  sq.agg.median(x))`). Two are refused, as their stages cannot be ordered: a
+  standard deviation inside another, and a quantile or mode of an expression
+  holding one; learn the inner one in an earlier step.
 - `sq.agg.mean` is DuckDB's compensated mean, exact to about one unit in the
   last place. It gives NaN, not infinity, when the data holds an infinity or
   the sum overflows.
