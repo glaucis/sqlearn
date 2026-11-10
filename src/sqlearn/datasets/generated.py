@@ -459,8 +459,9 @@ def _class_weights(weights: object, n_classes: int) -> list[float]:
     """Return each class's share, summing to 1, from `weights` as given.
 
     None gives equal shares. ``n_classes - 1`` weights leave the last class
-    the rest of 1; ``n_classes`` weights summing below 1 are taken as
-    proportions.
+    the rest of 1; ``n_classes`` weights summing below 1 leave the rest of 1
+    shared equally by the classes, as scikit-learn deals the rows they leave
+    round-robin over every cluster.
     """
     if weights is None:
         return [1.0 / n_classes] * n_classes
@@ -494,14 +495,10 @@ def _class_weights(weights: object, n_classes: int) -> list[float]:
     if len(shares) == n_classes - 1:
         shares.append(max(0.0, 1.0 - total))
         total = math.fsum(shares)
-    if total <= 0:
-        msg = (
-            f"sq.datasets.classification got weights={weights!r}. Why: no "
-            "class has a share of the rows when every weight is 0. Fix: give "
-            "some class a weight above 0."
-        )
-        raise SqlearnError(msg)
-    return [w / total for w in shares]
+    # scikit-learn deals the rows the weights leave round-robin over every
+    # cluster, so each class gets an equal part of the rest of 1.
+    rest = max(0.0, 1.0 - total) / n_classes
+    return [w + rest for w in shares]
 
 
 def _check_classes(
@@ -634,8 +631,9 @@ def classification(
     weights : sequence of float, optional
         Each class's share of the rows, at least 0 each and at most 1 in
         all; or one fewer than `n_classes`, the last class taking the rest of
-        1. Weights summing below 1 are taken as proportions. None gives equal
-        classes.
+        1. Of weights summing below 1, the rest of 1 is shared equally by the
+        classes, as scikit-learn deals the rows they leave round-robin
+        (``[0.5, 0.3]`` gives 0.6 and 0.4). None gives equal classes.
     flip_y : float, default 0.01
         The share of rows whose label is redrawn uniformly from the classes,
         from 0 to 1 (a redrawn label may land on its own class).

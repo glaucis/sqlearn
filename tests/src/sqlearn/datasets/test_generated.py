@@ -234,13 +234,27 @@ def test_classification_takes_one_weight_fewer_than_classes():
     assert counts[2] / 100_000 == pytest.approx(0.4, abs=0.01)
 
 
-def test_classification_weights_below_one_in_all_are_proportions():
-    """n_classes weights summing below 1 give the classes in their proportion."""
+def test_classification_shares_the_rest_of_the_weights_equally():
+    """Weights summing below 1 leave the rest to the classes equally, as scikit-learn.
+
+    scikit-learn deals the rows the weights leave round-robin over every
+    cluster: [0.3, 0.1] leaves 0.6, half of it to each class.
+    """
     rel = sq.datasets.classification(
         rows=100_000, weights=[0.3, 0.1], flip_y=0.0, seed=3
     )
     counts = dict(rel.aggregate("target, count(*)").fetchall())
-    assert counts[0] / 100_000 == pytest.approx(0.75, abs=0.01)
+    assert counts[0] / 100_000 == pytest.approx(0.6, abs=0.01)
+    assert counts[1] / 100_000 == pytest.approx(0.4, abs=0.01)
+
+
+def test_classification_weights_of_zero_give_equal_classes():
+    """Weights all 0 leave the whole to share, so the classes come out equal."""
+    rel = sq.datasets.classification(
+        rows=100_000, weights=[0.0, 0.0], flip_y=0.0, seed=3
+    )
+    counts = dict(rel.aggregate("target, count(*)").fetchall())
+    assert counts[0] / 100_000 == pytest.approx(0.5, abs=0.01)
 
 
 def test_redundant_features_are_combinations_of_the_informative_ones():
@@ -264,24 +278,35 @@ def test_redundant_features_are_combinations_of_the_informative_ones():
 
 
 def test_informative_features_sit_round_hypercube_vertices():
-    """Each cluster's mean lies at a distinct vertex, every coordinate ±class_sep."""
+    """Each row lies near a vertex of ±class_sep, whose rows all carry one class.
+
+    With class_sep=20 the clusters stand far apart: a coordinate's spread
+    round its vertex is at most sqrt(3) (three standard normals, each times a
+    number in [-1, 1)), so within 10 holds past five standard deviations.
+    Each class has n_clusters_per_class vertices, each vertex one cluster.
+    """
+    sep, n_classes, per_class = 20.0, 4, 2
     data = sq.datasets.classification(
-        rows=20_000,
+        rows=5_000,
         n_features=3,
         n_informative=3,
         n_redundant=0,
-        n_classes=4,
-        n_clusters_per_class=2,
+        n_classes=n_classes,
+        n_clusters_per_class=per_class,
         flip_y=0.0,
-        class_sep=5.0,
+        class_sep=sep,
         seed=5,
     ).fetchnumpy()
     x = np.column_stack([data["x0"], data["x1"], data["x2"]])
-    # A cluster's spread is below 3 per coordinate (each a sum of three
-    # products of a standard normal and a number in [-1, 1)), so rounding each
-    # coordinate to ±5 finds the vertex of almost every row.
-    vertices = {tuple(v) for v in np.where(x > 0, 5.0, -5.0)}
-    assert len(vertices) == 8
+    nearest = np.where(x > 0, sep, -sep)
+    assert np.max(np.abs(x - nearest)) < 10
+    classes: dict[tuple[float, ...], set[int]] = {}
+    for vertex, target in zip(map(tuple, nearest), data["target"], strict=True):
+        classes.setdefault(vertex, set()).add(int(target))
+    assert len(classes) == n_classes * per_class
+    assert all(len(held) == 1 for held in classes.values())
+    owners = [next(iter(held)) for held in classes.values()]
+    assert sorted(owners) == sorted(list(range(n_classes)) * per_class)
 
 
 def test_flip_y_flips_that_share():
@@ -322,7 +347,6 @@ def test_classification_with_one_class_gives_class_zero():
         {"weights": [0.7, 0.4]},
         {"n_classes": 3, "n_informative": 3, "weights": [0.7, 0.4]},
         {"weights": [0.5, -0.1]},
-        {"weights": [0.0, 0.0]},
         {"weights": [0.5, float("nan")]},
         {"weights": [0.5, "a"]},
         {"weights": 0.5},

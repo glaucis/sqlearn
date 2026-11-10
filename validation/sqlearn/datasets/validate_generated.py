@@ -1,12 +1,12 @@
 """Validate the generators: their values follow the distributions they promise.
 
 A generator's values are sqlearn's own, never scikit-learn's numbers (ADR
-0045), so the canonical value of each case is the promised distribution's:
-a mean, a variance, a quantile, a centre, a spread, a class share. A sample of 1,000,000
-rows from one fixed seed misses it by sampling error, so each bound is five
-standard errors of the measured statistic: a correct generator passes but for
-a chance of about one in 1.7 million per case, and a wrong distribution (a
-shifted mean, a spread off by a percent) fails. The model's own identity
+0045), so the canonical value of each case is the promised distribution's: a
+mean, a variance, a quantile, a centre, a spread, a class share. A sample of
+1,000,000 rows from one fixed seed misses it by sampling error, so each bound
+is five standard errors of the measured statistic: a correct generator passes
+but for a chance of about one in 1.7 million per case, and a wrong
+distribution (a shifted mean, a spread off by a percent) fails. The model's own identity
 (``regression``'s target without noise) and the repeatability cases have no
 sampling error: their bounds are rounding and 0.
 
