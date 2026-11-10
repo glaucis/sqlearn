@@ -3,8 +3,8 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-10 · Branch: `main` (in sync with `origin/main`) · Last commit:
-`9a11155 docs: record the pushed datasets area in the handoff` · Checks:
+Updated: 2026-11-10 · Branch: `main` · Last commit:
+`4afa5a7 docs: update the handoff` · Checks:
 passing (`just test` on `main` after the datasets merge)
 Verify with: `just verify`
 
@@ -14,35 +14,20 @@ None.
 
 ## Waiting on the user
 
-- The datasets area's rulings, listed with their costs in #45 (ledger
-  `.superpowers/sdd/2026-11-10-library-datasets/progress.md`). Chiefly: the
-  generators run on one thread (R3); an explicit `n_informative > n_features`
-  is refused where scikit-learn clips (R7/R16); rows keep their order through
-  `preserve_insertion_order`, not an `ORDER BY` (R10). (since 2026-11-10)
-- [assumed] The UCI URLs in `src/sqlearn/datasets/data/README.md` (iris 53,
-  wine 109, breast cancer 17) were written without network: check them online.
+- Whether "sqlearn never changes the user's pipeline on its own; it warns and
+  the user opts in" (the rule behind #31, #47, #27) becomes an ADR.
   (since 2026-11-10)
-- Fix batch 2's rulings (ledger
-  `.superpowers/sdd/2026-11-10-fix-batch-2/progress.md`): #44 refused, not
-  learned; `sq.agg.var`'s bound 2 ULPs; impute keeps an ENUM's type and refuses
-  an undeclared constant; impute's ENUM types are state set by `inputs`.
-  (since 2026-11-10)
-- The 2026-11-09 fix batch's rulings (ledger
-  `.superpowers/sdd/2026-11-09-fix-batch/progress.md`): accuracy's private label
-  flag; a std may hold other staged aggregates; std's bound 2 ULPs.
-  (since 2026-11-10)
-- #31: keep `list_position` and close, use the MD5 hash above a threshold, or
-  allow a join (an ADR); numbers in `docs/benchmarks/category-lookup.md`.
-  (since 2026-11-10)
-- #27: an approximate median beyond the exact one's reach
-  (`docs/benchmarks/median-reach.md`)? (since 2026-11-10)
-- #22 (OneHot as a list column): decide from
-  `docs/benchmarks/onehot-second-run.md`. (since 2026-11-06)
-- The model-selection build's rulings (#33; chiefly R8, R11/R22, R13, R21) and
-  the metrics build's 11 (#34's ledger). (since 2026-11-08)
 
 ## Next up
 
+- The issues the 2026-11-10 decisions filed, all ready-for-agent: #46
+  (generators on many threads: needs a parallel, ordered, lazy row source;
+  measurements in the issue), #47 (regression clips `n_informative` with a
+  warning), #48 (`ordered=True` on the generators), #49 (learn nested
+  aggregates; an ADR amending 0036/0044), #50 (key a database table by its
+  storage block ids), #51 (test LightGBM), #52 (pos_label type hint), #53
+  (UCI citations and DOIs), #31 (opt-in `lookup="hash"` with a warning), #27
+  (opt-in `approx=True` median and a house-form out-of-memory error).
 - Choose the next 3.3 area: more metrics (confusion matrix, report, curves,
   fbeta), or a fetcher of real datasets (ADR 0006: an explicit call).
 - The target encoder's learn after #41 is mostly Python `Fraction` arithmetic
@@ -50,6 +35,10 @@ None.
 
 ## Dead ends and traps
 
+- Timing a generator by summing two of its columns measures only those two:
+  DuckDB drops the unread ones. Sum every column. `range()` and a `UNION ALL`
+  of ranges run on one thread while insertion order is kept (#46). DuckDB
+  2.0's relations have no `fetchone()`. (2026-11-10)
 - A wait loop `while pgrep -f name` matches its own command line and never
   ends; wait on a PID or let the harness notify. A `VALUES ('a'::ENUM(...))`
   relation comes out VARCHAR: cast over the VALUES instead. (2026-11-10)
@@ -82,13 +71,18 @@ None.
 - DuckDB 2.0: NaN sorts greatest; a staged result read with `any_value` breaks
   inside another aggregate; chained quantile stages spill only with the SQL of
   `b633816`; `range()` is read on one thread. (2026-11-08)
-- LightGBM's macOS wheel needs `brew install libomp`; nothing tests LightGBM.
+- LightGBM's macOS wheel needs `brew install libomp` (installed here
+  2026-11-10); uv cannot provide it. Nothing tests LightGBM yet (#51).
   (2026-11-07)
 - The git stash is shared by all worktrees: never a bare `git stash`.
   (2026-11-06)
 
 ## Just finished
 
+- Every pending ruling decided with Tomas (2026-11-10): outcomes in the
+  ledgers' "Decisions" sections and as comments on #45, #33, #31, #27, #22;
+  new issues #46-#53. #22 kept as an idea in
+  `docs/questions/onehot-list-column.md`.
 - The datasets area, merged into `main` and pushed, #45 closed: `sq.datasets`
   with `iris`, `wine`, `breast_cancer` and `blobs`, `regression`,
   `classification`, `customers`; ADR 0045, `docs/guide/datasets.md`.
