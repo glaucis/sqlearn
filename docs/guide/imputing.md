@@ -47,8 +47,10 @@ from the step, `pipe["median"].value_` here.
 The shortcuts build exactly the step the general form builds with the same
 value, so `sq.impute.median("age")` and `sq.impute("age", value="median")` are
 the same step. The median is exact and is computed by sorting, so it runs on
-data larger than memory
-([ADR 0032](../adr/0032-the-median-is-exact-by-sorting.md)).
+data larger than memory, up to a reach: on one thread it learned about 4 times
+a 64 MB limit and about 7 times a 128 MB one, measured on DuckDB 2.0
+([ADR 0032](../adr/0032-the-median-is-exact-by-sorting.md),
+[the measurement](../benchmarks/median-reach.md)).
 
 A column filled by an aggregate of numbers, or by a number, comes out as a
 DOUBLE column, as scikit-learn returns floats. Filled by text or by the mode,

@@ -48,7 +48,9 @@ class MyScale(sq.Step):
   columns; your step never builds a full name (see
   [Names of new columns](#names-of-new-columns)).
 - `sq.agg.median`, `sq.agg.quantile(x, q=0.9)` and `sq.agg.iqr` are exact,
-  computed by sorting, so they can run on data larger than memory; every
+  computed by sorting, so they can run on data several times larger than
+  memory (about 4 times a 64 MB limit, see
+  [the measurement](../benchmarks/median-reach.md)); every
   quantile a step learns shares one sort. They may sit inside a larger
   expression (`{"spread": sq.agg.iqr(x) / sq.agg.median(x)}`). `sq.agg.mode` is
   the most frequent value, a tie going to the smallest. `sq.agg.std` is the
