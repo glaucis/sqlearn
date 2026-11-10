@@ -137,6 +137,21 @@ two runs overlap they differ by up to a quarter (at 10,000 categories,
 `list_position` 1.170 s against 1.280 s, the failing ENUM cast 10.319 s
 against 9.639 s, ordinal's apply 0.617 s against 0.460 s).
 
+The target encoder's learning after
+[issue #41](https://github.com/glaucis/sqlearn/issues/41), beside the times
+above: the learn stage reads the staged statistics list once, beside the one
+row of its scan, where before every source row carried it through a cross
+join. Measured with the encoders' part of the script alone, one category
+count per process, on sqlearn 0.1.dev253+gd1ccdb53c; the machine was busier
+than for the first run (ordinal's learn took 0.154, 0.164 and 0.269 s, its
+apply 0.427, 0.394 and 0.895 s).
+
+| categories | target learn s, before | target learn s, after #41 | target apply s, after #41 |
+|---|---|---|---|
+| 100 | 5.081 | 2.375 | 1.423 |
+| 1,000 | 8.093 | 3.753 | 1.632 |
+| 10,000 | 46.771 | 4.001 | 1.690 |
+
 ## What the numbers show
 
 Every form gives today's codes on the rows compared.
@@ -169,6 +184,10 @@ categories (from the second run), against 1.280 s over the table in memory (the
 first run).
 
 The ordinal encoder's apply, Parquet in and out, takes 0.177 s at 100
-categories and 0.460 s at 10,000. The target encoder's learning takes 5.081 s
+categories and 0.460 s at 10,000. The target encoder's learning took 5.081 s
 at 100 categories and 46.771 s at 10,000; it contains no lookup. Its apply
-takes 0.683 s and 1.609 s.
+takes 0.683 s and 1.609 s. Most of that learning was the statistics list
+carried on every row; since #41 it takes 2.375 s at 100 categories and
+4.001 s at 10,000. What remains is the `GROUP BY` of the statistics and the
+Python `Fraction` arithmetic over them (about 5 s under the profiler at
+200,000 rows in #41's report), which #41 leaves as it was.

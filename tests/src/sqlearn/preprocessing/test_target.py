@@ -471,3 +471,18 @@ def test_target_encodes_enum_columns_by_default():
     )
     assert got["e"].dtype.kind == "f"
     pd.testing.assert_frame_equal(got, want)
+
+
+def test_two_columns_in_one_step_each_match_fit_then_transform():
+    """Two target-encoded columns of one step each get their own statistics."""
+    frame = sample().assign(tier=lambda f: sample(seed=1)["plan"])
+    pipe = sq.Pipeline([sq.encode.target(["plan", "tier"])]).learn(frame, target="y")
+    got = pipe.apply(frame.drop(columns="y"), out="pandas")
+    for column in ("plan", "tier"):
+        theirs = SkTargetEncoder(target_type="binary").fit(
+            as_sklearn(frame, column), frame["y"]
+        )
+        assert got[column].to_numpy() == pytest.approx(
+            theirs.transform(as_sklearn(frame, column))[:, 0], rel=1e-12
+        )
+    assert not np.allclose(got["plan"], got["tier"])

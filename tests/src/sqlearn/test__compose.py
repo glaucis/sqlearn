@@ -437,6 +437,68 @@ def test_a_median_inside_an_expression_is_computed(con):
     assert values["s01_double"]["twice"]["age"] == 40.0
 
 
+def test_the_learn_scan_does_not_carry_a_whole_staged_value():
+    """The target statistics are read once, not cross-joined into the scan (#41).
+
+    The learned value ``stats`` is one whole staged marker: the learn stage
+    reads it beside the scan's one row, so no source row carries the list.
+    """
+    schema = [("plan", VARCHAR), ("x", DOUBLE)]
+    target = sq.encode.target("plan")
+    stage = step_stage(1, "target", target, schema, SOURCE, applies=False)
+    sql = _learn_sql("t", [stage])
+    assert '"l01_target_stats" AS MATERIALIZED' in sql
+    assert 'FROM "source" CROSS JOIN' not in sql
+    assert '"l01_target" AS MATERIALIZED' in sql
+
+
+class Spread(sq.Step):
+    """Learn a median whole, inside an aggregate, and inside an expression."""
+
+    def learn(self, x):
+        """Learn the median three ways."""
+        median = sq.agg.median(x)
+        return {
+            "m": median,
+            "d": sq.agg.mean(sq.fn.abs(x - median)),
+            "r": sq.agg.max(x) - median,
+        }
+
+
+def test_a_median_whole_nested_and_in_an_expression_in_one_step():
+    """A whole median, read beside the scan, agrees with its other two uses."""
+    con = duckdb.connect()
+    source = "SELECT * FROM (VALUES (1.0), (2.0), (4.0), (10.0), (NULL)) t(a)"
+    stage = step_stage(1, "spread", Spread(), [("a", DOUBLE)], SOURCE, applies=False)
+    values, _, _ = execute(con, source, [stage], produce=False)
+    got = values["s01_spread"]
+    # median 3; mean(|1-3|, |2-3|, |4-3|, |10-3|) = 11 / 4; max - median = 7
+    assert got["m"]["a"] == 3.0
+    assert got["d"]["a"] == pytest.approx(2.75, rel=1e-15)
+    assert got["r"]["a"] == 7.0
+
+
+class MedianAndStd(sq.Step):
+    """Learn a median and a standard deviation, each a whole learned value."""
+
+    def learn(self, x):
+        """Learn both."""
+        return {"m": sq.agg.median(x), "s": sq.agg.std(x)}
+
+
+def test_whole_staged_values_join_no_stage_into_a_scan():
+    """Neither the learn scan nor the std's passes cross-join an unread stage."""
+    con = duckdb.connect()
+    source = "SELECT * FROM (VALUES (1.0), (2.0), (4.0), (10.0), (NULL)) t(a)"
+    stage = step_stage(1, "two", MedianAndStd(), [("a", DOUBLE)], SOURCE, applies=False)
+    assert 'FROM "source" CROSS JOIN' not in _learn_sql(source, [stage])
+    values, _, _ = execute(con, source, [stage], produce=False)
+    assert values["s01_two"]["m"]["a"] == 3.0
+    assert values["s01_two"]["s"]["a"] == pytest.approx(
+        float(np.std([1.0, 2.0, 4.0, 10.0])), rel=1e-15
+    )
+
+
 class Nested(sq.Step):
     """Learn the median of a median: an aggregate of an aggregate."""
 

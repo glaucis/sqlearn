@@ -16,11 +16,12 @@ spills to disk), and the one or two values each quantile needs picked from
 them. A mode (`sqlearn.agg.mode`, a marker too) is counted in a ``GROUP BY``;
 a learn stage's modes share one stage. A marker may sit anywhere in a
 learned value: it is replaced by ``any_value`` of a column of its stage's one
-row, cross-joined into the learn stage, so a quantile comes back like any
-other learned value. The target's statistics
-(`sqlearn._expr.target_stats`, a step learning from the target) are grouped
-by inner fold and category in a ``GROUP BY`` stage, and come back as one
-list.
+row, cross-joined into the learn stage's scan, so a quantile comes back like
+any other learned value. A learned value that is one whole marker is read
+beside the scan's one row instead, so no row of the scan carries it. The
+target's statistics (`sqlearn._expr.target_stats`, a step learning from the
+target) are grouped by inner fold and category in a ``GROUP BY`` stage, and
+come back as one list.
 
 While learning and training, columns no step sees travel beside the data
 (``aside``): the target, under `TARGET`, and each row's inner fold for a
@@ -852,7 +853,8 @@ class _Staged:
     or variance is learned to its column (``v0``, ...) of the variance stage
     (the standard deviation reads its root);
     `stats` maps ``(x, y, fold)`` to its column (``l0``, ...) of the target
-    statistics stage.
+    statistics stage. `std_reads` names the one-row stages the standard
+    deviations' expressions read.
     """
 
     name: str
@@ -860,6 +862,18 @@ class _Staged:
     modes: dict[str, int] = field(default_factory=dict)
     stds: dict[str, int] = field(default_factory=dict)
     stats: dict[tuple[str, str, str], int] = field(default_factory=dict)
+    std_reads: set[str] = field(default_factory=set)
+
+    def table(self, marker: _Marker) -> str:
+        """Return the name of the one-row stage `marker` reads."""
+        suffix = {
+            QUANTILE: "_quantile",
+            MODE: "_modes",
+            STD: "_std",
+            VAR: "_std",
+            TARGET_STATS: "_stats",
+        }[marker.kind]
+        return self.name + suffix
 
     def reference(
         self, stage: Stage, text: str, marker: _Marker, *, nested: bool
@@ -953,6 +967,7 @@ class _Staged:
                 values[last : inner.start],
                 self.reference(stage, values, inner, nested=True),
             ]
+            self.std_reads.add(self.table(inner))
             last = inner.end
         pieces.append(values[last:])
         _refuse_plain_aggregate(stage, whole, "".join(pieces))
@@ -1202,19 +1217,37 @@ def _learn_ctes(stage: Stage, learn: dict[str, Expression], previous: str) -> li
 
     Each staged marker in a learned value is replaced by a reference to the
     one row its stages computed, so a quantile may sit anywhere in a learned
-    value (``iqr`` is one quantile less another). Those rows are cross-joined
-    into the learn stage and read with ``any_value``, or as plain columns
-    inside another aggregate (``mean(abs(x - median(x)))``); a scalar subquery per
-    reference instead made DuckDB plan one join per reference (4.6 s for 600
-    references, and past its expression depth at 1,000).
+    value (``iqr`` is one quantile less another). The rows a reference
+    inside a larger value reads are cross-joined into the learn stage's scan
+    of the previous stage and read with ``any_value``, or as plain columns
+    inside another aggregate (``mean(abs(x - median(x)))``); a scalar
+    subquery per reference instead made DuckDB plan one join per reference
+    (4.6 s for 600 references, and past its expression depth at 1,000). A
+    learned value that is one whole marker (the target encoder's statistics,
+    a bare median) is not computed in the scan: it is read once, as the plain
+    column of its row, cross-joined with the scan's one row (issue #41: the
+    scan carried the 50,000-element statistics list on every source row).
+    The stage's columns keep the learned values' order, then the row count.
     """
     staged = _Staged(stage.learn_name)
-    items: list[str] = []
+    items: dict[str, str] = {}  # computed in the scan
+    whole: dict[str, str] = {}  # one whole marker each, read beside the scan
+    scan_reads: set[str] = set()  # the one-row stages each part reads
+    whole_reads: set[str] = set()
     for key, expression in learn.items():
         text = str(expression)
+        markers = _markers(text)
+        if (
+            len(markers) == 1
+            and not text[: markers[0].start].strip()
+            and not text[markers[0].end :].strip()
+        ):
+            (marker,) = markers
+            whole[key] = staged.reference(stage, text, marker, nested=True)
+            whole_reads.add(staged.table(marker))
+            continue
         pieces: list[str] = []
         last = 0
-        markers = _markers(text)
         spans = _in_aggregates(text) if markers else []
         for marker in markers:
             nested = any(a <= marker.start < b for a, b in spans)
@@ -1222,11 +1255,12 @@ def _learn_ctes(stage: Stage, learn: dict[str, Expression], previous: str) -> li
                 text[last : marker.start],
                 staged.reference(stage, text, marker, nested=nested),
             ]
+            scan_reads.add(staged.table(marker))
             last = marker.end
         pieces.append(text[last:])
-        items.append(f"{''.join(pieces)} AS {quote(key)}")
+        items[key] = "".join(pieces)
     ctes: list[str] = []
-    rows: list[str] = []  # the one-row stages, cross-joined below
+    rows: list[str] = []  # the one-row stages, in the order computed
     if staged.quantiles:
         ctes.extend(_quantile_ctes(staged.name, staged.quantiles, previous))
         rows.append(staged.name + "_quantile")
@@ -1237,15 +1271,27 @@ def _learn_ctes(stage: Stage, learn: dict[str, Expression], previous: str) -> li
         ctes.extend(_stats_ctes(staged.name + "_stats", staged.stats, previous))
         rows.append(staged.name + "_stats")
     if staged.stds:  # last: its passes may read the stages above
-        ctes.extend(_std_ctes(staged.name, staged.stds, previous, list(rows)))
+        read = [r for r in rows if r in staged.std_reads]
+        ctes.extend(_std_ctes(staged.name, staged.stds, previous, read))
         rows.append(staged.name + "_std")
-    joins = "".join(f" CROSS JOIN {quote(r)}" for r in rows)
-    # MATERIALIZED, never NOT MATERIALIZED: the one row is computed once.
+    joins = "".join(f" CROSS JOIN {quote(r)}" for r in rows if r in scan_reads)
     # The row count beside the values tells "no rows" from NULL values.
-    select = (
-        f"SELECT {', '.join([*items, f'count(*) AS {quote(_ROWS)}'])} "
-        f"FROM {quote(previous)}{joins}"
+    scan = ", ".join(
+        [
+            *(f"{v} AS {quote(k)}" for k, v in items.items()),
+            f"count(*) AS {quote(_ROWS)}",
+        ]
     )
+    select = f"SELECT {scan} FROM {quote(previous)}{joins}"
+    if whole:
+        alias = quote(stage.learn_name + "_scan")
+        picks = ", ".join(
+            f"{whole[k] if k in whole else f'{alias}.{quote(k)}'} AS {quote(k)}"
+            for k in [*learn, _ROWS]
+        )
+        beside = "".join(f" CROSS JOIN {quote(r)}" for r in rows if r in whole_reads)
+        select = f"SELECT {picks} FROM ({select}) AS {alias}{beside}"
+    # MATERIALIZED, never NOT MATERIALIZED: the one row is computed once.
     ctes.append(f"{quote(stage.learn_name)} AS MATERIALIZED ({select})")
     return ctes
 

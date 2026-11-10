@@ -46,3 +46,15 @@ appear anywhere in a learned value, including inside another aggregate:
 "Combine staged aggregates freely" stops at a plain DuckDB aggregate inside a
 staged one's argument (`sq.agg.std(x - sq.agg.mean(x))`): it is refused, naming
 the step. See [ADR 0044](0044-the-standard-deviation-in-two-staged-passes.md).
+
+## Amended by #41
+
+Where a staged aggregate sits changes how its one row is read, not what is
+learned. A learned value that is one whole staged aggregate (the target
+encoder's statistics, a bare `sq.agg.median(x)`) is read once, beside the
+learn stage's one row; only the one-row stages that a staged aggregate inside
+a larger value reads are cross-joined into the learn stage's scan, and the
+standard deviation's passes cross-join only the stages their expressions read.
+Before, every source row carried every staged result: the target encoder's
+learning at 10,000 categories on 1,000,000 rows went from 46.8 s to 4.0 s
+(`docs/benchmarks/category-lookup.md`).
