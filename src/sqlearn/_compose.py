@@ -855,14 +855,27 @@ class _Staged:
         one).
         """
         whole = text[marker.start : marker.end]
+        if marker.kind == STD and len(marker.args) == 1:
+            return self._std(stage, whole, marker.args[0], nested=nested)
         for arg in marker.args:
-            if _markers(arg):
+            inner = _markers(arg)
+            if any(m.kind == STD for m in inner):
                 raise _refuse(
                     stage,
                     whole,
-                    "an aggregate of an aggregate (a quantile, mode or "
-                    "standard deviation of one), which has no meaning over "
-                    "one column.",
+                    "a quantile, mode or target statistic of an expression "
+                    "holding a standard deviation, which cannot be staged: "
+                    "those are computed from the stage's input before the "
+                    "standard deviations, which may read them.",
+                    "learn the standard deviation in an earlier step, or "
+                    "learn each aggregate of the column on its own.",
+                )
+            if inner:
+                raise _refuse(
+                    stage,
+                    whole,
+                    "an aggregate of an aggregate (a quantile or mode of "
+                    "one), which has no meaning over one column.",
                     "learn each aggregate of the column on its own.",
                 )
         if marker.kind == TARGET_STATS and len(marker.args) == 3:
@@ -873,10 +886,6 @@ class _Staged:
             (values,) = marker.args
             index = self.modes.setdefault(values, len(self.modes))
             return _read(f"{quote(self.name + '_modes')}.{quote(f'm{index}')}", nested)
-        if marker.kind == STD and len(marker.args) == 1:
-            (values,) = marker.args
-            index = self.stds.setdefault(values, len(self.stds))
-            return _read(f"{quote(self.name + '_std')}.{quote(f's{index}')}", nested)
         method = marker.args[-1] if len(marker.args) == 3 else ""
         if marker.kind == QUANTILE and method in (
             "'linear'",
@@ -894,6 +903,38 @@ class _Staged:
             "a marker sq.agg did not build.",
             "build quantiles and modes with sq.agg, such as sq.agg.median(x).",
         )
+
+    def _std(self, stage: Stage, whole: str, values: str, *, nested: bool) -> str:
+        """Return the expression standing for the standard deviation of `values`.
+
+        The staged markers inside `values` (``std(x - median(x))``) are
+        replaced by plain columns of their one-row stages, which the
+        standard deviation's passes cross-join: those stages read the
+        stage's input, as the passes do, and come before them. A standard
+        deviation inside another is refused: both are computed in the same
+        two passes, so one cannot read the other.
+        """
+        pieces: list[str] = []
+        last = 0
+        for inner in _markers(values):
+            if inner.kind == STD:
+                raise _refuse(
+                    stage,
+                    whole,
+                    "a standard deviation of an expression holding another "
+                    "standard deviation, which cannot be staged: both are "
+                    "computed in the same two passes, so one cannot read "
+                    "the other.",
+                    "learn the inner standard deviation in an earlier step.",
+                )
+            pieces += [
+                values[last : inner.start],
+                self.reference(stage, values, inner, nested=True),
+            ]
+            last = inner.end
+        pieces.append(values[last:])
+        index = self.stds.setdefault("".join(pieces), len(self.stds))
+        return _read(f"{quote(self.name + '_std')}.{quote(f's{index}')}", nested)
 
 
 def _ranks(n: str, q: str, m: str) -> tuple[str, str, str]:
@@ -1063,7 +1104,9 @@ def _mode_ctes(table: str, modes: dict[str, int], previous: str) -> list[str]:
     return [_one_row(table, branches)]
 
 
-def _std_ctes(name: str, stds: dict[str, int], previous: str) -> list[str]:
+def _std_ctes(
+    name: str, stds: dict[str, int], previous: str, rows: list[str]
+) -> list[str]:
     """Return the two stages computing a learn stage's standard deviations.
 
     The population standard deviation in two passes over the previous stage
@@ -1074,13 +1117,18 @@ def _std_ctes(name: str, stds: dict[str, int], previous: str) -> list[str]:
     numbers per column. Every value the same (or one value) gives exactly 0,
     by ``min = max``: the rounded mean may differ from the value itself
     (100,000 copies of 1/3), and Scale's zero-spread rule needs 0 there. NULL
-    when there is no value; NaN, as the mean, beside an infinity.
+    when there is no value; NaN, as the mean, beside an infinity, and NaN
+    where the sum overflows: on ``[1e300, -1e300, 1e300]`` ``favg``
+    overflows to NaN, where ``stddev_pop`` gave infinity. `rows` are the
+    one-row stages (quantiles, modes, target statistics) the expressions
+    may read; they are cross-joined into both passes.
     """
     means, table = quote(name + "_std_means"), quote(name + "_std")
     xs = {index: quote(f"x{index}") for index in stds.values()}
     mus = {index: quote(f"u{index}") for index in stds.values()}
     columns = ", ".join(f"{inner} AS {xs[index]}" for inner, index in stds.items())
-    present = f"(SELECT {columns} FROM {quote(previous)})"
+    joins = "".join(f" CROSS JOIN {quote(r)}" for r in rows)
+    present = f"(SELECT {columns} FROM {quote(previous)}{joins})"
     averages = ", ".join(f"favg({xs[i]}) AS {mus[i]}" for i in stds.values())
     spreads = ", ".join(
         f"CASE WHEN min({xs[i]}) = max({xs[i]}) AND isfinite(min({xs[i]})) "
@@ -1160,12 +1208,12 @@ def _learn_ctes(stage: Stage, learn: dict[str, Expression], previous: str) -> li
     if staged.modes:
         ctes.extend(_mode_ctes(staged.name + "_modes", staged.modes, previous))
         rows.append(staged.name + "_modes")
-    if staged.stds:
-        ctes.extend(_std_ctes(staged.name, staged.stds, previous))
-        rows.append(staged.name + "_std")
     if staged.stats:
         ctes.extend(_stats_ctes(staged.name + "_stats", staged.stats, previous))
         rows.append(staged.name + "_stats")
+    if staged.stds:  # last: its passes may read the stages above
+        ctes.extend(_std_ctes(staged.name, staged.stds, previous, list(rows)))
+        rows.append(staged.name + "_std")
     joins = "".join(f" CROSS JOIN {quote(r)}" for r in rows)
     # MATERIALIZED, never NOT MATERIALIZED: the one row is computed once.
     # The row count beside the values tells "no rows" from NULL values.

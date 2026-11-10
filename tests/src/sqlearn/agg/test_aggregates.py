@@ -472,3 +472,69 @@ def test_std_is_two_passes_and_may_sit_anywhere_in_a_learned_value():
         assert got["both"][column] == pytest.approx(
             2 * np.std(v) + np.median(v), rel=1e-15
         )
+
+
+def test_std_of_an_expression_holding_a_median_is_learned():
+    """``std(x - median(x))`` reads the median's stage: the base's value comes back.
+
+    The deviations from a constant spread as the values do, so it is also
+    ``std(x)``; inside another aggregate too.
+    """
+    values = [1.0, 2.0, 6.0, 10.0]
+    data = pd.DataFrame({"a": values})
+    step = _Learns(lambda x: sq.agg.std(x - sq.agg.median(x)))
+    got = sq.Pipeline([("std", step)]).learn(data)["std"].v_["a"]
+    assert _cases.ulps(got, 3.5619517121937516) <= 2
+
+    class Ratio(sq.Step):
+        def learn(self, x):
+            deviation = x - sq.agg.median(x)
+            return {"r": sq.agg.mean(deviation / sq.agg.std(deviation))}
+
+        def apply(self, x, learned):
+            return x
+
+    ratio = sq.Pipeline([("ratio", Ratio())]).learn(data)["ratio"].r_["a"]
+    v = np.array(values)
+    want = np.mean((v - np.median(v)) / np.std(v))
+    assert ratio == pytest.approx(want, rel=1e-15)
+
+
+class _Learns(sq.Step):
+    """Learn the one expression `build` makes of each column."""
+
+    def __init__(self, build=sq.agg.std, cols=None, keep=False, suffix=None):
+        """Set the settings."""
+        super().__init__(cols=cols, keep=keep, suffix=suffix)
+        self.build = build
+
+    def learn(self, x):
+        """Learn the expression."""
+        return {"v": self.build(x)}
+
+    def apply(self, x, learned):
+        """Leave the column."""
+        return x
+
+
+@pytest.mark.parametrize(
+    ("build", "why"),
+    [
+        (
+            lambda x: sq.agg.std(x - sq.agg.std(x)),
+            "standard deviation of an expression holding another standard "
+            "deviation, which cannot be staged",
+        ),
+        (
+            lambda x: sq.agg.median(x / sq.agg.std(x)),
+            "quantile, mode or target statistic of an expression holding a "
+            "standard deviation, which cannot be staged",
+        ),
+    ],
+    ids=["std of std", "median of std"],
+)
+def test_a_std_the_stages_cannot_order_is_refused(build, why):
+    """Each refusal names the step and why the stages cannot compute it."""
+    data = pd.DataFrame({"a": [1.0, 2.0, 6.0]})
+    with pytest.raises(sq.errors.StepError, match=r"\(step 1\).*" + why):
+        sq.Pipeline([("bad", _Learns(build))]).learn(data)
