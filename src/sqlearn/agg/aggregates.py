@@ -359,7 +359,9 @@ mean = Aggregate(
 median = Aggregate(
     "median",
     lambda x: _quantile(x, 0.5, "linear"),
-    doc="""The exact median, by sorting, so it learns larger than memory (ADR 0032).
+    doc="""The exact median, by sorting; it learns several times past memory (ADR 0032).
+
+    The reach is measured in ``docs/benchmarks/median-reach.md``.
 
     ``quantile(q=0.5)``: the middle value, or halfway between the two middle
     ones, as DOUBLE. It may sit anywhere in a learned expression.
@@ -380,7 +382,9 @@ quantile = Aggregate(
     "quantile",
     _quantile,
     defaults={"q": _REQUIRED, "method": "linear"},
-    doc="""The exact quantile `q`, by sorting, so it learns larger than memory.
+    doc="""The exact quantile `q`, by sorting; it learns several times beyond memory.
+
+    The reach is measured in ``docs/benchmarks/median-reach.md``.
 
     Params: ``q``, between 0 and 1; ``method``, numpy's name of how a
     quantile between two values is found: ``"linear"`` (numpy's default) or

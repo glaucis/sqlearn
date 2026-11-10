@@ -28,8 +28,12 @@ recommends nothing: whether to offer an approximate median is Tomas's call.
   within 10% of the passing one. The two boundary points are then run three
   times each.
 - **Cap:** 640,000,000 rows (about 4 GB of Parquet). No limit reached it.
-- **Failure:** every failing probe raised DuckDB's `OutOfMemoryException`
-  ("failed to pin block ... used").
+- **Failure:** the run recorded a failing probe only as a non-zero exit. One
+  failing probe (32 MB, 8,750,000 rows) was run again by hand and raised
+  DuckDB's `OutOfMemoryException` ("failed to pin block ... used"); the others
+  were not inspected one by one.
+- **Columns:** one median column was measured. The reach with several median
+  columns in one step (which share one sort) is not measured.
 
 Reproduce with `uv run python -m validation.benchmarks.median_reach`.
 
