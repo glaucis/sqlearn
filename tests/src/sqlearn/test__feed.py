@@ -499,6 +499,16 @@ def test_a_feature_named_like_the_null_helper_is_handed_over(con):
     assert y.tolist() == [0, 1]
 
 
+def test_a_pandas_target_s_nulls_are_counted_beside_a_feature_named_so(con):
+    """The NULL count beside a pandas fetch still counts, whatever the names."""
+    rel = con.sql(
+        "SELECT * FROM (VALUES (1.0, 0), (2.0, NULL), (3.0, NULL)) "
+        "t(__sqlearn_target_null, y)"
+    )
+    with pytest.raises(SqlearnError, match="'y' is missing in 2"):
+        fetch(rel, "pandas", ["__sqlearn_target_null"], "y")
+
+
 DATA_100_ROWS = pd.DataFrame(
     {
         "a": np.arange(100.0),

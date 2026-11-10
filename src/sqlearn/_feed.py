@@ -491,7 +491,7 @@ def _batches(
 
 
 # How DuckDB names the type of a column of NULLs only.
-_NULL = '"NULL"'
+_NULL_TYPE = '"NULL"'
 
 
 def _types(cur: duckdb.DuckDBPyConnection, source: str) -> dict[str, str]:
@@ -518,23 +518,23 @@ def _widen(
     new = _types(cur, quote(batch))
     for column in columns:
         old, now = have[column], new[column]
-        if old == now or now == _NULL:
+        if old == now or now == _NULL_TYPE:
             continue  # nothing new, or only NULLs, which fit any type
-        if old == _NULL:
-            common = now
+        if old == _NULL_TYPE:
+            common = now  # earlier rows were only NULLs, which fit any type
         else:
             ((common,),) = cur.execute(
                 f"SELECT typeof(x) FROM (SELECT NULL::{old} AS x "
                 f"UNION ALL SELECT NULL::{now}) LIMIT 1"
             ).fetchall()
-        if common == "VARCHAR" and "VARCHAR" in (old, now) and _NULL not in (old, now):
-            text = (
-                f"{type(model.estimator).__name__}.{method} returned {old} for "
-                f"earlier rows and {now} for later ones, which share no "
-                "type but text. Fix: make the model return one kind of "
-                "value."
-            )
-            raise SqlearnError(text)
+            if common == "VARCHAR" and "VARCHAR" in (old, now):
+                text = (
+                    f"{type(model.estimator).__name__}.{method} returned {old} "
+                    f"for earlier rows and {now} for later ones, which share "
+                    "no type but text. Fix: make the model return one kind "
+                    "of value."
+                )
+                raise SqlearnError(text)
         if common != old:
             cur.execute(
                 f"ALTER TABLE {table} ALTER COLUMN {quote(column)} TYPE {common}"
