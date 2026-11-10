@@ -41,9 +41,18 @@ Rules from the ADRs:
   machine (0006).
 - Python 3.12 is the floor (0007). Every task runs through `just` (0008).
 - British English in prose, American spelling in identifiers (0010).
+- sqlearn never changes on its own what the user asked for: it keeps the
+  default, warns with a `Fix:` line, and the user opts in (0046).
 
 Superpowers skills save specs to `docs/specs/` and plans to `docs/plans/`
 here, not `docs/superpowers/`.
+
+## Working with Tomas
+
+How to explain choices to him and keep track of the work:
+`docs/agents/working-with-tomas.md`. Keep nothing in Claude's auto-memory:
+everything a later session needs goes into the repository (rules here and
+in the ADRs, the state of work in `HANDOFF.md`, decisions on the issues).
 
 ## Current state of work
 

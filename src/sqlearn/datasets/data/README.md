@@ -1,3 +1,10 @@
+---
+type: note
+tags: [datasets, licensing, uci, csv, attribution]
+summary: "Describes the three bundled CSV datasets (iris, wine, breast cancer), their UCI sources, CC BY 4.0 licence terms and citations."
+related: ["https://archive.ics.uci.edu", "https://creativecommons.org/licenses/by/4.0/", "https://archive.ics.uci.edu/dataset/53/iris", "https://archive.ics.uci.edu/dataset/109/wine", "https://archive.ics.uci.edu/dataset/17"]
+mdindex: [type=edb465, tags=bc4b9c, summary=5c3a86, related=cd0031]
+---
 # The bundled datasets
 
 Three small datasets ship with sqlearn as CSV files beside this page, so

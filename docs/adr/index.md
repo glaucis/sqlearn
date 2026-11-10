@@ -50,6 +50,7 @@ The verbs and conventions users write against.
 - [0034: A grouped API](0034-a-grouped-api.md)
 - [0035: Names of generated columns](0035-names-of-generated-columns.md)
 - [0045: Datasets are relations built in SQL](0045-datasets-are-relations-built-in-sql.md)
+- [0046: sqlearn warns, the user chooses](0046-sqlearn-warns-the-user-chooses.md)
 
 ## Steps users write
 

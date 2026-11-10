@@ -14,9 +14,7 @@ None.
 
 ## Waiting on the user
 
-- Whether "sqlearn never changes the user's pipeline on its own; it warns and
-  the user opts in" (the rule behind #31, #47, #27) becomes an ADR.
-  (since 2026-11-10)
+None.
 
 ## Next up
 
@@ -82,7 +80,8 @@ None.
 - Every pending ruling decided with Tomas (2026-11-10): outcomes in the
   ledgers' "Decisions" sections and as comments on #45, #33, #31, #27, #22;
   new issues #46-#53. #22 kept as an idea in
-  `docs/questions/onehot-list-column.md`.
+  `docs/questions/onehot-list-column.md`. The rule behind them is ADR 0046
+  (sqlearn warns, the user chooses), also in CLAUDE.md's rules.
 - The datasets area, merged into `main` and pushed, #45 closed: `sq.datasets`
   with `iris`, `wine`, `breast_cancer` and `blobs`, `regression`,
   `classification`, `customers`; ADR 0045, `docs/guide/datasets.md`.
