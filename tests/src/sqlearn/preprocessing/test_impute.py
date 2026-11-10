@@ -553,12 +553,22 @@ def test_impute_treats_enum_as_text():
     assert got["e"].tolist() == ["a", "a", "a", "b"]
 
 
-def test_column_kind_of_enum_is_text():
-    """An ENUM column is the same kind as a VARCHAR one, so a text constant suits."""
-    from sqlearn.preprocessing.impute import _column_kind, _suits
+def test_impute_keeps_the_enum_type_of_a_column_it_fills():
+    """An ENUM column filled by a constant or the mode stays the same ENUM."""
+    rel = connection().sql(
+        "SELECT e::ENUM('a', 'b', 'c') AS e "
+        "FROM (VALUES ('a'), ('a'), (NULL), ('b')) t(e)"
+    )
+    declared = str(rel.types[0])
+    for step in (sq.impute.constant("c"), sq.impute.mode("e")):
+        out = sq.Pipeline([step]).learn(rel).apply(rel)
+        assert str(out.types[0]) == declared
 
-    rel = connection().sql("SELECT 'a'::ENUM('a', 'b') AS e, 'a' AS v")
-    enum, varchar = rel.types
-    assert _column_kind(enum) == _column_kind(varchar) == "text"
-    assert _suits("b", enum)
-    assert not _suits(0, enum)
+
+def test_impute_refuses_a_constant_outside_the_enum_declared_values():
+    """A constant that is not a value of the ENUM is refused, naming a fix."""
+    rel = connection().sql(
+        "SELECT e::ENUM('a', 'b') AS e FROM (VALUES ('a'), (NULL)) t(e)"
+    )
+    with pytest.raises(StepError, match=r"(?s)'z'.*Why:.*Fix:"):
+        sq.Pipeline([sq.impute.constant("z")]).learn(rel)

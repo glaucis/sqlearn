@@ -259,6 +259,7 @@ class Impute(Step):
         self.creates = INTEGER if indicator else None
         # With keep and a fill value, the filled copy is made beside the flag.
         self.copies_inputs = indicator and keep and resolved is not None
+        self._enums: dict[str, str] = {}  # the ENUM columns seen by `inputs`
 
     def __getstate__(self) -> dict[str, object]:
         """Return the state to pickle: a DuckDB type does not pickle."""
@@ -367,8 +368,10 @@ class Impute(Step):
         else:
             chosen = [c for c, t in schema if _suits(self.value, t)]
         types: dict[str, DuckDBPyType] = dict(schema)
+        self._enums = {c: str(t) for c, t in types.items() if t.id == "enum"}
         for c in chosen:
             _check_suits(c, types[c], self._value_of(c))
+            _check_declared(c, types[c], self._value_of(c))
         return chosen
 
     def learn(self, x: Expression) -> Mapping[str, Expression]:
@@ -441,6 +444,9 @@ class Impute(Step):
         """
         value = self._value_of(x.get_name())
         filled = _fill(x, value, learned)
+        enum = self._enums.get(x.get_name())
+        if enum is not None and (isinstance(value, str) or _fills_text(value)):
+            filled = filled.cast(enum)  # an ENUM column keeps its type
         if not self.indicator:
             return filled
         out: list[tuple[str, Expression]] = []
@@ -469,6 +475,27 @@ def _fill(x: Expression, value: object, learned: Learned) -> Expression:
     if isinstance(value, str):
         return duckdb.CaseExpression(x.isnull(), const(str(value))).otherwise(x)
     return duckdb.CaseExpression(_missing(x), const(value)).otherwise(x)
+
+
+def _fills_text(value: object) -> bool:
+    """Say whether `value` is an aggregate keeping the column's own type."""
+    return isinstance(value, agg.Aggregate) and not value.numeric_only
+
+
+def _check_declared(column: str, dtype: DuckDBPyType, value: object) -> None:
+    """Refuse a text constant that is not a declared value of an ENUM column."""
+    if dtype.id != "enum" or not isinstance(value, str):
+        return
+    declared = dict(dtype.children)["values"]
+    if isinstance(declared, list) and value in declared:
+        return
+    msg = (
+        f"cannot fill column {column!r}, which is {dtype}, with {str(value)!r}. "
+        f"Why: an ENUM holds only its declared values, and {str(value)!r} is "
+        "not one of them. Fix: pass one of the declared values, or cast the "
+        "column to VARCHAR before this step."
+    )
+    raise StepError(msg, step="", position=0)
 
 
 def _check_suits(column: str, dtype: DuckDBPyType, value: object) -> None:
