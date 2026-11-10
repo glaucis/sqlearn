@@ -4,6 +4,7 @@ import datetime
 import pickle
 import re
 
+import duckdb
 import numpy as np
 import pandas as pd
 import pytest
@@ -579,6 +580,7 @@ def test_impute_median_takes_approx():
     step = sq.impute.median(approx=True)
     assert repr(step) == "sq.impute.median(approx=True)"
     out = sq.Pipeline([("imp", step)]).learn(people()).apply(people())
-    filled = out.df()["age"] if hasattr(out, "df") else out["age"]
+    assert isinstance(out, duckdb.DuckDBPyRelation)
+    filled = out.df()["age"]
     assert not pd.isna(filled).any()
     assert filled[1] == pytest.approx(40.0, abs=1.0)

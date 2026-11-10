@@ -301,9 +301,7 @@ class Impute(Step):
             return "impute"
         if isinstance(value, agg.Aggregate):
             named = agg.lookup(value.name)
-            plain = value == named or (
-                value.name == "median" and value == agg.median(approx=True)
-            )
+            plain = value == named or _is_approx_median(value)
             return value.name if value.name in _SHORTCUTS and plain else "impute"
         if value is None:
             return "indicator" if self.indicator else "impute"
@@ -326,7 +324,7 @@ class Impute(Step):
             args.append(self.value)
         else:
             path, kwargs["value"] = "sq.impute", self.value
-        if name == "median" and self.value == agg.median(approx=True):
+        if _is_approx_median(self.value):
             kwargs["approx"] = True
         if self.indicator and name != "indicator":
             kwargs["indicator"] = True
@@ -537,6 +535,11 @@ class _Columns(TypedDict, total=False):
     cols: Selector | str | Sequence[str] | None
     keep: bool
     suffix: str | None
+
+
+def _is_approx_median(value: object) -> bool:
+    """Say whether `value` is the approximate median, a median shortcut too."""
+    return value == agg.median(approx=True)
 
 
 class _Settings(_Columns, total=False):

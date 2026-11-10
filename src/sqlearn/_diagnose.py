@@ -155,15 +155,26 @@ def _user(
 
 
 def _out_of_memory(
-    exc: BaseException, steps: Sequence[tuple[str, Step]], position: int | None
+    exc: BaseException,
+    steps: Sequence[tuple[str, Step]],
+    position: int | None,
+    learning: Sequence[int],
 ) -> SqlearnError:
-    """Explain DuckDB running out of memory while learning (issue 27)."""
-    if position is None and len(steps) == 1:
-        position = 1
-    if position is not None and 1 <= position <= len(steps):
-        where = f"step {steps[position - 1][0]!r} (step {position})"
-    else:
+    """Explain DuckDB running out of memory while learning (issue 27).
+
+    DuckDB's text names no stage, so `position` is usually None; then the
+    steps learning in the failed statement (`learning`, positions from 1) are
+    named as the candidates, and "a step" is said only when none is known.
+    """
+    candidates = [position] if position is not None else list(learning)
+    known = [p for p in candidates if 1 <= p <= len(steps)]
+    named = [f"{steps[p - 1][0]!r} (step {p})" for p in known]
+    if not named:
         where = "a step"
+    elif len(named) == 1:
+        where = f"step {named[0]}"
+    else:
+        where = "one of the steps " + ", ".join(named)
     msg = (
         f"DuckDB ran out of memory while learning {where}. "
         "Why: an exact median or quantile sorts its column, and DuckDB's "
@@ -184,6 +195,7 @@ def diagnose(
     *,
     running: bool = False,
     sql: str | None = None,
+    learning: Sequence[int] = (),
 ) -> SqlearnError:
     """Explain a failure: which step, what went wrong, why and the fix.
 
@@ -206,6 +218,10 @@ def diagnose(
         True when the failure came while running SQL, not while building it.
     sql : str, optional
         The statement that failed, for the report of an internal error.
+    learning : sequence of int, optional
+        The positions (from 1) of the steps learning in the failed statement.
+        DuckDB's out-of-memory text names no stage, so those steps are the
+        ones named for it: all of them, as the error cannot say which.
 
     Returns
     -------
@@ -227,7 +243,7 @@ def diagnose(
         return exc
     position = stage_of(str(exc))
     if isinstance(exc, duckdb.OutOfMemoryException):
-        return _out_of_memory(exc, steps, position)
+        return _out_of_memory(exc, steps, position, learning)
     if position is None or not 1 <= position <= len(steps):
         msg = (
             f"{'DuckDB' if isinstance(exc, duckdb.Error) else type(exc).__name__} "

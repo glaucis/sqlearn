@@ -802,7 +802,14 @@ class Pipeline:
             values, _, done = execute(con, source_sql, stages, produce=False)
         except duckdb.Error as exc:
             sql = _learn_sql(source_sql, stages)
-            raise diagnose(exc, steps, _stage_of(steps), running=True, sql=sql) from exc
+            raise diagnose(
+                exc,
+                steps,
+                _stage_of(steps),
+                running=True,
+                sql=sql,
+                learning=[i + 1 for i in misses],
+            ) from exc
         for i in misses:
             name, step = steps[i]
             before, prev, matched = built[i]
