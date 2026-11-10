@@ -8,6 +8,7 @@ __all__ = [
     "QUANTILE",
     "STD",
     "TARGET_STATS",
+    "VAR",
     "const",
     "is_missing",
     "quote",
@@ -44,6 +45,14 @@ deviation of `x` (its present values, as DOUBLE) in two passes, each a stage
 of its own: the mean with the compensated ``favg``, then
 ``sqrt(favg((x - mean) ^ 2))`` over the rows beside that one mean (issue
 #28). DuckDB's one-pass ``stddev_pop`` drifts further from the exact value.
+"""
+
+VAR = "__sqlearn_var"
+"""The name of the variance marker: ``__sqlearn_var(x)``.
+
+Not a DuckDB function. The population variance of `x`, from the same two
+passes as `STD` (issue #42): ``favg((x - mean) ^ 2)``. The marker and the
+standard deviation's of one expression share them.
 """
 
 

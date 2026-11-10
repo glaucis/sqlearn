@@ -15,7 +15,7 @@ import duckdb
 from duckdb import Expression
 
 from sqlearn._errors import SqlearnError
-from sqlearn._expr import MODE, QUANTILE, STD, const, is_missing
+from sqlearn._expr import MODE, QUANTILE, STD, VAR, const, is_missing
 
 __all__ = [
     "Aggregate",
@@ -527,14 +527,19 @@ std = Aggregate(
 )
 var = Aggregate(
     "var",
-    lambda x: _fn("var_pop", present(x)),
-    doc="""The population variance (``ddof=0``), DuckDB's ``var_pop``.
+    lambda x: _fn(VAR, present(x)),
+    doc="""The population variance (``ddof=0``), in two compensated passes.
+
+    The same passes as `std`, without the root (issue #42): ``favg((x - mean)
+    ^ 2)``, within 2 ULPs of the exact value where DuckDB's one-pass
+    ``var_pop`` drifted 20 (``validation/``). Exactly 0 when every value is
+    the same. It may sit anywhere in a learned expression.
 
     Examples
     --------
     >>> import duckdb
     >>> import sqlearn as sq
-    >>> str(sq.agg.var(duckdb.ColumnExpression("a"))).startswith("var_pop(")
+    >>> str(sq.agg.var(duckdb.ColumnExpression("a"))).startswith("__sqlearn_var(")
     True
     """,
 )

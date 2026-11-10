@@ -39,7 +39,7 @@ import duckdb
 from duckdb import Expression
 
 from sqlearn._errors import InternalError, SqlearnError, StepError
-from sqlearn._expr import MODE, QUANTILE, STD, TARGET_STATS, const, quote
+from sqlearn._expr import MODE, QUANTILE, STD, TARGET_STATS, VAR, const, quote
 from sqlearn._names import name_columns
 from sqlearn._selectors import Schema
 from sqlearn._step import (
@@ -713,7 +713,7 @@ _TOKEN = re.compile(r"""'(?:[^']|'')*'|"(?:[^"]|"")*"|[()\[\]{},]""")
 
 _MARKER = re.compile(
     r"""'(?:[^']|'')*'|"(?:[^"]|"")*"|(?<![A-Za-z0-9_])("""
-    + "|".join(re.escape(k) for k in (QUANTILE, MODE, STD, TARGET_STATS))
+    + "|".join(re.escape(k) for k in (QUANTILE, MODE, STD, VAR, TARGET_STATS))
     + r")\("
 )
 """A quoted literal or identifier, or a marker's name and its ``(``."""
@@ -849,7 +849,8 @@ class _Staged:
     expression sorted) to its place (from 0) in the quantile stage's list;
     `modes` maps the expression counted to its column (``m0``, ``m1``, ...)
     of the mode stage; `stds` maps the expression whose standard deviation
-    is learned to its column (``s0``, ...) of the standard deviation stage;
+    or variance is learned to its column (``v0``, ...) of the variance stage
+    (the standard deviation reads its root);
     `stats` maps ``(x, y, fold)`` to its column (``l0``, ...) of the target
     statistics stage.
     """
@@ -873,11 +874,11 @@ class _Staged:
         one).
         """
         whole = text[marker.start : marker.end]
-        if marker.kind == STD and len(marker.args) == 1:
-            return self._std(stage, whole, marker.args[0], nested=nested)
+        if marker.kind in (STD, VAR) and len(marker.args) == 1:
+            return self._std(stage, whole, marker, nested=nested)
         for arg in marker.args:
             inner = _markers(arg)
-            if any(m.kind == STD for m in inner):
+            if any(m.kind in (STD, VAR) for m in inner):
                 raise _refuse(
                     stage,
                     whole,
@@ -923,20 +924,22 @@ class _Staged:
             "build quantiles and modes with sq.agg, such as sq.agg.median(x).",
         )
 
-    def _std(self, stage: Stage, whole: str, values: str, *, nested: bool) -> str:
-        """Return the expression standing for the standard deviation of `values`.
+    def _std(self, stage: Stage, whole: str, marker: _Marker, *, nested: bool) -> str:
+        """Return the expression standing for the std or variance in `marker`.
 
         The staged markers inside `values` (``std(x - median(x))``) are
         replaced by plain columns of their one-row stages, which the
         standard deviation's passes cross-join: those stages read the
         stage's input, as the passes do, and come before them. A standard
-        deviation inside another is refused: both are computed in the same
-        two passes, so one cannot read the other.
+        deviation or variance inside another is refused: both are computed
+        in the same two passes, so one cannot read the other. A variance is
+        the stage's column; a standard deviation its square root.
         """
+        values = marker.args[0]
         pieces: list[str] = []
         last = 0
         for inner in _markers(values):
-            if inner.kind == STD:
+            if inner.kind in (STD, VAR):
                 raise _refuse(
                     stage,
                     whole,
@@ -954,7 +957,8 @@ class _Staged:
         pieces.append(values[last:])
         _refuse_plain_aggregate(stage, whole, "".join(pieces))
         index = self.stds.setdefault("".join(pieces), len(self.stds))
-        return _read(f"{quote(self.name + '_std')}.{quote(f's{index}')}", nested)
+        column = _read(f"{quote(self.name + '_std')}.{quote(f'v{index}')}", nested)
+        return f"sqrt({column})" if marker.kind == STD else column
 
 
 def _ranks(n: str, q: str, m: str) -> tuple[str, str, str]:
@@ -1127,15 +1131,16 @@ def _mode_ctes(table: str, modes: dict[str, int], previous: str) -> list[str]:
 def _std_ctes(
     name: str, stds: dict[str, int], previous: str, rows: list[str]
 ) -> list[str]:
-    """Return the two stages computing a learn stage's standard deviations.
+    """Return the two stages computing a learn stage's variances.
 
-    The population standard deviation in two passes over the previous stage
-    (issue #28): one stage of every column's mean, compensated (``favg``, as
-    ``sq.agg.mean``), then one row of ``sqrt(favg((x - mean) ^ 2))`` per
-    column, over the rows cross-joined with that one row of means. Each
-    pass is one streaming aggregate, so nothing waits in memory but a few
-    numbers per column. Every value the same (or one value) gives exactly 0,
-    by ``min = max``: the rounded mean may differ from the value itself
+    The population variance in two passes over the previous stage (issues
+    #28, #42; a standard deviation is the root of its column): one stage of
+    every column's mean, compensated (``favg``, as ``sq.agg.mean``), then one
+    row of ``favg((x - mean) ^ 2)`` per column, over the rows cross-joined
+    with that one row of means. Each pass is one streaming aggregate, so
+    nothing waits in memory but a few numbers per column.
+    Every value the same (or one value) gives exactly 0, by ``min = max``:
+    the rounded mean may differ from the value itself
     (100,000 copies of 1/3), and Scale's zero-spread rule needs 0 there. NULL
     when there is no value; NaN, as the mean, beside an infinity, and NaN
     where the sum overflows: on ``[1e300, -1e300, 1e300]`` ``favg``
@@ -1152,8 +1157,8 @@ def _std_ctes(
     averages = ", ".join(f"favg({xs[i]}) AS {mus[i]}" for i in stds.values())
     spreads = ", ".join(
         f"CASE WHEN min({xs[i]}) = max({xs[i]}) AND isfinite(min({xs[i]})) "
-        f"THEN 0.0 ELSE sqrt(favg(({xs[i]} - {mus[i]}) ^ 2)) END "
-        f"AS {quote(f's{i}')}"
+        f"THEN 0.0 ELSE favg(({xs[i]} - {mus[i]}) ^ 2) END "
+        f"AS {quote(f'v{i}')}"
         for i in stds.values()
     )
     return [

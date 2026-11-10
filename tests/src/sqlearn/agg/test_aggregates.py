@@ -436,6 +436,61 @@ def test_std_of_a_constant_column_is_exactly_zero(value, n):
     assert got["learn"].v_["a"] == 0.0
 
 
+def test_var_is_the_two_pass_population_variance():
+    """The validation's 100,000 values near 1,000: within 2 ULPs of the exact one.
+
+    DuckDB's one-pass ``var_pop`` was 20 ULPs from it here (issue #42); the
+    learn statement holds the variance marker's stages, not ``var_pop``.
+    """
+    (large,) = (d for d in _cases.numbers() if d.name == "large")
+    values = _cases.present(large.values)
+    exact = _cases.nearest(_cases.exact_variance(values))
+    data = pd.DataFrame({"a": values})
+    pipe = sq.Pipeline([("learn", Learn(value=sq.agg.var))]).learn(data)
+    assert _cases.ulps(pipe["learn"].v_["a"], exact) <= 2
+    con = duckdb.connect()
+    con.sql("CREATE TABLE t AS SELECT * FROM (VALUES (1.0), (2.0), (6.0)) v(a)")
+    stage = step_stage(1, "v", Learn(value=sq.agg.var), [("a", DOUBLE)], SOURCE)
+    _, _, run = execute(con, "t", [stage], produce=False)
+    assert "var_pop" not in run.statements[0]
+    assert "_std_means" in run.statements[0]
+
+
+@pytest.mark.parametrize("n", [100_000, 1])
+def test_var_of_a_constant_column_is_exactly_zero(n):
+    """Every value 1/3, or one value: exactly 0, whatever the mean rounds to."""
+    data = pd.DataFrame({"a": [1 / 3] * n + [None, NAN]})
+    got = sq.Pipeline([("learn", Learn(value=sq.agg.var))]).learn(data)
+    assert got["learn"].v_["a"] == 0.0
+
+
+def test_var_and_std_of_one_column_share_their_passes():
+    """One pair of passes holds both: the std is exactly the root of the var."""
+
+    class Both(sq.Step):
+        def learn(self, x):
+            return {"var": sq.agg.var(x), "std": sq.agg.std(x)}
+
+        def apply(self, x, learned):
+            return x
+
+    con = duckdb.connect()
+    con.sql("CREATE TABLE t AS SELECT * FROM (VALUES (1.0), (2.0), (6.5)) v(a)")
+    stage = step_stage(1, "both", Both(), [("a", DOUBLE)], SOURCE)
+    values, _, run = execute(con, "t", [stage], produce=False)
+    got = values["s01_both"]
+    assert got["std"]["a"] == math.sqrt(got["var"]["a"])  # ty: ignore[invalid-argument-type]
+    assert "var_pop" not in run.statements[0]
+    assert run.statements[0].count("_std_means") == 2  # its definition, one use
+
+
+def test_var_of_an_expression_holding_a_plain_aggregate_is_refused():
+    """``var(x - mean(x))`` is refused as ``std`` of it is (issue #44)."""
+    step = Learn(value=lambda x: sq.agg.var(x - sq.agg.mean(x)))
+    with pytest.raises(SqlearnError, match="plain"):
+        sq.Pipeline([("learn", step)]).learn(pd.DataFrame({"a": [1.0, 2.0]}))
+
+
 def test_std_is_two_passes_and_may_sit_anywhere_in_a_learned_value():
     """Inside another aggregate, beside a median, in an expression: numpy's values.
 

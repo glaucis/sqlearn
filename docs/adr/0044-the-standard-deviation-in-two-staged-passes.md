@@ -65,8 +65,9 @@ it cannot be one aggregate in the learn stage's row.
 - An overflowing sum gives NaN, not infinity: on `[1e300, -1e300, 1e300]`
   `favg` overflows to NaN, where `stddev_pop` gave infinity. Infinity in the
   data is refused by the steps anyway ([ADR 0030](0030-infinity-is-refused.md)).
-- `sq.agg.var` is still DuckDB's `var_pop` (20 ULPs on the large set), and
-  Scale's zero-spread rule judges the standard deviation by it.
+- `sq.agg.var` was still DuckDB's `var_pop` (20 ULPs on the large set), and
+  Scale's zero-spread rule judges the standard deviation by it (amended by
+  #42, below).
 - Sums stay order-dependent across threads (ADR 0043); two passes improve
   accuracy, not byte-for-byte repeats.
 
@@ -79,3 +80,13 @@ aggregate cannot sit inside a staged one: the stage reads its argument per
 row, where one value of a whole column has no row. The spread of `x - mean(x)`
 is the spread of `x`; staging arbitrary aggregates would cost compositor code
 nobody needs.
+
+## Amended by #42
+
+`sq.agg.var` is learned in the same two passes: the second stage holds the
+variance per expression (`favg((x - mean) ^ 2)`, exactly 0 where `min = max`),
+and a standard deviation is the square root of that column, so `var(x)` and
+`std(x)` share one pair of passes. The standard deviation's learned values do
+not change: the root is taken after the stage rather than inside it, the same
+double. Scale's zero-spread rule reads the variance and so reads the
+compensated one; a constant column still gives exactly 0.
