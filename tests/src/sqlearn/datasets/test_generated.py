@@ -612,18 +612,33 @@ def test_a_pipeline_learns_ten_million_rows_under_64_mb():
 
 
 def test_ordered_rows_come_in_row_order_with_insertion_order_off():
-    """ordered=True gives the rows of the row order, whatever DuckDB keeps."""
+    """ordered=True gives the rows of the row order, whatever DuckDB keeps.
+
+    On DuckDB 2.0 no input was found that reorders the default relation with
+    the setting off (200,000 to 6 million rows, 8 threads, a filter, Arrow):
+    ``range()`` is read on one thread. So the equality below is a guard, not
+    proof; the plan assertion carries the proof that the ordered relation
+    sorts by the row number even with the setting off.
+    """
     con = connection()
-    for make in GENERATORS:
-        expected = make(rows=200_000, seed=0).fetchall()
-        before = con.sql("SELECT current_setting('preserve_insertion_order')")
-        previous = before.fetchall()[0][0]
-        con.execute("SET preserve_insertion_order = false")
-        try:
-            got = make(rows=200_000, seed=0, ordered=True).fetchall()
-        finally:
+    setting = con.sql("SELECT current_setting('preserve_insertion_order')")
+    previous = setting.fetchall()[0][0]
+    threads = con.sql("SELECT current_setting('threads')").fetchall()[0][0]
+    try:
+        for make in GENERATORS:
+            expected = make(rows=200_000, seed=0).fetchall()
+            con.execute("SET preserve_insertion_order = false")
+            con.execute("SET threads = 8")
+            ordered = make(rows=200_000, seed=0, ordered=True)
+            plan = ordered.explain().lower()
+            got = ordered.fetchall()
+            assert "order by" in plan, make.__name__
+            assert got == expected, make.__name__
             con.execute(f"SET preserve_insertion_order = {str(previous).lower()}")
-        assert got == expected, make.__name__
+            con.execute(f"SET threads = {threads}")
+    finally:
+        con.execute(f"SET preserve_insertion_order = {str(previous).lower()}")
+        con.execute(f"SET threads = {threads}")
 
 
 def test_the_default_is_lazy_and_ordered_is_not():
