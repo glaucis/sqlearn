@@ -1,4 +1,4 @@
-"""Tests of the generators written in SQL: blobs and regression."""
+"""Tests of the generators written in SQL: blobs, regression, classification."""
 
 import threading
 
@@ -8,6 +8,8 @@ import pytest
 import sqlearn as sq
 from sqlearn._config import connection
 from sqlearn.errors import SqlearnError
+
+GENERATORS = [sq.datasets.blobs, sq.datasets.regression, sq.datasets.classification]
 
 
 def _refused(make, **settings) -> str:
@@ -101,21 +103,21 @@ def test_regression_noise_spreads_the_target_round_the_model():
     assert np.std(data["target"] - x @ coef) == pytest.approx(2.0, abs=0.1)
 
 
-@pytest.mark.parametrize("make", [sq.datasets.blobs, sq.datasets.regression])
+@pytest.mark.parametrize("make", GENERATORS)
 def test_one_row_is_given_and_zero_rows_are_refused(make):
     """rows=1 gives one row; rows=0 is refused, as scikit-learn refuses it."""
     assert make(rows=1).count("*").fetchall()[0][0] == 1
     assert "rows=0" in _refused(make, rows=0)
 
 
-@pytest.mark.parametrize("make", [sq.datasets.blobs, sq.datasets.regression])
+@pytest.mark.parametrize("make", GENERATORS)
 @pytest.mark.parametrize("rows", [-5, 2.5, "100", True, None])
 def test_rows_that_are_not_a_positive_whole_number_are_refused(make, rows):
     """rows must be an int of at least 1; a bool is not one."""
     assert f"rows={rows!r}" in _refused(make, rows=rows)
 
 
-@pytest.mark.parametrize("make", [sq.datasets.blobs, sq.datasets.regression])
+@pytest.mark.parametrize("make", GENERATORS)
 @pytest.mark.parametrize("seed", [1.5, "0", True, None])
 def test_a_seed_that_is_not_an_int_is_refused(make, seed):
     """The seed is an int; a float, text, a bool or None is refused."""
@@ -197,12 +199,164 @@ def test_bad_regression_settings_are_refused(settings):
     assert name in _refused(sq.datasets.regression, **settings)
 
 
-def test_a_slice_equals_the_whole():
-    """The first 1,000 rows of 1,000,000 equal a relation of 1,000 rows."""
-    whole = sq.datasets.blobs(rows=1_000_000, n_features=3, seed=9)
-    assert whole.limit(1_000).fetchall() == (
-        sq.datasets.blobs(rows=1_000, n_features=3, seed=9).fetchall()
+def test_classification_gives_its_columns_in_order():
+    """x0 to x19 (DOUBLE), then a BIGINT target holding the classes 0 to 2."""
+    rel = sq.datasets.classification(rows=2_000, n_classes=3, n_informative=3, seed=1)
+    assert rel.columns == [f"x{j}" for j in range(20)] + ["target"]
+    assert [str(t) for t in rel.types] == ["DOUBLE"] * 20 + ["BIGINT"]
+    assert rel.count("*").fetchall()[0][0] == 2_000
+    targets = {r[0] for r in rel.project("target").distinct().fetchall()}
+    assert targets == {0, 1, 2}
+
+
+def test_classification_classes_follow_their_weights():
+    """With flip_y=0, each class's share of the rows is its weight."""
+    rel = sq.datasets.classification(
+        rows=100_000, weights=[0.8, 0.2], flip_y=0.0, seed=2
     )
+    counts = dict(rel.aggregate("target, count(*)").fetchall())
+    # A share's standard error is sqrt(0.8 * 0.2 / 100,000) = 0.0013: 0.01 is 8.
+    assert counts[0] / 100_000 == pytest.approx(0.8, abs=0.01)
+    assert counts[1] / 100_000 == pytest.approx(0.2, abs=0.01)
+
+
+def test_classification_takes_one_weight_fewer_than_classes():
+    """With n_classes - 1 weights, the last class takes what they leave."""
+    rel = sq.datasets.classification(
+        rows=100_000,
+        n_classes=3,
+        n_informative=3,
+        weights=[0.5, 0.1],
+        flip_y=0.0,
+        seed=3,
+    )
+    counts = dict(rel.aggregate("target, count(*)").fetchall())
+    assert counts[2] / 100_000 == pytest.approx(0.4, abs=0.01)
+
+
+def test_classification_weights_below_one_in_all_are_proportions():
+    """n_classes weights summing below 1 give the classes in their proportion."""
+    rel = sq.datasets.classification(
+        rows=100_000, weights=[0.3, 0.1], flip_y=0.0, seed=3
+    )
+    counts = dict(rel.aggregate("target, count(*)").fetchall())
+    assert counts[0] / 100_000 == pytest.approx(0.75, abs=0.01)
+
+
+def test_redundant_features_are_combinations_of_the_informative_ones():
+    """Least squares on the informative features gives each redundant one."""
+    n_informative, n_redundant = 3, 4
+    data = sq.datasets.classification(
+        rows=2_000,
+        n_features=9,
+        n_informative=n_informative,
+        n_redundant=n_redundant,
+        seed=4,
+    ).fetchnumpy()
+    x = np.column_stack([data[f"x{j}"] for j in range(n_informative)])
+    for j in range(n_informative, n_informative + n_redundant):
+        coef, *_ = np.linalg.lstsq(x, data[f"x{j}"], rcond=None)
+        assert np.max(np.abs(x @ coef - data[f"x{j}"])) < 1e-9
+        assert np.all(np.abs(coef) <= 1)
+    # The noise features are not such combinations.
+    coef, *_ = np.linalg.lstsq(x, data["x8"], rcond=None)
+    assert np.max(np.abs(x @ coef - data["x8"])) > 1
+
+
+def test_informative_features_sit_round_hypercube_vertices():
+    """Each cluster's mean lies at a distinct vertex, every coordinate ±class_sep."""
+    data = sq.datasets.classification(
+        rows=20_000,
+        n_features=3,
+        n_informative=3,
+        n_redundant=0,
+        n_classes=4,
+        n_clusters_per_class=2,
+        flip_y=0.0,
+        class_sep=5.0,
+        seed=5,
+    ).fetchnumpy()
+    x = np.column_stack([data["x0"], data["x1"], data["x2"]])
+    # A cluster's spread is below 3 per coordinate (each a sum of three
+    # products of a standard normal and a number in [-1, 1)), so rounding each
+    # coordinate to ±5 finds the vertex of almost every row.
+    vertices = {tuple(v) for v in np.where(x > 0, 5.0, -5.0)}
+    assert len(vertices) == 8
+
+
+def test_flip_y_flips_that_share():
+    """flip_y=0.5 redraws half the labels; half of those land on the other class."""
+    kept, flipped = (
+        sq.datasets.classification(
+            rows=100_000, n_features=4, flip_y=flip_y, seed=6
+        ).fetchnumpy()
+        for flip_y in (0.0, 0.5)
+    )
+    for j in range(4):
+        assert np.array_equal(kept[f"x{j}"], flipped[f"x{j}"])
+    differ = np.mean(kept["target"] != flipped["target"])
+    # The standard error is sqrt(0.25 * 0.75 / 100,000) = 0.0014: 0.01 is 7.
+    assert differ == pytest.approx(0.25, abs=0.01)
+
+
+def test_classification_with_one_class_gives_class_zero():
+    """n_classes=1 is taken, as scikit-learn takes it: every target is 0."""
+    rel = sq.datasets.classification(rows=50, n_classes=1, flip_y=0.5)
+    assert rel.project("target").distinct().fetchall() == [(0,)]
+
+
+@pytest.mark.parametrize(
+    "settings",
+    [
+        {"n_features": 0},
+        {"n_informative": 0},
+        {"n_informative": 2.0},
+        {"n_redundant": -1},
+        {"n_features": 3, "n_informative": 2, "n_redundant": 2},
+        {"n_features": 5, "n_informative": 6, "n_redundant": 0},
+        {"n_classes": 0},
+        {"n_clusters_per_class": 0},
+        {"n_classes": 3, "n_clusters_per_class": 2, "n_informative": 2},
+        {"n_classes": 3, "n_informative": 3, "weights": [0.5, 0.2, 0.2, 0.1]},
+        {"n_classes": 3, "n_informative": 3, "weights": [1.0]},
+        {"weights": [0.7, 0.4]},
+        {"n_classes": 3, "n_informative": 3, "weights": [0.7, 0.4]},
+        {"weights": [0.5, -0.1]},
+        {"weights": [0.0, 0.0]},
+        {"weights": [0.5, float("nan")]},
+        {"weights": [0.5, "a"]},
+        {"weights": 0.5},
+        {"flip_y": -0.1},
+        {"flip_y": 1.5},
+        {"flip_y": "0.1"},
+        {"class_sep": 0.0},
+        {"class_sep": -1.0},
+        {"class_sep": float("inf")},
+    ],
+    ids=repr,
+)
+def test_bad_classification_settings_are_refused(settings):
+    """Each bad classification setting is refused in the house form, naming it."""
+    name = list(settings)[-1]
+    assert name in _refused(sq.datasets.classification, **settings)
+
+
+def test_classification_takes_numpy_weights():
+    """Weights may be a numpy array, as a list may."""
+    with_array = sq.datasets.classification(
+        rows=50,
+        weights=np.array([0.3, 0.7]),  # ty: ignore[invalid-argument-type]
+        seed=7,
+    )
+    with_list = sq.datasets.classification(rows=50, weights=[0.3, 0.7], seed=7)
+    assert with_array.fetchall() == with_list.fetchall()
+
+
+@pytest.mark.parametrize("make", GENERATORS)
+def test_a_slice_equals_the_whole(make):
+    """The first 1,000 rows of 1,000,000 equal a relation of 1,000 rows."""
+    whole = make(rows=1_000_000, seed=9)
+    assert whole.limit(1_000).fetchall() == (make(rows=1_000, seed=9).fetchall())
 
 
 def test_the_same_seed_gives_the_same_rows_on_any_thread_count():

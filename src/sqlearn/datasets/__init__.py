@@ -11,6 +11,6 @@ Examples
 """
 
 from sqlearn.datasets.bundled import breast_cancer, iris, wine
-from sqlearn.datasets.generated import blobs, regression
+from sqlearn.datasets.generated import blobs, classification, regression
 
-__all__ = ["blobs", "breast_cancer", "iris", "regression", "wine"]
+__all__ = ["blobs", "breast_cancer", "classification", "iris", "regression", "wine"]

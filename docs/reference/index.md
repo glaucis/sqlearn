@@ -86,6 +86,7 @@ The API of the sqlearn package, generated from its docstrings.
    sqlearn.datasets.breast_cancer
    sqlearn.datasets.blobs
    sqlearn.datasets.regression
+   sqlearn.datasets.classification
    sqlearn.Model
    sqlearn.Output
    sqlearn.out.parquet

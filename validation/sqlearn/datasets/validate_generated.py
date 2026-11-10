@@ -2,7 +2,7 @@
 
 A generator's values are sqlearn's own, never scikit-learn's numbers (ADR
 0045), so the canonical value of each case is the promised distribution's:
-a mean, a variance, a quantile, a centre, a spread. A sample of 1,000,000
+a mean, a variance, a quantile, a centre, a spread, a class share. A sample of 1,000,000
 rows from one fixed seed misses it by sampling error, so each bound is five
 standard errors of the measured statistic: a correct generator passes but for
 a chance of about one in 1.7 million per case, and a wrong distribution (a
@@ -35,6 +35,8 @@ CENTRES = ((0.0, 0.0), (5.0, 5.0), (-5.0, 5.0))
 SPREADS = (0.5, 1.0, 2.0)
 NOISE = 3.0
 BIAS = 2.0
+WEIGHTS = (0.6, 0.3, 0.1)
+FLIP = 0.2
 
 # The target without noise is a sum of 5 products of size about 100 * 4 and
 # a bias: rounding leaves it within a few 1e-13, and least squares in numpy
@@ -234,6 +236,55 @@ def _regression_cases() -> list[dict]:
     return out
 
 
+def _classification_cases() -> list[dict]:
+    """Classification's class shares follow `weights`; flip_y redraws its share.
+
+    The same seed with and without flips gives the same rows but for the
+    redrawn labels; a redrawn label lands on another class with probability
+    ``(n_classes - 1) / n_classes``, so the labels differ in that share of
+    ``flip_y``.
+    """
+    settings = {
+        "rows": ROWS,
+        "n_features": 5,
+        "n_informative": 3,
+        "n_redundant": 1,
+        "n_classes": len(WEIGHTS),
+        "weights": list(WEIGHTS),
+        "seed": SEED,
+    }
+    kept = sq.datasets.classification(**settings, flip_y=0.0)
+    kept = kept.project("target").fetchnumpy()["target"]
+    flipped = sq.datasets.classification(**settings, flip_y=FLIP)
+    flipped = flipped.project("target").fetchnumpy()["target"]
+    out = []
+    for c, weight in enumerate(WEIGHTS):
+        out.append(
+            _case(
+                step="datasets.classification",
+                formula=f"share of class {c}, flip_y=0",
+                rows=ROWS,
+                value=float(np.mean(kept == c)),
+                canonical=weight,
+                bound=SIGMAS * math.sqrt(weight * (1 - weight) / ROWS),
+                note="each row picks its cluster by weight; sqrt(p(1 - p) / n)",
+            )
+        )
+    changed = FLIP * (len(WEIGHTS) - 1) / len(WEIGHTS)
+    out.append(
+        _case(
+            step="datasets.classification",
+            formula=f"share of labels changed by flip_y={FLIP}",
+            rows=ROWS,
+            value=float(np.mean(kept != flipped)),
+            canonical=changed,
+            bound=SIGMAS * math.sqrt(changed * (1 - changed) / ROWS),
+            note="flip_y * (n_classes - 1) / n_classes; sqrt(p(1 - p) / n)",
+        )
+    )
+    return out
+
+
 def _repeat_cases() -> list[dict]:
     """The same seed gives the same rows on 1 and 8 threads, and in a slice."""
     con = connection()
@@ -270,5 +321,11 @@ def _repeat_cases() -> list[dict]:
 
 
 def cases() -> list[dict]:
-    """Return the generators' cases: random values, blobs, regression, repeats."""
-    return _random_cases() + _blobs_cases() + _regression_cases() + _repeat_cases()
+    """Return the generators' cases: random values, the generators, repeats."""
+    return (
+        _random_cases()
+        + _blobs_cases()
+        + _regression_cases()
+        + _classification_cases()
+        + _repeat_cases()
+    )

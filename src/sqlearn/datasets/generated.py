@@ -3,21 +3,37 @@
 Each function returns a relation over ``range(rows)``: creating it reads and
 writes nothing, and each use computes the same rows again (ADR 0045). Every
 random value is a pure function of ``(seed, row, stream)``; Python draws only
-a handful of constants (centres, coefficients) at rows from ``CONSTANT_ROW``.
+a handful of constants (centres, coefficients, matrices) at rows from
+``CONSTANT_ROW``.
 
 The streams of each function, so that no two values of one row share one
 (a normal of stream ``n`` draws on uniform streams ``2n`` and ``2n + 1``):
 
-==============  =========================  ==================================
-Function        Row values                 Constants (row, stream)
-==============  =========================  ==================================
-``blobs``       centre: uniform stream 0;  centre ``c``'s feature ``j``:
-                ``x{j}``'s noise: normal   uniform at row
-                stream ``j + 1``           ``CONSTANT_ROW + c``, stream ``j``
-``regression``  ``x{j}``: normal stream    coefficient ``j``: uniform at row
-                ``j``; the noise: normal   ``CONSTANT_ROW``, stream ``j``
-                stream ``n_features``
-==============  =========================  ==================================
+======================  =========================  ==========================
+Function                Row values                 Constants (row, stream)
+======================  =========================  ==========================
+``blobs``               centre: uniform stream     centre ``c``'s feature
+                        0; ``x{j}``'s noise:       ``j``: uniform at row
+                        normal stream ``j + 1``    ``CONSTANT_ROW + c``,
+                                                   stream ``j``
+``regression``          ``x{j}``: normal stream    coefficient ``j``: uniform
+                        ``j``; the noise: normal   at row ``CONSTANT_ROW``,
+                        stream ``n_features``      stream ``j``
+``classification``      informative ``i``:         cluster ``k``'s matrix
+                        normal stream ``i``;       entry ``(i, j)``: uniform
+                        noise feature ``m``:       at row ``CONSTANT_ROW +
+                        normal stream              k``, stream ``i * d + j``;
+                        ``d + m``; with ``N``      the vertices: Floyd's step
+                        normals in all, the        ``s`` keys at row
+                        cluster: uniform stream    ``CONSTANT_ROW + s``,
+                        ``2N``, the flip: uniform  streams from ``2**63``;
+                        ``2N + 1``, the new        redundant ``r``'s weight
+                        label: uniform ``2N + 2``  of ``i``: uniform at row
+                                                   ``2**64 - 1``, stream
+                                                   ``i * n_redundant + r``
+======================  =========================  ==========================
+
+In ``classification``, ``d`` is ``n_informative``.
 """
 
 import math
@@ -28,9 +44,9 @@ import duckdb
 
 from sqlearn._config import connection
 from sqlearn._errors import SqlearnError
-from sqlearn.datasets._random import CONSTANT_ROW, random_columns, uniform
+from sqlearn.datasets._random import CONSTANT_ROW, MASK, key, random_columns, uniform
 
-__all__ = ["blobs", "regression"]
+__all__ = ["blobs", "classification", "regression"]
 
 
 def _whole(value: object) -> int | None:
@@ -405,4 +421,307 @@ def regression(
     features = ", ".join(f"x{j}" for j in range(n_features))
     return _relation(
         f"SELECT {features}, {' + '.join(terms)} AS target FROM ({source})"
+    )
+
+
+def _below(seed: int, row: int, bound: int) -> int:
+    """Return a whole number uniform in ``[0, bound)``, drawn at `row`.
+
+    Enough keys (streams from ``2**63``) are joined for 64 bits beyond
+    `bound`'s, and the product with `bound` is shifted down: the bias is below
+    ``2**-64``, for a bound of any size.
+    """
+    words = (bound.bit_length() + 63) // 64 + 1
+    joined = 0
+    for t in range(words):
+        joined = (joined << 64) | key(seed, row, 2**63 + t)
+    return (joined * bound) >> (64 * words)
+
+
+def _vertices(count: int, dimensions: int, seed: int) -> list[int]:
+    """Return `count` distinct vertices of the `dimensions`-cube, as bit masks.
+
+    Floyd's sampling without replacement from ``2**dimensions``: one draw per
+    vertex, at row ``CONSTANT_ROW + step``, however many dimensions there are.
+    """
+    size = 2**dimensions
+    chosen: list[int] = []
+    seen: set[int] = set()
+    for step, top in enumerate(range(size - count, size)):
+        drawn = _below(seed, CONSTANT_ROW + step, top + 1)
+        pick = top if drawn in seen else drawn
+        seen.add(pick)
+        chosen.append(pick)
+    return chosen
+
+
+def _class_weights(weights: object, n_classes: int) -> list[float]:
+    """Return each class's share, summing to 1, from `weights` as given.
+
+    None gives equal shares. ``n_classes - 1`` weights leave the last class
+    the rest of 1; ``n_classes`` weights summing below 1 are taken as
+    proportions.
+    """
+    if weights is None:
+        return [1.0 / n_classes] * n_classes
+    given = _as_list(weights)
+    numbers = [_finite(w) for w in given or []]
+    shares = [w for w in numbers if w is not None and w >= 0]
+    if given is None or len(shares) != len(numbers):
+        msg = (
+            f"sq.datasets.classification got weights={weights!r}. Why: weights "
+            "is a list of finite numbers of at least 0, one per class. Fix: "
+            "pass weights=[0.9, 0.1], say, or None for equal classes."
+        )
+        raise SqlearnError(msg)
+    if len(shares) not in (n_classes, n_classes - 1):
+        msg = (
+            f"sq.datasets.classification got {len(shares)} weights for "
+            f"n_classes={n_classes}. Why: weights has one per class, or one "
+            "fewer and the last class takes the rest of 1. Fix: pass "
+            f"{n_classes} or {n_classes - 1} weights."
+        )
+        raise SqlearnError(msg)
+    total = math.fsum(shares)
+    # Decimal weights summing to 1 can round a little above it.
+    if total > 1 + 1e-9:
+        msg = (
+            f"sq.datasets.classification got weights={weights!r}, summing to "
+            f"{total!r}. Why: weights are the classes' shares of the rows, so "
+            "they sum to at most 1. Fix: pass weights summing to 1."
+        )
+        raise SqlearnError(msg)
+    if len(shares) == n_classes - 1:
+        shares.append(max(0.0, 1.0 - total))
+        total = math.fsum(shares)
+    if total <= 0:
+        msg = (
+            f"sq.datasets.classification got weights={weights!r}. Why: no "
+            "class has a share of the rows when every weight is 0. Fix: give "
+            "some class a weight above 0."
+        )
+        raise SqlearnError(msg)
+    return [w / total for w in shares]
+
+
+def _check_classes(
+    n_features: object,
+    n_informative: object,
+    n_redundant: object,
+    n_classes: object,
+    n_clusters_per_class: object,
+) -> tuple[int, int, int, int, int]:
+    """Return classification's counts, refusing those that do not fit."""
+    n_features = _check_count("classification", "n_features", n_features, 1)
+    n_informative = _check_count("classification", "n_informative", n_informative, 1)
+    n_redundant = _check_count("classification", "n_redundant", n_redundant, 0)
+    n_classes = _check_count("classification", "n_classes", n_classes, 1)
+    n_clusters_per_class = _check_count(
+        "classification", "n_clusters_per_class", n_clusters_per_class, 1
+    )
+    if n_informative + n_redundant > n_features:
+        msg = (
+            f"sq.datasets.classification got n_informative={n_informative} "
+            f"and n_redundant={n_redundant} with n_features={n_features}. "
+            "Why: the informative and redundant features are some of the "
+            "features. Fix: pass n_informative + n_redundant at most n_features."
+        )
+        raise SqlearnError(msg)
+    clusters = n_classes * n_clusters_per_class
+    if (clusters - 1) >> n_informative:
+        msg = (
+            f"sq.datasets.classification got n_classes={n_classes} and "
+            f"n_clusters_per_class={n_clusters_per_class} with "
+            f"n_informative={n_informative}. Why: each of the {clusters} "
+            "clusters sits at its own vertex of the informative features' "
+            "hypercube, which has 2**n_informative. Fix: raise n_informative "
+            "or lower n_classes or n_clusters_per_class."
+        )
+        raise SqlearnError(msg)
+    return n_features, n_informative, n_redundant, n_classes, n_clusters_per_class
+
+
+def _check_share(name: str, value: object) -> float:
+    """Return `value` as a float, refusing all but a number in ``[0, 1]``."""
+    share = _check_number("classification", name, value, least=0.0)
+    if share > 1:
+        msg = (
+            f"sq.datasets.classification got {name}={value!r}. Why: {name} is "
+            "a share of the rows, from 0 to 1. Fix: pass a number from 0 to 1."
+        )
+        raise SqlearnError(msg)
+    return share
+
+
+def _check_positive(name: str, value: object) -> float:
+    """Return `value` as a float, refusing all but a finite number above 0."""
+    number = _check_number("classification", name, value, least=-math.inf)
+    if number <= 0:
+        msg = (
+            f"sq.datasets.classification got {name}={value!r}. Why: {name} is "
+            "above 0. Fix: pass 1.0, say."
+        )
+        raise SqlearnError(msg)
+    return number
+
+
+def _picked_cluster(shares: list[float]) -> str:
+    """Return the SQL of a row's cluster: uniform ``_u`` against the shares.
+
+    A cluster of share 0 is never picked; the last one with a share takes
+    the uniforms past the others, so rounding never drops a row.
+    """
+    held = [k for k, share in enumerate(shares) if share > 0]
+    if len(held) == 1:
+        return f"{held[0]}::BIGINT"
+    branches = []
+    running = 0.0
+    for k in held[:-1]:
+        running += shares[k]
+        branches.append(f"WHEN _u < {_double(running)} THEN {k}")
+    return f"(CASE {' '.join(branches)} ELSE {held[-1]} END)::BIGINT"
+
+
+def _by_cluster(values: list[float]) -> str:
+    """Return the SQL of the value of the row's cluster ``_k`` in `values`."""
+    return f"[{', '.join(_double(v) for v in values)}][_k + 1]"
+
+
+def classification(
+    rows: int = 100,
+    n_features: int = 20,
+    n_informative: int = 2,
+    n_redundant: int = 2,
+    n_classes: int = 2,
+    n_clusters_per_class: int = 2,
+    weights: Sequence[float] | None = None,
+    flip_y: float = 0.01,
+    class_sep: float = 1.0,
+    seed: int = 0,
+) -> duckdb.DuckDBPyRelation:
+    """Return a random n-class classification problem, as ``make_classification``.
+
+    Each class has `n_clusters_per_class` clusters, each at its own vertex of
+    a hypercube of side ``2 * class_sep`` in the informative features. Each
+    row picks its cluster by the class weights (a class's weight shared
+    equally by its clusters), so the counts follow the weights only in
+    expectation (scikit-learn deals them). Its informative features are
+    standard normal times the cluster's random matrix (entries uniform in
+    ``[-1, 1)``) plus its vertex; the redundant features are random
+    combinations of the informative ones (weights uniform in ``[-1, 1)``),
+    the rest standard normal noise. With probability `flip_y` the label is
+    replaced by a class drawn uniformly. Without scikit-learn's
+    ``n_repeated``, ``hypercube=False``, ``shift``, ``scale`` and
+    ``shuffle``. The rows are built in SQL on use, the same ones for the
+    same seed.
+
+    Parameters
+    ----------
+    rows : int, default 100
+        The number of rows, at least 1.
+    n_features : int, default 20
+        The number of features, at least ``n_informative + n_redundant``.
+    n_informative : int, default 2
+        The number of informative features, at least 1; the hypercube has
+        ``2**n_informative`` vertices, at least one per cluster.
+    n_redundant : int, default 2
+        The number of features that are combinations of the informative
+        ones, at least 0.
+    n_classes : int, default 2
+        The number of classes, at least 1.
+    n_clusters_per_class : int, default 2
+        The number of clusters of each class, at least 1.
+    weights : sequence of float, optional
+        Each class's share of the rows, at least 0 each and at most 1 in
+        all; or one fewer than `n_classes`, the last class taking the rest of
+        1. Weights summing below 1 are taken as proportions. None gives equal
+        classes.
+    flip_y : float, default 0.01
+        The share of rows whose label is redrawn uniformly from the classes,
+        from 0 to 1 (a redrawn label may land on its own class).
+    class_sep : float, default 1.0
+        Half the hypercube's side, above 0: larger spreads the clusters
+        apart.
+    seed : int, default 0
+        The seed of every random value; any int.
+
+    Returns
+    -------
+    duckdb.DuckDBPyRelation
+        Columns ``x0``, ``x1``, ... (``DOUBLE``: the informative features,
+        then the redundant, then the noise), then ``target`` (``BIGINT``), the
+        class from 0; on sqlearn's connection.
+
+    Raises
+    ------
+    SqlearnError
+        If a setting is not of the kind above, the informative and redundant
+        features outnumber `n_features`, or the clusters outnumber the
+        hypercube's vertices.
+
+    Examples
+    --------
+    >>> import sqlearn as sq
+    >>> rel = sq.datasets.classification(rows=10, n_features=5, seed=0)
+    >>> rel.columns
+    ['x0', 'x1', 'x2', 'x3', 'x4', 'target']
+    """
+    rows = _check_rows(rows)
+    seed = _check_seed(seed)
+    n_features, n_informative, n_redundant, n_classes, per_class = _check_classes(
+        n_features, n_informative, n_redundant, n_classes, n_clusters_per_class
+    )
+    classes = _class_weights(weights, n_classes)
+    flip_y = _check_share("flip_y", flip_y)
+    class_sep = _check_positive("class_sep", class_sep)
+    d = n_informative
+    clusters = n_classes * per_class
+    shares = [classes[k % n_classes] / per_class for k in range(clusters)]
+    vertices = _vertices(clusters, d, seed)
+    matrices = [
+        [
+            [2.0 * uniform(seed, CONSTANT_ROW + k, i * d + j) - 1.0 for j in range(d)]
+            for i in range(d)
+        ]
+        for k in range(clusters)
+    ]
+    mixing = [
+        [
+            2.0 * uniform(seed, MASK, i * n_redundant + r) - 1.0
+            for r in range(n_redundant)
+        ]
+        for i in range(d)
+    ]
+    n_noise = n_features - d - n_redundant
+    noise = [f"x{d + n_redundant + m}" for m in range(n_noise)]
+    normals = {f"_z{i}": i for i in range(d)} | {
+        name: d + m for m, name in enumerate(noise)
+    }
+    count = len(normals)
+    uniforms = {"_u": 2 * count}
+    if flip_y > 0:
+        uniforms |= {"_flip": 2 * count + 1, "_new": 2 * count + 2}
+    source = random_columns(seed, rows, uniforms, normals)
+    target = f"_k % {n_classes}"
+    if flip_y > 0:
+        redrawn = f"least(floor(_new * {n_classes})::BIGINT, {n_classes - 1})"
+        target = f"CASE WHEN _flip < {_double(flip_y)} THEN {redrawn} ELSE {target} END"
+    informative = []
+    for j in range(d):
+        vertex = [class_sep if (v >> j) & 1 else -class_sep for v in vertices]
+        terms = [_by_cluster(vertex)]
+        terms += [
+            f"_z{i} * {_by_cluster([m[i][j] for m in matrices])}" for i in range(d)
+        ]
+        informative.append(f"{' + '.join(terms)} AS x{j}")
+    redundant = [
+        " + ".join(f"x{i} * {_double(mixing[i][r])}" for i in range(d))
+        + f" AS x{d + r}"
+        for r in range(n_redundant)
+    ]
+    first = ", ".join(informative + noise + [f"({target})::BIGINT AS target"])
+    last = ", ".join([f"x{j}" for j in range(d)] + redundant + noise + ["target"])
+    return _relation(
+        f"SELECT {last} FROM (SELECT {first} FROM "
+        f"(SELECT *, {_picked_cluster(shares)} AS _k FROM ({source})))"
     )
