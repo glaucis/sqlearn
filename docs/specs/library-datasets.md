@@ -21,11 +21,13 @@ memory without a file to download.
 
 This area gives sqlearn data in two ways:
 
-1. **Generators written in SQL.** The data is built inside DuckDB, row by
-   row, from a seed: any number of rows, larger than memory included, no file,
-   no download. The same seed gives the same rows on every thread count:
-   bit for bit on one machine, and on every machine and DuckDB version
-   within rounding (ADR 0043), exactly for the uniforms.
+1. **Generators written in SQL.** The data is built inside DuckDB, row by row,
+   from a seed: any number of rows, larger than memory included, no file, no
+   download. The same seed gives the same rows on every thread count: bit for
+   bit on one machine, and on every machine and DuckDB version within rounding
+   (ADR 0043), exactly for the uniforms. A class derived from a normal by a
+   threshold (`customers`' target) can differ across platforms on the rare row
+   that lies on the threshold, since normals agree only within rounding there.
 2. **Three small classic datasets bundled in the package**, the ones
    scikit-learn's own tutorials start from: iris, wine and breast cancer.
 
@@ -92,12 +94,14 @@ huge relation is the same rows as in the whole.
   bit): cluster centres, regression coefficients, the classification's
   mixing matrices. They are settings of the query, a handful of numbers, never
   data (ADR 0002).
-- **How far the values repeat.** Keys and uniforms are exact integer
-  arithmetic, so they are the same bit for bit on every machine, thread count
-  and DuckDB version. Normals go through `ln`, `cos` and `sqrt`, which libm
-  does not promise to round alike on every platform or build: on one machine
-  they are the same bit for bit (tested, SQL against Python), elsewhere the
-  same within rounding (ADR 0043).
+- **How far the values repeat.** Keys and uniforms are exact integer arithmetic,
+  so they are the same bit for bit on every machine, thread count and DuckDB
+  version. Normals go through `ln`, `cos` and `sqrt`, which libm does not
+  promise to round alike on every platform or build: on one machine they are the
+  same bit for bit (tested, SQL against Python), elsewhere the same within
+  rounding (ADR 0043). A class derived from a normal by a threshold
+  (`customers`' target) can differ across platforms on the rare row that lies on
+  the threshold, since normals agree only within rounding there.
 - The values are sqlearn's own: the same distributions as scikit-learn's,
   never the same numbers (numpy's generator is not reproducible in SQL).
 
@@ -106,7 +110,7 @@ huge relation is the same rows as in the whole.
 Feature columns are `DOUBLE`, named `x0`, `x1`, ...; `target` is `BIGINT` for
 classes, `DOUBLE` for regression. Row `i` runs from 0 to `rows - 1`; the
 rows come in row order while DuckDB's `preserve_insertion_order` is on (its
-default, and sqlearn's pipeline refuses a connection with it off); there is no
+default, and sqlearn's predict refuses a connection with it off); there is no
 `ORDER BY`, which would sort every row and lose the laziness. The row number
 itself is not a column.
 
@@ -184,7 +188,7 @@ itself is not a column.
 - SplitMix64 in SQL equals the Python reference bit for bit.
 - A generated relation of 10**9 rows is created at once and its first rows
   come back at once; a pipeline learns from one of 10**7 rows under a 64 MB
-  memory limit.
+  memory limit on one thread (the exact median's reach, #27).
 - `examples/plot_tuning.py` takes its customers from `sq.datasets.customers`.
 - The validation above passes; ADR 0045 records the contract; `check-mirror`
   asks a validation of every public datasets module.

@@ -4,8 +4,8 @@ The canonical value is scikit-learn's ``as_frame=True`` frame (the files are
 copies of its own data, ADR 0045). Every feature is compared in ULPs and every
 target for equality, over every row in order; the bound is 0, as the files
 hold the same decimal text and DuckDB reads it as the same double. The case
-records the number of values that differ (``ulps``) and the worst distance
-in ULPs over all features.
+records the number of values that differ (as ``abs_error``) and the worst
+distance in ULPs over all features.
 """
 
 from sklearn import datasets as sk

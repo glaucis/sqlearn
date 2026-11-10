@@ -1,5 +1,6 @@
 """Tests of the bundled datasets: iris, wine and breast cancer."""
 
+import duckdb
 import pandas as pd
 import pytest
 from sklearn import datasets as sk
@@ -43,3 +44,17 @@ def test_bundled_datasets_equal_scikit_learns(name, make, load):
     expected = load(as_frame=True).frame
     got = make().df()
     pd.testing.assert_frame_equal(got, expected, check_exact=True, check_dtype=False)
+
+
+@pytest.mark.parametrize("make", [sq.datasets.iris, sq.datasets.blobs], ids=repr)
+def test_a_dataset_lands_on_the_configured_connection_and_calls_are_independent(make):
+    """A dataset is built on the set connection; two calls give separate relations."""
+    other = duckdb.connect()
+    sq.set_config(connection=other)
+    first, second = make(), make()
+    assert first is not second
+    assert (
+        other.sql("SELECT count(*) FROM first").fetchall()
+        == first.count("*").fetchall()
+    )
+    assert first.fetchall() == second.fetchall()

@@ -52,8 +52,10 @@ sq.datasets.customers(rows=5, seed=0)
 ## The seed
 
 Every random value is a pure function of the seed, the row and the column, so
-the same seed gives the same rows, whatever the number of threads. The
-default seed is 0; pass another for another sample.
+the same seed gives the same rows, whatever the number of threads. The default
+seed is 0; pass another for another sample. A class derived from a normal by a
+threshold (`customers`' target) can differ across platforms on the rare row that
+lies on the threshold, since normals agree only within rounding there.
 
 ```{code-cell} python
 a = sq.datasets.blobs(rows=3, seed=1).fetchall()

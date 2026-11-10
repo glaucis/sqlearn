@@ -18,7 +18,8 @@ __all__ = ["breast_cancer", "iris", "wine"]
 def _read(name: str) -> duckdb.DuckDBPyRelation:
     """Return the bundled CSV `name` as a relation: DOUBLE features, BIGINT target."""
     path = resources.files("sqlearn.datasets") / "data" / f"{name}.csv"
-    header = next(csv.reader(path.read_text(encoding="utf-8").splitlines()))
+    with path.open(encoding="utf-8") as f:
+        header = next(csv.reader(f))
     columns = dict.fromkeys(header[:-1], "DOUBLE") | {header[-1]: "BIGINT"}
     return connection().read_csv(str(path), header=True, columns=columns)
 
