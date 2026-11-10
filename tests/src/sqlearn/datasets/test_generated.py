@@ -223,18 +223,73 @@ def test_a_trillion_rows_are_created_at_once():
     """rows=10**12 builds nothing; its first rows come back without a full scan.
 
     A full scan would run for days, so the guard is generous (a minute) and
-    only catches that; the plan holds no sort or aggregate over the whole.
+    only catches that. Creating the relation and reading its plan sit inside
+    the guard too, so an eager build fails rather than hangs; the plan holds
+    no sort or aggregate over the whole.
     """
-    rel = sq.datasets.blobs(rows=10**12, seed=2)
-    plan = rel.explain().upper()
-    assert "ORDER" not in plan
-    assert "AGGREGATE" not in plan
     got: list[tuple[object, ...]] = []
-    fetch = threading.Thread(target=lambda: got.extend(rel.limit(3).fetchall()))
+    plans: list[str] = []
+
+    def build_and_fetch() -> None:
+        rel = sq.datasets.blobs(rows=10**12, seed=2)
+        plans.append(rel.explain().upper())
+        got.extend(rel.limit(3).fetchall())
+
+    fetch = threading.Thread(target=build_and_fetch)
     fetch.start()
     fetch.join(timeout=60)
     if fetch.is_alive():
         connection().interrupt()
         fetch.join()
-        pytest.fail("limit(3) of a trillion rows scanned the whole relation")
+        pytest.fail("a trillion rows were built or scanned, not taken lazily")
+    assert "ORDER" not in plans[0]
+    assert "AGGREGATE" not in plans[0]
     assert got == sq.datasets.blobs(rows=3, seed=2).fetchall()
+
+
+def test_rows_reaching_the_constants_rows_are_refused():
+    """rows=2**63 is refused: data rows stay below the constants' rows."""
+    message = _refused(sq.datasets.blobs, rows=2**63)
+    assert "2**63" in message
+    assert (
+        sq.datasets.regression(rows=2**63 - 1, n_features=1, n_informative=1)
+        .limit(1)
+        .fetchall()
+    )
+
+
+def test_numpy_whole_numbers_are_taken_as_rows_and_seed():
+    """numpy's integers are whole numbers: rows, seed and counts take them."""
+    # The annotations say int, as scikit-learn's do; numpy's are taken at run time.
+    rel = sq.datasets.blobs(
+        rows=np.int64(5),  # ty: ignore[invalid-argument-type]
+        n_features=np.int32(3),  # ty: ignore[invalid-argument-type]
+        centers=np.int64(2),  # ty: ignore[invalid-argument-type]
+        seed=np.int64(4),  # ty: ignore[invalid-argument-type]
+    )
+    assert (
+        rel.fetchall()
+        == sq.datasets.blobs(rows=5, n_features=3, centers=2, seed=4).fetchall()
+    )
+
+
+def test_numpy_arrays_are_taken_as_centres_spreads_and_box():
+    """Centres, spreads and the box may be numpy arrays, as lists are."""
+    centres = [[0.0, 1.0], [5.0, 6.0]]
+    with_arrays = sq.datasets.blobs(
+        rows=50,
+        centers=np.array(centres),  # ty: ignore[invalid-argument-type]
+        cluster_std=np.array([0.5, 1.0]),  # ty: ignore[invalid-argument-type]
+        center_box=np.array([-1.0, 1.0]),  # ty: ignore[invalid-argument-type]
+        seed=3,
+    )
+    with_lists = sq.datasets.blobs(
+        rows=50, centers=centres, cluster_std=[0.5, 1.0], center_box=(-1.0, 1.0), seed=3
+    )
+    assert with_arrays.fetchall() == with_lists.fetchall()
+
+
+def test_a_setting_of_the_wrong_type_is_refused_naming_its_type():
+    """A refusal for the type names the type given, not only the value."""
+    message = _refused(sq.datasets.regression, n_features="2")
+    assert "n_features='2' (a str)" in message

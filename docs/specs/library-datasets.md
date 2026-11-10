@@ -105,7 +105,10 @@ huge relation is the same rows as in the whole.
 
 Feature columns are `DOUBLE`, named `x0`, `x1`, ...; `target` is `BIGINT` for
 classes, `DOUBLE` for regression. Row `i` runs from 0 to `rows - 1`; the
-relation is ordered by it, and the row number itself is not a column.
+rows come in row order while DuckDB's `preserve_insertion_order` is on (its
+default, and sqlearn's pipeline refuses a connection with it off); there is no
+`ORDER BY`, which would sort every row and lose the laziness. The row number
+itself is not a column.
 
 - **`blobs`** (`rows=100`, `n_features=2`, `centers=3`, `cluster_std=1.0`,
   `center_box=(-10.0, 10.0)`, `seed=0`): as `make_blobs`. `centers` is a count

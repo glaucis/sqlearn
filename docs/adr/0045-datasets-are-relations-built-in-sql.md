@@ -70,5 +70,9 @@ larger than memory.
   `range()` is one thread, so the generators run on one thread; the low 64
   bits are taken with a mask, the same value as `% 2**64` and about twelve
   times faster.
+- A generated relation's rows come in row order while DuckDB's
+  `preserve_insertion_order` is on (its default; sqlearn's pipeline refuses a
+  connection with it off). The SQL has no `ORDER BY`, which would sort every
+  row and lose the laziness: `limit` stops after the rows it needs.
 - Code that expects scikit-learn's `Bunch` or `(X, y)` must read the relation
   instead (`rel.df()`, or a selection of columns).

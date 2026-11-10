@@ -15,7 +15,7 @@ True
 """
 
 import math
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 
 MASK = 2**64 - 1
 GOLDEN = 0x9E3779B97F4A7C15
@@ -140,7 +140,7 @@ def _mixed(source: str, columns: list[str]) -> str:
     """
     if not columns:
         return source
-    steps = [
+    steps: list[Callable[[str], str]] = [
         lambda c: _modular(f"{c}::UHUGEINT + {GOLDEN}::UHUGEINT"),
         lambda c: _modular(f"xor({c}, {c} >> 30)::UHUGEINT * {MIX1}::UHUGEINT"),
         lambda c: _modular(f"xor({c}, {c} >> 27)::UHUGEINT * {MIX2}::UHUGEINT"),

@@ -22,7 +22,7 @@ Function        Row values                 Constants (row, stream)
 
 import math
 from collections.abc import Sequence
-from typing import TypeGuard
+from numbers import Integral, Real
 
 import duckdb
 
@@ -33,98 +33,151 @@ from sqlearn.datasets._random import CONSTANT_ROW, random_columns, uniform
 __all__ = ["blobs", "regression"]
 
 
-def _is_int(value: object) -> TypeGuard[int]:
-    """Tell whether `value` is an int and not a bool."""
-    return isinstance(value, int) and not isinstance(value, bool)
+def _whole(value: object) -> int | None:
+    """Return a whole number (numpy's too) as an int; None for anything else.
+
+    A bool is not a whole number here.
+    """
+    if isinstance(value, bool) or not isinstance(value, Integral):
+        return None
+    return int(value)
 
 
-def _is_number(value: object) -> TypeGuard[int | float]:
-    """Tell whether `value` is a finite int or float, and not a bool."""
-    return (
-        isinstance(value, int | float)
-        and not isinstance(value, bool)
-        and math.isfinite(value)
-    )
+def _finite(value: object) -> float | None:
+    """Return a finite real number (numpy's too) as a float; None otherwise.
+
+    A bool is not a number here.
+    """
+    if isinstance(value, bool) or not isinstance(value, Real):
+        return None
+    number = float(value)
+    return number if math.isfinite(number) else None
+
+
+def _shown(value: object) -> str:
+    """Return `value` as given, with its type: ``'2' (a str)``."""
+    return f"{value!r} (a {type(value).__name__})"
+
+
+def _as_list(value: object) -> list[object] | None:
+    """Return a sequence (a list, a tuple, an array) as a list, else None.
+
+    An array is read by its ``tolist``, so numpy's values become Python's;
+    text is not a sequence of values here.
+    """
+    tolist = getattr(value, "tolist", None)
+    if callable(tolist):
+        value = tolist()
+    if isinstance(value, str | bytes) or not isinstance(value, Sequence):
+        return None
+    return list(value)
 
 
 def _check_rows(rows: object) -> int:
-    """Return `rows`, refusing anything but a whole number of at least 1.
+    """Return `rows`, refusing anything but a whole number from 1 to ``2**63 - 1``.
 
     Parameters
     ----------
     rows : object
-        The setting given.
+        The setting given: an int, or numpy's.
 
     Returns
     -------
     int
-        `rows`, unchanged.
+        `rows`, as a Python int.
 
     Raises
     ------
     SqlearnError
-        If `rows` is not an int (a bool is not one) or is below 1.
+        If `rows` is not a whole number (a bool is not one), is below 1, or
+        reaches ``2**63``, where the constants' rows begin.
     """
-    if not _is_int(rows) or rows < 1:
+    count = _whole(rows)
+    if count is None:
         msg = (
-            f"sq.datasets got rows={rows!r}. Why: a dataset has at least one "
-            "row, a whole number (scikit-learn refuses no rows too). Fix: pass "
-            "rows=100, say."
+            f"sq.datasets got rows={_shown(rows)}. Why: the number of rows is "
+            "a whole number. Fix: pass an int, rows=100, say."
         )
         raise SqlearnError(msg)
-    return rows
+    if count < 1:
+        msg = (
+            f"sq.datasets got rows={rows!r}. Why: a dataset has at least one "
+            "row (scikit-learn refuses no rows too). Fix: pass rows=100, say."
+        )
+        raise SqlearnError(msg)
+    if count >= CONSTANT_ROW:
+        msg = (
+            f"sq.datasets got rows={rows!r}. Why: data rows are numbered below "
+            "2**63, where the rows of the constants drawn from the seed begin. "
+            "Fix: pass rows below 2**63 (9,223,372,036,854,775,808)."
+        )
+        raise SqlearnError(msg)
+    return count
 
 
 def _check_seed(seed: object) -> int:
-    """Return `seed`, refusing anything but an int.
+    """Return `seed`, refusing anything but a whole number.
 
     Parameters
     ----------
     seed : object
-        The setting given.
+        The setting given: an int, or numpy's.
 
     Returns
     -------
     int
-        `seed`, unchanged; any int is taken, modulo ``2**64``.
+        `seed`, as a Python int; any int is taken, modulo ``2**64``.
 
     Raises
     ------
     SqlearnError
-        If `seed` is not an int (a bool is not one).
+        If `seed` is not a whole number (a bool is not one).
     """
-    if not _is_int(seed):
+    whole = _whole(seed)
+    if whole is None:
         msg = (
-            f"sq.datasets got seed={seed!r}. Why: the seed is mixed into every "
-            "random value's key and must be a whole number. Fix: pass seed=0, "
-            "say."
+            f"sq.datasets got seed={_shown(seed)}. Why: the seed is mixed into "
+            "every random value's key and must be a whole number. Fix: pass "
+            "an int, seed=0, say."
         )
         raise SqlearnError(msg)
-    return seed
+    return whole
 
 
 def _check_count(function: str, name: str, value: object, least: int) -> int:
-    """Return `value`, refusing anything but an int of at least `least`."""
-    if not _is_int(value) or value < least:
+    """Return `value` as an int, refusing all but a whole number >= `least`."""
+    count = _whole(value)
+    if count is None:
         msg = (
-            f"sq.datasets.{function} got {name}={value!r}. Why: {name} is a "
-            f"whole number of at least {least}. Fix: pass {name}={max(least, 2)}, "
-            "say."
+            f"sq.datasets.{function} got {name}={_shown(value)}. Why: {name} "
+            f"is a whole number. Fix: pass an int, at least {least}."
         )
         raise SqlearnError(msg)
-    return value
+    if count < least:
+        msg = (
+            f"sq.datasets.{function} got {name}={value!r}. Why: {name} is at "
+            f"least {least}. Fix: pass {name}={max(least, 2)}, say."
+        )
+        raise SqlearnError(msg)
+    return count
 
 
 def _check_number(function: str, name: str, value: object, *, least: float) -> float:
     """Return `value` as a float, refusing all but a finite number >= `least`."""
-    if not _is_number(value) or value < least:
-        bound = "" if least == -math.inf else f" of at least {least}"
+    number = _finite(value)
+    if number is None:
         msg = (
-            f"sq.datasets.{function} got {name}={value!r}. Why: {name} is a "
-            f"finite number{bound}. Fix: pass {name}=1.0, say."
+            f"sq.datasets.{function} got {name}={_shown(value)}. Why: {name} "
+            "is a finite number. Fix: pass an int or a float, 1.0, say."
         )
         raise SqlearnError(msg)
-    return float(value)
+    if number < least:
+        msg = (
+            f"sq.datasets.{function} got {name}={value!r}. Why: {name} is at "
+            f"least {least}. Fix: pass {name}=1.0, say."
+        )
+        raise SqlearnError(msg)
+    return number
 
 
 def _double(value: float) -> str:
@@ -141,7 +194,7 @@ def _blob_centres(
     centers: object, n_features: int, box: tuple[float, float], seed: int
 ) -> list[list[float]]:
     """Return the centres: the points given, or a count drawn in `box`."""
-    if _is_int(centers):
+    if _whole(centers) is not None:
         count = _check_count("blobs", "centers", centers, 1)
         low, high = box
         return [
@@ -151,32 +204,28 @@ def _blob_centres(
             ]
             for c in range(count)
         ]
-    points = (
-        list(centers)
-        if isinstance(centers, Sequence) and not isinstance(centers, str)
-        else None
+    points: list[list[float]] = []
+    for given in _as_list(centers) or []:
+        point = _as_list(given)
+        numbers = [_finite(v) for v in point or []]
+        if point is None or None in numbers:
+            break
+        points.append([v for v in numbers if v is not None])
+    else:
+        if points and points[0] and len({len(p) for p in points}) == 1:
+            return points
+    msg = (
+        f"sq.datasets.blobs got centers={centers!r}. Why: centers is a count "
+        "of at least 1, or a list of points, each a list of finite numbers of "
+        "one length. Fix: pass centers=3 or centers=[[0, 0], [5, 5]]."
     )
-    if (
-        not points
-        or not all(isinstance(p, Sequence) and not isinstance(p, str) for p in points)
-        or len({len(p) for p in points}) != 1
-        or not len(points[0])
-        or not all(_is_number(v) for p in points for v in p)
-    ):
-        msg = (
-            f"sq.datasets.blobs got centers={centers!r}. Why: centers is a "
-            "count of at least 1, or a list of points, each a list of finite "
-            "numbers of one length. Fix: pass centers=3 or "
-            "centers=[[0, 0], [5, 5]]."
-        )
-        raise SqlearnError(msg)
-    return [[float(v) for v in p] for p in points]
+    raise SqlearnError(msg)
 
 
 def _blob_spreads(cluster_std: object, count: int) -> list[float]:
     """Return one spread per centre, refusing a negative or misplaced one."""
-    if isinstance(cluster_std, Sequence) and not isinstance(cluster_std, str):
-        spreads = list(cluster_std)
+    spreads = _as_list(cluster_std)
+    if spreads is not None:
         if len(spreads) != count:
             msg = (
                 f"sq.datasets.blobs got cluster_std={cluster_std!r}. Why: a "
@@ -190,20 +239,16 @@ def _blob_spreads(cluster_std: object, count: int) -> list[float]:
 
 def _check_box(center_box: object) -> tuple[float, float]:
     """Return `center_box` as two finite floats, low <= high."""
-    if (
-        not isinstance(center_box, Sequence)
-        or isinstance(center_box, str)
-        or len(center_box) != 2
-        or not all(_is_number(v) for v in center_box)
-        or center_box[0] > center_box[1]
-    ):
+    box = [_finite(v) for v in _as_list(center_box) or []]
+    low, high = box if len(box) == 2 else (None, None)
+    if low is None or high is None or low > high:
         msg = (
             f"sq.datasets.blobs got center_box={center_box!r}. Why: the box "
             "is two finite numbers, low then high, the range centres are "
             "drawn from. Fix: pass center_box=(-10.0, 10.0)."
         )
         raise SqlearnError(msg)
-    return float(center_box[0]), float(center_box[1])
+    return low, high
 
 
 def blobs(
@@ -262,7 +307,7 @@ def blobs(
     """
     rows = _check_rows(rows)
     seed = _check_seed(seed)
-    if _is_int(centers):
+    if _whole(centers) is not None:
         n_features = _check_count("blobs", "n_features", n_features, 1)
     box = _check_box(center_box)
     points = _blob_centres(centers, n_features, box, seed)
