@@ -818,6 +818,24 @@ def _refuse(stage: Stage, text: str, why: str, fix: str) -> StepError:
     return StepError(msg, step=stage.step, position=stage.position)
 
 
+def _refuse_plain_aggregate(stage: Stage, whole: str, values: str) -> None:
+    """Refuse `values` (a staged marker's argument) holding a plain aggregate.
+
+    The marker's stage reads its argument per row of the stage's input,
+    where one value of a whole column (``mean(x)``) has no row.
+    """
+    if _in_aggregates(values):
+        raise _refuse(
+            stage,
+            whole,
+            "a plain aggregate inside a staged one, which is computed per "
+            "row of the stage's input, where one value of a whole column "
+            "has no row.",
+            "learn the inner aggregate in an earlier step, or leave it out: "
+            "the spread of x - mean(x) is the spread of x.",
+        )
+
+
 def _read(column: str, nested: bool) -> str:
     """Read a one-row stage's column: plain inside an aggregate, else any_value."""
     return column if nested else f"any_value({column})"
@@ -878,6 +896,7 @@ class _Staged:
                     "one), which has no meaning over one column.",
                     "learn each aggregate of the column on its own.",
                 )
+            _refuse_plain_aggregate(stage, whole, arg)
         if marker.kind == TARGET_STATS and len(marker.args) == 3:
             x, y, fold = marker.args
             index = self.stats.setdefault((x, y, fold), len(self.stats))
@@ -933,6 +952,7 @@ class _Staged:
             ]
             last = inner.end
         pieces.append(values[last:])
+        _refuse_plain_aggregate(stage, whole, "".join(pieces))
         index = self.stds.setdefault("".join(pieces), len(self.stds))
         return _read(f"{quote(self.name + '_std')}.{quote(f's{index}')}", nested)
 

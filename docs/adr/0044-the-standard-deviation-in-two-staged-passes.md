@@ -69,3 +69,13 @@ it cannot be one aggregate in the learn stage's row.
   Scale's zero-spread rule judges the standard deviation by it.
 - Sums stay order-dependent across threads (ADR 0043); two passes improve
   accuracy, not byte-for-byte repeats.
+
+## Amended by #44
+
+A staged aggregate's argument may hold other staged aggregates, never a plain
+DuckDB aggregate. `sq.agg.std(x - sq.agg.mean(x))` (likewise a median or a
+mode of it) is refused in the house form, naming the step and saying a plain
+aggregate cannot sit inside a staged one: the stage reads its argument per
+row, where one value of a whole column has no row. The spread of `x - mean(x)`
+is the spread of `x`; staging arbitrary aggregates would cost compositor code
+nobody needs.

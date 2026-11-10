@@ -538,3 +538,24 @@ def test_a_std_the_stages_cannot_order_is_refused(build, why):
     data = pd.DataFrame({"a": [1.0, 2.0, 6.0]})
     with pytest.raises(sq.errors.StepError, match=r"\(step 1\).*" + why):
         sq.Pipeline([("bad", _Learns(build))]).learn(data)
+
+
+@pytest.mark.parametrize(
+    "build",
+    [
+        lambda x: sq.agg.std(x - sq.agg.mean(x)),
+        lambda x: sq.agg.median(x - sq.agg.mean(x)),
+        lambda x: sq.agg.mode(x - sq.agg.mean(x)),
+    ],
+    ids=["std", "median", "mode"],
+)
+def test_a_plain_aggregate_inside_a_staged_one_is_refused(build):
+    """Each refusal names the step and position, not DuckDB's GROUP BY error."""
+    data = pd.DataFrame({"a": [1.0, 2.0, 6.0]})
+    with pytest.raises(sq.errors.StepError, match=r"\(step 1\)") as raised:
+        sq.Pipeline([("bad", _Learns(build))]).learn(data)
+    message = str(raised.value)
+    assert message.startswith("bad (step 1)")
+    assert "a plain aggregate" in message
+    assert "Fix:" in message
+    assert "Binder Error" not in message

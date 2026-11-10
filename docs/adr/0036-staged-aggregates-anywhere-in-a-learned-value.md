@@ -40,3 +40,9 @@ appear anywhere in a learned value, including inside another aggregate:
 - A step's `learn` may combine staged aggregates freely with the others, as
   `sq.agg.iqr(x) / sq.agg.median(x)`.
 - The refusal ADR 0032 described is gone; nothing else in it changes.
+
+## Amended by #44
+
+"Combine staged aggregates freely" stops at a plain DuckDB aggregate inside a
+staged one's argument (`sq.agg.std(x - sq.agg.mean(x))`): it is refused, naming
+the step. See [ADR 0044](0044-the-standard-deviation-in-two-staged-passes.md).
