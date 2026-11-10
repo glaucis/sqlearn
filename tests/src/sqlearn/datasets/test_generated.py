@@ -2,6 +2,7 @@
 
 import threading
 import warnings
+from typing import Any, cast
 
 import numpy as np
 import pytest
@@ -608,3 +609,37 @@ def test_a_pipeline_learns_ten_million_rows_under_64_mb():
     big = sq.datasets.customers(rows=10**7)
     pipe = sq.Pipeline([sq.impute.median(), sq.scale.standard()]).learn(big)
     assert pipe["standard"].center_ is not None
+
+
+def test_ordered_rows_come_in_row_order_with_insertion_order_off():
+    """ordered=True gives the rows of the row order, whatever DuckDB keeps."""
+    con = connection()
+    for make in GENERATORS:
+        expected = make(rows=200_000, seed=0).fetchall()
+        before = con.sql("SELECT current_setting('preserve_insertion_order')")
+        previous = before.fetchall()[0][0]
+        con.execute("SET preserve_insertion_order = false")
+        try:
+            got = make(rows=200_000, seed=0, ordered=True).fetchall()
+        finally:
+            con.execute(f"SET preserve_insertion_order = {str(previous).lower()}")
+        assert got == expected, make.__name__
+
+
+def test_the_default_is_lazy_and_ordered_is_not():
+    """Only ordered=True puts a sort in the plan."""
+    for make in GENERATORS:
+        lazy = make(rows=100).explain().lower()
+        sorted_ = make(rows=100, ordered=True).explain().lower()
+        assert "order by" not in lazy, make.__name__
+        assert "order by" in sorted_, make.__name__
+
+
+def test_ordered_is_refused_unless_a_bool():
+    """A text, an int or None for ordered is refused in the house form."""
+    for make in GENERATORS:
+        for bad in ("yes", 1, None):
+            message = _refused(make, rows=5, ordered=bad)
+            assert "ordered" in message
+        relation = make(rows=5, ordered=cast("Any", np.True_))
+        assert relation.count("*").fetchall()[0][0] == 5

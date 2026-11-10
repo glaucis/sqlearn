@@ -85,6 +85,14 @@ huge.limit(2)
 A slice of a relation is the same rows as in the whole: the first 1,000 rows
 of a million-row relation equal a 1,000-row one.
 
+## Row order
+
+The rows of a generator come in row order while DuckDB's
+`preserve_insertion_order` is on (its default). To have the order whatever the
+setting, pass `ordered=True`: the relation sorts by the row number. That costs
+a sort, and the relation is no longer lazy: it holds every row to sort them,
+so a `limit` no longer stops early.
+
 ## Writing one to Parquet
 
 To keep rows, or to hand them to something that wants a file, write the

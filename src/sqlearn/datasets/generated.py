@@ -211,9 +211,26 @@ def _double(value: float) -> str:
     return f"'{value!r}'::DOUBLE"
 
 
-def _relation(sql: str) -> duckdb.DuckDBPyRelation:
-    """Return `sql` as a relation on sqlearn's connection, computed on use."""
-    return connection().sql(sql)
+def _check_ordered(function: str, ordered: object) -> bool:
+    """Return `ordered`, refusing anything but a bool (numpy's too, by name)."""
+    if type(ordered).__name__ not in ("bool", "bool_"):
+        msg = (
+            f"sq.datasets.{function} got ordered={_shown(ordered)}. Why: "
+            "ordered is True or False. Fix: pass ordered=True to sort the "
+            "rows by their number, or leave it out."
+        )
+        raise SqlearnError(msg)
+    return bool(ordered)
+
+
+def _relation(sql: str, ordered: bool) -> duckdb.DuckDBPyRelation:
+    """Return `sql` as a relation on sqlearn's connection, computed on use.
+
+    `sql` has the row number `i` as its first column; the relation drops it,
+    and sorts by it first when `ordered`.
+    """
+    sort = " ORDER BY i" if ordered else ""
+    return connection().sql(f"SELECT * EXCLUDE (i) FROM ({sql}){sort}")
 
 
 def _blob_centres(
@@ -284,6 +301,7 @@ def blobs(
     cluster_std: float | Sequence[float] = 1.0,
     center_box: tuple[float, float] = (-10.0, 10.0),
     seed: int = 0,
+    ordered: bool = False,
 ) -> duckdb.DuckDBPyRelation:
     """Return isotropic Gaussian blobs round a few centres, as ``make_blobs``.
 
@@ -310,6 +328,11 @@ def blobs(
         uniform in.
     seed : int, default 0
         The seed of every random value; any int.
+    ordered : bool, default False
+        Whether the rows come in row order whatever DuckDB's settings. By
+        default they do only while ``preserve_insertion_order`` is on. True
+        sorts the relation by the row number: it costs a sort, and the
+        relation is no longer lazy (it holds every row to sort them).
 
     Returns
     -------
@@ -333,6 +356,7 @@ def blobs(
     """
     rows = _check_rows(rows)
     seed = _check_seed(seed)
+    ordered = _check_ordered("blobs", ordered)
     if _whole(centers) is not None:
         n_features = _check_count("blobs", "n_features", n_features, 1)
     box = _check_box(center_box)
@@ -349,8 +373,9 @@ def blobs(
         centre = f"[{', '.join(_double(p[j]) for p in points)}][target + 1]"
         features.append(f"{centre} + {spread} * _z{j} AS x{j}")
     return _relation(
-        f"SELECT {', '.join(features)}, target "
-        f"FROM (SELECT *, {target} AS target FROM ({source}))"
+        f"SELECT i, {', '.join(features)}, target "
+        f"FROM (SELECT *, {target} AS target FROM ({source}))",
+        ordered,
     )
 
 
@@ -361,6 +386,7 @@ def regression(
     bias: float = 0.0,
     noise: float = 0.0,
     seed: int = 0,
+    ordered: bool = False,
 ) -> duckdb.DuckDBPyRelation:
     """Return a linear regression problem, as ``make_regression``.
 
@@ -388,6 +414,11 @@ def regression(
         least 0.
     seed : int, default 0
         The seed of every random value; any int.
+    ordered : bool, default False
+        Whether the rows come in row order whatever DuckDB's settings. By
+        default they do only while ``preserve_insertion_order`` is on. True
+        sorts the relation by the row number: it costs a sort, and the
+        relation is no longer lazy (it holds every row to sort them).
 
     Returns
     -------
@@ -414,6 +445,7 @@ def regression(
     """
     rows = _check_rows(rows)
     seed = _check_seed(seed)
+    ordered = _check_ordered("regression", ordered)
     n_features = _check_count("regression", "n_features", n_features, 1)
     if n_informative is None:
         n_informative = min(10, n_features)
@@ -440,7 +472,8 @@ def regression(
         terms.append(f"{_double(noise)} * _noise")
     features = ", ".join(f"x{j}" for j in range(n_features))
     return _relation(
-        f"SELECT {features}, {' + '.join(terms)} AS target FROM ({source})"
+        f"SELECT i, {features}, {' + '.join(terms)} AS target FROM ({source})",
+        ordered,
     )
 
 
@@ -615,6 +648,7 @@ def classification(
     flip_y: float = 0.01,
     class_sep: float = 1.0,
     seed: int = 0,
+    ordered: bool = False,
 ) -> duckdb.DuckDBPyRelation:
     """Return a random n-class classification problem, as ``make_classification``.
 
@@ -662,6 +696,11 @@ def classification(
         apart.
     seed : int, default 0
         The seed of every random value; any int.
+    ordered : bool, default False
+        Whether the rows come in row order whatever DuckDB's settings. By
+        default they do only while ``preserve_insertion_order`` is on. True
+        sorts the relation by the row number: it costs a sort, and the
+        relation is no longer lazy (it holds every row to sort them).
 
     Returns
     -------
@@ -686,6 +725,7 @@ def classification(
     """
     rows = _check_rows(rows)
     seed = _check_seed(seed)
+    ordered = _check_ordered("classification", ordered)
     n_features, n_informative, n_redundant, n_classes, per_class = _check_classes(
         n_features, n_informative, n_redundant, n_classes, n_clusters_per_class
     )
@@ -737,11 +777,14 @@ def classification(
         + f" AS x{d + r}"
         for r in range(n_redundant)
     ]
-    first = ", ".join(informative + noise + [f"({target})::BIGINT AS target"])
-    last = ", ".join([f"x{j}" for j in range(d)] + redundant + noise + ["target"])
+    first = ", ".join(["i", *informative, *noise, f"({target})::BIGINT AS target"])
+    last = ", ".join(
+        ["i"] + [f"x{j}" for j in range(d)] + redundant + noise + ["target"]
+    )
     return _relation(
         f"SELECT {last} FROM (SELECT {first} FROM "
-        f"(SELECT *, {_picked_cluster(shares)} AS _k FROM ({source})))"
+        f"(SELECT *, {_picked_cluster(shares)} AS _k FROM ({source})))",
+        ordered,
     )
 
 
@@ -764,7 +807,9 @@ _PLANS = ("basic", "plus", "pro")
 _PLAN_SHARES = (0.5, 0.3, 0.2)
 
 
-def customers(rows: int = 1000, seed: int = 0) -> duckdb.DuckDBPyRelation:
+def customers(
+    rows: int = 1000, seed: int = 0, ordered: bool = False
+) -> duckdb.DuckDBPyRelation:
     """Return sqlearn's own table of customers: numbers and text with gaps.
 
     ``age`` is normal (mean 40, standard deviation 12) with a tenth of it
@@ -782,6 +827,11 @@ def customers(rows: int = 1000, seed: int = 0) -> duckdb.DuckDBPyRelation:
         The number of rows, at least 1.
     seed : int, default 0
         The seed of every random value; any int.
+    ordered : bool, default False
+        Whether the rows come in row order whatever DuckDB's settings. By
+        default they do only while ``preserve_insertion_order`` is on. True
+        sorts the relation by the row number: it costs a sort, and the
+        relation is no longer lazy (it holds every row to sort them).
 
     Returns
     -------
@@ -804,6 +854,7 @@ def customers(rows: int = 1000, seed: int = 0) -> duckdb.DuckDBPyRelation:
     """
     rows = _check_rows(rows)
     seed = _check_seed(seed)
+    ordered = _check_ordered("customers", ordered)
     source = random_columns(
         seed,
         rows,
@@ -826,11 +877,12 @@ def customers(rows: int = 1000, seed: int = 0) -> duckdb.DuckDBPyRelation:
         " + _noise"
     )
     return _relation(
-        f"SELECT CASE WHEN _age_gap < {_double(0.1)} THEN NULL ELSE _age END"
+        f"SELECT i, CASE WHEN _age_gap < {_double(0.1)} THEN NULL ELSE _age END"
         " AS age,"
         f" CASE WHEN _income_gap < {_double(0.05)} THEN NULL ELSE _income END"
         " AS income,"
         " _town AS city, _tier AS plan,"
         f" ({signal} > {_double(0.4)})::BIGINT AS target"
-        f" FROM ({drawn})"
+        f" FROM ({drawn})",
+        ordered,
     )

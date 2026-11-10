@@ -78,7 +78,10 @@ larger than memory.
   about twelve times faster.
 - A generated relation's rows come in row order while DuckDB's
   `preserve_insertion_order` is on (its default; sqlearn's predict refuses a
-  connection with it off). The SQL has no `ORDER BY`, which would sort every
-  row and lose the laziness: `limit` stops after the rows it needs.
+  connection with it off). The SQL has no `ORDER BY` by default, which would
+  sort every row and lose the laziness: `limit` stops after the rows it needs.
+  Each generator takes `ordered=True` to opt in: it sorts by the row number, so
+  the rows come in row order whatever the setting, at the cost of a sort and of
+  the laziness (#48).
 - Code that expects scikit-learn's `Bunch` or `(X, y)` must read the relation
   instead (`rel.df()`, or a selection of columns).
