@@ -37,6 +37,7 @@ NOISE = 3.0
 BIAS = 2.0
 WEIGHTS = (0.6, 0.3, 0.1)
 FLIP = 0.2
+CITIES = ("Oslo", "Lima", "Kyoto", "Cairo")
 
 # The target without noise is a sum of 5 products of size about 100 * 4 and
 # a bias: rounding leaves it within a few 1e-13, and least squares in numpy
@@ -285,6 +286,38 @@ def _classification_cases() -> list[dict]:
     return out
 
 
+def _customers_cases() -> list[dict]:
+    """Customers' missing shares and category shares are the promised ones.
+
+    A share of ``n`` independent rows has the standard error
+    ``sqrt(p(1 - p) / n)``.
+    """
+    shares = (
+        ("age is NULL", "(age IS NULL)", 0.1),
+        ("income is NULL", "(income IS NULL)", 0.05),
+        ("plan is basic", "(plan = 'basic')", 0.5),
+        ("plan is plus", "(plan = 'plus')", 0.3),
+        ("plan is pro", "(plan = 'pro')", 0.2),
+        *((f"city is {c}", f"(city = '{c}')", 0.25) for c in CITIES),
+    )
+    rel = sq.datasets.customers(rows=ROWS, seed=SEED)
+    measured = rel.aggregate(
+        ", ".join(f"avg({test}::DOUBLE)" for _, test, _ in shares)
+    ).fetchall()[0]
+    return [
+        _case(
+            step="datasets.customers",
+            formula=f"share where {formula}",
+            rows=ROWS,
+            value=float(value),
+            canonical=promised,
+            bound=SIGMAS * math.sqrt(promised * (1 - promised) / ROWS),
+            note="each value picked by its own uniform; sqrt(p(1 - p) / n)",
+        )
+        for (formula, _, promised), value in zip(shares, measured, strict=True)
+    ]
+
+
 def _repeat_cases() -> list[dict]:
     """The same seed gives the same rows on 1 and 8 threads, and in a slice."""
     con = connection()
@@ -327,5 +360,6 @@ def cases() -> list[dict]:
         + _blobs_cases()
         + _regression_cases()
         + _classification_cases()
+        + _customers_cases()
         + _repeat_cases()
     )

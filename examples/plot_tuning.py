@@ -12,42 +12,18 @@ is trained on a stream of batches, as it would be on data larger than memory.
 import tempfile
 from pathlib import Path
 
-import duckdb
-import numpy as np
-import pandas as pd
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.linear_model import SGDClassifier
 
 import sqlearn as sq
 
 # %%
-# Generate 5,000 customers: two numbers with gaps, a city and a plan as
-# text, and whether the customer churned. Write them to Parquet.
+# Take 5,000 customers from ``sq.datasets.customers``, which builds them in
+# SQL from a seed: two numbers with gaps, a city and a plan as text, and
+# ``target``, whether the customer churned. Write them to Parquet.
 
-rng = np.random.default_rng(0)
-n = 5_000
-age = rng.normal(40, 12, n)
-income = rng.lognormal(10.5, 0.5, n)
-city = rng.choice(["Oslo", "Lima", "Kyoto", "Cairo"], n)
-plan = rng.choice(["basic", "plus", "pro"], n, p=[0.5, 0.3, 0.2])
-signal = (
-    0.04 * (age - 40)
-    - 0.8 * (income > np.median(income))
-    + 0.9 * (plan == "basic")
-    + 0.5 * (city == "Cairo")
-    + rng.normal(0, 1, n)
-)
-frame = pd.DataFrame(
-    {
-        "age": np.where(rng.random(n) < 0.1, np.nan, age),
-        "income": np.where(rng.random(n) < 0.05, np.nan, income),
-        "city": city,
-        "plan": plan,
-        "churned": (signal > 0.4).astype(int),
-    }
-)
 folder = Path(tempfile.mkdtemp())
-duckdb.sql(f"COPY frame TO '{folder}/train.parquet' (FORMAT parquet)")
+sq.datasets.customers(rows=5_000, seed=0).to_parquet(str(folder / "train.parquet"))
 
 # %%
 # The model is scikit-learn's histogram boosting, handed a pandas frame: the
@@ -83,7 +59,7 @@ search = sq.search(
     metric=sq.metrics.log_loss,
     keep_prepared=kept,
 )
-search.train(str(folder / "train.parquet"), target="churned")
+search.train(str(folder / "train.parquet"), target="target")
 print(search.best_params_, round(search.best_score_, 4), search.transforms_)
 
 # %%
@@ -98,7 +74,7 @@ search = sq.search(
     metric=sq.metrics.log_loss,
     keep_prepared=kept,
 )
-search.train(str(folder / "train.parquet"), target="churned")
+search.train(str(folder / "train.parquet"), target="target")
 print(search.best_params_, round(search.best_score_, 4), search.transforms_)
 sq.store.prepared(kept)
 
@@ -115,5 +91,5 @@ stream = sq.Pipeline(
         sq.Model(SGDClassifier(loss="log_loss"), feed="stream", rows=500),
     ]
 )
-stream.train(str(folder / "train.parquet"), target="churned")
+stream.train(str(folder / "train.parquet"), target="target")
 stream.predict(str(folder / "train.parquet"), out="pandas").head()

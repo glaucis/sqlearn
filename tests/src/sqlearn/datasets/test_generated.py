@@ -1,4 +1,4 @@
-"""Tests of the generators written in SQL: blobs, regression, classification."""
+"""Tests of the generators written in SQL: blobs, regression and the others."""
 
 import threading
 
@@ -9,7 +9,12 @@ import sqlearn as sq
 from sqlearn._config import connection
 from sqlearn.errors import SqlearnError
 
-GENERATORS = [sq.datasets.blobs, sq.datasets.regression, sq.datasets.classification]
+GENERATORS = [
+    sq.datasets.blobs,
+    sq.datasets.regression,
+    sq.datasets.classification,
+    sq.datasets.customers,
+]
 
 
 def _refused(make, **settings) -> str:
@@ -471,3 +476,106 @@ def test_a_setting_of_the_wrong_type_is_refused_naming_its_type():
     """A refusal for the type names the type given, not only the value."""
     message = _refused(sq.datasets.regression, n_features="2")
     assert "n_features='2' (a str)" in message
+
+
+def test_customers_has_its_columns_and_types():
+    """Five columns, `target` last and the only one of that name."""
+    rel = sq.datasets.customers(rows=500, seed=1)
+    assert rel.columns == ["age", "income", "city", "plan", "target"]
+    assert [str(t) for t in rel.types] == [
+        "DOUBLE",
+        "DOUBLE",
+        "VARCHAR",
+        "VARCHAR",
+        "BIGINT",
+    ]
+    assert rel.count("*").fetchall()[0][0] == 500
+    assert {r[0] for r in rel.project("target").distinct().fetchall()} == {0, 1}
+
+
+def test_customers_have_the_promised_gaps_and_shares():
+    """A tenth of age and a twentieth of income are NULL; the shares hold."""
+    n = 100_000
+    rel = sq.datasets.customers(rows=n, seed=3)
+    row = rel.aggregate(
+        "avg((age IS NULL)::DOUBLE), avg((income IS NULL)::DOUBLE),"
+        " avg((plan = 'basic')::DOUBLE), avg((plan = 'plus')::DOUBLE),"
+        " avg((plan = 'pro')::DOUBLE), avg((city = 'Oslo')::DOUBLE),"
+        " avg((city = 'Cairo')::DOUBLE), count(city), count(plan)"
+    ).fetchall()[0]
+    assert row[0] == pytest.approx(0.1, abs=0.005)
+    assert row[1] == pytest.approx(0.05, abs=0.005)
+    for share, promised in zip(row[2:5], (0.5, 0.3, 0.2), strict=True):
+        assert share == pytest.approx(promised, abs=0.01)
+    assert row[5] == pytest.approx(0.25, abs=0.01)
+    assert row[6] == pytest.approx(0.25, abs=0.01)
+    assert row[7] == row[8] == n  # text has no gaps
+    cities = {r[0] for r in rel.project("city").distinct().fetchall()}
+    assert cities == {"Oslo", "Lima", "Kyoto", "Cairo"}
+
+
+def test_customers_age_and_income_follow_their_distributions():
+    """Age is normal (40, 12); the log of income is normal (10.5, 0.5)."""
+    rel = sq.datasets.customers(rows=100_000, seed=4)
+    mean, sd, lmean, lsd = rel.aggregate(
+        "avg(age), stddev_samp(age), avg(ln(income)), stddev_samp(ln(income))"
+    ).fetchall()[0]
+    assert mean == pytest.approx(40, abs=0.3)
+    assert sd == pytest.approx(12, abs=0.3)
+    assert lmean == pytest.approx(10.5, abs=0.01)
+    assert lsd == pytest.approx(0.5, abs=0.01)
+
+
+def test_customers_target_follows_plan_city_and_income():
+    """Basic plans churn more, high incomes less: the example's signal."""
+    rel = sq.datasets.customers(rows=100_000, seed=5)
+    by_plan = dict(rel.aggregate("plan, avg(target)").fetchall())
+    assert by_plan["basic"] > by_plan["pro"] + 0.1
+    high, low = (
+        rel.filter(f"income {op} exp(10.5)").aggregate("avg(target)").fetchall()[0][0]
+        for op in (">", "<")
+    )
+    assert low > high + 0.1
+
+
+def test_a_pipeline_learns_customers_end_to_end():
+    """Impute, one-hot, scale, then a logistic regression beats the majority."""
+    from sklearn.linear_model import LogisticRegression
+
+    train = sq.datasets.customers(rows=2_000, seed=0)
+    pipe = sq.Pipeline(
+        [
+            sq.impute.median(),
+            sq.encode.onehot(),
+            sq.scale.standard(),
+            sq.Model(LogisticRegression(max_iter=1_000)),
+        ]
+    )
+    pipe.train(train, target="target")
+    # Others: rows 2,000 to 3,000 of the same seed's stream.
+    others = sq.datasets.customers(rows=3_000, seed=0).limit(1_000, offset=2_000)
+    predicted = pipe.predict(others, out="pandas")
+    truth = others.project("target").fetchnumpy()["target"]
+    guessed = np.asarray(predicted).ravel()
+    accuracy = float(np.mean(guessed == truth))
+    majority = max(np.mean(truth), 1 - np.mean(truth))
+    assert accuracy > majority + 0.02
+
+
+@pytest.mark.slow
+def test_a_pipeline_learns_ten_million_rows_under_64_mb():
+    """Median imputing then standard scaling learn from 10**7 rows in 64 MB.
+
+    The budget of 128 MB leaves DuckDB a memory limit of half, 64 MB. The
+    exact median sorts, and on all threads 10**7 rows of two columns do not
+    fit in 64 MB (docs/benchmarks/median-reach.md measures one thread): so
+    the test sets one.
+    """
+    sq.set_config(memory="128MB")
+    con = connection()
+    con.execute("SET threads = 1")
+    limit = con.sql("SELECT current_setting('memory_limit')").fetchall()[0][0]
+    assert limit.startswith("61.0 MiB")  # 64 MB
+    big = sq.datasets.customers(rows=10**7)
+    pipe = sq.Pipeline([sq.impute.median(), sq.scale.standard()]).learn(big)
+    assert pipe["standard"].center_ is not None

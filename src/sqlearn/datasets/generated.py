@@ -31,6 +31,12 @@ Function                Row values                 Constants (row, stream)
                         label: uniform ``2N + 2``  of ``i``: uniform at row
                                                    ``2**64 - 1``, stream
                                                    ``i * n_redundant + r``
+``customers``           age, income, the target's  none
+                        noise: normal streams 0, 1,
+                        2; city, plan: uniform
+                        streams 6, 7; the gap in
+                        age, in income: uniform
+                        streams 8, 9
 ======================  =========================  ==========================
 
 In ``classification``, ``d`` is ``n_informative``.
@@ -46,7 +52,7 @@ from sqlearn._config import connection
 from sqlearn._errors import SqlearnError
 from sqlearn.datasets._random import CONSTANT_ROW, MASK, key, random_columns, uniform
 
-__all__ = ["blobs", "classification", "regression"]
+__all__ = ["blobs", "classification", "customers", "regression"]
 
 
 def _whole(value: object) -> int | None:
@@ -722,4 +728,95 @@ def classification(
     return _relation(
         f"SELECT {last} FROM (SELECT {first} FROM "
         f"(SELECT *, {_picked_cluster(shares)} AS _k FROM ({source})))"
+    )
+
+
+def _picked(uniform_column: str, values: Sequence[str], shares: Sequence[float]) -> str:
+    """Return the SQL of the text value `uniform_column` picks by `shares`.
+
+    The uniform is compared with the running total of the shares; the last
+    value takes whatever is left, so rounding never leaves a row without one.
+    """
+    branches = []
+    running = 0.0
+    for value, share in zip(values[:-1], shares[:-1], strict=True):
+        running += share
+        branches.append(f"WHEN {uniform_column} < {_double(running)} THEN '{value}'")
+    return f"(CASE {' '.join(branches)} ELSE '{values[-1]}' END)"
+
+
+_CITIES = ("Oslo", "Lima", "Kyoto", "Cairo")
+_PLANS = ("basic", "plus", "pro")
+_PLAN_SHARES = (0.5, 0.3, 0.2)
+
+
+def customers(rows: int = 1000, seed: int = 0) -> duckdb.DuckDBPyRelation:
+    """Return sqlearn's own table of customers: numbers and text with gaps.
+
+    ``age`` is normal (mean 40, standard deviation 12) with a tenth of it
+    missing; ``income`` is log-normal (``exp(10.5 + 0.5 * z)``) with a
+    twentieth missing; ``city`` is one of Oslo, Lima, Kyoto and Cairo, evenly;
+    ``plan`` is basic (0.5), plus (0.3) or pro (0.2). ``target`` is 1 for a
+    customer who churned: a signal of the age, an income above its median
+    ``exp(10.5)``, the basic plan, Cairo and a normal noise, past 0.4. The
+    signal is computed from the values before the gaps are made. The rows
+    are built in SQL on use, the same ones for the same seed.
+
+    Parameters
+    ----------
+    rows : int, default 1000
+        The number of rows, at least 1.
+    seed : int, default 0
+        The seed of every random value; any int.
+
+    Returns
+    -------
+    duckdb.DuckDBPyRelation
+        Columns ``age`` and ``income`` (``DOUBLE``, with NULLs), ``city`` and
+        ``plan`` (``VARCHAR``), and ``target`` (``BIGINT``, 0 or 1); on
+        sqlearn's connection.
+
+    Raises
+    ------
+    SqlearnError
+        If `rows` is not a positive whole number or `seed` is not an int.
+
+    Examples
+    --------
+    >>> import sqlearn as sq
+    >>> rel = sq.datasets.customers(rows=10, seed=1)
+    >>> rel.columns
+    ['age', 'income', 'city', 'plan', 'target']
+    """
+    rows = _check_rows(rows)
+    seed = _check_seed(seed)
+    source = random_columns(
+        seed,
+        rows,
+        {"_city": 6, "_plan": 7, "_age_gap": 8, "_income_gap": 9},
+        {"_age_z": 0, "_income_z": 1, "_noise": 2},
+    )
+    drawn = (
+        "SELECT i, 40.0 + 12.0 * _age_z AS _age,"
+        f" exp(10.5 + 0.5 * _income_z) AS _income,"
+        f" {_picked('_city', _CITIES, [0.25] * 4)} AS _town,"
+        f" {_picked('_plan', _PLANS, _PLAN_SHARES)} AS _tier,"
+        " _noise, _age_gap, _income_gap"
+        f" FROM ({source})"
+    )
+    signal = (
+        "0.04 * (_age - 40.0)"
+        " - 0.8 * (_income > exp(10.5))::DOUBLE"
+        " + 0.9 * (_tier = 'basic')::DOUBLE"
+        " + 0.5 * (_town = 'Cairo')::DOUBLE"
+        " + _noise"
+    )
+    return _relation(
+        f"SELECT CASE WHEN _age_gap < {_double(0.1)} THEN NULL ELSE _age END"
+        " AS age,"
+        f" CASE WHEN _income_gap < {_double(0.05)} THEN NULL ELSE _income END"
+        " AS income,"
+        " _town AS city, _tier AS plan,"
+        f" ({signal} > {_double(0.4)})::BIGINT AS target"
+        f" FROM ({drawn})"
     )
