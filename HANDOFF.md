@@ -3,48 +3,73 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-09 · Branch: `main` · Last commit: `8668fff fix: make a seeded
-search repeatable within rounding (#36)` · Checks: passing
+Updated: 2026-11-10 · Branch: `fix-batch-2026-11-09` (worktree
+`.worktrees/fix-batch`), not merged · Checks: see "Waiting on the user"
 Verify with: `just verify`
 
 ## In progress
 
-None.
+None. The fix batch (plan `docs/plans/2026-11-09-fix-batch.md`) is built,
+reviewed per task and as a whole branch, and waits for the merge.
 
 ## Waiting on the user
 
-- Check the metrics build's rulings (11, with cost-if-wrong) and its 4
-  deferred minors in
-  `.superpowers/sdd/2026-11-09-library-metrics/progress.md`; file the minors
-  you want as issues. (since 2026-11-09)
-- Check the model-selection build's rulings (listed in #33's summary, all 22
-  in `.superpowers/sdd/2026-11-07-library-model-selection/progress.md`),
-  chiefly R8 (no LightGBM test), R11/R22 (a passed connection's DuckDB counts
-  as at most half the budget; a warning when its limit is higher, which
-  DuckDB's default is), R13 (`keep_prepared` does not see an in-place UPDATE
-  keeping the row count), R21 (one-at-a-time searches keep only the current
-  preparation's fold tables). (since 2026-11-08)
-- File the final review's "can stay" minors as issues? They are in the same
-  ledger, triaged. Recommendation: file the few that can bite (later batches
-  cast to the first batch's types; ENUM/collated VARCHAR not cast to
-  categories; Optuna trial left RUNNING on a failing fold). (since 2026-11-08)
+- Merge `fix-batch-2026-11-09` into `main` (fast-forward), push, and close
+  #28, #32, #35, #37, #38, #39, #40. (since 2026-11-10)
+- Check the batch's rulings, each with its cost if wrong (ledger
+  `.superpowers/sdd/2026-11-09-fix-batch/progress.md`, kept until the merge):
+  - accuracy's label checks use a private flag, not a public `Metric` field
+    (cost: one private field on `Metric`);
+  - #31: the encoders keep `list_position`; the MD5 perfect hash (sublinear,
+    1.7x faster at 10,000 categories, slower below about 2-3k, wrong for
+    collated columns) is not adopted (cost: lookups past ~3k categories stay up
+    to 1.7x slower);
+  - a standard deviation may hold the other staged aggregates
+    (`std(x - median(x))`), as ADR 0036 promises (cost: more compositor code);
+  - the std's validation bound is 2 ULPs, not 1, for DuckDB's thread order
+    (cost: a 2-ULP regression would pass unseen);
+  - the ENUM text selector (#43) and `std(x - mean(x))` (#44) stay out of the
+    batch (cost: `sq.encode.onehot()` still skips ENUM columns). (since
+    2026-11-10)
+- #31: keep `list_position` and close, use the MD5 hash above a threshold, or
+  allow a join (an ADR); numbers in `docs/benchmarks/category-lookup.md`.
+  (since 2026-11-10)
+- #27: offer an approximate median beyond the exact one's reach (32/64/128 MB
+  learn 8.1M/32.5M/110M rows on one thread, `docs/benchmarks/median-reach.md`),
+  and recheck on DuckDB updates? (since 2026-11-10)
 - #22 (OneHot as a list column): decide from the numbers in
   `docs/benchmarks/onehot-second-run.md`. (since 2026-11-06)
-- `docs/guide/index.md` and `docs/reference/index.md` hold uncommitted
-  frontmatter tag edits made by the docs tagger, not by a session: commit
-  or discard them. (since 2026-11-09)
+- The model-selection build's rulings (#33's summary; ledger
+  `.superpowers/sdd/2026-11-07-library-model-selection/progress.md`), chiefly
+  R8, R11/R22, R13, R21; and the metrics build's 11 rulings
+  (`.superpowers/sdd/2026-11-09-library-metrics/progress.md`). Their minors
+  that can bite are now #37-#40, fixed in this batch. (since 2026-11-08)
 
 ## Next up
 
 - Choose the next 3.3 area: datasets (recommended: the learning site needs
   sample data) or more metrics (confusion matrix, report, curves, fbeta).
-- Ready for an agent: #28 compensated two-pass variance (accuracy of
-  `scale.standard`, 12 ULPs on 100k rows), then #27 (the median's reach);
-  #32 (impute's filled copies typed INTEGER); #31 (the encoders' linear
-  category lookup); #35 (accuracy's label checks).
+- Ready for an agent: #41 (the target encoder's learn crosses every row with
+  its staged stats: 46.8 s at 10,000 categories on 1M rows); #42 (`sq.agg.var`
+  in two passes, as std); #43 (`sq.cols.string()` skips ENUM, one shared
+  definition of text); #44 (`std(x - mean(x))` gives a misleading GROUP BY
+  error).
 
 ## Dead ends and traps
 
+- DuckDB reports a collated VARCHAR's type as plain `VARCHAR` (the collation
+  lives on the expression); a NULL-only column's type is `"NULL"`, quotes
+  included. Arrow batches keep only the ENUM values they hold, so an ENUM's
+  declared list comes from the relation's type. (2026-11-10)
+- A cast error between types DuckDB cannot compare (DATE = INTEGER) is raised
+  at execution, not at bind: a `LIMIT 0` probe does not catch it. Catch only
+  `ConversionException` and `BinderException`: `OutOfMemoryException` and
+  `InterruptException` are `duckdb.Error` too. (2026-11-10)
+- `dataclasses.replace` drops `init=False` fields (accuracy's private label
+  flag). (2026-11-10)
+- Benchmarks that build large data in memory can be killed by the machine:
+  write the data to Parquet with DuckDB's `COPY` and run each probe in its own
+  subprocess. (2026-11-10)
 - DuckDB sums doubles on several threads in the order they finish, so a
   learned mean or standard deviation (and any score) can differ by one ULP
   between runs on a busy machine; compare runs within a bound, never byte
@@ -76,12 +101,14 @@ None.
 
 ## Just finished
 
-- #36: a seeded search is repeatable within rounding (ADR 0043): same
-  settings and best, scores within 1 ULP; scores within 16 ULPs of the best
-  tie, the first tried winning. (2026-11-09)
-- Metrics area (#34): precision, recall and f1 with scikit-learn's `average`,
-  `pos_label` and `zero_division`, counted per class in DuckDB and exact to the
-  double; spec `docs/specs/library-metrics.md`, plan
-  `docs/plans/2026-11-09-library-metrics.md`, ADR 0042; 6 tasks, final review,
-  one fix pass; fast-forwarded into `main` and pushed; #34 closed with its
-  summary. (2026-11-09)
+- Fix batch (plan `docs/plans/2026-11-09-fix-batch.md`, branch
+  `fix-batch-2026-11-09`): #32 impute's filled copies keep their type
+  (`Step.copies_inputs`); #35 accuracy refuses continuous and mixed-kind labels;
+  #37 the metrics refuse infinite, list and incomparable labels; #38 ENUM
+  features reach models as categories in declared order; #39 a failing fold
+  fails its Optuna trial; #40 streamed predictions widen to each batch's type;
+  #28 `sq.agg.std` in two staged passes (12 to 1 ULP, about 2.9x the cost, ADR
+  0044); #31 and #27 measured and handed back. 9 tasks, final review, one fix
+  wave. (2026-11-10)
+- The docs tagger's frontmatter edits committed (`7baa56a`). (2026-11-09)
+- #36: a seeded search is repeatable within rounding (ADR 0043). (2026-11-09)
