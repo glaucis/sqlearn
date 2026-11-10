@@ -49,6 +49,7 @@ The verbs and conventions users write against.
 - [0026: A step without `cols=` works on every column](0026-a-step-without-cols-works-on-every-column.md)
 - [0034: A grouped API](0034-a-grouped-api.md)
 - [0035: Names of generated columns](0035-names-of-generated-columns.md)
+- [0045: Datasets are relations built in SQL](0045-datasets-are-relations-built-in-sql.md)
 
 ## Steps users write
 

@@ -41,7 +41,7 @@ def test_the_top_level_holds_only_the_builders():
         "search",
         "folds",
     }
-    others = {"cols", "fn", "out", "metrics", "errors", "store"}
+    others = {"cols", "fn", "out", "metrics", "datasets", "errors", "store"}
     kept = {"Learned", "Output", "Model", "__version__"}
     allowed = builders | groups | others | kept
     assert set(sq.__all__) == allowed
