@@ -3,17 +3,31 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-10 · Branch: `main` (pushed) · Last commit: `21577b9 docs:
-update the handoff` · Checks: passing (`just verify` on the branch, `just test`
-on the merged `main`)
+Updated: 2026-11-10 · Branch: `fix-batch-2026-11-10` (worktree
+`.worktrees/fix-batch-2026-11-10`, not merged) · Checks: passing (`just verify`
+on the branch)
 Verify with: `just verify`
 
 ## In progress
 
-None.
+- Fix batch 2 (#41-#44, plan `docs/plans/2026-11-10-fix-batch-2.md`): done and
+  verified on its branch, waiting for the merge (see below).
 
 ## Waiting on the user
 
+- Merge `fix-batch-2026-11-10` into `main`, and check its rulings (ledger
+  `.superpowers/sdd/2026-11-10-fix-batch-2/progress.md`, in the worktree), each
+  with its cost if wrong:
+  - #44 is refused, not learned: a plain aggregate inside a staged one (`std(x
+    - mean(x))`, `median(x - mean(x))`) is a house-form error (cost: such
+    forms must be rewritten side by side or split across steps);
+  - `sq.agg.var`'s validation bound is 2 ULPs, as std's, for thread order
+    (cost: a 2-ULP regression of var would pass unseen);
+  - impute keeps an ENUM column's type for the constant and the mode fill, and
+    refuses a constant outside the declared values; the mode fill gave VARCHAR
+    before the batch too (cost: a little more impute code);
+  - impute's ENUM types are state set by `inputs` and read by `apply` (cost: an
+    `apply` without `inputs` would skip the cast). (since 2026-11-10)
 - Check the batch's rulings, each with its cost if wrong (ledger
   `.superpowers/sdd/2026-11-09-fix-batch/progress.md`, in the main checkout):
   - accuracy's label checks use a private flag, not a public `Metric` field
@@ -25,12 +39,10 @@ None.
   - a standard deviation may hold the other staged aggregates
     (`std(x - median(x))`), as ADR 0036 promises (cost: more compositor code);
   - the std's validation bound is 2 ULPs, not 1, for DuckDB's thread order
-    (cost: a 2-ULP regression would pass unseen);
-  - the ENUM text selector (#43) and `std(x - mean(x))` (#44) stay out of the
-    batch (cost: `sq.encode.onehot()` still skips ENUM columns). (since
-    2026-11-10)
+    (cost: a 2-ULP regression would pass unseen). (since 2026-11-10)
 - #31: keep `list_position` and close, use the MD5 hash above a threshold, or
-  allow a join (an ADR); numbers in `docs/benchmarks/category-lookup.md`.
+  allow a join (an ADR); numbers in `docs/benchmarks/category-lookup.md`
+  (which now also has the target encoder's learn after #41).
   (since 2026-11-10)
 - #27: offer an approximate median beyond the exact one's reach (32/64/128 MB
   learn 8.1M/32.5M/110M rows on one thread, `docs/benchmarks/median-reach.md`),
@@ -47,14 +59,17 @@ None.
 
 - Choose the next 3.3 area: datasets (recommended: the learning site needs
   sample data) or more metrics (confusion matrix, report, curves, fbeta).
-- Ready for an agent: #41 (the target encoder's learn crosses every row with
-  its staged stats: 46.8 s at 10,000 categories on 1M rows); #42 (`sq.agg.var`
-  in two passes, as std); #43 (`sq.cols.string()` skips ENUM, one shared
-  definition of text); #44 (`std(x - mean(x))` gives a misleading GROUP BY
-  error).
+- The target encoder's learn after #41 is mostly Python `Fraction`
+  arithmetic in `_encodings`/`_totals` (about 5 s at 200k rows before #41);
+  file an issue if it matters.
 
 ## Dead ends and traps
 
+- A wait loop `while pgrep -f name` (or `until ! pgrep -f name`) matches its
+  own command line and never ends: subagents left two such loops running.
+  Wait on a PID, or let the harness notify. A `VALUES ('a'::ENUM(...))`
+  relation comes out VARCHAR: build an ENUM column by casting over the VALUES.
+  (2026-11-10)
 - DuckDB reports a collated VARCHAR's type as plain `VARCHAR` (the collation
   lives on the expression); a NULL-only column's type is `"NULL"`, quotes
   included. Arrow batches keep only the ENUM values they hold, so an ENUM's
@@ -102,6 +117,14 @@ None.
 
 ## Just finished
 
+- Fix batch 2 (plan `docs/plans/2026-11-10-fix-batch-2.md`), on branch
+  `fix-batch-2026-11-10`: #43 `sq.cols.string()` selects ENUM, one `is_text`
+  for selector, hand-over and metrics, impute keeps an ENUM's type (`53dc701`,
+  `cc6cfdd`); #44 a plain aggregate inside a staged one is refused in the
+  house form (`a066963`, `83fbad9`); #42 `sq.agg.var` in std's two passes, 20
+  to 1 ULP, bound 2 (`ce4b967`, `d1ccdb5`); #41 the learn stage reads a whole
+  staged value once, target encoder's learn at 10,000 categories 46.8 s to
+  4.0 s (`4a73236`). 4 tasks, final review, one fix wave. (2026-11-10)
 - Fix batch (plan `docs/plans/2026-11-09-fix-batch.md`), fast-forwarded into
   `main` and pushed; #28, #32, #35, #37-#40 closed with their commits: #32
   impute's filled copies keep their type (`Step.copies_inputs`); #35 accuracy

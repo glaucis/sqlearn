@@ -26,6 +26,36 @@
     },
     {
       "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_a_plain_aggregate_inside_a_staged_one_is_refused[median]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_a_plain_aggregate_inside_a_staged_one_is_refused[mode]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_a_plain_aggregate_inside_a_staged_one_is_refused[std]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_a_std_the_stages_cannot_order_is_refused[median of std]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_a_std_the_stages_cannot_order_is_refused[std of std]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
       "name": "tests/src/sqlearn/agg/test_aggregates.py::test_aggregates_leave_missing_out[values0-expected0]",
       "outcome": "passed",
       "tier": "fast"
@@ -950,6 +980,12 @@
     },
     {
       "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_std_is_two_passes_and_may_sit_anywhere_in_a_learned_value",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
       "name": "tests/src/sqlearn/agg/test_aggregates.py::test_std_is_within_two_ulps_of_the_exact_value_on_100k_rows",
       "outcome": "passed",
       "tier": "fast"
@@ -980,7 +1016,19 @@
     },
     {
       "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_std_of_an_expression_holding_a_median_is_learned",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
       "name": "tests/src/sqlearn/agg/test_aggregates.py::test_strings_name_aggregates",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_the_advice_on_a_plain_aggregate_holds_for_a_median_too",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -993,6 +1041,54 @@
     {
       "area": "sqlearn/agg/aggregates",
       "name": "tests/src/sqlearn/agg/test_aggregates.py::test_the_repr_sorts_params_and_leaves_defaults_out",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_var_and_std_of_one_column_share_their_passes",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_var_is_the_two_pass_population_variance",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_var_of_a_constant_column_is_exactly_zero[100000]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_var_of_a_constant_column_is_exactly_zero[1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_var_of_an_expression_holding_a_plain_aggregate_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/_labels",
+      "name": "tests/src/sqlearn/metrics/test__labels.py::test_a_duckdb_error_from_an_extra_aggregate_passes_through",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/_labels",
+      "name": "tests/src/sqlearn/metrics/test__labels.py::test_a_type_neither_text_nor_number_is_named_as_it_is",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/_labels",
+      "name": "tests/src/sqlearn/metrics/test__labels.py::test_an_incomparable_pair_names_duckdb_s_first_line_only",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -2943,6 +3039,12 @@
     {
       "area": "sqlearn/metrics/probability",
       "name": "tests/src/sqlearn/metrics/test_probability.py::test_a_probability_metric_needs_the_classes",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/probability",
+      "name": "tests/src/sqlearn/metrics/test_probability.py::test_a_target_incomparable_with_the_classes_is_refused_with_a_fix",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -5216,6 +5318,12 @@
     },
     {
       "area": "sqlearn/preprocessing/impute",
+      "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_impute_keeps_the_enum_type_of_a_column_it_fills",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/impute",
       "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_impute_matches_simple_imputer[mean]",
       "outcome": "passed",
       "tier": "fast"
@@ -5223,6 +5331,18 @@
     {
       "area": "sqlearn/preprocessing/impute",
       "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_impute_matches_simple_imputer[median]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/impute",
+      "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_impute_refuses_a_constant_outside_the_enum_declared_values",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/impute",
+      "name": "tests/src/sqlearn/preprocessing/test_impute.py::test_impute_treats_enum_as_text",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -5456,6 +5576,12 @@
     },
     {
       "area": "sqlearn/preprocessing/onehot",
+      "name": "tests/src/sqlearn/preprocessing/test_onehot.py::test_onehot_encodes_enum_columns_by_default",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/onehot",
       "name": "tests/src/sqlearn/preprocessing/test_onehot.py::test_onehot_handles_two_thousand_categories",
       "outcome": "passed",
       "tier": "fast"
@@ -5535,6 +5661,12 @@
     {
       "area": "sqlearn/preprocessing/ordinal",
       "name": "tests/src/sqlearn/preprocessing/test_ordinal.py::test_null_stays_null_as_in_sklearn",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/ordinal",
+      "name": "tests/src/sqlearn/preprocessing/test_ordinal.py::test_ordinal_encodes_enum_columns_by_default",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -6200,6 +6332,12 @@
     },
     {
       "area": "sqlearn/preprocessing/target",
+      "name": "tests/src/sqlearn/preprocessing/test_target.py::test_target_encodes_enum_columns_by_default",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/target",
       "name": "tests/src/sqlearn/preprocessing/test_target.py::test_target_unseen_and_null_get_the_overall_mean",
       "outcome": "passed",
       "tier": "fast"
@@ -6225,6 +6363,12 @@
     {
       "area": "sqlearn/preprocessing/target",
       "name": "tests/src/sqlearn/preprocessing/test_target.py::test_train_cross_fits_like_fit_transform",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/target",
+      "name": "tests/src/sqlearn/preprocessing/test_target.py::test_two_columns_in_one_step_each_match_fit_then_transform",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -6279,6 +6423,12 @@
     {
       "area": "sqlearn/preprocessing/transform",
       "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_bounds_belong_to_clip_only",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/transform",
+      "name": "tests/src/sqlearn/preprocessing/test_transform.py::test_case_functions_choose_enum_columns_by_default",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -6608,6 +6758,12 @@
     },
     {
       "area": "sqlearn/_compose",
+      "name": "tests/src/sqlearn/test__compose.py::test_a_median_whole_nested_and_in_an_expression_in_one_step",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_compose",
       "name": "tests/src/sqlearn/test__compose.py::test_a_mode_inside_another_aggregate_is_computed",
       "outcome": "passed",
       "tier": "fast"
@@ -6860,6 +7016,12 @@
     },
     {
       "area": "sqlearn/_compose",
+      "name": "tests/src/sqlearn/test__compose.py::test_the_learn_scan_does_not_carry_a_whole_staged_value",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_compose",
       "name": "tests/src/sqlearn/test__compose.py::test_the_learn_statement_must_give_one_row",
       "outcome": "passed",
       "tier": "fast"
@@ -6885,6 +7047,12 @@
     {
       "area": "sqlearn/_compose",
       "name": "tests/src/sqlearn/test__compose.py::test_two_learn_stages_with_medians_in_one_statement",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_compose",
+      "name": "tests/src/sqlearn/test__compose.py::test_whole_staged_values_join_no_stage_into_a_scan",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -7125,6 +7293,12 @@
     {
       "area": "sqlearn/_feed",
       "name": "tests/src/sqlearn/test__feed.py::test_a_nan_target_is_not_missing_in_any_form",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_feed",
+      "name": "tests/src/sqlearn/test__feed.py::test_a_pandas_target_s_nulls_are_counted_beside_a_feature_named_so",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -8865,6 +9039,12 @@
     {
       "area": "sqlearn/_selectors",
       "name": "tests/src/sqlearn/test__selectors.py::test_operators",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_selectors",
+      "name": "tests/src/sqlearn/test__selectors.py::test_string_selects_enum_columns",
       "outcome": "passed",
       "tier": "fast"
     },
