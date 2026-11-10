@@ -22,8 +22,10 @@ built.
   in issue #33. Its third, metrics (precision, recall, F1), is built: spec
   `docs/specs/library-metrics.md`, plan
   `docs/plans/2026-11-09-library-metrics.md`, ADR 0042, summary in issue
-  #34. **Next:** the next 3.3 area (datasets, or more metrics), not chosen
-  yet.
+  #34. Its fourth, datasets (bundled and generated in SQL), is built: spec
+  `docs/specs/library-datasets.md`, plan
+  `docs/plans/2026-11-10-library-datasets.md`, ADR 0045, summary in issue
+  #45. **Next:** the next 3.3 area, not chosen yet.
 
 Rules from the ADRs:
 

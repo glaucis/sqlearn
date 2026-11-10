@@ -3,21 +3,31 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-10 · Branch: `fix-batch-2026-11-10` (worktree
-`.worktrees/fix-batch-2026-11-10`, not merged) · Checks: passing (`just verify`
-on the branch)
+Updated: 2026-11-10 · Branch: `library-datasets` (worktree
+`.worktrees/library-datasets`, not merged) · Checks: passing (`just verify` on
+the branch)
 Verify with: `just verify`
 
 ## In progress
 
-- Fix batch 2 (#41-#44, plan `docs/plans/2026-11-10-fix-batch-2.md`): done and
-  verified on its branch, waiting for the merge (see below).
+- The datasets area (#45, plan `docs/plans/2026-11-10-library-datasets.md`):
+  done and verified on its branch, waiting for the merge (see below).
 
 ## Waiting on the user
 
-- Merge `fix-batch-2026-11-10` into `main`, and check its rulings (ledger
-  `.superpowers/sdd/2026-11-10-fix-batch-2/progress.md`, in the worktree), each
-  with its cost if wrong:
+- Merge `library-datasets` into `main`, and check its rulings, listed with
+  their costs in #45 (ledger
+  `.superpowers/sdd/2026-11-10-library-datasets/progress.md`, in the
+  worktree). Chiefly: the generators run on one thread (R3); an explicit
+  `n_informative > n_features` is refused where scikit-learn clips (R7/R16);
+  rows keep their order through `preserve_insertion_order`, not an `ORDER BY`
+  (R10). (since 2026-11-10)
+- [assumed] The UCI URLs in `src/sqlearn/datasets/data/README.md` (iris 53,
+  wine 109, breast cancer 17) were written without network: check them online.
+  (since 2026-11-10)
+- Check fix batch 2's rulings (ledger
+  `.superpowers/sdd/2026-11-10-fix-batch-2/progress.md`, in the main
+  checkout), each with its cost if wrong:
   - #44 is refused, not learned: a plain aggregate inside a staged one (`std(x
     - mean(x))`, `median(x - mean(x))`) is a house-form error (cost: such
     forms must be rewritten side by side or split across steps);
@@ -57,8 +67,8 @@ Verify with: `just verify`
 
 ## Next up
 
-- Choose the next 3.3 area: datasets (recommended: the learning site needs
-  sample data) or more metrics (confusion matrix, report, curves, fbeta).
+- Choose the next 3.3 area: more metrics (confusion matrix, report, curves,
+  fbeta), or a fetcher of real datasets (ADR 0006: an explicit call).
 - The target encoder's learn after #41 is mostly Python `Fraction`
   arithmetic in `_encodings`/`_totals` (about 5 s at 200k rows before #41);
   file an issue if it matters.
@@ -122,14 +132,22 @@ Verify with: `just verify`
 
 ## Just finished
 
-- Fix batch 2 (plan `docs/plans/2026-11-10-fix-batch-2.md`), on branch
-  `fix-batch-2026-11-10`: #43 `sq.cols.string()` selects ENUM, one `is_text`
+- The datasets area (#45): `sq.datasets` with `iris`, `wine`,
+  `breast_cancer` (bundled, CC BY 4.0) and `blobs`, `regression`,
+  `classification`, `customers` (SplitMix64 in SQL, lazy, any size), ADR 0045,
+  `docs/guide/datasets.md`; the tuning example uses `customers`. 5 tasks,
+  final review, one fix wave. (2026-11-10)
+- The cold staged-learn test compares two sizes instead of an absolute 2 s
+  (`d8d5daf`): it failed under load, and still fails on the planning
+  regression. (2026-11-10)
+- Fix batch 2 (plan `docs/plans/2026-11-10-fix-batch-2.md`), merged into `main`
+  and pushed, #41-#44 closed: #43 `sq.cols.string()` selects ENUM, one `is_text`
   for selector, hand-over and metrics, impute keeps an ENUM's type (`53dc701`,
-  `cc6cfdd`); #44 a plain aggregate inside a staged one is refused in the
-  house form (`a066963`, `83fbad9`); #42 `sq.agg.var` in std's two passes, 20
-  to 1 ULP, bound 2 (`ce4b967`, `d1ccdb5`); #41 the learn stage reads a whole
-  staged value once, target encoder's learn at 10,000 categories 46.8 s to
-  4.0 s (`4a73236`). 4 tasks, final review, one fix wave. (2026-11-10)
+  `cc6cfdd`); #44 a plain aggregate inside a staged one is refused in the house
+  form (`a066963`, `83fbad9`); #42 `sq.agg.var` in std's two passes, 20 to 1
+  ULP, bound 2 (`ce4b967`, `d1ccdb5`); #41 the learn stage reads a whole staged
+  value once, target encoder's learn at 10,000 categories 46.8 s to 4.0 s
+  (`4a73236`). 4 tasks, final review, one fix wave. (2026-11-10)
 - Fix batch (plan `docs/plans/2026-11-09-fix-batch.md`), fast-forwarded into
   `main` and pushed; #28, #32, #35, #37-#40 closed with their commits: #32
   impute's filled copies keep their type (`Step.copies_inputs`); #35 accuracy
