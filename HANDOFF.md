@@ -69,9 +69,6 @@ None.
 - DuckDB 2.0: NaN sorts greatest; a staged result read with `any_value` breaks
   inside another aggregate; chained quantile stages spill only with the SQL of
   `b633816`; `range()` is read on one thread. (2026-11-08)
-- LightGBM's macOS wheel needs `brew install libomp` (installed here
-  2026-11-10); uv cannot provide it. Nothing tests LightGBM yet (#51).
-  (2026-11-07)
 - The git stash is shared by all worktrees: never a bare `git stash`.
   (2026-11-06)
 

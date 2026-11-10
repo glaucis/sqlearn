@@ -51,6 +51,9 @@ docs = [
     "sphinx-gallery>=0.22.1",
     "sphinxcontrib-bibtex>=2.7.0",
 ]
+dev = [
+    "lightgbm>=4.7.0",
+]
 
 [tool.uv]
 # `uv sync` installs every group; none is ever published.
