@@ -119,5 +119,6 @@ such as `sq.scale.standard()` alone, need little.
 ## Bad settings
 
 A setting that cannot work is refused with a `SqlearnError` that says what was
-wrong, why, and the fix: `rows=0`, a `noise` below 0, more informative features
-than features. scikit-learn raises `ValueError` in these cases.
+wrong, why, and the fix: `rows=0`, a `noise` below 0. scikit-learn raises
+`ValueError` in these cases. An explicit `n_informative` above `n_features` in
+`regression` is clipped, with a warning.

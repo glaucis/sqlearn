@@ -1,13 +1,14 @@
 """Tests of the generators written in SQL: blobs, regression and the others."""
 
 import threading
+import warnings
 
 import numpy as np
 import pytest
 
 import sqlearn as sq
 from sqlearn._config import connection
-from sqlearn.errors import SqlearnError
+from sqlearn.errors import SqlearnError, SqlearnWarning
 
 GENERATORS = [
     sq.datasets.blobs,
@@ -197,7 +198,6 @@ def test_bad_blobs_settings_are_refused(settings):
         {"n_features": 0},
         {"n_informative": -1},
         {"n_informative": 1.5},
-        {"n_features": 3, "n_informative": 4},
         {"noise": -1.0},
         {"noise": float("nan")},
         {"noise": "1"},
@@ -210,6 +210,27 @@ def test_bad_regression_settings_are_refused(settings):
     """Each bad regression setting is refused in the house form, naming it."""
     name = list(settings)[-1]
     assert name in _refused(sq.datasets.regression, **settings)
+
+
+def test_regression_clips_an_explicit_n_informative_with_a_warning():
+    """An n_informative above n_features is clipped, with a warning to fix it."""
+    with pytest.warns(SqlearnWarning) as caught:
+        clipped = sq.datasets.regression(rows=50, n_features=5, n_informative=8, seed=0)
+    assert len(caught) == 1
+    message = str(caught[0].message)
+    assert "n_informative=8" in message
+    assert "using 5" in message
+    assert "Fix:" in message
+    assert caught[0].filename == __file__
+    exact = sq.datasets.regression(rows=50, n_features=5, n_informative=5, seed=0)
+    assert clipped.fetchall() == exact.fetchall()
+
+
+def test_regression_with_default_n_informative_does_not_warn():
+    """The default n_informative is never warned about, even with few features."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        sq.datasets.regression(n_features=5)
 
 
 def test_classification_gives_its_columns_in_order():

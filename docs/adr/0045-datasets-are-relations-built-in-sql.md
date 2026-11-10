@@ -31,7 +31,10 @@ larger than memory.
 - **Settings keep scikit-learn's names** with two departures, both sqlearn's
   existing words: `rows=` for `n_samples` and `seed=` for `random_state` (an
   `int`, default 0). Bad settings are refused with a `SqlearnError` in the
-  house form, where scikit-learn raises `ValueError`.
+  house form, where scikit-learn raises `ValueError`. An explicit
+  `n_informative` above `n_features` in `regression` is clipped to
+  `n_features`, with a `SqlearnWarning` (ADR 0046), where scikit-learn clips
+  silently.
 - **Random numbers are SplitMix64 in SQL.** Every value is a pure function of
   `(seed, row, stream)`: the key is
   `splitmix64(splitmix64(splitmix64(seed mod 2**64) ^ row) ^ stream)`,

@@ -43,14 +43,18 @@ In ``classification``, ``d`` is ``n_informative``.
 """
 
 import math
+import warnings
 from collections.abc import Sequence
 from numbers import Integral, Real
+from pathlib import Path
 
 import duckdb
 
 from sqlearn._config import connection
-from sqlearn._errors import SqlearnError
+from sqlearn._errors import SqlearnError, SqlearnWarning
 from sqlearn.datasets._random import CONSTANT_ROW, MASK, key, random_columns, uniform
+
+_PACKAGE = (str(Path(__file__).parents[1]),)
 
 __all__ = ["blobs", "classification", "customers", "regression"]
 
@@ -375,7 +379,8 @@ def regression(
     n_informative : int, optional
         The number of features the target depends on, from 0 to
         `n_features`; they are the first ones. The default, None, is 10 or
-        `n_features` when that is fewer.
+        `n_features` when that is fewer. A larger number is clipped to
+        `n_features`, with a warning.
     bias : float, default 0.0
         The intercept, a finite number.
     noise : float, default 0.0
@@ -393,8 +398,12 @@ def regression(
     Raises
     ------
     SqlearnError
-        If a setting is not of the kind above, or `n_informative` exceeds
-        `n_features`.
+        If a setting is not of the kind above.
+
+    Warns
+    -----
+    SqlearnWarning
+        If `n_informative` exceeds `n_features`; it is clipped to it.
 
     Examples
     --------
@@ -410,12 +419,14 @@ def regression(
         n_informative = min(10, n_features)
     n_informative = _check_count("regression", "n_informative", n_informative, 0)
     if n_informative > n_features:
-        msg = (
-            f"sq.datasets.regression got n_informative={n_informative} with "
-            f"n_features={n_features}. Why: the informative features are "
-            "some of the features. Fix: pass n_informative at most n_features."
+        text = (
+            f"sq.datasets.regression got n_informative={n_informative} above "
+            f"n_features={n_features}; using {n_features}. Why: the "
+            "informative features are some of the features. Fix: pass "
+            f"n_informative at most {n_features}, or more features."
         )
-        raise SqlearnError(msg)
+        warnings.warn(text, SqlearnWarning, skip_file_prefixes=_PACKAGE)
+        n_informative = n_features
     bias = _check_number("regression", "bias", bias, least=-math.inf)
     noise = _check_number("regression", "noise", noise, least=0.0)
     coef = [100.0 * uniform(seed, CONSTANT_ROW, j) for j in range(n_informative)]
