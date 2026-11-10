@@ -116,11 +116,11 @@ itself is not a column.
   number or one per centre. Each row picks its centre uniformly at random
   (scikit-learn deals equal counts; a row of its own cannot, so the counts are
   equal only in expectation); `target` is the centre's number.
-- **`regression`** (`rows=100`, `n_features=100`, `n_informative=10`,
-  `bias=0.0`, `noise=0.0`, `seed=0`): as `make_regression` without its rank and
-  tail settings. Features are standard normal; the first `n_informative`
-  coefficients are uniform in `[0, 100)`, the rest 0;
-  `target = x @ coef + bias + noise * N(0, 1)`.
+- **`regression`** (`rows=100`, `n_features=100`, `n_informative=None` (10, or
+  `n_features` when fewer), `bias=0.0`, `noise=0.0`, `seed=0`): as
+  `make_regression` without its rank and tail settings. Features are standard
+  normal; the first `n_informative` coefficients are uniform in `[0, 100)`, the
+  rest 0; `target = x @ coef + bias + noise * N(0, 1)`.
 - **`classification`** (`rows=100`, `n_features=20`, `n_informative=2`,
   `n_redundant=2`, `n_classes=2`, `n_clusters_per_class=2`, `weights=None`,
   `flip_y=0.01`, `class_sep=1.0`, `seed=0`): as `make_classification` without

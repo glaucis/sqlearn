@@ -353,7 +353,7 @@ def blobs(
 def regression(
     rows: int = 100,
     n_features: int = 100,
-    n_informative: int = 10,
+    n_informative: int | None = None,
     bias: float = 0.0,
     noise: float = 0.0,
     seed: int = 0,
@@ -372,9 +372,10 @@ def regression(
         The number of rows, at least 1.
     n_features : int, default 100
         The number of features, at least 1.
-    n_informative : int, default 10
+    n_informative : int, optional
         The number of features the target depends on, from 0 to
-        `n_features`; they are the first ones.
+        `n_features`; they are the first ones. The default, None, is 10 or
+        `n_features` when that is fewer.
     bias : float, default 0.0
         The intercept, a finite number.
     noise : float, default 0.0
@@ -405,6 +406,8 @@ def regression(
     rows = _check_rows(rows)
     seed = _check_seed(seed)
     n_features = _check_count("regression", "n_features", n_features, 1)
+    if n_informative is None:
+        n_informative = min(10, n_features)
     n_informative = _check_count("regression", "n_informative", n_informative, 0)
     if n_informative > n_features:
         msg = (

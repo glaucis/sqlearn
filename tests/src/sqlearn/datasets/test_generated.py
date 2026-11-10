@@ -97,6 +97,14 @@ def test_regression_target_is_the_linear_model_without_noise():
     assert all(0 <= c < 100 for c in coef[:5])
 
 
+def test_regression_informative_defaults_to_the_features_it_has():
+    """With few features, n_informative defaults to all of them."""
+    data = sq.datasets.regression(rows=500, n_features=5, seed=2).fetchnumpy()
+    x = np.column_stack([data[f"x{j}"] for j in range(5)])
+    coef, *_ = np.linalg.lstsq(x, data["target"], rcond=None)
+    assert np.count_nonzero(np.abs(coef) > 1e-6) == 5
+
+
 def test_regression_noise_spreads_the_target_round_the_model():
     """With noise, the residual of the least-squares fit has spread `noise`."""
     data = sq.datasets.regression(
