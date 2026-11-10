@@ -36,8 +36,10 @@ pipe.learn("customers")
 con.execute("UPDATE customers SET age = age + 1")
 con.execute("CHECKPOINT")  # the edit is written: new blocks
 pipe.learn("customers")  # learns again; SqlearnWarning: the table
-# main.customers in shop.duckdb changed since sqlearn last read it ...
+# main.customers in shop.duckdb changed since sqlearn last learned from it ...
 ```
+
+`apply` and `predict` say nothing: they use what was learned, as asked.
 
 Before the checkpoint the edit sits in the write-ahead log and the blocks are
 the old ones. sqlearn still sees the first edit of each row group (DuckDB
@@ -131,8 +133,8 @@ What the key cannot see:
 
 - a table of a database file edited in place whose edit is still in the
   write-ahead log, as for the store above (a checkpointed edit is seen: the
-  table is prepared again, with a `SqlearnWarning` when this process read it
-  before);
+  table is prepared again, with a `SqlearnWarning` when this process learned
+  from it before);
 - a change to the **code** of a step of your own (or of a function it takes)
   that keeps its class name and settings;
 - a change to sqlearn's own code in an editable or git install, where its

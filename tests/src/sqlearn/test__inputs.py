@@ -429,11 +429,11 @@ def test_a_table_updated_in_place_gets_a_new_key(tmp_path):
     con.execute("CREATE TABLE customers AS SELECT range::DOUBLE AS x FROM range(5000)")
     con.execute("CHECKPOINT")
     sq.set_config(connection=con)
-    first = read("customers")
+    first = read("customers", learning=True)
     con.execute("UPDATE customers SET x = x * 2")
     con.execute("CHECKPOINT")
     with pytest.warns(SqlearnWarning, match=r"main\.customers in shop\.duckdb"):
-        second = read("customers")
+        second = read("customers", learning=True)
     assert second.key != first.key
     assert second.stable_key() != first.stable_key()
     assert second.key[3] == first.key[3] == 5000  # the row count is equal
@@ -446,11 +446,11 @@ def test_an_unchanged_table_keeps_its_key(tmp_path):
     con.execute("CREATE TABLE customers AS SELECT range::DOUBLE AS x FROM range(5000)")
     con.execute("CHECKPOINT")
     sq.set_config(connection=con)
-    first = read("customers")
+    first = read("customers", learning=True)
     con.execute("CHECKPOINT")  # nothing to write: the blocks stay
     with warnings.catch_warnings():
         warnings.simplefilter("error")
-        second = read("customers")
+        second = read("customers", learning=True)
     assert second.key == first.key
     assert second.stable_key() == first.stable_key()
 
@@ -461,11 +461,11 @@ def test_a_new_table_written_at_its_first_checkpoint_is_not_warned_about(tmp_pat
     con = duckdb.connect(str(path))
     con.execute("CREATE TABLE customers AS SELECT range::DOUBLE AS x FROM range(5000)")
     sq.set_config(connection=con)
-    first = read("customers")
+    first = read("customers", learning=True)
     con.execute("CHECKPOINT")
     with warnings.catch_warnings():
         warnings.simplefilter("error")
-        second = read("customers")
+        second = read("customers", learning=True)
     assert second.stable_key() != first.stable_key()
 
 
@@ -477,18 +477,51 @@ def test_an_edit_before_a_checkpoint_gets_a_new_key(tmp_path):
     con.execute("CREATE TABLE other AS SELECT 1 AS a")
     con.execute("CHECKPOINT")
     sq.set_config(connection=con)
-    first = read("customers")
+    first = read("customers", learning=True)
     con.execute("UPDATE other SET a = 2")  # another table: no new key
-    assert read("customers").stable_key() == first.stable_key()
+    assert read("customers", learning=True).stable_key() == first.stable_key()
     con.execute("UPDATE customers SET x = -x WHERE x = 3")
-    with pytest.warns(SqlearnWarning, match="changed since sqlearn last read it"):
-        edited = read("customers").stable_key()
+    with pytest.warns(SqlearnWarning, match="changed since sqlearn last learned"):
+        edited = read("customers", learning=True).stable_key()
     assert edited != first.stable_key()
     con.execute("CHECKPOINT")  # writes the edit seen above: said once only
     with warnings.catch_warnings():
         warnings.simplefilter("error")
-        assert read("customers").stable_key() != edited
-        assert read("customers").stable_key() != edited
+        assert read("customers", learning=True).stable_key() != edited
+        assert read("customers", learning=True).stable_key() != edited
+
+
+def test_a_checkpoint_writing_inserted_rows_is_not_warned_about(tmp_path):
+    """Rows added, then written by a checkpoint: no edit to warn about."""
+    path = tmp_path / "shop.duckdb"
+    con = duckdb.connect(str(path))
+    con.execute("CREATE TABLE customers AS SELECT range::DOUBLE AS x FROM range(5000)")
+    con.execute("CHECKPOINT")
+    sq.set_config(connection=con)
+    read("customers", learning=True)
+    con.execute("INSERT INTO customers VALUES (1)")
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        read("customers", learning=True)  # more rows: a new key, said by it
+        con.execute("CHECKPOINT")
+        read("customers", learning=True)  # the inserted row written
+
+
+def test_a_read_not_for_learning_neither_warns_nor_forgets(tmp_path):
+    """A read to apply leaves the warning to the next read that learns."""
+    path = tmp_path / "shop.duckdb"
+    con = duckdb.connect(str(path))
+    con.execute("CREATE TABLE customers AS SELECT range::DOUBLE AS x FROM range(5000)")
+    con.execute("CHECKPOINT")
+    sq.set_config(connection=con)
+    read("customers", learning=True)
+    con.execute("UPDATE customers SET x = -x WHERE x = 3")
+    con.execute("CHECKPOINT")
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        read("customers")
+    with pytest.warns(SqlearnWarning, match="changed since sqlearn last learned"):
+        read("customers", learning=True)
 
 
 def test_an_in_memory_table_or_relation_has_no_stable_key():

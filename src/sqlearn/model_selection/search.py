@@ -303,9 +303,9 @@ class Search:
     such key (a relation, a table of an in-memory database) is refused, and
     so is a step setting that cannot be keyed by its content. A table
     edited in place gets new storage blocks and so is prepared again, with
-    a `SqlearnWarning` when this process read it before. An edit still in
-    the write-ahead log may not be seen yet: run ``CHECKPOINT`` after
-    editing. Not seen: a change to the code of a step of your own, with the
+    a `SqlearnWarning` when this process learned from it before. An edit
+    still in the write-ahead log may not be seen yet: run ``CHECKPOINT``
+    after editing. Not seen: a change to the code of a step of your own, with the
     same class name and settings; and a change to sqlearn's code in an
     editable or git install, whose version does not change with its code.
     After any of these, or an edit not checkpointed, clear the file with
@@ -421,12 +421,12 @@ class Search:
         A table of a database file edited in place is noticed by its
         storage blocks once the edit is checkpointed (run ``CHECKPOINT``
         after editing): it is learned and prepared again, with a
-        `SqlearnWarning` when this process read it before. A relation, or a
-        table of an in-memory database, changed in place with the same row
-        count and columns (an ``UPDATE``, or rows deleted and as many
-        inserted) is not noticed: the values learned before are reused.
-        Pass the changed data under a new name, or as a file or a pandas
-        frame, to have it learned again.
+        `SqlearnWarning` when this process learned from it before. A
+        relation, or a table of an in-memory database, changed in place
+        with the same row count and columns (an ``UPDATE``, or rows deleted
+        and as many inserted) is not noticed: the values learned before are
+        reused. Pass the changed data under a new name, or as a file or a
+        pandas frame, to have it learned again.
 
         Examples
         --------
@@ -456,7 +456,7 @@ class Search:
                 # before any work.
                 _check_method(self.metric, trial(self.pipe, params)._modelled()[1])
                 asked.append(params)
-        source = read(data)
+        source = read(data, learning=True)
         stable = None
         if self.keep_prepared is not None:
             stable = source.stable_key()

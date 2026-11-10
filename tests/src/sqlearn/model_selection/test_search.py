@@ -1125,7 +1125,7 @@ def test_a_model_without_predict_proba_is_refused_before_the_data_is_read(
 ):
     """A probability metric needs predict_proba: refused before any work."""
 
-    def unread(data):
+    def unread(data, **_):
         raise AssertionError("the data was read")
 
     monkeypatch.setattr(search_module, "read", unread)
@@ -1352,8 +1352,9 @@ def test_a_search_prepares_an_edited_table_again_and_says_so(tmp_path):
     # must change.
     con.execute("UPDATE customers SET a = -a WHERE rowid % 2 = 0")
     con.execute("CHECKPOINT")
-    with pytest.warns(sq.errors.SqlearnWarning, match="main.customers"):
+    with pytest.warns(sq.errors.SqlearnWarning, match="main.customers") as record:
         second = run()
+    assert len(record) == 1
     assert first.transforms_ == 2
     assert second.transforms_ == 2  # prepared again, not read back
     assert mean_scores(second) != pytest.approx(mean_scores(first))

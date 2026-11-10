@@ -33,8 +33,9 @@ _PACKAGE = (str(Path(__file__).parent),)
 Storage = tuple[tuple[int, ...], tuple[int, ...], int]
 """A file table's storage: its blocks, the row groups edited since the last
 checkpoint, and the number of its segments not yet written to the file."""
-_last_blocks: dict[tuple[str, str], Storage] = {}
-"""The storage each (database file, table) had when sqlearn last read it."""
+_last_blocks: dict[tuple[str, str], tuple[int, DataKey, Storage]] = {}
+"""The row count, columns and storage each (database file, table) had when
+sqlearn last learned or prepared from it."""
 _connection_tokens: weakref.WeakKeyDictionary[duckdb.DuckDBPyConnection, int] = (
     weakref.WeakKeyDictionary()
 )
@@ -308,35 +309,42 @@ def _storage_blocks(con: duckdb.DuckDBPyConnection, qualified: str) -> Storage:
     )
 
 
-def _storage(con: duckdb.DuckDBPyConnection, where: tuple[str, str, str]) -> Storage:
-    """Return a file table's storage, warning when it changed since last read.
+def _notice_edit(
+    where: tuple[str, str, str], rows: int, columns: DataKey, storage: Storage
+) -> None:
+    """Warn when a table learned from changed in place since sqlearn last did.
 
-    The warning is raised once per change, not on every read. It is not
-    raised when only the blocks of what was unwritten at the last read came
-    (a checkpoint writing them): the key changes, so the table is prepared
-    again, but no edit can be told from the checkpoint itself.
+    Called only for a read that learns or prepares, so the warning says
+    what happens: what came from the table before is not reused. Raised
+    once per change. Not raised when the rows or columns changed too (the
+    key differed anyway), nor when the last read held data not yet written
+    and this one holds none: a checkpoint wrote it, and no edit can be told
+    from the checkpoint itself (the key may change, so the table is learned
+    again, but nothing is said).
     """
-    path, qualified, sql_name = where
-    storage = _storage_blocks(con, sql_name)
+    path, qualified, _ = where
     last = _last_blocks.get((path, qualified))
-    _last_blocks[(path, qualified)] = storage
-    if last is None or last == storage:
-        return storage
-    written = not last[1] and not last[2]
-    if written or last[0] == storage[0]:
-        text = (
-            f"the table {qualified} in {os.path.basename(path)} changed since "
-            "sqlearn last read it; what was learned or prepared from it before "
-            "is not reused. Why: its storage differs from what was read then, "
-            "so its values may differ though its rows and columns do not. "
-            "Fix: nothing to do; to have every edit seen, run CHECKPOINT after "
-            "editing the table."
-        )
-        warnings.warn(text, SqlearnWarning, skip_file_prefixes=_PACKAGE)
-    return storage
+    _last_blocks[(path, qualified)] = (rows, columns, storage)
+    if last is None or last[:2] != (rows, columns) or last[2] == storage:
+        return
+
+    def pending(s: Storage) -> bool:
+        return bool(s[1] or s[2])
+
+    if pending(last[2]) and not pending(storage):
+        return
+    text = (
+        f"the table {qualified} in {os.path.basename(path)} changed since "
+        "sqlearn last learned from it; what was learned or prepared from it "
+        "before is not reused. Why: its storage differs from what was read "
+        "then, so its values may differ though its rows and columns do not. "
+        "Fix: nothing to do; to have every edit seen, run CHECKPOINT after "
+        "editing the table."
+    )
+    warnings.warn(text, SqlearnWarning, skip_file_prefixes=_PACKAGE)
 
 
-def _read_table(name: str) -> Source:
+def _read_table(name: str, *, learning: bool) -> Source:
     con = connection()
     try:
         relation = con.table(name)
@@ -357,7 +365,9 @@ def _read_table(name: str) -> Source:
         return Source(relation, key, schema, None)
     # A table in a file is also known by its storage: an edit keeping the
     # row count and columns changes it (#50).
-    storage = _storage(con, where)
+    storage = _storage_blocks(con, where[2])
+    if learning:
+        _notice_edit(where, rows, _names_and_types(schema), storage)
     stable = ("table", where[0], where[1], rows, _names_and_types(schema), storage)
     return Source(relation, (*key, storage), schema, stable)
 
@@ -424,7 +434,7 @@ def _read_relation(data: duckdb.DuckDBPyRelation) -> Source:
     return source
 
 
-def read(data: object) -> Source:
+def read(data: object, *, learning: bool = False) -> Source:
     """Read an input as a relation, keyed so the store knows when it changes.
 
     Parameters
@@ -433,6 +443,11 @@ def read(data: object) -> Source:
         A path or glob ending in ``.parquet``, ``.csv`` or ``.json``; any
         other string names a table on the connection; a relation; or a
         pandas frame.
+    learning : bool, default False
+        True when what is read is learned or prepared from (``learn``,
+        ``train``, a search). A table of a database file edited in place
+        since sqlearn last learned from it is then said with a
+        `SqlearnWarning`; a read to apply or predict says nothing.
 
     Returns
     -------
@@ -461,7 +476,7 @@ def read(data: object) -> Source:
         text = str(data)
         if Path(text).suffix.lower() in _READERS:
             return _read_files(text)
-        return _read_table(text)
+        return _read_table(text, learning=learning)
     if _is_pandas_frame(data):
         return _read_frame(cast("_Frame", data))
     module = type(data).__module__.split(".")[0]
