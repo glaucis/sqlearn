@@ -80,6 +80,10 @@ The API of the sqlearn package, generated from its docstrings.
    sqlearn.metrics.f1
    sqlearn.metrics.ClassificationMetric
    sqlearn.metrics.MissingClassError
+   sqlearn.datasets
+   sqlearn.datasets.iris
+   sqlearn.datasets.wine
+   sqlearn.datasets.breast_cancer
    sqlearn.Model
    sqlearn.Output
    sqlearn.out.parquet

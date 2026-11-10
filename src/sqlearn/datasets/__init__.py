@@ -9,3 +9,7 @@ Examples
 >>> sq.datasets.__name__
 'sqlearn.datasets'
 """
+
+from sqlearn.datasets.bundled import breast_cancer, iris, wine
+
+__all__ = ["breast_cancer", "iris", "wine"]
