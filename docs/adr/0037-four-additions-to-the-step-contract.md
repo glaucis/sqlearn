@@ -7,7 +7,9 @@ related: [docs/adr/0012-static-and-dynamic-steps.md, docs/adr/0019-custom-steps-
 # 0037: Four additions to the step contract
 
 Status: accepted (2026-11-07). Made during the preprocessing build (rulings
-T5a, T8c, T11c and F2 in its build ledger).
+T5a, T8c, T11c and F2 in its build ledger). Extended by #32: a fifth
+declaration, `copies_inputs`, for a step with `keep` whose copy of each
+input keeps the input's own type while `creates` types its other columns.
 
 ## Context
 

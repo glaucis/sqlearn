@@ -39,18 +39,22 @@ had nowhere to go but swap.
 - **Text columns reach the model as categories.** DuckDB hands over plain
   strings, so each `VARCHAR` feature is cast after the fetch. A NULL stays
   missing (NaN, null), never a category of its own. CatBoost still takes
-  `cat_features=` as it would without sqlearn.
+  `cat_features=` as it would without sqlearn. Amended by #38: an `ENUM`
+  feature is text too, and a collated `VARCHAR` one, which DuckDB reports
+  as `VARCHAR`; an `ENUM`'s categories are its declared values, in their
+  declared order, not sorted.
 - **Polars gets an `Enum`, not a `Categorical`** (the spec said
   `Categorical`; changed during the build, Ruling R9). An `Enum`'s codes are
   its list's order, kept through `to_physical`, `to_arrow` and `to_pandas`,
   which is how libraries take a Polars frame. A `Categorical`'s codes follow
   a process-wide insertion order, and `to_arrow`/`to_pandas` re-encode it to
   the values present, so no list could fix them.
-- **One category list per text column, from training.** Training records
-  each text feature's categories, sorted, from its rows (per fold in a
-  search); every prediction batch is cast with that list first and any new
-  values after it, sorted, so a known value keeps its code and a new one is
-  never dropped to missing. The lists travel with the trained pipeline.
+- **One category list per text column, from training.** Training records each
+  text feature's categories, sorted, from its rows (per fold in a search; an
+  `ENUM`'s are its declared values, #38); every prediction batch is cast with
+  that list first and any new values after it, sorted, so a known value keeps
+  its code and a new one is never dropped to missing. The lists travel with the
+  trained pipeline.
 - **The target goes over in the same form** as the features: a numpy array, a
   pandas or Polars `Series`, a `pyarrow.ChunkedArray`. A missing target is
   refused in every form, counted as SQL NULLs

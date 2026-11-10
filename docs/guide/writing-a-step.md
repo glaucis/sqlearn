@@ -144,7 +144,10 @@ under its own name (the label `""`), of the same kind (numbers stay numbers,
 text stays text), declares `keeps_inputs = True`. `sq.impute.indicator` is
 one: it passes `city` through and adds `city_missing`. The steps after it
 then see `city` too, once the indicator has learned, so a later
-`sq.encode.onehot()` still encodes it.
+`sq.encode.onehot()` still encodes it. A step with `keep` that also writes a
+copy of each input of the input's own type, beside new columns of the type
+`creates` names, declares `copies_inputs = True`, as `sq.impute` with a
+fill value, `keep` and the indicator does for its filled copies.
 
 (names-of-new-columns)=
 

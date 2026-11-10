@@ -1,7 +1,7 @@
 ---
 type: adr
 tags: [mean, accuracy, numerics, favg, validation, duckdb]
-summary: "Records that sqlearn's mean uses DuckDB's compensated favg, which matched the exact mean where plain avg drifted 119 ULPs, while the standard deviation stays stddev_pop for now."
+summary: "Records that sqlearn's mean uses DuckDB's compensated favg, which matched the exact mean where plain avg drifted 119 ULPs, while the standard deviation stays stddev_pop for now; superseded in part by ADR 0044."
 related: [docs/adr/0016-validation-method.md, docs/adr/0032-the-median-is-exact-by-sorting.md]
 ---
 # 0033: The mean is summed with compensation

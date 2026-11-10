@@ -153,7 +153,9 @@ each batch's predictions back to DuckDB beside the batch's row numbers. In a
 search, each fold's metric is then computed in SQL over the whole fold.
 Prediction never needs the data in memory, and with
 `out=sq.out.parquet("scored.parquet")` the predictions go straight to a
-file.
+file. A later batch of a wider type widens the column (fractions after
+whole numbers keep their fractions), and a batch of text after numbers, or
+numbers after text, is refused.
 
 ## The memory budget: never swap
 

@@ -167,15 +167,18 @@ sq.metrics.recall(average="weighted", zero_division=0.0)
 | `pos_label` | a label | `1` |
 | `zero_division` | `"warn"`, `0.0`, `1.0`, `nan` | `"warn"` |
 
-DuckDB counts each class's rows in the target, in the prediction and in
-both, in one grouped query; the scores are exact fractions of those counts.
-They refuse what scikit-learn refuses: `"binary"` on more than two classes,
-a `pos_label` that is not one of two labels found, a column of non-whole
-numbers, and text labels against numbers. A score that divides by zero
-takes `zero_division`'s value, and under `"warn"` (counted as 0) raises
+DuckDB counts each class's rows in the target, in the prediction and in both, in
+one grouped query; the scores are exact fractions of those counts. They refuse
+what scikit-learn refuses: `"binary"` on more than two classes, a `pos_label`
+that is not one of two labels found, a column of non-whole numbers, text labels
+against numbers, an infinite label, a column of lists or records (LIST, ARRAY,
+STRUCT, MAP, UNION), and two columns whose types DuckDB cannot compare.
+`sq.metrics.accuracy` makes the same label checks, so it too refuses non-whole
+numbers and text against numbers. A score that divides by zero takes
+`zero_division`'s value, and under `"warn"` (counted as 0) raises
 `sq.errors.UndefinedMetricWarning`. With `zero_division=nan` a fold can score
-NaN: as in `GridSearchCV`, a setting whose mean is NaN ranks last, and a
-search where every setting is NaN is refused.
+NaN: as in `GridSearchCV`, a setting whose mean is NaN ranks last, and a search
+where every setting is NaN is refused.
 
 ## What a search gives back
 

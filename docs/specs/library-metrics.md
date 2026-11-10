@@ -107,14 +107,16 @@ against it.
   scikit-learn's refuse, a continuous target or prediction (a non-whole
   number) and a target and prediction of different kinds (text against
   numbers); the grouped query of §5 brings back what the check needs.
-  `accuracy` keeps its behaviour in this area; that it does not refuse these
-  is filed as an issue, not changed here.
+  `accuracy` kept its behaviour in this area at first; since #35 it refuses
+  continuous and mixed-kind labels too, from the same checks.
 - **Zero division:** precision is undefined for a class never predicted,
   recall for a class never in the target, F1 when both its precision and
   recall are 0 or undefined (scikit-learn's exact rule for F1 is followed).
   With `"warn"` the score counts as 0 and a warning is raised, a
-  `SqlearnWarning` subclass that names the metric and the classes; with a
-  number, that number is used and nothing is said.
+  `SqlearnWarning` subclass that names the metric and, except under
+  `"micro"`, the classes (a micro score is over all classes at once, so its
+  warning names none, as scikit-learn's does, #37); with a number, that
+  number is used and nothing is said.
 - **A NaN score in a search** (spec's call): `zero_division=nan` can make a
   fold's score NaN, which no metric could before. The search ranks a
   setting whose mean score is NaN last and picks the best among the rest, as
@@ -122,7 +124,10 @@ against it.
   Optuna as failed, as Optuna treats NaN. If every setting is NaN, the
   search refuses, naming `zero_division`.
 - **What every metric already refuses** stays: no rows, a missing column, a
-  NULL or NaN label (`Metric.compute` today).
+  NULL or NaN label (`Metric.compute` today). Since #37 the label metrics
+  also refuse an infinite label, a LIST, ARRAY, STRUCT, MAP or UNION label
+  column, and two columns whose types DuckDB cannot compare, as
+  scikit-learn refuses them.
 
 ## 5. Computed in SQL
 
