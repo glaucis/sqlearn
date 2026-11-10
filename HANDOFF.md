@@ -3,10 +3,9 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-10 · Branch: `main` (12 commits ahead of `origin/main`, not
-pushed) · Last commit: `bd3e2af docs: record the datasets area in the handoff
-and CLAUDE.md` · Checks: passing (`just verify` on the datasets
-branch; `just test` on the merged `main`)
+Updated: 2026-11-10 · Branch: `main` (pushed) · Last commit:
+`bd3e2af docs: record the datasets area in the handoff and CLAUDE.md` · Checks:
+passing (`just verify` on the datasets branch; `just test` on the merged `main`)
 Verify with: `just verify`
 
 ## In progress
@@ -15,8 +14,6 @@ None.
 
 ## Waiting on the user
 
-- Push `main`: the datasets area is merged locally, not pushed. After the push,
-  #45 can close. (since 2026-11-10)
 - The datasets area's rulings, listed with their costs in #45 (ledger
   `.superpowers/sdd/2026-11-10-library-datasets/progress.md`). Chiefly: the
   generators run on one thread (R3); an explicit `n_informative > n_features`
@@ -92,9 +89,10 @@ None.
 
 ## Just finished
 
-- The datasets area, merged into `main` locally (#45): `sq.datasets` with
-  `iris`, `wine`, `breast_cancer` and `blobs`, `regression`, `classification`,
-  `customers`; ADR 0045, `docs/guide/datasets.md`. (2026-11-10)
+- The datasets area, merged into `main` and pushed, #45 closed: `sq.datasets`
+  with `iris`, `wine`, `breast_cancer` and `blobs`, `regression`,
+  `classification`, `customers`; ADR 0045, `docs/guide/datasets.md`.
+  (2026-11-10)
 - The cold staged-learn test compares two sizes, not an absolute 2 s
   (`d8d5daf`). (2026-11-10)
 - Fix batch 2 pushed, #41-#44 closed. (2026-11-10)
