@@ -11,9 +11,11 @@ from sqlearn._expr import const
 from sqlearn._feed import PROBA
 from sqlearn.agg.aggregates import mean
 from sqlearn.metrics._labels import (
+    _COMPARISON_ERRORS,
     _FLOATS,
     _column_types,
     _count,
+    _first_line,
     _isnan,
     _refuse_gaps,
     check_labels_with,
@@ -253,7 +255,7 @@ class Metric:
                     *outside,
                 ],
             ).fetchall()[0]
-        except duckdb.Error as exc:
+        except _COMPARISON_ERRORS as exc:
             other = (
                 f"the classes {labels}"
                 if proba
@@ -261,8 +263,9 @@ class Metric:
             )
             msg = (
                 f"{self.name} cannot be computed: DuckDB cannot compare "
-                f"column {target!r} ({types[target]}) with {other}: {exc} "
-                "Cast one so both hold the same kind of label."
+                f"column {target!r} ({types[target]}) with {other}: "
+                f"{_first_line(exc)} Fix: cast one so both hold the same kind "
+                "of label."
             )
             raise SqlearnError(msg) from exc
         total = row[0]

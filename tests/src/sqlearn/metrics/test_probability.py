@@ -147,3 +147,17 @@ def test_probability_metrics_refuse_a_probability_outside_zero_and_one(con, bad)
             SqlearnError, match=rf"'{PROBA}1' has 1 of 3 rows .* below 0 or above 1"
         ):
             metric.compute(proba_relation(con, y, proba), "y", classes=[0, 1])
+
+
+def test_a_target_incomparable_with_the_classes_is_refused_with_a_fix():
+    """The classes' comparison failure has the house Fix: and DuckDB's first line."""
+    rel = connection().sql(
+        f"SELECT DATE '2020-01-01' AS y, 0.3::DOUBLE AS {PROBA}0, "
+        f"0.7::DOUBLE AS {PROBA}1"
+    )
+    with pytest.raises(sq.errors.SqlearnError, match=r"DuckDB cannot compare") as e:
+        sq.metrics.log_loss.compute(rel, "y", classes=[0, 1])
+    text = str(e.value)
+    assert "Fix: cast one" in text
+    assert "LINE" not in text
+    assert "\n" not in text

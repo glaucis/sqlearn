@@ -18,6 +18,34 @@ __all__ = ["check_labels", "check_labels_with"]
 
 _FLOATS = frozenset({"FLOAT", "DOUBLE"})
 
+_NUMBERS = frozenset(
+    {
+        "TINYINT",
+        "SMALLINT",
+        "INTEGER",
+        "BIGINT",
+        "HUGEINT",
+        "UTINYINT",
+        "USMALLINT",
+        "UINTEGER",
+        "UBIGINT",
+        "UHUGEINT",
+        *_FLOATS,
+    }
+)
+
+_COMPARISON_ERRORS = (duckdb.ConversionException, duckdb.BinderException)
+"""The DuckDB errors that say two columns cannot be compared.
+
+Any other DuckDB error (out of memory, an interrupt, a failing aggregate)
+passes through as DuckDB raised it.
+"""
+
+
+def _first_line(exc: duckdb.Error) -> str:
+    """Return the first line of DuckDB's message, without its SQL and caret."""
+    return str(exc).split("\n", 1)[0].rstrip()
+
 
 def _isnan(x: Expression) -> Expression:
     return duckdb.FunctionExpression("isnan", x)
@@ -98,9 +126,18 @@ def _is_nested(dtype: str) -> bool:
     return dtype.endswith("]") or dtype.startswith(("STRUCT", "MAP", "UNION"))
 
 
+def _is_text(dtype: str) -> bool:
+    """Whether a DuckDB type holds text labels."""
+    return dtype.startswith(("VARCHAR", "ENUM"))
+
+
 def _kind(dtype: str) -> str:
-    """Name the kind of label a column type holds: text or number."""
-    return "text" if dtype.startswith(("VARCHAR", "ENUM")) else "number"
+    """Name the kind of label a column type holds: text, number or its type."""
+    if _is_text(dtype):
+        return "text"
+    if dtype in _NUMBERS or dtype.startswith("DECIMAL"):
+        return "number"
+    return dtype
 
 
 def check_labels(
@@ -172,7 +209,10 @@ def check_labels_with(
     Raises
     ------
     SqlearnError
-        If a label check fails. A DuckDB error from `extra` passes through.
+        If a label check fails, or DuckDB cannot compare the two columns.
+    duckdb.Error
+        Any other DuckDB error over the aggregate, `extra`'s among them,
+        passes through as DuckDB raised it.
 
     Examples
     --------
@@ -200,7 +240,7 @@ def check_labels_with(
                 "a column of one number or one text per row."
             )
             raise SqlearnError(msg)
-    if _kind(types[target]) != _kind(types[prediction]):
+    if _is_text(types[target]) != _is_text(types[prediction]):
         msg = (
             f"{name} cannot be computed: column {target!r} "
             f"({types[target]}) holds {_kind(types[target])} labels and "
@@ -238,12 +278,12 @@ def check_labels_with(
         )
     try:
         row = rel.aggregate([*counts.values(), *extra]).fetchall()[0]
-    except duckdb.Error as exc:
+    except _COMPARISON_ERRORS as exc:
         msg = (
             f"{name} cannot be computed: DuckDB cannot compare column "
             f"{target!r} ({types[target]}) with column {prediction!r} "
-            f"({types[prediction]}): {exc} Fix: cast one so both hold the "
-            "same kind of label."
+            f"({types[prediction]}): {_first_line(exc)} Fix: cast one so both "
+            "hold the same kind of label."
         )
         raise SqlearnError(msg) from exc
     got = dict(zip(counts, row, strict=False))
