@@ -3,8 +3,9 @@
 An aggregate is a value a step takes (``sq.impute("age", value=sq.agg.median)``)
 and, given a column, the expression a step learns
 (``{"m": sq.agg.median(x)}``). Missing values (NULL, and NaN in a float
-column) are left out of every one. The exact quantiles, the mode and the
-standard deviation are markers the compositor computes in stages of its own
+column) are left out of every one. The exact quantiles, the mode, the
+standard deviation and the variance are markers the compositor computes in
+stages of its own
 (see `sqlearn._compose`).
 """
 
@@ -531,7 +532,7 @@ var = Aggregate(
     doc="""The population variance (``ddof=0``), in two compensated passes.
 
     The same passes as `std`, without the root (issue #42): ``favg((x - mean)
-    ^ 2)``, within 2 ULPs of the exact value where DuckDB's one-pass
+    ^ 2)``. It lands within 1 ULP of the exact value where DuckDB's one-pass
     ``var_pop`` drifted 20 (``validation/``). Exactly 0 when every value is
     the same. It may sit anywhere in a learned expression.
 

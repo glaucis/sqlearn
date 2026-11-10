@@ -219,7 +219,8 @@ sq.Step(
 - `std` is two compensated passes since
   [#28](https://github.com/glaucis/sqlearn/issues/28)
   ([ADR 0044](../adr/0044-the-standard-deviation-in-two-staged-passes.md)),
-  and every step using it improved at once; `var` is still DuckDB's
+  and every step using it improved at once; `var` has been the same two staged
+  passes since [#42](https://github.com/glaucis/sqlearn/issues/42), not DuckDB's
   `var_pop`.
 
 ### 4.2 Two uses, one name

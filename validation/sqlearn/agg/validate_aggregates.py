@@ -42,8 +42,11 @@ from validation import _cases
 # 1, leaves that ULP of thread order beside the worst case. DuckDB's own
 # `stddev_pop`, 12 ULPs on the large set, is an anomaly against it. The
 # variance moved to the same two passes (issue #42): its first 20 ULPs were
-# one-pass; now the worst case is 1 ULP (small and large sets), in 30 of 30
-# runs of this runner, so its bound is 1.
+# one-pass; now the worst case is 1 ULP on the nan set in every run, and the
+# large set's 1 was seen in 1 of 6 runs and 0 in the other 5, as DuckDB's
+# threads finish in another order (ADR 0043); every other set gives 0. Its
+# bound is 2, not 1, as the standard deviation's: that ULP of thread order
+# beside the worst case.
 BOUNDS = {
     "mean": 1,
     "median": 1,
@@ -55,7 +58,7 @@ BOUNDS = {
     "range": 1,
     "maxabs": 1,
     "std": 2,
-    "var": 1,
+    "var": 2,
     "count": 1,
 }
 

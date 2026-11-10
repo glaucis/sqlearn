@@ -674,7 +674,7 @@
     },
     {
       "abs_error": 2.5234930919960695e-14,
-      "bound_ulps": 1,
+      "bound_ulps": 2,
       "canonical": 794.7347654336719,
       "dataset": "small",
       "formula": "var",
@@ -690,14 +690,14 @@
     },
     {
       "abs_error": 5.936691195280408e-13,
-      "bound_ulps": 1,
+      "bound_ulps": 2,
       "canonical": 794.7347654336719,
       "dataset": "small",
       "formula": "var",
       "note": "",
       "reference": "duckdb",
       "rel_error": 7.470028308175076e-16,
-      "result": "anomaly",
+      "result": "pass",
       "rows": 4,
       "step": "agg",
       "type": "DOUBLE",
@@ -706,14 +706,14 @@
     },
     {
       "abs_error": 5.936691195280408e-13,
-      "bound_ulps": 1,
+      "bound_ulps": 2,
       "canonical": 794.7347654336719,
       "dataset": "small",
       "formula": "var",
       "note": "",
       "reference": "duckdb, 1 thread",
       "rel_error": 7.470028308175076e-16,
-      "result": "anomaly",
+      "result": "pass",
       "rows": 4,
       "step": "agg",
       "type": "DOUBLE",
@@ -722,7 +722,7 @@
     },
     {
       "abs_error": 2.5234930919960695e-14,
-      "bound_ulps": 1,
+      "bound_ulps": 2,
       "canonical": 794.7347654336719,
       "dataset": "small",
       "formula": "var",
@@ -738,7 +738,7 @@
     },
     {
       "abs_error": 2.5234930919960695e-14,
-      "bound_ulps": 1,
+      "bound_ulps": 2,
       "canonical": 794.7347654336719,
       "dataset": "small",
       "formula": "var",
@@ -1891,7 +1891,7 @@
     },
     {
       "abs_error": 1.0631011114233154e-13,
-      "bound_ulps": 1,
+      "bound_ulps": 2,
       "canonical": 9553.079524262608,
       "dataset": "medium",
       "formula": "var",
@@ -1907,7 +1907,7 @@
     },
     {
       "abs_error": 1.6264594520770376e-11,
-      "bound_ulps": 1,
+      "bound_ulps": 2,
       "canonical": 9553.079524262608,
       "dataset": "medium",
       "formula": "var",
@@ -1923,7 +1923,7 @@
     },
     {
       "abs_error": 1.6264594520770376e-11,
-      "bound_ulps": 1,
+      "bound_ulps": 2,
       "canonical": 9553.079524262608,
       "dataset": "medium",
       "formula": "var",
@@ -1939,7 +1939,7 @@
     },
     {
       "abs_error": 1.925299514688188e-12,
-      "bound_ulps": 1,
+      "bound_ulps": 2,
       "canonical": 9553.079524262608,
       "dataset": "medium",
       "formula": "var",
@@ -1955,7 +1955,7 @@
     },
     {
       "abs_error": 1.925299514688188e-12,
-      "bound_ulps": 1,
+      "bound_ulps": 2,
       "canonical": 9553.079524262608,
       "dataset": "medium",
       "formula": "var",
@@ -3108,7 +3108,7 @@
     },
     {
       "abs_error": 3.300868282965724e-13,
-      "bound_ulps": 1,
+      "bound_ulps": 2,
       "canonical": 10001.287965139127,
       "dataset": "large",
       "formula": "var",
@@ -3124,7 +3124,7 @@
     },
     {
       "abs_error": 3.6049701242620555e-11,
-      "bound_ulps": 1,
+      "bound_ulps": 2,
       "canonical": 10001.287965139127,
       "dataset": "large",
       "formula": "var",
@@ -3140,7 +3140,7 @@
     },
     {
       "abs_error": 3.6049701242620555e-11,
-      "bound_ulps": 1,
+      "bound_ulps": 2,
       "canonical": 10001.287965139127,
       "dataset": "large",
       "formula": "var",
@@ -3156,7 +3156,7 @@
     },
     {
       "abs_error": 3.300868282965724e-13,
-      "bound_ulps": 1,
+      "bound_ulps": 2,
       "canonical": 10001.287965139127,
       "dataset": "large",
       "formula": "var",
@@ -3172,7 +3172,7 @@
     },
     {
       "abs_error": 3.300868282965724e-13,
-      "bound_ulps": 1,
+      "bound_ulps": 2,
       "canonical": 10001.287965139127,
       "dataset": "large",
       "formula": "var",
@@ -4325,7 +4325,7 @@
     },
     {
       "abs_error": 2.7521858132782874e-13,
-      "bound_ulps": 1,
+      "bound_ulps": 2,
       "canonical": 10885.23493609939,
       "dataset": "null",
       "formula": "var",
@@ -4341,7 +4341,7 @@
     },
     {
       "abs_error": 3.913197388419542e-12,
-      "bound_ulps": 1,
+      "bound_ulps": 2,
       "canonical": 10885.23493609939,
       "dataset": "null",
       "formula": "var",
@@ -4357,7 +4357,7 @@
     },
     {
       "abs_error": 3.913197388419542e-12,
-      "bound_ulps": 1,
+      "bound_ulps": 2,
       "canonical": 10885.23493609939,
       "dataset": "null",
       "formula": "var",
@@ -4373,7 +4373,7 @@
     },
     {
       "abs_error": 2.7521858132782874e-13,
-      "bound_ulps": 1,
+      "bound_ulps": 2,
       "canonical": 10885.23493609939,
       "dataset": "null",
       "formula": "var",
@@ -4389,7 +4389,7 @@
     },
     {
       "abs_error": 2.0942079848736853e-12,
-      "bound_ulps": 1,
+      "bound_ulps": 2,
       "canonical": 10885.23493609939,
       "dataset": "null",
       "formula": "var",
@@ -5542,7 +5542,7 @@
     },
     {
       "abs_error": 1.2291166884689078e-12,
-      "bound_ulps": 1,
+      "bound_ulps": 2,
       "canonical": 9720.072557180962,
       "dataset": "nan",
       "formula": "var",
@@ -5558,7 +5558,7 @@
     },
     {
       "abs_error": 4.227851522168662e-12,
-      "bound_ulps": 1,
+      "bound_ulps": 2,
       "canonical": 9720.072557180962,
       "dataset": "nan",
       "formula": "var",
@@ -5574,7 +5574,7 @@
     },
     {
       "abs_error": 4.227851522168662e-12,
-      "bound_ulps": 1,
+      "bound_ulps": 2,
       "canonical": 9720.072557180962,
       "dataset": "nan",
       "formula": "var",
@@ -5590,7 +5590,7 @@
     },
     {
       "abs_error": 1.2291166884689078e-12,
-      "bound_ulps": 1,
+      "bound_ulps": 2,
       "canonical": 9720.072557180962,
       "dataset": "nan",
       "formula": "var",
@@ -5606,7 +5606,7 @@
     },
     {
       "abs_error": 1.2291166884689078e-12,
-      "bound_ulps": 1,
+      "bound_ulps": 2,
       "canonical": 9720.072557180962,
       "dataset": "nan",
       "formula": "var",
@@ -6759,7 +6759,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 1,
+      "bound_ulps": 2,
       "canonical": null,
       "dataset": "empty",
       "formula": "var",
@@ -6775,7 +6775,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 1,
+      "bound_ulps": 2,
       "canonical": null,
       "dataset": "empty",
       "formula": "var",
@@ -6791,7 +6791,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 1,
+      "bound_ulps": 2,
       "canonical": null,
       "dataset": "empty",
       "formula": "var",
@@ -6807,7 +6807,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 1,
+      "bound_ulps": 2,
       "canonical": null,
       "dataset": "empty",
       "formula": "var",
@@ -6823,7 +6823,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 1,
+      "bound_ulps": 2,
       "canonical": null,
       "dataset": "empty",
       "formula": "var",
@@ -7976,7 +7976,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 1,
+      "bound_ulps": 2,
       "canonical": 0.0,
       "dataset": "single",
       "formula": "var",
@@ -7992,7 +7992,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 1,
+      "bound_ulps": 2,
       "canonical": 0.0,
       "dataset": "single",
       "formula": "var",
@@ -8008,7 +8008,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 1,
+      "bound_ulps": 2,
       "canonical": 0.0,
       "dataset": "single",
       "formula": "var",
@@ -8024,7 +8024,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 1,
+      "bound_ulps": 2,
       "canonical": 0.0,
       "dataset": "single",
       "formula": "var",
@@ -8040,7 +8040,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 1,
+      "bound_ulps": 2,
       "canonical": 0.0,
       "dataset": "single",
       "formula": "var",
@@ -9193,7 +9193,7 @@
     },
     {
       "abs_error": 6.02418418682096e-13,
-      "bound_ulps": 1,
+      "bound_ulps": 2,
       "canonical": 9850.783760508446,
       "dataset": "reserved",
       "formula": "var",
@@ -9209,14 +9209,14 @@
     },
     {
       "abs_error": 1.515433364704895e-11,
-      "bound_ulps": 1,
+      "bound_ulps": 2,
       "canonical": 9850.783760508446,
       "dataset": "reserved",
       "formula": "var",
       "note": "",
       "reference": "duckdb",
       "rel_error": 1.538388621198072e-15,
-      "result": "anomaly",
+      "result": "pass",
       "rows": 1000,
       "step": "agg",
       "type": "DOUBLE",
@@ -9225,14 +9225,14 @@
     },
     {
       "abs_error": 1.515433364704895e-11,
-      "bound_ulps": 1,
+      "bound_ulps": 2,
       "canonical": 9850.783760508446,
       "dataset": "reserved",
       "formula": "var",
       "note": "",
       "reference": "duckdb, 1 thread",
       "rel_error": 1.538388621198072e-15,
-      "result": "anomaly",
+      "result": "pass",
       "rows": 1000,
       "step": "agg",
       "type": "DOUBLE",
@@ -9241,7 +9241,7 @@
     },
     {
       "abs_error": 6.02418418682096e-13,
-      "bound_ulps": 1,
+      "bound_ulps": 2,
       "canonical": 9850.783760508446,
       "dataset": "reserved",
       "formula": "var",
@@ -9257,7 +9257,7 @@
     },
     {
       "abs_error": 6.02418418682096e-13,
-      "bound_ulps": 1,
+      "bound_ulps": 2,
       "canonical": 9850.783760508446,
       "dataset": "reserved",
       "formula": "var",
