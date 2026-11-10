@@ -3,21 +3,21 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-10 · Branch: `fix-batch-2026-11-09` (worktree
-`.worktrees/fix-batch`), not merged · Checks: see "Waiting on the user"
+Updated: 2026-11-10 · Branch: `main` (25 ahead of `origin/main`) · Last
+commit: `c7b43ec docs: record the fix batch in the handoff` · Checks: passing
+(`just verify` on the branch, `just test` on the merged `main`)
 Verify with: `just verify`
 
 ## In progress
 
-None. The fix batch (plan `docs/plans/2026-11-09-fix-batch.md`) is built,
-reviewed per task and as a whole branch, and waits for the merge.
+None.
 
 ## Waiting on the user
 
-- Merge `fix-batch-2026-11-09` into `main` (fast-forward), push, and close
-  #28, #32, #35, #37, #38, #39, #40. (since 2026-11-10)
+- Push `main` (the fix batch, merged locally), then close #28, #32, #35, #37,
+  #38, #39, #40 with their commits. Recommended: push now. (since 2026-11-10)
 - Check the batch's rulings, each with its cost if wrong (ledger
-  `.superpowers/sdd/2026-11-09-fix-batch/progress.md`, kept until the merge):
+  `.superpowers/sdd/2026-11-09-fix-batch/progress.md`, in the main checkout):
   - accuracy's label checks use a private flag, not a public `Metric` field
     (cost: one private field on `Metric`);
   - #31: the encoders keep `list_position`; the MD5 perfect hash (sublinear,
@@ -67,6 +67,9 @@ reviewed per task and as a whole branch, and waits for the merge.
   `InterruptException` are `duckdb.Error` too. (2026-11-10)
 - `dataclasses.replace` drops `init=False` fields (accuracy's private label
   flag). (2026-11-10)
+- `just verify` rewrites `validation/**/*.results.json` and
+  `validation/tests.json`; a rerun differs only by thread-order ULPs (ADR
+  0043). Discard those diffs unless the validation itself changed. (2026-11-10)
 - Benchmarks that build large data in memory can be killed by the machine:
   write the data to Parquet with DuckDB's `COPY` and run each probe in its own
   subprocess. (2026-11-10)
@@ -101,14 +104,12 @@ reviewed per task and as a whole branch, and waits for the merge.
 
 ## Just finished
 
-- Fix batch (plan `docs/plans/2026-11-09-fix-batch.md`, branch
-  `fix-batch-2026-11-09`): #32 impute's filled copies keep their type
-  (`Step.copies_inputs`); #35 accuracy refuses continuous and mixed-kind labels;
-  #37 the metrics refuse infinite, list and incomparable labels; #38 ENUM
-  features reach models as categories in declared order; #39 a failing fold
-  fails its Optuna trial; #40 streamed predictions widen to each batch's type;
-  #28 `sq.agg.std` in two staged passes (12 to 1 ULP, about 2.9x the cost, ADR
-  0044); #31 and #27 measured and handed back. 9 tasks, final review, one fix
-  wave. (2026-11-10)
-- The docs tagger's frontmatter edits committed (`7baa56a`). (2026-11-09)
-- #36: a seeded search is repeatable within rounding (ADR 0043). (2026-11-09)
+- Fix batch (plan `docs/plans/2026-11-09-fix-batch.md`), fast-forwarded into
+  `main` at `c7b43ec`, worktree and branch removed: #32 impute's filled copies
+  keep their type (`Step.copies_inputs`); #35 accuracy refuses continuous and
+  mixed-kind labels; #37 the metrics refuse infinite, list and incomparable
+  labels; #38 ENUM features reach models as categories in declared order; #39 a
+  failing fold fails its Optuna trial; #40 streamed predictions widen to each
+  batch's type; #28 `sq.agg.std` in two staged passes (12 to 1 ULP, about 2.9x
+  the cost, ADR 0044); #31 and #27 measured and handed back. 9 tasks, final
+  review, one fix wave. (2026-11-10)
