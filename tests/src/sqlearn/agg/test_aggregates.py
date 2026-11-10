@@ -577,13 +577,13 @@ class _Learns(sq.Step):
     [
         (
             lambda x: sq.agg.std(x - sq.agg.std(x)),
-            "standard deviation of an expression holding another standard "
-            "deviation, which cannot be staged",
+            "standard deviation or variance of an expression holding another, "
+            "which cannot be staged",
         ),
         (
             lambda x: sq.agg.median(x / sq.agg.std(x)),
             "quantile, mode or target statistic of an expression holding a "
-            "standard deviation, which cannot be staged",
+            "standard deviation or variance, which cannot be staged",
         ),
     ],
     ids=["std of std", "median of std"],
@@ -614,3 +614,15 @@ def test_a_plain_aggregate_inside_a_staged_one_is_refused(build):
     assert "a plain aggregate" in message
     assert "Fix:" in message
     assert "Binder Error" not in message
+
+
+def test_the_advice_on_a_plain_aggregate_holds_for_a_median_too():
+    """The Fix does not claim the median of x - mean(x) is the median of x."""
+    data = pd.DataFrame({"a": [1.0, 2.0, 6.0]})
+    with pytest.raises(sq.errors.StepError) as raised:
+        sq.Pipeline(
+            [("bad", _Learns(lambda x: sq.agg.median(x - sq.agg.mean(x))))]
+        ).learn(data)
+    fix = str(raised.value).split("Fix:")[1]
+    assert "is the spread of x" not in fix
+    assert "earlier step" in fix

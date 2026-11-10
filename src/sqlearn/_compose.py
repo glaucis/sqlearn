@@ -832,8 +832,8 @@ def _refuse_plain_aggregate(stage: Stage, whole: str, values: str) -> None:
             "a plain aggregate inside a staged one, which is computed per "
             "row of the stage's input, where one value of a whole column "
             "has no row.",
-            "learn the inner aggregate in an earlier step, or leave it out: "
-            "the spread of x - mean(x) is the spread of x.",
+            "learn the aggregates side by side (such as median(x) - mean(x)), "
+            "or compute the inner aggregate in an earlier step.",
         )
 
 
@@ -880,12 +880,12 @@ class _Staged:
     ) -> str:
         """Return the expression standing for `marker` in `text`.
 
-        It reads the one row the marker's stage computed, cross-joined into
-        the learn stage. Inside another aggregate (`nested`) it is a plain
-        column of that row, read per row as the aggregate's argument; else
-        ``any_value`` of it, as a bare column beside aggregates must be (one
-        value, computed once per stage, as DuckDB folds equal aggregates into
-        one).
+        It reads the one row the marker's stage computed, beside the scan in
+        the learn stage's outer select. Inside another aggregate (`nested`)
+        it is a plain column of that row, read per row as the aggregate's
+        argument; else ``any_value`` of it, as a bare column beside
+        aggregates must be (one value, computed once per stage, as DuckDB
+        folds equal aggregates into one).
         """
         whole = text[marker.start : marker.end]
         if marker.kind in (STD, VAR) and len(marker.args) == 1:
@@ -897,10 +897,10 @@ class _Staged:
                     stage,
                     whole,
                     "a quantile, mode or target statistic of an expression "
-                    "holding a standard deviation, which cannot be staged: "
+                    "holding a standard deviation or variance, which cannot be staged: "
                     "those are computed from the stage's input before the "
                     "standard deviations, which may read them.",
-                    "learn the standard deviation in an earlier step, or "
+                    "learn the standard deviation or variance in an earlier step, or "
                     "learn each aggregate of the column on its own.",
                 )
             if inner:
@@ -957,11 +957,11 @@ class _Staged:
                 raise _refuse(
                     stage,
                     whole,
-                    "a standard deviation of an expression holding another "
-                    "standard deviation, which cannot be staged: both are "
+                    "a standard deviation or variance of an expression holding "
+                    "another, which cannot be staged: both are "
                     "computed in the same two passes, so one cannot read "
                     "the other.",
-                    "learn the inner standard deviation in an earlier step.",
+                    "learn the inner one in an earlier step.",
                 )
             pieces += [
                 values[last : inner.start],
