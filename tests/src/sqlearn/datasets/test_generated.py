@@ -1,0 +1,240 @@
+"""Tests of the generators written in SQL: blobs and regression."""
+
+import threading
+
+import numpy as np
+import pytest
+
+import sqlearn as sq
+from sqlearn._config import connection
+from sqlearn.errors import SqlearnError
+
+
+def _refused(make, **settings) -> str:
+    """Return the message of the refusal `make(**settings)` raises."""
+    with pytest.raises(SqlearnError) as raised:
+        make(**settings)
+    message = str(raised.value)
+    assert "Why:" in message
+    assert "Fix:" in message
+    return message
+
+
+def test_blobs_gives_rows_features_and_a_target():
+    """Blobs has n_features DOUBLE columns x0, x1, ..., then a BIGINT target."""
+    rel = sq.datasets.blobs(rows=500, n_features=3, centers=4, seed=1)
+    assert rel.columns == ["x0", "x1", "x2", "target"]
+    assert [str(t) for t in rel.types] == ["DOUBLE"] * 3 + ["BIGINT"]
+    assert rel.count("*").fetchall()[0][0] == 500
+    targets = {r[0] for r in rel.project("target").distinct().fetchall()}
+    assert targets == {0, 1, 2, 3}
+
+
+def test_blobs_rows_cluster_round_their_centres():
+    """With a small spread, every row lies within 1 of its target's centre."""
+    centres = [[0.0, 0.0], [5.0, 5.0]]
+    rows = sq.datasets.blobs(
+        rows=10_000, centers=centres, cluster_std=0.1, seed=3
+    ).fetchall()
+    assert len(rows) == 10_000
+    for x0, x1, target in rows:
+        c0, c1 = centres[target]
+        assert abs(x0 - c0) < 1
+        assert abs(x1 - c1) < 1
+    assert {r[2] for r in rows} == {0, 1}
+
+
+def test_blobs_centres_given_as_points_set_the_features():
+    """Centres given as points set the number of features, as scikit-learn's do."""
+    rel = sq.datasets.blobs(rows=10, centers=[[0, 0, 0], [1, 1, 1]])
+    assert rel.columns == ["x0", "x1", "x2", "target"]
+
+
+def test_blobs_take_one_spread_per_centre():
+    """A spread per centre: a centre of spread 0 gives its rows exactly."""
+    rows = sq.datasets.blobs(
+        rows=200, centers=[[1.0, 2.0], [9.0, 9.0]], cluster_std=[0.0, 1.0], seed=2
+    ).fetchall()
+    assert all((x0, x1) == (1.0, 2.0) for x0, x1, t in rows if t == 0)
+    assert any((x0, x1) != (9.0, 9.0) for x0, x1, t in rows if t == 1)
+
+
+def test_blobs_centres_drawn_lie_in_the_box():
+    """Centres drawn by count lie in center_box: with spread 0 so do the rows."""
+    rows = sq.datasets.blobs(
+        rows=300, centers=5, cluster_std=0.0, center_box=(2.0, 3.0), seed=4
+    ).fetchall()
+    assert all(2.0 <= v < 3.0 for r in rows for v in r[:2])
+    assert len({r[:2] for r in rows}) == 5
+
+
+def test_regression_gives_rows_features_and_a_target():
+    """Regression has n_features DOUBLE columns, then a DOUBLE target."""
+    rel = sq.datasets.regression(rows=50, n_features=4, n_informative=2)
+    assert rel.columns == ["x0", "x1", "x2", "x3", "target"]
+    assert [str(t) for t in rel.types] == ["DOUBLE"] * 5
+    assert rel.count("*").fetchall()[0][0] == 50
+
+
+def test_regression_target_is_the_linear_model_without_noise():
+    """With noise=0, least squares recovers the target and n_informative weights."""
+    data = sq.datasets.regression(
+        rows=1_000, n_features=20, n_informative=5, bias=3.0, seed=6
+    ).fetchnumpy()
+    x = np.column_stack([data[f"x{j}"] for j in range(20)] + [np.ones(1_000)])
+    y = data["target"]
+    coef, *_ = np.linalg.lstsq(x, y, rcond=None)
+    assert np.max(np.abs(x @ coef - y)) < 1e-9
+    assert np.count_nonzero(np.abs(coef[:20]) > 1e-6) == 5
+    assert coef[20] == pytest.approx(3.0)
+    assert all(0 <= c < 100 for c in coef[:5])
+
+
+def test_regression_noise_spreads_the_target_round_the_model():
+    """With noise, the residual of the least-squares fit has spread `noise`."""
+    data = sq.datasets.regression(
+        rows=5_000, n_features=3, n_informative=3, noise=2.0, seed=7
+    ).fetchnumpy()
+    x = np.column_stack([data[f"x{j}"] for j in range(3)] + [np.ones(5_000)])
+    coef, *_ = np.linalg.lstsq(x, data["target"], rcond=None)
+    # The sample spread's standard error is 2 / sqrt(2 * 5,000) = 0.02: 5 of them.
+    assert np.std(data["target"] - x @ coef) == pytest.approx(2.0, abs=0.1)
+
+
+@pytest.mark.parametrize("make", [sq.datasets.blobs, sq.datasets.regression])
+def test_one_row_is_given_and_zero_rows_are_refused(make):
+    """rows=1 gives one row; rows=0 is refused, as scikit-learn refuses it."""
+    assert make(rows=1).count("*").fetchall()[0][0] == 1
+    assert "rows=0" in _refused(make, rows=0)
+
+
+@pytest.mark.parametrize("make", [sq.datasets.blobs, sq.datasets.regression])
+@pytest.mark.parametrize("rows", [-5, 2.5, "100", True, None])
+def test_rows_that_are_not_a_positive_whole_number_are_refused(make, rows):
+    """rows must be an int of at least 1; a bool is not one."""
+    assert f"rows={rows!r}" in _refused(make, rows=rows)
+
+
+@pytest.mark.parametrize("make", [sq.datasets.blobs, sq.datasets.regression])
+@pytest.mark.parametrize("seed", [1.5, "0", True, None])
+def test_a_seed_that_is_not_an_int_is_refused(make, seed):
+    """The seed is an int; a float, text, a bool or None is refused."""
+    assert f"seed={seed!r}" in _refused(make, seed=seed)
+
+
+def test_any_int_seed_is_taken():
+    """A negative or huge seed is taken, modulo 2**64."""
+    assert sq.datasets.blobs(rows=2, seed=-1).fetchall() == (
+        sq.datasets.blobs(rows=2, seed=2**64 - 1).fetchall()
+    )
+
+
+def test_the_same_seed_gives_the_same_rows_and_another_seed_others():
+    """A seed fixes the rows; another seed gives other rows."""
+    first = sq.datasets.regression(
+        rows=20, n_features=3, n_informative=2, seed=5
+    ).fetchall()
+    assert (
+        sq.datasets.regression(
+            rows=20, n_features=3, n_informative=2, seed=5
+        ).fetchall()
+        == first
+    )
+    assert (
+        sq.datasets.regression(
+            rows=20, n_features=3, n_informative=2, seed=6
+        ).fetchall()
+        != first
+    )
+
+
+@pytest.mark.parametrize(
+    "settings",
+    [
+        {"n_features": 0},
+        {"n_features": 2.0},
+        {"centers": 0},
+        {"centers": True},
+        {"centers": []},
+        {"centers": [[0, 0], [1]]},
+        {"centers": [[0, "a"]]},
+        {"centers": [[0, float("inf")]]},
+        {"centers": "abc"},
+        {"cluster_std": -0.1},
+        {"cluster_std": float("nan")},
+        {"cluster_std": [1.0, 2.0]},
+        {"cluster_std": [1.0, -1.0, 1.0]},
+        {"center_box": (1.0,)},
+        {"center_box": (3.0, 1.0)},
+        {"center_box": (0.0, float("inf"))},
+    ],
+    ids=repr,
+)
+def test_bad_blobs_settings_are_refused(settings):
+    """Each bad blobs setting is refused in the house form, naming the setting."""
+    name = next(iter(settings))
+    assert name in _refused(sq.datasets.blobs, **settings)
+
+
+@pytest.mark.parametrize(
+    "settings",
+    [
+        {"n_features": 0},
+        {"n_informative": -1},
+        {"n_informative": 1.5},
+        {"n_features": 3, "n_informative": 4},
+        {"noise": -1.0},
+        {"noise": float("nan")},
+        {"noise": "1"},
+        {"bias": float("inf")},
+        {"bias": None},
+    ],
+    ids=repr,
+)
+def test_bad_regression_settings_are_refused(settings):
+    """Each bad regression setting is refused in the house form, naming it."""
+    name = list(settings)[-1]
+    assert name in _refused(sq.datasets.regression, **settings)
+
+
+def test_a_slice_equals_the_whole():
+    """The first 1,000 rows of 1,000,000 equal a relation of 1,000 rows."""
+    whole = sq.datasets.blobs(rows=1_000_000, n_features=3, seed=9)
+    assert whole.limit(1_000).fetchall() == (
+        sq.datasets.blobs(rows=1_000, n_features=3, seed=9).fetchall()
+    )
+
+
+def test_the_same_seed_gives_the_same_rows_on_any_thread_count():
+    """One thread and eight give the same blobs, bit for bit on one machine."""
+    con = connection()
+    before = con.sql("SELECT current_setting('threads')").fetchall()[0][0]
+    try:
+        con.execute("SET threads = 1")
+        one = sq.datasets.blobs(rows=100_000, seed=8).fetchall()
+        con.execute("SET threads = 8")
+        eight = sq.datasets.blobs(rows=100_000, seed=8).fetchall()
+    finally:
+        con.execute(f"SET threads = {before}")
+    assert one == eight
+
+
+def test_a_trillion_rows_are_created_at_once():
+    """rows=10**12 builds nothing; its first rows come back without a full scan.
+
+    A full scan would run for days, so the guard is generous (a minute) and
+    only catches that; the plan holds no sort or aggregate over the whole.
+    """
+    rel = sq.datasets.blobs(rows=10**12, seed=2)
+    plan = rel.explain().upper()
+    assert "ORDER" not in plan
+    assert "AGGREGATE" not in plan
+    got: list[tuple[object, ...]] = []
+    fetch = threading.Thread(target=lambda: got.extend(rel.limit(3).fetchall()))
+    fetch.start()
+    fetch.join(timeout=60)
+    if fetch.is_alive():
+        connection().interrupt()
+        fetch.join()
+        pytest.fail("limit(3) of a trillion rows scanned the whole relation")
+    assert got == sq.datasets.blobs(rows=3, seed=2).fetchall()

@@ -84,6 +84,8 @@ The API of the sqlearn package, generated from its docstrings.
    sqlearn.datasets.iris
    sqlearn.datasets.wine
    sqlearn.datasets.breast_cancer
+   sqlearn.datasets.blobs
+   sqlearn.datasets.regression
    sqlearn.Model
    sqlearn.Output
    sqlearn.out.parquet
