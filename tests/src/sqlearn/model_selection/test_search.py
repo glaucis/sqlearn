@@ -1328,3 +1328,32 @@ def test_a_failing_fold_leaves_no_optuna_trial_running():
     states = [t.state for t in method.study_.trials]
     assert states
     assert set(states) == {TrialState.FAIL}
+
+
+def test_a_search_prepares_an_edited_table_again_and_says_so(tmp_path):
+    """A table edited in place since the last search is prepared again."""
+    path = tmp_path / "shop.duckdb"
+    con = duckdb.connect(str(path))
+    con.execute("SET memory_limit = '256MB'")  # under half the budget: no warning
+    con.execute("CREATE TABLE customers AS FROM SEPARABLE")
+    con.execute("CHECKPOINT")
+    sq.set_config(connection=con)
+    pipe = sq.Pipeline(
+        [("scale", sq.scale.standard()), ("model", LogisticRegression())]
+    )
+    run = lambda: sq.search(  # noqa: E731
+        pipe,
+        params={"model__C": [1.0]},
+        folds=sq.folds.kfold(2),
+        keep_prepared=path,
+    ).train("customers", target="y")
+    first = run()
+    # Negated on every other row: the scaling cannot undo it, so the scores
+    # must change.
+    con.execute("UPDATE customers SET a = -a WHERE rowid % 2 = 0")
+    con.execute("CHECKPOINT")
+    with pytest.warns(sq.errors.SqlearnWarning, match="main.customers"):
+        second = run()
+    assert first.transforms_ == 2
+    assert second.transforms_ == 2  # prepared again, not read back
+    assert mean_scores(second) != pytest.approx(mean_scores(first))

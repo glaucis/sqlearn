@@ -4,6 +4,7 @@ import gc
 import os
 import subprocess
 import sys
+import warnings
 import weakref
 
 import duckdb
@@ -15,7 +16,7 @@ from sqlearn import _config
 from sqlearn import _inputs as inputs
 from sqlearn._inputs import read
 from sqlearn._store import STORE
-from sqlearn.errors import SqlearnError
+from sqlearn.errors import SqlearnError, SqlearnWarning
 
 
 def _write(path, text, mtime_ns=None):
@@ -419,6 +420,75 @@ def test_a_table_in_a_database_file_is_keyed_by_file_name_and_rows(tmp_path):
     assert "main.t" in stable
     con.execute("INSERT INTO t VALUES (2)")
     assert read("t").stable_key() != stable
+
+
+def test_a_table_updated_in_place_gets_a_new_key(tmp_path):
+    """A table updated in place and checkpointed gets a new key, and says so."""
+    path = tmp_path / "shop.duckdb"
+    con = duckdb.connect(str(path))
+    con.execute("CREATE TABLE customers AS SELECT range::DOUBLE AS x FROM range(5000)")
+    con.execute("CHECKPOINT")
+    sq.set_config(connection=con)
+    first = read("customers")
+    con.execute("UPDATE customers SET x = x * 2")
+    con.execute("CHECKPOINT")
+    with pytest.warns(SqlearnWarning, match=r"main\.customers in shop\.duckdb"):
+        second = read("customers")
+    assert second.key != first.key
+    assert second.stable_key() != first.stable_key()
+    assert second.key[3] == first.key[3] == 5000  # the row count is equal
+
+
+def test_an_unchanged_table_keeps_its_key(tmp_path):
+    """Two reads of an unchanged table give equal keys and no warning."""
+    path = tmp_path / "shop.duckdb"
+    con = duckdb.connect(str(path))
+    con.execute("CREATE TABLE customers AS SELECT range::DOUBLE AS x FROM range(5000)")
+    con.execute("CHECKPOINT")
+    sq.set_config(connection=con)
+    first = read("customers")
+    con.execute("CHECKPOINT")  # nothing to write: the blocks stay
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        second = read("customers")
+    assert second.key == first.key
+    assert second.stable_key() == first.stable_key()
+
+
+def test_a_new_table_written_at_its_first_checkpoint_is_not_warned_about(tmp_path):
+    """A table not yet written gets its blocks at the checkpoint: a new key only."""
+    path = tmp_path / "shop.duckdb"
+    con = duckdb.connect(str(path))
+    con.execute("CREATE TABLE customers AS SELECT range::DOUBLE AS x FROM range(5000)")
+    sq.set_config(connection=con)
+    first = read("customers")
+    con.execute("CHECKPOINT")
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        second = read("customers")
+    assert second.stable_key() != first.stable_key()
+
+
+def test_an_edit_before_a_checkpoint_gets_a_new_key(tmp_path):
+    """The first edit of a row group, still in the WAL, changes the key."""
+    path = tmp_path / "shop.duckdb"
+    con = duckdb.connect(str(path))
+    con.execute("CREATE TABLE customers AS SELECT range::DOUBLE AS x FROM range(5000)")
+    con.execute("CREATE TABLE other AS SELECT 1 AS a")
+    con.execute("CHECKPOINT")
+    sq.set_config(connection=con)
+    first = read("customers")
+    con.execute("UPDATE other SET a = 2")  # another table: no new key
+    assert read("customers").stable_key() == first.stable_key()
+    con.execute("UPDATE customers SET x = -x WHERE x = 3")
+    with pytest.warns(SqlearnWarning, match="changed since sqlearn last read it"):
+        edited = read("customers").stable_key()
+    assert edited != first.stable_key()
+    con.execute("CHECKPOINT")  # writes the edit seen above: said once only
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        assert read("customers").stable_key() != edited
+        assert read("customers").stable_key() != edited
 
 
 def test_an_in_memory_table_or_relation_has_no_stable_key():

@@ -618,11 +618,14 @@ class Pipeline:
 
         Notes
         -----
-        A change to a DuckDB table or relation in place that keeps its row
-        count and columns (an ``UPDATE``, or rows deleted and as many
-        inserted) is not noticed: the values learned before are reused. Pass
-        the changed data under a new name, or as a file or a pandas frame, to
-        have it learned again.
+        A table of a database file edited in place is noticed by its
+        storage blocks once the edit is checkpointed (run ``CHECKPOINT``
+        after editing): it is learned again, with a `SqlearnWarning` when
+        this process read it before. A relation, or a table of an in-memory
+        database, changed in place with the same row count and columns (an
+        ``UPDATE``, or rows deleted and as many inserted) is not noticed:
+        the values learned before are reused. Pass the changed data under a
+        new name, or as a file or a pandas frame, to have it learned again.
 
         Examples
         --------
@@ -975,11 +978,14 @@ class Pipeline:
 
         Notes
         -----
-        A change to a DuckDB table or relation in place that keeps its row
-        count and columns (an ``UPDATE``, or rows deleted and as many
-        inserted) is not noticed: the values learned before are reused. Pass
-        the changed data under a new name, or as a file or a pandas frame, to
-        have it learned again.
+        A table of a database file edited in place is noticed by its
+        storage blocks once the edit is checkpointed (run ``CHECKPOINT``
+        after editing): it is learned again, with a `SqlearnWarning` when
+        this process read it before. A relation, or a table of an in-memory
+        database, changed in place with the same row count and columns (an
+        ``UPDATE``, or rows deleted and as many inserted) is not noticed:
+        the values learned before are reused. Pass the changed data under a
+        new name, or as a file or a pandas frame, to have it learned again.
 
         Examples
         --------

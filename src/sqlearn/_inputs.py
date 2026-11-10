@@ -4,6 +4,7 @@ import contextlib
 import glob
 import itertools
 import os
+import warnings
 import weakref
 from dataclasses import dataclass
 from pathlib import Path
@@ -12,7 +13,7 @@ from typing import Any, Protocol, cast
 import duckdb
 
 from sqlearn._config import connection
-from sqlearn._errors import SqlearnError
+from sqlearn._errors import SqlearnError, SqlearnWarning
 from sqlearn._expr import quote
 from sqlearn._selectors import Schema
 
@@ -27,6 +28,13 @@ _ACCEPTED = (
     "a DuckDB relation, or a pandas DataFrame"
 )
 _frame_ids = itertools.count()
+_PACKAGE = (str(Path(__file__).parent),)
+"""sqlearn's own files: a warning is placed at the first frame outside them."""
+Storage = tuple[tuple[int, ...], tuple[int, ...], int]
+"""A file table's storage: its blocks, the row groups edited since the last
+checkpoint, and the number of its segments not yet written to the file."""
+_last_blocks: dict[tuple[str, str], Storage] = {}
+"""The storage each (database file, table) had when sqlearn last read it."""
 _connection_tokens: weakref.WeakKeyDictionary[duckdb.DuckDBPyConnection, int] = (
     weakref.WeakKeyDictionary()
 )
@@ -111,8 +119,11 @@ class Source:
         This key does not: a file by its absolute path, size and
         modification time; a pandas frame by its content hash (DuckDB's,
         the same in every process for one DuckDB version); a table in a
-        database file by the file, its name, row count and columns. A
-        relation, or a table of an in-memory database, has none.
+        database file by the file, its name, row count, columns and
+        storage (its block ids, read from metadata), so an edit in place
+        is seen once checkpointed, and the first edit of a row group
+        already before. A relation, or a table of an in-memory database,
+        has none.
 
         Returns
         -------
@@ -198,11 +209,15 @@ def _read_files(pattern: str) -> Source:
     return Source(relation, ("file", tuple(stats)), _schema(relation), stable)
 
 
-def _file_table(con: duckdb.DuckDBPyConnection, name: str) -> tuple[str, str] | None:
-    """Return the database file and qualified name of a base table, or None.
+def _file_table(
+    con: duckdb.DuckDBPyConnection, name: str
+) -> tuple[str, str, str] | None:
+    """Return the database file and names of a base table, or None.
 
     `name` is ``table``, ``schema.table``, ``database.table`` or
-    ``database.schema.table``, unquoted. None when it names a view, a
+    ``database.schema.table``, unquoted. The names returned are
+    ``schema.table``, for the key, and the quoted
+    ``"database"."schema"."table"``, for SQL. None when it names a view, a
     temporary table or a table of an in-memory database: those have no
     identity outside this process.
     """
@@ -237,15 +252,88 @@ def _file_table(con: duckdb.DuckDBPyConnection, name: str) -> tuple[str, str] | 
                 & ~column("temporary")
             )
             .join(con.sql("FROM duckdb_databases()").set_alias("d"), "database_name")
-            .project(column("path"), column("schema_name"), column("table_name"))
+            .project(
+                column("path"),
+                column("database_name"),
+                column("schema_name"),
+                column("table_name"),
+            )
             .fetchall()
         )
         if found:
-            path, schema_name, table_name = found[0]
+            path, database_name, schema_name, table_name = found[0]
             if path is None:
                 return None  # an in-memory database
-            return os.path.realpath(str(path)), f"{schema_name}.{table_name}"
+            sql_name = ".".join(
+                quote(p) for p in (database_name, schema_name, table_name)
+            )
+            return (
+                os.path.realpath(str(path)),
+                f"{schema_name}.{table_name}",
+                sql_name,
+            )
     return None
+
+
+def _storage_blocks(con: duckdb.DuckDBPyConnection, qualified: str) -> Storage:
+    """Return a table's storage, from its metadata: no row is scanned.
+
+    Read in one pass over ``pragma_storage_info(qualified)``, which lists
+    the table's segments (its cost grows with them, not with the rows):
+
+    - the sorted distinct ids of the blocks written to the file. A
+      checkpoint after an edit writes the edited segments to new blocks, so
+      the ids change with the data; with no edit they stay;
+    - the row groups edited since the last checkpoint. An ``UPDATE`` still
+      in the write-ahead log leaves the blocks as they were but marks its
+      row groups; a second edit of a marked row group before the checkpoint
+      changes nothing here;
+    - the number of segments not yet written to the file (a small table just
+      created, rows just inserted), which get their blocks at the
+      checkpoint.
+    """
+    sql = (
+        "SELECT coalesce(list(DISTINCT block_id ORDER BY block_id) "
+        "FILTER (WHERE persistent), []), "
+        "coalesce(list(DISTINCT row_group_id ORDER BY row_group_id) "
+        "FILTER (WHERE has_updates), []), "
+        "count(*) FILTER (WHERE NOT persistent) "
+        "FROM pragma_storage_info(?)"
+    )
+    blocks, groups, unwritten = con.execute(sql, [qualified]).fetchall()[0]
+    return (
+        tuple(int(b) for b in blocks),
+        tuple(int(g) for g in groups),
+        int(unwritten),
+    )
+
+
+def _storage(con: duckdb.DuckDBPyConnection, where: tuple[str, str, str]) -> Storage:
+    """Return a file table's storage, warning when it changed since last read.
+
+    The warning is raised once per change, not on every read. It is not
+    raised when only the blocks of what was unwritten at the last read came
+    (a checkpoint writing them): the key changes, so the table is prepared
+    again, but no edit can be told from the checkpoint itself.
+    """
+    path, qualified, sql_name = where
+    storage = _storage_blocks(con, sql_name)
+    last = _last_blocks.get((path, qualified))
+    _last_blocks[(path, qualified)] = storage
+    if last is None or last == storage:
+        return storage
+    written = not last[1] and not last[2]
+    if written or last[0] == storage[0]:
+        text = (
+            f"the table {qualified} in {os.path.basename(path)} changed since "
+            "sqlearn last read it; what was learned or prepared from it before "
+            "is not reused. Why: its storage differs from what was read then, "
+            "so its values may differ though its rows and columns do not. "
+            "Fix: nothing to do; to have every edit seen, run CHECKPOINT after "
+            "editing the table."
+        )
+        warnings.warn(text, SqlearnWarning, skip_file_prefixes=_PACKAGE)
+    return storage
 
 
 def _read_table(name: str) -> Source:
@@ -257,14 +345,21 @@ def _read_table(name: str) -> Source:
         raise SqlearnError(msg) from exc
     schema = _schema(relation)
     rows = _row_count(relation)
-    key = ("table", _connection_token(con), name, rows, _names_and_types(schema))
-    where = _file_table(con, name)
-    stable = (
-        None
-        if where is None
-        else ("table", where[0], where[1], rows, _names_and_types(schema))
+    key: DataKey = (
+        "table",
+        _connection_token(con),
+        name,
+        rows,
+        _names_and_types(schema),
     )
-    return Source(relation, key, schema, stable)
+    where = _file_table(con, name)
+    if where is None:
+        return Source(relation, key, schema, None)
+    # A table in a file is also known by its storage: an edit keeping the
+    # row count and columns changes it (#50).
+    storage = _storage(con, where)
+    stable = ("table", where[0], where[1], rows, _names_and_types(schema), storage)
+    return Source(relation, (*key, storage), schema, stable)
 
 
 def _read_frame(frame: _Frame) -> Source:

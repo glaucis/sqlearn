@@ -18,9 +18,12 @@ __all__ = ["clear", "prepared"]
 def clear(prepared: str | os.PathLike[str] | None = None) -> None:
     """Forget every learned value, or remove a file's kept preparations.
 
-    The store notices a changed file, frame or table by its name, size and
-    modification time, but not a DuckDB table changed in place with the same
-    row count. Clear the store after such a change.
+    The store notices a changed file by its size and modification time, a
+    frame by its content, and a table by its row count and columns; a table
+    in a database file also by its storage blocks, so an edit in place is
+    noticed once it is checkpointed (run ``CHECKPOINT`` after editing). A
+    table of an in-memory database or a relation edited in place with the
+    same row count is not noticed: clear the store after such a change.
 
     Parameters
     ----------
