@@ -3,9 +3,9 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-10 · Branch: `main` (pushed) · Last commit:
-`bd3e2af docs: record the datasets area in the handoff and CLAUDE.md` · Checks:
-passing (`just verify` on the datasets branch; `just test` on the merged `main`)
+Updated: 2026-11-10 · Branch: `main` (in sync with `origin/main`) · Last commit:
+`9a11155 docs: record the pushed datasets area in the handoff` · Checks:
+passing (`just test` on `main` after the datasets merge)
 Verify with: `just verify`
 
 ## In progress
@@ -93,6 +93,3 @@ None.
   with `iris`, `wine`, `breast_cancer` and `blobs`, `regression`,
   `classification`, `customers`; ADR 0045, `docs/guide/datasets.md`.
   (2026-11-10)
-- The cold staged-learn test compares two sizes, not an absolute 2 s
-  (`d8d5daf`). (2026-11-10)
-- Fix batch 2 pushed, #41-#44 closed. (2026-11-10)
