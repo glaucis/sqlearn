@@ -2870,9 +2870,6 @@ dependencies = [
 ]
 
 [package.dev-dependencies]
-dev = [
-    { name = "lightgbm" },
-]
 docs = [
     { name = "ipykernel" },
     { name = "myst-nb" },
@@ -2895,6 +2892,7 @@ lint = [
 ]
 test = [
     { name = "catboost" },
+    { name = "lightgbm" },
     { name = "mpmath" },
     { name = "numpy" },
     { name = "optuna" },
@@ -2910,7 +2908,6 @@ test = [
 requires-dist = [{ name = "duckdb", specifier = ">=2.0.0" }]
 
 [package.metadata.requires-dev]
-dev = [{ name = "lightgbm", specifier = ">=4.7.0" }]
 docs = [
     { name = "ipykernel", specifier = ">=7.4.0" },
     { name = "myst-nb", specifier = ">=1.4.0" },
@@ -2932,6 +2929,7 @@ lint = [
 ]
 test = [
     { name = "catboost", specifier = ">=1.2.10" },
+    { name = "lightgbm", specifier = ">=4.7.0" },
     { name = "mpmath", specifier = ">=1.4.1" },
     { name = "numpy", specifier = ">=2.5.4" },
     { name = "optuna", specifier = ">=5.0.0" },
