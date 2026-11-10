@@ -236,3 +236,35 @@ def test_a_whole_row_step_is_named_by_its_apply_row(people):
         sq.Pipeline([("row", RowNeedsValues(cols="city"))]).learn(people)
     with pytest.raises(sq.errors.StepError, match=r"failed in its apply_row\(\)"):
         sq.Pipeline([("row", RowRaises(cols="age"))]).learn(people)
+
+
+@pytest.mark.slow
+def test_running_out_of_memory_names_the_fixes():
+    """An exact median that cannot sort in memory says so and names the fixes.
+
+    The same data learns with ``approx=True``.
+    """
+    con = duckdb.connect()
+    con.execute("SET memory_limit = '16MB'")
+    con.execute("SET threads = 1")
+    rel = con.sql("SELECT (i * 7919 % 1000003)::DOUBLE AS x FROM range(5000000) t(i)")
+    previous = connection()
+    sq.set_config(connection=con)
+    try:
+        with pytest.raises(sq.errors.SqlearnError) as err:
+            sq.Pipeline([("impute", sq.impute.median())]).learn(rel)
+        text = str(err.value)
+        assert not isinstance(err.value.__cause__, type(None))
+        assert isinstance(err.value.__cause__, duckdb.OutOfMemoryException)
+        for part in (
+            "out of memory",
+            "impute",
+            "step 1",
+            "sq.set_config(memory=",
+            "threads",
+            "approx=True",
+        ):
+            assert part in text
+        sq.Pipeline([("impute", sq.impute.median(approx=True))]).learn(rel)
+    finally:
+        sq.set_config(connection=previous)

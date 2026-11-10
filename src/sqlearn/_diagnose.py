@@ -154,6 +154,29 @@ def _user(
     return StepError(msg, step=name, position=position)
 
 
+def _out_of_memory(
+    exc: BaseException, steps: Sequence[tuple[str, Step]], position: int | None
+) -> SqlearnError:
+    """Explain DuckDB running out of memory while learning (issue 27)."""
+    if position is None and len(steps) == 1:
+        position = 1
+    if position is not None and 1 <= position <= len(steps):
+        where = f"step {steps[position - 1][0]!r} (step {position})"
+    else:
+        where = "a step"
+    msg = (
+        f"DuckDB ran out of memory while learning {where}. "
+        "Why: an exact median or quantile sorts its column, and DuckDB's "
+        "memory_limit is too small for it "
+        "(docs/benchmarks/median-reach.md). "
+        "Fix: give DuckDB more memory with sq.set_config(memory=...), run it "
+        "on fewer threads (SET threads = 1 on the connection given to "
+        "sq.set_config(connection=...)), or pass approx=True to the median, "
+        f"which is close but not exact. DuckDB says: {_first_line(exc)}"
+    )
+    return SqlearnError(msg)
+
+
 def diagnose(
     exc: BaseException,
     steps: Sequence[tuple[str, Step]],
@@ -203,6 +226,8 @@ def diagnose(
     if isinstance(exc, SqlearnError):
         return exc
     position = stage_of(str(exc))
+    if isinstance(exc, duckdb.OutOfMemoryException):
+        return _out_of_memory(exc, steps, position)
     if position is None or not 1 <= position <= len(steps):
         msg = (
             f"{'DuckDB' if isinstance(exc, duckdb.Error) else type(exc).__name__} "

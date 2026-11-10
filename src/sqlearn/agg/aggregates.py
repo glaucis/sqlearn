@@ -132,9 +132,21 @@ def _check_pair(name: str, q: object) -> tuple[float, float]:
     return low, high
 
 
+def _check_approx(name: str, approx: object) -> bool:
+    if not isinstance(approx, bool):
+        msg = (
+            f"sq.agg.{name} got approx={approx!r}, which is not True or False. "
+            "Why: approx chooses between the exact median and DuckDB's "
+            "approximate one. Fix: give approx=True or approx=False."
+        )
+        raise SqlearnError(msg)
+    return approx
+
+
 _CHECKS: dict[str, Callable[[str, object], object]] = {
     "q": _check_q,
     "method": _check_method,
+    "approx": _check_approx,
 }
 
 
@@ -357,15 +369,30 @@ mean = Aggregate(
     True
     """,
 )
+
+
+def _median(x: Expression, approx: bool) -> Expression:
+    if approx:
+        return _fn("approx_quantile", present(x), const(0.5).cast("FLOAT"))
+    return _quantile(x, 0.5, "linear")
+
+
 median = Aggregate(
     "median",
-    lambda x: _quantile(x, 0.5, "linear"),
-    doc="""The exact median, by sorting; it learns several times past memory (ADR 0032).
-
-    The reach is measured in ``docs/benchmarks/median-reach.md``.
+    _median,
+    defaults={"approx": False},
+    doc="""The median: exact by sorting by default (ADR 0032), or approximate.
 
     ``quantile(q=0.5)``: the middle value, or halfway between the two middle
-    ones, as DOUBLE. It may sit anywhere in a learned expression.
+    ones, as DOUBLE. It may sit anywhere in a learned expression. The sort
+    learns several times past memory; the reach is measured in
+    ``docs/benchmarks/median-reach.md``.
+
+    Param ``approx``, default False. ``approx=True`` is DuckDB's
+    ``approx_quantile(x, 0.5)``: constant memory, close but not equal to the
+    exact median (and so to scikit-learn's). On 100,000 normal values it sits
+    within 0.01 standard deviations of numpy's median
+    (``validation/``). sqlearn never switches to it by itself (ADR 0046).
 
     Examples
     --------
@@ -373,6 +400,8 @@ median = Aggregate(
     >>> import sqlearn as sq
     >>> sq.agg.median
     sq.agg.median
+    >>> sq.agg.median(approx=True)
+    sq.agg.median(approx=True)
     >>> str(sq.agg.median(duckdb.ColumnExpression("a"))).startswith(
     ...     "__sqlearn_quantile("
     ... )

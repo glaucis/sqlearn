@@ -45,3 +45,21 @@ stage's one row. The marker must be a whole learned value
   small data.
 - The reach is DuckDB's sort: under 64 MB a plain `ORDER BY` fails at about
   60M rows, and the medians of two columns reach 20M (issue #27).
+
+## Amended 2026-11-10
+
+The default stays exact by sorting. Two things are added (issue #27, ADR 0046):
+
+- `approx=True` on `sq.agg.median` and `sq.impute.median` builds DuckDB's
+  `approx_quantile(x, 0.5)`: constant memory, close to the exact median but
+  not equal to it. It is the user's choice; sqlearn never switches by itself.
+  Its error against numpy's median is measured in validation and stated in the
+  docstring.
+- When the sort runs out of memory, the learn raises an `SqlearnError` in the
+  house form, not DuckDB's `OutOfMemoryException`. It names the step when the
+  message allows, and the fixes: `sq.set_config(memory=...)`, fewer threads
+  (`SET threads = 1` on the connection given to `sq.set_config`), or
+  `approx=True`.
+
+The reach by memory limit is in `docs/benchmarks/median-reach.md` and the
+imputing guide.
