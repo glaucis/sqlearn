@@ -102,8 +102,13 @@ Verify with: `just verify`
   uncommitted in the worktree: resume it with `SendMessage`. (2026-11-08)
 - Wall-clock tests must warm up first, and set a limit between the normal
   time under load and the regression's, not just above the normal time.
-  Never pipe `just test` through `tail` before `&&`: the pipe hides its
-  failure. (2026-11-07)
+  Under heavy load (load average 60) an absolute limit fails anyway: a busy
+  machine slowed the cold staged learn 8 times. Compare two sizes in the same
+  test instead (the median of three of each, alternating; the fastest favours
+  the short one), as `test_a_cold_learn_of_many_staged_aggregates_is_fast`
+  does. To reproduce load, run 32 busy shell loops beside the test. Never pipe
+  `just test` through `tail` before `&&`: the pipe hides its failure.
+  (2026-11-10)
 - DuckDB 2.0: NaN sorts greatest, so `max` over a column with NaN is NaN
   (every aggregate filters missing values); a staged result read with
   `any_value` breaks inside another aggregate (plain column there); chained

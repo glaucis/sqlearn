@@ -1,5 +1,6 @@
 """Tests of the compositor: step pieces become one chain of SQL stages."""
 
+import statistics
 import time
 
 import duckdb
@@ -660,17 +661,21 @@ def test_row_values_are_computed_once_in_a_projection_of_their_own(con):
     assert rel.fetchall() == [(-1 / 3, -2 / 3), (1.0, 2.0)]
 
 
-def wide(columns: int, rows: int = 200):
-    """Return a new table, ``wide<columns>``, of `columns` numbers and `rows` rows."""
+def wide(columns: int, rows: int = 200, name: str | None = None):
+    """Return a new table of `columns` numbers and `rows` rows.
+
+    It is named `name`, by default ``wide<columns>``; a name of its own gives
+    a table never learned from, which the learning store cannot answer.
+    """
     con = connection()
+    name = name or f"wide{columns}"
     picks = ", ".join(
         f"(hash(i, {c}) % 1000)::DOUBLE / 7 AS c{c}" for c in range(columns)
     )
     con.execute(
-        f"CREATE OR REPLACE TABLE wide{columns} AS "
-        f"SELECT {picks} FROM range({rows}) r(i)"
+        f"CREATE OR REPLACE TABLE {name} AS SELECT {picks} FROM range({rows}) r(i)"
     )
-    return con.table(f"wide{columns}")
+    return con.table(name)
 
 
 @pytest.mark.parametrize(
@@ -679,19 +684,29 @@ def wide(columns: int, rows: int = 200):
     ids=["scale.robust", "bin.quantile", "impute.mode"],
 )
 def test_a_cold_learn_of_many_staged_aggregates_is_fast(step):
-    """50 columns of 200 rows learn in under 2 s: the cost is not per column.
+    """A cold learn of 50 columns costs at most 20 times one of 10 columns.
 
     Each column brings quantiles (or a mode) computed in stages of their own;
     the learn statement grows linearly with them, and DuckDB plans it fast.
-    It took 7 s (robust) and 13 s (bin.quantile) when each quantile had its
-    own column, filters and scalar subquery.
+    When each quantile had its own column, filters and scalar subquery
+    (before c7bca0b), five times the columns cost 59 (robust) and 70
+    (bin.quantile) times as much; now 3 to 8, idle or under load.
+
+    A ratio, not a time: a busy machine slows both learns alike (8 times,
+    under 32 busy processes on 8 cores), which failed an absolute limit. The
+    learns alternate, and the median of three of each is compared: the
+    fastest favoured the short learn, which fits in a quiet moment more often.
     """
     sq.Pipeline([step()]).learn(wide(1))  # warm up: imports, caches
-    data = wide(50)  # built before the clock starts
-    pipe = sq.Pipeline([step()])
-    start = time.perf_counter()
-    pipe.learn(data)  # cold: a new table, never learned from
-    assert time.perf_counter() - start < 2.0
+    times: dict[int, list[float]] = {10: [], 50: []}
+    for run in range(3):
+        for columns, taken in times.items():
+            data = wide(columns, name=f"cold{columns}_{run}")  # never learned
+            pipe = sq.Pipeline([step()])
+            start = time.perf_counter()
+            pipe.learn(data)
+            taken.append(time.perf_counter() - start)
+    assert statistics.median(times[50]) / statistics.median(times[10]) < 20
 
 
 def test_two_hundred_columns_of_quantiles_learn():
