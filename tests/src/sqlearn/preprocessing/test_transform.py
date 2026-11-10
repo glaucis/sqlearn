@@ -371,3 +371,16 @@ def test_chains_into_the_stage_around_it():
         (expected - expected.mean()) / expected.std(ddof=0),
         atol=1e-12,
     )
+
+
+def test_case_functions_choose_enum_columns_by_default():
+    """With no cols=, upper() changes an ENUM column as it does a VARCHAR one."""
+    con = connection()
+    enum_rel = con.sql("SELECT 'a'::ENUM('a', 'b') AS e, 1 AS n")
+    got = (
+        sq.Pipeline([sq.transform.upper()])
+        .learn(enum_rel)
+        .apply(enum_rel, out="pandas")
+    )
+    assert got["e"].tolist() == ["A"]
+    assert got["n"].tolist() == [1]

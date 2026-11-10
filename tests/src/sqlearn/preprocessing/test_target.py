@@ -449,3 +449,25 @@ def test_encoders_give_the_same_codes_for_ten_thousand_categories():
     assert got == pytest.approx([r[0] for r in expected], rel=1e-15)
     for value in (step.null_["c"], step.target_mean_["c"]):  # NULL, then unseen
         assert any(g == pytest.approx(value, rel=1e-15) for g in got)
+
+
+def test_target_encodes_enum_columns_by_default():
+    """With no cols=, ENUM columns get the encodings the VARCHAR ones get."""
+    con = connection()
+    enum_rel = con.sql(
+        "SELECT (CASE i % 3 WHEN 0 THEN 'a' WHEN 1 THEN 'b' ELSE 'c' END)"
+        "::ENUM('a', 'b', 'c') AS e, (i % 2)::INTEGER AS y FROM range(30) t(i)"
+    )
+    text_rel = con.sql("SELECT e::VARCHAR AS e, y FROM enum_rel")
+    got = (
+        sq.Pipeline([sq.encode.target()])
+        .learn(enum_rel, target="y")
+        .apply(enum_rel, out="pandas")
+    )
+    want = (
+        sq.Pipeline([sq.encode.target()])
+        .learn(text_rel, target="y")
+        .apply(text_rel, out="pandas")
+    )
+    assert got["e"].dtype.kind == "f"
+    pd.testing.assert_frame_equal(got, want)

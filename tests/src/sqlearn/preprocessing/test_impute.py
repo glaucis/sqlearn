@@ -539,3 +539,26 @@ def test_impute_keeping_and_flagging_keeps_the_filled_copies_type():
     assert "city_missing" in got.columns
     assert got["city_missing"].tolist() == [0, 1, 0, 0]
     assert str(got["city_missing"].dtype).lower().startswith("int")
+
+
+def test_impute_treats_enum_as_text():
+    """An ENUM column is text to impute, as a VARCHAR one is: constant and mode."""
+    con = connection()
+    rel = con.sql(
+        "SELECT * FROM (VALUES ('a'::ENUM('a', 'b')), ('a'), (NULL), ('b')) t(e)"
+    )
+    got = sq.Pipeline([sq.impute.constant("b")]).learn(rel).apply(rel, out="pandas")
+    assert got["e"].tolist() == ["a", "a", "b", "b"]
+    got = sq.Pipeline([sq.impute.mode("e")]).learn(rel).apply(rel, out="pandas")
+    assert got["e"].tolist() == ["a", "a", "a", "b"]
+
+
+def test_column_kind_of_enum_is_text():
+    """An ENUM column is the same kind as a VARCHAR one, so a text constant suits."""
+    from sqlearn.preprocessing.impute import _column_kind, _suits
+
+    rel = connection().sql("SELECT 'a'::ENUM('a', 'b') AS e, 'a' AS v")
+    enum, varchar = rel.types
+    assert _column_kind(enum) == _column_kind(varchar) == "text"
+    assert _suits("b", enum)
+    assert not _suits(0, enum)

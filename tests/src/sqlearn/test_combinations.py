@@ -13,7 +13,7 @@ import pandas as pd
 import pytest
 
 import sqlearn as sq
-from sqlearn._selectors import _is_numeric, _is_string
+from sqlearn._selectors import _is_numeric, is_text
 
 FIRST = {
     "static": lambda: sq.scale.standard("age"),
@@ -25,8 +25,8 @@ FIRST = {
 }
 
 BY_TYPE = {
-    "ordinal": (sq.encode.ordinal, _is_string),
-    "lower": (sq.transform.lower, _is_string),
+    "ordinal": (sq.encode.ordinal, is_text),
+    "lower": (sq.transform.lower, is_text),
     "robust": (sq.scale.robust, _is_numeric),
 }
 

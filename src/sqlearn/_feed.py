@@ -32,6 +32,7 @@ from sqlearn._expr import quote
 from sqlearn._inputs import _drop_later
 from sqlearn._memory import check
 from sqlearn._model import Model, _numpy, check_feed, missing_target, target_values
+from sqlearn._selectors import is_text
 
 __all__ = [
     "BATCH_ROWS",
@@ -321,34 +322,6 @@ def fetch(
     if missing:
         raise missing_target(name or "", missing)
     return x, y
-
-
-def is_text(dtype: DuckDBPyType) -> bool:
-    """Say whether a DuckDB type is text for the hand-over to a model.
-
-    ``VARCHAR`` is text, with or without a collation (DuckDB reports the
-    collated column's type as ``VARCHAR``: the collation lives on the
-    expression), and so is any ``ENUM``.
-
-    Parameters
-    ----------
-    dtype : DuckDBPyType
-        A column's type, as ``rel.types`` gives it.
-
-    Returns
-    -------
-    bool
-        True for text.
-
-    Examples
-    --------
-    >>> from sqlearn._config import connection
-    >>> from sqlearn._feed import is_text
-    >>> rel = connection().sql("SELECT 'a' AS t, 1 AS n, 'a'::ENUM('a') AS e")
-    >>> [is_text(kind) for kind in rel.types]
-    [True, False, True]
-    """
-    return dtype.id in {"varchar", "enum"}
 
 
 def _declared(dtype: DuckDBPyType) -> list[str] | None:

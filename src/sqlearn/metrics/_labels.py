@@ -13,6 +13,7 @@ from duckdb import ColumnExpression, Expression
 
 from sqlearn._errors import SqlearnError
 from sqlearn._expr import const
+from sqlearn._selectors import is_text
 
 __all__ = ["check_labels", "check_labels_with"]
 
@@ -126,14 +127,9 @@ def _is_nested(dtype: str) -> bool:
     return dtype.endswith("]") or dtype.startswith(("STRUCT", "MAP", "UNION"))
 
 
-def _is_text(dtype: str) -> bool:
-    """Whether a DuckDB type holds text labels."""
-    return dtype.startswith(("VARCHAR", "ENUM"))
-
-
-def _kind(dtype: str) -> str:
+def _kind(dtype: str, text: bool) -> str:
     """Name the kind of label a column type holds: text, number or its type."""
-    if _is_text(dtype):
+    if text:
         return "text"
     if dtype in _NUMBERS or dtype.startswith("DECIMAL"):
         return "number"
@@ -231,6 +227,7 @@ def check_labels_with(
     """
     columns = [target, prediction]
     types = _column_types(name, rel, columns)
+    texts = {n: is_text(t) for n, t in zip(rel.columns, rel.types, strict=True)}
     for c in columns:
         if _is_nested(types[c]):
             msg = (
@@ -240,12 +237,13 @@ def check_labels_with(
                 "a column of one number or one text per row."
             )
             raise SqlearnError(msg)
-    if _is_text(types[target]) != _is_text(types[prediction]):
+    if texts[target] != texts[prediction]:
         msg = (
             f"{name} cannot be computed: column {target!r} "
-            f"({types[target]}) holds {_kind(types[target])} labels and "
-            f"column {prediction!r} ({types[prediction]}) "
-            f"{_kind(types[prediction])} labels, so no label can match. "
+            f"({types[target]}) holds {_kind(types[target], texts[target])} "
+            f"labels and column {prediction!r} ({types[prediction]}) "
+            f"{_kind(types[prediction], texts[prediction])} labels, so no "
+            "label can match. "
             "scikit-learn refuses such a mix too. Fix: cast one so both "
             "hold the same kind of label."
         )

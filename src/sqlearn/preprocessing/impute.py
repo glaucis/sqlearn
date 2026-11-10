@@ -12,7 +12,13 @@ from duckdb.sqltypes import INTEGER, DuckDBPyType
 from sqlearn._errors import SqlearnError, StepError
 from sqlearn._expr import const, is_missing
 from sqlearn._group import Group, Unset, call_repr, column_names, columns_arg
-from sqlearn._selectors import Schema, Selector, _numeric, _string, to_selector
+from sqlearn._selectors import (
+    Schema,
+    Selector,
+    _numeric,
+    is_text,
+    to_selector,
+)
 from sqlearn._step import Learned, Output, Step
 from sqlearn.agg import aggregates as agg
 from sqlearn.preprocessing._missing import (
@@ -114,7 +120,7 @@ def _column_kind(dtype: DuckDBPyType) -> str:
     """Return the kind of a column's type: numeric, text, boolean, date..."""
     if _numeric().resolve([("c", dtype)]):
         return "numeric"
-    if _string().resolve([("c", dtype)]):
+    if is_text(dtype):
         return "text"
     name = str(dtype)
     if name.startswith("TIMESTAMP"):

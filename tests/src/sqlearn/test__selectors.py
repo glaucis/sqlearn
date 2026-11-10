@@ -5,6 +5,7 @@ import pytest
 from duckdb.sqltypes import BIGINT, DOUBLE, INTEGER, VARCHAR
 
 import sqlearn as sq
+from sqlearn._config import connection
 from sqlearn._selectors import to_selector
 
 SCHEMA = [("id", INTEGER), ("age", DOUBLE), ("city", VARCHAR), ("income", BIGINT)]
@@ -110,3 +111,12 @@ def test_cols_is_a_callable_group():
     sel = sq.cols.numeric() - sq.cols("id")
     assert sel.resolve([("id", INTEGER), ("x", DOUBLE)]) == ["x"]
     assert repr(sq.cols) == "sq.cols"
+
+
+def test_string_selects_enum_columns():
+    """An ENUM column is text: string() chooses it beside VARCHAR, not INTEGER."""
+    rel = connection().sql("SELECT 'a'::ENUM('a', 'b', 'c') AS e, 'x' AS v, 1 AS n")
+    schema = list(zip(rel.columns, rel.types, strict=True))
+    assert sq.cols.string().resolve(schema) == ["e", "v"]
+    assert not sq.cols.string().may_match(INTEGER)
+    assert sq.cols.string().may_match(rel.types[0])

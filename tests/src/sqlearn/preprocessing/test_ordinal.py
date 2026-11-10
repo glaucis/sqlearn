@@ -154,3 +154,21 @@ def test_encoders_give_the_same_codes_for_ten_thousand_categories():
     assert got == expected
     assert (None,) in got
     assert (-1,) in got
+
+
+def test_ordinal_encodes_enum_columns_by_default():
+    """With no cols=, ENUM columns get the codes the VARCHAR ones get."""
+    con = connection()
+    enum_rel = con.sql(
+        "SELECT (CASE i % 3 WHEN 0 THEN 'a' WHEN 1 THEN 'b' ELSE 'c' END)"
+        "::ENUM('a', 'b', 'c') AS e FROM range(9) t(i)"
+    )
+    text_rel = con.sql("SELECT e::VARCHAR AS e FROM enum_rel")
+    got = (
+        sq.Pipeline([sq.encode.ordinal()]).learn(enum_rel).apply(enum_rel, out="pandas")
+    )
+    want = (
+        sq.Pipeline([sq.encode.ordinal()]).learn(text_rel).apply(text_rel, out="pandas")
+    )
+    assert got["e"].tolist() == [0, 1, 2] * 3
+    pd.testing.assert_frame_equal(got, want)

@@ -35,8 +35,33 @@ def _is_numeric(dtype: DuckDBPyType) -> bool:
     return name in _NUMERIC or _DECIMAL.fullmatch(name) is not None
 
 
-def _is_string(dtype: DuckDBPyType) -> bool:
-    return str(dtype) == "VARCHAR"
+def is_text(dtype: DuckDBPyType) -> bool:
+    """Say whether a DuckDB type is text: the one definition of text.
+
+    ``VARCHAR`` is text, with or without a collation (DuckDB reports the
+    collated column's type as ``VARCHAR``: the collation lives on the
+    expression), and so is any ``ENUM``. ``sq.cols.string()``, the hand-over
+    to a model and the metrics' label check all use it.
+
+    Parameters
+    ----------
+    dtype : DuckDBPyType
+        A column's type, as ``rel.types`` gives it.
+
+    Returns
+    -------
+    bool
+        True for text.
+
+    Examples
+    --------
+    >>> from sqlearn._config import connection
+    >>> from sqlearn._selectors import is_text
+    >>> rel = connection().sql("SELECT 'a' AS t, 1 AS n, 'a'::ENUM('a') AS e")
+    >>> [is_text(kind) for kind in rel.types]
+    [True, False, True]
+    """
+    return dtype.id in {"varchar", "enum"}
 
 
 class Selector:
@@ -150,7 +175,7 @@ class _Kind(Selector):
     label: str
 
     def _test(self, dtype: DuckDBPyType) -> bool:
-        return _is_numeric(dtype) if self.label == "numeric" else _is_string(dtype)
+        return _is_numeric(dtype) if self.label == "numeric" else is_text(dtype)
 
     def _matches(self, name: str, dtype: DuckDBPyType) -> bool:
         return self._test(dtype)
@@ -293,7 +318,7 @@ class _ColsGroup:
         return _Kind("numeric")
 
     def string(self) -> Selector:
-        """Choose every text (VARCHAR) column.
+        """Choose every text column: VARCHAR and ENUM.
 
         Returns
         -------

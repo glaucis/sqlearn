@@ -285,3 +285,27 @@ def test_nan_in_a_float_column_is_its_own_category_as_in_sklearn():
     assert got.columns == ["c_1.0", "c_2.0", "c_nan"]
     assert list(sk.get_feature_names_out(["c"])) == got.columns
     np.testing.assert_array_equal(np.array(got.fetchall()), sk.transform(values))
+
+
+ENUM_SQL = (
+    "SELECT (CASE i % 3 WHEN 0 THEN 'a' WHEN 1 THEN 'b' ELSE 'c' END)"
+    "::ENUM('a', 'b', 'c') AS e FROM range(9) t(i)"
+)
+
+
+def test_onehot_encodes_enum_columns_by_default():
+    """With no cols=, ENUM columns are encoded as the same VARCHAR ones are."""
+    con = connection()
+    enum_rel = con.sql(ENUM_SQL)
+    text_rel = con.sql("SELECT e::VARCHAR AS e FROM enum_rel")
+    got = (
+        sq.Pipeline([sq.encode.onehot()]).learn(enum_rel).apply(enum_rel, out="pandas")
+    )
+    want = (
+        sq.Pipeline([sq.encode.onehot()]).learn(text_rel).apply(text_rel, out="pandas")
+    )
+    assert list(got.columns) == ["e_a", "e_b", "e_c"]
+    pd.testing.assert_frame_equal(got, want)
+    only_a = con.sql("SELECT 'a'::ENUM('a', 'b', 'c') AS e")
+    one = sq.Pipeline([sq.encode.onehot()]).learn(enum_rel).apply(only_a, out="pandas")
+    assert one.to_dict("records") == [{"e_a": 1, "e_b": 0, "e_c": 0}]

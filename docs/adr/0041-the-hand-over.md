@@ -42,7 +42,9 @@ had nowhere to go but swap.
   `cat_features=` as it would without sqlearn. Amended by #38: an `ENUM`
   feature is text too, and a collated `VARCHAR` one, which DuckDB reports
   as `VARCHAR`; an `ENUM`'s categories are its declared values, in their
-  declared order, not sorted.
+  declared order, not sorted. Amended by #43: the
+  same definition, `sqlearn._selectors.is_text`, serves `sq.cols.string()` (so
+  the encoders' default columns include `ENUM`) and the metrics' label check.
 - **Polars gets an `Enum`, not a `Categorical`** (the spec said
   `Categorical`; changed during the build, Ruling R9). An `Enum`'s codes are
   its list's order, kept through `to_physical`, `to_arrow` and `to_pandas`,
