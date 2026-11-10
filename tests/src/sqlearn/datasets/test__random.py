@@ -1,6 +1,7 @@
 """Tests of SplitMix64 in SQL and its Python reference."""
 
 import duckdb
+import pytest
 
 import sqlearn as sq
 from sqlearn._config import connection
@@ -41,7 +42,11 @@ def test_random_sql_grows_linearly():
 
 
 def test_the_same_seed_gives_the_same_values_on_any_thread_count():
-    """One thread and eight give the same rows."""
+    """One thread and eight give the same rows.
+
+    DuckDB's ``range()`` reads on one thread today, so this cannot fail yet: it
+    guards a future parallel row source.
+    """
     sql = random_columns(11, 100_000, {"u": 0, "v": 1}, {"n": 2})
     con = duckdb.connect()
     try:
@@ -58,3 +63,42 @@ def test_sq_datasets_is_a_group():
     """sq.datasets is importable and listed in sq.__all__."""
     assert "datasets" in sq.__all__
     assert sq.datasets.__name__ == "sqlearn.datasets"
+
+
+def test_no_random_columns_give_the_rows_alone():
+    """Empty mappings give a valid query of the row numbers alone."""
+    assert connection().sql(random_columns(0, 3, {}, {})).fetchall() == [
+        (0,),
+        (1,),
+        (2,),
+    ]
+    assert connection().sql(random_columns(0, 0, {}, {})).fetchall() == []
+
+
+@pytest.mark.parametrize(
+    ("uniforms", "normals", "message"),
+    [
+        ({"u": 4}, {"n": 2}, "stream 4"),
+        ({"u": 5}, {"n": 2}, "stream 5"),
+        ({"a": 1, "b": 1}, {}, "share stream 1"),
+        ({}, {"a": 3, "b": 3}, "share stream 3"),
+        ({"i": 0}, {}, "'i'"),
+        ({}, {"i": 0}, "'i'"),
+        ({"x": 0}, {"x": 1}, "'x'"),
+        ({"u": -1}, {}, "stream -1"),
+        ({"u": 2**64}, {}, "stream 18446744073709551616"),
+        ({}, {"n": -1}, "stream -1"),
+        ({}, {"n": 2**63}, "stream 9223372036854775808"),
+    ],
+)
+def test_streams_breaking_the_contract_are_refused(uniforms, normals, message):
+    """Colliding streams, repeated or reserved names, streams out of range."""
+    with pytest.raises(ValueError, match=message):
+        random_columns(0, 1, uniforms, normals)
+
+
+def test_the_largest_normal_stream_matches_the_python_reference():
+    """A normal stream of 2**63 - 1 uses streams up to 2**64 - 1, in range."""
+    stream = 2**63 - 1
+    rows = connection().sql(random_columns(1, 3, {}, {"n": stream})).fetchall()
+    assert [r[1] for r in rows] == [normal(1, i, stream) for i in range(3)]

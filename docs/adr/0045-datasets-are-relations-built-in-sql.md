@@ -56,8 +56,13 @@ larger than memory.
 
 ## Consequences
 
-- The same seed gives the same rows on every machine, thread count and DuckDB
-  version, and a slice of a huge relation holds the same rows as the whole.
+- The same seed gives the same rows on every thread count, and a slice of a
+  huge relation holds the same rows as the whole. Keys and uniforms are exact
+  integer arithmetic, so they are the same bit for bit on every machine and
+  DuckDB version. Normals go through `ln`, `cos` and `sqrt`, which libm does
+  not promise to round alike on every platform or build: on one machine they
+  are the same bit for bit (tested, SQL against Python), elsewhere the same
+  within rounding ([ADR 0043](0043-repeatable-within-rounding.md)).
 - The values are sqlearn's own: the same distributions as scikit-learn's,
   never the same numbers. Validation checks the distributions, not the draws.
 - A normal costs two keys, a logarithm and a cosine per value: 10,000,000

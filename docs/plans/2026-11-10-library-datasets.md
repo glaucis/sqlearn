@@ -38,8 +38,12 @@ through `sqlearn._expr.quote`, run on `sqlearn._config.connection()`.
 - Settings: scikit-learn's names, except `rows=` (for `n_samples`) and
   `seed=` (for `random_state`, an `int`, default 0).
 - Refusals: `SqlearnError` in the house form (what happened, `Why:`, `Fix:`).
-- Random values are a pure function of `(seed, row, stream)`: the same seed
-  gives the same rows on any thread count, machine and DuckDB version.
+- Random values are a pure function of `(seed, row, stream)`. Keys and
+  uniforms are exact integer arithmetic: the same seed gives the same values
+  bit for bit on any thread count, machine and DuckDB version. Normals go
+  through `ln`, `cos` and `sqrt`, which libm does not promise to round alike
+  on every platform or build: bit for bit on one machine (tested), the same
+  within rounding elsewhere (ADR 0043).
 - Test names read as sentences (`test_<behaviour>`), through the public seam
   (`sq.datasets.*`) unless a task names a private function.
 - British English in prose, American spelling in identifiers (ADR 0010).

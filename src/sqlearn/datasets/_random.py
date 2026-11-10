@@ -102,9 +102,11 @@ def normal(seed: int, row: int, stream: int) -> float:
 
     Parameters
     ----------
-    seed, row, stream : int
-        As for `key`; the uniforms use streams ``2 * stream`` and
-        ``2 * stream + 1``.
+    seed, row : int
+        As for `key`.
+    stream : int
+        In ``[0, 2**63)``: the uniforms use streams ``2 * stream`` and
+        ``2 * stream + 1``, which must stay below ``2**64``.
 
     Returns
     -------
@@ -136,6 +138,8 @@ def _mixed(source: str, columns: list[str]) -> str:
     One subquery per step, each reading the previous step's columns once, so
     the text grows linearly with the columns; the other columns pass through.
     """
+    if not columns:
+        return source
     steps = [
         lambda c: _modular(f"{c}::UHUGEINT + {GOLDEN}::UHUGEINT"),
         lambda c: _modular(f"xor({c}, {c} >> 30)::UHUGEINT * {MIX1}::UHUGEINT"),
@@ -153,6 +157,44 @@ def _quoted(name: str) -> str:
     return '"' + name.replace('"', '""') + '"'
 
 
+def _check_streams(uniforms: Mapping[str, int], normals: Mapping[str, int]) -> None:
+    """Raise ValueError when the streams break `random_columns`'s contract."""
+    for kind, mapping, limit in (
+        ("uniform", uniforms, 2**64),
+        ("normal", normals, 2**63),
+    ):
+        for name, stream in mapping.items():
+            if not 0 <= stream < limit:
+                msg = f"The {kind} {name!r} has stream {stream}, outside [0, {limit})."
+                raise ValueError(msg)
+        seen: dict[int, str] = {}
+        for name, stream in mapping.items():
+            if stream in seen:
+                msg = (
+                    f"The {kind}s {seen[stream]!r} and {name!r} share stream "
+                    f"{stream}: each column needs its own."
+                )
+                raise ValueError(msg)
+            seen[stream] = name
+    for name in [*uniforms, *normals]:
+        if name == "i":
+            msg = "A random column cannot be named 'i': that is the row column."
+            raise ValueError(msg)
+        if name in uniforms and name in normals:
+            msg = f"The name {name!r} is both a uniform and a normal."
+            raise ValueError(msg)
+    taken = {
+        s: n for n, stream in normals.items() for s in (2 * stream, 2 * stream + 1)
+    }
+    for name, stream in uniforms.items():
+        if stream in taken:
+            msg = (
+                f"The uniform {name!r} has stream {stream}, which the normal "
+                f"{taken[stream]!r} draws on (normal n uses streams 2n and 2n + 1)."
+            )
+            raise ValueError(msg)
+
+
 def random_columns(
     seed: int,
     rows: int,
@@ -168,9 +210,11 @@ def random_columns(
     rows : int
         The number of rows.
     uniforms : Mapping[str, int]
-        Each uniform column's name and stream.
+        Each uniform column's name and stream, in ``[0, 2**64)``.
     normals : Mapping[str, int]
-        Each normal column's name and stream.
+        Each normal column's name and stream, in ``[0, 2**63)``. Normal
+        stream ``n`` draws on uniform streams ``2n`` and ``2n + 1``, so no
+        uniform may use either.
 
     Returns
     -------
@@ -179,6 +223,13 @@ def random_columns(
         one DOUBLE column per name, uniforms first: ``uniform(seed, i,
         stream)`` or ``normal(seed, i, stream)``, equal to the Python ones bit
         for bit.
+
+    Raises
+    ------
+    ValueError
+        When the streams break the contract: a stream out of range, two
+        columns of one kind sharing a stream, a uniform on a normal's stream,
+        a name used twice or the name ``i``.
 
     Examples
     --------
@@ -189,6 +240,7 @@ def random_columns(
     ... ]
     True
     """
+    _check_streams(uniforms, normals)
     streams = sorted(
         {*uniforms.values()} | {s for n in normals.values() for s in (2 * n, 2 * n + 1)}
     )

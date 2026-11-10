@@ -1,7 +1,7 @@
 ---
 type: spec
 tags: [datasets, generators, bundled-data, random-numbers, library-breadth]
-summary: "Spec for the datasets area of sqlearn's library breadth (overview 3.3): three small bundled datasets and four generators written in SQL, every one returned as a DuckDB relation, the generators repeatable from a seed on any machine and any size."
+summary: "Spec for the datasets area of sqlearn's library breadth (overview 3.3): three small bundled datasets and four generators written in SQL, every one returned as a DuckDB relation, the generators repeatable from a seed at any size (bit for bit on one machine, within rounding across machines)."
 related: [docs/architecture/overview.md, docs/adr/0003-scikit-learn-style-api.md, docs/adr/0006-local-and-offline.md, docs/adr/0016-validation-method.md, docs/adr/0034-a-grouped-api.md]
 ---
 # Library breadth: datasets
@@ -23,8 +23,9 @@ This area gives sqlearn data in two ways:
 
 1. **Generators written in SQL.** The data is built inside DuckDB, row by
    row, from a seed: any number of rows, larger than memory included, no file,
-   no download. The same seed gives the same rows on every machine, every
-   thread count and every DuckDB version.
+   no download. The same seed gives the same rows on every thread count:
+   bit for bit on one machine, and on every machine and DuckDB version
+   within rounding (ADR 0043), exactly for the uniforms.
 2. **Three small classic datasets bundled in the package**, the ones
    scikit-learn's own tutorials start from: iris, wine and breast cancer.
 
@@ -91,6 +92,12 @@ huge relation is the same rows as in the whole.
   bit): cluster centres, regression coefficients, the classification's
   mixing matrices. They are settings of the query, a handful of numbers, never
   data (ADR 0002).
+- **How far the values repeat.** Keys and uniforms are exact integer
+  arithmetic, so they are the same bit for bit on every machine, thread count
+  and DuckDB version. Normals go through `ln`, `cos` and `sqrt`, which libm
+  does not promise to round alike on every platform or build: on one machine
+  they are the same bit for bit (tested, SQL against Python), elsewhere the
+  same within rounding (ADR 0043).
 - The values are sqlearn's own: the same distributions as scikit-learn's,
   never the same numbers (numpy's generator is not reproducible in SQL).
 
