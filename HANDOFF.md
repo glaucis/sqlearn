@@ -3,9 +3,9 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-10 · Branch: `main` (25 ahead of `origin/main`) · Last
-commit: `c7b43ec docs: record the fix batch in the handoff` · Checks: passing
-(`just verify` on the branch, `just test` on the merged `main`)
+Updated: 2026-11-10 · Branch: `main` (pushed) · Last commit: `21577b9 docs:
+update the handoff` · Checks: passing (`just verify` on the branch, `just test`
+on the merged `main`)
 Verify with: `just verify`
 
 ## In progress
@@ -14,8 +14,6 @@ None.
 
 ## Waiting on the user
 
-- Push `main` (the fix batch, merged locally), then close #28, #32, #35, #37,
-  #38, #39, #40 with their commits. Recommended: push now. (since 2026-11-10)
 - Check the batch's rulings, each with its cost if wrong (ledger
   `.superpowers/sdd/2026-11-09-fix-batch/progress.md`, in the main checkout):
   - accuracy's label checks use a private flag, not a public `Metric` field
@@ -105,11 +103,11 @@ None.
 ## Just finished
 
 - Fix batch (plan `docs/plans/2026-11-09-fix-batch.md`), fast-forwarded into
-  `main` at `c7b43ec`, worktree and branch removed: #32 impute's filled copies
-  keep their type (`Step.copies_inputs`); #35 accuracy refuses continuous and
-  mixed-kind labels; #37 the metrics refuse infinite, list and incomparable
-  labels; #38 ENUM features reach models as categories in declared order; #39 a
-  failing fold fails its Optuna trial; #40 streamed predictions widen to each
-  batch's type; #28 `sq.agg.std` in two staged passes (12 to 1 ULP, about 2.9x
-  the cost, ADR 0044); #31 and #27 measured and handed back. 9 tasks, final
-  review, one fix wave. (2026-11-10)
+  `main` and pushed; #28, #32, #35, #37-#40 closed with their commits: #32
+  impute's filled copies keep their type (`Step.copies_inputs`); #35 accuracy
+  refuses continuous and mixed-kind labels; #37 the metrics refuse infinite,
+  list and incomparable labels; #38 ENUM features reach models as categories in
+  declared order; #39 a failing fold fails its Optuna trial; #40 streamed
+  predictions widen to each batch's type; #28 `sq.agg.std` in two staged passes
+  (12 to 1 ULP, about 2.9x the cost, ADR 0044); #31 and #27 measured and handed
+  back. 9 tasks, final review, one fix wave. (2026-11-10)
