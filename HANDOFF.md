@@ -3,9 +3,8 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-11 · Branch: `main` · Last commit: `b54f3a7 docs: name the
-sqlearn board and its milestones` · Checks: passing (`just verify` on
-`19df10d`: 2064 passed, 25 skipped; only docs changed since)
+Updated: 2026-11-11 · Branch: `main` · Last commit: the #56 fix · Checks:
+passing (`just verify`: 2066 passed, 24 skipped; docs rebuilt clean)
 Verify with: `just verify`
 
 ## In progress
@@ -14,12 +13,13 @@ None.
 
 ## Waiting on the user
 
-None.
+- #55 (save a trained model in a format that cannot run code): which format
+  first. The model library's own file (XGBoost JSON, LightGBM text, CatBoost
+  `.cbm`) needs no new dependency; skops covers scikit-learn but is a new
+  dependency (ADR 0005).
 
 ## Next up
 
-- #55 (a model format that cannot run code) and #56 (a learned zoned
-  timestamp needs pytz), from the saving area, both needs-triage.
 - Re-measure the category lookup on an idle machine (check `uptime` first;
   the load was about 30 on 2026-11-11): both encoders at 15,000, 20,000 and
   100,000 categories, one count per process, then lower `WARN_ABOVE` if the
@@ -32,10 +32,15 @@ None.
   or a fetcher of real datasets (ADR 0006: an explicit call).
 - The target encoder's learn after #41 is mostly Python `Fraction` arithmetic
   in `_encodings`/`_totals`: file an issue if it matters.
-- Delete the merged worktree `.worktrees/library-saving` and its branch; its
-  ledger's findings are in #57.
 
 ## Dead ends and traps
+
+- DuckDB hands a `TIMESTAMP WITH TIME ZONE` to Python only through pytz,
+  which is not installed. sqlearn's learned values come through
+  `_fetch_learned` (UTC); a test reading zoned output fetches it as text
+  (`CAST(COLUMNS(*) AS VARCHAR)`). `just fmt` can pick up frontmatter edits
+  the docs tagger made to files you did not touch: leave them out of the
+  commit. (2026-11-11)
 
 - `gh-board status` in a loop can fail for one issue now and then (#36 did):
   rerun it for that issue, then `GH_BOARD=glaucis/6 gh-board audit`.
@@ -90,6 +95,11 @@ None.
   (2026-11-06)
 
 ## Just finished
+
+- #56: a zoned timestamp is learned as the same instant in UTC, with no pytz,
+  alone or inside a list, array, struct or map; `sq.encode.onehot` and
+  `ordinal` no longer fail on such a column. The merged `library-saving`
+  worktree and branch are deleted. (2026-11-11)
 
 - The sqlearn board (glaucis project 6) and ten milestones, one per overview
   part (3.1 and 3.2 closed); all 57 issues placed, audit clean; named in

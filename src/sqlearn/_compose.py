@@ -30,6 +30,7 @@ position in the data as read (`POSITION`, `inner_fold`). They pass through
 every stage untouched.
 """
 
+import datetime
 import re
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
@@ -38,6 +39,7 @@ from typing import cast
 
 import duckdb
 from duckdb import Expression
+from duckdb.sqltypes import DuckDBPyType
 
 from sqlearn._errors import InternalError, SqlearnError, StepError
 from sqlearn._expr import MODE, QUANTILE, STD, TARGET_STATS, VAR, const, quote
@@ -1372,6 +1374,96 @@ def _learn_sql(source_sql: str, stages: list[Stage]) -> str:
     return "WITH " + ",\n".join(ctes) + f"\nSELECT {picks} FROM {sources}"
 
 
+_ZONED = "timestamp with time zone"
+
+
+def _has_zone(kind: DuckDBPyType) -> bool:
+    """Say whether a type holds a ``TIMESTAMP WITH TIME ZONE`` anywhere."""
+    if kind.id == _ZONED:
+        return True
+    if kind.id in {"list", "array", "struct", "map"}:
+        return any(_has_zone(child) for _, child in _children(kind))
+    return False
+
+
+def _children(kind: DuckDBPyType) -> list[tuple[str, DuckDBPyType]]:
+    """Return a nested type's typed children (an array's size left out)."""
+    return [
+        (name, child)
+        for name, child in kind.children
+        if isinstance(child, DuckDBPyType)
+    ]
+
+
+def _in_utc(sql: str, kind: DuckDBPyType) -> str:
+    """Return SQL giving the value with each zoned timestamp as UTC, unzoned.
+
+    DuckDB hands a zoned timestamp to Python only through pytz, which
+    sqlearn does not depend on (#56); its UTC wall time needs nothing.
+    """
+    if not _has_zone(kind):
+        return sql
+    if kind.id == _ZONED:
+        return f"timezone('UTC', {sql})"
+    if kind.id in {"list", "array"}:
+        ((_, child),) = _children(kind)
+        return f"list_transform({sql}, lambda v: {_in_utc('v', child)})"
+    if kind.id == "map":
+        (_, key), (_, value) = _children(kind)
+        pair = (
+            f"{{'key': {_in_utc('e.key', key)}, 'value': {_in_utc('e.value', value)}}}"
+        )
+        return f"map_from_entries(list_transform(map_entries({sql}), lambda e: {pair}))"
+    fields = ", ".join(
+        f"{quote(name)} := {_in_utc(f'({sql}).{quote(name)}', child)}"
+        for name, child in _children(kind)
+    )
+    return f"CASE WHEN {sql} IS NULL THEN NULL ELSE struct_pack({fields}) END"
+
+
+def _zoned(value: object, kind: DuckDBPyType) -> object:
+    """Mark each UTC wall time read by `_in_utc` as UTC again."""
+    if value is None or not _has_zone(kind):
+        return value
+    if kind.id == _ZONED:
+        assert isinstance(value, datetime.datetime)
+        return value.replace(tzinfo=datetime.UTC)
+    if kind.id in {"list", "array"}:
+        ((_, child),) = _children(kind)
+        assert isinstance(value, list)
+        return [_zoned(v, child) for v in value]
+    if kind.id == "map":
+        (_, key), (_, child) = _children(kind)
+        assert isinstance(value, dict)
+        return {_zoned(k, key): _zoned(v, child) for k, v in value.items()}
+    assert isinstance(value, dict)
+    return {name: _zoned(value[name], child) for name, child in _children(kind)}
+
+
+def _fetch_learned(
+    con: duckdb.DuckDBPyConnection, sql: str
+) -> tuple[str, Sequence[tuple[object, ...]]]:
+    """Fetch the learn statement's rows, zoned timestamps as UTC.
+
+    Returns the statement run and its rows. A statement learning no zoned
+    timestamp runs as it is.
+    """
+    rel = con.sql(sql)
+    kinds = rel.types
+    if not any(_has_zone(kind) for kind in kinds):
+        return sql, rel.fetchall()
+    picks = ", ".join(
+        f"{_in_utc(quote(name), kind)} AS {quote(name)}"
+        for name, kind in zip(rel.columns, kinds, strict=True)
+    )
+    sql = f"SELECT {picks} FROM ({sql})"
+    rows = con.sql(sql).fetchall()
+    return sql, [
+        tuple(_zoned(v, kind) for v, kind in zip(row, kinds, strict=True))
+        for row in rows
+    ]
+
+
 def number_rows(source_sql: str, name: str) -> str:
     """Return the data with each row numbered from 1 in the order it is read.
 
@@ -1549,9 +1641,8 @@ def execute(
     run = Run()
     values: dict[str, Values] = {}
     if learning:
-        sql = _learn_sql(source_sql, stages)
+        sql, rows = _fetch_learned(con, _learn_sql(source_sql, stages))
         run.statements.append(sql)
-        rows = con.sql(sql).fetchall()
         if len(rows) != 1:
             msg = (
                 f"the learn statement returned {len(rows)} rows, not one row. "

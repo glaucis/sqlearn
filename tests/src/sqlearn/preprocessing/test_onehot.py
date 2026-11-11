@@ -1,5 +1,6 @@
 """Tests of OneHot against scikit-learn's OneHotEncoder."""
 
+import datetime
 import time
 
 import duckdb
@@ -266,6 +267,24 @@ def test_an_extra_column_taking_a_learned_name_is_refused():
         match=r"hot \(step 1\).*'city_Oslo'.*'city_oslo'.*rename or drop 'city_oslo'",
     ):
         pipe.apply(more)
+
+
+def test_a_zoned_timestamp_column_learns_its_categories_in_utc():
+    """Zoned timestamps learn as UTC instants, with no pytz (#56)."""
+    rel = connection().sql(
+        "SELECT * FROM (VALUES (TIMESTAMPTZ '2024-01-02 03:04:05.5+02'),"
+        " (TIMESTAMPTZ '2025-06-07 08:09:10+00'),"
+        " (TIMESTAMPTZ '2024-01-02 01:04:05.5+00')) t(ts)"
+    )
+    pipe = sq.Pipeline([("hot", sq.encode.onehot(cols="ts"))]).learn(rel)
+    utc = datetime.UTC
+    assert pipe["hot"].categories_ == {
+        "ts": [
+            datetime.datetime(2024, 1, 2, 1, 4, 5, 500000, tzinfo=utc),
+            datetime.datetime(2025, 6, 7, 8, 9, 10, tzinfo=utc),
+        ]
+    }
+    assert pipe.apply(rel).fetchall() == [(1, 0), (0, 1), (1, 0)]
 
 
 def test_zero_categories_give_no_column():

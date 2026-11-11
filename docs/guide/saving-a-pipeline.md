@@ -60,8 +60,7 @@ diff. It holds:
 - **the learned values** of every step, once the pipeline has learned or
   trained: medians, means, categories, folds of a target encoder, as exact
   values (a float reads back as the same double). A learned
-  `TIMESTAMP WITH TIME ZONE` value needs `pytz` when it is learned, which
-  sqlearn does not depend on;
+  `TIMESTAMP WITH TIME ZONE` value is the same instant in UTC;
 - **the fingerprint of the data** the values came from, so that sqlearn can
   tell later whether that data changed.
 

@@ -131,14 +131,22 @@ def test_a_changed_state_version_loads_the_recipe_and_warns(
         loaded.apply(data)
 
 
-def _round_trips(tmp_path: Path, sql: str, columns: list[str]) -> None:
+def _round_trips(
+    tmp_path: Path, sql: str, columns: list[str], *, as_text: bool = False
+) -> None:
+    def fetch(rel: duckdb.DuckDBPyRelation) -> list[tuple[Any, ...]]:
+        # A zoned timestamp reaches Python only through pytz: read it as text.
+        return (
+            rel.project("CAST(COLUMNS(*) AS VARCHAR)") if as_text else rel
+        ).fetchall()
+
     data = connection().sql(sql)
     pipe = sq.Pipeline([("least", Least(cols=columns))]).learn(data)
-    want = pipe.apply(data).fetchall()
+    want = fetch(pipe.apply(data))
     statement = _sql(pipe)
     sq.save(pipe, tmp_path / "p.json")
     loaded = sq.load(tmp_path / "p.json", allow=["tests"])
-    assert loaded.apply(data).fetchall() == want
+    assert fetch(loaded.apply(data)) == want
     assert _sql(loaded) == statement
 
 
@@ -161,18 +169,20 @@ def test_a_learned_value_of_every_type_round_trips(tmp_path: Path) -> None:
 
 
 def test_a_learned_timestamp_with_a_zone_round_trips(tmp_path: Path) -> None:
-    """A learned TIMESTAMP WITH TIME ZONE applies as the same SQL after load."""
-    # DuckDB returns a zoned timestamp to Python only with pytz installed.
-    pytest.importorskip("pytz")
+    """A learned TIMESTAMP WITH TIME ZONE applies as the same SQL after load.
+
+    Alone or nested in a list or a struct, and with no pytz (#56).
+    """
     _round_trips(
         tmp_path,
         """
-        SELECT * FROM (VALUES
+        SELECT ts, [ts] AS listed, {'at': ts} AS held FROM (VALUES
             (TIMESTAMPTZ '2024-01-02 03:04:05.123456+02'),
             (TIMESTAMPTZ '2025-06-07 08:09:10+00')
         ) t(ts)
         """,
-        ["ts"],
+        ["ts", "listed", "held"],
+        as_text=True,
     )
 
 

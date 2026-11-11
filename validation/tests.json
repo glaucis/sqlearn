@@ -513,7 +513,7 @@
     {
       "area": "sqlearn/_saving/learned",
       "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_learned_timestamp_with_a_zone_round_trips",
-      "outcome": "skipped",
+      "outcome": "passed",
       "tier": "fast"
     },
     {
@@ -8049,6 +8049,12 @@
     {
       "area": "sqlearn/preprocessing/onehot",
       "name": "tests/src/sqlearn/preprocessing/test_onehot.py::test_a_new_column_never_renames_an_input_column",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/onehot",
+      "name": "tests/src/sqlearn/preprocessing/test_onehot.py::test_a_zoned_timestamp_column_learns_its_categories_in_utc",
       "outcome": "passed",
       "tier": "fast"
     },
