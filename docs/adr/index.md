@@ -51,6 +51,7 @@ The verbs and conventions users write against.
 - [0035: Names of generated columns](0035-names-of-generated-columns.md)
 - [0045: Datasets are relations built in SQL](0045-datasets-are-relations-built-in-sql.md)
 - [0046: sqlearn warns, the user chooses](0046-sqlearn-warns-the-user-chooses.md)
+- [0047: A pipeline saves as JSON](0047-a-pipeline-saves-as-json.md)
 
 ## Steps users write
 

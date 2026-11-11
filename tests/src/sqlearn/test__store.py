@@ -162,3 +162,45 @@ def test_a_callable_object_is_keyed_by_itself():
     assert held() is not None
     assert kept != key(Doubler())
     assert kept == key(held())
+
+
+STABLE = ("file", (("/data/c.parquet", 10, 1),))
+ORIGIN = ("file", "/data", "c.parquet")
+
+
+def test_a_miss_finds_an_entry_put_under_the_stable_key():
+    """A live key's miss finds the entry put under its stable key, once."""
+    store = Store()
+    live = _keys(DATA, None, "mean")[0]
+    entry = Entry({"mean": {"a": 1.0}}, ["a"], "")
+    store.put_stable((STABLE, *live[1:]), entry)
+    assert not store.learns
+    assert store.get(live) is None
+    assert store.get(live, stable=OTHER) is None
+    assert store.get(live, stable=STABLE) is entry
+    # Filed under the live key too: found again without the stable key.
+    assert store.get(live) is entry
+    assert not store.learns
+    store.clear()
+    assert store.get(live, stable=STABLE) is None
+
+
+def test_a_changed_source_is_said_once():
+    """The saved file is named when the same source changed, once."""
+    store = Store()
+    store.remember_saved(ORIGIN, STABLE, "p.json")
+    assert store.changed_since_saved(None, STABLE) is None
+    assert store.changed_since_saved(("file", "/data", "d.parquet"), OTHER) is None
+    assert store.changed_since_saved(ORIGIN, OTHER) == ("p.json", STABLE)
+    assert store.changed_since_saved(ORIGIN, OTHER) is None
+
+
+def test_an_unchanged_source_is_not_said_and_forgotten():
+    """The first learn of an unchanged source says nothing, and later ones neither."""
+    store = Store()
+    store.remember_saved(ORIGIN, STABLE, "p.json")
+    assert store.changed_since_saved(ORIGIN, STABLE) is None
+    assert store.changed_since_saved(ORIGIN, OTHER) is None
+    store.remember_saved(ORIGIN, STABLE, "p.json")
+    store.clear()
+    assert store.changed_since_saved(ORIGIN, OTHER) is None

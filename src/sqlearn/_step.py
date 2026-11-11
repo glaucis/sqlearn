@@ -223,6 +223,10 @@ class Step:
         into the values for all rows and for each inner fold's complement in
         `derive`. Such a step ends its run, and its `apply` returns one
         expression, a DOUBLE.
+    state_version : int
+        The version of what `learn` returns, written with a saved pipeline:
+        raise it when the names or meaning of what `learn` returns change; a
+        saved pipeline then loads as a recipe.
 
     Examples
     --------
@@ -251,6 +255,7 @@ class Step:
     names_are_labels: ClassVar[bool] = True
     rowwise: ClassVar[bool] = False
     uses_target: ClassVar[bool] = False
+    state_version: ClassVar[int] = 1
 
     def __init__(
         self,

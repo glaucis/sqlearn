@@ -17,7 +17,7 @@ from sqlearn._errors import SqlearnError, SqlearnWarning
 from sqlearn._expr import quote
 from sqlearn._selectors import Schema
 
-__all__ = ["DataKey", "Source", "read"]
+__all__ = ["DataKey", "Source", "read", "warn_changed_since_saved"]
 
 DataKey = tuple[Any, ...]
 """A hashable tuple that changes whenever the data it names changes."""
@@ -98,6 +98,12 @@ class Source:
     stable : tuple, optional
         A key that names the same data in any process, or None when the
         input has none; read it with `stable_key`.
+    origin : tuple, optional
+        Where the input comes from, as the user named it: for a file or
+        glob ``("file", folder, pattern)``, the folder a real path; for a
+        table of a database file ``("table", file, "schema.table")``, the
+        file a real path. None for any other input. A saved pipeline
+        compares it to tell the same source changed from new data.
 
     Examples
     --------
@@ -112,6 +118,7 @@ class Source:
     key: DataKey
     schema: Schema
     stable: DataKey | None = None
+    origin: tuple[str, str, str] | None = None
 
     def stable_key(self) -> DataKey | None:
         """Return a key naming the same data in any process, or None.
@@ -207,7 +214,9 @@ def _read_files(pattern: str) -> Source:
     paths = ", ".join("'" + p.replace("'", "''") + "'" for p in matches)
     relation = connection().sql(f"SELECT * FROM {_READERS[suffix]}([{paths}])")
     stable = ("file", tuple((os.path.realpath(p), n, t) for p, n, t in stats))
-    return Source(relation, ("file", tuple(stats)), _schema(relation), stable)
+    folder = os.path.realpath(os.path.dirname(pattern) or ".")
+    origin = ("file", folder, os.path.basename(pattern))
+    return Source(relation, ("file", tuple(stats)), _schema(relation), stable, origin)
 
 
 def _file_table(
@@ -344,6 +353,81 @@ def _notice_edit(
     warnings.warn(text, SqlearnWarning, skip_file_prefixes=_PACKAGE)
 
 
+def _named(origin: tuple[str, str, str]) -> str:
+    """Return a source as the user would name it, for a message."""
+    kind, where, name = origin
+    if kind == "table":
+        return f"the table {name} in {os.path.basename(where)}"
+    path = os.path.join(where, name)
+    relative = os.path.relpath(path)
+    return path if relative.startswith("..") else relative
+
+
+def _why_changed(saved: DataKey, now: DataKey) -> str:
+    """Say what differs between two stable keys of the same source."""
+    if saved[0] == "file":
+        before = {p: (n, t) for p, n, t in saved[1]}
+        after = {p: (n, t) for p, n, t in now[1]}
+        said = [
+            f"it {verb} {', '.join(os.path.basename(p) for p in sorted(paths))}"
+            for verb, paths in (
+                ("now matches", after.keys() - before.keys()),
+                ("no longer matches", before.keys() - after.keys()),
+            )
+            if paths
+        ]
+        if any(before[p] != after[p] for p in before.keys() & after.keys()):
+            said.append("its size or modification time differs")
+        return "; ".join(said)
+    if saved[3] != now[3]:
+        return "its row count differs"
+    if saved[4] != now[4]:
+        return "its columns differ"
+    return "its storage differs"
+
+
+def warn_changed_since_saved(
+    origin: tuple[str, str, str], now: DataKey, file: str, saved: DataKey
+) -> None:
+    """Warn that a source changed since a loaded file's values were learned.
+
+    Parameters
+    ----------
+    origin : tuple
+        The source's `Source.origin`.
+    now : tuple
+        Its `Source.stable` now.
+    file : str
+        The saved file, as `load` was given it.
+    saved : tuple
+        The stable key the file holds.
+
+    Examples
+    --------
+    >>> import os, warnings
+    >>> from sqlearn._inputs import warn_changed_since_saved
+    >>> path = os.path.abspath("c.csv")
+    >>> with warnings.catch_warnings(record=True) as caught:
+    ...     warnings.simplefilter("always")
+    ...     warn_changed_since_saved(
+    ...         ("file", os.getcwd(), "c.csv"),
+    ...         ("file", ((path, 2, 2),)),
+    ...         "p.json",
+    ...         ("file", ((path, 1, 1),)),
+    ...     )
+    >>> print(caught[0].message)  # doctest: +NORMALIZE_WHITESPACE
+    c.csv changed since the values in p.json were learned (its size or
+    modification time differs), so sqlearn learned them again. Fix: save the
+    pipeline again to keep the new values.
+    """
+    text = (
+        f"{_named(origin)} changed since the values in {file} were "
+        f"learned ({_why_changed(saved, now)}), so sqlearn learned "
+        "them again. Fix: save the pipeline again to keep the new values."
+    )
+    warnings.warn(text, SqlearnWarning, skip_file_prefixes=_PACKAGE)
+
+
 def _read_table(name: str, *, learning: bool) -> Source:
     con = connection()
     try:
@@ -369,7 +453,8 @@ def _read_table(name: str, *, learning: bool) -> Source:
     if learning:
         _notice_edit(where, rows, _names_and_types(schema), storage)
     stable = ("table", where[0], where[1], rows, _names_and_types(schema), storage)
-    return Source(relation, (*key, storage), schema, stable)
+    origin = ("table", where[0], where[1])
+    return Source(relation, (*key, storage), schema, stable, origin)
 
 
 def _read_frame(frame: _Frame) -> Source:

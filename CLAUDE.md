@@ -25,7 +25,10 @@ built.
   #34. Its fourth, datasets (bundled and generated in SQL), is built: spec
   `docs/specs/library-datasets.md`, plan
   `docs/plans/2026-11-10-library-datasets.md`, ADR 0045, summary in issue
-  #45. **Next:** the next 3.3 area, not chosen yet.
+  #45. Its fifth, saving a pipeline (`sq.save`, `sq.load`), is built: spec
+  `docs/specs/library-saving.md`, plan
+  `docs/plans/2026-11-11-library-saving.md`, ADR 0047, summary in issue
+  #TBD. **Next:** the next 3.3 area, not chosen yet.
 
 Rules from the ADRs:
 
