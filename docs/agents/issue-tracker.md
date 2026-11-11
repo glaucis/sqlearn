@@ -1,14 +1,28 @@
 ---
 type: guide
 tags: [github, issue-tracker, gh-cli, triage, wayfinder]
-summary: "Explains how this repo uses GitHub issues via the gh CLI for creating, linking, labelling, triaging, and closing issues and wayfinding tickets."
-related: [mattpocock/skills]
-mdindex: [type=83ca68, tags=f162a8, summary=baa778, related=0adc57]
+summary: "How to use GitHub issues, the sqlearn board, milestones, blocking edges and wayfinder maps for this repo via the gh CLI."
+related: [docs/architecture/overview.md]
+mdindex: [type=83ca68, tags=f162a8, summary=7673aa, related=3d8346]
 ---
 # Issue tracker: GitHub
 
 Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all
 operations.
+
+## Board and milestones
+
+- **Board:** the organisation project
+  [sqlearn](https://github.com/orgs/glaucis/projects/6) (number 6), linked to
+  the repo. Status is Todo, In Progress, In Review or Done; `gh-board status
+  <issue> "<status>"` sets it, and `gh-board audit` reports drift.
+- **Milestones:** one per part of
+  [the overview](../architecture/overview.md): `3.1 Foundation` and `3.2
+  Library core` (closed), `3.3 Library breadth`, `3.4 Documentation`, `3.5
+  Learning site`, `3.6 Exploratory data analysis`, `3.7 Workflow editor`, `3.8
+  Validation`, `3.9 Benchmarks`, `Later: other database engines`.
+- **Every new issue** gets the milestone of the part it belongs to and goes on
+  the board: `gh issue create ... --milestone "<title>" --project sqlearn`.
 
 ## Conventions
 
