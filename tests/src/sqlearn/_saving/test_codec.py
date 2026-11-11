@@ -206,3 +206,60 @@ def test_class_paths_finds_nested_classes() -> None:
         },
     }
     assert class_paths(tagged) == {"a:B", "c:D", "e:F"}
+
+
+@pytest.mark.parametrize(
+    "aggregate",
+    [
+        sq.agg.mean,
+        sq.agg.median(approx=True),
+        sq.agg.quantile(q=0.9),
+        sq.agg.iqr(q=(0.1, 0.9)),
+    ],
+    ids=repr,
+)
+def test_an_aggregate_round_trips_by_name_and_settings(aggregate: object) -> None:
+    """An aggregate round trips by name and settings."""
+    out = _round_trip(aggregate)
+    assert out == aggregate
+    assert repr(out) == repr(aggregate)
+
+
+def test_an_aggregate_is_written_as_its_name_and_settings() -> None:
+    """An aggregate is written as its name and settings."""
+    assert encode(sq.agg.quantile(q=0.9), "t") == {
+        "$": "aggregate",
+        "name": "quantile",
+        "settings": {"q": 0.9},
+    }
+
+
+def test_an_aggregate_built_by_hand_is_refused_with_a_fix() -> None:
+    """An aggregate built by hand is refused with a fix."""
+    with pytest.raises(SqlearnError, match=r"(?s)'mean'.*Fix:"):
+        encode(sq.agg.Aggregate("mean", lambda x: x), "t")
+
+
+def test_an_aggregate_of_an_unknown_name_is_refused_on_read() -> None:
+    """An aggregate of an unknown name is refused on read."""
+    data = {"$": "aggregate", "name": "nope", "settings": {}}
+    with pytest.raises(SqlearnError, match="nope"):
+        decode(data, "t", _resolve)
+
+
+def test_text_naming_an_aggregate_stays_a_constant() -> None:
+    """Text naming an aggregate stays a constant."""
+    value = sq.impute("a", value=sq.fn.const("median")).value
+    out = _round_trip(value)
+    assert repr(out) == repr(value)
+
+
+@pytest.mark.parametrize("tag", ["object", "estimator"])
+def test_a_class_that_is_not_text_is_refused(tag: str) -> None:
+    """A class that is not text is refused."""
+    body = "settings" if tag == "object" else "params"
+    data = {"$": tag, "class": ["os:system"], body: {}}
+    with pytest.raises(SqlearnError, match="class"):
+        decode(data, "t", _resolve)
+    with pytest.raises(SqlearnError, match="class"):
+        class_paths([data])

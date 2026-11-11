@@ -18,6 +18,7 @@ from uuid import UUID
 
 from sqlearn._errors import SqlearnError
 from sqlearn._selectors import Selector, _And, _Cols, _Kind, _Not, _Or, _Sub
+from sqlearn.agg.aggregates import Aggregate, lookup
 
 __all__ = ["class_paths", "decode", "encode"]
 
@@ -103,6 +104,10 @@ def encode(value: object, where: str) -> object:
         return {"$": "bytes", "base64": base64.b64encode(value).decode("ascii")}
     if isinstance(value, Selector):
         return _encode_selector(value, where)
+    if isinstance(value, Aggregate):
+        return _encode_aggregate(value, where)
+    if _is_constant_text(value):
+        return {"$": "constant_text", "value": str.__str__(value)}
     if cls.__module__.split(".")[0] == "sqlearn" and not inspect.isroutine(value):
         return _encode_object(value, where)
     kind = "function" if inspect.isroutine(value) else cls.__qualname__
@@ -113,6 +118,32 @@ def encode(value: object, where: str) -> object:
         "give a plain value (number, text, list, dict, date), or a step class in "
         "an importable module in place of a function.",
     )
+
+
+def _is_constant_text(value: object) -> bool:
+    from sqlearn.preprocessing.impute import _Text
+
+    return type(value) is _Text
+
+
+def _encode_aggregate(value: Aggregate, where: str) -> object:
+    public = lookup(value.name)
+    if public is None or public._build is not value._build:
+        raise _refuse(
+            where,
+            f"the aggregate {value.name!r} cannot be saved",
+            "only the aggregates of sq.agg can be rebuilt from a name, and this "
+            "one was built by hand.",
+            "use an aggregate from sq.agg, such as sq.agg.median.",
+        )
+    return {
+        "$": "aggregate",
+        "name": value.name,
+        "settings": {
+            name: encode(setting, f"{where}, sq.agg.{value.name} setting {name!r}")
+            for name, setting in value.params.items()
+        },
+    }
 
 
 def _encode_selector(value: Selector, where: str) -> object:
@@ -256,19 +287,47 @@ def _decode_tagged(
             return base64.b64decode(str(data["base64"]), validate=True)
         case "selector":
             return _decode_selector(data, where)
+        case "constant_text":
+            from sqlearn.preprocessing.impute import _Text
+
+            return _Text(_text(data["value"]))
+        case "aggregate":
+            return _decode_aggregate(data, where, resolve)
         case "object":
-            cls = resolve(str(data["class"]))
+            cls = resolve(_text(data["class"], "class"))
             settings = data["settings"]
             if not isinstance(settings, dict):
                 raise TypeError("settings is not an object")
             return cls(**{name: sub(v) for name, v in settings.items()})
         case "estimator":
-            cls = resolve(str(data["class"]))
+            cls = resolve(_text(data["class"], "class"))
             params = data["params"]
             if not isinstance(params, dict):
                 raise TypeError("params is not an object")
             return cls(**{name: sub(v) for name, v in params.items()})
     raise _bad(where, f"a tag of an unknown kind, {tag!r}")
+
+
+def _text(value: object, what: str = "value") -> str:
+    if type(value) is not str:
+        raise TypeError(f"the {what} is not text")
+    return value
+
+
+def _decode_aggregate(
+    data: dict[str, object], where: str, resolve: Callable[[str], type]
+) -> Aggregate:
+    name = _text(data["name"])
+    found = lookup(name)
+    if found is None:
+        raise _bad(where, f"an aggregate of an unknown name, {name!r}")
+    settings = data["settings"]
+    if not isinstance(settings, dict):
+        raise TypeError("settings is not an object")
+    params = {k: decode(v, where, resolve) for k, v in settings.items()}
+    rebuilt = found(None, **params)
+    assert isinstance(rebuilt, Aggregate)
+    return rebuilt
 
 
 def _items(value: object) -> list[object]:
@@ -325,6 +384,11 @@ def class_paths(data: object) -> set[str]:
         The ``"module:qualname"`` paths, for the ``allow=`` check before any
         import.
 
+    Raises
+    ------
+    SqlearnError
+        When a tagged object or estimator names a class that is not text.
+
     Examples
     --------
     >>> from sqlearn._saving.codec import class_paths
@@ -336,10 +400,11 @@ def class_paths(data: object) -> set[str]:
         for item in data:
             found |= class_paths(item)
     elif isinstance(data, dict):
-        if data.get("$") in ("object", "estimator") and isinstance(
-            data.get("class"), str
-        ):
-            found.add(str(data["class"]))
+        if data.get("$") in ("object", "estimator"):
+            path = data.get("class")
+            if type(path) is not str:
+                raise _bad("the file", f"a class that is not text, {path!r}")
+            found.add(path)
         for item in data.values():
             found |= class_paths(item)
     return found
