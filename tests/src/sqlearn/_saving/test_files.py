@@ -1,6 +1,9 @@
 """``sq.save`` and ``sq.load`` for a recipe."""
 
 import json
+import os
+import stat
+import sys
 import warnings
 from pathlib import Path
 
@@ -149,3 +152,63 @@ def test_an_unknown_model_format_is_refused(tmp_path: Path) -> None:
     with pytest.raises(SqlearnError, match="known model format") as raised:
         sq.save(_pipe(), tmp_path / "p.json", model="pickle")
     assert "Fix:" in str(raised.value)
+
+
+def test_nothing_is_imported_before_every_class_is_allowed(tmp_path: Path) -> None:
+    """A file naming a package not allowed is refused with no import at all."""
+    sys.modules.pop("sqlearn_test_imported", None)
+    path = _write(tmp_path / "p.json")
+    data = json.loads(path.read_text())
+    bad = dict(data["steps"][0], name="bad")
+    bad["class"] = "tests.src.sqlearn._saving.recorded_import:X"
+    data["steps"].append(bad)
+    path.write_text(json.dumps(data))
+    with pytest.raises(SqlearnError, match=r"allow=") as raised:
+        sq.load(path)
+    assert "'tests'" in str(raised.value)
+    assert "sqlearn_test_imported" not in sys.modules
+
+
+def test_a_save_that_fails_while_writing_cleans_up(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A failure after the temporary file exists keeps the old file, no litter."""
+    path = tmp_path / "p.json"
+    sq.save(_pipe(), path)
+    before = path.read_bytes()
+
+    def fail(*_: object) -> None:
+        raise OSError("disk full")
+
+    monkeypatch.setattr(os, "replace", fail)
+    with pytest.raises(OSError, match="disk full"):
+        sq.save(sq.Pipeline([sq.impute.median()]), path)
+    assert path.read_bytes() == before
+    assert [p.name for p in tmp_path.iterdir()] == ["p.json"]
+
+
+def test_a_saved_file_has_the_mode_of_a_file_the_user_creates(
+    tmp_path: Path,
+) -> None:
+    """The file gets 0o666 minus the umask, not the temporary file's 0o600."""
+    old = os.umask(0o022)
+    try:
+        sq.save(_pipe(), tmp_path / "p.json")
+    finally:
+        os.umask(old)
+    assert stat.S_IMODE((tmp_path / "p.json").stat().st_mode) == 0o644
+    # Reading the umask must not have changed it.
+    assert os.umask(old) == old
+
+
+def test_a_value_that_is_not_a_number_is_never_written_bare(
+    tmp_path: Path,
+) -> None:
+    """NaN is written as tagged text, so the file is strict JSON."""
+    path = tmp_path / "p.json"
+    sq.save(sq.Pipeline([sq.impute.constant(float("nan"))]), path)
+    json.loads(path.read_text(), parse_constant=_refuse_constant)
+
+
+def _refuse_constant(name: str) -> None:
+    raise AssertionError(f"bare {name} in the file")

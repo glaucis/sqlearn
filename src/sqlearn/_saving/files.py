@@ -141,13 +141,18 @@ def save(
         "steps": _records(pipe),
     }
     # Everything is encoded before the disk is touched.
-    text = json.dumps(document, indent=2, ensure_ascii=False) + "\n"
+    text = json.dumps(document, indent=2, ensure_ascii=False, allow_nan=False) + "\n"
     handle, temporary = tempfile.mkstemp(
         dir=target.parent, prefix=f".{target.name}.", suffix=".tmp"
     )
     try:
         with os.fdopen(handle, "w", encoding="utf-8", newline="\n") as out:
             out.write(text)
+        # mkstemp makes the file 0600; a saved file gets the mode a file the
+        # user creates would. The umask can only be read by setting it.
+        umask = os.umask(0)
+        os.umask(umask)
+        os.chmod(temporary, 0o666 & ~umask)
         os.replace(temporary, target)
     except BaseException:
         Path(temporary).unlink(missing_ok=True)
@@ -295,7 +300,7 @@ def load(
     ...     target = os.path.join(folder, "pipe.json")
     ...     sq.save(sq.Pipeline([sq.impute.median()]), target)
     ...     sq.load(target).steps[0][0]
-    'impute'
+    'median'
     """
     del trust_model  # Task 6 opens a saved model file.
     data = _read(Path(path))
