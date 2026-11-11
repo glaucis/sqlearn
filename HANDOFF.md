@@ -3,22 +3,14 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-11 · Branch: `library-saving` (worktree
-`.worktrees/library-saving`) · Last commit: `a04058e Merge branch
-'library-saving'` · Checks: passing on `a04058e` (`just test`: 2049 passed);
-the uncommitted fix below: saving tests pass, `just verify` running
+Updated: 2026-11-11 · Branch: `main` · Last commit: `19df10d fix: refuse a
+sqlearn class as an estimator however it is named` · Checks: passing (`just
+verify` on `19df10d`: 2064 passed, 25 skipped)
 Verify with: `just verify`
 
 ## In progress
 
-- [verified] The `allow=` alias gap in `sq.load`, fixed but not committed, in
-  the worktree: an estimator is refused when its class is sqlearn's however
-  the path names it (`recipe._import_of`), an `estimator` tag may not name a
-  fold scheme (`codec.decode`), and `sq.Model`'s settings hold no estimator;
-  tests in `tests/src/sqlearn/_saving/test_files.py` with `aliased.py`; guide
-  and ADR 0047 corrected. Next: confirm `just verify` passes, commit
-  (`fix: refuse a sqlearn class as an estimator however it is named`), merge
-  `library-saving` into `main`, push.
+None.
 
 ## Waiting on the user
 
@@ -99,6 +91,8 @@ None.
 
 ## Just finished
 
+- The `allow=` alias gap in `sq.load` closed (`19df10d`): an estimator is
+  never a sqlearn class however it is named. (2026-11-11)
 - The saving area (the fifth 3.3 area): `sq.save` and `sq.load`; spec
   `docs/specs/library-saving.md`, plan
   `docs/plans/2026-11-11-library-saving.md`, ADR 0047, guide
