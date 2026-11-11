@@ -148,8 +148,10 @@ Every class in the file is read and checked before any is imported, and the
 whole file is refused, naming each package and step, if one is not allowed.
 The check follows the class a path finally resolves to, by the module that
 defines it. Of sqlearn's own classes, a file builds only steps, `sq.Model` and
-the fold schemes of `sq.folds` from settings; it refuses any other, and a
-learned value that names a class. Allow only packages you trust.
+the fold schemes of `sq.folds` from settings; it refuses any other, however the
+file names it (an allowed package that imports a sqlearn class does not open
+that class up), and a learned value that names a class. Allow only packages
+you trust.
 
 ## The trained model, only when asked
 
