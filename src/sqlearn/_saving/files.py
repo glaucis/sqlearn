@@ -400,10 +400,12 @@ def load(
         Allow only a package you trust: importing it runs its code.
     trust_model : bool, default False
         Open the trained model file the JSON names, when there is one. Opening
-        a pickle can run any code its author put in it: pass True only for a
-        file you trust. The file is opened only if its SHA-256 matches the
-        JSON's, and its model is kept only if it is of the class the recipe
-        names. Left False, the pipeline loads learned but not trained.
+        a pickle can run any code its author put in it, and imports whatever
+        modules it names, whatever `allow` says: pass True only for files you
+        trust. The file is opened only if its SHA-256 matches the JSON's, which
+        proves only that the two files match, and its model is kept only if
+        it is of the class the recipe names, checked after it is opened. Left
+        False, the pipeline loads learned but not trained.
 
     Returns
     -------

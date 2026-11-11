@@ -27,7 +27,9 @@ learned values, that is safe to open and readable in a diff.
   `learned=False` saves the recipe alone, to share it.
 - **JSON, never pickle.** UTF-8, written by the standard library's `json`,
   indented by two spaces, keys in a fixed order, so the same pipeline gives
-  the same bytes. Opening it never runs code from it. It is written to a
+  the same bytes. Opening it never runs code from it; the classes it names
+  are imported only as `allow=` permits, and the model's pickle is opened
+  only with `trust_model=True` (below). It is written to a
   temporary file and renamed, so a failed save leaves no half file.
 - **Values are plain JSON when JSON says them exactly, tagged objects
   otherwise**: an object whose first key is `"$"`. Every mapping is tagged, so a
@@ -58,7 +60,11 @@ learned values, that is safe to open and readable in a diff.
   of its own beside the JSON (`Path(path).with_suffix(".model.pickle")`). The
   JSON names it, its format and its SHA-256, and stays pure. Loading it is
   opt-in too (`trust_model=True`): the file is read once, and the bytes whose
-  SHA-256 matches are the bytes unpickled. `model=` names a format in a small
+  SHA-256 matches are the bytes unpickled. The class and `allow=` checks of
+  the model run after it is opened, `trust_model=True` goes around `allow=`
+  for what the pickle itself imports, and the hash proves only that the model
+  file matches the JSON: an author who supplies both files controls both.
+  `model=` names a format in a small
   registry, so another format (a library's own file, skops) needs no change to
   the JSON.
 - **sqlearn does not adjust what it cannot honour**: it refuses, or loads

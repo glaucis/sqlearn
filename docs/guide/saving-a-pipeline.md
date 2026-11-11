@@ -49,6 +49,9 @@ Learning without it reads the target as a feature, so `train` learns again.
 ## What is saved, and what is not
 
 The file is JSON, never pickle: opening it does not run anything from it.
+It can name classes to import, which `allow=` limits, and the trained model
+has a pickle file of its own, opened only with `trust_model=True` (both
+below).
 The same pipeline always gives the same bytes, so a change is a readable
 diff. It holds:
 
@@ -163,14 +166,27 @@ pipe.predict(...)  # trained: nothing to train again
 ```
 
 The model file is named by `Path(path).with_suffix(".model.pickle")`. The JSON
-stays pure: it names the model file, its format and its SHA-256. With
-`trust_model=True` the file is read once and refused unless its SHA-256
-matches; the bytes checked are the bytes unpickled. Its class must be the one
-the recipe names, and its package must be in `allow=`. Without
-`trust_model=True`, the pipeline loads learned but not trained, with a
-warning, and `predict` refuses until `train`. Pass `trust_model=True` only
-for a file you trust: a matching hash proves the file is the one that was
-saved, not that it is safe.
+stays pure: it names the model file, its format and its SHA-256. Without
+`trust_model=True` the model file is never opened: the pipeline loads learned
+but not trained, with a warning, and `predict` refuses until `train`.
+
+With `trust_model=True` the file is read once and refused unless its SHA-256
+matches the JSON's; the bytes checked are the bytes unpickled. Know what that
+does and does not prove:
+
+- **The checks on the model run after the file is opened.** The model must be
+  of the class the recipe names, whose package `allow=` lists, but that is
+  checked on the object the pickle gave. By then any code the pickle carries
+  has run.
+- **`trust_model=True` goes around `allow=`** for whatever the pickle itself
+  imports. A pickle names its own modules, and opening it imports them
+  whether `allow=` lists their packages or not.
+- **The hash proves only that the model file matches the JSON**, so that
+  neither changed without the other since the save. It says nothing of who
+  wrote them: an author who supplies both files controls both, hash included.
+
+So pass `trust_model=True` only when you trust whoever gave you both files,
+as you would before running their code.
 
 ## For authors of steps: `state_version`
 

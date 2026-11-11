@@ -22,6 +22,10 @@ target, so the later `train` would have learned again; it now passes
 `target="churned"`. A saved preparation is reused only when `learn` was given
 the target, as learning without it reads the target as a feature.
 
+Note (2026-11-11, after the final review): section 10's model test names
+the test group's model libraries (scikit-learn, LightGBM, CatBoost); XGBoost
+is not in the test group, and is not added for this test.
+
 Note (2026-11-11, after the final review): the `object` tag rebuilds only
 the classes of a closed list (the fold schemes of `sq.folds`), checked as
 text before any import, and refused at save and at load otherwise: a file
@@ -401,8 +405,8 @@ every warning a `SqlearnWarning` placed at the user's line.
   `predict` after `train` on the loaded pipeline equals the original's.
 - **The model, opt-in:** a trained pipeline saved with `model="pickle"` and
   loaded with `trust_model=True` predicts equal values to the original
-  without training, for scikit-learn, XGBoost, LightGBM and CatBoost (the
-  test group's models); loaded without it, it warns and `predict` refuses;
+  without training, for the test group's model libraries (scikit-learn,
+  LightGBM, CatBoost); loaded without it, it warns and `predict` refuses;
   a model file changed by one byte is refused before it is opened.
 - No new validation runner: saving computes nothing (ADR 0016's pages are
   about numbers); the round-trip results join `validation/tests.json`.
