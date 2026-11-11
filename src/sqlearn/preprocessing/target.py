@@ -13,8 +13,9 @@ from sqlearn._compose import inner_name
 from sqlearn._errors import SqlearnError, StepError
 from sqlearn._expr import const, target_stats
 from sqlearn._group import call_repr
-from sqlearn._selectors import Selector, _string
+from sqlearn._selectors import Schema, Selector, _string
 from sqlearn._step import Learned, Step
+from sqlearn.preprocessing._lookup import check_lookup, check_text, position, warn_many
 
 __all__ = ["TargetEncoder"]
 
@@ -131,6 +132,21 @@ class TargetEncoder(Step):
         The seed of the inner folds.
     target_type : {"auto", "binary", "continuous"}, default "auto"
         The kind of target; found from it by default.
+    lookup : {"list", "hash"}, optional
+        How a value is found among the learned categories; both give the
+        same encodings. Left out, ``"list"``: ``list_position``, which
+        compares the value with the categories one by one, honouring a
+        column's collation. ``"hash"``: an MD5 perfect hash, whose cost per
+        row barely grows with the count but whose SQL holds about 3.5
+        constants per category, a fixed cost per query. On 1,000,000 rows
+        from Parquet the target encoder applied slower with the hash at
+        every count measured, up to 30,000 categories (20.3 s against
+        12.6 s; ``docs/benchmarks/category-lookup.md``); it pays only on
+        more rows than that, or more categories. The hash takes text columns
+        alone (VARCHAR, ENUM) and compares the bytes exactly, ignoring a
+        collation, which DuckDB does not report to a step. Left out with
+        more than 30,000 categories in a column, a `SqlearnWarning` says so,
+        once per process; passing either value silences it.
 
     Attributes
     ----------
@@ -149,7 +165,8 @@ class TargetEncoder(Step):
     Raises
     ------
     SqlearnError
-        If `smooth`, `cv`, `seed` or `target_type` is not a setting it takes.
+        If `smooth`, `cv`, `seed`, `target_type` or `lookup` is not a setting
+        it takes.
 
     Examples
     --------
@@ -180,7 +197,9 @@ class TargetEncoder(Step):
         cv: int = 5,
         seed: int = 0,
         target_type: str = "auto",
+        lookup: str | None = None,
     ) -> None:
+        check_lookup("sq.encode.target", lookup)
         super().__init__(cols=cols, keep=keep)
         if smooth != "auto" and (
             isinstance(smooth, bool)
@@ -218,6 +237,7 @@ class TargetEncoder(Step):
         self.cv = cv
         self.seed = seed
         self.target_type = target_type
+        self.lookup = lookup
 
     def default_name(self) -> str:
         """Return ``target``.
@@ -241,10 +261,55 @@ class TargetEncoder(Step):
         kwargs: dict[str, object] = {}
         if self.cols != _string():
             kwargs["cols"] = self.cols
-        for name in ("keep", "smooth", "cv", "seed", "target_type"):
+        for name in ("keep", "smooth", "cv", "seed", "target_type", "lookup"):
             if getattr(self, name) != getattr(defaults, name):
                 kwargs[name] = getattr(self, name)
         return call_repr("sq.encode.target", **kwargs)
+
+    def inputs(self, schema: Schema) -> list[str]:
+        """Return the columns to encode, refusing ``lookup="hash"`` on non-text.
+
+        Parameters
+        ----------
+        schema : list of (str, DuckDBPyType)
+            The columns reaching the step.
+
+        Returns
+        -------
+        list of str
+            The chosen columns, in schema order.
+
+        Raises
+        ------
+        StepError
+            If the lookup is ``"hash"`` and a chosen column is not text.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> from duckdb.sqltypes import INTEGER, VARCHAR
+        >>> sq.encode.target().inputs([("a", INTEGER), ("c", VARCHAR)])
+        ['c']
+        """
+        chosen = super().inputs(schema)
+        check_text("sq.encode.target", self.lookup, chosen, dict(schema))
+        return chosen
+
+    def learned(self, values: Mapping[str, Mapping[str, object]]) -> None:
+        """Warn once when a left-out lookup meets thousands of categories.
+
+        Parameters
+        ----------
+        values : mapping of str to mapping of str to object
+            Column, then learned name, to the value learned.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> sq.encode.target().learned({"c": {"categories": ["a"]}}) is None
+        True
+        """
+        warn_many(self, self.lookup, values)
 
     def learn(
         self, x: Expression, y: Expression | None = None
@@ -557,7 +622,7 @@ class TargetEncoder(Step):
         fallback = const(_number(mean)).cast(DOUBLE)
         found: Expression = fallback
         if isinstance(categories, list) and categories:
-            at = _fn("list_position", const(categories), x)
+            at = position(x, categories, self.lookup or "list")
             found = duckdb.CoalesceOperator(
                 _fn("list_extract", const(encodings), at), fallback
             )
