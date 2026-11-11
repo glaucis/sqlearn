@@ -3,9 +3,9 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-10 · Branch: `main` · Last commit:
-`4afa5a7 docs: update the handoff` · Checks:
-passing (`just test` on `main` after the datasets merge)
+Updated: 2026-11-11 · Branch: `fix-batch-3` · Last commit:
+`b361bc0 test: stable dataset ids; an equal n_informative is quiet (#47)` ·
+Checks: passing (`just verify` on `fix-batch-3`)
 Verify with: `just verify`
 
 ## In progress
@@ -14,18 +14,20 @@ None.
 
 ## Waiting on the user
 
-None.
+- Fix batch 3's rulings, to confirm (ledger
+  `.superpowers/sdd/2026-11-10-fix-batch-3/progress.md`): R6, no table-edit
+  warning across processes or when a checkpoint writes pending data; R7, the
+  lookup warning's threshold of 30,000 categories was measured under load:
+  re-measure on an idle machine; R8, the target encoder never warns about the
+  lookup, as the hash was slower for it; R10, a collated column is not refused
+  with `lookup="hash"`, only documented, as a step cannot see the collation
+  (#31). (since 2026-11-11)
 
 ## Next up
 
-- The issues the 2026-11-10 decisions filed, all ready-for-agent: #46
-  (generators on many threads: needs a parallel, ordered, lazy row source;
-  measurements in the issue), #47 (regression clips `n_informative` with a
-  warning), #48 (`ordered=True` on the generators), #49 (learn nested
-  aggregates; an ADR amending 0036/0044), #50 (key a database table by its
-  storage block ids), #51 (test LightGBM), #52 (pos_label type hint), #53
-  (UCI citations and DOIs), #31 (opt-in `lookup="hash"` with a warning), #27
-  (opt-in `approx=True` median and a house-form out-of-memory error).
+- #46 (generators on many threads: needs a parallel, ordered, lazy row
+  source; measurements in the issue) and #49 (learn nested aggregates; an ADR
+  amending 0036/0044), both ready-for-agent.
 - Choose the next 3.3 area: more metrics (confusion matrix, report, curves,
   fbeta), or a fetcher of real datasets (ADR 0006: an explicit call).
 - The target encoder's learn after #41 is mostly Python `Fraction` arithmetic
@@ -74,6 +76,12 @@ None.
 
 ## Just finished
 
+- Fix batch 3, branch `fix-batch-3`, not merged yet: #47 (regression clips
+  `n_informative` with a warning), #48 (`ordered=True`), #50 (a table edited in
+  place is prepared again, with a warning), #51 (LightGBM tested), #52
+  (pos_label type hint), #53 (UCI citations), #31 (opt-in `lookup="hash"`),
+  #27 (opt-in `approx=True` median and a house-form out-of-memory error); ADR
+  0046. (2026-11-11)
 - Every pending ruling decided with Tomas (2026-11-10): outcomes in the
   ledgers' "Decisions" sections and as comments on #45, #33, #31, #27, #22;
   new issues #46-#53. #22 kept as an idea in

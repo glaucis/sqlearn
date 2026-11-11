@@ -110,6 +110,12 @@
     },
     {
       "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_an_approximate_median_of_integers_is_a_double_as_the_exact_one",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
       "name": "tests/src/sqlearn/agg/test_aggregates.py::test_an_approximate_median_of_nulls_only_is_null",
       "outcome": "passed",
       "tier": "fast"
@@ -1214,13 +1220,13 @@
     },
     {
       "area": "sqlearn/datasets/bundled",
-      "name": "tests/src/sqlearn/datasets/test_bundled.py::test_a_dataset_lands_on_the_configured_connection_and_calls_are_independent[<function blobs at 0x113232520>]",
+      "name": "tests/src/sqlearn/datasets/test_bundled.py::test_a_dataset_lands_on_the_configured_connection_and_calls_are_independent[blobs]",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "sqlearn/datasets/bundled",
-      "name": "tests/src/sqlearn/datasets/test_bundled.py::test_a_dataset_lands_on_the_configured_connection_and_calls_are_independent[<function iris at 0x1132304a0>]",
+      "name": "tests/src/sqlearn/datasets/test_bundled.py::test_a_dataset_lands_on_the_configured_connection_and_calls_are_independent[iris]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1887,6 +1893,12 @@
     {
       "area": "sqlearn/datasets/generated",
       "name": "tests/src/sqlearn/datasets/test_generated.py::test_regression_with_default_n_informative_does_not_warn",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/generated",
+      "name": "tests/src/sqlearn/datasets/test_generated.py::test_regression_with_n_informative_equal_to_n_features_does_not_warn",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -5342,12 +5354,6 @@
     },
     {
       "area": "sqlearn/preprocessing/_lookup",
-      "name": "tests/src/sqlearn/preprocessing/test__lookup.py::test_many_categories_warn_when_lookup_is_left_out[target]",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "sqlearn/preprocessing/_lookup",
       "name": "tests/src/sqlearn/preprocessing/test__lookup.py::test_onehot_takes_no_lookup",
       "outcome": "passed",
       "tier": "fast"
@@ -5360,7 +5366,7 @@
     },
     {
       "area": "sqlearn/preprocessing/_lookup",
-      "name": "tests/src/sqlearn/preprocessing/test__lookup.py::test_the_lookup_warning_shows_once_in_a_search[target]",
+      "name": "tests/src/sqlearn/preprocessing/test__lookup.py::test_the_target_encoder_never_warns_about_the_lookup",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -8397,6 +8403,18 @@
     {
       "area": "sqlearn/_diagnose",
       "name": "tests/src/sqlearn/test__diagnose.py::test_running_out_of_memory_names_the_fixes",
+      "outcome": "passed",
+      "tier": "slow"
+    },
+    {
+      "area": "sqlearn/_diagnose",
+      "name": "tests/src/sqlearn/test__diagnose.py::test_running_out_of_memory_on_sqlearns_own_connection_names_the_memory_setting",
+      "outcome": "passed",
+      "tier": "slow"
+    },
+    {
+      "area": "sqlearn/_diagnose",
+      "name": "tests/src/sqlearn/test__diagnose.py::test_running_out_of_memory_without_a_median_does_not_blame_the_median",
       "outcome": "passed",
       "tier": "slow"
     },
