@@ -3,9 +3,9 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-11 · Branch: `fix-batch-3` · Last commit:
-`b361bc0 test: stable dataset ids; an equal n_informative is quiet (#47)` ·
-Checks: passing (`just verify` on `fix-batch-3`)
+Updated: 2026-11-11 · Branch: `main` · Last commit:
+`ead6712 Merge branch 'fix-batch-3'` · Checks: passing (`just test` on merged
+`main`: 1826 passed, 24 skipped; `just verify` on `fix-batch-3`)
 Verify with: `just verify`
 
 ## In progress
@@ -14,20 +14,20 @@ None.
 
 ## Waiting on the user
 
-- Fix batch 3's rulings, to confirm (ledger
-  `.superpowers/sdd/2026-11-10-fix-batch-3/progress.md`): R6, no table-edit
-  warning across processes or when a checkpoint writes pending data; R7, the
-  lookup warning's threshold of 30,000 categories was measured under load:
-  re-measure on an idle machine; R8, the target encoder never warns about the
-  lookup, as the hash was slower for it; R10, a collated column is not refused
-  with `lookup="hash"`, only documented, as a step cannot see the collation
-  (#31). (since 2026-11-11)
+- Fix batch 3's rulings, to confirm or overturn (each on its issue): R6 (#50),
+  a table edited and learned from in a new process, or after a checkpoint
+  writes pending rows, is prepared again without a warning; R7 (#31), the
+  lookup warning starts at 30,000 categories, measured under load, so
+  re-measure on an idle machine; R8 (#31), the target encoder never warns, as
+  the hash was slower for it; R10 (#31), a collated column is not refused with
+  `lookup="hash"`, only documented, as a step cannot see the collation.
+  (since 2026-11-11)
 
 ## Next up
 
 - #46 (generators on many threads: needs a parallel, ordered, lazy row
   source; measurements in the issue) and #49 (learn nested aggregates; an ADR
-  amending 0036/0044), both ready-for-agent.
+  amending 0036/0044), both ready-for-agent and needing a design first.
 - Choose the next 3.3 area: more metrics (confusion matrix, report, curves,
   fbeta), or a fetcher of real datasets (ADR 0006: an explicit call).
 - The target encoder's learn after #41 is mostly Python `Fraction` arithmetic
@@ -35,6 +35,11 @@ None.
 
 ## Dead ends and traps
 
+- After a merge that adds a dependency, the pre-commit hook fails on `main`
+  until its environment is synced: run `uv sync` (or `just pre-commit` once),
+  then commit. A step's `inputs` sees only column names and types, never the
+  source table, so nothing per table (a collation) can be checked there.
+  (2026-11-11)
 - Timing a generator by summing two of its columns measures only those two:
   DuckDB drops the unread ones. Sum every column. `range()` and a `UNION ALL`
   of ranges run on one thread while insertion order is kept (#46). DuckDB
@@ -76,18 +81,12 @@ None.
 
 ## Just finished
 
-- Fix batch 3, branch `fix-batch-3`, not merged yet: #47 (regression clips
+- Fix batch 3, merged into `main` (`ead6712`) and pushed; plan
+  `docs/plans/2026-11-10-fix-batch-3.md`. Closed: #47 (regression clips
   `n_informative` with a warning), #48 (`ordered=True`), #50 (a table edited in
   place is prepared again, with a warning), #51 (LightGBM tested), #52
   (pos_label type hint), #53 (UCI citations), #31 (opt-in `lookup="hash"`),
-  #27 (opt-in `approx=True` median and a house-form out-of-memory error); ADR
-  0046. (2026-11-11)
-- Every pending ruling decided with Tomas (2026-11-10): outcomes in the
-  ledgers' "Decisions" sections and as comments on #45, #33, #31, #27, #22;
-  new issues #46-#53. #22 kept as an idea in
-  `docs/questions/onehot-list-column.md`. The rule behind them is ADR 0046
-  (sqlearn warns, the user chooses), also in CLAUDE.md's rules.
-- The datasets area, merged into `main` and pushed, #45 closed: `sq.datasets`
-  with `iris`, `wine`, `breast_cancer` and `blobs`, `regression`,
-  `classification`, `customers`; ADR 0045, `docs/guide/datasets.md`.
-  (2026-11-10)
+  #27 (opt-in `approx=True` median and a house-form out-of-memory error).
+  (2026-11-11)
+- Polars as a second execution engine kept as an idea: #54,
+  `docs/questions/multi-engine-support.md` (`9258e7b`). (2026-11-11)
