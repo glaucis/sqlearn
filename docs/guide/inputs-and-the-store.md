@@ -86,6 +86,14 @@ The steps that learn from the data ([imputing](imputing.md),
 spline in [making features](making-features.md)) use the store like any other:
 learning again on unchanged data learns nothing.
 
+## Learned values kept across sessions: `sq.save`
+
+The store lives only while the program runs: a restart empties it. The learned
+values survive a restart only through `sq.save` and `sq.load`, which write
+them to a file with the fingerprint of the data they came from, and find them
+again on unchanged data in a new process. See
+[saving a pipeline](saving-a-pipeline.md).
+
 ## Prepared folds kept across sessions: `keep_prepared`
 
 The store lives only while the program runs. A search can also keep each

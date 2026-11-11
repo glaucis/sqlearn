@@ -128,7 +128,8 @@ Two requirements come from the later applications and are cheapest met here:
 - a pipeline is a graph, so that what the editor draws and what the code runs
   are one object. Saving it to a file and back, and exporting a trained
   pipeline as standalone code, are later ideas
-  ([issue #24](https://github.com/glaucis/sqlearn/issues/24)).
+  ([issue #24](https://github.com/glaucis/sqlearn/issues/24); the saving of
+  a pipeline is built, in 3.3).
 
 The user writes steps in order and sees results when asked, as in
 scikit-learn; how much of a pipeline runs as one query is the library's
@@ -157,11 +158,12 @@ is documented.
 
 ### 3.3 Library breadth
 
-**What:** the areas, each its own spec: preprocessing, model selection (a
-search over hyperparameters and folds, with sqlearn's folds or an outside
-optimiser such as Optuna), metrics, datasets, and whatever the core's contract
-makes possible. Models come from other libraries the user installs, for now;
-models in SQL are a later idea
+**What:** the areas, each its own spec: preprocessing, model selection (a search
+over hyperparameters and folds, with sqlearn's folds or an outside optimiser
+such as Optuna), metrics, datasets, saving a pipeline to a JSON file (`sq.save`,
+`sq.load`; [ADR 0047](../adr/0047-a-pipeline-saves-as-json.md)), and whatever
+the core's contract makes possible. Models come from other libraries the user
+installs, for now; models in SQL are a later idea
 ([ADR 0017](../adr/0017-models-from-other-libraries.md)).
 
 **Done when:** never; it grows. Each area is done when its spec says so.

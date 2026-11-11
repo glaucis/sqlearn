@@ -88,6 +88,8 @@ The API of the sqlearn package, generated from its docstrings.
    sqlearn.datasets.regression
    sqlearn.datasets.classification
    sqlearn.datasets.customers
+   sqlearn.save
+   sqlearn.load
    sqlearn.Model
    sqlearn.Output
    sqlearn.out.parquet

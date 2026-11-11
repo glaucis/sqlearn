@@ -30,30 +30,34 @@ learned values, that is safe to open and readable in a diff.
   the same bytes. Opening it never runs code from it. It is written to a
   temporary file and renamed, so a failed save leaves no half file.
 - **Values are plain JSON when JSON says them exactly, tagged objects
-  otherwise**: an object whose first key is `"$"`. Every mapping is tagged, so
-  a user's key never collides with a tag. The tags are `float` (NaN, `inf`,
-  `-inf`), `tuple`, `dict` (key-value pairs, keeping order), `decimal`,
-  `date`, `datetime`, `time`, `timedelta`, `uuid`, `bytes` (base64),
-  `selector`, `object` (a sqlearn object by class path and settings) and
-  `estimator` (a model's estimator by class path and parameters). Finite
-  floats go by `repr`, which reads back as the same double. A value with no
-  tag is refused at save, naming the step, the setting and the type, never
-  written with `str()`.
+  otherwise**: an object whose first key is `"$"`. Every mapping is tagged, so a
+  user's key never collides with a tag. The tags are `float` (NaN, `inf`,
+  `-inf`), `tuple`, `dict` (key-value pairs, keeping order), `decimal`, `date`,
+  `datetime`, `time`, `timedelta`, `uuid`, `bytes` (base64), `selector`,
+  `aggregate` (one of `sq.agg`), `constant_text`, `object` (a sqlearn object by
+  class path and settings) and `estimator` (a model's estimator by class path
+  and parameters). Finite floats go by `repr`, which reads back as the same
+  double. A value with no tag is refused at save, naming the step, the setting
+  and the type, never written with `str()`.
 - **Loading is pure and imports only allowed code.** `sqlearn` is always
   allowed; any other top-level package must be named in `allow=`. Every class
   in the file is read and checked before any is imported, and the whole file
-  is refused when one package is not allowed.
+  is refused when one package is not allowed. The class a path finally
+  resolves to is checked too, by the module that defines it, so a name
+  re-exported from an allowed package into another cannot slip past; the
+  classes of the learned part are checked like the rest.
 - **The store's stable key is a second key**: learned values are saved under
   the key a step's values are stored by, with the data's fingerprint, so a
   later `learn` on unchanged data learns nothing again, and on changed data
   learns again with a warning
   ([ADR 0021](0021-inputs-and-how-the-store-knows-them.md)).
-- **The trained model is saved only on request**, by `model="pickle"`, in a
-  file of its own beside the JSON (`<stem>.model.pickle`). The JSON names it,
-  its format and its SHA-256, and stays pure. Loading it is opt-in too
-  (`trust_model=True`), after the hash matches. `model=` names a format in a
-  small registry, so another format (a library's own file, skops) needs no
-  change to the JSON.
+- **The trained model is saved only on request**, by `model="pickle"`, in a file
+  of its own beside the JSON (`Path(path).with_suffix(".model.pickle")`). The
+  JSON names it, its format and its SHA-256, and stays pure. Loading it is
+  opt-in too (`trust_model=True`): the file is read once, and the bytes whose
+  SHA-256 matches are the bytes unpickled. `model=` names a format in a small
+  registry, so another format (a library's own file, skops) needs no change to
+  the JSON.
 - **sqlearn does not adjust what it cannot honour**: it refuses, or loads
   with a warning in the house form
   ([ADR 0046](0046-sqlearn-warns-the-user-chooses.md)).

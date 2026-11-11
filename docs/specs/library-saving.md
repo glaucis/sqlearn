@@ -17,6 +17,11 @@ Status: written on 2026-11-11 at Tomas's request without a design talk ("skip
 questions"); every decision below not quoted from the issues is the spec's
 call, listed in section 12. Tomas reviews it before the plan.
 
+Note (2026-11-11, at the build's end): section 2's example learned without the
+target, so the later `train` would have learned again; it now passes
+`target="churned"`. A saved preparation is reused only when `learn` was given
+the target, as learning without it reads the target as a feature.
+
 ## 1. Purpose
 
 Learned values live in the learning store while the program runs (ADR 0014):
@@ -47,13 +52,15 @@ library's own pipeline uses": this file's recipe part is that form.
 import sqlearn as sq
 
 pipe = sq.Pipeline([sq.impute.median(), sq.scale.standard(), sq.encode.onehot()])
-pipe.learn("customers.parquet")
+pipe.learn("customers.parquet", target="churned")
 sq.save(pipe, "customers.sqlearn.json")  # recipe and learned values
 
 # Tomorrow, a new process:
 pipe = sq.load("customers.sqlearn.json")
 pipe.apply("new_customers.parquet")  # at once: nothing learned again
-pipe.learn("customers.parquet")  # unchanged file: nothing learned again
+pipe.learn(
+    "customers.parquet", target="churned"
+)  # unchanged file: nothing learned again
 
 model = sq.Pipeline([*pipe.steps, ("model", sq.Model(LogisticRegression()))])
 model.train("customers.parquet", "churned")  # the preparation comes from the file
@@ -242,11 +249,11 @@ unchanged frame finds its values, a changed one is new data, learned without a
 warning.
 
 **A table with writes not yet checkpointed** when it is saved would get a new
-storage fingerprint at the next checkpoint (DuckDB checkpoints on close)
-without any edit, and a warning there would be false (ruling R6, #50). So
-`sq.save` warns: `Fix: run CHECKPOINT before saving, so the learned values
-carry across processes`, and saves that table's fingerprint as kind
-`unknown`. sqlearn never checkpoints the user's database itself (ADR 0046).
+storage fingerprint at the next checkpoint (DuckDB checkpoints on close) without
+any edit, and a warning there would be false (ruling R6, #50). So `sq.save`
+warns, with the `Fix:` line "run CHECKPOINT before learning and saving, so the
+learned values carry across processes", and saves that table's fingerprint as
+kind `unknown`. sqlearn never checkpoints the user's database itself (ADR 0046).
 Block ids are stable across a clean close and reopen with no edit (measured
 on #50); the build measures this again for its test.
 
@@ -301,15 +308,16 @@ first, and the design leaves room for other ways later.**
 - **By default, the model is not saved.** `sq.save` keeps its recipe; the
   loaded pipeline is learned, not trained, and `predict` refuses until
   `train`, as for any pipeline not trained.
-- **`sq.save(pipe, path, model="pickle")`** writes the trained estimator
-  (the object `sq.Model` wraps, not the pipeline) with the standard library's
-  `pickle` to a file beside the JSON, `<path stem>.model.pickle`. The JSON
-  stays pure: it names the model file, its format and its SHA-256, and
-  shares as a recipe without it. A pipeline not trained, with `model=`
-  given, is refused (there is nothing to save).
+- **`sq.save(pipe, path, model="pickle")`** writes the trained estimator (the
+  object `sq.Model` wraps, not the pipeline) with the standard library's
+  `pickle` to a file beside the JSON, `Path(path).with_suffix(".model.pickle")`
+  (`churn.sqlearn.json` gives `churn.sqlearn.model.pickle`). The JSON stays
+  pure: it names the model file, its format and its SHA-256, and shares as a
+  recipe without it. A pipeline not trained, with `model=` given, is refused
+  (there is nothing to save).
 - **Loading the model is opt-in as well:** `sq.load(path, trust_model=True)`.
   Without it, a file that names a model file loads learned but not trained,
-  and warns: `the trained model in churn.model.pickle was not opened, as
+  and warns: `the trained model in churn.sqlearn.model.pickle was not opened, as
   opening a pickle can run code. Fix: pass trust_model=True if you trust
   the file.` With it, the model file's SHA-256 must match the JSON's (a
   swapped or edited file is refused before it is opened), and the loaded

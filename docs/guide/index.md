@@ -1,9 +1,9 @@
 ---
 type: guide
 tags: [sqlearn, documentation, api, toctree, chapters]
-summary: "Index page for the sqlearn user guide: writing steps, inputs and the store, the preprocessing groups (imputing, scaling, encoding, binning, transforming, making features), column names, tuning a model, handing data to models, datasets, and moving from scikit-learn."
+summary: "Index page for the sqlearn user guide: writing steps, inputs and the store, saving a pipeline, the preprocessing groups (imputing, scaling, encoding, binning, transforming, making features), column names, tuning a model, handing data to models, datasets, and moving from scikit-learn."
 mdindex: [type=83ca68, tags=db65ab]
-related: [docs/guide/writing-a-step.md, docs/guide/inputs-and-the-store.md, docs/guide/from-scikit-learn.md, docs/guide/column-names.md]
+related: [docs/guide/writing-a-step.md, docs/guide/inputs-and-the-store.md, docs/guide/saving-a-pipeline.md, docs/guide/from-scikit-learn.md, docs/guide/column-names.md]
 ---
 # Guide
 
@@ -14,6 +14,7 @@ How to use sqlearn: the chapters that explain its API and its habits.
 
 writing-a-step
 inputs-and-the-store
+saving-a-pipeline
 from-scikit-learn
 imputing
 scaling

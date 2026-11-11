@@ -10,16 +10,14 @@ Verify with: `just verify`
 
 ## In progress
 
-- The saving area (the fifth 3.3 area, #20 and part 1 of #24): spec
-  `docs/specs/library-saving.md` approved; plan
-  `docs/plans/2026-11-11-library-saving.md` written, not started. Tomas ruled
-  the trained model is saved opt-in by pickle, with room for other formats.
-  (since 2026-11-11)
+None.
 
 ## Waiting on the user
 
-- Review of the saving plan and the choice of how to run it (subagent-driven
-  or native). (since 2026-11-11)
+- The GitHub steps for the saving area are pending with the controller:
+  close #20 and part 1 of #24 (retitle #24 "Export a trained pipeline as
+  standalone code"), open the summary issue (replace `#TBD` in `CLAUDE.md`),
+  and file an issue for model formats other than pickle. (since 2026-11-11)
 
 ## Next up
 
@@ -31,7 +29,7 @@ Verify with: `just verify`
 - #46 (generators on many threads: needs a parallel, ordered, lazy row
   source; measurements in the issue) and #49 (learn nested aggregates; an ADR
   amending 0036/0044), both ready-for-agent and needing a design first.
-- After saving, the next 3.3 area: more metrics (confusion matrix, report,
+- The next 3.3 area: more metrics (confusion matrix, report,
   curves, fbeta), or a fetcher of real datasets (ADR 0006: an explicit call).
 - The target encoder's learn after #41 is mostly Python `Fraction` arithmetic
   in `_encodings`/`_totals`: file an issue if it matters.
@@ -84,6 +82,11 @@ Verify with: `just verify`
 
 ## Just finished
 
+- The saving area (the fifth 3.3 area): `sq.save` and `sq.load`, one JSON
+  file of recipe, learned values and the data's fingerprint, the trained
+  model by pickle only on request; spec `docs/specs/library-saving.md`, plan
+  `docs/plans/2026-11-11-library-saving.md`, ADR 0047, guide
+  `docs/guide/saving-a-pipeline.md`, on branch `library-saving`. (2026-11-11)
 - Fix batch 3's rulings confirmed by Tomas, each recorded on its issue: R6
   (#50; its cross-process warning goes with saving learned state, noted on
   #20), R7, R8 and R10 (#31). (2026-11-11)

@@ -328,6 +328,20 @@ refuses one it cannot: a lambda, a function defined inside another, a
 names those the same way in the next session. A module-level function is known
 by its dotted name, a numpy array by its bytes.
 
+## Changing what a step learns: `state_version`
+
+A pipeline saved with `sq.save` holds what each step's `learn` returned.
+`Step.state_version` is a class attribute, 1 by default. Raise it when the
+names or the meaning of what your `learn` returns change: a file saved with
+the old number then loads as a recipe, with a warning naming the step, and
+the next `learn` learns again, instead of `apply` reading values that mean
+something else. See [saving a pipeline](saving-a-pipeline.md).
+
+```python
+class MyScale(sq.Step):
+    state_version = 2  # learn now returns "scale" as a variance, not a std
+```
+
 ## When something fails
 
 Diagnosis runs only after a failure; a run that works pays nothing for it.
