@@ -14,6 +14,7 @@ from sqlearn._config import get_config, set_config
 from sqlearn._model import Model
 from sqlearn._output import Output
 from sqlearn._pipeline import Pipeline
+from sqlearn._saving.files import load, save
 from sqlearn._selectors import cols
 from sqlearn._step import Learned, Step
 from sqlearn.model_selection.groups import folds, search
@@ -42,8 +43,10 @@ __all__ = [
     "folds",
     "get_config",
     "impute",
+    "load",
     "metrics",
     "out",
+    "save",
     "scale",
     "search",
     "set_config",
