@@ -6,7 +6,10 @@ related: [docs/specs/library-saving.md, docs/adr/0003-scikit-learn-style-api.md,
 ---
 # 0047: A pipeline saves as JSON
 
-Status: accepted (2026-11-11). Spec:
+Status: accepted (2026-11-11); amended by
+[ADR 0048](0048-the-user-saves-the-model-and-imports-its-packages.md): the
+user saves the model and imports its packages, and `allow=`, `trust_model=`
+and `model=` are removed. Spec:
 [library saving](../specs/library-saving.md), sections 3, 5, 7 and 8.
 
 ## Context

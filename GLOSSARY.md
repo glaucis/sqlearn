@@ -1,3 +1,10 @@
+---
+type: note
+tags: [glossary, terminology, saved-pipelines, learned-store]
+summary: "Glossary defining sqlearn domain terms: recipe, learned part, stable key, and trained model for saved pipelines."
+related: [docs/adr/0047-a-pipeline-saves-as-json.md, docs/adr/0048-the-user-saves-the-model-and-imports-its-packages.md]
+mdindex: [type=edb465, tags=6224d6, summary=3ac000, related=d90684]
+---
 # Glossary
 
 Terms of sqlearn's domain, in the sense the code and the docs use them.
@@ -14,6 +21,7 @@ Terms of sqlearn's domain, in the sense the code and the docs use them.
   (a file's real path, size and modification time), as opposed to the live
   key, which holds a connection token that only one process knows. Loading a
   saved pipeline fills the store by it.
-- **Model file:** the file beside a saved pipeline's JSON that holds the
-  trained estimator, written only when asked (`model="pickle"`) and opened
-  only when trusted (`trust_model=True`). The JSON names it and its SHA-256.
+- **Trained model:** the model library's own object after `train`
+  (`pipe.model_`). The user saves and opens it, in any format; a saved
+  pipeline never holds it, and `use_model` puts it back.
+  _Avoid_: model file.

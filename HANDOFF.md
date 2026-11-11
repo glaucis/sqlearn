@@ -3,8 +3,9 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-11 · Branch: `main` · Last commit: the #56 fix · Checks:
-passing (`just verify`: 2066 passed, 24 skipped; docs rebuilt clean)
+Updated: 2026-11-11 · Branch: `main` · Last commit: ADR 0048 · Checks:
+passing (`just verify` on `05c2293`: 2066 passed, 24 skipped; only docs
+changed since)
 Verify with: `just verify`
 
 ## In progress
@@ -13,12 +14,15 @@ None.
 
 ## Waiting on the user
 
-- #55 (save a trained model in a format that cannot run code): which format
-  first. The model library's own file (XGBoost JSON, LightGBM text, CatBoost
-  `.cbm`) needs no new dependency; skops covers scikit-learn but is a new
-  dependency (ADR 0005).
+None.
 
 ## Next up
+
+- #55 (the user saves the trained model; `sq.load` imports nothing), decided
+  in ADR 0048: spec it (first list the object-valued settings of
+  scikit-learn, CatBoost, LightGBM and XGBoost), plan, then build. Mostly
+  removal (`allow=`, `trust_model=`, `model=`, pickle) plus `pipe.model_` and
+  `pipe.use_model`. `GLOSSARY.md` already defines the trained model this way.
 
 - Re-measure the category lookup on an idle machine (check `uptime` first;
   the load was about 30 on 2026-11-11): both encoders at 15,000, 20,000 and

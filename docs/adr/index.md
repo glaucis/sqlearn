@@ -52,6 +52,7 @@ The verbs and conventions users write against.
 - [0045: Datasets are relations built in SQL](0045-datasets-are-relations-built-in-sql.md)
 - [0046: sqlearn warns, the user chooses](0046-sqlearn-warns-the-user-chooses.md)
 - [0047: A pipeline saves as JSON](0047-a-pipeline-saves-as-json.md)
+- [0048: The user saves the model and imports its packages](0048-the-user-saves-the-model-and-imports-its-packages.md)
 
 ## Steps users write
 
