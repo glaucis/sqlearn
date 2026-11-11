@@ -90,7 +90,7 @@ of a million-row relation equal a 1,000-row one.
 The rows of a generator come in row order while DuckDB's
 `preserve_insertion_order` is on (its default). To have the order whatever the
 setting, pass `ordered=True`: the relation sorts by the row number. That costs
-a sort, and the relation is no longer lazy: it holds every row to sort them,
+a sort, and the relation is no longer lazy: it reads every row to sort them,
 so a `limit` no longer stops early.
 
 ## Writing one to Parquet

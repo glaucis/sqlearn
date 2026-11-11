@@ -332,7 +332,7 @@ def blobs(
         Whether the rows come in row order whatever DuckDB's settings. By
         default they do only while ``preserve_insertion_order`` is on. True
         sorts the relation by the row number: it costs a sort, and the
-        relation is no longer lazy (it holds every row to sort them).
+        relation is no longer lazy (it reads every row to sort them).
 
     Returns
     -------
@@ -418,7 +418,7 @@ def regression(
         Whether the rows come in row order whatever DuckDB's settings. By
         default they do only while ``preserve_insertion_order`` is on. True
         sorts the relation by the row number: it costs a sort, and the
-        relation is no longer lazy (it holds every row to sort them).
+        relation is no longer lazy (it reads every row to sort them).
 
     Returns
     -------
@@ -700,7 +700,7 @@ def classification(
         Whether the rows come in row order whatever DuckDB's settings. By
         default they do only while ``preserve_insertion_order`` is on. True
         sorts the relation by the row number: it costs a sort, and the
-        relation is no longer lazy (it holds every row to sort them).
+        relation is no longer lazy (it reads every row to sort them).
 
     Returns
     -------
@@ -831,7 +831,7 @@ def customers(
         Whether the rows come in row order whatever DuckDB's settings. By
         default they do only while ``preserve_insertion_order`` is on. True
         sorts the relation by the row number: it costs a sort, and the
-        relation is no longer lazy (it holds every row to sort them).
+        relation is no longer lazy (it reads every row to sort them).
 
     Returns
     -------
