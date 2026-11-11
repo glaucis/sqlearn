@@ -752,8 +752,9 @@ class Pipeline:
         if not len(steps) == len(entries) == len(types) == len(names):
             msg = (
                 f"the pipeline has {len(steps)} steps, but what it learned "
-                f"covers {len(entries)}; nothing was changed. Fix: learn the "
-                "pipeline again."
+                f"covers {len(entries)}; nothing was changed. Why: learned "
+                "values belong to the steps that learned them, one entry per "
+                "step. Fix: learn the pipeline again."
             )
             raise SqlearnError(msg)
         learned = [_by_column(entry.values) for entry in entries]

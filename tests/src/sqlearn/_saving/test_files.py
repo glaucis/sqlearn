@@ -323,3 +323,16 @@ def test_a_format_version_that_is_not_a_positive_number_is_refused(
     path = _write(tmp_path / "p.json", format_version=version)
     with pytest.raises(SqlearnError, match=r"(?s)format_version.*Why:.*Fix:"):
         sq.load(path)
+
+
+def test_settings_a_step_refuses_name_the_file_and_step(tmp_path: Path) -> None:
+    """A setting the class does not take is refused, naming file and step."""
+    path = _write(tmp_path / "pipe.json")
+    data = json.loads(path.read_text())
+    data["steps"][0]["settings"]["method"] = "mean"
+    path.write_text(json.dumps(data))
+    with pytest.raises(SqlearnError) as raised:
+        sq.load(path)
+    text = str(raised.value)
+    for part in ("pipe.json", "median (step 1)", "'method'", "Why:", "Fix:"):
+        assert part in text, part

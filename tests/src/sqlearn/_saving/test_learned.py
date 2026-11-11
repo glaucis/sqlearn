@@ -245,7 +245,7 @@ def test_a_restore_that_does_not_fit_changes_nothing() -> None:
     fresh = sq.Pipeline([sq.impute.median(), sq.scale.standard()])
     entries = learned._entries
     assert entries is not None
-    with pytest.raises(SqlearnError, match="Fix:"):
+    with pytest.raises(SqlearnError, match=r"(?s)covers 1.*Why:.*Fix:"):
         fresh._restore(
             entries[:1],
             learned._types[:1],

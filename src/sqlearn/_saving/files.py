@@ -472,13 +472,14 @@ def load(
             paths |= class_paths(dict(model_file))
         check_allowed(paths, allow)
         built: list[tuple[str, Step | Model]] = []
+        file = repr(str(path))
         for position, record in enumerate(records, start=1):
             name = str(record["name"])
             where = f"{name} (step {position})"
             if record["kind"] == "model":
-                built.append((name, build_model(record, where, allow)))
+                built.append((name, build_model(record, where, allow, file)))
             else:
-                built.append((name, build_step(record, where, allow)))
+                built.append((name, build_step(record, where, allow, file)))
         pipe = Pipeline(built)
         if learned is not None and _same_state(records, built):
             restore_learned(pipe, learned, "the file's learned part")

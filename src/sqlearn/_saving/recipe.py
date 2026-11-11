@@ -388,11 +388,23 @@ def _decoded_settings(
     }
 
 
-def _construct(cls: type, where: str, **kwargs: object) -> object:
+def _construct(cls: type, where: str, file: str | None, **kwargs: object) -> object:
+    """Build `cls` from a file's settings; its refusal names the file and step."""
+    place = where if file is None else f"{where} in {file}"
     try:
         return cls(**kwargs)
-    except (SqlearnError, TypeError, ValueError) as error:
-        raise SqlearnError(f"{where}: {error}") from error
+    except SqlearnError as error:
+        # The class's own refusal is in the house form already.
+        raise SqlearnError(f"{place}: {error}") from error
+    except (TypeError, ValueError) as error:
+        raise _refuse(
+            place,
+            f"{cls.__qualname__} refuses the saved settings ({error})",
+            "the file's settings are not ones this version of the class "
+            "takes: it was saved with another version, or edited.",
+            f"install the version of {cls.__module__.split('.')[0]!r} the file "
+            "was saved with, or save the pipeline again with this one.",
+        ) from error
 
 
 def record_class_paths(record: Mapping[str, object]) -> set[str]:
@@ -425,7 +437,10 @@ def record_class_paths(record: Mapping[str, object]) -> set[str]:
 
 
 def build_step(
-    record: Mapping[str, object], where: str, allow: Collection[str] = ()
+    record: Mapping[str, object],
+    where: str,
+    allow: Collection[str] = (),
+    file: str | None = None,
 ) -> Step:
     """Return the step a record describes.
 
@@ -437,6 +452,8 @@ def build_step(
         The place, for errors.
     allow : collection of str, default ()
         Packages besides ``sqlearn`` that its classes may come from.
+    file : str, optional
+        The saved file, named when a class refuses its settings.
 
     Returns
     -------
@@ -459,7 +476,7 @@ def build_step(
     cls = import_class(_path(record, where), "step", where, allow)
     resolve = partial(_registered, where=where)
     settings = _decoded_settings(record, where, resolve)
-    built = _construct(cls, where, **settings)
+    built = _construct(cls, where, file, **settings)
     assert isinstance(built, Step)
     return built
 
@@ -505,7 +522,10 @@ def _import_of(path: str, top: str, where: str, allow: Collection[str]) -> type:
 
 
 def build_model(
-    record: Mapping[str, object], where: str, allow: Collection[str] = ()
+    record: Mapping[str, object],
+    where: str,
+    allow: Collection[str] = (),
+    file: str | None = None,
 ) -> Model:
     """Return the model a record describes, estimator and all.
 
@@ -517,6 +537,8 @@ def build_model(
         The place, for errors.
     allow : collection of str, default ()
         Packages besides ``sqlearn`` that its classes may come from.
+    file : str, optional
+        The saved file, named when a class refuses its settings.
 
     Returns
     -------
@@ -560,6 +582,6 @@ def build_model(
     resolve = partial(_import_of, top=top, where=where, allow=allow)
     estimator = decode(estimator_record, where, resolve)
     settings = _decoded_settings(record, where, resolve)
-    built = _construct(cls, where, estimator=estimator, **settings)
+    built = _construct(cls, where, file, estimator=estimator, **settings)
     assert isinstance(built, Model)
     return built
