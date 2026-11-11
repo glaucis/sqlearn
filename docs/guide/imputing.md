@@ -63,9 +63,13 @@ column:
 | 128 MB | 110,000,000 | 120,000,000 | 0.86 |
 
 Past its reach the learn fails with an `SqlearnError` that says DuckDB ran out
-of memory and names the fixes: more memory with `sq.set_config(memory=...)`,
-fewer threads (`SET threads = 1` on the connection given to
-`sq.set_config(connection=...)`), or `sq.impute.median(approx=True)`. That is
+of memory and names the fixes: more memory, fewer threads, or
+`sq.impute.median(approx=True)`. On sqlearn's own connection more memory is
+`sq.set_config(memory=...)`, which gives DuckDB half of it; on a connection
+passed with `sq.set_config(connection=...)` it is `SET memory_limit = '...'`
+on that connection, and fewer threads `SET threads = 1` on it. A step that
+runs out of memory without an exact median or quantile is told only of the
+memory and threads, not of the median. `approx=True` is
 DuckDB's `approx_quantile`: constant memory, close to the exact median but not
 equal to it, so not equal to scikit-learn's. sqlearn never switches to it by
 itself.
