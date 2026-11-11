@@ -14,15 +14,12 @@ None.
 
 ## Waiting on the user
 
-None.
+- Approve the #55 spec, `docs/specs/library-saving-the-model.md` (ADR
+  0048), then plan and build. Section 11 lists the spec's own calls. Its
+  answered question: without the JSON, `use_model(model, data=...,
+  target=...)` rebuilds sqlearn's part from the training data.
 
 ## Next up
-
-- #55 (the user saves the trained model; `sq.load` imports nothing), decided
-  in ADR 0048: spec it (first list the object-valued settings of
-  scikit-learn, CatBoost, LightGBM and XGBoost), plan, then build. Mostly
-  removal (`allow=`, `trust_model=`, `model=`, pickle) plus `pipe.model_` and
-  `pipe.use_model`. `GLOSSARY.md` already defines the trained model this way.
 
 - Re-measure the category lookup on an idle machine (check `uptime` first;
   the load was about 30 on 2026-11-11): both encoders at 15,000, 20,000 and
