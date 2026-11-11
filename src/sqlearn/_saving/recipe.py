@@ -6,12 +6,14 @@ named in a file until `check_allowed` has passed every path.
 """
 
 import importlib
+import types
 from collections.abc import Callable, Collection, Iterable, Mapping
+from functools import partial
 from typing import Literal
 
 from sqlearn._errors import SqlearnError
 from sqlearn._model import Model
-from sqlearn._saving.codec import decode, encode
+from sqlearn._saving.codec import class_paths, decode, encode
 from sqlearn._step import Step
 
 __all__ = [
@@ -21,6 +23,7 @@ __all__ = [
     "class_path",
     "import_class",
     "model_record",
+    "record_class_paths",
     "step_record",
 ]
 
@@ -103,7 +106,10 @@ def check_allowed(paths: Iterable[str], allow: Collection[str]) -> None:
 
 
 def import_class(
-    path: str, kind: Literal["step", "model", "object"], where: str
+    path: str,
+    kind: Literal["step", "model", "object"],
+    where: str,
+    allow: Collection[str] = (),
 ) -> type:
     """Import the class a path names, and check it is of the kind wanted.
 
@@ -118,6 +124,10 @@ def import_class(
         ``predict``; an ``"object"`` is any class.
     where : str
         The place, for errors.
+    allow : collection of str, default ()
+        Top-level packages the class may belong to, besides ``sqlearn``: the
+        class found must have its own module there, whatever module the path
+        names.
 
     Returns
     -------
@@ -155,6 +165,14 @@ def import_class(
     for part in qualname.split("."):
         try:
             found = getattr(found, part)
+            if isinstance(found, types.ModuleType):
+                raise _refuse(
+                    where,
+                    f"{path!r} walks through the module {part!r}",
+                    "a class path names a class of its module, not one reached "
+                    "through another module.",
+                    "save the pipeline again, or restore the file from where it came.",
+                )
         except AttributeError as error:
             raise _refuse(
                 where,
@@ -170,6 +188,14 @@ def import_class(
             f"{path!r} is not a class",
             "a file can only name classes.",
             "save the pipeline again, or restore the file from where it came.",
+        )
+    owner = str(getattr(found, "__module__", "")).split(".")[0]
+    if owner not in {"sqlearn", *allow}:
+        raise SqlearnError(
+            f"{where}: {path!r} is a class of {owner!r}, which sq.load may not "
+            "use. Why: importing a package runs its code, so a file can only "
+            f"name packages you allow. Fix: pass allow=[{owner!r}] if you trust "
+            "the file."
         )
     if kind == "step" and not issubclass(found, Step):
         raise _refuse(
@@ -369,7 +395,38 @@ def _construct(cls: type, where: str, **kwargs: object) -> object:
         raise SqlearnError(f"{where}: {error}") from error
 
 
-def build_step(record: Mapping[str, object], where: str) -> Step:
+def record_class_paths(record: Mapping[str, object]) -> set[str]:
+    """Return every class a step or model record names, for `check_allowed`.
+
+    Parameters
+    ----------
+    record : mapping
+        A step or model record, as read from the file.
+
+    Returns
+    -------
+    set of str
+        The record's own class, the estimator's class if any, and every class
+        nested in the settings and parameters.
+
+    Raises
+    ------
+    SqlearnError
+        When a class in the record is not text.
+
+    Examples
+    --------
+    >>> import sqlearn as sq
+    >>> from sqlearn._saving.recipe import record_class_paths, step_record
+    >>> sorted(record_class_paths(step_record("t", sq.transform.log(), 1)))
+    ['sqlearn.preprocessing.transform:Transform']
+    """
+    return {_path(record, "the file")} | class_paths(dict(record))
+
+
+def build_step(
+    record: Mapping[str, object], where: str, allow: Collection[str] = ()
+) -> Step:
     """Return the step a record describes.
 
     Parameters
@@ -378,6 +435,8 @@ def build_step(record: Mapping[str, object], where: str) -> Step:
         What `step_record` returned, after a trip through JSON.
     where : str
         The place, for errors.
+    allow : collection of str, default ()
+        Packages besides ``sqlearn`` that its classes may come from.
 
     Returns
     -------
@@ -397,18 +456,23 @@ def build_step(record: Mapping[str, object], where: str) -> Step:
     >>> build_step(step_record("t", sq.transform.log(), 1), "t")
     sq.transform.log()
     """
-    cls = import_class(_path(record, where), "step", where)
+    cls = import_class(_path(record, where), "step", where, allow)
 
-    def resolve(path: str) -> type:
-        return import_class(path, "object", where)
-
+    resolve = partial(import_class, kind="object", where=where, allow=allow)
     settings = _decoded_settings(record, where, resolve)
     built = _construct(cls, where, **settings)
     assert isinstance(built, Step)
     return built
 
 
-def build_model(record: Mapping[str, object], where: str) -> Model:
+def _import_of(path: str, top: str, where: str, allow: Collection[str]) -> type:
+    kind: Literal["model", "object"] = "model" if path == top else "object"
+    return import_class(path, kind, where, allow)
+
+
+def build_model(
+    record: Mapping[str, object], where: str, allow: Collection[str] = ()
+) -> Model:
     """Return the model a record describes, estimator and all.
 
     Parameters
@@ -417,6 +481,8 @@ def build_model(record: Mapping[str, object], where: str) -> Model:
         What `model_record` returned, after a trip through JSON.
     where : str
         The place, for errors.
+    allow : collection of str, default ()
+        Packages besides ``sqlearn`` that its classes may come from.
 
     Returns
     -------
@@ -439,7 +505,7 @@ def build_model(record: Mapping[str, object], where: str) -> Model:
     ...     print(str(error).split(".")[0])
     demo: the record has no 'estimator'
     """
-    cls = import_class(_path(record, where), "object", where)
+    cls = import_class(_path(record, where), "object", where, allow)
     if not issubclass(cls, Model):
         raise _refuse(
             where,
@@ -457,9 +523,7 @@ def build_model(record: Mapping[str, object], where: str) -> Model:
         )
     top = _path(estimator_record, where)
 
-    def resolve(path: str) -> type:
-        return import_class(path, "model" if path == top else "object", where)
-
+    resolve = partial(_import_of, top=top, where=where, allow=allow)
     estimator = decode(estimator_record, where, resolve)
     settings = _decoded_settings(record, where, resolve)
     built = _construct(cls, where, estimator=estimator, **settings)

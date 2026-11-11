@@ -21,6 +21,7 @@ from sqlearn._saving.recipe import (
     class_path,
     import_class,
     model_record,
+    record_class_paths,
     step_record,
 )
 from sqlearn._step import Step
@@ -171,7 +172,7 @@ def test_a_model_and_its_nested_estimators_round_trip() -> None:
     record = json.loads(json.dumps(model_record(model, 4)))
     assert list(record) == ["name", "class", "settings", "estimator"]
     assert record["class"] == "sqlearn._model:Model"
-    rebuilt = build_model(record, "model")
+    rebuilt = build_model(record, "model", ["sklearn"])
     assert isinstance(rebuilt, sq.Model)
     deep = {k: repr(v) for k, v in rebuilt.estimator.get_params(deep=True).items()}
     plain = BaggingClassifier(LogisticRegression(C=0.5))
@@ -187,7 +188,7 @@ def test_a_model_with_estimators_in_a_list_round_trips() -> None:
     """A model with estimators in a list round trips."""
     estimator = Pipeline([("scale", StandardScaler()), ("clf", LogisticRegression())])
     record = json.loads(json.dumps(model_record(sq.Model(estimator), 1)))
-    rebuilt = build_model(record, "model")
+    rebuilt = build_model(record, "model", ["sklearn"])
     assert [name for name, _ in rebuilt.estimator.steps] == ["scale", "clf"]
     assert isinstance(rebuilt.estimator.steps[0][1], StandardScaler)
 
@@ -243,17 +244,17 @@ def test_a_class_defined_in_a_function_is_refused() -> None:
 def test_a_class_of_the_wrong_kind_is_refused() -> None:
     """A class of the wrong kind is refused."""
     with pytest.raises(SqlearnError, match=r"(?s)OrderedDict.*Step.*Fix:"):
-        import_class("collections:OrderedDict", "step", "s")
+        import_class("collections:OrderedDict", "step", "s", ["collections"])
     with pytest.raises(SqlearnError, match=r"fit.*predict"):
-        import_class("collections:OrderedDict", "model", "s")
+        import_class("collections:OrderedDict", "model", "s", ["collections"])
 
 
 def test_a_missing_module_or_class_is_refused() -> None:
     """A missing module or class is refused."""
     with pytest.raises(SqlearnError, match=r"(?s)no_such_module.*Fix:.*install"):
-        import_class("no_such_module:X", "object", "s")
+        import_class("no_such_module:X", "object", "s", ["no_such_module"])
     with pytest.raises(SqlearnError, match=r"(?s)NoSuch.*Fix:"):
-        import_class("collections:NoSuch", "object", "s")
+        import_class("collections:NoSuch", "object", "s", ["collections"])
     with pytest.raises(SqlearnError, match="Fix:"):
         import_class("nocolon", "object", "s")
 
@@ -273,6 +274,48 @@ def test_a_streaming_models_settings_round_trip() -> None:
     model = sq.Model(
         LogisticRegression(), feed="stream", rows=50, epochs=2, shuffle=False, seed=3
     )
-    rebuilt = build_model(json.loads(json.dumps(model_record(model, 1))), "model")
+    rebuilt = build_model(
+        json.loads(json.dumps(model_record(model, 1))), "model", ["sklearn"]
+    )
     for field in ("feed", "rows", "megabytes", "epochs", "shuffle", "seed"):
         assert getattr(rebuilt, field) == getattr(model, field)
+
+
+@pytest.mark.parametrize(
+    "path", ["sqlearn._memory:ctypes.CDLL", "sqlearn.store:os.PathLike"]
+)
+def test_a_path_through_another_module_is_refused(path: str) -> None:
+    """A path through another module is refused."""
+    with pytest.raises(SqlearnError, match=r"(?s)walks through.*Fix:"):
+        import_class(path, "object", "s")
+
+
+def test_a_class_of_a_package_not_allowed_is_refused_wherever_the_path_points() -> None:
+    """A class of a package not allowed is refused wherever the path points."""
+    with pytest.raises(
+        SqlearnError, match=r"(?s)'collections'.*allow=\['collections'\]"
+    ):
+        import_class("collections:OrderedDict", "object", "s")
+    with pytest.raises(SqlearnError, match=r"(?s)Mapping|.collections.."):
+        import_class("sqlearn._saving.recipe:Mapping", "object", "s")
+
+
+def test_a_record_names_all_its_classes() -> None:
+    """A record names its own class, its estimator's and the nested ones."""
+    model = sq.Model(BaggingClassifier(LogisticRegression()))
+    record = json.loads(json.dumps(model_record(model, 1)))
+    assert record_class_paths(record) == {
+        "sqlearn._model:Model",
+        "sklearn.ensemble._bagging:BaggingClassifier",
+        "sklearn.linear_model._logistic:LogisticRegression",
+    }
+    step = step_record("i", sq.impute("a", value=sq.agg.median), 1)
+    assert record_class_paths(step) == {"sqlearn.preprocessing.impute:Impute"}
+    nested = step_record("s", sq.scale(sq.cols.numeric()), 1)
+    assert "sqlearn.preprocessing.scale:Scale" in record_class_paths(nested)
+
+
+def test_a_record_whose_class_is_not_text_is_refused() -> None:
+    """A record whose class is not text is refused."""
+    with pytest.raises(SqlearnError, match="class"):
+        record_class_paths({"class": ["os:system"], "settings": {}})
