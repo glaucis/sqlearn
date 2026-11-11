@@ -56,6 +56,12 @@
     },
     {
       "area": "sqlearn/_saving/across_processes",
+      "name": "tests/src/sqlearn/_saving/test_across_processes.py::test_apply_and_predict_on_a_changed_file_leave_the_warning_to_learn",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/across_processes",
       "name": "tests/src/sqlearn/_saving/test_across_processes.py::test_values_learned_in_one_process_are_found_in_the_next",
       "outcome": "passed",
       "tier": "fast"
@@ -81,6 +87,12 @@
     {
       "area": "sqlearn/_saving/codec",
       "name": "tests/src/sqlearn/_saving/test_codec.py::test_a_sqlearn_object_comes_back_from_its_settings",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/codec",
+      "name": "tests/src/sqlearn/_saving/test_codec.py::test_a_sqlearn_object_not_rebuilt_from_settings_is_refused_at_save",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -134,6 +146,12 @@
     },
     {
       "area": "sqlearn/_saving/codec",
+      "name": "tests/src/sqlearn/_saving/test_codec.py::test_an_object_not_in_the_registry_is_refused_before_import",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/codec",
       "name": "tests/src/sqlearn/_saving/test_codec.py::test_an_object_with_the_default_repr_is_refused",
       "outcome": "passed",
       "tier": "fast"
@@ -153,6 +171,36 @@
     {
       "area": "sqlearn/_saving/codec",
       "name": "tests/src/sqlearn/_saving/test_codec.py::test_equal_values_give_the_same_bytes",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/codec",
+      "name": "tests/src/sqlearn/_saving/test_codec.py::test_every_fold_scheme_round_trips[Grouped(by='g', n=3, seed=1)]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/codec",
+      "name": "tests/src/sqlearn/_saving/test_codec.py::test_every_fold_scheme_round_trips[Holdout(test=0.25, seed=5)]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/codec",
+      "name": "tests/src/sqlearn/_saving/test_codec.py::test_every_fold_scheme_round_trips[KFold(n=3, seed=1)]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/codec",
+      "name": "tests/src/sqlearn/_saving/test_codec.py::test_every_fold_scheme_round_trips[Stratified(n=4, seed=2)]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/codec",
+      "name": "tests/src/sqlearn/_saving/test_codec.py::test_every_fold_scheme_round_trips[TimeSplit(by='t', n=3, gap=1)]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -218,6 +266,24 @@
     },
     {
       "area": "sqlearn/_saving/files",
+      "name": "tests/src/sqlearn/_saving/test_files.py::test_a_file_nested_too_deeply_is_refused_as_damaged[learned]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/files",
+      "name": "tests/src/sqlearn/_saving/test_files.py::test_a_file_nested_too_deeply_is_refused_as_damaged[parse]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/files",
+      "name": "tests/src/sqlearn/_saving/test_files.py::test_a_file_nested_too_deeply_is_refused_as_damaged[settings]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/files",
       "name": "tests/src/sqlearn/_saving/test_files.py::test_a_file_that_is_not_ours_is_refused[changes0-words0]",
       "outcome": "passed",
       "tier": "fast"
@@ -242,7 +308,55 @@
     },
     {
       "area": "sqlearn/_saving/files",
+      "name": "tests/src/sqlearn/_saving/test_files.py::test_a_format_version_that_is_not_a_positive_number_is_refused[-1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/files",
+      "name": "tests/src/sqlearn/_saving/test_files.py::test_a_format_version_that_is_not_a_positive_number_is_refused[0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/files",
+      "name": "tests/src/sqlearn/_saving/test_files.py::test_a_format_version_that_is_not_a_positive_number_is_refused[1.0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/files",
+      "name": "tests/src/sqlearn/_saving/test_files.py::test_a_format_version_that_is_not_a_positive_number_is_refused[1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/files",
+      "name": "tests/src/sqlearn/_saving/test_files.py::test_a_format_version_that_is_not_a_positive_number_is_refused[True]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/files",
+      "name": "tests/src/sqlearn/_saving/test_files.py::test_a_learned_value_naming_a_class_builds_nothing[folds]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/files",
+      "name": "tests/src/sqlearn/_saving/test_files.py::test_a_learned_value_naming_a_class_builds_nothing[values]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/files",
       "name": "tests/src/sqlearn/_saving/test_files.py::test_a_model_needs_its_package_allowed",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/files",
+      "name": "tests/src/sqlearn/_saving/test_files.py::test_a_model_parameter_naming_a_sqlearn_class_builds_nothing",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -278,7 +392,25 @@
     },
     {
       "area": "sqlearn/_saving/files",
+      "name": "tests/src/sqlearn/_saving/test_files.py::test_a_step_setting_naming_a_class_not_rebuilt_builds_nothing[estimator]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/files",
+      "name": "tests/src/sqlearn/_saving/test_files.py::test_a_step_setting_naming_a_class_not_rebuilt_builds_nothing[object]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/files",
       "name": "tests/src/sqlearn/_saving/test_files.py::test_a_value_that_is_not_a_number_is_never_written_bare",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/files",
+      "name": "tests/src/sqlearn/_saving/test_files.py::test_allow_given_as_text_is_refused_with_a_list_in_the_fix",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -291,6 +423,18 @@
     {
       "area": "sqlearn/_saving/files",
       "name": "tests/src/sqlearn/_saving/test_files.py::test_nothing_is_imported_before_every_class_is_allowed",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/files",
+      "name": "tests/src/sqlearn/_saving/test_files.py::test_settings_a_step_refuses_name_the_file_and_step",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/files",
+      "name": "tests/src/sqlearn/_saving/test_files.py::test_the_models_categories_naming_a_class_build_nothing",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -735,6 +879,12 @@
     {
       "area": "sqlearn/_saving/models",
       "name": "tests/src/sqlearn/_saving/test_models.py::test_a_trained_model_predicts_after_load_without_training",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/models",
+      "name": "tests/src/sqlearn/_saving/test_models.py::test_a_trusted_model_fed_raw_text_keeps_its_categories",
       "outcome": "passed",
       "tier": "fast"
     },
