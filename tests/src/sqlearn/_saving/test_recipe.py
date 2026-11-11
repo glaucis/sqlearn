@@ -450,3 +450,37 @@ def test_a_nested_estimator_is_rebuilt_when_its_module_is_imported(
     rebuilt = loaded.steps[-1][1]
     assert isinstance(rebuilt, sq.Model)
     assert repr(rebuilt.estimator) == repr(model.estimator)
+
+
+@pytest.mark.parametrize(
+    ("named", "place"),
+    [
+        ("tests.src.sqlearn._saving.probe:proxy.X", "step"),
+        ("tests.src.sqlearn._saving.probe:Thing", "step"),
+        ("tests.src.sqlearn._saving.probe:Thing", "model"),
+        ("tests.src.sqlearn._saving.probe:Thing", "nested"),
+    ],
+)
+def test_looking_a_class_up_runs_no_code_of_what_the_path_reaches(
+    tmp_path: Path, named: str, place: str
+) -> None:
+    """No __class__, metaclass __getattr__ or __getattribute__ runs on a lookup."""
+    from tests.src.sqlearn._saving import probe
+
+    target = _file_naming(tmp_path, named, place)
+    probe.calls.clear()
+    with pytest.raises(SqlearnError, match="Fix:"):
+        sq.load(target)
+    assert probe.calls == []
+
+
+def test_a_module_blocked_in_sys_modules_is_refused_in_the_house_form(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """sys.modules[name] = None (a blocked import) is a refusal, not a TypeError."""
+    target = _file_naming(tmp_path, "blocked_for_test:X", "step")
+    monkeypatch.setitem(sys.modules, "blocked_for_test", None)
+    with pytest.raises(SqlearnError) as raised:
+        sq.load(target)
+    text = str(raised.value)
+    assert "blocked_for_test" in text and "Why:" in text and "Fix:" in text

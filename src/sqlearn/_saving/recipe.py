@@ -6,12 +6,11 @@ named in a file is looked up: `check_imported` refuses a class whose module
 is not imported, and nothing is ever imported.
 """
 
-import inspect
 import sys
 import types
 from collections.abc import Callable, Iterable, Mapping
 from functools import partial
-from typing import Literal
+from typing import Literal, cast
 
 from sqlearn._errors import SqlearnError
 from sqlearn._model import Model
@@ -98,7 +97,7 @@ def check_imported(paths: Iterable[str]) -> None:
     >>> check_imported(["sqlearn.preprocessing.impute:Impute"])
     """
     missing = sorted(
-        {path for path in paths if path.partition(":")[0] not in sys.modules}
+        {path for path in paths if sys.modules.get(path.partition(":")[0]) is None}
     )
     if missing:
         named = ", ".join(repr(path) for path in missing)
@@ -116,6 +115,46 @@ def check_imported(paths: Iterable[str]) -> None:
             "code you did not choose to run. "
             f"Fix: {'; '.join(imports)}."
         )
+
+
+def _is_module(value: object) -> bool:
+    """Say whether `value` is a module, reading its type and running no code."""
+    return issubclass(type(value), types.ModuleType)
+
+
+def _namespace_of(module: object) -> Mapping[str, object]:
+    """Return a module's namespace without asking the module for it."""
+    return cast(
+        "Mapping[str, object]", vars(types.ModuleType)["__dict__"].__get__(module)
+    )
+
+
+def _mro_of(cls: type) -> tuple[type, ...]:
+    """Return a class's MRO without going through its metaclass."""
+    return cast("tuple[type, ...]", type.__dict__["__mro__"].__get__(cls))
+
+
+_CLASS_DICT = vars(type)["__dict__"]
+
+
+def _static_attr(value: object, name: str) -> object | None:
+    """Return a class attribute of `value` (or of its type), running no code.
+
+    Reads each class namespace straight from the class, so a metaclass hook,
+    a ``__class__`` property or a ``__getattr__`` is never reached. Nothing is
+    bound: a descriptor comes back as itself.
+    """
+    owner = value if issubclass(type(value), type) else type(value)
+    for entry in _mro_of(cast("type", owner)):
+        found = _CLASS_DICT.__get__(entry).get(name)
+        if found is not None:
+            return cast("object", found)
+    return None
+
+
+def _has(cls: type, name: str) -> bool:
+    """Say whether a class defines `name`, running no metaclass hook."""
+    return _static_attr(cls, name) is not None
 
 
 def _not_a_pipeline_part(path: str, where: str) -> SqlearnError:
@@ -176,14 +215,22 @@ def import_class(
     imported = sys.modules.get(module)
     if imported is None:
         check_imported([path])
-    # No module __getattr__ and no descriptor runs: a lookup that can import
-    # would break the rule that sq.load imports nothing.
+    if not _is_module(imported):
+        raise _refuse(
+            where,
+            f"{module!r} is not a module",
+            "something other than a module sits in its place in sys.modules.",
+            "check where this file came from.",
+        )
+    # Nothing a file can name runs: no module or object __getattr__, no
+    # __class__ property, no metaclass hook. Every test below reads the type
+    # and the namespaces directly, so a lookup can never import.
     first, *rest = qualname.split(".")
-    found: object = vars(imported).get(first)
+    found: object = _namespace_of(imported).get(first)
     for part in rest:
-        if found is not None and not isinstance(found, types.ModuleType):
-            found = inspect.getattr_static(found, part, None)
-    if found is None or isinstance(found, types.ModuleType):
+        if found is not None and not _is_module(found):
+            found = _static_attr(found, part)
+    if found is None or _is_module(found):
         gone = found is None
         raise _refuse(
             where,
@@ -199,20 +246,21 @@ def import_class(
             if gone
             else "save the pipeline again, or restore the file from where it came.",
         )
-    if not isinstance(found, type):
+    if not issubclass(type(found), type):
         raise _refuse(
             where,
             f"{path!r} is not a class",
             "a file can only name classes.",
             "save the pipeline again, or restore the file from where it came.",
         )
-    if kind == "step" and not issubclass(found, Step):
+    cls = cast("type", found)
+    if kind == "step" and Step not in _mro_of(cls):
         raise _not_a_pipeline_part(path, where)
-    if kind == "model" and not (hasattr(found, "fit") and hasattr(found, "predict")):
+    if kind == "model" and not (_has(cls, "fit") and _has(cls, "predict")):
         raise _not_a_pipeline_part(path, where)
-    if kind == "nested" and not hasattr(found, "get_params"):
+    if kind == "nested" and not _has(cls, "get_params"):
         raise _not_a_pipeline_part(path, where)
-    return found
+    return cls
 
 
 def step_record(name: str, step: Step, position: int) -> dict[str, object]:
@@ -513,7 +561,8 @@ def _import_of(path: str, top: str, where: str) -> type:
         raise _sqlearn_estimator(path, where)
     kind: Literal["model", "nested"] = "model" if path == top else "nested"
     cls = import_class(path, kind, where)
-    if cls.__module__.split(".")[0] == "sqlearn":
+    owner = _CLASS_DICT.__get__(cls).get("__module__", "")
+    if str(owner).split(".")[0] == "sqlearn":
         raise _sqlearn_estimator(path, where)
     return cls
 
@@ -533,11 +582,12 @@ def _model_parts(
     record: Mapping[str, object], where: str
 ) -> tuple[type, dict[str, object], str]:
     """Return a model record's class, estimator record and estimator's path."""
-    cls = import_class(_path(record, where), "object", where)
-    if not issubclass(cls, Model):
+    path = _path(record, where)
+    cls = import_class(path, "object", where)
+    if Model not in _mro_of(cls):
         raise _refuse(
             where,
-            f"{cls.__qualname__} is not sq.Model",
+            f"{path!r} is not sq.Model",
             "a model record holds an sq.Model.",
             "save the pipeline again, or restore the file from where it came.",
         )
