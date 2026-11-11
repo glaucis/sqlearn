@@ -290,3 +290,24 @@ def test_a_trusted_model_predicts_in_the_same_process(tmp_path: Path) -> None:
     sq.save(pipe, path, model="pickle")
     loaded = sq.load(path, allow=["sklearn"], trust_model=True)
     assert _predictions(loaded, _frame()) == _predictions(pipe, _frame())
+
+
+def test_a_trusted_model_fed_raw_text_keeps_its_categories(tmp_path: Path) -> None:
+    """A model fed a text column as pandas categories predicts the same."""
+    pipe = sq.Pipeline(
+        [
+            sq.impute.median(),
+            sq.Model(
+                LGBMClassifier(n_estimators=10, min_child_samples=2, verbose=-1),
+                feed="pandas",
+            ),
+        ]
+    ).train(_frame(), target="y")
+    assert pipe._categories == {"city": ["a", "b", "c"]}
+    path = tmp_path / "churn.sqlearn.json"
+    sq.save(pipe, path, model="pickle")
+    loaded = sq.load(path, allow=["lightgbm"], trust_model=True)
+    assert loaded._categories == pipe._categories
+    unseen = _frame().assign(city=["c", "a", "zz"] * 20)
+    for data in (_frame(), unseen):
+        assert _predictions(loaded, data) == _predictions(pipe, data)

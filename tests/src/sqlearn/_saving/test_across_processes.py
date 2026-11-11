@@ -141,6 +141,48 @@ def test_a_changed_file_is_learned_again_with_a_warning(tmp_path: Path) -> None:
     assert second["again"] == {"learns": {}, "warnings": []}
 
 
+def test_apply_and_predict_on_a_changed_file_leave_the_warning_to_learn(
+    tmp_path: Path,
+) -> None:
+    """Apply and predict read a changed file silently; the next learn warns."""
+    _run(
+        tmp_path,
+        """
+        from sklearn.linear_model import LogisticRegression
+
+        parquet("customers.parquet", [20, 31, 40, 51, 60, 71])
+        trained = sq.Pipeline(
+            [*pipe().steps, ("model", sq.Model(LogisticRegression()))]
+        ).train("customers.parquet", "churned")
+        sq.save(trained, "model.sqlearn.json", model="pickle")
+        learned = pipe().learn("customers.parquet", target="churned")
+        sq.save(learned, "steps.sqlearn.json")
+        """,
+    )
+    second = _run(
+        tmp_path,
+        """
+        trained = sq.load("model.sqlearn.json", allow=["sklearn"], trust_model=True)
+        loaded = sq.load("steps.sqlearn.json")
+        parquet("customers.parquet", [21, 30, 41, 50, 61, 70, 81])
+        loaded.apply("customers.parquet")
+        mark("apply")
+        trained.predict("customers.parquet")
+        mark("predict")
+        loaded.learn("customers.parquet", target="churned")
+        mark("learn")
+        loaded.learn("customers.parquet", target="churned")
+        mark("again")
+        """,
+    )
+    for label in ("apply", "predict"):
+        assert second[label] == {"learns": {}, "warnings": []}, label
+    assert second["learn"]["learns"] == _LEARNED
+    [said] = second["learn"]["warnings"]
+    assert said.startswith("customers.parquet changed since the values in ")
+    assert second["again"] == {"learns": {}, "warnings": []}
+
+
 def test_a_glob_that_gains_a_file_warns(tmp_path: Path) -> None:
     """A glob matching one more file is the same source, changed."""
     (tmp_path / "data").mkdir()
