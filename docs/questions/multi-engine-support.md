@@ -1,9 +1,9 @@
 ---
 type: question
-tags: [multi-engine, duckdb, sqlglot, transpilation, dialects, sql]
-summary: "Open question on whether sqlearn should support engines other than DuckDB, and how to translate or render generated SQL for them."
-mdindex: [type=1f5087, tags=0f9a93, summary=104304, related=d7196c]
-related: [docs/adr/0015-duckdb-expressions-no-sqlglot.md, ADR 0015, docs/questions/earlier-attempts/README.md, sql_learn_test, "April's federated spec"]
+tags: [multi-engine, duckdb, polars, sqlglot, portability]
+summary: "Open question on whether sqlearn should run on engines other than DuckDB, such as Postgres or Polars, and the costs and risks involved."
+mdindex: [type=1f5087, tags=4bd1ea, summary=1fa62c, related=a01e7f]
+related: [docs/adr/0015-duckdb-expressions-no-sqlglot.md, ADR 0015, earlier-attempts/README.md, "issue #54", "#50", docs/benchmarks/median-reach.md, ADR 0002, ADR 0004]
 ---
 # Should sqlearn run on engines other than DuckDB?
 
