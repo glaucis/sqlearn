@@ -3,14 +3,22 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-11 · Branch: `main` · Last commit:
-`ead6712 Merge branch 'fix-batch-3'` · Checks: passing (`just test` on merged
-`main`: 1826 passed, 24 skipped; `just verify` on `fix-batch-3`)
+Updated: 2026-11-11 · Branch: `library-saving` (worktree
+`.worktrees/library-saving`) · Last commit: `a04058e Merge branch
+'library-saving'` · Checks: passing on `a04058e` (`just test`: 2049 passed);
+the uncommitted fix below: saving tests pass, `just verify` running
 Verify with: `just verify`
 
 ## In progress
 
-None.
+- [verified] The `allow=` alias gap in `sq.load`, fixed but not committed, in
+  the worktree: an estimator is refused when its class is sqlearn's however
+  the path names it (`recipe._import_of`), an `estimator` tag may not name a
+  fold scheme (`codec.decode`), and `sq.Model`'s settings hold no estimator;
+  tests in `tests/src/sqlearn/_saving/test_files.py` with `aliased.py`; guide
+  and ADR 0047 corrected. Next: confirm `just verify` passes, commit
+  (`fix: refuse a sqlearn class as an estimator however it is named`), merge
+  `library-saving` into `main`, push.
 
 ## Waiting on the user
 
@@ -18,18 +26,10 @@ None.
 
 ## Next up
 
-- **Open security gap in `sq.load` (do first).** A package named in
-  `allow=` that imports a sqlearn class lets a crafted file build that class
-  through the `"estimator"` tag: `aliaspkg:KeptFolds` with `allow=["aliaspkg"]`
-  creates a DuckDB file at a path the file chooses. Ruling 17 is checked by
-  path text only (`recipe._import_of`). Fix: refuse any estimator whose class's
-  own module is `sqlearn`, refuse the `"estimator"` tag outside a model's
-  params, and correct the guide and ADR 0047, which say this cannot happen.
 - The saving area's GitHub steps: close #20 and part 1 of #24 (retitle #24
   "Export a trained pipeline as standalone code"), open the summary issue
   (replace `#TBD` in `CLAUDE.md`), file issues for model formats other than
   pickle and for learned TIMESTAMP WITH TIME ZONE values (need pytz at learn).
-
 - Re-measure the category lookup on an idle machine (check `uptime` first;
   the load was about 30 on 2026-11-11): both encoders at 15,000, 20,000 and
   100,000 categories, one count per process, then lower `WARN_ABOVE` if the
@@ -38,13 +38,21 @@ None.
 - #46 (generators on many threads: needs a parallel, ordered, lazy row
   source; measurements in the issue) and #49 (learn nested aggregates; an ADR
   amending 0036/0044), both ready-for-agent and needing a design first.
-- The next 3.3 area: more metrics (confusion matrix, report,
-  curves, fbeta), or a fetcher of real datasets (ADR 0006: an explicit call).
+- The next 3.3 area: more metrics (confusion matrix, report, curves, fbeta),
+  or a fetcher of real datasets (ADR 0006: an explicit call).
 - The target encoder's learn after #41 is mostly Python `Fraction` arithmetic
   in `_encodings`/`_totals`: file an issue if it matters.
+- The saving area's parked minor findings (none blocks): the ledger
+  `.superpowers/sdd/2026-11-11-library-saving/progress.md` in the worktree;
+  move them into the summary issue, then delete the worktree.
 
 ## Dead ends and traps
 
+- `sq.load` security: per-task reviews each passed, yet the final review found
+  two routes from a crafted file to `KeptFolds` (which creates a DuckDB file).
+  Probe every tag (`object`, `estimator`, `aggregate`, learned part,
+  `model_file`) end to end after any change to `_saving`. Saving tests print
+  "nanobind: leaked" at exit (DuckDB); the exit code stays 0. (2026-11-11)
 - After a merge that adds a dependency, the pre-commit hook fails on `main`
   until its environment is synced: run `uv sync` (or `just pre-commit` once),
   then commit. A step's `inputs` sees only column names and types, never the
@@ -91,21 +99,10 @@ None.
 
 ## Just finished
 
-- The saving area (the fifth 3.3 area): `sq.save` and `sq.load`, one JSON
-  file of recipe, learned values and the data's fingerprint, the trained
-  model by pickle only on request; spec `docs/specs/library-saving.md`, plan
+- The saving area (the fifth 3.3 area): `sq.save` and `sq.load`; spec
+  `docs/specs/library-saving.md`, plan
   `docs/plans/2026-11-11-library-saving.md`, ADR 0047, guide
-  `docs/guide/saving-a-pipeline.md`; merged from `library-saving`, with the
-  `allow=` gap in Next up still open. (2026-11-11)
-- Fix batch 3's rulings confirmed by Tomas, each recorded on its issue: R6
-  (#50; its cross-process warning goes with saving learned state, noted on
-  #20), R7, R8 and R10 (#31). (2026-11-11)
-- Fix batch 3, merged into `main` (`ead6712`) and pushed; plan
-  `docs/plans/2026-11-10-fix-batch-3.md`. Closed: #47 (regression clips
-  `n_informative` with a warning), #48 (`ordered=True`), #50 (a table edited in
-  place is prepared again, with a warning), #51 (LightGBM tested), #52
-  (pos_label type hint), #53 (UCI citations), #31 (opt-in `lookup="hash"`),
-  #27 (opt-in `approx=True` median and a house-form out-of-memory error).
+  `docs/guide/saving-a-pipeline.md`; merged into `main` and pushed (`a04058e`).
   (2026-11-11)
-- Polars as a second execution engine kept as an idea: #54,
-  `docs/questions/multi-engine-support.md` (`9258e7b`). (2026-11-11)
+- Fix batch 3's rulings R6, R7, R8 and R10 confirmed by Tomas, on #50 and
+  #31. (2026-11-11)
