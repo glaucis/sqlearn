@@ -15,6 +15,7 @@ from pathlib import Path
 from sqlearn._errors import SqlearnError, SqlearnWarning
 from sqlearn._model import Model
 from sqlearn._pipeline import Pipeline
+from sqlearn._saving.codec import class_paths
 from sqlearn._saving.learned import learned_record, restore_learned
 from sqlearn._saving.recipe import (
     build_model,
@@ -316,9 +317,15 @@ def load(
     _check_keys(data)
     _warn_if_newer(data["sqlearn"])
     records = _step_records(data)
+    learned = data.get("learned")
+    if learned is not None and not isinstance(learned, dict):
+        raise _damaged("the file's learned part is not an object")
     paths: set[str] = set()
     for record in records:
         paths |= record_class_paths(record)
+    if learned is not None:
+        # A learned value may name a class too: checked before any import.
+        paths |= class_paths(learned)
     check_allowed(paths, allow)
     built: list[tuple[str, Step | Model]] = []
     for position, record in enumerate(records, start=1):
@@ -329,12 +336,8 @@ def load(
         else:
             built.append((name, build_step(record, where, allow)))
     pipe = Pipeline(built)
-    learned = data.get("learned")
-    if learned is not None:
-        if not isinstance(learned, dict):
-            raise _damaged("the file's learned part is not an object")
-        if _same_state(records, built):
-            restore_learned(pipe, learned, "the file's learned part")
+    if learned is not None and _same_state(records, built):
+        restore_learned(pipe, learned, "the file's learned part", allow)
     return pipe
 
 

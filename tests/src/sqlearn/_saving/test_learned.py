@@ -2,6 +2,7 @@
 
 import json
 import re
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +15,7 @@ import sqlearn as sq
 from sqlearn._config import connection
 from sqlearn._errors import SqlearnError, SqlearnWarning
 from sqlearn._store import STORE
+from tests.src.sqlearn._saving import test_recipe as recipe_cases
 
 
 class Least(sq.Step):
@@ -171,3 +173,121 @@ def test_a_learned_timestamp_with_a_zone_round_trips(tmp_path: Path) -> None:
         """,
         ["ts"],
     )
+
+
+def _saved_standard(tmp_path: Path, **changes: object) -> Path:
+    """Save a learned ``sq.scale.standard()``, with its learned part edited."""
+    data = connection().sql("SELECT * FROM (VALUES (1.0), (3.0)) t(a)")
+    path = tmp_path / "p.json"
+    sq.save(sq.Pipeline([sq.scale.standard()]).learn(data), path)
+    document = json.loads(path.read_text())
+    for key, value in changes.items():
+        if key == "values":
+            document["learned"]["steps"][0]["values"] = value
+        else:
+            document["learned"][key] = value
+    path.write_text(json.dumps(document))
+    return path
+
+
+def test_a_learned_value_naming_a_package_not_allowed_imports_nothing(
+    tmp_path: Path,
+) -> None:
+    """A class in a learned value is checked against allow= before any import."""
+    sys.modules.pop("sqlearn_test_imported", None)
+    named = {
+        "$": "object",
+        "class": "tests.src.sqlearn._saving.recorded_import:X",
+        "settings": {},
+    }
+    path = _saved_standard(tmp_path, values={"$": "dict", "items": [["center", named]]})
+    with pytest.raises(SqlearnError, match=r"allow=\['tests'\]"):
+        sq.load(path)
+    assert "sqlearn_test_imported" not in sys.modules
+
+
+@pytest.mark.parametrize(
+    ("changes", "says"),
+    [
+        ({"types": [{"zzz": "DOUBLE"}]}, "types"),
+        (
+            {
+                "values": {
+                    "$": "dict",
+                    "items": [
+                        ["scale", {"$": "dict", "items": [["a", 1.0]]}],
+                        ["infinite", {"$": "dict", "items": [["a", 0.0]]}],
+                    ],
+                }
+            },
+            "'center'",
+        ),
+        ({"depends_on": [[5]]}, "step 6"),
+        ({"columns_out": ["zzz"]}, "columns out"),
+        ({"names": [{"zzz": ["zzz_1"]}]}, "zzz"),
+    ],
+    ids=["wrong types", "missing value", "late dependency", "columns out", "names"],
+)
+def test_a_damaged_learned_part_is_refused_at_load(
+    tmp_path: Path, changes: dict[str, object], says: str
+) -> None:
+    """A learned part that does not match its steps is refused at load."""
+    path = _saved_standard(tmp_path, **changes)
+    with pytest.raises(SqlearnError, match=rf"(?s){re.escape(says)}.*Why:.*Fix:"):
+        sq.load(path)
+
+
+def test_a_restore_that_does_not_fit_changes_nothing() -> None:
+    """A restore whose parts do not cover every step leaves every step as it was."""
+    data = connection().sql("SELECT * FROM (VALUES (1.0), (3.0)) t(a)")
+    learned = sq.Pipeline([sq.impute.median(), sq.scale.standard()]).learn(data)
+    fresh = sq.Pipeline([sq.impute.median(), sq.scale.standard()])
+    entries = learned._entries
+    assert entries is not None
+    with pytest.raises(SqlearnError, match="Fix:"):
+        fresh._restore(
+            entries[:1],
+            learned._types[:1],
+            learned._names[:1],
+            learned._columns_out,
+            None,
+            [[]],
+            None,
+        )
+    assert fresh._entries is None
+    with pytest.raises(AttributeError, match="after the step has learned"):
+        _ = fresh[0].value_
+
+
+# Settings that fill a numeric column with text: they cannot learn on any
+# frame of _PUBLIC_DATA, whose "a" is numeric.
+_TEXT_FILLS = {"impute value=const text", "impute value=dict"}
+_PUBLIC_CASES = [
+    (key, make)
+    for key, make in [*recipe_cases._default_cases(), *recipe_cases.DOCUMENTED_CHOICES]
+    if key not in _TEXT_FILLS
+]
+
+
+# A step that warns about what it learned warns at learn and again at load.
+@pytest.mark.filterwarnings("ignore::sqlearn._errors.SqlearnWarning")
+@pytest.mark.parametrize(
+    "make", [m for _, m in _PUBLIC_CASES], ids=[k for k, _ in _PUBLIC_CASES]
+)
+def test_every_public_step_loads_learned_and_applies_the_same(
+    tmp_path: Path, make: Any
+) -> None:
+    """Every public step's learned part passes the load's checks and applies."""
+    df = pd.DataFrame(
+        {
+            "a": [1.0, 2.0, 3.5, 4.0, 5.0, 6.0],
+            "b": [2.0, 3.0, 4.0, 5.0, 7.0, 9.0],
+            "z": [1.5, 2.5, 3.5, 0.5, 2.0, 1.0],
+            "city": ["x", "y", "x", None, "y", "x"],
+            "y": [1.0, 0.0, 1.0, 1.0, 0.0, 0.0],
+        }
+    )
+    pipe = sq.Pipeline([("s", make()), ("after", sq.Step())]).learn(df, target="y")
+    sq.save(pipe, tmp_path / "p.json")
+    loaded = sq.load(tmp_path / "p.json")
+    assert _rows(loaded.apply(df)) == _rows(pipe.apply(df))

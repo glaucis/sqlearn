@@ -6,7 +6,7 @@ steps learned from, the names of the columns they created and the columns
 out. See ``docs/specs/library-saving.md``, sections 4 and 6.
 """
 
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping
 from functools import partial
 
 import duckdb
@@ -16,6 +16,7 @@ from sqlearn._errors import SqlearnError
 from sqlearn._pipeline import Pipeline
 from sqlearn._saving.codec import decode, encode
 from sqlearn._saving.recipe import import_class
+from sqlearn._step import Step
 from sqlearn._store import Entry
 
 __all__ = ["learned_record", "restore_learned"]
@@ -135,10 +136,10 @@ def _mapping(value: object, where: str, what: str) -> dict[str, dict[str, object
     return {k: dict(v) for k, v in value.items()}
 
 
-def _entry(record: object, where: str) -> Entry:
+def _entry(record: object, where: str, allow: Collection[str]) -> Entry:
     if not isinstance(record, dict):
         raise _damaged(where, "the learned record is not an object")
-    resolve = partial(import_class, kind="object", where=where, allow=())
+    resolve = partial(import_class, kind="object", where=where, allow=allow)
     columns = _texts(record.get("columns"), where, "columns")
     values = decode(record.get("values"), f"{where}, learned values", resolve)
     folds = decode(record.get("folds"), f"{where}, learned folds", resolve)
@@ -153,11 +154,93 @@ def _entry(record: object, where: str) -> Entry:
     )
 
 
-def restore_learned(pipe: Pipeline, record: Mapping[str, object], where: str) -> None:
+def _learns(step: Step) -> list[str] | None:
+    """Return the names a step's `learn` gives, or None when it cannot say.
+
+    `learn` is called on a placeholder column, as the planner does; a step
+    whose names depend on the column or that cannot learn without data is
+    not checked.
+    """
+    try:
+        return list(step.learn(duckdb.ColumnExpression("x")))
+    except Exception:  # noqa: BLE001  (a step that cannot say is not checked)
+        return None
+
+
+def _check_values(
+    values: Mapping[str, Mapping[str, object]],
+    columns: list[str],
+    learns: list[str],
+    where: str,
+) -> None:
+    for name in learns:
+        have = values.get(name, {})
+        for column in columns:
+            if column not in have:
+                raise _damaged(
+                    where,
+                    f"the learned value {name!r} has nothing for column {column!r}",
+                )
+
+
+def _check_step(
+    step: Step,
+    position: int,
+    entry: Entry,
+    types: dict[str, DuckDBPyType],
+    created: dict[str, list[str]],
+    depends_on: list[int],
+    where: str,
+) -> None:
+    """Refuse a step's learned part that does not match what it learns."""
+    columns = set(entry.columns)
+    if set(types) != columns:
+        raise _damaged(
+            where, f"the types name {sorted(types)}, not its columns {entry.columns}"
+        )
+    stray = sorted(set(created) - columns)
+    if stray:
+        raise _damaged(where, f"names columns {stray} it did not learn from")
+    late = [i for i in depends_on if not 0 <= i < position - 1]
+    if late:
+        raise _damaged(
+            where, f"depends on step {late[0] + 1}, which is not a step before it"
+        )
+    learns = _learns(step)
+    if learns is not None:
+        _check_values(entry.values, entry.columns, learns, where)
+        for fold_values in entry.folds.values():
+            _check_values(fold_values, entry.columns, learns, where)
+
+
+def _check_columns_out(
+    columns_out: list[str], entry: Entry, created: dict[str, list[str]], where: str
+) -> None:
+    """Refuse columns out that the last step cannot have given."""
+    if len(set(columns_out)) != len(columns_out):
+        raise _damaged(where, "the columns out name a column twice")
+    out = set(columns_out)
+    for column in entry.columns:
+        made = created.get(column, [column])
+        missing = [c for c in made if c not in out]
+        if missing:
+            raise _damaged(
+                where,
+                f"the columns out lack {missing[0]!r}, which the last step gives",
+            )
+
+
+def restore_learned(
+    pipe: Pipeline,
+    record: Mapping[str, object],
+    where: str,
+    allow: Collection[str] = (),
+) -> None:
     """Give a loaded pipeline what it learned, as `learn` would.
 
     Each step gets its values and hears them (`Step.learned`) once, so its
     attributes ending in ``_`` read as before and `apply` works at once.
+    Every part is checked first: a damaged record changes nothing.
 
     Parameters
     ----------
@@ -167,11 +250,14 @@ def restore_learned(pipe: Pipeline, record: Mapping[str, object], where: str) ->
         What `learned_record` returned, after a trip through JSON.
     where : str
         The place, for errors.
+    allow : collection of str, default ()
+        Packages besides ``sqlearn`` whose classes a learned value may name.
+        Check them with `check_allowed` before calling this.
 
     Raises
     ------
     SqlearnError
-        When the record is damaged.
+        When the record is damaged, or does not match the pipeline's steps.
 
     Examples
     --------
@@ -188,7 +274,10 @@ def restore_learned(pipe: Pipeline, record: Mapping[str, object], where: str) ->
     """
     steps, _ = pipe._split()
     count = len(steps)
-    names = [f"{name} (step {position})" for position, (name, _) in enumerate(steps, 1)]
+    places = [
+        f"{where}, {name} (step {position})"
+        for position, (name, _) in enumerate(steps, 1)
+    ]
     target = record.get("target")
     if target is not None and type(target) is not str:
         raise _damaged(where, "the target is not text")
@@ -196,14 +285,14 @@ def restore_learned(pipe: Pipeline, record: Mapping[str, object], where: str) ->
     types = [
         _types(t, n)
         for t, n in zip(
-            _per_step(record.get("types"), count, where, "types"), names, strict=True
+            _per_step(record.get("types"), count, where, "types"), places, strict=True
         )
     ]
     created = [
         _names(c, n)
         for c, n in zip(
             _per_step(record.get("names"), count, where, "created names"),
-            names,
+            places,
             strict=True,
         )
     ]
@@ -213,12 +302,27 @@ def restore_learned(pipe: Pipeline, record: Mapping[str, object], where: str) ->
             raise _damaged(where, "the dependencies are not lists of numbers")
         depends_on.append(sorted(d))
     entries = [
-        _entry(r, n)
+        _entry(r, n, allow)
         for r, n in zip(
             _per_step(record.get("steps"), count, where, "learned steps"),
-            names,
+            places,
             strict=True,
         )
     ]
+    for position, (step, entry, t, c, d, n) in enumerate(
+        zip(
+            (s for _, s in steps),
+            entries,
+            types,
+            created,
+            depends_on,
+            places,
+            strict=True,
+        ),
+        start=1,
+    ):
+        _check_step(step, position, entry, t, c, d, n)
+    if entries:
+        _check_columns_out(columns_out, entries[-1], created[-1], where)
     # Task 5 reads the data's fingerprint; until then the input is unknown.
     pipe._restore(entries, types, created, columns_out, target, depends_on, None)

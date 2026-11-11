@@ -729,6 +729,15 @@ class Pipeline:
         learned (`Step.learned`), once.
         """
         steps, _ = self._split()
+        # All or nothing: everything is computed and checked before any step
+        # or the pipeline changes.
+        if not len(steps) == len(entries) == len(types) == len(names):
+            msg = (
+                f"the pipeline has {len(steps)} steps, but what it learned "
+                f"covers {len(entries)}; nothing was changed. Fix: learn the "
+                "pipeline again."
+            )
+            raise SqlearnError(msg)
         learned = [_by_column(entry.values) for entry in entries]
         for (_, step), values in zip(steps, learned, strict=True):
             step._set_learned(values)
