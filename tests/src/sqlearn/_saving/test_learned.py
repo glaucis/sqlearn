@@ -94,7 +94,8 @@ def test_learned_values_read_as_attributes_after_load(tmp_path: Path) -> None:
     assert list(learned) == [
         "data", "target", "columns_out", "types", "names", "depends_on", "steps",
     ]  # fmt: skip
-    assert learned["data"] == {"kind": "unknown"}
+    assert list(learned["data"]) == ["kind", "rows", "digest", "columns"]
+    assert learned["data"]["kind"] == "frame"
     assert list(learned["steps"][0]) == ["columns", "values", "folds"]
     loaded = sq.load(tmp_path / "p.json")
     # sq.impute.median() learns its medians as "value".

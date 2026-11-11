@@ -6,20 +6,84 @@ steps learned from, the names of the columns they created and the columns
 out. See ``docs/specs/library-saving.md``, sections 4 and 6.
 """
 
+import os
+import warnings
 from collections.abc import Collection, Mapping
 from functools import partial
 
 import duckdb
 from duckdb.sqltypes import DuckDBPyType
 
-from sqlearn._errors import SqlearnError
-from sqlearn._pipeline import Pipeline
+from sqlearn._errors import SqlearnError, SqlearnWarning
+from sqlearn._inputs import _PACKAGE, DataKey
+from sqlearn._pipeline import LearnedFrom, Pipeline
 from sqlearn._saving.codec import decode, encode
 from sqlearn._saving.recipe import import_class
 from sqlearn._step import Step
-from sqlearn._store import Entry
+from sqlearn._store import STORE, Entry, step_key
 
-__all__ = ["learned_record", "restore_learned"]
+__all__ = ["learned_record", "offer_saved", "restore_learned"]
+
+_UNKNOWN: dict[str, object] = {"kind": "unknown"}
+
+
+def _pairs(columns: tuple[tuple[str, str], ...]) -> list[list[str]]:
+    return [[name, dtype] for name, dtype in columns]
+
+
+def _data_record(source: LearnedFrom | None) -> dict[str, object]:
+    """Return the data a pipeline learned from as a record (spec section 6).
+
+    Only data whose key means the same in another process is saved: a file
+    or glob, a table of a database file, a pandas frame. A table with
+    writes not yet checkpointed is saved as unknown, with a warning: the
+    checkpoint DuckDB runs on close would give it another fingerprint.
+    """
+    if source is None:
+        return dict(_UNKNOWN)
+    origin, stable, columns = source
+    if stable is None:
+        return dict(_UNKNOWN)
+    if stable[0] == "file" and origin is not None:
+        return {
+            "kind": "file",
+            "pattern": os.path.join(origin[1], origin[2]),
+            "files": [list(f) for f in stable[1]],
+            "columns": _pairs(columns),
+        }
+    if stable[0] == "table":
+        _, file, table, rows, table_columns, storage = stable
+        if storage[1] or storage[2]:
+            warnings.warn(
+                f"the table {table} in {os.path.basename(file)} has writes "
+                "not yet checkpointed, so the learned values are saved "
+                "without its fingerprint and a new process learns them "
+                "again. Why: DuckDB writes them at the next checkpoint (at "
+                "the latest when the database closes), which changes the "
+                "table's storage though its data does not. Fix: run "
+                "CHECKPOINT before learning and saving, so the learned "
+                "values carry across processes.",
+                SqlearnWarning,
+                skip_file_prefixes=_PACKAGE,
+            )
+            return dict(_UNKNOWN)
+        return {
+            "kind": "table",
+            "file": file,
+            "table": table,
+            "rows": rows,
+            "columns": _pairs(table_columns),
+            "storage": [list(storage[0]), list(storage[1]), storage[2]],
+        }
+    if stable[0] == "frame":
+        _, rows, digest, frame_columns = stable
+        return {
+            "kind": "frame",
+            "rows": rows,
+            "digest": digest,
+            "columns": _pairs(frame_columns),
+        }
+    return dict(_UNKNOWN)
 
 
 def learned_record(pipe: Pipeline) -> dict[str, object] | None:
@@ -70,8 +134,7 @@ def learned_record(pipe: Pipeline) -> dict[str, object] | None:
             }
         )
     return {
-        # Task 5 saves the data's fingerprint here.
-        "data": {"kind": "unknown"},
+        "data": _data_record(pipe._source),
         "target": pipe._target,
         "columns_out": list(pipe._columns_out),
         "types": [{c: str(t) for c, t in types.items()} for types in pipe._types],
@@ -134,6 +197,90 @@ def _mapping(value: object, where: str, what: str) -> dict[str, dict[str, object
     ):
         raise _damaged(where, f"the {what} are not an object of objects")
     return {k: dict(v) for k, v in value.items()}
+
+
+def _numbers(value: object, where: str, what: str) -> list[int]:
+    if not isinstance(value, list) or any(type(v) is not int for v in value):
+        raise _damaged(where, f"the {what} are not a list of numbers")
+    return list(value)
+
+
+def _number(value: object, where: str, what: str) -> int:
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise _damaged(where, f"the {what} is not a number")
+    return value
+
+
+def _text(value: object, where: str, what: str) -> str:
+    if type(value) is not str:
+        raise _damaged(where, f"the {what} is not text")
+    return value
+
+
+def _column_pairs(value: object, where: str) -> tuple[tuple[str, str], ...]:
+    if not isinstance(value, list) or any(
+        not isinstance(p, list) or len(p) != 2 or any(type(v) is not str for v in p)
+        for p in value
+    ):
+        raise _damaged(where, "the data's columns are not pairs of text")
+    return tuple((str(p[0]), str(p[1])) for p in value)
+
+
+def _learned_from(value: object, where: str) -> LearnedFrom | None:
+    """Rebuild the data's origin and stable key exactly as `read` builds them.
+
+    None for data of kind ``unknown``.
+    """
+    if not isinstance(value, dict):
+        raise _damaged(where, "the data is not an object")
+    kind = value.get("kind")
+    where = f"{where}, data"
+    if kind == "unknown":
+        return None
+    if kind == "file":
+        pattern = _text(value.get("pattern"), where, "pattern")
+        files = value.get("files")
+        if not isinstance(files, list) or any(
+            not isinstance(f, list)
+            or len(f) != 3
+            or type(f[0]) is not str
+            or any(type(n) is not int for n in f[1:])
+            for f in files
+        ):
+            raise _damaged(where, "the files are not [path, size, time] lists")
+        stable: DataKey = ("file", tuple((p, n, t) for p, n, t in files))
+        origin = ("file", os.path.dirname(pattern), os.path.basename(pattern))
+        return origin, stable, _column_pairs(value.get("columns"), where)
+    if kind == "table":
+        file = _text(value.get("file"), where, "file")
+        table = _text(value.get("table"), where, "table")
+        columns = _column_pairs(value.get("columns"), where)
+        storage = value.get("storage")
+        if not isinstance(storage, list) or len(storage) != 3:
+            raise _damaged(where, "the storage is not [blocks, row groups, count]")
+        stable = (
+            "table",
+            file,
+            table,
+            _number(value.get("rows"), where, "row count"),
+            columns,
+            (
+                tuple(_numbers(storage[0], where, "storage blocks")),
+                tuple(_numbers(storage[1], where, "edited row groups")),
+                _number(storage[2], where, "count of unwritten segments"),
+            ),
+        )
+        return ("table", file, table), stable, columns
+    if kind == "frame":
+        columns = _column_pairs(value.get("columns"), where)
+        stable = (
+            "frame",
+            _number(value.get("rows"), where, "row count"),
+            _number(value.get("digest"), where, "digest"),
+            columns,
+        )
+        return None, stable, columns
+    raise _damaged(where, f"the kind {kind!r} is not known")
 
 
 def _entry(record: object, where: str, allow: Collection[str]) -> Entry:
@@ -324,5 +471,51 @@ def restore_learned(
         _check_step(step, position, entry, t, c, d, n)
     if entries:
         _check_columns_out(columns_out, entries[-1], created[-1], where)
-    # Task 5 reads the data's fingerprint; until then the input is unknown.
-    pipe._restore(entries, types, created, columns_out, target, depends_on, None)
+    source = _learned_from(record.get("data"), where)
+    pipe._restore(entries, types, created, columns_out, target, depends_on, source)
+
+
+def offer_saved(pipe: Pipeline, file: str) -> None:
+    """Offer a loaded pipeline's values to the store, by the data's stable key.
+
+    A `learn`, `train` or search of a pipeline with the same steps on the
+    same unchanged data then finds them and learns nothing; a file or table
+    is also remembered, so a change since the save is said at the next
+    learn (spec section 6). Nothing happens for data of kind ``unknown``.
+
+    Parameters
+    ----------
+    pipe : Pipeline
+        A pipeline given its learned values by `restore_learned`.
+    file : str
+        The saved file, as `load` was given it, for the warning.
+
+    Examples
+    --------
+    >>> import json, os, tempfile
+    >>> import pandas as pd
+    >>> import sqlearn as sq
+    >>> from sqlearn._store import STORE
+    >>> frame = pd.DataFrame({"a": [1.0, 3.0]})
+    >>> with tempfile.TemporaryDirectory() as folder:
+    ...     target = os.path.join(folder, "pipe.json")
+    ...     sq.save(sq.Pipeline([sq.scale.standard()]).learn(frame), target)
+    ...     sq.store.clear()
+    ...     loaded = sq.load(target)  # calls offer_saved
+    >>> _ = sq.Pipeline(loaded.steps).learn(frame)
+    >>> STORE.learns
+    Counter()
+    """
+    if pipe._source is None or pipe._entries is None:
+        return
+    origin, saved, _ = pipe._source
+    if saved is None:
+        return
+    stable = saved if pipe._target is None else (*saved, ("target", pipe._target))
+    steps, _ = pipe._split()
+    for i, entry in enumerate(pipe._entries):
+        depends_on = frozenset((pipe._depends_on or [])[i])
+        key = step_key(stable, None, steps, i, depends_on, entry.columns)
+        STORE.put_stable(key, entry)
+    if origin is not None:
+        STORE.remember_saved(origin, saved, file)

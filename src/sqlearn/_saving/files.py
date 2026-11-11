@@ -16,7 +16,7 @@ from sqlearn._errors import SqlearnError, SqlearnWarning
 from sqlearn._model import Model
 from sqlearn._pipeline import Pipeline
 from sqlearn._saving.codec import class_paths
-from sqlearn._saving.learned import learned_record, restore_learned
+from sqlearn._saving.learned import learned_record, offer_saved, restore_learned
 from sqlearn._saving.recipe import (
     build_model,
     build_step,
@@ -338,6 +338,7 @@ def load(
     pipe = Pipeline(built)
     if learned is not None and _same_state(records, built):
         restore_learned(pipe, learned, "the file's learned part", allow)
+        offer_saved(pipe, str(path))
     return pipe
 
 

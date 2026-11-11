@@ -165,14 +165,27 @@ class Store:
     def __init__(self) -> None:
         self._entries: dict[StepKey, Entry] = {}
         self.learns: Counter[str] = Counter()
+        # Entries from a saved file, by the key of the data's stable key
+        # (`Source.stable`): the live key holds what only one process knows.
+        self._stable: dict[StepKey, Entry] = {}
+        # Each saved source's stable key and file, by its `Source.origin`,
+        # until the next learn from it.
+        self._saved: dict[tuple[str, ...], tuple[DataKey, str]] = {}
 
-    def get(self, key: StepKey) -> Entry | None:
+    def get(self, key: StepKey, stable: DataKey | None = None) -> Entry | None:
         """Return the entry stored under a key, or None.
+
+        On a miss, and when `stable` is given, the entry a saved file put
+        under the same key with the data's stable key is returned, and filed
+        under `key` as well (no learn is counted).
 
         Parameters
         ----------
         key : tuple
             A key from `step_key`.
+        stable : tuple, optional
+            The data's stable key (`Source.stable`), to find an entry loaded
+            from a file. Never given for a fold of a search.
 
         Returns
         -------
@@ -181,11 +194,101 @@ class Store:
 
         Examples
         --------
-        >>> from sqlearn._store import Store
-        >>> Store().get((("t",), None, (), ())) is None
+        >>> from sqlearn._store import Entry, Store
+        >>> store = Store()
+        >>> store.get((("t",), None, (), ())) is None
+        True
+        >>> store.put_stable((("s",), None, (), ()), Entry({}, [], ""))
+        >>> store.get((("t",), None, (), ()), stable=("s",)) is not None
         True
         """
-        return self._entries.get(key)
+        entry = self._entries.get(key)
+        if entry is None and stable is not None:
+            entry = self._stable.get((stable, *key[1:]))
+            if entry is not None:
+                self._entries[key] = entry
+        return entry
+
+    def put_stable(self, key: StepKey, entry: Entry) -> None:
+        """Store an entry from a saved file under the data's stable key.
+
+        Nothing is learned, so no learn is counted.
+
+        Parameters
+        ----------
+        key : tuple
+            A key from `step_key`, made with the data's stable key.
+        entry : Entry
+            What the step learned, as the file holds it.
+
+        Examples
+        --------
+        >>> from sqlearn._store import Entry, Store
+        >>> store = Store()
+        >>> store.put_stable((("s",), None, (), ()), Entry({}, [], ""))
+        >>> len(store), store.learns
+        (0, Counter())
+        """
+        self._stable[key] = entry
+
+    def remember_saved(
+        self, origin: tuple[str, ...], stable: DataKey, file: str
+    ) -> None:
+        """Remember the data a loaded file's values were learned from.
+
+        Parameters
+        ----------
+        origin : tuple
+            The source's `Source.origin`.
+        stable : tuple
+            Its stable key when the values were learned.
+        file : str
+            The saved file, as `load` was given it.
+
+        Examples
+        --------
+        >>> from sqlearn._store import Store
+        >>> store = Store()
+        >>> store.remember_saved(("file", "/d", "c.csv"), ("k", 1), "p.json")
+        >>> store.changed_since_saved(("file", "/d", "c.csv"), ("k", 2))
+        ('p.json', ('k', 1))
+        """
+        self._saved[origin] = (stable, file)
+
+    def changed_since_saved(
+        self, origin: tuple[str, ...] | None, stable: DataKey | None
+    ) -> tuple[str, DataKey] | None:
+        """Say whether a source learned from changed since a file was saved.
+
+        Only the first learn from a remembered source is compared (said
+        once): the source is forgotten then, changed or not, and later
+        learns are new data as in any process.
+
+        Parameters
+        ----------
+        origin : tuple, optional
+            The source's `Source.origin`.
+        stable : tuple, optional
+            Its stable key now.
+
+        Returns
+        -------
+        tuple of (str, tuple) or None
+            The saved file and the stable key it holds, when the source is
+            remembered and its key differs; else None.
+
+        Examples
+        --------
+        >>> from sqlearn._store import Store
+        >>> Store().changed_since_saved(None, None) is None
+        True
+        """
+        if origin is None:
+            return None
+        saved = self._saved.pop(origin, None)
+        if saved is None or saved[0] == stable:
+            return None
+        return saved[1], saved[0]
 
     def put(self, key: StepKey, entry: Entry) -> None:
         """Store an entry and count one learn for the key's step.
@@ -254,7 +357,7 @@ class Store:
         return len(self._entries)
 
     def clear(self) -> None:
-        """Forget every entry and count.
+        """Forget every entry, count and saved source.
 
         Examples
         --------
@@ -262,6 +365,8 @@ class Store:
         >>> Store().clear()
         """
         self._entries.clear()
+        self._stable.clear()
+        self._saved.clear()
         self.learns.clear()
 
 

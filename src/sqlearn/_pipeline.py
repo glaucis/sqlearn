@@ -33,7 +33,13 @@ from sqlearn._diagnose import diagnose
 from sqlearn._errors import SqlearnError, StepError
 from sqlearn._expr import quote
 from sqlearn._feed import ROW, fetch, predict_streamed, stream_trainer
-from sqlearn._inputs import DataKey, Source, read
+from sqlearn._inputs import (
+    DataKey,
+    Source,
+    _names_and_types,
+    read,
+    warn_changed_since_saved,
+)
 from sqlearn._model import Model, as_model, check_feed, is_model
 from sqlearn._output import Output, to_output
 from sqlearn._plan import Plan, plan
@@ -61,8 +67,11 @@ class _FoldTable(NamedTuple):
     features: tuple[str, ...]
 
 
-LearnedFrom = tuple[tuple[str, str, str] | None, DataKey | None]
-"""The learned-from input's `Source.origin` and `Source.stable`."""
+LearnedFrom = tuple[
+    tuple[str, str, str] | None, DataKey | None, tuple[tuple[str, str], ...]
+]
+"""The learned-from input's `Source.origin`, `Source.stable` and columns with
+their types (as text)."""
 
 
 def _default_name(step: Step | object) -> str:
@@ -404,6 +413,13 @@ def _null(dtype: DuckDBPyType) -> Expression:
     return duckdb.ConstantExpression(None).cast(dtype)
 
 
+def _changed_since_saved(source: Source) -> None:
+    """Warn when a source learned from changed since a loaded file's save."""
+    changed = STORE.changed_since_saved(source.origin, source.stable)
+    if changed is not None and source.origin and source.stable:
+        warn_changed_since_saved(source.origin, source.stable, *changed)
+
+
 def _hold(source: Source) -> None:
     """Do nothing: a finaliser's argument stays alive until it is called."""
 
@@ -656,6 +672,7 @@ class Pipeline:
                     )
                     raise StepError(msg, step=name, position=i + 1)
         source = read(data, learning=True)
+        _changed_since_saved(source)
         con = connection()
         _source_sql(con, source)
         learn_from = source if target is None else self._features(source, target)
@@ -706,11 +723,12 @@ class Pipeline:
         """Keep what the steps learned; called last, once everything succeeded.
 
         `source` is the input as read, before the target is set aside: its
-        origin and stable key are kept for a saved file.
+        origin, stable key and columns are kept for a saved file.
         """
         self._restore(
             known, types, [stage.created for stage in stages], columns_out,
-            target, [sorted(d) for d in depends_on], (source.origin, source.stable),
+            target, [sorted(d) for d in depends_on],
+            (source.origin, source.stable, _names_and_types(source.schema)),
         )  # fmt: skip
 
     def _restore(
@@ -798,7 +816,9 @@ class Pipeline:
                 keys[i] = step_key(
                     source.key, fold, steps, i, the_plan.depends_on[i], matched
                 )
-                entry = entries[i] = STORE.get(keys[i])
+                # A fold of a search never finds values a file saved.
+                stable = source.stable if fold is None else None
+                entry = entries[i] = STORE.get(keys[i], stable=stable)
                 if entry is None:
                     built[i] = (schema, previous, matched)
             if entry is not None:
@@ -1110,10 +1130,12 @@ class Pipeline:
                 for cv, seed in folds
             ),
         ]
+        aside = ("target", target)
         return Source(
             rel.project(*(duckdb.ColumnExpression(c) for c in feature_names), *beside),
-            (*source.key, ("target", target)),
+            (*source.key, aside),
             features,
+            None if source.stable is None else (*source.stable, aside),
         )
 
     def _prepare_fold(
@@ -1201,6 +1223,7 @@ class Pipeline:
 
     def _train(self, source: Source, target: str, feed: str) -> "Pipeline":
         """Train on data already read, as `train` describes."""
+        _changed_since_saved(source)
         steps, model = self._modelled()
         con = connection()
         _source_sql(con, source)
