@@ -374,19 +374,75 @@ def _decode_tagged(
         case "estimator":
             path = _text(data["class"], "class")
             if path in rebuilt():
-                raise _refuse(
-                    where,
-                    f"the file names {path!r} as an estimator",
-                    "a fold scheme is saved as an object, never as an "
-                    "estimator, so the file is damaged or was edited.",
-                    "save the pipeline again, or restore the file from where it came.",
-                )
+                raise _fold_as_estimator(path, where)
             cls = resolve(path)
             params = data["params"]
             if not isinstance(params, dict):
                 raise TypeError("params is not an object")
             return cls(**{name: sub(v) for name, v in params.items()})
     raise _bad(where, f"a tag of an unknown kind, {tag!r}")
+
+
+def _fold_as_estimator(path: str, where: str) -> SqlearnError:
+    return _refuse(
+        where,
+        f"the file names {path!r} as an estimator",
+        "a fold scheme is saved as an object, never as an "
+        "estimator, so the file is damaged or was edited.",
+        "save the pipeline again, or restore the file from where it came.",
+    )
+
+
+def _not_built_from_settings(path: str, where: str) -> SqlearnError:
+    return _refuse(
+        where,
+        f"the file names the class {path!r}, which is not a step, a model or "
+        "an estimator and which sq.load does not build from settings",
+        "a file rebuilds only the fold schemes of sq.folds from settings, "
+        "as building another class could run what it does on creation, "
+        "so the file is damaged or was edited.",
+        "save the pipeline again, or restore the file from where it came.",
+    )
+
+
+def check_classes(data: object, where: str, resolve: Callable[[str], type]) -> None:
+    """Refuse every class `decode` would refuse, building nothing.
+
+    `decode` refuses a class as it reaches it; this walks the same tags first,
+    so a file is refused whole before any record in it is built.
+
+    Parameters
+    ----------
+    data : object
+        Encoded values, as read from the file.
+    where : str
+        The place, for errors.
+    resolve : callable
+        The resolver `decode` would use.
+
+    Raises
+    ------
+    SqlearnError
+        On the first object or estimator tag `decode` would refuse.
+
+    Examples
+    --------
+    >>> from sqlearn._saving.codec import check_classes, no_class
+    >>> check_classes([1, {"$": "tuple", "items": []}], "demo", no_class)
+    """
+    if isinstance(data, list):
+        for item in data:
+            check_classes(item, where, resolve)
+    elif isinstance(data, dict):
+        tag, path = data.get("$"), data.get("class")
+        if tag in ("object", "estimator") and type(path) is str:
+            if tag == "object" and path not in rebuilt():
+                raise _not_built_from_settings(path, where)
+            if tag == "estimator" and path in rebuilt():
+                raise _fold_as_estimator(path, where)
+            resolve(path)
+        for item in data.values():
+            check_classes(item, where, resolve)
 
 
 def _decode_object(
@@ -401,15 +457,7 @@ def _decode_object(
     path = _text(data["class"], "class")
     found = rebuilt().get(path)
     if found is None:
-        raise _refuse(
-            where,
-            f"the file names the class {path!r}, which is not a step, a model or "
-            "an estimator and which sq.load does not build from settings",
-            "a file rebuilds only the fold schemes of sq.folds from settings, "
-            "as building another class could run what it does on creation, "
-            "so the file is damaged or was edited.",
-            "save the pipeline again, or restore the file from where it came.",
-        )
+        raise _not_built_from_settings(path, where)
     cls, names = found
     if resolve(path) is not cls:
         raise _bad(where, f"the class {path!r} resolved to another class")

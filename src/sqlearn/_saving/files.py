@@ -18,13 +18,21 @@ from pathlib import Path
 from sqlearn._errors import SqlearnError, SqlearnWarning
 from sqlearn._model import FEEDS, Model
 from sqlearn._pipeline import Pipeline
-from sqlearn._saving.codec import class_paths, decode, encode, no_class
+from sqlearn._saving.codec import (
+    check_classes,
+    class_paths,
+    decode,
+    encode,
+    no_class,
+)
 from sqlearn._saving.learned import learned_record, offer_saved, restore_learned
 from sqlearn._saving.models import FORMATS, ModelFormat
 from sqlearn._saving.recipe import (
     build_model,
     build_step,
     check_imported,
+    check_model,
+    check_step,
     model_record,
     record_class_paths,
     step_record,
@@ -463,6 +471,17 @@ def load(
         if model_file is not None:
             paths |= class_paths(dict(model_file))
         check_imported(paths)
+        # The whole file is checked before the first record is built.
+        for position, record in enumerate(records, start=1):
+            where = f"{record['name']} (step {position})"
+            if record["kind"] == "model":
+                check_model(record, where)
+            else:
+                check_step(record, where)
+        if learned is not None:
+            check_classes(learned, "the file's learned part", no_class)
+        if model_file is not None:
+            check_classes(dict(model_file), "the model file", no_class)
         built: list[tuple[str, Step | Model]] = []
         file = repr(str(path))
         for position, record in enumerate(records, start=1):

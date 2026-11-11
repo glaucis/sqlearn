@@ -19,7 +19,6 @@ from sqlearn._errors import SqlearnError
 from sqlearn._saving.recipe import (
     build_model,
     build_step,
-    check_imported,
     class_path,
     import_class,
     model_record,
@@ -354,19 +353,69 @@ def test_every_class_not_imported_is_named_at_once(tmp_path: Path) -> None:
 
 
 def test_a_submodule_not_imported_is_refused_with_the_package_named(
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A class of a submodule not imported is refused, naming the package to import."""
+    target = tmp_path / "p.json"
+    sq.save(sq.Pipeline([sq.Model(LogisticRegression())]), target)
     for name in [
         name for name in sys.modules if name.startswith("sklearn.linear_model")
     ]:
         monkeypatch.delitem(sys.modules, name)
-    paths = ["sklearn.linear_model._logistic:LogisticRegression"]
     with pytest.raises(SqlearnError) as raised:
-        check_imported(paths)
-    assert "Fix: import LogisticRegression from sklearn before loading" in str(
-        raised.value
+        sq.load(target)
+    text = str(raised.value)
+    assert "sklearn.linear_model._logistic:LogisticRegression" in text
+    assert "Fix: import LogisticRegression from sklearn before loading" in text
+
+
+def test_a_path_through_a_lazy_module_attribute_imports_nothing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Looking a class up runs no module __getattr__, so nothing is imported."""
+    import sklearn
+
+    from tests.src.sqlearn._saving import lazy
+
+    lazy.calls.clear()
+    monkeypatch.delitem(sys.modules, "sklearn.datasets", raising=False)
+    monkeypatch.delitem(vars(sklearn), "datasets", raising=False)
+    for named in ("sklearn:datasets.X", f"{lazy.__name__}:Missing.X"):
+        target = _file_naming(tmp_path, named, "step")
+        with pytest.raises(SqlearnError, match="Fix:"):
+            sq.load(target)
+    assert lazy.calls == []
+    assert "sklearn.datasets" not in sys.modules
+
+
+@pytest.mark.parametrize("place", ["later step", "later model"])
+def test_every_class_is_checked_before_the_first_step_is_built(
+    tmp_path: Path, place: str
+) -> None:
+    """A valid earlier record is not built when a later record is refused."""
+    import subprocess
+
+    from sqlearn.preprocessing.impute import Impute
+
+    target = tmp_path / "p.json"
+    pipe = sq.Pipeline(
+        [sq.impute.median(), sq.transform.log(), sq.Model(LogisticRegression())]
     )
+    sq.save(pipe, target)
+    data = json.loads(target.read_text())
+    if place == "later step":
+        data["steps"][1]["class"] = "subprocess:Popen"
+    else:
+        data["steps"][2]["estimator"]["class"] = "subprocess:Popen"
+    target.write_text(json.dumps(data))
+    with (
+        mock.patch.object(Impute, "__init__", return_value=None) as first,
+        mock.patch.object(subprocess.Popen, "__init__", return_value=None) as bad,
+        pytest.raises(SqlearnError, match="not a step, a model or an estimator"),
+    ):
+        sq.load(target)
+    first.assert_not_called()
+    bad.assert_not_called()
 
 
 @pytest.mark.parametrize("place", ["step", "model", "nested", "object"])

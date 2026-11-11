@@ -6,6 +6,7 @@ named in a file is looked up: `check_imported` refuses a class whose module
 is not imported, and nothing is ever imported.
 """
 
+import inspect
 import sys
 import types
 from collections.abc import Callable, Iterable, Mapping
@@ -14,13 +15,15 @@ from typing import Literal
 
 from sqlearn._errors import SqlearnError
 from sqlearn._model import Model
-from sqlearn._saving.codec import class_paths, decode, encode, rebuilt
+from sqlearn._saving.codec import check_classes, class_paths, decode, encode, rebuilt
 from sqlearn._step import Step
 
 __all__ = [
     "build_model",
     "build_step",
     "check_imported",
+    "check_model",
+    "check_step",
     "class_path",
     "import_class",
     "model_record",
@@ -170,29 +173,32 @@ def import_class(
             "a class is written as module:qualname.",
             "save the pipeline again, or restore the file from where it came.",
         )
-    found: object | None = sys.modules.get(module)
-    if found is None:
+    imported = sys.modules.get(module)
+    if imported is None:
         check_imported([path])
-    for part in qualname.split("."):
-        try:
-            found = getattr(found, part)
-            if isinstance(found, types.ModuleType):
-                raise _refuse(
-                    where,
-                    f"{path!r} walks through the module {part!r}",
-                    "a class path names a class of its module, not one reached "
-                    "through another module.",
-                    "save the pipeline again, or restore the file from where it came.",
-                )
-        except AttributeError as error:
-            raise _refuse(
-                where,
-                f"{module!r} has no {qualname!r}",
-                "the class was renamed, moved or removed since the file was saved, "
-                "or the package is another version.",
-                f"install the version of {module.split('.')[0]!r} the file was "
-                "saved with.",
-            ) from error
+    # No module __getattr__ and no descriptor runs: a lookup that can import
+    # would break the rule that sq.load imports nothing.
+    first, *rest = qualname.split(".")
+    found: object = vars(imported).get(first)
+    for part in rest:
+        if found is not None and not isinstance(found, types.ModuleType):
+            found = inspect.getattr_static(found, part, None)
+    if found is None or isinstance(found, types.ModuleType):
+        gone = found is None
+        raise _refuse(
+            where,
+            f"{module!r} has no {qualname!r}"
+            if gone
+            else f"{path!r} walks through the module {first!r}",
+            "the class was renamed, moved or removed since the file was saved, "
+            "or the package is another version."
+            if gone
+            else "a class path names a class of its module, not one reached "
+            "through another module.",
+            f"install the version of {module.split('.')[0]!r} the file was saved with."
+            if gone
+            else "save the pipeline again, or restore the file from where it came.",
+        )
     if not isinstance(found, type):
         raise _refuse(
             where,
@@ -523,6 +529,88 @@ def _sqlearn_estimator(path: str, where: str) -> SqlearnError:
     )
 
 
+def _model_parts(
+    record: Mapping[str, object], where: str
+) -> tuple[type, dict[str, object], str]:
+    """Return a model record's class, estimator record and estimator's path."""
+    cls = import_class(_path(record, where), "object", where)
+    if not issubclass(cls, Model):
+        raise _refuse(
+            where,
+            f"{cls.__qualname__} is not sq.Model",
+            "a model record holds an sq.Model.",
+            "save the pipeline again, or restore the file from where it came.",
+        )
+    estimator_record = _field(record, "estimator", where)
+    if not isinstance(estimator_record, dict):
+        raise _refuse(
+            where,
+            "the estimator is not an object",
+            "it is not a record sqlearn writes, so the file is damaged or was edited.",
+            "save the pipeline again, or restore the file from where it came.",
+        )
+    typed: dict[str, object] = {str(k): v for k, v in estimator_record.items()}
+    return cls, typed, _path(typed, where)
+
+
+def check_step(record: Mapping[str, object], where: str) -> None:
+    """Refuse a step record's classes, building nothing.
+
+    Parameters
+    ----------
+    record : mapping
+        A step record, as read from the file.
+    where : str
+        The place, for errors.
+
+    Raises
+    ------
+    SqlearnError
+        When its class is not an imported step, or a setting names a class a
+        step may not hold.
+
+    Examples
+    --------
+    >>> import sqlearn as sq
+    >>> from sqlearn._saving.recipe import check_step, step_record
+    >>> check_step(step_record("t", sq.transform.log(), 1), "t")
+    """
+    import_class(_path(record, where), "step", where)
+    check_classes(_settings(record, where), where, partial(_registered, where=where))
+
+
+def check_model(record: Mapping[str, object], where: str) -> None:
+    """Refuse a model record's classes, building nothing.
+
+    Parameters
+    ----------
+    record : mapping
+        A model record, as read from the file.
+    where : str
+        The place, for errors.
+
+    Raises
+    ------
+    SqlearnError
+        When the record's class is not an imported ``sq.Model``, or the
+        estimator or one nested in it is not an imported estimator.
+
+    Examples
+    --------
+    >>> from sqlearn._errors import SqlearnError
+    >>> from sqlearn._saving.recipe import check_model
+    >>> try:
+    ...     check_model({"class": "sqlearn._model:Model"}, "demo")
+    ... except SqlearnError as error:
+    ...     print(str(error).split(".")[0])
+    demo: the record has no 'estimator'
+    """
+    _, estimator_record, top = _model_parts(record, where)
+    resolve = partial(_import_of, top=top, where=where)
+    check_classes(estimator_record, where, resolve)
+    check_classes(_settings(record, where), where, partial(_registered, where=where))
+
+
 def build_model(
     record: Mapping[str, object],
     where: str,
@@ -560,24 +648,7 @@ def build_model(
     ...     print(str(error).split(".")[0])
     demo: the record has no 'estimator'
     """
-    cls = import_class(_path(record, where), "object", where)
-    if not issubclass(cls, Model):
-        raise _refuse(
-            where,
-            f"{cls.__qualname__} is not sq.Model",
-            "a model record holds an sq.Model.",
-            "save the pipeline again, or restore the file from where it came.",
-        )
-    estimator_record = _field(record, "estimator", where)
-    if not isinstance(estimator_record, dict):
-        raise _refuse(
-            where,
-            "the estimator is not an object",
-            "it is not a record sqlearn writes, so the file is damaged or was edited.",
-            "save the pipeline again, or restore the file from where it came.",
-        )
-    top = _path(estimator_record, where)
-
+    cls, estimator_record, top = _model_parts(record, where)
     resolve = partial(_import_of, top=top, where=where)
     estimator = decode(estimator_record, where, resolve)
     # sq.Model's own settings are values: they hold no estimator.
