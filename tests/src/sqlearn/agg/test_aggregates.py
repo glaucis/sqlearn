@@ -644,6 +644,15 @@ def test_an_approximate_median_sits_inside_a_larger_expression():
     assert got == pytest.approx(4.0 - 3.0, abs=0.5)
 
 
+def test_an_approximate_median_of_integers_is_a_double_as_the_exact_one():
+    """On INTEGER values both medians are DOUBLE, as the docstring says."""
+    exact = learn([1, 2, 3, 4], sq.agg.median, kind="INTEGER")
+    approx = learn([1, 2, 3, 4], sq.agg.median(approx=True), kind="INTEGER")
+    assert type(exact) is float
+    assert type(approx) is float
+    assert 2.0 <= approx <= 3.0
+
+
 def test_an_approximate_median_of_nulls_only_is_null():
     """No present value, no median."""
     assert learn([None, None], sq.agg.median(approx=True)) is None
