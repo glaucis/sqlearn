@@ -18,10 +18,8 @@ None.
 
 ## Next up
 
-- The saving area's GitHub steps: close #20 and part 1 of #24 (retitle #24
-  "Export a trained pipeline as standalone code"), open the summary issue
-  (replace `#TBD` in `CLAUDE.md`), file issues for model formats other than
-  pickle and for learned TIMESTAMP WITH TIME ZONE values (need pytz at learn).
+- #55 (a model format that cannot run code) and #56 (a learned zoned
+  timestamp needs pytz), from the saving area, both needs-triage.
 - Re-measure the category lookup on an idle machine (check `uptime` first;
   the load was about 30 on 2026-11-11): both encoders at 15,000, 20,000 and
   100,000 categories, one count per process, then lower `WARN_ABOVE` if the
@@ -34,9 +32,8 @@ None.
   or a fetcher of real datasets (ADR 0006: an explicit call).
 - The target encoder's learn after #41 is mostly Python `Fraction` arithmetic
   in `_encodings`/`_totals`: file an issue if it matters.
-- The saving area's parked minor findings (none blocks): the ledger
-  `.superpowers/sdd/2026-11-11-library-saving/progress.md` in the worktree;
-  move them into the summary issue, then delete the worktree.
+- Delete the merged worktree `.worktrees/library-saving` and its branch; its
+  ledger's findings are in #57.
 
 ## Dead ends and traps
 
@@ -91,6 +88,8 @@ None.
 
 ## Just finished
 
+- The saving area's GitHub steps: #20 closed, #24 retitled for part 2, summary
+  #57, follow-ups #55 and #56. (2026-11-11)
 - The `allow=` alias gap in `sq.load` closed (`19df10d`): an estimator is
   never a sqlearn class however it is named. (2026-11-11)
 - The saving area (the fifth 3.3 area): `sq.save` and `sq.load`; spec

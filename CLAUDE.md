@@ -28,7 +28,7 @@ built.
   #45. Its fifth, saving a pipeline (`sq.save`, `sq.load`), is built: spec
   `docs/specs/library-saving.md`, plan
   `docs/plans/2026-11-11-library-saving.md`, ADR 0047, summary in issue
-  #TBD. **Next:** the next 3.3 area, not chosen yet.
+  #57. **Next:** the next 3.3 area, not chosen yet.
 
 Rules from the ADRs:
 
