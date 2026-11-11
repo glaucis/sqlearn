@@ -261,6 +261,65 @@ def test_a_model_parameter_naming_a_sqlearn_class_builds_nothing(
     assert not made.exists()
 
 
+_ALIASED = "tests.src.sqlearn._saving.aliased:KeptFolds"
+
+
+@pytest.mark.parametrize("where", ["top", "nested"])
+def test_an_estimator_reaching_a_sqlearn_class_through_an_allowed_package_builds_nothing(  # noqa: E501
+    tmp_path: Path, where: str
+) -> None:
+    """An allowed package that imports a sqlearn class does not open it up."""
+    made = tmp_path / "made.duckdb"
+    path = tmp_path / "m.json"
+    sq.save(sq.Pipeline([sq.Model(LogisticRegression())]), path)
+    data = json.loads(path.read_text())
+    aliased = {"$": "estimator", "class": _ALIASED, "params": {"path": str(made)}}
+    if where == "top":
+        data["steps"][-1]["estimator"] = aliased
+    else:
+        data["steps"][-1]["estimator"]["params"]["C"] = aliased
+    path.write_text(json.dumps(data))
+    with pytest.raises(SqlearnError, match=r"(?s)KeptFolds.*Why:.*Fix:"):
+        sq.load(path, allow=["sklearn", "tests"])
+    assert not made.exists()
+
+
+@pytest.mark.parametrize("place", ["step setting", "model parameter"])
+def test_an_estimator_tag_naming_a_fold_scheme_is_refused(
+    tmp_path: Path, place: str
+) -> None:
+    """A fold scheme is rebuilt only as an object, never as an estimator."""
+    kfold = {"$": "estimator", "class": "sqlearn.model_selection.folds:KFold",
+             "params": {"n": 3, "seed": 0}}  # fmt: skip
+    path = tmp_path / "m.json"
+    if place == "step setting":
+        path = _write(path)
+        data = json.loads(path.read_text())
+        data["steps"][0]["settings"]["method"] = kfold
+    else:
+        sq.save(sq.Pipeline([sq.Model(LogisticRegression())]), path)
+        data = json.loads(path.read_text())
+        data["steps"][-1]["estimator"]["params"]["C"] = kfold
+    path.write_text(json.dumps(data))
+    with pytest.raises(SqlearnError, match=r"(?s)KFold.*Why:.*Fix:"):
+        sq.load(path, allow=["sklearn"])
+
+
+def test_a_model_setting_holding_an_estimator_is_refused(tmp_path: Path) -> None:
+    """sq.Model's own settings are values: an estimator there is refused."""
+    path = tmp_path / "m.json"
+    sq.save(sq.Pipeline([sq.Model(LogisticRegression())]), path)
+    data = json.loads(path.read_text())
+    data["steps"][-1]["settings"]["seed"] = {
+        "$": "estimator",
+        "class": "sklearn.linear_model._logistic:LogisticRegression",
+        "params": {},
+    }
+    path.write_text(json.dumps(data))
+    with pytest.raises(SqlearnError, match=r"(?s)LogisticRegression.*Why:.*Fix:"):
+        sq.load(path, allow=["sklearn"])
+
+
 def test_the_models_categories_naming_a_class_build_nothing(
     tmp_path: Path,
 ) -> None:

@@ -372,7 +372,16 @@ def _decode_tagged(
         case "object":
             return _decode_object(data, where, resolve)
         case "estimator":
-            cls = resolve(_text(data["class"], "class"))
+            path = _text(data["class"], "class")
+            if path in rebuilt():
+                raise _refuse(
+                    where,
+                    f"the file names {path!r} as an estimator",
+                    "a fold scheme is saved as an object, never as an "
+                    "estimator, so the file is damaged or was edited.",
+                    "save the pipeline again, or restore the file from where it came.",
+                )
+            cls = resolve(path)
             params = data["params"]
             if not isinstance(params, dict):
                 raise TypeError("params is not an object")

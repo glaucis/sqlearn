@@ -48,9 +48,12 @@ learned values, that is safe to open and readable in a diff.
   in the file is read and checked before any is imported, and the whole file
   is refused when one package is not allowed. The class a path finally
   resolves to is checked too, by the module that defines it, so a name
-  re-exported from an allowed package into another cannot slip past. The
-  learned part and the model's categories name no class: one named there is
-  refused.
+  re-exported from an allowed package into another cannot slip past. An
+  estimator, top-level or nested, is never a class of sqlearn, whether its
+  path starts in sqlearn or in an allowed package that imports one; a fold
+  scheme comes back only by the `object` tag, never as an estimator; and
+  `sq.Model`'s own settings hold no estimator. The learned part and the
+  model's categories name no class: one named there is refused.
 - **The store's stable key is a second key**: learned values are saved under
   the key a step's values are stored by, with the data's fingerprint, so a
   later `learn` on unchanged data learns nothing again, and on changed data

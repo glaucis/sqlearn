@@ -362,6 +362,12 @@
     },
     {
       "area": "sqlearn/_saving/files",
+      "name": "tests/src/sqlearn/_saving/test_files.py::test_a_model_setting_holding_an_estimator_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/files",
       "name": "tests/src/sqlearn/_saving/test_files.py::test_a_path_whose_folder_does_not_exist_is_refused",
       "outcome": "passed",
       "tier": "fast"
@@ -411,6 +417,30 @@
     {
       "area": "sqlearn/_saving/files",
       "name": "tests/src/sqlearn/_saving/test_files.py::test_allow_given_as_text_is_refused_with_a_list_in_the_fix",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/files",
+      "name": "tests/src/sqlearn/_saving/test_files.py::test_an_estimator_reaching_a_sqlearn_class_through_an_allowed_package_builds_nothing[nested]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/files",
+      "name": "tests/src/sqlearn/_saving/test_files.py::test_an_estimator_reaching_a_sqlearn_class_through_an_allowed_package_builds_nothing[top]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/files",
+      "name": "tests/src/sqlearn/_saving/test_files.py::test_an_estimator_tag_naming_a_fold_scheme_is_refused[model parameter]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/files",
+      "name": "tests/src/sqlearn/_saving/test_files.py::test_an_estimator_tag_naming_a_fold_scheme_is_refused[step setting]",
       "outcome": "passed",
       "tier": "fast"
     },

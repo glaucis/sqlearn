@@ -502,23 +502,33 @@ def _registered(path: str, where: str) -> type:
 def _import_of(path: str, top: str, where: str, allow: Collection[str]) -> type:
     """Return a class a model record may name, importing it when allowed.
 
-    sqlearn has no estimators: an estimator path into sqlearn is refused as
-    text, before it is imported or built.
+    sqlearn has no estimators. An estimator path into sqlearn is refused as
+    text, before it is imported; a path into an allowed package that lands on
+    a class of sqlearn (one that package imports) is refused once found,
+    before it is built. A fold scheme comes back only for an object tag: the
+    codec refuses an estimator tag naming one.
     """
     found = rebuilt().get(path)
     if found is not None:
         return found[0]
     if path.partition(":")[0].split(".")[0] == "sqlearn":
-        raise _refuse(
-            where,
-            f"the estimator {path!r} is a class of sqlearn",
-            "sqlearn has no estimators, and building another of its classes "
-            "could run what it does on creation, so the file is damaged or was "
-            "edited.",
-            "save the pipeline again, or restore the file from where it came.",
-        )
+        raise _sqlearn_estimator(path, where)
     kind: Literal["model", "object"] = "model" if path == top else "object"
-    return import_class(path, kind, where, allow)
+    cls = import_class(path, kind, where, allow)
+    if cls.__module__.split(".")[0] == "sqlearn":
+        raise _sqlearn_estimator(path, where)
+    return cls
+
+
+def _sqlearn_estimator(path: str, where: str) -> SqlearnError:
+    """Refuse an estimator that is a class of sqlearn, however it is named."""
+    return _refuse(
+        where,
+        f"the estimator {path!r} is a class of sqlearn",
+        "sqlearn has no estimators, and building another of its classes could "
+        "run what it does on creation, so the file is damaged or was edited.",
+        "save the pipeline again, or restore the file from where it came.",
+    )
 
 
 def build_model(
@@ -581,7 +591,8 @@ def build_model(
 
     resolve = partial(_import_of, top=top, where=where, allow=allow)
     estimator = decode(estimator_record, where, resolve)
-    settings = _decoded_settings(record, where, resolve)
+    # sq.Model's own settings are values: they hold no estimator.
+    settings = _decoded_settings(record, where, partial(_registered, where=where))
     built = _construct(cls, where, file, estimator=estimator, **settings)
     assert isinstance(built, Model)
     return built
