@@ -10,26 +10,29 @@ Verify with: `just verify`
 
 ## In progress
 
-None.
+- The saving area (the fifth 3.3 area, #20 and part 1 of #24): spec
+  `docs/specs/library-saving.md` approved; plan
+  `docs/plans/2026-11-11-library-saving.md` written, not started. Tomas ruled
+  the trained model is saved opt-in by pickle, with room for other formats.
+  (since 2026-11-11)
 
 ## Waiting on the user
 
-- Fix batch 3's rulings, to confirm or overturn (each on its issue): R6 (#50),
-  a table edited and learned from in a new process, or after a checkpoint
-  writes pending rows, is prepared again without a warning; R7 (#31), the
-  lookup warning starts at 30,000 categories, measured under load, so
-  re-measure on an idle machine; R8 (#31), the target encoder never warns, as
-  the hash was slower for it; R10 (#31), a collated column is not refused with
-  `lookup="hash"`, only documented, as a step cannot see the collation.
-  (since 2026-11-11)
+- Review of the saving plan and the choice of how to run it (subagent-driven
+  or native). (since 2026-11-11)
 
 ## Next up
 
+- Re-measure the category lookup on an idle machine (check `uptime` first;
+  the load was about 30 on 2026-11-11): both encoders at 15,000, 20,000 and
+  100,000 categories, one count per process, then lower `WARN_ABOVE` if the
+  ordinal crossover is below 30,000 and give the target encoder a warning if
+  the hash wins for it (R7, R8 on #31).
 - #46 (generators on many threads: needs a parallel, ordered, lazy row
   source; measurements in the issue) and #49 (learn nested aggregates; an ADR
   amending 0036/0044), both ready-for-agent and needing a design first.
-- Choose the next 3.3 area: more metrics (confusion matrix, report, curves,
-  fbeta), or a fetcher of real datasets (ADR 0006: an explicit call).
+- After saving, the next 3.3 area: more metrics (confusion matrix, report,
+  curves, fbeta), or a fetcher of real datasets (ADR 0006: an explicit call).
 - The target encoder's learn after #41 is mostly Python `Fraction` arithmetic
   in `_encodings`/`_totals`: file an issue if it matters.
 
@@ -81,6 +84,9 @@ None.
 
 ## Just finished
 
+- Fix batch 3's rulings confirmed by Tomas, each recorded on its issue: R6
+  (#50; its cross-process warning goes with saving learned state, noted on
+  #20), R7, R8 and R10 (#31). (2026-11-11)
 - Fix batch 3, merged into `main` (`ead6712`) and pushed; plan
   `docs/plans/2026-11-10-fix-batch-3.md`. Closed: #47 (regression clips
   `n_informative` with a warning), #48 (`ordered=True`), #50 (a table edited in
