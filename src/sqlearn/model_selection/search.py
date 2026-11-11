@@ -303,7 +303,8 @@ class Search:
     such key (a relation, a table of an in-memory database) is refused, and
     so is a step setting that cannot be keyed by its content. A table
     edited in place gets new storage blocks and so is prepared again, with
-    a `SqlearnWarning` when this process learned from it before. An edit
+    a `SqlearnWarning` when this process learned from it before: warned once
+    per change of the table, by whichever learns from it first. An edit
     still in the write-ahead log may not be seen yet: run ``CHECKPOINT``
     after editing. Not seen: a change to the code of a step of your own, with the
     same class name and settings; and a change to sqlearn's code in an
