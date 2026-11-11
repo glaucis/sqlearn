@@ -24,7 +24,7 @@ from sqlearn._saving.models import FORMATS, ModelFormat
 from sqlearn._saving.recipe import (
     build_model,
     build_step,
-    check_allowed,
+    check_imported,
     model_record,
     record_class_paths,
     step_record,
@@ -382,26 +382,23 @@ def _step_records(data: Mapping[str, object]) -> list[Mapping[str, object]]:
 def load(
     path: str | os.PathLike[str],
     *,
-    allow: Sequence[str] = (),
     trust_model: bool = False,
 ) -> Pipeline:
     """Load a pipeline saved with `save`.
 
-    Nothing the file names is imported until every class in it has been
-    checked: only ``sqlearn`` classes load unless you allow other packages.
+    Nothing is imported: you import the packages the file names (``import
+    sklearn`` for a scikit-learn model) before loading, so loading a file can
+    never run code you did not choose to run. Only steps, models, nested
+    estimators and fold schemes are built.
 
     Parameters
     ----------
     path : str or os.PathLike
         The file `save` wrote.
-    allow : sequence of str, default ()
-        Top-level packages, besides ``sqlearn``, whose classes the file may
-        name (``["sklearn"]`` for a pipeline ending in a scikit-learn model).
-        Allow only a package you trust: importing it runs its code.
     trust_model : bool, default False
         Open the trained model file the JSON names, when there is one. Opening
         a pickle can run any code its author put in it, and imports whatever
-        modules it names, whatever `allow` says: pass True only for files you
+        modules it names: pass True only for files you
         trust. The file is opened only if its SHA-256 matches the JSON's, which
         proves only that the two files match, and its model is kept only if
         it is of the class the recipe names, checked after it is opened. Left
@@ -417,9 +414,9 @@ def load(
     Raises
     ------
     SqlearnError
-        When `allow` is text rather than a list; when the file is not a
-        sqlearn file, is of a newer format, is missing or has unknown fields,
-        nests values too deeply, names a package that is not allowed, or names
+        When the file is not a sqlearn file, is of a newer format, is missing
+        or has unknown fields, nests values too deeply, names a class whose
+        module is not imported, or names
         a class that is missing, of the wrong kind or not one a file may build;
         when a step's class refuses its settings; with ``trust_model=True``,
         when the model file is missing, its SHA-256 differs from the JSON's,
@@ -448,13 +445,6 @@ def load(
     ...     sq.load(target).steps[0][0]
     'median'
     """
-    if isinstance(allow, str):
-        raise _refuse(
-            f"allow={allow!r} is text, not a list of packages",
-            "sq.load reads allow= as a list, and text would be read as its "
-            "letters, one package each.",
-            f"allow={json.dumps([allow])}.",
-        )
     with _nesting(path):
         data = _read(Path(path))
         _check_keys(data)
@@ -472,16 +462,16 @@ def load(
             paths |= class_paths(learned)
         if model_file is not None:
             paths |= class_paths(dict(model_file))
-        check_allowed(paths, allow)
+        check_imported(paths)
         built: list[tuple[str, Step | Model]] = []
         file = repr(str(path))
         for position, record in enumerate(records, start=1):
             name = str(record["name"])
             where = f"{name} (step {position})"
             if record["kind"] == "model":
-                built.append((name, build_model(record, where, allow, file)))
+                built.append((name, build_model(record, where, file)))
             else:
-                built.append((name, build_step(record, where, allow, file)))
+                built.append((name, build_step(record, where, file)))
         pipe = Pipeline(built)
         if learned is not None and _same_state(records, built):
             restore_learned(pipe, learned, "the file's learned part")

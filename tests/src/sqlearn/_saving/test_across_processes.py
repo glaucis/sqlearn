@@ -162,7 +162,9 @@ def test_apply_and_predict_on_a_changed_file_leave_the_warning_to_learn(
     second = _run(
         tmp_path,
         """
-        trained = sq.load("model.sqlearn.json", allow=["sklearn"], trust_model=True)
+        import sklearn.linear_model
+
+        trained = sq.load("model.sqlearn.json", trust_model=True)
         loaded = sq.load("steps.sqlearn.json")
         parquet("customers.parquet", [21, 30, 41, 50, 61, 70, 81])
         loaded.apply("customers.parquet")

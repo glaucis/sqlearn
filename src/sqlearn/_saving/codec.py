@@ -403,8 +403,8 @@ def _decode_object(
     if found is None:
         raise _refuse(
             where,
-            f"the file names the class {path!r}, which sq.load does not build "
-            "from settings",
+            f"the file names the class {path!r}, which is not a step, a model or "
+            "an estimator and which sq.load does not build from settings",
             "a file rebuilds only the fold schemes of sq.folds from settings, "
             "as building another class could run what it does on creation, "
             "so the file is damaged or was edited.",
@@ -492,8 +492,8 @@ def class_paths(data: object) -> set[str]:
     Returns
     -------
     set of str
-        The ``"module:qualname"`` paths, for the ``allow=`` check before any
-        import.
+        The ``"module:qualname"`` paths, for the ``check_imported`` check before any
+        lookup.
 
     Raises
     ------

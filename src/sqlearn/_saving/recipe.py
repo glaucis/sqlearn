@@ -2,12 +2,13 @@
 
 A step is written as its class and its settings; a model as the ``sq.Model``
 settings and its estimator, class and parameters. Nothing here imports a class
-named in a file until `check_allowed` has passed every path.
+named in a file is looked up: `check_imported` refuses a class whose module
+is not imported, and nothing is ever imported.
 """
 
-import importlib
+import sys
 import types
-from collections.abc import Callable, Collection, Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from functools import partial
 from typing import Literal
 
@@ -19,7 +20,7 @@ from sqlearn._step import Step
 __all__ = [
     "build_model",
     "build_step",
-    "check_allowed",
+    "check_imported",
     "class_path",
     "import_class",
     "model_record",
@@ -72,62 +73,77 @@ def class_path(cls: type, where: str) -> str:
     return f"{cls.__module__}:{cls.__qualname__}"
 
 
-def check_allowed(paths: Iterable[str], allow: Collection[str]) -> None:
-    """Refuse a file that names a package it may not import; import nothing.
+def check_imported(paths: Iterable[str]) -> None:
+    """Refuse a file that names a class whose module is not imported.
+
+    sq.load imports nothing: the user imports the packages a file names, so
+    loading can never run code the user did not choose to run.
 
     Parameters
     ----------
     paths : iterable of str
         Class paths (``"module:qualname"``) found in the file.
-    allow : collection of str
-        Top-level packages the caller trusts, besides ``sqlearn``.
 
     Raises
     ------
     SqlearnError
-        Naming every package that is not allowed.
+        Naming every class whose module is not in ``sys.modules``.
 
     Examples
     --------
-    >>> from sqlearn._saving.recipe import check_allowed
-    >>> check_allowed(["sqlearn.preprocessing.impute:Impute"], ())
-    >>> check_allowed(["sklearn.svm:SVC"], ["sklearn"])
+    >>> from sqlearn._saving.recipe import check_imported
+    >>> check_imported(["sqlearn.preprocessing.impute:Impute"])
     """
-    trusted = {"sqlearn", *allow}
-    refused = sorted({path.partition(":")[0].split(".")[0] for path in paths} - trusted)
-    if refused:
-        names = ", ".join(repr(name) for name in refused)
+    missing = sorted(
+        {path for path in paths if path.partition(":")[0] not in sys.modules}
+    )
+    if missing:
+        named = ", ".join(repr(path) for path in missing)
+        imports: list[str] = []
+        for path in missing:
+            module, _, qualname = path.partition(":")
+            imports.append(
+                f"import {qualname.split('.')[-1]} from {module.split('.')[0]} "
+                "before loading"
+            )
         raise SqlearnError(
-            f"the file names classes from {names}, which sq.load may not "
-            "import. Why: importing a package runs its code, so a file can "
-            "only name packages you allow. "
-            f"Fix: pass allow={refused!r} if you trust the file."
+            f"the file names {named}, which "
+            f"{'is' if len(missing) == 1 else 'are'} not imported. "
+            "Why: sq.load imports nothing, so loading a file can never run "
+            "code you did not choose to run. "
+            f"Fix: {'; '.join(imports)}."
         )
+
+
+def _not_a_pipeline_part(path: str, where: str) -> SqlearnError:
+    return _refuse(
+        where,
+        f"{path!r} is not a step, a model or an estimator",
+        "a saved pipeline holds only those.",
+        "check where this file came from.",
+    )
 
 
 def import_class(
     path: str,
-    kind: Literal["step", "model", "object"],
+    kind: Literal["step", "model", "nested", "object"],
     where: str,
-    allow: Collection[str] = (),
 ) -> type:
-    """Import the class a path names, and check it is of the kind wanted.
+    """Find the class a path names among the modules already imported.
 
-    Call `check_allowed` first: this imports the module.
+    Nothing is imported: call `check_imported` first. The class is checked
+    against the kind wanted before any instance is made.
 
     Parameters
     ----------
     path : str
         ``"module:qualname"``.
-    kind : {"step", "model", "object"}
+    kind : {"step", "model", "nested", "object"}
         A ``"step"`` must subclass `Step`; a ``"model"`` must have ``fit`` and
-        ``predict``; an ``"object"`` is any class.
+        ``predict``; a ``"nested"`` estimator must have ``get_params``; an
+        ``"object"`` is any class (the caller checks its closed list).
     where : str
         The place, for errors.
-    allow : collection of str, default ()
-        Top-level packages the class may belong to, besides ``sqlearn``: the
-        class found must have its own module there, whatever module the path
-        names.
 
     Returns
     -------
@@ -137,7 +153,8 @@ def import_class(
     Raises
     ------
     SqlearnError
-        When the module or class is missing, or the class is of another kind.
+        When the module is not imported, the class is missing, or it is of
+        another kind.
 
     Examples
     --------
@@ -153,15 +170,9 @@ def import_class(
             "a class is written as module:qualname.",
             "save the pipeline again, or restore the file from where it came.",
         )
-    try:
-        found: object = importlib.import_module(module)
-    except ImportError as error:
-        raise _refuse(
-            where,
-            f"the module {module!r} cannot be imported ({error})",
-            "the file names a class from a package this environment lacks.",
-            f"install the package that provides {module!r}.",
-        ) from error
+    found: object | None = sys.modules.get(module)
+    if found is None:
+        check_imported([path])
     for part in qualname.split("."):
         try:
             found = getattr(found, part)
@@ -189,28 +200,12 @@ def import_class(
             "a file can only name classes.",
             "save the pipeline again, or restore the file from where it came.",
         )
-    owner = str(getattr(found, "__module__", "")).split(".")[0]
-    if owner not in {"sqlearn", *allow}:
-        raise SqlearnError(
-            f"{where}: {path!r} is a class of {owner!r}, which sq.load may not "
-            "use. Why: importing a package runs its code, so a file can only "
-            f"name packages you allow. Fix: pass allow=[{owner!r}] if you trust "
-            "the file."
-        )
     if kind == "step" and not issubclass(found, Step):
-        raise _refuse(
-            where,
-            f"{path!r} is not a Step",
-            "a pipeline step must subclass sq.Step.",
-            "save the pipeline again, or restore the file from where it came.",
-        )
+        raise _not_a_pipeline_part(path, where)
     if kind == "model" and not (hasattr(found, "fit") and hasattr(found, "predict")):
-        raise _refuse(
-            where,
-            f"{path!r} is not a model",
-            "a model needs fit and predict.",
-            "save the pipeline again, or restore the file from where it came.",
-        )
+        raise _not_a_pipeline_part(path, where)
+    if kind == "nested" and not hasattr(found, "get_params"):
+        raise _not_a_pipeline_part(path, where)
     return found
 
 
@@ -408,7 +403,7 @@ def _construct(cls: type, where: str, file: str | None, **kwargs: object) -> obj
 
 
 def record_class_paths(record: Mapping[str, object]) -> set[str]:
-    """Return every class a step or model record names, for `check_allowed`.
+    """Return every class a step or model record names, for `check_imported`.
 
     Parameters
     ----------
@@ -439,7 +434,6 @@ def record_class_paths(record: Mapping[str, object]) -> set[str]:
 def build_step(
     record: Mapping[str, object],
     where: str,
-    allow: Collection[str] = (),
     file: str | None = None,
 ) -> Step:
     """Return the step a record describes.
@@ -450,8 +444,6 @@ def build_step(
         What `step_record` returned, after a trip through JSON.
     where : str
         The place, for errors.
-    allow : collection of str, default ()
-        Packages besides ``sqlearn`` that its classes may come from.
     file : str, optional
         The saved file, named when a class refuses its settings.
 
@@ -473,7 +465,7 @@ def build_step(
     >>> build_step(step_record("t", sq.transform.log(), 1), "t")
     sq.transform.log()
     """
-    cls = import_class(_path(record, where), "step", where, allow)
+    cls = import_class(_path(record, where), "step", where)
     resolve = partial(_registered, where=where)
     settings = _decoded_settings(record, where, resolve)
     built = _construct(cls, where, file, **settings)
@@ -499,11 +491,11 @@ def _registered(path: str, where: str) -> type:
     return found[0]
 
 
-def _import_of(path: str, top: str, where: str, allow: Collection[str]) -> type:
-    """Return a class a model record may name, importing it when allowed.
+def _import_of(path: str, top: str, where: str) -> type:
+    """Return a class a model record may name, found among the imported.
 
     sqlearn has no estimators. An estimator path into sqlearn is refused as
-    text, before it is imported; a path into an allowed package that lands on
+    text, before it is imported; a path into an imported package that lands on
     a class of sqlearn (one that package imports) is refused once found,
     before it is built. A fold scheme comes back only for an object tag: the
     codec refuses an estimator tag naming one.
@@ -513,8 +505,8 @@ def _import_of(path: str, top: str, where: str, allow: Collection[str]) -> type:
         return found[0]
     if path.partition(":")[0].split(".")[0] == "sqlearn":
         raise _sqlearn_estimator(path, where)
-    kind: Literal["model", "object"] = "model" if path == top else "object"
-    cls = import_class(path, kind, where, allow)
+    kind: Literal["model", "nested"] = "model" if path == top else "nested"
+    cls = import_class(path, kind, where)
     if cls.__module__.split(".")[0] == "sqlearn":
         raise _sqlearn_estimator(path, where)
     return cls
@@ -534,7 +526,6 @@ def _sqlearn_estimator(path: str, where: str) -> SqlearnError:
 def build_model(
     record: Mapping[str, object],
     where: str,
-    allow: Collection[str] = (),
     file: str | None = None,
 ) -> Model:
     """Return the model a record describes, estimator and all.
@@ -545,8 +536,6 @@ def build_model(
         What `model_record` returned, after a trip through JSON.
     where : str
         The place, for errors.
-    allow : collection of str, default ()
-        Packages besides ``sqlearn`` that its classes may come from.
     file : str, optional
         The saved file, named when a class refuses its settings.
 
@@ -571,7 +560,7 @@ def build_model(
     ...     print(str(error).split(".")[0])
     demo: the record has no 'estimator'
     """
-    cls = import_class(_path(record, where), "object", where, allow)
+    cls = import_class(_path(record, where), "object", where)
     if not issubclass(cls, Model):
         raise _refuse(
             where,
@@ -589,7 +578,7 @@ def build_model(
         )
     top = _path(estimator_record, where)
 
-    resolve = partial(_import_of, top=top, where=where, allow=allow)
+    resolve = partial(_import_of, top=top, where=where)
     estimator = decode(estimator_record, where, resolve)
     # sq.Model's own settings are values: they hold no estimator.
     settings = _decoded_settings(record, where, partial(_registered, where=where))

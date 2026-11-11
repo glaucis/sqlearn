@@ -6,12 +6,14 @@ import stat
 import sys
 import warnings
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 import pytest
 from sklearn.linear_model import LogisticRegression
 
 import sqlearn as sq
+import tests.src.sqlearn._saving.aliased  # noqa: F401  (imported, so a file may name it)
 from sqlearn._errors import SqlearnError, SqlearnWarning
 
 
@@ -80,14 +82,11 @@ def test_the_same_pipeline_gives_the_same_bytes(tmp_path: Path) -> None:
     assert list(step)[:3] == ["name", "kind", "class"]
 
 
-def test_a_model_needs_its_package_allowed(tmp_path: Path) -> None:
-    """A model's package must be allowed to load, and the message says how."""
+def test_a_model_loads_once_its_package_is_imported(tmp_path: Path) -> None:
+    """A model's package must be imported to load, and sq.load imports nothing."""
     pipe = sq.Pipeline([sq.impute.median(), sq.Model(LogisticRegression())])
     sq.save(pipe, tmp_path / "m.json")
-    with pytest.raises(SqlearnError) as raised:
-        sq.load(tmp_path / "m.json")
-    assert "sklearn" in str(raised.value) and "allow=" in str(raised.value)
-    loaded = sq.load(tmp_path / "m.json", allow=["sklearn"])
+    loaded = sq.load(tmp_path / "m.json")
     assert _reprs(loaded) == _reprs(pipe)
     assert isinstance(loaded.steps[-1][1], sq.Model)
 
@@ -147,8 +146,8 @@ def test_a_path_whose_folder_does_not_exist_is_refused(tmp_path: Path) -> None:
     assert "Fix:" in str(raised.value)
 
 
-def test_nothing_is_imported_before_every_class_is_allowed(tmp_path: Path) -> None:
-    """A file naming a package not allowed is refused with no import at all."""
+def test_nothing_is_imported_when_a_class_is_not_imported(tmp_path: Path) -> None:
+    """A file naming a module not imported is refused with no import at all."""
     sys.modules.pop("sqlearn_test_imported", None)
     path = _write(tmp_path / "p.json")
     data = json.loads(path.read_text())
@@ -156,9 +155,9 @@ def test_nothing_is_imported_before_every_class_is_allowed(tmp_path: Path) -> No
     bad["class"] = "tests.src.sqlearn._saving.recorded_import:X"
     data["steps"].append(bad)
     path.write_text(json.dumps(data))
-    with pytest.raises(SqlearnError, match=r"allow=") as raised:
+    with pytest.raises(SqlearnError, match=r"is not imported") as raised:
         sq.load(path)
-    assert "'tests'" in str(raised.value)
+    assert "recorded_import" in str(raised.value)
     assert "sqlearn_test_imported" not in sys.modules
 
 
@@ -257,7 +256,7 @@ def test_a_model_parameter_naming_a_sqlearn_class_builds_nothing(
     data["steps"][-1]["estimator"]["params"]["C"] = _kept("estimator", made)
     path.write_text(json.dumps(data))
     with pytest.raises(SqlearnError, match=r"(?s)KeptFolds.*Why:.*Fix:"):
-        sq.load(path, allow=["sklearn"])
+        sq.load(path)
     assert not made.exists()
 
 
@@ -273,14 +272,14 @@ def test_an_estimator_reaching_a_sqlearn_class_through_an_allowed_package_builds
     path = tmp_path / "m.json"
     sq.save(sq.Pipeline([sq.Model(LogisticRegression())]), path)
     data = json.loads(path.read_text())
-    aliased = {"$": "estimator", "class": _ALIASED, "params": {"path": str(made)}}
+    named = {"$": "estimator", "class": _ALIASED, "params": {"path": str(made)}}
     if where == "top":
-        data["steps"][-1]["estimator"] = aliased
+        data["steps"][-1]["estimator"] = named
     else:
-        data["steps"][-1]["estimator"]["params"]["C"] = aliased
+        data["steps"][-1]["estimator"]["params"]["C"] = named
     path.write_text(json.dumps(data))
     with pytest.raises(SqlearnError, match=r"(?s)KeptFolds.*Why:.*Fix:"):
-        sq.load(path, allow=["sklearn", "tests"])
+        sq.load(path)
     assert not made.exists()
 
 
@@ -302,7 +301,7 @@ def test_an_estimator_tag_naming_a_fold_scheme_is_refused(
         data["steps"][-1]["estimator"]["params"]["C"] = kfold
     path.write_text(json.dumps(data))
     with pytest.raises(SqlearnError, match=r"(?s)KFold.*Why:.*Fix:"):
-        sq.load(path, allow=["sklearn"])
+        sq.load(path)
 
 
 def test_a_model_setting_holding_an_estimator_is_refused(tmp_path: Path) -> None:
@@ -317,7 +316,7 @@ def test_a_model_setting_holding_an_estimator_is_refused(tmp_path: Path) -> None
     }
     path.write_text(json.dumps(data))
     with pytest.raises(SqlearnError, match=r"(?s)LogisticRegression.*Why:.*Fix:"):
-        sq.load(path, allow=["sklearn"])
+        sq.load(path)
 
 
 def test_the_models_categories_naming_a_class_build_nothing(
@@ -336,20 +335,17 @@ def test_the_models_categories_naming_a_class_build_nothing(
     }
     path.write_text(json.dumps(data))
     with pytest.raises(SqlearnError, match=r"(?s)KeptFolds.*Why:.*Fix:"):
-        sq.load(path, allow=["sklearn"], trust_model=True)
+        sq.load(path, trust_model=True)
     assert not made.exists()
 
 
-def test_allow_given_as_text_is_refused_with_a_list_in_the_fix(
-    tmp_path: Path,
-) -> None:
-    """allow="sklearn" is refused, not read as the letters s, k, l..."""
+def test_load_no_longer_takes_allow(tmp_path: Path) -> None:
+    """allow= is gone: the user imports, sq.load does not."""
     path = tmp_path / "m.json"
     sq.save(sq.Pipeline([sq.Model(LogisticRegression())]), path)
-    with pytest.raises(SqlearnError) as raised:
-        sq.load(path, allow="sklearn")  # type: ignore[arg-type]
-    text = str(raised.value)
-    assert "Why:" in text and 'Fix: allow=["sklearn"]' in text
+    removed: dict[str, Any] = {"allow": ["sklearn"]}
+    with pytest.raises(TypeError, match="allow"):
+        sq.load(path, **removed)
 
 
 @pytest.mark.parametrize("where", ["parse", "settings", "learned"])

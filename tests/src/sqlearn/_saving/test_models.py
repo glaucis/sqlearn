@@ -55,7 +55,7 @@ def _cases() -> dict[str, tuple[sq.Pipeline, list[str]]]:
         )
 
     return {
-        "logistic": (onehot(LogisticRegression()), ["sklearn"]),
+        "logistic": (onehot(LogisticRegression()), ["sklearn.linear_model"]),
         "lightgbm": (
             onehot(LGBMClassifier(n_estimators=10, verbose=-1)),
             ["lightgbm"],
@@ -75,7 +75,7 @@ def _cases() -> dict[str, tuple[sq.Pipeline, list[str]]]:
                     sq.Model(LogisticRegression()),
                 ]
             ),
-            ["sklearn"],
+            ["sklearn.linear_model"],
         ),
     }
 
@@ -88,25 +88,26 @@ def test_a_trained_model_predicts_after_load_without_training(
     frame = _frame()
     duckdb.from_df(frame).write_parquet(str(data))
     want: dict[str, list[object]] = {}
-    allow: dict[str, list[str]] = {}
+    imports: dict[str, list[str]] = {}
     for name, (pipe, packages) in _cases().items():
         pipe.train(str(data), target="y")
         want[name] = _predictions(pipe, str(data))
         sq.save(pipe, tmp_path / f"{name}.sqlearn.json", model="pickle")
-        allow[name] = packages
+        imports[name] = packages
     script = textwrap.dedent(
         f"""
+        import importlib
         import json
 
         import sqlearn as sq
         from sqlearn._store import STORE
 
         out = {{}}
-        for name, packages in {allow!r}.items():
+        for name, packages in {imports!r}.items():
             STORE.learns.clear()
-            pipe = sq.load(
-                f"{{name}}.sqlearn.json", allow=packages, trust_model=True
-            )
+            for package in packages:
+                importlib.import_module(package)
+            pipe = sq.load(f"{{name}}.sqlearn.json", trust_model=True)
             got = pipe.predict("customers.parquet", out="numpy")
             out[name] = {{
                 "predictions": got["prediction"].tolist(),
@@ -134,7 +135,7 @@ def test_a_model_not_trusted_loads_untrained_with_a_warning(tmp_path: Path) -> N
     path = tmp_path / "churn.sqlearn.json"
     sq.save(_trained(), path, model="pickle")
     with pytest.warns(SqlearnWarning, match="trust_model=True") as caught:
-        loaded = sq.load(path, allow=["sklearn"])
+        loaded = sq.load(path)
     message = str(caught[0].message)
     assert "churn.sqlearn.model.pickle was not opened" in message
     assert "Fix:" in message
@@ -154,7 +155,7 @@ def test_a_changed_model_file_is_refused_before_it_is_opened(tmp_path: Path) -> 
     model_file = tmp_path / "churn.sqlearn.model.pickle"
     model_file.write_bytes(pickle.dumps(Recorded(), protocol=5))
     with pytest.raises(SqlearnError, match="SHA-256") as raised:
-        sq.load(path, allow=["sklearn"], trust_model=True)
+        sq.load(path, trust_model=True)
     assert "Fix:" in str(raised.value)
     assert "sqlearn_test_unpickled" not in sys.modules
 
@@ -168,7 +169,7 @@ def test_a_model_file_changed_by_one_byte_is_refused(tmp_path: Path) -> None:
     content[len(content) // 2] ^= 1
     model_file.write_bytes(bytes(content))
     with pytest.raises(SqlearnError, match="SHA-256"):
-        sq.load(path, allow=["sklearn"], trust_model=True)
+        sq.load(path, trust_model=True)
 
 
 def test_a_model_file_missing_is_refused(tmp_path: Path) -> None:
@@ -177,7 +178,7 @@ def test_a_model_file_missing_is_refused(tmp_path: Path) -> None:
     sq.save(_trained(), path, model="pickle")
     (tmp_path / "churn.sqlearn.model.pickle").unlink()
     with pytest.raises(SqlearnError, match=r"churn\.sqlearn\.model\.pickle") as raised:
-        sq.load(path, allow=["sklearn"], trust_model=True)
+        sq.load(path, trust_model=True)
     assert "Fix:" in str(raised.value)
 
 
@@ -192,7 +193,7 @@ def test_a_model_of_another_class_than_the_recipe_is_refused(tmp_path: Path) -> 
     data["model_file"]["sha256"] = hashlib.sha256(model_file.read_bytes()).hexdigest()
     path.write_text(json.dumps(data))
     with pytest.raises(SqlearnError, match="DecisionTreeClassifier") as raised:
-        sq.load(path, allow=["sklearn"], trust_model=True)
+        sq.load(path, trust_model=True)
     assert "LogisticRegression" in str(raised.value)
 
 
@@ -249,7 +250,7 @@ def test_a_recipe_saved_without_model_has_no_model_file(tmp_path: Path) -> None:
     assert [p.name for p in tmp_path.iterdir()] == ["churn.sqlearn.json"]
     with warnings.catch_warnings():
         warnings.simplefilter("error")
-        sq.load(path, allow=["sklearn"])
+        sq.load(path)
 
 
 def test_a_failed_save_keeps_the_old_pair(
@@ -279,7 +280,7 @@ def test_a_failed_save_keeps_the_old_pair(
         "churn.sqlearn.json",
         "churn.sqlearn.model.pickle",
     ]
-    loaded = sq.load(path, allow=["sklearn"], trust_model=True)
+    loaded = sq.load(path, trust_model=True)
     assert _predictions(loaded, _frame()) == _predictions(_trained(), _frame())
 
 
@@ -288,7 +289,7 @@ def test_a_trusted_model_predicts_in_the_same_process(tmp_path: Path) -> None:
     pipe = _trained()
     path = tmp_path / "churn.sqlearn.json"
     sq.save(pipe, path, model="pickle")
-    loaded = sq.load(path, allow=["sklearn"], trust_model=True)
+    loaded = sq.load(path, trust_model=True)
     assert _predictions(loaded, _frame()) == _predictions(pipe, _frame())
 
 
@@ -306,7 +307,7 @@ def test_a_trusted_model_fed_raw_text_keeps_its_categories(tmp_path: Path) -> No
     assert pipe._categories == {"city": ["a", "b", "c"]}
     path = tmp_path / "churn.sqlearn.json"
     sq.save(pipe, path, model="pickle")
-    loaded = sq.load(path, allow=["lightgbm"], trust_model=True)
+    loaded = sq.load(path, trust_model=True)
     assert loaded._categories == pipe._categories
     unseen = _frame().assign(city=["c", "a", "zz"] * 20)
     for data in (_frame(), unseen):
