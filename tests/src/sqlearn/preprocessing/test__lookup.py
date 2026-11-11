@@ -113,7 +113,7 @@ def test_hash_and_list_cross_fit_the_same_in_train():
     assert predicted["hash"].equals(predicted["list"])
 
 
-@pytest.mark.parametrize("name", list(ENCODERS))
+@pytest.mark.parametrize("name", ["ordinal"])
 def test_many_categories_warn_when_lookup_is_left_out(name, threshold):
     """One SqlearnWarning naming the step, the count and lookup="hash"."""
     step = ENCODERS[name]("c")
@@ -127,6 +127,15 @@ def test_many_categories_warn_when_lookup_is_left_out(name, threshold):
     assert "Why:" in text
     assert "Fix:" in text
     assert caught[0].filename == __file__
+
+
+def test_the_target_encoder_never_warns_about_the_lookup(threshold):
+    """Above WARN_ABOVE, lookup left out: the hash was slower for it, so no word."""
+    pipe = sq.Pipeline([sq.encode.target("c")])
+    assert lookup_warnings(lambda: pipe.learn(many(threshold + 1), target="y")) == []
+    model = sq.Pipeline([sq.encode.target("c"), ("model", LogisticRegression())])
+    data = many(threshold + 1, rows_each=5)
+    assert lookup_warnings(lambda: model.train(data, target="y")) == []
 
 
 @pytest.mark.parametrize("name", list(ENCODERS))
@@ -145,7 +154,7 @@ def test_an_explicit_lookup_never_warns(name, lookup, threshold):
     assert lookup_warnings(lambda: pipe.learn(data, target="y")) == []
 
 
-@pytest.mark.parametrize("name", list(ENCODERS))
+@pytest.mark.parametrize("name", ["ordinal"])
 def test_the_lookup_warning_shows_once_in_a_search(name, threshold):
     """A 5-fold search warns once; learning the same step again says nothing."""
     data = many(threshold + 1, rows_each=5)

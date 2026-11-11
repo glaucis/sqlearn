@@ -15,7 +15,7 @@ from sqlearn._expr import const, target_stats
 from sqlearn._group import call_repr
 from sqlearn._selectors import Schema, Selector, _string
 from sqlearn._step import Learned, Step
-from sqlearn.preprocessing._lookup import check_lookup, check_text, position, warn_many
+from sqlearn.preprocessing._lookup import check_lookup, check_text, position
 
 __all__ = ["TargetEncoder"]
 
@@ -144,9 +144,10 @@ class TargetEncoder(Step):
         12.6 s; ``docs/benchmarks/category-lookup.md``); it pays only on
         more rows than that, or more categories. The hash takes text columns
         alone (VARCHAR, ENUM) and compares the bytes exactly, ignoring a
-        collation, which DuckDB does not report to a step. Left out with
-        more than 30,000 categories in a column, a `SqlearnWarning` says so,
-        once per process; passing either value silences it.
+        collation, which DuckDB does not report to a step. Unlike the
+        ordinal encoder, the target encoder never warns about the lookup,
+        however many categories it learns: the hash was slower for it in the
+        benchmark.
 
     Attributes
     ----------
@@ -294,22 +295,6 @@ class TargetEncoder(Step):
         chosen = super().inputs(schema)
         check_text("sq.encode.target", self.lookup, chosen, dict(schema))
         return chosen
-
-    def learned(self, values: Mapping[str, Mapping[str, object]]) -> None:
-        """Warn once when a left-out lookup meets thousands of categories.
-
-        Parameters
-        ----------
-        values : mapping of str to mapping of str to object
-            Column, then learned name, to the value learned.
-
-        Examples
-        --------
-        >>> import sqlearn as sq
-        >>> sq.encode.target().learned({"c": {"categories": ["a"]}}) is None
-        True
-        """
-        warn_many(self, self.lookup, values)
 
     def learn(
         self, x: Expression, y: Expression | None = None

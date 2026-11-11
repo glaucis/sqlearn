@@ -21,7 +21,15 @@ from duckdb.sqltypes import HUGEINT, INTEGER, VARCHAR, DuckDBPyType
 from sqlearn._errors import SqlearnError, SqlearnWarning, StepError
 from sqlearn._expr import const
 
-__all__ = ["LOOKUPS", "WARN_ABOVE", "check_lookup", "check_text", "perfect_hash"]
+__all__ = [
+    "LOOKUPS",
+    "WARN_ABOVE",
+    "check_lookup",
+    "check_text",
+    "perfect_hash",
+    "position",
+    "warn_many",
+]
 
 LOOKUPS = ("list", "hash")
 """The lookups an encoder takes; None, the default, behaves as ``"list"``."""

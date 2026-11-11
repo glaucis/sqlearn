@@ -154,7 +154,7 @@ class Ordinal(Step):
         return chosen
 
     def learned(self, values: Mapping[str, Mapping[str, object]]) -> None:
-        """Warn once when a left-out lookup meets thousands of categories.
+        """Warn once at more than WARN_ABOVE (30,000) categories, lookup left out.
 
         Parameters
         ----------
