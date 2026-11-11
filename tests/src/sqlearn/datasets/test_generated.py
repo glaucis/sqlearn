@@ -234,6 +234,13 @@ def test_regression_with_default_n_informative_does_not_warn():
         sq.datasets.regression(n_features=5)
 
 
+def test_regression_with_n_informative_equal_to_n_features_does_not_warn():
+    """n_informative equal to n_features is possible, so not warned about."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        sq.datasets.regression(n_features=5, n_informative=5)
+
+
 def test_classification_gives_its_columns_in_order():
     """x0 to x19 (DOUBLE), then a BIGINT target holding the classes 0 to 2."""
     rel = sq.datasets.classification(rows=2_000, n_classes=3, n_informative=3, seed=1)

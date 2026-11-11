@@ -46,7 +46,9 @@ def test_bundled_datasets_equal_scikit_learns(name, make, load):
     pd.testing.assert_frame_equal(got, expected, check_exact=True, check_dtype=False)
 
 
-@pytest.mark.parametrize("make", [sq.datasets.iris, sq.datasets.blobs], ids=repr)
+@pytest.mark.parametrize(
+    "make", [sq.datasets.iris, sq.datasets.blobs], ids=lambda f: f.__name__
+)
 def test_a_dataset_lands_on_the_configured_connection_and_calls_are_independent(make):
     """A dataset is built on the set connection; two calls give separate relations."""
     other = duckdb.connect()
