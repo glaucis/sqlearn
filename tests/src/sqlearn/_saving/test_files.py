@@ -279,3 +279,47 @@ def test_the_models_categories_naming_a_class_build_nothing(
     with pytest.raises(SqlearnError, match=r"(?s)KeptFolds.*Why:.*Fix:"):
         sq.load(path, allow=["sklearn"], trust_model=True)
     assert not made.exists()
+
+
+def test_allow_given_as_text_is_refused_with_a_list_in_the_fix(
+    tmp_path: Path,
+) -> None:
+    """allow="sklearn" is refused, not read as the letters s, k, l..."""
+    path = tmp_path / "m.json"
+    sq.save(sq.Pipeline([sq.Model(LogisticRegression())]), path)
+    with pytest.raises(SqlearnError) as raised:
+        sq.load(path, allow="sklearn")  # type: ignore[arg-type]
+    text = str(raised.value)
+    assert "Why:" in text and 'Fix: allow=["sklearn"]' in text
+
+
+@pytest.mark.parametrize("where", ["parse", "settings", "learned"])
+def test_a_file_nested_too_deeply_is_refused_as_damaged(
+    tmp_path: Path, where: str
+) -> None:
+    """Deeply nested arrays are refused in the house form, wherever they are."""
+    path = tmp_path / "p.json"
+    sq.save(sq.Pipeline([sq.impute.median()]).learn(_frame()), path)
+    deep = "[" * 5000 + "]" * 5000
+    text = path.read_text()
+    if where == "parse":
+        # Deep enough that the JSON parser itself runs out of stack.
+        deeper = "[" * 100_000 + "]" * 100_000
+        text = text.replace('"steps": [', f'"steps": [{deeper}, ', 1)
+    elif where == "settings":
+        text = text.replace('"indicator": false', f'"indicator": {deep}', 1)
+    else:
+        text = text.replace('"columns_out": [', f'"columns_out": [{deep}, ', 1)
+    path.write_text(text)
+    with pytest.raises(SqlearnError, match=r"(?s)nested.*Why:.*Fix:"):
+        sq.load(path)
+
+
+@pytest.mark.parametrize("version", [0, -1, 1.0, True, "1"])
+def test_a_format_version_that_is_not_a_positive_number_is_refused(
+    tmp_path: Path, version: object
+) -> None:
+    """format_version 0, negative, a float, a bool or text is damaged."""
+    path = _write(tmp_path / "p.json", format_version=version)
+    with pytest.raises(SqlearnError, match=r"(?s)format_version.*Why:.*Fix:"):
+        sq.load(path)

@@ -11,7 +11,8 @@ import re
 import shutil
 import tempfile
 import warnings
-from collections.abc import Mapping, Sequence
+from collections.abc import Generator, Mapping, Sequence
+from contextlib import contextmanager
 from pathlib import Path
 
 from sqlearn._errors import SqlearnError, SqlearnWarning
@@ -307,8 +308,10 @@ def _read(path: Path) -> dict[str, object]:
 
 def _check_keys(data: Mapping[str, object]) -> None:
     version = data.get("format_version")
-    if type(version) is not int:
-        raise _damaged(f"the file's format_version is {version!r}, not a number")
+    if type(version) is not int or version < 1:
+        raise _damaged(
+            f"the file's format_version is {version!r}, not a positive whole number"
+        )
     if version > FORMAT_VERSION:
         raise _refuse(
             f"the file is format version {version}, newer than this sqlearn "
@@ -327,6 +330,21 @@ def _check_keys(data: Mapping[str, object]) -> None:
             "does not, or it was edited.",
             "upgrade sqlearn, or restore the file from where it came.",
         )
+
+
+@contextmanager
+def _nesting(path: str | os.PathLike[str]) -> Generator[None]:
+    """Refuse a file nested past Python's stack as damaged, in the house form.
+
+    A context manager, not a wrapper function, so the warnings raised inside
+    keep their stack level.
+    """
+    try:
+        yield
+    except RecursionError as error:
+        raise _damaged(
+            f"{str(path)!r} holds values nested too deeply to read"
+        ) from error
 
 
 def _warn_if_newer(written: object) -> None:
@@ -397,9 +415,11 @@ def load(
     Raises
     ------
     SqlearnError
-        When the file is not a sqlearn file, is of a newer format, is missing
-        or has unknown fields, names a package that is not allowed, or names a
-        class that is missing or of the wrong kind; with ``trust_model=True``,
+        When `allow` is text rather than a list; when the file is not a
+        sqlearn file, is of a newer format, is missing or has unknown fields,
+        nests values too deeply, names a package that is not allowed, or names
+        a class that is missing, of the wrong kind or not one a file may build;
+        when a step's class refuses its settings; with ``trust_model=True``,
         when the model file is missing, its SHA-256 differs from the JSON's,
         or it holds another class than the recipe's.
 
@@ -426,37 +446,45 @@ def load(
     ...     sq.load(target).steps[0][0]
     'median'
     """
-    data = _read(Path(path))
-    _check_keys(data)
-    _warn_if_newer(data["sqlearn"])
-    records = _step_records(data)
-    learned = data.get("learned")
-    if learned is not None and not isinstance(learned, dict):
-        raise _damaged("the file's learned part is not an object")
-    model_file = _model_file(data, records)
-    paths: set[str] = set()
-    for record in records:
-        paths |= record_class_paths(record)
-    if learned is not None:
-        # A learned value may name a class too: checked before any import.
-        paths |= class_paths(learned)
-    if model_file is not None:
-        paths |= class_paths(dict(model_file))
-    check_allowed(paths, allow)
-    built: list[tuple[str, Step | Model]] = []
-    for position, record in enumerate(records, start=1):
-        name = str(record["name"])
-        where = f"{name} (step {position})"
-        if record["kind"] == "model":
-            built.append((name, build_model(record, where, allow)))
-        else:
-            built.append((name, build_step(record, where, allow)))
-    pipe = Pipeline(built)
-    if learned is not None and _same_state(records, built):
-        restore_learned(pipe, learned, "the file's learned part")
-        offer_saved(pipe, str(path))
+    if isinstance(allow, str):
+        raise _refuse(
+            f"allow={allow!r} is text, not a list of packages",
+            "sq.load reads allow= as a list, and text would be read as its "
+            "letters, one package each.",
+            f"allow={json.dumps([allow])}.",
+        )
+    with _nesting(path):
+        data = _read(Path(path))
+        _check_keys(data)
+        _warn_if_newer(data["sqlearn"])
+        records = _step_records(data)
+        learned = data.get("learned")
+        if learned is not None and not isinstance(learned, dict):
+            raise _damaged("the file's learned part is not an object")
+        model_file = _model_file(data, records)
+        paths: set[str] = set()
+        for record in records:
+            paths |= record_class_paths(record)
+        if learned is not None:
+            # A learned value may name a class too: checked before any import.
+            paths |= class_paths(learned)
         if model_file is not None:
-            _open_model(pipe, model_file, Path(path), trust=trust_model)
+            paths |= class_paths(dict(model_file))
+        check_allowed(paths, allow)
+        built: list[tuple[str, Step | Model]] = []
+        for position, record in enumerate(records, start=1):
+            name = str(record["name"])
+            where = f"{name} (step {position})"
+            if record["kind"] == "model":
+                built.append((name, build_model(record, where, allow)))
+            else:
+                built.append((name, build_step(record, where, allow)))
+        pipe = Pipeline(built)
+        if learned is not None and _same_state(records, built):
+            restore_learned(pipe, learned, "the file's learned part")
+            offer_saved(pipe, str(path))
+            if model_file is not None:
+                _open_model(pipe, model_file, Path(path), trust=trust_model)
     return pipe
 
 
