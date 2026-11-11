@@ -83,6 +83,7 @@ def test_settings_and_declaration():
     assert sq.encode.ordinal().settings() == {
         "cols": sq.cols.string(),
         "keep": False,
+        "lookup": None,
     }
     undeclared = type("Undeclared", (Ordinal,), {"dynamic": None})()
     assert classify(undeclared, [("a", VARCHAR)]) == "dynamic"

@@ -225,10 +225,11 @@ and `sq.store.clear(prepared=path)` empties the file when it is no longer
 wanted.
 
 A kept table is found by a key of the data, the target, the steps and their
-settings, the folds and the versions, the same in every process. What the
-key cannot see (a table edited in place, a change to the code of a step of
-your own) and how to clear the file with `sq.store.clear(prepared=path)` are
-in [inputs and the store](inputs-and-the-store.md).
+settings, the folds and the versions, the same in every process. What the key
+cannot see (a table edited in place and not yet checkpointed, a change to the
+code of a step of your own) and how to clear the file with
+`sq.store.clear(prepared=path)` are in
+[inputs and the store](inputs-and-the-store.md).
 
 ## From scikit-learn
 

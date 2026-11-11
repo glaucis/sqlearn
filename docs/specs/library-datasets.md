@@ -111,8 +111,10 @@ Feature columns are `DOUBLE`, named `x0`, `x1`, ...; `target` is `BIGINT` for
 classes, `DOUBLE` for regression. Row `i` runs from 0 to `rows - 1`; the
 rows come in row order while DuckDB's `preserve_insertion_order` is on (its
 default, and sqlearn's predict refuses a connection with it off); there is no
-`ORDER BY`, which would sort every row and lose the laziness. The row number
-itself is not a column.
+`ORDER BY` by default, which would sort every row and lose the laziness.
+`ordered=True` (every generator takes it, last) adds `ORDER BY` on the row
+number: the rows then come in row order whatever the setting, at the cost of
+a sort and of the laziness (#48). The row number itself is not a column.
 
 - **`blobs`** (`rows=100`, `n_features=2`, `centers=3`, `cluster_std=1.0`,
   `center_box=(-10.0, 10.0)`, `seed=0`): as `make_blobs`. `centers` is a count

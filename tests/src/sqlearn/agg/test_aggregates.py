@@ -626,3 +626,42 @@ def test_the_advice_on_a_plain_aggregate_holds_for_a_median_too():
     fix = str(raised.value).split("Fix:")[1]
     assert "is the spread of x" not in fix
     assert "earlier step" in fix
+
+
+def test_an_approximate_median_is_close_to_the_exact_one():
+    """On 100,000 normal values the approximation is within 1% of a std."""
+    values = np.random.default_rng(0).normal(5, 2, 100_000)
+    exact = learn(values, sq.agg.median)
+    approx = learn(values, sq.agg.median(approx=True))
+    assert abs(approx - exact) < 0.01 * values.std()
+    assert abs(exact - np.median(values)) < 1e-9
+
+
+def test_an_approximate_median_sits_inside_a_larger_expression():
+    """``mean(x) - median(x, approx=True)`` learns."""
+    values = [1.0, 2.0, 3.0, 4.0, 10.0]
+    got = learn(values, lambda x: sq.agg.mean(x) - sq.agg.median(x, approx=True))
+    assert got == pytest.approx(4.0 - 3.0, abs=0.5)
+
+
+def test_an_approximate_median_of_integers_is_a_double_as_the_exact_one():
+    """On INTEGER values both medians are DOUBLE, as the docstring says."""
+    exact = learn([1, 2, 3, 4], sq.agg.median, kind="INTEGER")
+    approx = learn([1, 2, 3, 4], sq.agg.median(approx=True), kind="INTEGER")
+    assert type(exact) is float
+    assert type(approx) is float
+    assert 2.0 <= approx <= 3.0
+
+
+def test_an_approximate_median_of_nulls_only_is_null():
+    """No present value, no median."""
+    assert learn([None, None], sq.agg.median(approx=True)) is None
+
+
+def test_the_approx_param_of_the_median_is_a_bool_and_prints():
+    """A non-bool is refused; the default prints bare, approx=True prints."""
+    assert repr(sq.agg.median) == "sq.agg.median"
+    assert repr(sq.agg.median(approx=False)) == "sq.agg.median"
+    assert repr(sq.agg.median(approx=True)) == "sq.agg.median(approx=True)"
+    with pytest.raises(SqlearnError, match="approx"):
+        sq.agg.median(approx="yes")

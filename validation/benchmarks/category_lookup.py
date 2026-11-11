@@ -10,10 +10,11 @@ measures; it decides nothing.
 
 Run it with ``uv run python -m validation.benchmarks.category_lookup``. The
 data is generated from a fixed seed, in memory and in a temporary directory
-removed after.
+removed after. ``... category_lookup encoders 3000`` runs the encoders' part
+alone at the counts given, one count per process being the way to keep a
+large run from running short of memory.
 """
 
-import hashlib
 import json
 import platform
 import statistics
@@ -29,6 +30,7 @@ import duckdb
 
 import sqlearn as sq
 from sqlearn._store import STORE
+from sqlearn.preprocessing._lookup import perfect_hash, position
 
 SEED = 0
 """Every dataset comes from this seed: generated, never downloaded."""
@@ -75,59 +77,8 @@ def _listed(categories: list[str]) -> str:
     return "[" + ", ".join(_text(c) for c in categories) + "]"
 
 
-def _md5_halves(value: str) -> tuple[int, int]:
-    """Return DuckDB's ``md5_number_upper`` and ``md5_number_lower`` of a text."""
-    number = int.from_bytes(hashlib.md5(value.encode()).digest(), "little")
-    return number & (2**64 - 1), number >> 64
-
-
-def _prime_from(n: int) -> int:
-    def prime(p: int) -> bool:
-        return p > 1 and all(p % q for q in range(2, int(p**0.5) + 1))
-
-    return next(p for p in range(n, 2 * n + 3) if prime(p))
-
-
-def perfect_hash(categories: list[str]) -> tuple[int, int, list[int], list[int]]:
-    """Build a perfect hash of the categories by hash and displace.
-
-    Each category's MD5 gives two numbers, ``a`` and ``b``. Its bucket is
-    ``a % r``; its slot is ``(b + d * step) % m``, where ``step = (a >> 32)
-    % (m - 1) + 1`` and ``d`` is the bucket's displacement, chosen (largest
-    bucket first) so that no two categories share a slot. ``m`` is a prime
-    above twice the count, ``r`` half the count.
-
-    Returns
-    -------
-    tuple
-        ``m``, ``r``, the displacements and, per slot, the category's
-        position from 1 (0 for an empty slot).
-    """
-    k = len(categories)
-    m, r = _prime_from(2 * k + 1), max(1, k // 2)
-    halves = [_md5_halves(c) for c in categories]
-    buckets: dict[int, list[int]] = {}
-    for i, (a, _) in enumerate(halves):
-        buckets.setdefault(a % r, []).append(i)
-    displacements, table = [0] * r, [0] * m
-    for bucket, members in sorted(buckets.items(), key=lambda kv: -len(kv[1])):
-        for d in range(10 * m):
-            slots = [
-                (halves[i][1] + d * ((halves[i][0] >> 32) % (m - 1) + 1)) % m
-                for i in members
-            ]
-            if len(set(slots)) == len(slots) and not any(table[s] for s in slots):
-                break
-        else:
-            msg = "no displacement found"
-            raise RuntimeError(msg)
-        displacements[bucket] = d
-        for i, s in zip(members, slots, strict=True):
-            table[s] = i + 1
-    return m, r, displacements, table
-
-
 def _perfect_hash_form(categories: list[str]) -> str:
+    """Return the perfect hash written out: each MD5 computed where it is used."""
     m, r, displacements, table = perfect_hash(categories)
     a, b = "md5_number_upper(c)::HUGEINT", "md5_number_lower(c)::HUGEINT"
     shifts = "[" + ", ".join(map(str, displacements)) + "]::UBIGINT[]"
@@ -136,6 +87,11 @@ def _perfect_hash_form(categories: list[str]) -> str:
     slot = f"(({b} + {d} * (({a} >> 32) % {m - 1} + 1)) % {m})::INTEGER"
     at = f"list_extract({slots}, {slot} + 1)"
     return f"CASE WHEN list_extract({_listed(categories)}, {at}) = c THEN {at} - 1 END"
+
+
+def _shipped_hash_form(categories: list[str]) -> str:
+    """Return the perfect hash as ``lookup="hash"`` writes it, the MD5 bound once."""
+    return f"{position(duckdb.ColumnExpression('c'), categories, 'hash')} - 1"
 
 
 def _forms(categories: list[str]) -> dict[str, str]:
@@ -154,7 +110,8 @@ def _forms(categories: list[str]) -> dict[str, str]:
         "json_extract": (
             f"json_extract({_text(json_object)}::JSON, '$.\"' || c || '\"')::INTEGER"
         ),
-        "MD5 perfect hash": _perfect_hash_form(categories),
+        "MD5 perfect hash, written out": _perfect_hash_form(categories),
+        'MD5 perfect hash (lookup="hash")': _shipped_hash_form(categories),
     }
 
 
@@ -221,21 +178,24 @@ def costs(con: duckdb.DuckDBPyConnection) -> None:
         )
 
 
-def encoders(root: Path) -> None:
-    """Time the two encoders as they are: learn, then apply to Parquet.
+def encoders(root: Path, counts: tuple[int, ...] = COUNTS) -> None:
+    """Time the two encoders, each lookup: learn, then apply to Parquet.
 
-    Beside them, the lookup alone (``list_position`` summed) over the same
-    Parquet file, to set against the in-memory table of `lookups`.
+    Beside them, the lookup alone (``list_position``, or the MD5 perfect
+    hash, summed) over the same Parquet file, to set against the in-memory
+    table of `lookups`.
     """
     con = duckdb.connect()
     sq.set_config(connection=con)
     out = root / "encoded.parquet"
     makers: dict[str, Callable[[], sq.Pipeline]] = {
-        "ordinal": lambda: sq.Pipeline([sq.encode.ordinal("c")]),
-        "target": lambda: sq.Pipeline([sq.encode.target("c")]),
+        "ordinal": lambda: sq.Pipeline([sq.encode.ordinal("c", lookup="list")]),
+        "ordinal, hash": lambda: sq.Pipeline([sq.encode.ordinal("c", lookup="hash")]),
+        "target": lambda: sq.Pipeline([sq.encode.target("c", lookup="list")]),
+        "target, hash": lambda: sq.Pipeline([sq.encode.target("c", lookup="hash")]),
     }
     try:
-        for k in COUNTS:
+        for k in counts:
             path = root / f"data_{k}.parquet"
             data = DATA.format(s=SEED, k=k, n=ROWS)
             con.execute(
@@ -245,6 +205,8 @@ def encoders(root: Path) -> None:
             alone = _time(
                 con, f"SELECT sum(list_position({listed}, c)) FROM '{path}'", True
             )
+            hashed = _shipped_hash_form([f"c{i:05d}" for i in range(k)])
+            hash_alone = _time(con, f"SELECT sum({hashed}) FROM '{path}'", True)
             for name, make in makers.items():
                 learns, applies = [], []
                 for rep in range(REPETITIONS + 1):  # the first is the warm-up
@@ -260,7 +222,8 @@ def encoders(root: Path) -> None:
                         applies.append(end - learned)
                 print(  # noqa: T201
                     f"| {k:,} | {name} | {statistics.median(learns):.3f} | "
-                    f"{statistics.median(applies):.3f} | {alone:.3f} |",
+                    f"{statistics.median(applies):.3f} | {alone:.3f} | "
+                    f"{hash_alone:.3f} |",
                     flush=True,
                 )
     finally:
@@ -293,9 +256,26 @@ def _machine() -> dict:
     }
 
 
+_ENCODERS_HEADER = (
+    "\n| categories | encoder | learn s | apply s "
+    "| list_position alone, from Parquet s | MD5 perfect hash alone, from Parquet s |"
+    "\n|---|---|---|---|---|---|"
+)
+
+
 def main() -> None:
-    """Generate the data, time every form and the encoders, print the tables."""
+    """Generate the data, time every form and the encoders, print the tables.
+
+    With the arguments ``encoders`` and one or more counts, time only the
+    encoders, at those counts.
+    """
     print(json.dumps(_machine(), indent=2))  # noqa: T201
+    if sys.argv[1:2] == ["encoders"]:
+        print(_ENCODERS_HEADER, flush=True)  # noqa: T201
+        counts = tuple(int(k) for k in sys.argv[2:]) or COUNTS
+        with tempfile.TemporaryDirectory(prefix="category_lookup_") as tmp:
+            encoders(Path(tmp), counts)
+        return
     con = duckdb.connect()
     print(  # noqa: T201
         "\n| categories | form | s | same codes |\n|---|---|---|---|", flush=True
@@ -309,11 +289,7 @@ def main() -> None:
     )
     costs(con)
     con.close()
-    print(  # noqa: T201
-        "\n| categories | encoder | learn s | apply s "
-        "| list_position alone, from Parquet s |\n|---|---|---|---|---|",
-        flush=True,
-    )
+    print(_ENCODERS_HEADER, flush=True)  # noqa: T201
     with tempfile.TemporaryDirectory(prefix="category_lookup_") as tmp:
         encoders(Path(tmp))
 

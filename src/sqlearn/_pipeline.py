@@ -618,11 +618,15 @@ class Pipeline:
 
         Notes
         -----
-        A change to a DuckDB table or relation in place that keeps its row
-        count and columns (an ``UPDATE``, or rows deleted and as many
-        inserted) is not noticed: the values learned before are reused. Pass
-        the changed data under a new name, or as a file or a pandas frame, to
-        have it learned again.
+        A table of a database file edited in place is noticed by its
+        storage blocks once the edit is checkpointed (run ``CHECKPOINT``
+        after editing): it is learned again, with a `SqlearnWarning` when
+        this process learned from it before. A relation, or a table of an
+        in-memory database, changed in place with the same row count and
+        columns (an ``UPDATE``, or rows deleted and as many inserted) is not
+        noticed: the values learned before are reused. Pass the changed data
+        under a new name, or as a file or a pandas frame, to have it learned
+        again.
 
         Examples
         --------
@@ -643,7 +647,7 @@ class Pipeline:
                         "learn(data, target='churned')."
                     )
                     raise StepError(msg, step=name, position=i + 1)
-        source = read(data)
+        source = read(data, learning=True)
         con = connection()
         _source_sql(con, source)
         learn_from = source if target is None else self._features(source, target)
@@ -798,7 +802,14 @@ class Pipeline:
             values, _, done = execute(con, source_sql, stages, produce=False)
         except duckdb.Error as exc:
             sql = _learn_sql(source_sql, stages)
-            raise diagnose(exc, steps, _stage_of(steps), running=True, sql=sql) from exc
+            raise diagnose(
+                exc,
+                steps,
+                _stage_of(steps),
+                running=True,
+                sql=sql,
+                learning=[i + 1 for i in misses],
+            ) from exc
         for i in misses:
             name, step = steps[i]
             before, prev, matched = built[i]
@@ -975,11 +986,15 @@ class Pipeline:
 
         Notes
         -----
-        A change to a DuckDB table or relation in place that keeps its row
-        count and columns (an ``UPDATE``, or rows deleted and as many
-        inserted) is not noticed: the values learned before are reused. Pass
-        the changed data under a new name, or as a file or a pandas frame, to
-        have it learned again.
+        A table of a database file edited in place is noticed by its
+        storage blocks once the edit is checkpointed (run ``CHECKPOINT``
+        after editing): it is learned again, with a `SqlearnWarning` when
+        this process learned from it before. A relation, or a table of an
+        in-memory database, changed in place with the same row count and
+        columns (an ``UPDATE``, or rows deleted and as many inserted) is not
+        noticed: the values learned before are reused. Pass the changed data
+        under a new name, or as a file or a pandas frame, to have it learned
+        again.
 
         Examples
         --------
@@ -996,7 +1011,7 @@ class Pipeline:
         _, model = self._modelled()
         feed = model.feed if feed is None else feed
         check_feed(feed)
-        return self._train(read(data), target, feed)
+        return self._train(read(data, learning=True), target, feed)
 
     def _features(
         self, source: Source, target: str, keep: Sequence[str] = ()

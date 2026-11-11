@@ -236,3 +236,99 @@ def test_a_whole_row_step_is_named_by_its_apply_row(people):
         sq.Pipeline([("row", RowNeedsValues(cols="city"))]).learn(people)
     with pytest.raises(sq.errors.StepError, match=r"failed in its apply_row\(\)"):
         sq.Pipeline([("row", RowRaises(cols="age"))]).learn(people)
+
+
+@pytest.mark.slow
+def test_running_out_of_memory_names_the_fixes():
+    """An exact median that cannot sort in memory says so and names the fixes.
+
+    On a passed connection the fixes are settings of that connection, since
+    ``sq.set_config(memory=...)`` limits only sqlearn's own.
+
+    The same data learns with ``approx=True``.
+    """
+    con = duckdb.connect()
+    con.execute("SET memory_limit = '16MB'")
+    con.execute("SET threads = 1")
+    rel = con.sql("SELECT (i * 7919 % 1000003)::DOUBLE AS x FROM range(5000000) t(i)")
+    previous = connection()
+    sq.set_config(connection=con)
+    try:
+        with pytest.raises(sq.errors.SqlearnError) as err:
+            sq.Pipeline([("impute", sq.impute.median())]).learn(rel)
+        text = str(err.value)
+        assert isinstance(err.value.__cause__, duckdb.OutOfMemoryException)
+        for part in (
+            "out of memory",
+            "impute",
+            "step 1",
+            "SET memory_limit",
+            "SET threads = 1",
+            "approx=True",
+        ):
+            assert part in text
+        assert "sq.set_config(memory=" not in text
+        sq.Pipeline([("impute", sq.impute.median(approx=True))]).learn(rel)
+    finally:
+        sq.set_config(connection=previous)
+
+
+@pytest.mark.slow
+def test_running_out_of_memory_in_a_longer_pipeline_names_the_median_step():
+    """With a scale step before it, the message names the median step."""
+    con = duckdb.connect()
+    con.execute("SET memory_limit = '16MB'")
+    con.execute("SET threads = 1")
+    rel = con.sql("SELECT (i * 7919 % 1000003)::DOUBLE AS x FROM range(5000000) t(i)")
+    previous = connection()
+    sq.set_config(connection=con)
+    try:
+        pipe = sq.Pipeline(
+            [("scale", sq.scale.standard()), ("fill", sq.impute.median())]
+        )
+        with pytest.raises(sq.errors.SqlearnError) as err:
+            pipe.learn(rel)
+        assert "'fill' (step 2)" in str(err.value)
+    finally:
+        sq.set_config(connection=previous)
+
+
+@pytest.mark.slow
+def test_running_out_of_memory_on_sqlearns_own_connection_names_the_memory_setting():
+    """On sqlearn's own connection, more memory is ``sq.set_config(memory=...)``."""
+    sq.set_config(memory="16MB")
+    try:
+        rel = connection().sql(
+            "SELECT (i * 7919 % 1000003)::DOUBLE AS x FROM range(5000000) t(i)"
+        )
+        with pytest.raises(sq.errors.SqlearnError) as err:
+            sq.Pipeline([("impute", sq.impute.median())]).learn(rel)
+        text = str(err.value)
+        assert isinstance(err.value.__cause__, duckdb.OutOfMemoryException)
+        assert "sq.set_config(memory=" in text
+        assert "approx=True" in text
+    finally:
+        sq.set_config(memory=None)
+
+
+@pytest.mark.slow
+def test_running_out_of_memory_without_a_median_does_not_blame_the_median():
+    """An ordinal encoder of many categories out of memory gets a neutral Why."""
+    con = duckdb.connect()
+    con.execute("SET memory_limit = '16MB'")
+    con.execute("SET threads = 1")
+    rel = con.sql("SELECT (i * 7919 % 1000003)::VARCHAR AS c FROM range(5000000) t(i)")
+    previous = connection()
+    sq.set_config(connection=con)
+    try:
+        with pytest.raises(sq.errors.SqlearnError) as err:
+            sq.Pipeline([("enc", sq.encode.ordinal())]).learn(rel)
+        text = str(err.value)
+        assert isinstance(err.value.__cause__, duckdb.OutOfMemoryException)
+        assert "'enc' (step 1)" in text
+        assert "memory_limit is too small for what the step learns" in text
+        assert "SET threads = 1" in text
+        for part in ("median", "quantile", "approx=True"):
+            assert part not in text
+    finally:
+        sq.set_config(connection=previous)

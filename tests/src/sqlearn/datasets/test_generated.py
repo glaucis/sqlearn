@@ -1,13 +1,15 @@
 """Tests of the generators written in SQL: blobs, regression and the others."""
 
 import threading
+import warnings
+from typing import Any, cast
 
 import numpy as np
 import pytest
 
 import sqlearn as sq
 from sqlearn._config import connection
-from sqlearn.errors import SqlearnError
+from sqlearn.errors import SqlearnError, SqlearnWarning
 
 GENERATORS = [
     sq.datasets.blobs,
@@ -197,7 +199,6 @@ def test_bad_blobs_settings_are_refused(settings):
         {"n_features": 0},
         {"n_informative": -1},
         {"n_informative": 1.5},
-        {"n_features": 3, "n_informative": 4},
         {"noise": -1.0},
         {"noise": float("nan")},
         {"noise": "1"},
@@ -210,6 +211,34 @@ def test_bad_regression_settings_are_refused(settings):
     """Each bad regression setting is refused in the house form, naming it."""
     name = list(settings)[-1]
     assert name in _refused(sq.datasets.regression, **settings)
+
+
+def test_regression_clips_an_explicit_n_informative_with_a_warning():
+    """An n_informative above n_features is clipped, with a warning to fix it."""
+    with pytest.warns(SqlearnWarning) as caught:
+        clipped = sq.datasets.regression(rows=50, n_features=5, n_informative=8, seed=0)
+    assert len(caught) == 1
+    message = str(caught[0].message)
+    assert "n_informative=8" in message
+    assert "using 5" in message
+    assert "Fix:" in message
+    assert caught[0].filename == __file__
+    exact = sq.datasets.regression(rows=50, n_features=5, n_informative=5, seed=0)
+    assert clipped.fetchall() == exact.fetchall()
+
+
+def test_regression_with_default_n_informative_does_not_warn():
+    """The default n_informative is never warned about, even with few features."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        sq.datasets.regression(n_features=5)
+
+
+def test_regression_with_n_informative_equal_to_n_features_does_not_warn():
+    """n_informative equal to n_features is possible, so not warned about."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        sq.datasets.regression(n_features=5, n_informative=5)
 
 
 def test_classification_gives_its_columns_in_order():
@@ -587,3 +616,52 @@ def test_a_pipeline_learns_ten_million_rows_under_64_mb():
     big = sq.datasets.customers(rows=10**7)
     pipe = sq.Pipeline([sq.impute.median(), sq.scale.standard()]).learn(big)
     assert pipe["standard"].center_ is not None
+
+
+def test_ordered_rows_come_in_row_order_with_insertion_order_off():
+    """ordered=True gives the rows of the row order, whatever DuckDB keeps.
+
+    On DuckDB 2.0 no input was found that reorders the default relation with
+    the setting off (200,000 to 6 million rows, 8 threads, a filter, Arrow):
+    ``range()`` is read on one thread. So the equality below is a guard, not
+    proof; the plan assertion carries the proof that the ordered relation
+    sorts by the row number even with the setting off.
+    """
+    con = connection()
+    setting = con.sql("SELECT current_setting('preserve_insertion_order')")
+    previous = setting.fetchall()[0][0]
+    threads = con.sql("SELECT current_setting('threads')").fetchall()[0][0]
+    try:
+        for make in GENERATORS:
+            expected = make(rows=200_000, seed=0).fetchall()
+            con.execute("SET preserve_insertion_order = false")
+            con.execute("SET threads = 8")
+            ordered = make(rows=200_000, seed=0, ordered=True)
+            plan = ordered.explain().lower()
+            got = ordered.fetchall()
+            assert "order by" in plan, make.__name__
+            assert got == expected, make.__name__
+            con.execute(f"SET preserve_insertion_order = {str(previous).lower()}")
+            con.execute(f"SET threads = {threads}")
+    finally:
+        con.execute(f"SET preserve_insertion_order = {str(previous).lower()}")
+        con.execute(f"SET threads = {threads}")
+
+
+def test_the_default_is_lazy_and_ordered_is_not():
+    """Only ordered=True puts a sort in the plan."""
+    for make in GENERATORS:
+        lazy = make(rows=100).explain().lower()
+        sorted_ = make(rows=100, ordered=True).explain().lower()
+        assert "order by" not in lazy, make.__name__
+        assert "order by" in sorted_, make.__name__
+
+
+def test_ordered_is_refused_unless_a_bool():
+    """A text, an int or None for ordered is refused in the house form."""
+    for make in GENERATORS:
+        for bad in ("yes", 1, None):
+            message = _refused(make, rows=5, ordered=bad)
+            assert "ordered" in message
+        relation = make(rows=5, ordered=cast("Any", np.True_))
+        assert relation.count("*").fetchall()[0][0] == 5

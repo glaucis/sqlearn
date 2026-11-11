@@ -8,9 +8,10 @@ from duckdb.sqltypes import DOUBLE, INTEGER
 
 from sqlearn._expr import const
 from sqlearn._group import call_repr
-from sqlearn._selectors import Selector, _string
+from sqlearn._selectors import Schema, Selector, _string
 from sqlearn._step import Learned, Step
 from sqlearn.agg.aggregates import distinct
+from sqlearn.preprocessing._lookup import check_lookup, check_text, position, warn_many
 
 __all__ = ["Ordinal"]
 
@@ -45,12 +46,33 @@ class Ordinal(Step):
         The columns to encode; defaults to the text columns.
     keep : bool, default False
         Keep the input column and add the code beside it.
+    lookup : {"list", "hash"}, optional
+        How a value is found among the learned categories; both give the
+        same codes. Left out, ``"list"``. ``"list"`` compares the value
+        with the categories one by one (``list_position``), honouring a
+        column's collation; it is the faster up to tens of thousands of
+        categories. ``"hash"`` finds it by an MD5 perfect hash, whose cost
+        per row barely grows with the count, but whose SQL holds about 3.5
+        constants per category, a fixed cost per query. On 1,000,000 rows
+        from Parquet the hash applied faster at 30,000 categories (5.2 s
+        against 14.3 s) and slower at 10,000 (3.2 s against 1.6 s; see
+        ``docs/benchmarks/category-lookup.md``). The hash takes text columns
+        alone (VARCHAR, ENUM) and compares the bytes exactly: DuckDB does not
+        report a collation to a step, so a collated column is matched by its
+        bytes. Left out with more than 30,000 categories in a column, a
+        `SqlearnWarning` says so, once per process; passing either value is
+        a choice and silences it.
 
     Attributes
     ----------
     categories_ : dict of str to list
         After learning, the sorted distinct values of each column, without
         NULL and NaN.
+
+    Raises
+    ------
+    SqlearnError
+        If `lookup` is neither ``"list"`` nor ``"hash"``.
 
     Examples
     --------
@@ -69,8 +91,11 @@ class Ordinal(Step):
         self,
         cols: Selector | str | tuple[str, ...] | list[str] | None = _string(),  # noqa: B008
         keep: bool = False,
+        lookup: str | None = None,
     ) -> None:
+        check_lookup("sq.encode.ordinal", lookup)
         super().__init__(cols=cols, keep=keep)
+        self.lookup = lookup
 
     def default_name(self) -> str:
         """Return ``ordinal``.
@@ -95,7 +120,54 @@ class Ordinal(Step):
             kwargs["cols"] = self.cols
         if self.keep:
             kwargs["keep"] = True
+        if self.lookup is not None:
+            kwargs["lookup"] = self.lookup
         return call_repr("sq.encode.ordinal", **kwargs)
+
+    def inputs(self, schema: Schema) -> list[str]:
+        """Return the columns to encode, refusing ``lookup="hash"`` on non-text.
+
+        Parameters
+        ----------
+        schema : list of (str, DuckDBPyType)
+            The columns reaching the step.
+
+        Returns
+        -------
+        list of str
+            The chosen columns, in schema order.
+
+        Raises
+        ------
+        StepError
+            If the lookup is ``"hash"`` and a chosen column is not text.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> from duckdb.sqltypes import INTEGER, VARCHAR
+        >>> sq.encode.ordinal().inputs([("a", INTEGER), ("c", VARCHAR)])
+        ['c']
+        """
+        chosen = super().inputs(schema)
+        check_text("sq.encode.ordinal", self.lookup, chosen, dict(schema))
+        return chosen
+
+    def learned(self, values: Mapping[str, Mapping[str, object]]) -> None:
+        """Warn once at more than WARN_ABOVE (30,000) categories, lookup left out.
+
+        Parameters
+        ----------
+        values : mapping of str to mapping of str to object
+            Column, then learned name, to the value learned.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> sq.encode.ordinal().learned({"c": {"categories": ["a"]}}) is None
+        True
+        """
+        warn_many(self, self.lookup, values)
 
     def learn(self, x: Expression) -> Mapping[str, Expression]:
         """Learn the sorted distinct values, without NULL and NaN.
@@ -154,12 +226,7 @@ class Ordinal(Step):
         if not isinstance(categories, list):
             msg = "Ordinal needs the learned categories to write its SQL"
             raise TypeError(msg)
-        values = categories
-        position = duckdb.FunctionExpression(
-            "list_position",
-            const(values),
-            x,
-        )
-        code = duckdb.CoalesceOperator(position - const(1), const(-1))
+        at = position(x, categories, self.lookup or "list")
+        code = duckdb.CoalesceOperator(at - const(1), const(-1))
         keep_null = duckdb.CaseExpression(x.isnull() | _is_nan(x), const(None))
         return keep_null.otherwise(code).cast(INTEGER)

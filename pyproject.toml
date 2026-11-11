@@ -28,6 +28,7 @@ dependencies = [
 [dependency-groups]
 test = [
     "catboost>=1.2.10",
+    "lightgbm>=4.7.0",
     "mpmath>=1.4.1",
     "numpy>=2.5.4",
     "optuna>=5.0.0",

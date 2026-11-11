@@ -1202,6 +1202,22 @@
     },
     {
       "abs_error": 0.0,
+      "bound_ulps": null,
+      "canonical": 1011.5315169123216,
+      "dataset": "small",
+      "formula": "median(approx=True)",
+      "note": "approximate by name: its error against the exact linear quantile is recorded, with no bound",
+      "reference": "sqlearn",
+      "rel_error": 0.0,
+      "result": "recorded",
+      "rows": 4,
+      "step": "agg",
+      "type": "DOUBLE",
+      "ulps": 0,
+      "value": 1011.5315169123216
+    },
+    {
+      "abs_error": 0.0,
       "bound_ulps": 0,
       "canonical": null,
       "compared_with": "sorted(set(...)) over the present values",
@@ -2418,6 +2434,22 @@
       "value": 1122.9654891040243
     },
     {
+      "abs_error": 0.22814554058959402,
+      "bound_ulps": null,
+      "canonical": 993.0879947243347,
+      "dataset": "medium",
+      "formula": "median(approx=True)",
+      "note": "approximate by name: its error against the exact linear quantile is recorded, with no bound",
+      "reference": "sqlearn",
+      "rel_error": 0.00022973345947347148,
+      "result": "recorded",
+      "rows": 1000,
+      "step": "agg",
+      "type": "DOUBLE",
+      "ulps": 2006789397628,
+      "value": 992.8598491837452
+    },
+    {
       "abs_error": 0.0,
       "bound_ulps": 0,
       "canonical": null,
@@ -3107,20 +3139,20 @@
       "value": 100.00643961835222
     },
     {
-      "abs_error": 3.300868282965724e-13,
+      "abs_error": 1.488902575249284e-12,
       "bound_ulps": 2,
       "canonical": 10001.287965139127,
       "dataset": "large",
       "formula": "var",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 3.3004431973875336e-17,
+      "rel_error": 1.4887108344835785e-16,
       "result": "pass",
       "rows": 100000,
       "step": "agg",
       "type": "DOUBLE",
-      "ulps": 0,
-      "value": 10001.287965139127
+      "ulps": 1,
+      "value": 10001.287965139125
     },
     {
       "abs_error": 3.6049701242620555e-11,
@@ -3633,6 +3665,22 @@
       "type": "DOUBLE",
       "ulps": 335845103220,
       "value": 1127.837392891897
+    },
+    {
+      "abs_error": 0.06423765022901762,
+      "bound_ulps": null,
+      "canonical": 999.6969373038974,
+      "dataset": "large",
+      "formula": "median(approx=True)",
+      "note": "approximate by name: its error against the exact linear quantile is recorded, with no bound",
+      "reference": "sqlearn",
+      "rel_error": 6.425712416631126e-05,
+      "result": "recorded",
+      "rows": 100000,
+      "step": "agg",
+      "type": "DOUBLE",
+      "ulps": 565040346943,
+      "value": 999.7611749541264
     },
     {
       "abs_error": 0.0,
@@ -4852,6 +4900,22 @@
       "value": 1128.8747593753153
     },
     {
+      "abs_error": 0.32930975095723625,
+      "bound_ulps": null,
+      "canonical": 998.2478779890562,
+      "dataset": "null",
+      "formula": "median(approx=True)",
+      "note": "approximate by name: its error against the exact linear quantile is recorded, with no bound",
+      "reference": "sqlearn",
+      "rel_error": 0.0003298877545531296,
+      "result": "recorded",
+      "rows": 1000,
+      "step": "agg",
+      "type": "DOUBLE",
+      "ulps": 2896639202540,
+      "value": 997.9185682380989
+    },
+    {
       "abs_error": 0.0,
       "bound_ulps": 0,
       "canonical": null,
@@ -6069,6 +6133,22 @@
       "value": 1125.7478658169362
     },
     {
+      "abs_error": 1.2025707929967666,
+      "bound_ulps": null,
+      "canonical": 999.1822053471109,
+      "dataset": "nan",
+      "formula": "median(approx=True)",
+      "note": "approximate by name: its error against the exact linear quantile is recorded, with no bound",
+      "reference": "sqlearn",
+      "rel_error": 0.001203555053884291,
+      "result": "recorded",
+      "rows": 1000,
+      "step": "agg",
+      "type": "DOUBLE",
+      "ulps": 10577924560990,
+      "value": 1000.3847761401076
+    },
+    {
       "abs_error": 0.0,
       "bound_ulps": 0,
       "canonical": null,
@@ -7275,6 +7355,22 @@
       "canonical": null,
       "dataset": "empty",
       "formula": "approx_quantile(q=0.9)",
+      "note": "no values: no quantile to measure against",
+      "reference": "sqlearn",
+      "rel_error": null,
+      "result": "skipped",
+      "rows": 0,
+      "step": "agg",
+      "type": "DOUBLE",
+      "ulps": null,
+      "value": null
+    },
+    {
+      "abs_error": null,
+      "bound_ulps": 0,
+      "canonical": null,
+      "dataset": "empty",
+      "formula": "median(approx=True)",
       "note": "no values: no quantile to measure against",
       "reference": "sqlearn",
       "rel_error": null,
@@ -8504,6 +8600,22 @@
     },
     {
       "abs_error": 0.0,
+      "bound_ulps": null,
+      "canonical": 1084.6880948261512,
+      "dataset": "single",
+      "formula": "median(approx=True)",
+      "note": "approximate by name: its error against the exact linear quantile is recorded, with no bound",
+      "reference": "sqlearn",
+      "rel_error": 0.0,
+      "result": "recorded",
+      "rows": 1,
+      "step": "agg",
+      "type": "DOUBLE",
+      "ulps": 0,
+      "value": 1084.6880948261512
+    },
+    {
+      "abs_error": 0.0,
       "bound_ulps": 0,
       "canonical": null,
       "compared_with": "sorted(set(...)) over the present values",
@@ -9718,6 +9830,22 @@
       "type": "DOUBLE",
       "ulps": 2880862569422,
       "value": 1123.965792767811
+    },
+    {
+      "abs_error": 0.07523375972823487,
+      "bound_ulps": null,
+      "canonical": 997.3979353969048,
+      "dataset": "reserved",
+      "formula": "median(approx=True)",
+      "note": "approximate by name: its error against the exact linear quantile is recorded, with no bound",
+      "reference": "sqlearn",
+      "rel_error": 7.543003354854182e-05,
+      "result": "recorded",
+      "rows": 1000,
+      "step": "agg",
+      "type": "DOUBLE",
+      "ulps": 661763148980,
+      "value": 997.3227016371766
     },
     {
       "abs_error": 0.0,

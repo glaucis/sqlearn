@@ -6,6 +6,7 @@ import polars as pl
 import pyarrow as pa
 import pytest
 from catboost import CatBoostClassifier
+from lightgbm import LGBMClassifier
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
 
@@ -181,9 +182,8 @@ def test_the_target_goes_over_in_the_form_of_the_features():
 def test_histogram_boosting_takes_text_columns_through_pandas():
     """scikit-learn's boosting reads the category dtype, at train and predict.
 
-    LightGBM, which the plan names here, needs the system's OpenMP library
-    on macOS (brew install libomp), so this test uses a model that reads the
-    same form without it.
+    This model needs no system library; LightGBM, which reads the same form,
+    needs OpenMP on macOS and has its own test below.
     """
     model = HistGradientBoostingClassifier(
         max_iter=5, categorical_features="from_dtype"
@@ -193,6 +193,19 @@ def test_histogram_boosting_takes_text_columns_through_pandas():
     assert len(pipe.predict(DATA_WITH_CITY, out="numpy")["prediction"]) == len(
         DATA_WITH_CITY
     )
+
+
+def test_lightgbm_takes_text_columns_as_categories_through_pandas():
+    """LightGBM reads the category dtype, so a text column is a category."""
+    estimator = LGBMClassifier(n_estimators=5, verbose=-1)
+    pipe = sq.Pipeline([sq.impute.median(), sq.Model(estimator, feed="pandas")])
+    pipe.train(DATA_WITH_CITY, target="y")
+    frame = DATA_WITH_CITY.drop(columns="y").astype({"city": "category"})
+    direct = LGBMClassifier(n_estimators=5, verbose=-1).fit(frame, DATA_WITH_CITY["y"])
+    assert direct.booster_.pandas_categorical == [["kyiv", "oslo", "rome"]]
+    assert estimator.booster_.pandas_categorical == [["kyiv", "oslo", "rome"]]
+    got = pipe.predict(DATA_WITH_CITY, out="numpy")["prediction"]
+    np.testing.assert_array_equal(got, np.asarray(direct.predict(frame)))
 
 
 def test_catboost_takes_text_columns_through_pandas():

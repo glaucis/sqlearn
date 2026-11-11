@@ -240,8 +240,11 @@ def _quantiles(data: _cases.Dataset) -> list[dict]:
                 lambda v, q=q, m=method: np.quantile(v, q, method=m),
                 (lambda s, q=q: s.quantile(q)) if method == "linear" else None,
             )
-    for q in (0.5, 0.9):
-        aggregate = sq.agg.approx_quantile(q=q)
+    for q, aggregate in (
+        (0.5, sq.agg.approx_quantile(q=0.5)),
+        (0.9, sq.agg.approx_quantile(q=0.9)),
+        (0.5, sq.agg.median(approx=True)),
+    ):
         formula = repr(aggregate).removeprefix("sq.agg.")
         if not values:
             out.append(

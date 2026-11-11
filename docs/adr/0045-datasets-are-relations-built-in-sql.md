@@ -31,7 +31,10 @@ larger than memory.
 - **Settings keep scikit-learn's names** with two departures, both sqlearn's
   existing words: `rows=` for `n_samples` and `seed=` for `random_state` (an
   `int`, default 0). Bad settings are refused with a `SqlearnError` in the
-  house form, where scikit-learn raises `ValueError`.
+  house form, where scikit-learn raises `ValueError`. An explicit
+  `n_informative` above `n_features` in `regression` is clipped to
+  `n_features`, with a `SqlearnWarning` (ADR 0046), where scikit-learn clips
+  silently.
 - **Random numbers are SplitMix64 in SQL.** Every value is a pure function of
   `(seed, row, stream)`: the key is
   `splitmix64(splitmix64(splitmix64(seed mod 2**64) ^ row) ^ stream)`,
@@ -75,7 +78,10 @@ larger than memory.
   about twelve times faster.
 - A generated relation's rows come in row order while DuckDB's
   `preserve_insertion_order` is on (its default; sqlearn's predict refuses a
-  connection with it off). The SQL has no `ORDER BY`, which would sort every
-  row and lose the laziness: `limit` stops after the rows it needs.
+  connection with it off). The SQL has no `ORDER BY` by default, which would
+  sort every row and lose the laziness: `limit` stops after the rows it needs.
+  Each generator takes `ordered=True` to opt in: it sorts by the row number, so
+  the rows come in row order whatever the setting, at the cost of a sort and of
+  the laziness (#48).
 - Code that expects scikit-learn's `Bunch` or `(X, y)` must read the relation
   instead (`rel.df()`, or a selection of columns).

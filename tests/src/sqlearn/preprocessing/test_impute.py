@@ -4,6 +4,7 @@ import datetime
 import pickle
 import re
 
+import duckdb
 import numpy as np
 import pandas as pd
 import pytest
@@ -572,3 +573,14 @@ def test_impute_refuses_a_constant_outside_the_enum_declared_values():
     )
     with pytest.raises(StepError, match=r"(?s)'z'.*Why:.*Fix:"):
         sq.Pipeline([sq.impute.constant("z")]).learn(rel)
+
+
+def test_impute_median_takes_approx():
+    """The approximate median prints as set and fills with a close value."""
+    step = sq.impute.median(approx=True)
+    assert repr(step) == "sq.impute.median(approx=True)"
+    out = sq.Pipeline([("imp", step)]).learn(people()).apply(people())
+    assert isinstance(out, duckdb.DuckDBPyRelation)
+    filled = out.df()["age"]
+    assert not pd.isna(filled).any()
+    assert filled[1] == pytest.approx(40.0, abs=1.0)

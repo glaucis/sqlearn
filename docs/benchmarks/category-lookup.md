@@ -1,7 +1,7 @@
 ---
 type: note
 tags: [benchmarks, performance, encoders, ordinal, target, sqlearn]
-summary: "Times the ways a step can look a category up in one DuckDB expression, at 100, 1,000 and 10,000 categories on 1,000,000 rows, and the ordinal and target encoders as they are."
+summary: "Times the ways a step can look a category up in one DuckDB expression, at 100, 1,000 and 10,000 categories on 1,000,000 rows, and the ordinal and target encoders with lookup=\"list\" and lookup=\"hash\" from Parquet up to 30,000 categories."
 related: [index, onehot-second-run]
 ---
 # Looking a category up
@@ -13,7 +13,9 @@ categories. The ordinal and target encoders use
 categories one by one. A step writes one DuckDB expression per output column,
 and the learned categories go into it as constants; a join is outside that
 contract. This page states what each form inside it costs. It recommends
-nothing: the decision is Tomas's.
+nothing: the decision is Tomas's. He chose (#31) to keep `list_position` as
+the default and offer the MD5 perfect hash as `lookup="hash"`, with a warning
+above a threshold set from the encoders' times below.
 
 ## What was measured
 
@@ -59,6 +61,8 @@ the script prints "unknown" for them.
 
 Reproduce with `uv run python -m validation.benchmarks.category_lookup`. It
 takes about seven minutes on this machine, most of them the JSON form.
+`... category_lookup encoders 3000` times only the encoders, at the counts
+given; one count per process keeps a large run from running short of memory.
 
 ## Environment
 
@@ -151,6 +155,72 @@ apply 0.427, 0.394 and 0.895 s).
 | 100 | 5.081 | 2.375 | 1.423 |
 | 1,000 | 8.093 | 3.753 | 1.632 |
 | 10,000 | 46.771 | 4.001 | 1.690 |
+
+## The encoders with `lookup="hash"`
+
+Measured with the encoders' part alone, one count per process, from Parquet,
+1,000,000 rows, each encoder with `lookup="list"` and `lookup="hash"`; beside
+them each lookup alone, summed over the same Parquet file. sqlearn
+0.1.dev288+g47e29b323, DuckDB 2.0.0. The machine was shared with other work:
+its load average was between 10 and 17 for the first three counts and 41 at
+the end of the last, so the times are rough and the 30,000 rows the roughest.
+
+| categories | encoder | learn s | apply s | list_position alone, from Parquet s | MD5 perfect hash alone, from Parquet s |
+|---|---|---|---|---|---|
+| 1,000 | ordinal | 0.305 | 0.943 | 0.092 | 0.557 |
+| 1,000 | ordinal, hash | 1.027 | 2.246 | 0.092 | 0.557 |
+| 1,000 | target | 2.153 | 1.076 | 0.092 | 0.557 |
+| 1,000 | target, hash | 4.281 | 3.646 | 0.092 | 0.557 |
+| 3,000 | ordinal | 0.208 | 0.489 | 0.083 | 0.587 |
+| 3,000 | ordinal, hash | 1.613 | 3.443 | 0.083 | 0.587 |
+| 3,000 | target | 3.444 | 2.118 | 0.083 | 0.587 |
+| 3,000 | target, hash | 3.451 | 2.702 | 0.083 | 0.587 |
+| 10,000 | ordinal | 0.425 | 1.604 | 0.445 | 0.734 |
+| 10,000 | ordinal, hash | 1.657 | 3.203 | 0.445 | 0.734 |
+| 10,000 | target | 6.004 | 2.958 | 0.445 | 0.734 |
+| 10,000 | target, hash | 6.181 | 3.775 | 0.445 | 0.734 |
+| 30,000 | ordinal | 0.794 | 14.264 | 6.268 | 1.919 |
+| 30,000 | ordinal, hash | 3.494 | 5.228 | 6.268 | 1.919 |
+| 30,000 | target | 13.345 | 12.620 | 6.268 | 1.919 |
+| 30,000 | target, hash | 28.942 | 20.325 | 6.268 | 1.919 |
+
+Read from Parquet, `list_position` alone costs far less than over the table
+in memory (0.445 s against 1.280 s at 10,000 categories), so the crossing
+point lies higher than the in-memory table suggests: the lookups alone cross
+between 10,000 and 30,000 categories, and so does the ordinal encoder's
+apply (1.604 s against 3.203 s at 10,000, 14.264 s against 5.228 s at
+30,000). The target encoder's apply was slower with the hash at every count,
+30,000 included. `sq.encode`'s warning threshold, `WARN_ABOVE`, is 30,000:
+the smallest count measured at which the hash applied faster.
+
+The hash costs more in an encoder than alone for two reasons, both found
+while measuring:
+
+- **DuckDB shares no repeated subexpression inside a `CASE`.** The form in the
+  tables above writes the MD5 out wherever it is used, which an encoder's NULL
+  handling (and the target encoder's folds) then wraps in a `CASE`. Inside a
+  `CASE`, at 1,000 categories from Parquet, that form took 1.834 s against
+  0.679 s outside one. `lookup="hash"` binds the MD5 and the slot once each,
+  with `list_transform([value], lambda ...)[1]`: 0.284 s inside a `CASE`,
+  0.324 s outside (one run each, same codes as `list_position` on every row).
+  The column "MD5 perfect hash alone" above is that bound form; "MD5 perfect
+  hash" in the earlier tables is the form written out.
+- **A fixed cost per query.** The hash's SQL holds about 3.5 constants per
+  category (the categories, a slot table of a prime above twice their count,
+  and a displacement per two categories) against one for `list_position`.
+  DuckDB parses, binds and plans it on each query a learn or an apply
+  prepares: on 2,000 rows at 10,000 categories, an apply took between 1.2 and
+  2.4 s with the hash against 0.4 to 0.6 s with the list (a few runs, under
+  load). That cost does not grow with the rows, so the more rows, the sooner
+  the hash pays.
+
+The hash compares the bytes exactly. A collated column (`VARCHAR COLLATE
+NOCASE`) is matched by its collation by `list_position` and by its bytes by
+the hash. DuckDB does not report the collation to a step: the relation's type
+is plain `VARCHAR`, `duckdb_columns()` shows `VARCHAR` with no collation, and
+only the table's `CREATE` text in `duckdb_tables()` names it, which a step
+reading any relation cannot reach. So `lookup="hash"` is not refused on a
+collated column; the encoders' documentation says it ignores the collation.
 
 ## What the numbers show
 

@@ -406,9 +406,9 @@ def test_each_input_is_read_once(people, monkeypatch):
     calls = []
     real = _pipeline.read
 
-    def counting(data):
+    def counting(data, **kwargs):
         calls.append(data)
-        return real(data)
+        return real(data, **kwargs)
 
     monkeypatch.setattr(_pipeline, "read", counting)
     pipe = sq.Pipeline([("onehot", MyEncoder()), ("scale", MyScale())])
@@ -466,7 +466,7 @@ def test_a_source_duckdb_cannot_bind_is_an_input_error(people, monkeypatch):
     connection().execute(
         source.relation.sql_query().replace("SELECT * FROM", "DROP VIEW")
     )
-    monkeypatch.setattr(_pipeline, "read", lambda data: source)
+    monkeypatch.setattr(_pipeline, "read", lambda data, **_: source)
     with pytest.raises(sq.errors.SqlearnError, match="cannot read the input") as err:
         sq.Pipeline([("scale", MyScale())]).learn(people)
     assert not isinstance(err.value, sq.errors.StepError)
@@ -882,3 +882,30 @@ def test_a_step_not_yet_applied_stays_so_past_a_later_bind(first, encoded):
     got = pipe.apply(frame, out="pandas")
     assert list(got.columns) == pipe.columns_out_
     assert set(pipe["ordinal"].categories_) == encoded
+
+
+def test_applying_to_an_edited_table_does_not_warn(tmp_path):
+    """Apply and predict reuse what was learned: only learning again warns."""
+    from sklearn.linear_model import LogisticRegression
+
+    path = tmp_path / "shop.duckdb"
+    con = duckdb.connect(str(path))
+    con.execute("SET memory_limit = '256MB'")  # under half the budget: no warning
+    con.execute(
+        "CREATE TABLE customers AS "
+        "SELECT range::DOUBLE AS x, range % 2 AS y FROM range(40)"
+    )
+    con.execute("CHECKPOINT")
+    sq.set_config(connection=con)
+    steps = sq.Pipeline([("scale", sq.scale.standard())])
+    model = sq.Pipeline(
+        [("scale", sq.scale.standard()), ("model", LogisticRegression())]
+    )
+    steps.learn("customers")
+    model.train("customers", target="y")
+    con.execute("UPDATE customers SET x = -x WHERE y = 0")
+    con.execute("CHECKPOINT")
+    steps.apply("customers").fetchall()
+    model.predict("customers")
+    with pytest.warns(sq.errors.SqlearnWarning, match="main.customers"):
+        steps.learn("customers")

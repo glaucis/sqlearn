@@ -13,14 +13,15 @@ hooks do.
 ## A new laptop
 
 ```sh
-brew install uv just commitlint
+brew install uv just commitlint libomp
 just setup
 ```
 
 `just setup` points git's `core.hooksPath` at `.githooks` and runs
 `uv sync --locked`, which installs the locked environment into `.venv` on the
-Python floor, 3.12. Nothing else installs the hooks, so run it once after
-every clone. uv is the only package tool
+Python floor, 3.12. Nothing else installs the hooks, so run it once after every
+clone. `libomp` is for LightGBM, a dev dependency whose macOS wheel needs the
+system's OpenMP library; uv cannot provide it. uv is the only package tool
 ([ADR 0001](../adr/0001-uv-for-python-packaging.md)); `just` runs the recipes
 ([ADR 0008](../adr/0008-just-task-runner.md)).
 

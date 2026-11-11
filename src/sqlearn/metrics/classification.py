@@ -132,6 +132,43 @@ def _some(labels: list[object], shown: int = 10) -> str:
     return head if len(labels) <= shown else f"{head}, ...; {len(labels)} in all"
 
 
+def _is_text(value: object) -> bool:
+    """Say whether a label is text; every other label is a number (bool too)."""
+    return isinstance(value, str)
+
+
+def _type_hint(pos_label: object, labels: list[object]) -> str:
+    """Return a sentence on pos_label's kind when it differs from the labels'.
+
+    Text against numbers names the number the text reads as, and numbers
+    against text names the text; "" when the kinds agree. sqlearn never
+    converts pos_label: the hint only says what to pass.
+    """
+    if {_is_text(lab) for lab in labels} != {not _is_text(pos_label)}:
+        return ""
+    if _is_text(pos_label):
+        number = _as_number(str(pos_label))
+        named = f" Did you mean pos_label={number!r}?" if number is not None else ""
+        return (
+            f" The labels are numbers and pos_label={pos_label!r} is text, "
+            f"which is a different label.{named}"
+        )
+    return (
+        f" The labels are text and pos_label={pos_label!r} is a number, "
+        f"which is a different label. Did you mean pos_label={str(pos_label)!r}?"
+    )
+
+
+def _as_number(text: str) -> int | float | None:
+    """Read text as a whole number, else a float, else None."""
+    for kind in (int, float):
+        try:
+            return kind(text)
+        except ValueError:
+            continue
+    return None
+
+
 def _same(a: object, b: object) -> bool:
     return type(a) is type(b) and a == b
 
@@ -150,6 +187,14 @@ class ClassificationMetric(Metric):
         The class scored under ``average="binary"``.
     zero_division : str or float, default "warn"
         The score of a class whose score divides by zero.
+
+    Notes
+    -----
+    ``pos_label`` is never converted: ``1`` and ``"1"`` are different labels,
+    as in SQL. When ``pos_label`` is not among the labels and is text where
+    they are numbers (or the reverse), the refusal, or the warning of a score
+    set to 0.0, adds a hint naming the value likely meant, such as
+    ``Did you mean pos_label=1?``.
 
     Examples
     --------
@@ -286,12 +331,14 @@ class ClassificationMetric(Metric):
         0.5
         """
         check_labels(self.name, rel, target, prediction)
+        hint = ""
         counts = _counts(rel, target, prediction)
         labels = [c[0] for c in counts]
         if self.average == "binary":
             self._check_binary(labels)
             found = [c for c in counts if c[0] == self.pos_label]
             scored = found or [(self.pos_label, 0, 0, 0)]
+            hint = "" if found else _type_hint(self.pos_label, labels)
         elif self.average == "micro":
             tp = sum(c[3] for c in counts)
             scored = [
@@ -316,7 +363,8 @@ class ClassificationMetric(Metric):
             )
             warnings.warn(
                 f"{name} is ill-defined and being set to 0.0 {where}. Fix: pass "
-                "zero_division= to choose the value (0.0, 1.0 or nan).",
+                "zero_division= to choose the value (0.0, 1.0 or nan)."
+                f"{hint}",
                 UndefinedMetricWarning,
                 stacklevel=2,
             )
@@ -342,6 +390,7 @@ class ClassificationMetric(Metric):
                 f"pos_label={self.pos_label!r}, which is none of the labels "
                 f"found ({found}). Fix: pass pos_label= the positive one, as "
                 f"sq.metrics.{self.name}(pos_label={labels[-1]!r})."
+                f"{_type_hint(self.pos_label, labels)}"
             )
             raise SqlearnError(msg)
 

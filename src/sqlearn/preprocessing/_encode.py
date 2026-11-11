@@ -23,7 +23,13 @@ class _Settings(TypedDict, total=False):
     keep: bool
 
 
-class _TargetSettings(_Settings, total=False):
+class _OrdinalSettings(_Settings, total=False):
+    """The settings of the ordinal shortcut."""
+
+    lookup: str | None
+
+
+class _TargetSettings(_OrdinalSettings, total=False):
     """The settings of the target shortcut."""
 
     smooth: str | float
@@ -59,6 +65,7 @@ class EncodeGroup(Group):
         cv: int | None = None,
         seed: int | None = None,
         target_type: str | None = None,
+        lookup: str | None = None,
     ) -> OneHot | Ordinal | TargetEncoder:
         """Build the step that encodes columns by `method`.
 
@@ -75,6 +82,9 @@ class EncodeGroup(Group):
         smooth, cv, seed, target_type : optional
             The settings of ``target`` (see `TargetEncoder`), only with it;
             its defaults when not given.
+        lookup : {"list", "hash"}, optional
+            How ``ordinal`` and ``target`` find a value among the categories
+            (see `Ordinal`); left out, ``"list"``.
 
         Returns
         -------
@@ -85,7 +95,8 @@ class EncodeGroup(Group):
         ------
         SqlearnError
             If names and `cols` are both given, a dict is given, `method` is
-            not a method, or a setting of ``target`` is given with another.
+            not a method, a setting of ``target`` is given with another, or
+            `lookup` is given with ``onehot``.
 
         Examples
         --------
@@ -121,6 +132,14 @@ class EncodeGroup(Group):
                 "method='target'."
             )
             raise SqlearnError(msg)
+        if lookup is not None and method == "onehot":
+            msg = (
+                f"sq.encode got method='onehot' and lookup={lookup!r}. Why: "
+                "onehot compares a value with each category to make its "
+                "columns and looks nothing up. Fix: leave lookup out, or use "
+                "method='ordinal' or method='target'."
+            )
+            raise SqlearnError(msg)
         columns = cast("str | list[str] | Selector | None", chosen)
         if method == "target":
             return TargetEncoder(
@@ -130,11 +149,15 @@ class EncodeGroup(Group):
                 cv=5 if cv is None else cv,
                 seed=0 if seed is None else seed,
                 target_type="auto" if target_type is None else target_type,
+                lookup=lookup,
             )
-        step = OneHot if method == "onehot" else Ordinal
+        if method == "ordinal":
+            if columns is None:
+                return Ordinal(keep=keep, lookup=lookup)
+            return Ordinal(cols=columns, keep=keep, lookup=lookup)
         if columns is None:
-            return step(keep=keep)
-        return step(cols=columns, keep=keep)
+            return OneHot(keep=keep)
+        return OneHot(cols=columns, keep=keep)
 
     def onehot(self, *names: object, **kw: Unpack[_Settings]) -> OneHot:
         """Make one 0/1 column per category (``method="onehot"``).
@@ -161,7 +184,7 @@ class EncodeGroup(Group):
         """
         return cast("OneHot", self(*names, method="onehot", **kw))
 
-    def ordinal(self, *names: object, **kw: Unpack[_Settings]) -> Ordinal:
+    def ordinal(self, *names: object, **kw: Unpack[_OrdinalSettings]) -> Ordinal:
         """Replace each category by its position among the sorted ones.
 
         As scikit-learn's ``OrdinalEncoder(handle_unknown="use_encoded_value",
@@ -172,7 +195,8 @@ class EncodeGroup(Group):
         *names : str or list of str
             The columns; by default the text columns.
         **kw : object
-            The general form's other settings (``cols``, ``keep``).
+            The general form's other settings (``cols``, ``keep``,
+            ``lookup``).
 
         Returns
         -------
@@ -200,7 +224,7 @@ class EncodeGroup(Group):
             The columns; by default the text columns.
         **kw : object
             The general form's other settings (``cols``, ``keep``,
-            ``smooth``, ``cv``, ``seed``, ``target_type``).
+            ``smooth``, ``cv``, ``seed``, ``target_type``, ``lookup``).
 
         Returns
         -------

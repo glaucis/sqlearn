@@ -53,6 +53,27 @@ bytes a row, NULLs included), measured on DuckDB 2.0
 ([ADR 0032](../adr/0032-the-median-is-exact-by-sorting.md),
 [the measurement](../benchmarks/median-reach.md)).
 
+The reach of the exact median, by memory limit, on one thread, for one DOUBLE
+column:
+
+| memory limit | largest passing rows | smallest failing rows | rows per MB (millions) |
+|---|---|---|---|
+| 32 MB | 8,125,000 | 8,750,000 | 0.25 |
+| 64 MB | 32,500,000 | 35,000,000 | 0.51 |
+| 128 MB | 110,000,000 | 120,000,000 | 0.86 |
+
+Past its reach the learn fails with an `SqlearnError` that says DuckDB ran out
+of memory and names the fixes: more memory, fewer threads, or
+`sq.impute.median(approx=True)`. On sqlearn's own connection more memory is
+`sq.set_config(memory=...)`, which gives DuckDB half of it; on a connection
+passed with `sq.set_config(connection=...)` it is `SET memory_limit = '...'`
+on that connection, and fewer threads `SET threads = 1` on it. A step that
+runs out of memory without an exact median or quantile is told only of the
+memory and threads, not of the median. `approx=True` is
+DuckDB's `approx_quantile`: constant memory, close to the exact median but not
+equal to it, so not equal to scikit-learn's. sqlearn never switches to it by
+itself.
+
 A column filled by an aggregate of numbers, or by a number, comes out as a
 DOUBLE column, as scikit-learn returns floats. Filled by text or by the mode,
 it keeps its type.

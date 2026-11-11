@@ -84,6 +84,48 @@ the data's row order**, so the same rows in another order give other inner
 folds. Learn-then-apply, which has no model to overfit, does **not**
 cross-fit: it applies the learned encodings to every row.
 
+## Many categories: `lookup=`
+
+The ordinal and target encoders find each value among the learned categories.
+By default (`lookup="list"`) they use `list_position`, which compares the
+value with the categories one by one, so the cost per row grows with the
+number of categories. `lookup="hash"` uses an MD5 perfect hash instead: one
+MD5 per value and a few list reads, whatever the count.
+
+```{code-cell} python
+sq.encode.ordinal("size", lookup="hash")
+```
+
+Both give the same codes. The hash costs less per row once there are many
+categories, but its SQL holds about 3.5 constants per category, which DuckDB
+parses and plans on every query; so which is faster depends on the number of
+categories and of rows. Applied to 1,000,000 rows read from Parquet
+([the benchmark](../benchmarks/category-lookup.md), seconds):
+
+| categories | ordinal, list | ordinal, hash | target, list | target, hash |
+|---|---|---|---|---|
+| 1,000 | 0.943 | 2.246 | 1.076 | 3.646 |
+| 3,000 | 0.489 | 3.443 | 2.118 | 2.702 |
+| 10,000 | 1.604 | 3.203 | 2.958 | 3.775 |
+| 30,000 | 14.264 | 5.228 | 12.620 | 20.325 |
+
+The machine was busy during that run, so the times are rough; the hash pays
+off from a few tens of thousands of categories, and more with more rows.
+
+- Leave `lookup` out and the encoder uses `"list"`. When the ordinal encoder
+  learns more than 30,000 categories in a column it warns once, naming the
+  step, the count and `lookup="hash"`; passing either value is a choice and
+  silences it ([ADR 0046](../adr/0046-sqlearn-warns-the-user-chooses.md)).
+  The target encoder offers `lookup="hash"` but never warns: in the benchmark
+  the hash was slower for it at every count.
+- The hash reads text: it takes VARCHAR and ENUM columns, and refuses any
+  other.
+- The hash compares the bytes exactly. A column declared with a collation
+  (`VARCHAR COLLATE NOCASE`) is matched by its collation with `"list"` but by
+  its bytes with `"hash"`: DuckDB does not tell a step a column's collation,
+  so the encoder cannot refuse it. Use `"list"` on a collated column, or
+  `sq.transform.lower` before the encoder.
+
 ## Other things to know
 
 - NaN in a float column is a category for the one-hot encoder, as in

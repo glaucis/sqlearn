@@ -45,3 +45,28 @@ stage's one row. The marker must be a whole learned value
   small data.
 - The reach is DuckDB's sort: under 64 MB a plain `ORDER BY` fails at about
   60M rows, and the medians of two columns reach 20M (issue #27).
+
+## Amended 2026-11-10
+
+The default stays exact by sorting. Two things are added (issue #27, ADR 0046):
+
+- `approx=True` on `sq.agg.median` and `sq.impute.median` builds DuckDB's
+  `approx_quantile(x, 0.5)`: constant memory, close to the exact median but
+  not equal to it. It is the user's choice; sqlearn never switches by itself.
+  Its error against numpy's median is measured in validation and stated in the
+  docstring.
+- When the sort runs out of memory, the learn raises an `SqlearnError` in the
+  house form, not DuckDB's `OutOfMemoryException`. DuckDB's text names no stage,
+  so it names the steps learning in the failed statement (all of them: it cannot
+  say which sorted), or "a step" if none is known; and the fixes: more memory,
+  fewer threads, or `approx=True`. More memory is `sq.set_config(memory=...)`
+  on sqlearn's own connection and `SET memory_limit` on a connection passed to
+  `sq.set_config(connection=...)`, which sqlearn never re-limits; fewer threads
+  is `SET threads = 1` on a passed connection. The median is blamed and
+  `approx=True` offered only when a step learning in the failed statement
+  sorts for an exact median or quantile (its `_quantile` stage is in the
+  statement); otherwise the Why says DuckDB's memory_limit is too small for
+  what the step learns.
+
+The reach by memory limit is in `docs/benchmarks/median-reach.md` and the
+imputing guide.

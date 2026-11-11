@@ -326,3 +326,39 @@ def test_micro_warning_names_no_label_micro(monkeypatch):
     got = str(record[0].message)
     assert got.startswith(want)
     assert "'micro'" not in got
+
+
+def test_text_pos_label_against_number_labels_names_the_number():
+    """A text pos_label against number labels is refused, hinting the number."""
+    frame = pd.DataFrame({"y": [0, 1], "prediction": [0, 1]})
+    with pytest.raises(
+        sq.errors.SqlearnError, match=r"numbers.*Did you mean pos_label=1\?"
+    ):
+        sq.metrics.precision(pos_label="1").compute(rel(frame), "y")
+
+
+def test_number_pos_label_against_text_labels_names_the_text():
+    """A number pos_label against text labels is refused, hinting the text."""
+    frame = pd.DataFrame({"y": ["a", "1"], "prediction": ["a", "1"]})
+    with pytest.raises(
+        sq.errors.SqlearnError, match=r"text.*Did you mean pos_label='1'\?"
+    ):
+        sq.metrics.precision(pos_label=1).compute(rel(frame), "y")
+
+
+def test_one_class_with_a_pos_label_of_the_other_kind_warns_with_the_hint():
+    """One number label and pos_label="1": 0.0, and the warning names pos_label=1."""
+    frame = pd.DataFrame({"y": [1, 1], "prediction": [1, 1]})
+    with pytest.warns(
+        sq.errors.UndefinedMetricWarning, match=r"numbers.*pos_label=1\b"
+    ):
+        got = sq.metrics.precision(pos_label="1").compute(rel(frame), "y")
+    assert got == 0.0
+
+
+def test_a_pos_label_of_the_labels_kind_gets_no_hint():
+    """Two number labels and a number pos_label that is none of them: no hint."""
+    frame = pd.DataFrame({"y": [0, 1], "prediction": [0, 1]})
+    with pytest.raises(sq.errors.SqlearnError) as raised:
+        sq.metrics.precision(pos_label=2).compute(rel(frame), "y")
+    assert "numbers" not in str(raised.value)

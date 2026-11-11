@@ -11,7 +11,10 @@ from types import TracebackType
 
 import duckdb
 
+from sqlearn._compose import stage_name
+from sqlearn._config import get_config
 from sqlearn._errors import InternalError, SqlearnError, StepError
+from sqlearn._expr import quote
 from sqlearn._step import Learned, Step, apply_rows
 
 __all__ = ["diagnose"]
@@ -154,6 +157,81 @@ def _user(
     return StepError(msg, step=name, position=position)
 
 
+def _sorts(
+    sql: str | None, steps: Sequence[tuple[str, Step]], known: list[int]
+) -> bool:
+    """Say whether a step in `known` sorts for an exact median or quantile.
+
+    An exact quantile is learned in a stage of its own, named after the
+    step's learn stage with ``_quantile`` (`stage_name`), so the failed
+    statement holds that name exactly when one of those steps sorts.
+    """
+    if sql is None:
+        return False
+    return any(
+        quote(stage_name(p, steps[p - 1][0], learn=True) + "_quantile") in sql
+        for p in known
+    )
+
+
+def _out_of_memory(
+    exc: BaseException,
+    steps: Sequence[tuple[str, Step]],
+    position: int | None,
+    learning: Sequence[int],
+    sql: str | None,
+) -> SqlearnError:
+    """Explain DuckDB running out of memory while learning (issue 27).
+
+    DuckDB's text names no stage, so `position` is usually None; then the
+    steps learning in the failed statement (`learning`, positions from 1) are
+    named as the candidates, and "a step" is said only when none is known.
+    The median is blamed, and ``approx=True`` offered, only when one of them
+    sorts for an exact median or quantile. The memory and threads fixes are
+    written for the connection: ``sq.set_config(memory=...)`` limits only
+    sqlearn's own, so a passed connection is given ``SET`` statements.
+    """
+    candidates = [position] if position is not None else list(learning)
+    known = [p for p in candidates if 1 <= p <= len(steps)]
+    named = [f"{steps[p - 1][0]!r} (step {p})" for p in known]
+    if not named:
+        where = "a step"
+    elif len(named) == 1:
+        where = f"step {named[0]}"
+    else:
+        where = "one of the steps " + ", ".join(named)
+    median = _sorts(sql, steps, known)
+    if median:
+        why = (
+            "an exact median or quantile sorts its column, and DuckDB's "
+            "memory_limit is too small for it (docs/benchmarks/median-reach.md)."
+        )
+    else:
+        learns = "the steps learn" if len(named) > 1 else "the step learns"
+        why = f"DuckDB's memory_limit is too small for what {learns}."
+    if get_config().connection is None:
+        fixes = [
+            "give DuckDB more memory with sq.set_config(memory=...), whose half "
+            "is the memory_limit of sqlearn's own connection",
+            "run it on fewer threads by passing a connection with "
+            "SET threads = 1 to sq.set_config(connection=...)",
+        ]
+    else:
+        fixes = [
+            "give DuckDB more memory with SET memory_limit = '...' on the "
+            "connection passed to sq.set_config(connection=...)",
+            "run it on fewer threads with SET threads = 1 on that connection",
+        ]
+    if median:
+        fixes.append("pass approx=True to the median, which is close but not exact")
+    msg = (
+        f"DuckDB ran out of memory while learning {where}. Why: {why} "
+        f"Fix: {', '.join(fixes[:-1])}, or {fixes[-1]}. "
+        f"DuckDB says: {_first_line(exc)}"
+    )
+    return SqlearnError(msg)
+
+
 def diagnose(
     exc: BaseException,
     steps: Sequence[tuple[str, Step]],
@@ -161,6 +239,7 @@ def diagnose(
     *,
     running: bool = False,
     sql: str | None = None,
+    learning: Sequence[int] = (),
 ) -> SqlearnError:
     """Explain a failure: which step, what went wrong, why and the fix.
 
@@ -182,7 +261,12 @@ def diagnose(
     running : bool, default False
         True when the failure came while running SQL, not while building it.
     sql : str, optional
-        The statement that failed, for the report of an internal error.
+        The statement that failed, for the report of an internal error, and
+        to tell whether an out-of-memory learn sorted for an exact median.
+    learning : sequence of int, optional
+        The positions (from 1) of the steps learning in the failed statement.
+        DuckDB's out-of-memory text names no stage, so those steps are the
+        ones named for it: all of them, as the error cannot say which.
 
     Returns
     -------
@@ -203,6 +287,8 @@ def diagnose(
     if isinstance(exc, SqlearnError):
         return exc
     position = stage_of(str(exc))
+    if isinstance(exc, duckdb.OutOfMemoryException):
+        return _out_of_memory(exc, steps, position, learning, sql)
     if position is None or not 1 <= position <= len(steps):
         msg = (
             f"{'DuckDB' if isinstance(exc, duckdb.Error) else type(exc).__name__} "

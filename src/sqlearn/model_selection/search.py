@@ -297,15 +297,19 @@ class Search:
     -----
     With ``keep_prepared``, a kept table is found by a key of its data (a
     file by its path, size and modification time; a pandas frame by its
-    content; a table of a database file by the file, its name and row
-    count), the target, each step's name, class and settings, the fold
-    scheme, and the versions of sqlearn and DuckDB. Data with no such key (a
-    relation, a table of an in-memory database) is refused, and so is a step
-    setting that cannot be keyed by its content. Not seen: a table edited
-    in place that keeps its row count (an ``UPDATE``); a change to the code
-    of a step of your own, with the same class name and settings; and a
-    change to sqlearn's code in an editable or git install, whose version
-    does not change with its code. After any of these, clear the file with
+    content; a table of a database file by the file, its name, row count
+    and storage blocks), the target, each step's name, class and settings,
+    the fold scheme, and the versions of sqlearn and DuckDB. Data with no
+    such key (a relation, a table of an in-memory database) is refused, and
+    so is a step setting that cannot be keyed by its content. A table
+    edited in place gets new storage blocks and so is prepared again, with
+    a `SqlearnWarning` when this process learned from it before: warned once
+    per change of the table, by whichever learns from it first. An edit
+    still in the write-ahead log may not be seen yet: run ``CHECKPOINT``
+    after editing. Not seen: a change to the code of a step of your own, with the
+    same class name and settings; and a change to sqlearn's code in an
+    editable or git install, whose version does not change with its code.
+    After any of these, or an edit not checkpointed, clear the file with
     ``sq.store.clear(prepared=path)``. ``sq.store.prepared(path)`` lists
     what is kept.
 
@@ -415,11 +419,15 @@ class Search:
 
         Notes
         -----
-        A change to a DuckDB table or relation in place that keeps its row
-        count and columns (an ``UPDATE``, or rows deleted and as many
-        inserted) is not noticed: the values learned before are reused. Pass
-        the changed data under a new name, or as a file or a pandas frame, to
-        have it learned again.
+        A table of a database file edited in place is noticed by its
+        storage blocks once the edit is checkpointed (run ``CHECKPOINT``
+        after editing): it is learned and prepared again, with a
+        `SqlearnWarning` when this process learned from it before. A
+        relation, or a table of an in-memory database, changed in place
+        with the same row count and columns (an ``UPDATE``, or rows deleted
+        and as many inserted) is not noticed: the values learned before are
+        reused. Pass the changed data under a new name, or as a file or a
+        pandas frame, to have it learned again.
 
         Examples
         --------
@@ -449,7 +457,7 @@ class Search:
                 # before any work.
                 _check_method(self.metric, trial(self.pipe, params)._modelled()[1])
                 asked.append(params)
-        source = read(data)
+        source = read(data, learning=True)
         stable = None
         if self.keep_prepared is not None:
             stable = source.stable_key()

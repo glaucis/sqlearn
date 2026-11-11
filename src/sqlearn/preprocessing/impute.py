@@ -301,9 +301,8 @@ class Impute(Step):
             return "impute"
         if isinstance(value, agg.Aggregate):
             named = agg.lookup(value.name)
-            return (
-                value.name if value.name in _SHORTCUTS and value == named else "impute"
-            )
+            plain = value == named or _is_approx_median(value)
+            return value.name if value.name in _SHORTCUTS and plain else "impute"
         if value is None:
             return "indicator" if self.indicator else "impute"
         return "constant"
@@ -325,6 +324,8 @@ class Impute(Step):
             args.append(self.value)
         else:
             path, kwargs["value"] = "sq.impute", self.value
+        if _is_approx_median(self.value):
+            kwargs["approx"] = True
         if self.indicator and name != "indicator":
             kwargs["indicator"] = True
         if self.keep:
@@ -536,6 +537,11 @@ class _Columns(TypedDict, total=False):
     suffix: str | None
 
 
+def _is_approx_median(value: object) -> bool:
+    """Say whether `value` is the approximate median, a median shortcut too."""
+    return value == agg.median(approx=True)
+
+
 class _Settings(_Columns, total=False):
     """The settings a filling shortcut passes on: the indicator too."""
 
@@ -650,15 +656,22 @@ class ImputeGroup(Group):
         """
         return self(*names, value=agg.mean, **kw)
 
-    def median(self, *names: object, **kw: Unpack[_Settings]) -> Impute:
-        """Fill with the exact median of the present values (``sq.agg.median``).
+    def median(
+        self, *names: object, approx: bool = False, **kw: Unpack[_Settings]
+    ) -> Impute:
+        """Fill with the median of the present values (``sq.agg.median``).
 
-        As scikit-learn's ``SimpleImputer(strategy="median")``.
+        As scikit-learn's ``SimpleImputer(strategy="median")``: exact, by
+        sorting, unless ``approx=True``.
 
         Parameters
         ----------
         *names : str or list of str
             The columns; by default the numeric ones.
+        approx : bool, default False
+            Use DuckDB's approximate median: constant memory, close but not
+            equal to the exact one. For data beyond the exact median's reach
+            (``docs/benchmarks/median-reach.md``); never chosen for you.
         **kw : object
             The general form's other settings (``indicator``, ``cols``,
             ``keep``, ``suffix``).
@@ -673,8 +686,10 @@ class ImputeGroup(Group):
         >>> import sqlearn as sq
         >>> sq.impute.median(indicator=True)
         sq.impute.median(indicator=True)
+        >>> sq.impute.median(approx=True)
+        sq.impute.median(approx=True)
         """
-        return self(*names, value=agg.median, **kw)
+        return self(*names, value=agg.median(approx=approx), **kw)
 
     def mode(self, *names: object, **kw: Unpack[_Settings]) -> Impute:
         """Fill with the most frequent value, text too (``sq.agg.mode``).
