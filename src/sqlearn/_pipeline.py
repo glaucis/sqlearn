@@ -33,7 +33,7 @@ from sqlearn._diagnose import diagnose
 from sqlearn._errors import SqlearnError, StepError
 from sqlearn._expr import quote
 from sqlearn._feed import ROW, fetch, predict_streamed, stream_trainer
-from sqlearn._inputs import Source, read
+from sqlearn._inputs import DataKey, Source, read
 from sqlearn._model import Model, as_model, check_feed, is_model
 from sqlearn._output import Output, to_output
 from sqlearn._plan import Plan, plan
@@ -59,6 +59,10 @@ class _FoldTable(NamedTuple):
 
     name: str
     features: tuple[str, ...]
+
+
+LearnedFrom = tuple[tuple[str, str, str] | None, DataKey | None]
+"""The learned-from input's `Source.origin` and `Source.stable`."""
 
 
 def _default_name(step: Step | object) -> str:
@@ -474,6 +478,10 @@ class Pipeline:
         self._categories: dict[str, list[str]] = {}
         # The target the steps learned with: left out of the data at apply.
         self._target: str | None = None
+        # Per step, the earlier steps it reads from (the plan's), sorted.
+        self._depends_on: list[list[int]] | None = None
+        # The learned-from input's origin and stable key, for a saved file.
+        self._source: LearnedFrom | None = None
 
     @property
     def named_steps(self) -> dict[str, Any]:
@@ -651,12 +659,14 @@ class Pipeline:
         con = connection()
         _source_sql(con, source)
         learn_from = source if target is None else self._features(source, target)
-        _, runs, known = self._learn(con, learn_from, steps)
+        the_plan, runs, known = self._learn(con, learn_from, steps)
         stages, out, types = self._stages(
             con, learn_from.relation.sql_query(), learn_from.schema, steps, known
         )
-        self._commit(steps, known, types, [c for c, _ in out], stages)
-        self._target = target
+        self._commit(
+            known, types, [c for c, _ in out], stages, target, source,
+            the_plan.depends_on,
+        )  # fmt: skip
         self.runs_ = [run for _, run in runs]
         return self
 
@@ -685,23 +695,50 @@ class Pipeline:
 
     def _commit(
         self,
-        steps: list[tuple[str, Step]],
         known: list[Entry],
         types: list[dict[str, DuckDBPyType]],
         columns_out: list[str],
         stages: list[Stage],
+        target: str | None,
+        source: Source,
+        depends_on: Sequence[frozenset[int]],
     ) -> None:
         """Keep what the steps learned; called last, once everything succeeded.
 
-        Then each step hears what it learned (`Step.learned`), once.
+        `source` is the input as read, before the target is set aside: its
+        origin and stable key are kept for a saved file.
         """
-        learned = [_by_column(entry.values) for entry in known]
+        self._restore(
+            known, types, [stage.created for stage in stages], columns_out,
+            target, [sorted(d) for d in depends_on], (source.origin, source.stable),
+        )  # fmt: skip
+
+    def _restore(
+        self,
+        entries: list[Entry],
+        types: list[dict[str, DuckDBPyType]],
+        names: list[dict[str, list[str]]],
+        columns_out: list[str],
+        target: str | None,
+        depends_on: list[list[int]],
+        source: LearnedFrom | None,
+    ) -> None:
+        """Set what the pipeline learned, from a learn or a saved file.
+
+        Each step gets its values (`Step._set_learned`), then hears what it
+        learned (`Step.learned`), once.
+        """
+        steps, _ = self._split()
+        learned = [_by_column(entry.values) for entry in entries]
         for (_, step), values in zip(steps, learned, strict=True):
             step._set_learned(values)
-        self._entries = known
+        self._entries = entries
         self._types = types
-        self._names = [stage.created for stage in stages]
+        self._names = names
         self._columns_out = columns_out
+        self._target = target
+        self._depends_on = depends_on
+        self._source = source
         for (_, step), values in zip(steps, learned, strict=True):
             step.learned(values)
 
@@ -1195,8 +1232,7 @@ class Pipeline:
         except BaseException:
             self._feed = None
             raise
-        self._commit(steps, known, types, columns, stages)
-        self._target = target
+        self._commit(known, types, columns, stages, target, source, the_plan.depends_on)
         # The model is a reader (ADR 0018): the feeding query belongs to the
         # feed run, after its learn statement when that run learned.
         if runs and runs[-1][0] == the_plan.feed_run:

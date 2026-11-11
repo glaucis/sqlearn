@@ -548,3 +548,21 @@ def test_a_qualified_or_temporary_table_name_is_resolved(tmp_path):
     assert read("v").stable_key() is None  # a view: no identity of its own
     con.execute("CREATE TEMP TABLE u AS SELECT 2 AS a")
     assert read("u").stable_key() is None  # the temporary table shadows it
+
+
+def test_an_input_names_where_it_comes_from(tmp_path, monkeypatch):
+    """A file, a glob or a table of a database file names its origin."""
+    _write(tmp_path / "d1.csv", "a\n1\n", 1_000_000_000)
+    _write(tmp_path / "d2.csv", "a\n2\n", 1_000_000_000)
+    monkeypatch.chdir(tmp_path)
+    real = os.path.realpath(tmp_path)
+    assert read("d1.csv").origin == ("file", real, "d1.csv")
+    assert read(str(tmp_path / "d*.csv")).origin == ("file", real, "d*.csv")
+    con = duckdb.connect(str(tmp_path / "db.duckdb"))
+    con.execute("CREATE TABLE t AS SELECT 1 AS a")
+    sq.set_config(connection=con)
+    assert read("t").origin == (
+        "table", os.path.realpath(tmp_path / "db.duckdb"), "main.t",
+    )  # fmt: skip
+    assert read(pd.DataFrame({"a": [1]})).origin is None
+    assert read(con.sql("SELECT 1 AS a")).origin is None

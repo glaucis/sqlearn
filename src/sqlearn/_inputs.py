@@ -98,6 +98,12 @@ class Source:
     stable : tuple, optional
         A key that names the same data in any process, or None when the
         input has none; read it with `stable_key`.
+    origin : tuple, optional
+        Where the input comes from, as the user named it: for a file or
+        glob ``("file", folder, pattern)``, the folder a real path; for a
+        table of a database file ``("table", file, "schema.table")``, the
+        file a real path. None for any other input. A saved pipeline
+        compares it to tell the same source changed from new data.
 
     Examples
     --------
@@ -112,6 +118,7 @@ class Source:
     key: DataKey
     schema: Schema
     stable: DataKey | None = None
+    origin: tuple[str, str, str] | None = None
 
     def stable_key(self) -> DataKey | None:
         """Return a key naming the same data in any process, or None.
@@ -207,7 +214,9 @@ def _read_files(pattern: str) -> Source:
     paths = ", ".join("'" + p.replace("'", "''") + "'" for p in matches)
     relation = connection().sql(f"SELECT * FROM {_READERS[suffix]}([{paths}])")
     stable = ("file", tuple((os.path.realpath(p), n, t) for p, n, t in stats))
-    return Source(relation, ("file", tuple(stats)), _schema(relation), stable)
+    folder = os.path.realpath(os.path.dirname(pattern) or ".")
+    origin = ("file", folder, os.path.basename(pattern))
+    return Source(relation, ("file", tuple(stats)), _schema(relation), stable, origin)
 
 
 def _file_table(
@@ -369,7 +378,8 @@ def _read_table(name: str, *, learning: bool) -> Source:
     if learning:
         _notice_edit(where, rows, _names_and_types(schema), storage)
     stable = ("table", where[0], where[1], rows, _names_and_types(schema), storage)
-    return Source(relation, (*key, storage), schema, stable)
+    origin = ("table", where[0], where[1])
+    return Source(relation, (*key, storage), schema, stable, origin)
 
 
 def _read_frame(frame: _Frame) -> Source:

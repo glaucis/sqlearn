@@ -15,6 +15,7 @@ from pathlib import Path
 from sqlearn._errors import SqlearnError, SqlearnWarning
 from sqlearn._model import Model
 from sqlearn._pipeline import Pipeline
+from sqlearn._saving.learned import learned_record, restore_learned
 from sqlearn._saving.recipe import (
     build_model,
     build_step,
@@ -30,8 +31,8 @@ __all__ = ["FORMAT", "FORMAT_VERSION", "load", "save"]
 FORMAT = "sqlearn.pipeline"
 FORMAT_VERSION = 1
 
-# The keys of a file, in the order they are written. Task 4 adds "learned"
-# and Task 6 "model_file" after "steps".
+# The keys of a file, in the order they are written: "learned" after "steps",
+# and Task 6 adds "model_file" after it.
 _REQUIRED = ("format", "format_version", "sqlearn", "steps")
 _OPTIONAL = ("learned", "model_file")
 _MODEL_FORMATS: tuple[str, ...] = ()
@@ -92,8 +93,9 @@ def save(
     path : str or os.PathLike
         The file to write. Its folder must exist.
     learned : bool, default True
-        Whether to keep what the pipeline learned. At present only the recipe
-        is saved, whatever this is.
+        Whether to keep what the pipeline learned, so the loaded pipeline
+        applies without learning again. False saves the recipe only. A
+        pipeline that has not learned is saved as its recipe either way.
     model : str, optional
         How to save a trained model. No format is known yet, so any value is
         refused.
@@ -127,7 +129,6 @@ def save(
             "sqlearn writes a trained model only in a format it knows.",
             "leave model= out to save the recipe.",
         )
-    del learned  # Task 4 saves the learned part.
     if not target.parent.is_dir():
         raise _refuse(
             f"the folder {str(target.parent)!r} does not exist",
@@ -140,6 +141,9 @@ def save(
         "sqlearn": _version(),
         "steps": _records(pipe),
     }
+    record = learned_record(pipe) if learned else None
+    if record is not None:
+        document["learned"] = record
     # Everything is encoded before the disk is touched.
     text = json.dumps(document, indent=2, ensure_ascii=False, allow_nan=False) + "\n"
     handle, temporary = tempfile.mkstemp(
@@ -276,7 +280,8 @@ def load(
     Returns
     -------
     Pipeline
-        The pipeline, with the saved steps and settings.
+        The pipeline, with the saved steps and settings, and what it learned
+        when the file holds it: it then applies without learning again.
 
     Raises
     ------
@@ -288,7 +293,9 @@ def load(
     Warns
     -----
     SqlearnWarning
-        When the file was written by a newer sqlearn with a known format.
+        When the file was written by a newer sqlearn with a known format, or
+        a step's class changed what it learns since the file was saved (its
+        ``state_version``): the pipeline then loads as a recipe.
 
     See Also
     --------
@@ -321,4 +328,42 @@ def load(
             built.append((name, build_model(record, where, allow)))
         else:
             built.append((name, build_step(record, where, allow)))
-    return Pipeline(built)
+    pipe = Pipeline(built)
+    learned = data.get("learned")
+    if learned is not None:
+        if not isinstance(learned, dict):
+            raise _damaged("the file's learned part is not an object")
+        if _same_state(records, built):
+            restore_learned(pipe, learned, "the file's learned part")
+    return pipe
+
+
+def _same_state(
+    records: Sequence[Mapping[str, object]],
+    built: Sequence[tuple[str, Step | Model]],
+) -> bool:
+    """Say whether every step learns what it did when saved; warn if not."""
+    changed: list[str] = []
+    for position, (record, (name, step)) in enumerate(
+        zip(records, built, strict=True), start=1
+    ):
+        if record["kind"] != "step" or not isinstance(step, Step):
+            continue
+        saved = record.get("state_version")
+        if type(saved) is not int:
+            raise _damaged(f"{name} (step {position}) has no state version")
+        now = type(step).state_version
+        if saved != now:
+            changed.append(
+                f"{name} (step {position}) was saved at state version {saved}, "
+                f"its class is now at {now}"
+            )
+    if changed:
+        warnings.warn(
+            f"{'; '.join(changed)}. What it learned may no longer mean the "
+            "same, so the pipeline loads as a recipe, unlearned. Fix: learn "
+            "the pipeline again, and save it again.",
+            SqlearnWarning,
+            stacklevel=3,
+        )
+    return not changed
