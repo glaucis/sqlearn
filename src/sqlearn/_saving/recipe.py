@@ -13,7 +13,7 @@ from typing import Literal
 
 from sqlearn._errors import SqlearnError
 from sqlearn._model import Model
-from sqlearn._saving.codec import class_paths, decode, encode
+from sqlearn._saving.codec import class_paths, decode, encode, rebuilt
 from sqlearn._step import Step
 
 __all__ = [
@@ -457,15 +457,49 @@ def build_step(
     sq.transform.log()
     """
     cls = import_class(_path(record, where), "step", where, allow)
-
-    resolve = partial(import_class, kind="object", where=where, allow=allow)
+    resolve = partial(_registered, where=where)
     settings = _decoded_settings(record, where, resolve)
     built = _construct(cls, where, **settings)
     assert isinstance(built, Step)
     return built
 
 
+def _registered(path: str, where: str) -> type:
+    """Return a class a step's settings may hold: one `rebuilt` lists.
+
+    A step's settings hold no estimator, and an object's class is checked
+    against the list before this is called.
+    """
+    found = rebuilt().get(path)
+    if found is None:
+        raise _refuse(
+            where,
+            f"a setting names the estimator {path!r}",
+            "a step's settings hold values, never an estimator, so the file is "
+            "damaged or was edited.",
+            "save the pipeline again, or restore the file from where it came.",
+        )
+    return found[0]
+
+
 def _import_of(path: str, top: str, where: str, allow: Collection[str]) -> type:
+    """Return a class a model record may name, importing it when allowed.
+
+    sqlearn has no estimators: an estimator path into sqlearn is refused as
+    text, before it is imported or built.
+    """
+    found = rebuilt().get(path)
+    if found is not None:
+        return found[0]
+    if path.partition(":")[0].split(".")[0] == "sqlearn":
+        raise _refuse(
+            where,
+            f"the estimator {path!r} is a class of sqlearn",
+            "sqlearn has no estimators, and building another of its classes "
+            "could run what it does on creation, so the file is damaged or was "
+            "edited.",
+            "save the pipeline again, or restore the file from where it came.",
+        )
     kind: Literal["model", "object"] = "model" if path == top else "object"
     return import_class(path, kind, where, allow)
 

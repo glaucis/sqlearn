@@ -22,6 +22,13 @@ target, so the later `train` would have learned again; it now passes
 `target="churned"`. A saved preparation is reused only when `learn` was given
 the target, as learning without it reads the target as a feature.
 
+Note (2026-11-11, after the final review): the `object` tag rebuilds only
+the classes of a closed list (the fold schemes of `sq.folds`), checked as
+text before any import, and refused at save and at load otherwise: a file
+naming any other sqlearn class could build it, and building some classes
+opens a database. A learned value and the model's categories name no class
+at all. Aggregates have their own `aggregate` row in section 5.
+
 ## 1. Purpose
 
 Learned values live in the learning store while the program runs (ADR 0014):
@@ -176,7 +183,8 @@ tagged, a plain mapping included, so a user's key never collides with a tag.
 | `uuid.UUID` | `{"$": "uuid", "value": "..."}` |
 | `bytes` | `{"$": "bytes", "base64": "..."}` |
 | a selector (`sq.cols(...)`, `sq.cols.numeric()`, `\|`, `&`, `-`, `~`) | `{"$": "selector", ...}` as a tree of its parts |
-| a sqlearn object named by its class (an aggregate of `sq.agg`, a fold scheme) | `{"$": "object", "class": "module:qualname", "settings": {...}}` |
+| an aggregate of `sq.agg` | `{"$": "aggregate", "name": ..., "settings": {...}}` |
+| a fold scheme of `sq.folds` (a closed list of classes) | `{"$": "object", "class": "module:qualname", "settings": {...}}` |
 
 - **Floats are exact.** `repr` of a Python float is the shortest text that
   reads back as the same double, and `json` writes it that way; the round-trip

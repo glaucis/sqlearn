@@ -12,20 +12,18 @@ import shutil
 import tempfile
 import warnings
 from collections.abc import Mapping, Sequence
-from functools import partial
 from pathlib import Path
 
 from sqlearn._errors import SqlearnError, SqlearnWarning
 from sqlearn._model import FEEDS, Model
 from sqlearn._pipeline import Pipeline
-from sqlearn._saving.codec import class_paths, decode, encode
+from sqlearn._saving.codec import class_paths, decode, encode, no_class
 from sqlearn._saving.learned import learned_record, offer_saved, restore_learned
 from sqlearn._saving.models import FORMATS, ModelFormat
 from sqlearn._saving.recipe import (
     build_model,
     build_step,
     check_allowed,
-    import_class,
     model_record,
     record_class_paths,
     step_record,
@@ -455,10 +453,10 @@ def load(
             built.append((name, build_step(record, where, allow)))
     pipe = Pipeline(built)
     if learned is not None and _same_state(records, built):
-        restore_learned(pipe, learned, "the file's learned part", allow)
+        restore_learned(pipe, learned, "the file's learned part")
         offer_saved(pipe, str(path))
         if model_file is not None:
-            _open_model(pipe, model_file, Path(path), allow, trust=trust_model)
+            _open_model(pipe, model_file, Path(path), trust=trust_model)
     return pipe
 
 
@@ -495,7 +493,6 @@ def _open_model(
     pipe: Pipeline,
     record: Mapping[str, object],
     path: Path,
-    allow: Sequence[str],
     *,
     trust: bool,
 ) -> None:
@@ -513,8 +510,7 @@ def _open_model(
             stacklevel=3,
         )
         return
-    resolve = partial(import_class, kind="object", where="the model file", allow=allow)
-    categories = decode(record["categories"], "the model's categories", resolve)
+    categories = decode(record["categories"], "the model's categories", no_class)
     if not isinstance(categories, dict) or not all(
         isinstance(column, str)
         and isinstance(values, list)

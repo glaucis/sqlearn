@@ -263,3 +263,41 @@ def test_a_class_that_is_not_text_is_refused(tag: str) -> None:
         decode(data, "t", _resolve)
     with pytest.raises(SqlearnError, match="class"):
         class_paths([data])
+
+
+@pytest.mark.parametrize(
+    "scheme",
+    [
+        sq.folds.kfold(3, seed=1),
+        sq.folds.stratified(4, seed=2),
+        sq.folds.group("g", n=3, seed=1),
+        sq.folds.holdout(0.25, seed=5),
+        sq.folds.time("t", n=3, gap=1),
+    ],
+    ids=repr,
+)
+def test_every_fold_scheme_round_trips(scheme: object) -> None:
+    """Every fold scheme of sq.folds is rebuilt from its settings."""
+    out = _round_trip(scheme)
+    assert out == scheme
+    assert repr(out) == repr(scheme)
+
+
+def test_a_sqlearn_object_not_rebuilt_from_settings_is_refused_at_save() -> None:
+    """A sqlearn object outside the registry is refused, in the house form."""
+    with pytest.raises(SqlearnError, match=r"(?s)step 1.*Impute.*Why:.*Fix:"):
+        encode(sq.impute.median(), "step 1")
+
+
+def test_an_object_not_in_the_registry_is_refused_before_import() -> None:
+    """An object naming a class outside the registry is refused unimported."""
+    imported: list[str] = []
+
+    def resolve(path: str) -> type:
+        imported.append(path)
+        return _resolve(path)
+
+    data = {"$": "object", "class": "collections:OrderedDict", "settings": {}}
+    with pytest.raises(SqlearnError, match=r"(?s)OrderedDict.*Why:.*Fix:"):
+        decode(data, "t", resolve)
+    assert imported == []

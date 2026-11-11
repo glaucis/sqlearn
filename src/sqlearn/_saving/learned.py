@@ -8,8 +8,7 @@ out. See ``docs/specs/library-saving.md``, sections 4 and 6.
 
 import os
 import warnings
-from collections.abc import Collection, Mapping
-from functools import partial
+from collections.abc import Mapping
 
 import duckdb
 from duckdb.sqltypes import DuckDBPyType
@@ -17,8 +16,7 @@ from duckdb.sqltypes import DuckDBPyType
 from sqlearn._errors import SqlearnError, SqlearnWarning
 from sqlearn._inputs import _PACKAGE, DataKey
 from sqlearn._pipeline import LearnedFrom, Pipeline
-from sqlearn._saving.codec import decode, encode
-from sqlearn._saving.recipe import import_class
+from sqlearn._saving.codec import decode, encode, no_class
 from sqlearn._step import Step
 from sqlearn._store import STORE, Entry, step_key
 
@@ -283,13 +281,13 @@ def _learned_from(value: object, where: str) -> LearnedFrom | None:
     raise _damaged(where, f"the kind {kind!r} is not known")
 
 
-def _entry(record: object, where: str, allow: Collection[str]) -> Entry:
+def _entry(record: object, where: str) -> Entry:
     if not isinstance(record, dict):
         raise _damaged(where, "the learned record is not an object")
-    resolve = partial(import_class, kind="object", where=where, allow=allow)
+    # DuckDB returns no objects: a class named here is refused, not built.
     columns = _texts(record.get("columns"), where, "columns")
-    values = decode(record.get("values"), f"{where}, learned values", resolve)
-    folds = decode(record.get("folds"), f"{where}, learned folds", resolve)
+    values = decode(record.get("values"), f"{where}, learned values", no_class)
+    folds = decode(record.get("folds"), f"{where}, learned folds", no_class)
     return Entry(
         _mapping(values, where, "learned values"),
         columns,
@@ -381,7 +379,6 @@ def restore_learned(
     pipe: Pipeline,
     record: Mapping[str, object],
     where: str,
-    allow: Collection[str] = (),
 ) -> None:
     """Give a loaded pipeline what it learned, as `learn` would.
 
@@ -397,14 +394,12 @@ def restore_learned(
         What `learned_record` returned, after a trip through JSON.
     where : str
         The place, for errors.
-    allow : collection of str, default ()
-        Packages besides ``sqlearn`` whose classes a learned value may name.
-        Check them with `check_allowed` before calling this.
 
     Raises
     ------
     SqlearnError
-        When the record is damaged, or does not match the pipeline's steps.
+        When the record is damaged, names a class (a learned value never
+        does), or does not match the pipeline's steps.
 
     Examples
     --------
@@ -449,7 +444,7 @@ def restore_learned(
             raise _damaged(where, "the dependencies are not lists of numbers")
         depends_on.append(sorted(d))
     entries = [
-        _entry(r, n, allow)
+        _entry(r, n)
         for r, n in zip(
             _per_step(record.get("steps"), count, where, "learned steps"),
             places,

@@ -34,8 +34,10 @@ learned values, that is safe to open and readable in a diff.
   user's key never collides with a tag. The tags are `float` (NaN, `inf`,
   `-inf`), `tuple`, `dict` (key-value pairs, keeping order), `decimal`, `date`,
   `datetime`, `time`, `timedelta`, `uuid`, `bytes` (base64), `selector`,
-  `aggregate` (one of `sq.agg`), `constant_text`, `object` (a sqlearn object by
-  class path and settings) and `estimator` (a model's estimator by class path
+  `aggregate` (one of `sq.agg`), `constant_text`, `object` (a fold scheme of
+  `sq.folds`, by class path and settings, from a closed list checked as text
+  before any import: building another class could run what it does on
+  creation) and `estimator` (a model's estimator by class path
   and parameters). Finite floats go by `repr`, which reads back as the same
   double. A value with no tag is refused at save, naming the step, the setting
   and the type, never written with `str()`.
@@ -44,8 +46,9 @@ learned values, that is safe to open and readable in a diff.
   in the file is read and checked before any is imported, and the whole file
   is refused when one package is not allowed. The class a path finally
   resolves to is checked too, by the module that defines it, so a name
-  re-exported from an allowed package into another cannot slip past; the
-  classes of the learned part are checked like the rest.
+  re-exported from an allowed package into another cannot slip past. The
+  learned part and the model's categories name no class: one named there is
+  refused.
 - **The store's stable key is a second key**: learned values are saved under
   the key a step's values are stored by, with the data's fingerprint, so a
   later `learn` on unchanged data learns nothing again, and on changed data

@@ -11,7 +11,7 @@ import base64
 import binascii
 import inspect
 import math
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
 from uuid import UUID
@@ -20,10 +20,87 @@ from sqlearn._errors import SqlearnError
 from sqlearn._selectors import Selector, _And, _Cols, _Kind, _Not, _Or, _Sub
 from sqlearn.agg.aggregates import Aggregate, lookup
 
-__all__ = ["class_paths", "decode", "encode"]
+__all__ = ["class_paths", "decode", "encode", "no_class", "rebuilt"]
 
 _FLOATS = {"nan": math.nan, "inf": math.inf, "-inf": -math.inf}
-_ZONES = (date, datetime, time)
+
+
+def rebuilt() -> Mapping[str, tuple[type, tuple[str, ...]]]:
+    """Return the classes an ``"object"`` tag may name, with their settings.
+
+    The list is closed: a class is rebuilt from a file's settings only when
+    it is here, as building any other class could run what it does on
+    creation (open a database, write a file). Today it holds the fold
+    schemes of ``sq.folds``; aggregates and constant text have tags of their
+    own.
+
+    Returns
+    -------
+    mapping
+        ``"module:qualname"`` to the class and the names of its settings.
+
+    Examples
+    --------
+    >>> from sqlearn._saving.codec import rebuilt
+    >>> rebuilt()["sqlearn.model_selection.folds:KFold"][1]
+    ('n', 'seed')
+    """
+    from sqlearn.model_selection.folds import (
+        Grouped,
+        Holdout,
+        KFold,
+        Stratified,
+        TimeSplit,
+    )
+
+    schemes: tuple[tuple[type, tuple[str, ...]], ...] = (
+        (KFold, ("n", "seed")),
+        (Stratified, ("n", "seed")),
+        (Grouped, ("by", "n", "seed")),
+        (Holdout, ("test", "seed")),
+        (TimeSplit, ("by", "n", "gap")),
+    )
+    return {_class_path(cls): (cls, names) for cls, names in schemes}
+
+
+def no_class(path: str) -> type:
+    """Refuse every class: the resolver for parts that never name one.
+
+    What a step learned and the model's categories come from DuckDB, which
+    returns no sqlearn object, so a class named there is refused.
+
+    Parameters
+    ----------
+    path : str
+        The class path the file names.
+
+    Returns
+    -------
+    type
+        Never returns.
+
+    Raises
+    ------
+    SqlearnError
+        Always, naming the class.
+
+    Examples
+    --------
+    >>> from sqlearn._errors import SqlearnError
+    >>> from sqlearn._saving.codec import no_class
+    >>> try:
+    ...     no_class("a:B")
+    ... except SqlearnError as error:
+    ...     print(str(error).split(".")[0])
+    the file names the class 'a:B' where it holds only values
+    """
+    raise SqlearnError(
+        f"the file names the class {path!r} where it holds only values. "
+        "Why: what a step learned and the model's categories are values "
+        "DuckDB returned, never objects, so the file is damaged or was "
+        "edited. Fix: save the pipeline again, or restore the file from "
+        "where it came."
+    )
 
 
 def _refuse(where: str, what: str, why: str, fix: str) -> SqlearnError:
@@ -108,13 +185,15 @@ def encode(value: object, where: str) -> object:
         return _encode_aggregate(value, where)
     if _is_constant_text(value):
         return {"$": "constant_text", "value": str.__str__(value)}
-    if cls.__module__.split(".")[0] == "sqlearn" and not inspect.isroutine(value):
+    if _class_path(cls) in rebuilt():
         return _encode_object(value, where)
     kind = "function" if inspect.isroutine(value) else cls.__qualname__
     raise _refuse(
         where,
         f"a value of type {kind} cannot be saved",
-        "a saved file holds data, never code, and this value has no JSON encoding.",
+        "a saved file holds data, never code, and this value has no JSON "
+        "encoding: only plain values, selectors, the aggregates of sq.agg and "
+        "the fold schemes of sq.folds have one.",
         "give a plain value (number, text, list, dict, date), or a step class in "
         "an importable module in place of a function.",
     )
@@ -181,18 +260,15 @@ def _encode_selector(value: Selector, where: str) -> object:
 
 def _encode_object(value: object, where: str) -> object:
     cls = type(value)
-    settings = getattr(value, "settings", None)
-    if callable(settings):
-        found = settings()
-    else:
-        params = inspect.signature(cls.__init__).parameters
-        found = {name: getattr(value, name) for name in list(params)[1:]}
+    _, names = rebuilt()[_class_path(cls)]
     return {
         "$": "object",
         "class": _class_path(cls),
         "settings": {
-            name: encode(setting, f"{where}, {cls.__qualname__} setting {name!r}")
-            for name, setting in found.items()
+            name: encode(
+                getattr(value, name), f"{where}, {cls.__qualname__} setting {name!r}"
+            )
+            for name in names
         },
     }
 
@@ -294,11 +370,7 @@ def _decode_tagged(
         case "aggregate":
             return _decode_aggregate(data, where, resolve)
         case "object":
-            cls = resolve(_text(data["class"], "class"))
-            settings = data["settings"]
-            if not isinstance(settings, dict):
-                raise TypeError("settings is not an object")
-            return cls(**{name: sub(v) for name, v in settings.items()})
+            return _decode_object(data, where, resolve)
         case "estimator":
             cls = resolve(_text(data["class"], "class"))
             params = data["params"]
@@ -306,6 +378,36 @@ def _decode_tagged(
                 raise TypeError("params is not an object")
             return cls(**{name: sub(v) for name, v in params.items()})
     raise _bad(where, f"a tag of an unknown kind, {tag!r}")
+
+
+def _decode_object(
+    data: dict[str, object], where: str, resolve: Callable[[str], type]
+) -> object:
+    """Rebuild a registered class from its settings; refuse any other class.
+
+    The class path is checked against `rebuilt` as text, before anything is
+    imported; `resolve` then has its say (it refuses every class where a file
+    holds only values).
+    """
+    path = _text(data["class"], "class")
+    found = rebuilt().get(path)
+    if found is None:
+        raise _refuse(
+            where,
+            f"the file names the class {path!r}, which sq.load does not build "
+            "from settings",
+            "a file rebuilds only the fold schemes of sq.folds from settings, "
+            "as building another class could run what it does on creation, "
+            "so the file is damaged or was edited.",
+            "save the pipeline again, or restore the file from where it came.",
+        )
+    cls, names = found
+    if resolve(path) is not cls:
+        raise _bad(where, f"the class {path!r} resolved to another class")
+    settings = data["settings"]
+    if not isinstance(settings, dict) or set(settings) != set(names):
+        raise TypeError(f"the settings of {path!r} are not {list(names)}")
+    return cls(**{name: decode(settings[name], where, resolve) for name in names})
 
 
 def _text(value: object, what: str = "value") -> str:

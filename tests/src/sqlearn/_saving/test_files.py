@@ -205,3 +205,77 @@ def test_a_value_that_is_not_a_number_is_never_written_bare(
 
 def _refuse_constant(name: str) -> None:
     raise AssertionError(f"bare {name} in the file")
+
+
+_KEPT = "sqlearn.model_selection.kept:KeptFolds"
+
+
+def _kept(tag: str, made: Path) -> dict[str, object]:
+    body = "settings" if tag == "object" else "params"
+    return {"$": tag, "class": _KEPT, body: {"path": str(made)}}
+
+
+@pytest.mark.parametrize("tag", ["object", "estimator"])
+def test_a_step_setting_naming_a_class_not_rebuilt_builds_nothing(
+    tmp_path: Path, tag: str
+) -> None:
+    """A setting naming a sqlearn class outside the registry is refused."""
+    made = tmp_path / "made.duckdb"
+    path = _write(tmp_path / "p.json")
+    data = json.loads(path.read_text())
+    data["steps"][0]["settings"]["method"] = _kept(tag, made)
+    path.write_text(json.dumps(data))
+    with pytest.raises(SqlearnError, match=r"(?s)KeptFolds.*Why:.*Fix:"):
+        sq.load(path)
+    assert not made.exists()
+
+
+@pytest.mark.parametrize("part", ["values", "folds"])
+def test_a_learned_value_naming_a_class_builds_nothing(
+    tmp_path: Path, part: str
+) -> None:
+    """A learned value or fold naming any class is refused before building."""
+    made = tmp_path / "made.duckdb"
+    path = tmp_path / "p.json"
+    sq.save(sq.Pipeline([sq.impute.median()]).learn(_frame()), path)
+    data = json.loads(path.read_text())
+    data["learned"]["steps"][0][part] = _kept("object", made)
+    path.write_text(json.dumps(data))
+    with pytest.raises(SqlearnError, match=r"(?s)KeptFolds.*Why:.*Fix:"):
+        sq.load(path)
+    assert not made.exists()
+
+
+def test_a_model_parameter_naming_a_sqlearn_class_builds_nothing(
+    tmp_path: Path,
+) -> None:
+    """A nested estimator of sqlearn's own is refused before building."""
+    made = tmp_path / "made.duckdb"
+    path = tmp_path / "m.json"
+    sq.save(sq.Pipeline([sq.Model(LogisticRegression())]), path)
+    data = json.loads(path.read_text())
+    data["steps"][-1]["estimator"]["params"]["C"] = _kept("estimator", made)
+    path.write_text(json.dumps(data))
+    with pytest.raises(SqlearnError, match=r"(?s)KeptFolds.*Why:.*Fix:"):
+        sq.load(path, allow=["sklearn"])
+    assert not made.exists()
+
+
+def test_the_models_categories_naming_a_class_build_nothing(
+    tmp_path: Path,
+) -> None:
+    """The model file's categories name no class, even with trust_model."""
+    made = tmp_path / "made.duckdb"
+    path = tmp_path / "m.json"
+    frame = _frame().assign(y=[0, 1, 0, 1])
+    pipe = sq.Pipeline([sq.impute.median(), sq.Model(LogisticRegression())])
+    sq.save(pipe.train(frame.drop(columns="city"), target="y"), path, model="pickle")
+    data = json.loads(path.read_text())
+    data["model_file"]["categories"] = {
+        "$": "dict",
+        "items": [["city", _kept("object", made)]],
+    }
+    path.write_text(json.dumps(data))
+    with pytest.raises(SqlearnError, match=r"(?s)KeptFolds.*Why:.*Fix:"):
+        sq.load(path, allow=["sklearn"], trust_model=True)
+    assert not made.exists()
