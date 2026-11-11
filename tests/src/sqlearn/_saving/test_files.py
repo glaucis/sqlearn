@@ -194,11 +194,11 @@ def test_a_saved_file_has_the_mode_of_a_file_the_user_creates(
     old = os.umask(0o022)
     try:
         sq.save(_pipe(), tmp_path / "p.json")
+        # Reading the umask must not have changed it.
+        assert os.umask(0o022) == 0o022
     finally:
         os.umask(old)
     assert stat.S_IMODE((tmp_path / "p.json").stat().st_mode) == 0o644
-    # Reading the umask must not have changed it.
-    assert os.umask(old) == old
 
 
 def test_a_value_that_is_not_a_number_is_never_written_bare(

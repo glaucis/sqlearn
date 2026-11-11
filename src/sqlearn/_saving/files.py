@@ -151,8 +151,10 @@ def save(
         # mkstemp makes the file 0600; a saved file gets the mode a file the
         # user creates would. The umask can only be read by setting it.
         umask = os.umask(0)
-        os.umask(umask)
-        os.chmod(temporary, 0o666 & ~umask)
+        try:
+            os.chmod(temporary, 0o666 & ~umask)
+        finally:
+            os.umask(umask)
         os.replace(temporary, target)
     except BaseException:
         Path(temporary).unlink(missing_ok=True)
