@@ -14,10 +14,9 @@ None.
 
 ## Waiting on the user
 
-- Approve the #55 spec, `docs/specs/library-saving-the-model.md` (ADR
-  0048), then plan and build. Section 11 lists the spec's own calls. Its
-  answered question: without the JSON, `use_model(model, data=...,
-  target=...)` rebuilds sqlearn's part from the training data.
+- Review the #55 plan, `docs/plans/2026-11-11-library-saving-the-model.md`
+  (spec `docs/specs/library-saving-the-model.md`, approved 2026-11-11; ADR
+  0048), and choose how it runs: five tasks, then build.
 
 ## Next up
 
