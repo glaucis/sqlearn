@@ -3,9 +3,9 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-11 · Branch: `main` · Last commit: `19df10d fix: refuse a
-sqlearn class as an estimator however it is named` · Checks: passing (`just
-verify` on `19df10d`: 2064 passed, 25 skipped)
+Updated: 2026-11-11 · Branch: `main` · Last commit: `b54f3a7 docs: name the
+sqlearn board and its milestones` · Checks: passing (`just verify` on
+`19df10d`: 2064 passed, 25 skipped; only docs changed since)
 Verify with: `just verify`
 
 ## In progress
@@ -37,6 +37,9 @@ None.
 
 ## Dead ends and traps
 
+- `gh-board status` in a loop can fail for one issue now and then (#36 did):
+  rerun it for that issue, then `GH_BOARD=glaucis/6 gh-board audit`.
+  (2026-11-11)
 - `sq.load` security: per-task reviews each passed, yet the final review found
   two routes from a crafted file to `KeptFolds` (which creates a DuckDB file).
   Probe every tag (`object`, `estimator`, `aggregate`, learned part,
@@ -88,14 +91,8 @@ None.
 
 ## Just finished
 
-- The saving area's GitHub steps: #20 closed, #24 retitled for part 2, summary
-  #57, follow-ups #55 and #56. (2026-11-11)
-- The `allow=` alias gap in `sq.load` closed (`19df10d`): an estimator is
-  never a sqlearn class however it is named. (2026-11-11)
-- The saving area (the fifth 3.3 area): `sq.save` and `sq.load`; spec
-  `docs/specs/library-saving.md`, plan
-  `docs/plans/2026-11-11-library-saving.md`, ADR 0047, guide
-  `docs/guide/saving-a-pipeline.md`; merged into `main` and pushed (`a04058e`).
+- The sqlearn board (glaucis project 6) and ten milestones, one per overview
+  part (3.1 and 3.2 closed); all 57 issues placed, audit clean; named in
+  `docs/agents/issue-tracker.md` (`b54f3a7`). (2026-11-11)
+- The engineering skills setup checked: already complete, nothing changed.
   (2026-11-11)
-- Fix batch 3's rulings R6, R7, R8 and R10 confirmed by Tomas, on #50 and
-  #31. (2026-11-11)
