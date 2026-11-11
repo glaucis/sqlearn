@@ -14,12 +14,21 @@ None.
 
 ## Waiting on the user
 
-- The GitHub steps for the saving area are pending with the controller:
-  close #20 and part 1 of #24 (retitle #24 "Export a trained pipeline as
-  standalone code"), open the summary issue (replace `#TBD` in `CLAUDE.md`),
-  and file an issue for model formats other than pickle. (since 2026-11-11)
+None.
 
 ## Next up
+
+- **Open security gap in `sq.load` (do first).** A package named in
+  `allow=` that imports a sqlearn class lets a crafted file build that class
+  through the `"estimator"` tag: `aliaspkg:KeptFolds` with `allow=["aliaspkg"]`
+  creates a DuckDB file at a path the file chooses. Ruling 17 is checked by
+  path text only (`recipe._import_of`). Fix: refuse any estimator whose class's
+  own module is `sqlearn`, refuse the `"estimator"` tag outside a model's
+  params, and correct the guide and ADR 0047, which say this cannot happen.
+- The saving area's GitHub steps: close #20 and part 1 of #24 (retitle #24
+  "Export a trained pipeline as standalone code"), open the summary issue
+  (replace `#TBD` in `CLAUDE.md`), file issues for model formats other than
+  pickle and for learned TIMESTAMP WITH TIME ZONE values (need pytz at learn).
 
 - Re-measure the category lookup on an idle machine (check `uptime` first;
   the load was about 30 on 2026-11-11): both encoders at 15,000, 20,000 and
@@ -86,7 +95,8 @@ None.
   file of recipe, learned values and the data's fingerprint, the trained
   model by pickle only on request; spec `docs/specs/library-saving.md`, plan
   `docs/plans/2026-11-11-library-saving.md`, ADR 0047, guide
-  `docs/guide/saving-a-pipeline.md`, on branch `library-saving`. (2026-11-11)
+  `docs/guide/saving-a-pipeline.md`; merged from `library-saving`, with the
+  `allow=` gap in Next up still open. (2026-11-11)
 - Fix batch 3's rulings confirmed by Tomas, each recorded on its issue: R6
   (#50; its cross-process warning goes with saving learned state, noted on
   #20), R7, R8 and R10 (#31). (2026-11-11)
