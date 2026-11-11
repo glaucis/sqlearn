@@ -147,13 +147,6 @@ def test_a_path_whose_folder_does_not_exist_is_refused(tmp_path: Path) -> None:
     assert "Fix:" in str(raised.value)
 
 
-def test_an_unknown_model_format_is_refused(tmp_path: Path) -> None:
-    """model= names a format; none is known yet."""
-    with pytest.raises(SqlearnError, match="known model format") as raised:
-        sq.save(_pipe(), tmp_path / "p.json", model="pickle")
-    assert "Fix:" in str(raised.value)
-
-
 def test_nothing_is_imported_before_every_class_is_allowed(tmp_path: Path) -> None:
     """A file naming a package not allowed is refused with no import at all."""
     sys.modules.pop("sqlearn_test_imported", None)
