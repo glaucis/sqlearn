@@ -350,7 +350,7 @@
     },
     {
       "area": "sqlearn/_saving/files",
-      "name": "tests/src/sqlearn/_saving/test_files.py::test_a_model_needs_its_package_allowed",
+      "name": "tests/src/sqlearn/_saving/test_files.py::test_a_model_loads_once_its_package_is_imported",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -416,12 +416,6 @@
     },
     {
       "area": "sqlearn/_saving/files",
-      "name": "tests/src/sqlearn/_saving/test_files.py::test_allow_given_as_text_is_refused_with_a_list_in_the_fix",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "sqlearn/_saving/files",
       "name": "tests/src/sqlearn/_saving/test_files.py::test_an_estimator_reaching_a_sqlearn_class_through_an_allowed_package_builds_nothing[nested]",
       "outcome": "passed",
       "tier": "fast"
@@ -452,7 +446,13 @@
     },
     {
       "area": "sqlearn/_saving/files",
-      "name": "tests/src/sqlearn/_saving/test_files.py::test_nothing_is_imported_before_every_class_is_allowed",
+      "name": "tests/src/sqlearn/_saving/test_files.py::test_load_no_longer_takes_allow",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/files",
+      "name": "tests/src/sqlearn/_saving/test_files.py::test_nothing_is_imported_when_a_class_is_not_imported",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -518,7 +518,7 @@
     },
     {
       "area": "sqlearn/_saving/learned",
-      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_learned_value_naming_a_package_not_allowed_imports_nothing",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_learned_value_naming_a_module_not_imported_imports_nothing",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -854,85 +854,127 @@
     },
     {
       "area": "sqlearn/_saving/models",
-      "name": "tests/src/sqlearn/_saving/test_models.py::test_a_changed_model_file_is_refused_before_it_is_opened",
+      "name": "tests/src/sqlearn/_saving/test_models.py::test_a_changed_state_version_drops_the_training_record",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "sqlearn/_saving/models",
-      "name": "tests/src/sqlearn/_saving/test_models.py::test_a_failed_save_keeps_the_old_pair",
+      "name": "tests/src/sqlearn/_saving/test_models.py::test_a_damaged_trained_key_is_refused[<lambda>0]",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "sqlearn/_saving/models",
-      "name": "tests/src/sqlearn/_saving/test_models.py::test_a_model_cannot_be_saved_without_the_learned_part",
+      "name": "tests/src/sqlearn/_saving/test_models.py::test_a_damaged_trained_key_is_refused[<lambda>1]",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "sqlearn/_saving/models",
-      "name": "tests/src/sqlearn/_saving/test_models.py::test_a_model_file_changed_by_one_byte_is_refused",
+      "name": "tests/src/sqlearn/_saving/test_models.py::test_a_damaged_trained_key_is_refused[<lambda>2]",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "sqlearn/_saving/models",
-      "name": "tests/src/sqlearn/_saving/test_models.py::test_a_model_file_missing_is_refused",
+      "name": "tests/src/sqlearn/_saving/test_models.py::test_a_damaged_trained_key_is_refused[<lambda>3]",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "sqlearn/_saving/models",
-      "name": "tests/src/sqlearn/_saving/test_models.py::test_a_model_not_trusted_loads_untrained_with_a_warning",
+      "name": "tests/src/sqlearn/_saving/test_models.py::test_a_damaged_trained_key_is_refused[<lambda>4]",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "sqlearn/_saving/models",
-      "name": "tests/src/sqlearn/_saving/test_models.py::test_a_model_of_another_class_than_the_recipe_is_refused",
+      "name": "tests/src/sqlearn/_saving/test_models.py::test_a_damaged_trained_key_is_refused[<lambda>5]",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "sqlearn/_saving/models",
-      "name": "tests/src/sqlearn/_saving/test_models.py::test_a_pipeline_not_trained_cannot_save_its_model",
+      "name": "tests/src/sqlearn/_saving/test_models.py::test_a_damaged_trained_key_is_refused[_no_learned]",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "sqlearn/_saving/models",
-      "name": "tests/src/sqlearn/_saving/test_models.py::test_a_recipe_saved_without_model_has_no_model_file",
+      "name": "tests/src/sqlearn/_saving/test_models.py::test_a_damaged_trained_key_is_refused[_no_model]",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "sqlearn/_saving/models",
-      "name": "tests/src/sqlearn/_saving/test_models.py::test_a_trained_model_predicts_after_load_without_training",
+      "name": "tests/src/sqlearn/_saving/test_models.py::test_a_loaded_pipeline_does_not_predict_until_its_model_is_back",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "sqlearn/_saving/models",
-      "name": "tests/src/sqlearn/_saving/test_models.py::test_a_trusted_model_fed_raw_text_keeps_its_categories",
+      "name": "tests/src/sqlearn/_saving/test_models.py::test_a_loaded_pipeline_saved_again_keeps_its_training_record",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "sqlearn/_saving/models",
-      "name": "tests/src/sqlearn/_saving/test_models.py::test_a_trusted_model_predicts_in_the_same_process",
+      "name": "tests/src/sqlearn/_saving/test_models.py::test_a_pipeline_given_its_model_with_data_saves_and_loads",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "sqlearn/_saving/models",
-      "name": "tests/src/sqlearn/_saving/test_models.py::test_an_unknown_model_format_is_refused",
+      "name": "tests/src/sqlearn/_saving/test_models.py::test_a_pipeline_not_trained_has_no_training_record",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "sqlearn/_saving/models",
-      "name": "tests/src/sqlearn/_saving/test_models.py::test_the_json_names_the_model_file_its_format_and_hash",
+      "name": "tests/src/sqlearn/_saving/test_models.py::test_a_users_model_predicts_after_load_without_training[bagging]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/models",
+      "name": "tests/src/sqlearn/_saving/test_models.py::test_a_users_model_predicts_after_load_without_training[catboost]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/models",
+      "name": "tests/src/sqlearn/_saving/test_models.py::test_a_users_model_predicts_after_load_without_training[catboost_pandas]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/models",
+      "name": "tests/src/sqlearn/_saving/test_models.py::test_a_users_model_predicts_after_load_without_training[lightgbm]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/models",
+      "name": "tests/src/sqlearn/_saving/test_models.py::test_a_users_model_predicts_after_load_without_training[logistic]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/models",
+      "name": "tests/src/sqlearn/_saving/test_models.py::test_a_users_model_predicts_with_the_data_and_no_file",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/models",
+      "name": "tests/src/sqlearn/_saving/test_models.py::test_the_file_holds_the_training_record_and_no_model",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/models",
+      "name": "tests/src/sqlearn/_saving/test_models.py::test_the_old_switches_are_gone",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -956,13 +998,37 @@
     },
     {
       "area": "sqlearn/_saving/recipe",
-      "name": "tests/src/sqlearn/_saving/test_recipe.py::test_a_class_of_a_package_not_allowed_is_refused_wherever_the_path_points",
+      "name": "tests/src/sqlearn/_saving/test_recipe.py::test_a_class_of_the_wrong_kind_is_refused",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "sqlearn/_saving/recipe",
-      "name": "tests/src/sqlearn/_saving/test_recipe.py::test_a_class_of_the_wrong_kind_is_refused",
+      "name": "tests/src/sqlearn/_saving/test_recipe.py::test_a_class_that_is_not_a_step_model_or_estimator_is_refused[model]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/recipe",
+      "name": "tests/src/sqlearn/_saving/test_recipe.py::test_a_class_that_is_not_a_step_model_or_estimator_is_refused[nested]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/recipe",
+      "name": "tests/src/sqlearn/_saving/test_recipe.py::test_a_class_that_is_not_a_step_model_or_estimator_is_refused[object]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/recipe",
+      "name": "tests/src/sqlearn/_saving/test_recipe.py::test_a_class_that_is_not_a_step_model_or_estimator_is_refused[step]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/recipe",
+      "name": "tests/src/sqlearn/_saving/test_recipe.py::test_a_class_whose_module_is_not_imported_is_refused_and_nothing_is_imported",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -986,7 +1052,19 @@
     },
     {
       "area": "sqlearn/_saving/recipe",
-      "name": "tests/src/sqlearn/_saving/test_recipe.py::test_a_package_not_allowed_is_refused_before_any_import",
+      "name": "tests/src/sqlearn/_saving/test_recipe.py::test_a_module_blocked_in_sys_modules_is_refused_in_the_house_form",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/recipe",
+      "name": "tests/src/sqlearn/_saving/test_recipe.py::test_a_nested_estimator_is_rebuilt_when_its_module_is_imported",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/recipe",
+      "name": "tests/src/sqlearn/_saving/test_recipe.py::test_a_path_through_a_lazy_module_attribute_imports_nothing",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1034,7 +1112,43 @@
     },
     {
       "area": "sqlearn/_saving/recipe",
+      "name": "tests/src/sqlearn/_saving/test_recipe.py::test_a_submodule_not_imported_is_refused_with_the_package_named",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/recipe",
       "name": "tests/src/sqlearn/_saving/test_recipe.py::test_an_aggregate_built_by_hand_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/recipe",
+      "name": "tests/src/sqlearn/_saving/test_recipe.py::test_comparing_kinds_runs_no_metaclass_eq_or_hash_of_the_class_named[model record]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/recipe",
+      "name": "tests/src/sqlearn/_saving/test_recipe.py::test_comparing_kinds_runs_no_metaclass_eq_or_hash_of_the_class_named[step]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/recipe",
+      "name": "tests/src/sqlearn/_saving/test_recipe.py::test_every_class_is_checked_before_the_first_step_is_built[later model]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/recipe",
+      "name": "tests/src/sqlearn/_saving/test_recipe.py::test_every_class_is_checked_before_the_first_step_is_built[later step]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/recipe",
+      "name": "tests/src/sqlearn/_saving/test_recipe.py::test_every_class_not_imported_is_named_at_once",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1358,7 +1472,25 @@
     },
     {
       "area": "sqlearn/_saving/recipe",
-      "name": "tests/src/sqlearn/_saving/test_recipe.py::test_sqlearn_and_the_allowed_packages_pass",
+      "name": "tests/src/sqlearn/_saving/test_recipe.py::test_looking_a_class_up_runs_no_code_of_what_the_path_reaches[tests.src.sqlearn._saving.probe:Thing-model]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/recipe",
+      "name": "tests/src/sqlearn/_saving/test_recipe.py::test_looking_a_class_up_runs_no_code_of_what_the_path_reaches[tests.src.sqlearn._saving.probe:Thing-nested]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/recipe",
+      "name": "tests/src/sqlearn/_saving/test_recipe.py::test_looking_a_class_up_runs_no_code_of_what_the_path_reaches[tests.src.sqlearn._saving.probe:Thing-step]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/recipe",
+      "name": "tests/src/sqlearn/_saving/test_recipe.py::test_looking_a_class_up_runs_no_code_of_what_the_path_reaches[tests.src.sqlearn._saving.probe:proxy.X-step]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -10712,6 +10844,30 @@
     },
     {
       "area": "sqlearn/_model",
+      "name": "tests/src/sqlearn/test__model.py::test_a_model_is_trained_by_its_own_rule[catboost]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_model",
+      "name": "tests/src/sqlearn/test__model.py::test_a_model_is_trained_by_its_own_rule[lightgbm]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_model",
+      "name": "tests/src/sqlearn/test__model.py::test_a_model_is_trained_by_its_own_rule[logistic]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_model",
+      "name": "tests/src/sqlearn/test__model.py::test_a_model_is_trained_by_its_own_rule[sklearn_pipeline]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_model",
       "name": "tests/src/sqlearn/test__model.py::test_an_object_without_fit_and_predict_is_not_a_model",
       "outcome": "passed",
       "tier": "fast"
@@ -10982,6 +11138,12 @@
     },
     {
       "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_a_fit_that_fails_leaves_the_model_untrained",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
       "name": "tests/src/sqlearn/test__pipeline.py::test_a_frame_result_outlives_the_frame",
       "outcome": "passed",
       "tier": "fast"
@@ -10989,6 +11151,12 @@
     {
       "area": "sqlearn/_pipeline",
       "name": "tests/src/sqlearn/test__pipeline.py::test_a_kept_name_in_use_is_numbered",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_a_model_trained_on_other_columns_fails_in_predict_with_its_own_error",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -11234,6 +11402,18 @@
     },
     {
       "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_model_is_the_trained_estimator",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_model_refuses_before_train",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
       "name": "tests/src/sqlearn/test__pipeline.py::test_numbering_does_not_clash_with_a_given_name",
       "outcome": "passed",
       "tier": "fast"
@@ -11355,6 +11535,114 @@
     {
       "area": "sqlearn/_pipeline",
       "name": "tests/src/sqlearn/test__pipeline.py::test_two_models_are_numbered",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_use_model_puts_a_trained_model_back",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_use_model_refuses_a_class_instead_of_a_model",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_use_model_refuses_a_model_not_trained",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_use_model_refuses_a_pipeline_without_a_model_step",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_use_model_refuses_an_object_that_is_not_a_model",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_use_model_refuses_another_class_than_the_recipes",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_use_model_refuses_data_without_target",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_use_model_refuses_target_or_feed_without_data",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_use_model_refuses_what_train_refuses",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_use_model_refuses_without_a_training_record_and_data",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_use_model_with_data_already_learned_learns_nothing_again",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_use_model_with_data_does_not_fit_the_model",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_use_model_with_data_learns_the_steps_again_from_the_data",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_use_model_with_the_data_makes_the_training_record_train_would[numpy]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_use_model_with_the_data_makes_the_training_record_train_would[pandas]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_use_model_with_the_stream_feed_records_the_feed_and_no_categories",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_use_model_with_the_stream_feed_refuses_what_train_refuses[data0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_use_model_with_the_stream_feed_refuses_what_train_refuses[data1]",
       "outcome": "passed",
       "tier": "fast"
     },
