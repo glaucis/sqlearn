@@ -3,6 +3,8 @@
 import json
 import sys
 from collections.abc import Callable
+from pathlib import Path
+from unittest import mock
 
 import numpy as np
 import pytest
@@ -17,7 +19,6 @@ from sqlearn._errors import SqlearnError
 from sqlearn._saving.recipe import (
     build_model,
     build_step,
-    check_allowed,
     class_path,
     import_class,
     model_record,
@@ -172,7 +173,7 @@ def test_a_model_and_its_nested_estimators_round_trip() -> None:
     record = json.loads(json.dumps(model_record(model, 4)))
     assert list(record) == ["name", "class", "settings", "estimator"]
     assert record["class"] == "sqlearn._model:Model"
-    rebuilt = build_model(record, "model", ["sklearn"])
+    rebuilt = build_model(record, "model")
     assert isinstance(rebuilt, sq.Model)
     deep = {k: repr(v) for k, v in rebuilt.estimator.get_params(deep=True).items()}
     plain = BaggingClassifier(LogisticRegression(C=0.5))
@@ -188,7 +189,7 @@ def test_a_model_with_estimators_in_a_list_round_trips() -> None:
     """A model with estimators in a list round trips."""
     estimator = Pipeline([("scale", StandardScaler()), ("clf", LogisticRegression())])
     record = json.loads(json.dumps(model_record(sq.Model(estimator), 1)))
-    rebuilt = build_model(record, "model", ["sklearn"])
+    rebuilt = build_model(record, "model")
     assert [name for name, _ in rebuilt.estimator.steps] == ["scale", "clf"]
     assert isinstance(rebuilt.estimator.steps[0][1], StandardScaler)
 
@@ -198,26 +199,6 @@ def test_a_callable_parameter_is_refused() -> None:
     model = sq.Model(SVC(kernel=lambda a, b: a @ b.T))
     with pytest.raises(SqlearnError, match=r"(?s)kernel.*Fix:"):
         model_record(model, 1)
-
-
-def test_a_package_not_allowed_is_refused_before_any_import() -> None:
-    """A package not allowed is refused before any import."""
-    sys.modules.pop("sqlearn_test_imported", None)
-    paths = {"tests.src.sqlearn._saving.recorded_import:X", "os:system"}
-    with pytest.raises(SqlearnError) as raised:
-        check_allowed(paths, ())
-    message = str(raised.value)
-    assert "'os'" in message
-    assert "'tests'" in message
-    assert "allow=['os', 'tests']" in message
-    assert "sqlearn_test_imported" not in sys.modules
-
-
-def test_sqlearn_and_the_allowed_packages_pass() -> None:
-    """Sqlearn and the allowed packages pass."""
-    check_allowed(
-        {"sqlearn.preprocessing.impute:Impute", "sklearn.svm:SVC"}, ["sklearn"]
-    )
 
 
 def test_a_step_class_from_main_is_refused() -> None:
@@ -243,18 +224,26 @@ def test_a_class_defined_in_a_function_is_refused() -> None:
 
 def test_a_class_of_the_wrong_kind_is_refused() -> None:
     """A class of the wrong kind is refused."""
-    with pytest.raises(SqlearnError, match=r"(?s)OrderedDict.*Step.*Fix:"):
-        import_class("collections:OrderedDict", "step", "s", ["collections"])
-    with pytest.raises(SqlearnError, match=r"fit.*predict"):
-        import_class("collections:OrderedDict", "model", "s", ["collections"])
+    with pytest.raises(
+        SqlearnError,
+        match=r"(?s)OrderedDict.*not a step, a model or an estimator.*Fix:",
+    ):
+        import_class("collections:OrderedDict", "step", "s")
+    with pytest.raises(
+        SqlearnError,
+        match=r"(?s)OrderedDict.*not a step, a model or an estimator.*Fix:",
+    ):
+        import_class("collections:OrderedDict", "model", "s")
 
 
 def test_a_missing_module_or_class_is_refused() -> None:
     """A missing module or class is refused."""
-    with pytest.raises(SqlearnError, match=r"(?s)no_such_module.*Fix:.*install"):
-        import_class("no_such_module:X", "object", "s", ["no_such_module"])
+    with pytest.raises(
+        SqlearnError, match=r"(?s)no_such_module.*is not imported.*Fix:"
+    ):
+        import_class("no_such_module:X", "object", "s")
     with pytest.raises(SqlearnError, match=r"(?s)NoSuch.*Fix:"):
-        import_class("collections:NoSuch", "object", "s", ["collections"])
+        import_class("collections:NoSuch", "object", "s")
     with pytest.raises(SqlearnError, match="Fix:"):
         import_class("nocolon", "object", "s")
 
@@ -274,9 +263,7 @@ def test_a_streaming_models_settings_round_trip() -> None:
     model = sq.Model(
         LogisticRegression(), feed="stream", rows=50, epochs=2, shuffle=False, seed=3
     )
-    rebuilt = build_model(
-        json.loads(json.dumps(model_record(model, 1))), "model", ["sklearn"]
-    )
+    rebuilt = build_model(json.loads(json.dumps(model_record(model, 1))), "model")
     for field in ("feed", "rows", "megabytes", "epochs", "shuffle", "seed"):
         assert getattr(rebuilt, field) == getattr(model, field)
 
@@ -288,16 +275,6 @@ def test_a_path_through_another_module_is_refused(path: str) -> None:
     """A path through another module is refused."""
     with pytest.raises(SqlearnError, match=r"(?s)walks through.*Fix:"):
         import_class(path, "object", "s")
-
-
-def test_a_class_of_a_package_not_allowed_is_refused_wherever_the_path_points() -> None:
-    """A class of a package not allowed is refused wherever the path points."""
-    with pytest.raises(
-        SqlearnError, match=r"(?s)'collections'.*allow=\['collections'\]"
-    ):
-        import_class("collections:OrderedDict", "object", "s")
-    with pytest.raises(SqlearnError, match=r"(?s)Mapping|.collections.."):
-        import_class("sqlearn._saving.recipe:Mapping", "object", "s")
 
 
 def test_a_record_names_all_its_classes() -> None:
@@ -319,3 +296,219 @@ def test_a_record_whose_class_is_not_text_is_refused() -> None:
     """A record whose class is not text is refused."""
     with pytest.raises(SqlearnError, match="class"):
         record_class_paths({"class": ["os:system"], "settings": {}})
+
+
+def _file_naming(tmp_path: Path, path: str, place: str) -> Path:
+    """Save a small pipeline, then write `path` as a class into `place` of it."""
+    target = tmp_path / "p.json"
+    model = sq.Model(BaggingClassifier(estimator=LogisticRegression()))
+    sq.save(sq.Pipeline([sq.impute.median(), model]), target)
+    data = json.loads(target.read_text())
+    step, model_step = data["steps"]
+    named = {"$": "object", "class": path, "settings": {}}
+    match place:
+        case "step":
+            step["class"] = path
+        case "model":
+            model_step["estimator"]["class"] = path
+        case "model record":
+            model_step["class"] = path
+        case "nested":
+            model_step["estimator"]["params"]["estimator"]["class"] = path
+        case "object":
+            model_step["estimator"]["params"]["n_jobs"] = named
+    target.write_text(json.dumps(data))
+    return target
+
+
+def test_a_class_whose_module_is_not_imported_is_refused_and_nothing_is_imported(
+    tmp_path: Path,
+) -> None:
+    """A step or an estimator in a module not imported is refused, imports nothing."""
+    named = "tests.src.sqlearn._saving.recorded_import:X"
+    for place in ("step", "model"):
+        target = _file_naming(tmp_path, named, place)
+        with mock.patch.dict(sys.modules):
+            sys.modules.pop("sqlearn_test_imported", None)
+            sys.modules.pop("tests.src.sqlearn._saving.recorded_import", None)
+            with pytest.raises(SqlearnError) as raised:
+                sq.load(target)
+            assert "sqlearn_test_imported" not in sys.modules
+        text = str(raised.value)
+        for part in ("recorded_import", "is not imported", "Why:"):
+            assert part in text
+        assert "Fix: import X from tests before loading" in text
+
+
+def test_every_class_not_imported_is_named_at_once(tmp_path: Path) -> None:
+    """Every class whose module is not imported is named in one message."""
+    target = _file_naming(tmp_path, "no_such_one:A", "step")
+    data = json.loads(target.read_text())
+    data["steps"][1]["estimator"]["class"] = "no_such_two.sub:B"
+    target.write_text(json.dumps(data))
+    with pytest.raises(SqlearnError) as raised:
+        sq.load(target)
+    text = str(raised.value)
+    assert "no_such_one:A" in text and "no_such_two.sub:B" in text
+    assert "import A from no_such_one before loading" in text
+    assert "import B from no_such_two before loading" in text
+
+
+def test_a_submodule_not_imported_is_refused_with_the_package_named(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A class of a submodule not imported is refused, naming the package to import."""
+    target = tmp_path / "p.json"
+    sq.save(sq.Pipeline([sq.Model(LogisticRegression())]), target)
+    for name in [
+        name for name in sys.modules if name.startswith("sklearn.linear_model")
+    ]:
+        monkeypatch.delitem(sys.modules, name)
+    with pytest.raises(SqlearnError) as raised:
+        sq.load(target)
+    text = str(raised.value)
+    assert "sklearn.linear_model._logistic:LogisticRegression" in text
+    assert "Fix: import LogisticRegression from sklearn before loading" in text
+
+
+def test_a_path_through_a_lazy_module_attribute_imports_nothing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Looking a class up runs no module __getattr__, so nothing is imported."""
+    import sklearn
+
+    from tests.src.sqlearn._saving import lazy
+
+    lazy.calls.clear()
+    monkeypatch.delitem(sys.modules, "sklearn.datasets", raising=False)
+    monkeypatch.delitem(vars(sklearn), "datasets", raising=False)
+    for named in ("sklearn:datasets.X", f"{lazy.__name__}:Missing.X"):
+        target = _file_naming(tmp_path, named, "step")
+        with pytest.raises(SqlearnError, match="Fix:"):
+            sq.load(target)
+    assert lazy.calls == []
+    assert "sklearn.datasets" not in sys.modules
+
+
+@pytest.mark.parametrize("place", ["later step", "later model"])
+def test_every_class_is_checked_before_the_first_step_is_built(
+    tmp_path: Path, place: str
+) -> None:
+    """A valid earlier record is not built when a later record is refused."""
+    import subprocess
+
+    from sqlearn.preprocessing.impute import Impute
+
+    target = tmp_path / "p.json"
+    pipe = sq.Pipeline(
+        [sq.impute.median(), sq.transform.log(), sq.Model(LogisticRegression())]
+    )
+    sq.save(pipe, target)
+    data = json.loads(target.read_text())
+    if place == "later step":
+        data["steps"][1]["class"] = "subprocess:Popen"
+    else:
+        data["steps"][2]["estimator"]["class"] = "subprocess:Popen"
+    target.write_text(json.dumps(data))
+    with (
+        mock.patch.object(Impute, "__init__", return_value=None) as first,
+        mock.patch.object(subprocess.Popen, "__init__", return_value=None) as bad,
+        pytest.raises(SqlearnError, match="not a step, a model or an estimator"),
+    ):
+        sq.load(target)
+    first.assert_not_called()
+    bad.assert_not_called()
+
+
+@pytest.mark.parametrize("place", ["step", "model", "nested", "object"])
+def test_a_class_that_is_not_a_step_model_or_estimator_is_refused(
+    tmp_path: Path, place: str
+) -> None:
+    """A class that is no step, model or estimator is refused before it is built."""
+    import subprocess
+
+    target = _file_naming(tmp_path, "subprocess:Popen", place)
+    with (
+        mock.patch.object(subprocess.Popen, "__init__") as built,
+        pytest.raises(SqlearnError) as raised,
+    ):
+        sq.load(target)
+    built.assert_not_called()
+    text = str(raised.value)
+    assert "subprocess:Popen" in text
+    assert "is not a step, a model or an estimator" in text
+
+
+def test_a_nested_estimator_is_rebuilt_when_its_module_is_imported(
+    tmp_path: Path,
+) -> None:
+    """A nested estimator comes back when the module of its class is imported."""
+    from sklearn.tree import DecisionTreeClassifier
+
+    model = sq.Model(BaggingClassifier(estimator=DecisionTreeClassifier(max_depth=2)))
+    target = tmp_path / "p.json"
+    sq.save(sq.Pipeline([model]), target)
+    loaded = sq.load(target)
+    rebuilt = loaded.steps[-1][1]
+    assert isinstance(rebuilt, sq.Model)
+    assert repr(rebuilt.estimator) == repr(model.estimator)
+
+
+@pytest.mark.parametrize(
+    ("named", "place"),
+    [
+        ("tests.src.sqlearn._saving.probe:proxy.X", "step"),
+        ("tests.src.sqlearn._saving.probe:Thing", "step"),
+        ("tests.src.sqlearn._saving.probe:Thing", "model"),
+        ("tests.src.sqlearn._saving.probe:Thing", "nested"),
+    ],
+)
+def test_looking_a_class_up_runs_no_code_of_what_the_path_reaches(
+    tmp_path: Path, named: str, place: str
+) -> None:
+    """No __class__, metaclass __getattr__ or __getattribute__ runs on a lookup."""
+    from tests.src.sqlearn._saving import probe
+
+    target = _file_naming(tmp_path, named, place)
+    probe.calls.clear()
+    with pytest.raises(SqlearnError, match="Fix:"):
+        sq.load(target)
+    assert probe.calls == []
+
+
+def test_a_module_blocked_in_sys_modules_is_refused_in_the_house_form(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """sys.modules[name] = None (a blocked import) is a refusal, not a TypeError."""
+    target = _file_naming(tmp_path, "blocked_for_test:X", "step")
+    monkeypatch.setitem(sys.modules, "blocked_for_test", None)
+    with pytest.raises(SqlearnError) as raised:
+        sq.load(target)
+    text = str(raised.value)
+    assert "blocked_for_test" in text and "Why:" in text and "Fix:" in text
+
+
+@pytest.mark.parametrize("place", ["step", "model record"])
+def test_comparing_kinds_runs_no_metaclass_eq_or_hash_of_the_class_named(
+    tmp_path: Path, place: str
+) -> None:
+    """A class named as a step or as the model record is not compared by ==."""
+    from tests.src.sqlearn._saving import probe
+
+    target = _file_naming(tmp_path, "tests.src.sqlearn._saving.probe:Comparable", place)
+    probe.calls.clear()
+    with pytest.raises(SqlearnError, match="Fix:"):
+        sq.load(target)
+    assert probe.calls == []
+
+
+class _NoPredict(LogisticRegression):
+    """A subclass that switches an inherited method off by setting it to None."""
+
+    predict = None  # type: ignore[assignment]
+
+
+def test_a_class_that_sets_an_inherited_method_to_none_is_not_a_model() -> None:
+    """The first class in the MRO that defines a name decides, even as None."""
+    with pytest.raises(SqlearnError, match="not a step, a model or an estimator"):
+        import_class(f"{__name__}:_NoPredict", "model", "s")

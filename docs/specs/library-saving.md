@@ -17,6 +17,12 @@ Status: written on 2026-11-11 at Tomas's request without a design talk ("skip
 questions"); every decision below not quoted from the issues is the spec's
 call, listed in section 12. Tomas reviews it before the plan.
 
+Note (2026-11-12, after #55): the trained model is no longer saved by
+sqlearn, and `sq.load` imports nothing: sections on `allow=`, `trust_model=`
+and `model=` no longer describe the code. See
+[the spec of saving the model](library-saving-the-model.md) and
+[ADR 0048](../adr/0048-the-user-saves-the-model-and-imports-its-packages.md).
+
 Note (2026-11-11, at the build's end): section 2's example learned without the
 target, so the later `train` would have learned again; it now passes
 `target="churned"`. A saved preparation is reused only when `learn` was given

@@ -148,13 +148,15 @@ def test_apply_and_predict_on_a_changed_file_leave_the_warning_to_learn(
     _run(
         tmp_path,
         """
+        import joblib
         from sklearn.linear_model import LogisticRegression
 
         parquet("customers.parquet", [20, 31, 40, 51, 60, 71])
         trained = sq.Pipeline(
             [*pipe().steps, ("model", sq.Model(LogisticRegression()))]
         ).train("customers.parquet", "churned")
-        sq.save(trained, "model.sqlearn.json", model="pickle")
+        sq.save(trained, "model.sqlearn.json")
+        joblib.dump(trained.model_, "model.joblib")
         learned = pipe().learn("customers.parquet", target="churned")
         sq.save(learned, "steps.sqlearn.json")
         """,
@@ -162,7 +164,11 @@ def test_apply_and_predict_on_a_changed_file_leave_the_warning_to_learn(
     second = _run(
         tmp_path,
         """
-        trained = sq.load("model.sqlearn.json", allow=["sklearn"], trust_model=True)
+        import joblib
+        import sklearn.linear_model
+
+        trained = sq.load("model.sqlearn.json")
+        trained.use_model(joblib.load("model.joblib"))
         loaded = sq.load("steps.sqlearn.json")
         parquet("customers.parquet", [21, 30, 41, 50, 61, 70, 81])
         loaded.apply("customers.parquet")

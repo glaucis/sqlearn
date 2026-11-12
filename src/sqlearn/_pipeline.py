@@ -40,7 +40,7 @@ from sqlearn._inputs import (
     read,
     warn_changed_since_saved,
 )
-from sqlearn._model import Model, as_model, check_feed, is_model
+from sqlearn._model import Model, as_model, check_feed, is_model, is_trained
 from sqlearn._output import Output, to_output
 from sqlearn._plan import Plan, plan
 from sqlearn._selectors import Schema, _Cols, _is_numeric, to_selector
@@ -72,6 +72,10 @@ LearnedFrom = tuple[
 ]
 """The learned-from input's `Source.origin`, `Source.stable` and columns with
 their types (as text)."""
+
+
+def _no_fit() -> None:
+    """Stand in for the fit when the model given is trained already."""
 
 
 def _default_name(step: Step | object) -> str:
@@ -490,6 +494,9 @@ class Pipeline:
         self._names: list[dict[str, list[str]]] = []
         self._columns_out: list[str] = []
         self._feed: str | None = None
+        # Whether the model step's estimator is trained (set by train and
+        # use_model, apart from the training record above).
+        self._model_trained = False
         # Each text feature's categories at train, so predict keeps the codes.
         self._categories: dict[str, list[str]] = {}
         # The target the steps learned with: left out of the data at apply.
@@ -600,8 +607,9 @@ class Pipeline:
         steps, model = self._split()
         if model is None:
             msg = (
-                "this pipeline has no model: its last element is a step, so "
-                "there is nothing to train. Fix: add a model last, such as "
+                "this pipeline has no model: its last element is a step. Why: "
+                "there is nothing to train or to put a model into. Fix: add a "
+                "model last, such as "
                 "('model', LogisticRegression()), or call learn and apply."
             )
             raise SqlearnError(msg)
@@ -1222,10 +1230,24 @@ class Pipeline:
         rows = rel.project(*(duckdb.ColumnExpression(c) for c in names))
         return number_rows(rows.sql_query(), _ROW), features
 
-    def _train(self, source: Source, target: str, feed: str) -> "Pipeline":
-        """Train on data already read, as `train` describes."""
+    def _put_model(self, model: object) -> None:
+        """Make `model` the model step's estimator, holding the object itself."""
+        last = self.steps[-1]
+        if isinstance(last[1], Model):
+            last[1].estimator = model
+        else:
+            self.steps[-1] = (last[0], model)
+
+    def _train(
+        self, source: Source, target: str, feed: str, *, model: object | None = None
+    ) -> "Pipeline":
+        """Train on data already read, as `train` describes.
+
+        With `model` given, everything `train` does except the fit: the
+        model step then holds `model`, which is trained already.
+        """
         _changed_since_saved(source)
-        steps, model = self._modelled()
+        steps, step = self._modelled()
         con = connection()
         _source_sql(con, source)
         prepared = self._features(source, target)
@@ -1245,17 +1267,21 @@ class Pipeline:
         fit: Callable[[], None]
         if feed == "stream":
             # Batch by batch through partial_fit; what the stream refuses is
-            # refused here, before the model is touched.
-            fit = stream_trainer(
-                con, con.sql(sql), columns, TARGET, model, named=target
+            # refused here, before the model is touched: stream_trainer
+            # checks, and nothing is fitted until its callable runs. A model
+            # given is trained already, so the callable is replaced.
+            streamed = stream_trainer(
+                con, con.sql(sql), columns, TARGET, step, named=target
             )
+            fit = streamed if model is None else _no_fit
         else:
             x, y = fetch(
                 con.sql(sql), feed, columns, TARGET, named=target, categories=categories
             )
 
             def fit() -> None:
-                model.estimator.fit(x, y)
+                if model is None:
+                    step.estimator.fit(x, y)
 
         # All or nothing: until the model is fitted, the pipeline keeps what
         # it had. A fit that fails may leave the model half changed, so the
@@ -1264,6 +1290,7 @@ class Pipeline:
             fit()
         except BaseException:
             self._feed = None
+            self._model_trained = False
             raise
         self._commit(known, types, columns, stages, target, source, the_plan.depends_on)
         # The model is a reader (ADR 0018): the feeding query belongs to the
@@ -1272,9 +1299,178 @@ class Pipeline:
             runs[-1][1].statements.append(sql)
         else:
             runs.append((the_plan.feed_run, Run([sql])))
+        if model is not None:
+            self._put_model(model)
         self._feed = feed
+        self._model_trained = True
         self._categories = categories
         self.runs_ = [run for _, run in runs]
+        return self
+
+    @property
+    def model_(self) -> Any:  # noqa: ANN401  (the user's own model object)
+        """The trained model: the estimator object itself, not `sq.Model`.
+
+        Returns
+        -------
+        object
+            The library's own estimator, such as a ``LogisticRegression``.
+
+        Raises
+        ------
+        SqlearnError
+            If the pipeline has no model or has not been trained.
+
+        Examples
+        --------
+        >>> import pandas as pd
+        >>> import sqlearn as sq
+        >>> from sklearn.linear_model import LogisticRegression
+        >>> data = pd.DataFrame({"x": [1.0, 2.0, 3.0, 4.0], "y": [0, 0, 1, 1]})
+        >>> pipe = sq.Pipeline([("model", LogisticRegression())])
+        >>> type(pipe.train(data, target="y").model_).__name__
+        'LogisticRegression'
+        """
+        model = self._split()[1]
+        if model is None or not self._model_trained:
+            msg = (
+                "this pipeline has no trained model: it has no model step or "
+                "has not been trained. Why: the model is made by train. Fix: "
+                "call train(data, target=...) first."
+            )
+            raise SqlearnError(msg)
+        return model.estimator
+
+    def use_model(
+        self,
+        model: object,
+        data: object = None,
+        target: str | None = None,
+        feed: str | None = None,
+    ) -> "Pipeline":
+        """Put a trained model in place of the model step's, so predict runs.
+
+        The pipeline holds the object passed (no copy). Without `data` it
+        needs a training record: a pipeline trained in this process, or
+        loaded from a file saved after `train`. Nothing is read. With `data`
+        and `target` it needs no record: it is made from the data.
+
+        Parameters
+        ----------
+        model : object
+            A trained model of the class the pipeline's model step holds.
+        data : str, pathlib.Path, duckdb.DuckDBPyRelation or pandas.DataFrame, optional
+            The training data. With it the steps are learned again from the
+            data (found in the store when already learned), the feeding is
+            worked out as `train` does, and the model is not fitted: the one
+            passed is used. It replaces any training record the pipeline had.
+            Without the saved JSON nothing checks that this is the data the
+            model was trained on, so pass the same training data.
+        target : str, optional
+            The target column, needed with `data`.
+        feed : str, optional
+            The form the model is fed in, as for `train`; the model step's
+            own by default. Only with `data`.
+
+        Returns
+        -------
+        Pipeline
+            This pipeline, so calls chain.
+
+        Raises
+        ------
+        SqlearnError
+            If the pipeline has no model step, has no training record and no
+            data, `target` or `feed` is given without `data`, `data` is given
+            without `target`, `train` would refuse the data, or `model` is a
+            class, an ``sq.Model``, lacks ``fit`` or ``predict``, is of
+            another class than the recipe's, or is not trained.
+
+        Examples
+        --------
+        >>> import pandas as pd
+        >>> import sqlearn as sq
+        >>> from sklearn.linear_model import LogisticRegression
+        >>> data = pd.DataFrame({"x": [1.0, 2.0, 3.0, 4.0], "y": [0, 0, 1, 1]})
+        >>> a = sq.Pipeline([("model", LogisticRegression())]).train(data, "y")
+        >>> b = sq.Pipeline([("model", LogisticRegression())]).train(data, "y")
+        >>> b.use_model(a.model_).model_ is a.model_
+        True
+        >>> c = sq.Pipeline([("model", LogisticRegression())])
+        >>> c.use_model(a.model_, data=data, target="y").model_ is a.model_
+        True
+        """
+        _, step = self._modelled()
+        if data is None and (target is not None or feed is not None):
+            msg = (
+                "target or feed was given without data, so there is nothing "
+                "to apply them to. Why: they describe the training data. "
+                "Fix: pass the training data as data=..., or drop them."
+            )
+            raise SqlearnError(msg)
+        if data is not None and target is None:
+            msg = (
+                "data was given without a target, so the steps cannot be "
+                "learned as train learns them. Why: the target is set aside "
+                "from the features. Fix: pass target=<the target column>."
+            )
+            raise SqlearnError(msg)
+        if data is None and (self._feed is None or self._entries is None):
+            msg = (
+                "this pipeline has no training record, so a model cannot be "
+                "put back. Why: the feeding and categories come from the data "
+                "it was trained on. Fix: pass the training data, as "
+                "use_model(model, data=..., target=...), or load the file "
+                "sq.save wrote after train."
+            )
+            raise SqlearnError(msg)
+        wanted = type(step.estimator)
+        if isinstance(model, type):
+            msg = (
+                f"{model.__qualname__} is a class, not a trained model. "
+                "Why: predict needs the fitted object. "
+                f"Fix: pass a trained model object, a {wanted.__qualname__} "
+                "such as the one pipe.model_ gave."
+            )
+            raise SqlearnError(msg)
+        if isinstance(model, Model):
+            msg = (
+                "the model passed is an sq.Model, which wraps an estimator. "
+                "Why: the pipeline already holds its own sq.Model, and "
+                "predict needs the trained estimator inside. Fix: pass the "
+                "estimator itself, not sq.Model."
+            )
+            raise SqlearnError(msg)
+        if not is_model(model):
+            msg = (
+                f"a {type(model).__qualname__} has no fit or no predict, so "
+                "it is not a model. Why: a pipeline's model step trains and "
+                "predicts through those two. Fix: pass a trained model, an "
+                "object with fit and predict."
+            )
+            raise SqlearnError(msg)
+        if not isinstance(model, wanted):
+            msg = (
+                f"the model is a {type(model).__qualname__}, but this pipeline "
+                f"holds a {wanted.__qualname__}. Why: the recipe's settings "
+                "and the model must belong together. Fix: build the pipeline with "
+                f"that model, or pass a {wanted.__qualname__}."
+            )
+            raise SqlearnError(msg)
+        if not is_trained(model):
+            msg = (
+                f"the {type(model).__qualname__} is not trained, so predict "
+                "would fail. Why: it holds nothing learned. Fix: fit it "
+                "first, or call train(data, target=...) on the pipeline."
+            )
+            raise SqlearnError(msg)
+        if data is not None:
+            assert target is not None
+            feed = step.feed if feed is None else feed
+            check_feed(feed)
+            return self._train(read(data, learning=True), target, feed, model=model)
+        self._put_model(model)
+        self._model_trained = True
         return self
 
     def predict(self, data: object, out: str | Output | None = None) -> Any:  # noqa: ANN401  (the form `out` names)
@@ -1326,10 +1522,11 @@ class Pipeline:
         [0, 0, 1, 1]
         """
         steps, model = self._modelled()
-        if self._feed is None or self._entries is None:
+        if not self._model_trained or self._feed is None or self._entries is None:
             msg = (
                 "this pipeline has not been trained yet, so its model cannot "
-                "predict. Fix: call train(data, target=...) first."
+                "predict. Fix: call train(data, target=...) first, or put a "
+                "trained model back with use_model(model)."
             )
             raise SqlearnError(msg)
         source = read(data)

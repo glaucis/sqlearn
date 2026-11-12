@@ -123,7 +123,7 @@ def test_a_changed_state_version_loads_the_recipe_and_warns(
     sq.save(pipe, tmp_path / "p.json")
     monkeypatch.setattr(Least, "state_version", 2)
     with pytest.warns(SqlearnWarning) as caught:
-        loaded = sq.load(tmp_path / "p.json", allow=["tests"])
+        loaded = sq.load(tmp_path / "p.json")
     message = str(caught[0].message)
     assert "least" in message and "1" in message and "2" in message
     assert "Fix:" in message
@@ -145,7 +145,7 @@ def _round_trips(
     want = fetch(pipe.apply(data))
     statement = _sql(pipe)
     sq.save(pipe, tmp_path / "p.json")
-    loaded = sq.load(tmp_path / "p.json", allow=["tests"])
+    loaded = sq.load(tmp_path / "p.json")
     assert fetch(loaded.apply(data)) == want
     assert _sql(loaded) == statement
 
@@ -201,10 +201,10 @@ def _saved_standard(tmp_path: Path, **changes: object) -> Path:
     return path
 
 
-def test_a_learned_value_naming_a_package_not_allowed_imports_nothing(
+def test_a_learned_value_naming_a_class_is_refused_and_imports_nothing(
     tmp_path: Path,
 ) -> None:
-    """A class in a learned value is checked against allow= before any import."""
+    """A learned value holds no class: refused as text, never told to import."""
     sys.modules.pop("sqlearn_test_imported", None)
     named = {
         "$": "object",
@@ -212,8 +212,11 @@ def test_a_learned_value_naming_a_package_not_allowed_imports_nothing(
         "settings": {},
     }
     path = _saved_standard(tmp_path, values={"$": "dict", "items": [["center", named]]})
-    with pytest.raises(SqlearnError, match=r"allow=\['tests'\]"):
+    with pytest.raises(
+        SqlearnError, match=r"(?s)recorded_import.*damaged.*Fix:"
+    ) as raised:
         sq.load(path)
+    assert "Fix: import" not in str(raised.value)
     assert "sqlearn_test_imported" not in sys.modules
 
 

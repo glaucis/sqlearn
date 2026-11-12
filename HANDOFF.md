@@ -14,9 +14,7 @@ None.
 
 ## Waiting on the user
 
-- Review the #55 plan, `docs/plans/2026-11-11-library-saving-the-model.md`
-  (spec `docs/specs/library-saving-the-model.md`, approved 2026-11-11; ADR
-  0048), and choose how it runs: five tasks, then build.
+None.
 
 ## Next up
 
@@ -95,6 +93,13 @@ None.
   (2026-11-06)
 
 ## Just finished
+
+- #55: the user saves the trained model; `sq.load` imports nothing and builds
+  only steps, models, nested estimators and fold schemes; `allow=`,
+  `trust_model=`, `model=` and pickle are gone; `pipe.model_` and
+  `pipe.use_model` added; guide rewritten. Spec
+  `docs/specs/library-saving-the-model.md`, ADR 0048. Merge commit to add.
+  (2026-11-12)
 
 - #56: a zoned timestamp is learned as the same instant in UTC, with no pytz,
   alone or inside a list, array, struct or map; `sq.encode.onehot` and
