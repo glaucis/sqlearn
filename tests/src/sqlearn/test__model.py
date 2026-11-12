@@ -293,3 +293,37 @@ def test_prediction_reads_training_s_codes_batch_by_batch(feed, monkeypatch):
     monkeypatch.setattr(_feed, "BATCH_ROWS", 1)
     later = pd.DataFrame({"city": ["rome", "paris", "kyiv"]})
     assert pipe.predict(later, out="numpy")["prediction"].tolist() == [2, 3, 0]
+
+
+def _fresh_models():
+    from sklearn.pipeline import make_pipeline
+    from sklearn.preprocessing import StandardScaler
+
+    return {
+        "logistic": LogisticRegression(),
+        "sklearn_pipeline": make_pipeline(StandardScaler(), LogisticRegression()),
+        "lightgbm": LGBMClassifier(verbose=-1),
+        "catboost": CatBoostClassifier(
+            verbose=0, iterations=5, allow_writing_files=False
+        ),
+    }
+
+
+@pytest.mark.parametrize(
+    "name", ["logistic", "sklearn_pipeline", "lightgbm", "catboost"]
+)
+def test_a_model_is_trained_by_its_own_rule(name, tmp_path):
+    """Trained is decided by the model's own word, before and after `fit`."""
+    from sqlearn._model import is_trained
+
+    model = _fresh_models()[name]
+    assert not is_trained(model)
+    model.fit(NUMERIC_DATA[["a", "b"]].to_numpy(), NUMERIC_DATA["y"].to_numpy())
+    assert is_trained(model)
+    if name == "catboost":
+        path = str(tmp_path / "model.cbm")
+        model.save_model(path)
+        reloaded = CatBoostClassifier(allow_writing_files=False)
+        assert not is_trained(reloaded)
+        reloaded.load_model(path)
+        assert is_trained(reloaded)

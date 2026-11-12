@@ -19,6 +19,7 @@ __all__ = [
     "check_feed",
     "copy_model",
     "is_model",
+    "is_trained",
     "missing_target",
     "target_values",
 ]
@@ -88,6 +89,40 @@ def is_model(obj: object) -> bool:
     (True, False)
     """
     return isinstance(obj, Model) or not _missing(obj)
+
+
+def is_trained(model: object) -> bool:
+    """Say whether a model is trained, by its own rule and without its library.
+
+    The model's own ``__sklearn_is_fitted__()`` when it has one (scikit-learn,
+    LightGBM), else its ``is_fitted()`` (CatBoost), else whether it has a
+    public attribute ending in ``_`` (scikit-learn's rule).
+
+    Parameters
+    ----------
+    model : object
+        The model.
+
+    Returns
+    -------
+    bool
+        True when the model has been fitted.
+
+    Examples
+    --------
+    >>> from sklearn.linear_model import LogisticRegression
+    >>> from sqlearn._model import is_trained
+    >>> model = LogisticRegression()
+    >>> is_trained(model)
+    False
+    >>> is_trained(model.fit([[1.0], [2.0]], [0, 1]))
+    True
+    """
+    for name in ("__sklearn_is_fitted__", "is_fitted"):
+        check = getattr(model, name, None)
+        if callable(check):
+            return bool(check())
+    return any(key.endswith("_") and not key.startswith("_") for key in vars(model))
 
 
 class Model:

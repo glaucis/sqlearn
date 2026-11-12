@@ -588,6 +588,7 @@ def _open_model(
         )
     model.estimator = estimator
     pipe._feed = str(record["feed"])
+    pipe._model_trained = True  # Task 3 removes this path with the model file
     pipe._categories = categories
 
 
