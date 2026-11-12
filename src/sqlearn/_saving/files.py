@@ -18,7 +18,6 @@ from sqlearn._model import FEEDS, Model
 from sqlearn._pipeline import Pipeline
 from sqlearn._saving.codec import (
     check_classes,
-    class_paths,
     decode,
     encode,
     no_class,
@@ -29,6 +28,7 @@ from sqlearn._saving.recipe import (
     build_step,
     check_imported,
     check_model,
+    check_record_text,
     check_step,
     model_record,
     record_class_paths,
@@ -362,14 +362,17 @@ def load(path: str | os.PathLike[str]) -> Pipeline:
         if learned is not None and not isinstance(learned, dict):
             raise _damaged("the file's learned part is not an object")
         trained = _trained(data, records)
+        # Text-only refusals first: the user is never told to import a package
+        # for a place that can never hold a class.
+        if learned is not None:
+            check_classes(learned, "the file's learned part", no_class)
+        if trained is not None:
+            check_classes(dict(trained), "the file's training record", no_class)
+        for position, record in enumerate(records, start=1):
+            check_record_text(record, f"{record['name']} (step {position})")
         paths: set[str] = set()
         for record in records:
             paths |= record_class_paths(record)
-        if learned is not None:
-            # A learned value may name a class too: checked before any import.
-            paths |= class_paths(learned)
-        if trained is not None:
-            paths |= class_paths(dict(trained))
         check_imported(paths)
         # The whole file is checked before the first record is built.
         for position, record in enumerate(records, start=1):
@@ -378,10 +381,6 @@ def load(path: str | os.PathLike[str]) -> Pipeline:
                 check_model(record, where)
             else:
                 check_step(record, where)
-        if learned is not None:
-            check_classes(learned, "the file's learned part", no_class)
-        if trained is not None:
-            check_classes(dict(trained), "the file's training record", no_class)
         built: list[tuple[str, Step | Model]] = []
         file = repr(str(path))
         for position, record in enumerate(records, start=1):
@@ -410,7 +409,7 @@ def _trained(
         return None
     if not isinstance(record, dict) or list(record) != list(_TRAINED_KEYS):
         raise _damaged("the file's trained part is not a training record")
-    if "learned" not in data or not records or records[-1]["kind"] != "model":
+    if data.get("learned") is None or not records or records[-1]["kind"] != "model":
         raise _damaged("the file has a training record but no learned model")
     if record["feed"] not in FEEDS:
         raise _damaged(f"the training record's feed {record['feed']!r} is not a form")

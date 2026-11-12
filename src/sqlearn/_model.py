@@ -122,7 +122,10 @@ def is_trained(model: object) -> bool:
         check = getattr(model, name, None)
         if callable(check):
             return bool(check())
-    return any(key.endswith("_") and not key.startswith("_") for key in vars(model))
+    return any(
+        key.endswith("_") and not key.startswith("_")
+        for key in getattr(model, "__dict__", {})
+    )
 
 
 class Model:

@@ -500,3 +500,15 @@ def test_comparing_kinds_runs_no_metaclass_eq_or_hash_of_the_class_named(
     with pytest.raises(SqlearnError, match="Fix:"):
         sq.load(target)
     assert probe.calls == []
+
+
+class _NoPredict(LogisticRegression):
+    """A subclass that switches an inherited method off by setting it to None."""
+
+    predict = None  # type: ignore[assignment]
+
+
+def test_a_class_that_sets_an_inherited_method_to_none_is_not_a_model() -> None:
+    """The first class in the MRO that defines a name decides, even as None."""
+    with pytest.raises(SqlearnError, match="not a step, a model or an estimator"):
+        import_class(f"{__name__}:_NoPredict", "model", "s")

@@ -1172,3 +1172,42 @@ def test_a_fit_that_fails_leaves_the_model_untrained():
         pipe.model_  # noqa: B018
     with pytest.raises(sq.errors.SqlearnError, match="not been trained"):
         pipe.predict(frame)
+
+
+def _refusals_of_the_model_calls():
+    """Each way `model_` and `use_model` refuse, as a callable."""
+    from sklearn.linear_model import LogisticRegression, RidgeClassifier
+
+    trained = _model_pipe().train(MODEL_DATA, target="y")
+    fitted = LogisticRegression().fit([[1.0], [2.0]], [0, 1])
+    other = RidgeClassifier().fit([[1.0], [2.0]], [0, 1])
+    return {
+        "model_ before train": lambda: _model_pipe().model_,
+        "no model step": lambda: scale_pipe().use_model(fitted),
+        "no training record": lambda: _model_pipe().use_model(fitted),
+        "a class": lambda: trained.use_model(LogisticRegression),
+        "not a model": lambda: trained.use_model(object()),
+        "another class": lambda: trained.use_model(other),
+        "not trained": lambda: trained.use_model(LogisticRegression()),
+        "sq.Model": lambda: trained.use_model(sq.Model(LogisticRegression())),
+    }
+
+
+@pytest.mark.parametrize("case", list(_refusals_of_the_model_calls()))
+def test_every_refusal_of_model_and_use_model_gives_why_and_fix(case):
+    """Each refusal is in the house form: what, Why:, Fix:."""
+    with pytest.raises(sq.errors.SqlearnError) as raised:
+        _refusals_of_the_model_calls()[case]()
+    assert "Why:" in str(raised.value)
+    assert "Fix:" in str(raised.value)
+
+
+def test_use_model_refuses_an_sq_model_and_asks_for_the_estimator_itself():
+    """A wrapped model is not the estimator: the Fix says to pass the estimator."""
+    from sklearn.linear_model import LogisticRegression
+
+    pipe = _model_pipe().train(MODEL_DATA, target="y")
+    with pytest.raises(
+        sq.errors.SqlearnError, match=r"Fix: pass the estimator itself, not sq\.Model"
+    ):
+        pipe.use_model(sq.Model(LogisticRegression()))

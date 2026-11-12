@@ -331,3 +331,91 @@ def test_a_pipeline_given_its_model_with_data_saves_and_loads(
     after = "sq.save(pipe, 'p.sqlearn.json')\npipe = sq.load('p.sqlearn.json')\n"
     after += "pipe.use_model(catboost.CatBoostClassifier().load_model('model.cbm'))"
     assert _in_new_process(tmp_path, _BUILD, after) == want
+
+
+_NEVER_IMPORTED = "tests.src.sqlearn._saving.recorded_import:X"
+
+
+def _object_tag() -> dict[str, Any]:
+    return {"$": "object", "class": _NEVER_IMPORTED, "settings": {}}
+
+
+def _estimator_tag() -> dict[str, Any]:
+    return {"$": "estimator", "class": _NEVER_IMPORTED, "params": {}}
+
+
+def _in_learned(tag: dict[str, Any]) -> Any:
+    return lambda d: d["learned"]["steps"][0]["values"]["items"].append(["x", tag])
+
+
+def _in_categories(tag: dict[str, Any]) -> Any:
+    return lambda d: d["trained"].update(categories=tag)
+
+
+def _in_step_setting(tag: dict[str, Any]) -> Any:
+    return lambda d: d["steps"][0]["settings"].update(suffix=tag)
+
+
+def _in_model_setting(tag: dict[str, Any]) -> Any:
+    return lambda d: d["steps"][-1]["settings"].update(seed=tag)
+
+
+def _in_estimator_params(tag: dict[str, Any]) -> Any:
+    return lambda d: d["steps"][-1]["estimator"]["params"].update(C=tag)
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        _in_learned(_object_tag()),
+        _in_learned(_estimator_tag()),
+        _in_categories(_object_tag()),
+        _in_categories(_estimator_tag()),
+        _in_step_setting(_object_tag()),
+        _in_step_setting(_estimator_tag()),
+        _in_model_setting(_object_tag()),
+        _in_model_setting(_estimator_tag()),
+        _in_estimator_params(_object_tag()),
+    ],
+)
+def test_a_class_where_none_is_allowed_never_tells_the_user_to_import_it(
+    tmp_path: Path, change: Any
+) -> None:
+    """A place that can never hold a class is refused as damaged, not as unimported."""
+    sys.modules.pop("sqlearn_test_imported", None)
+    path = _with(tmp_path / "p.json", change)
+    with pytest.raises(SqlearnError) as raised:
+        sq.load(path)
+    message = str(raised.value)
+    assert "Fix:" in message
+    assert "Fix: import" not in message
+    assert "imports nothing" not in message
+    assert "sqlearn_test_imported" not in sys.modules
+
+
+def test_a_null_learned_part_beside_a_training_record_is_refused(
+    tmp_path: Path,
+) -> None:
+    """`"learned": null` with `trained` is damaged, not silently dropped."""
+    path = _with(tmp_path / "p.json", lambda d: d.update(learned=None))
+    with pytest.raises(SqlearnError, match=r"(?s)Why:.*damaged.*Fix:"):
+        sq.load(path)
+
+
+@pytest.mark.parametrize(
+    "estimator",
+    [
+        {"$": "object", "class": "sqlearn.model_selection.folds:KFold", "settings": {}},
+        {"$": "aggregate", "name": "mean", "settings": {}},
+        {"$": "tuple", "items": []},
+    ],
+)
+def test_a_model_record_whose_estimator_is_not_an_estimator_is_refused(
+    tmp_path: Path, estimator: dict[str, Any]
+) -> None:
+    """The estimator is refused as damaged before anything is built."""
+    path = _with(
+        tmp_path / "p.json", lambda d: d["steps"][-1].update(estimator=estimator)
+    )
+    with pytest.raises(SqlearnError, match=r"(?s)estimator is not an estimator.*Why:"):
+        sq.load(path)

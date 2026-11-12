@@ -201,10 +201,10 @@ def _saved_standard(tmp_path: Path, **changes: object) -> Path:
     return path
 
 
-def test_a_learned_value_naming_a_module_not_imported_imports_nothing(
+def test_a_learned_value_naming_a_class_is_refused_and_imports_nothing(
     tmp_path: Path,
 ) -> None:
-    """A class in a learned value is checked as text before any import."""
+    """A learned value holds no class: refused as text, never told to import."""
     sys.modules.pop("sqlearn_test_imported", None)
     named = {
         "$": "object",
@@ -212,8 +212,11 @@ def test_a_learned_value_naming_a_module_not_imported_imports_nothing(
         "settings": {},
     }
     path = _saved_standard(tmp_path, values={"$": "dict", "items": [["center", named]]})
-    with pytest.raises(SqlearnError, match=r"(?s)recorded_import.*is not imported"):
+    with pytest.raises(
+        SqlearnError, match=r"(?s)recorded_import.*damaged.*Fix:"
+    ) as raised:
         sq.load(path)
+    assert "Fix: import" not in str(raised.value)
     assert "sqlearn_test_imported" not in sys.modules
 
 

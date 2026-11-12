@@ -270,11 +270,11 @@ You import the packages as you would to build the pipeline in code. The
 lookup runs no code of the module it reads.
 
 A file also builds only what a pipeline holds: a sqlearn step, a model (an
-object with `fit` and `predict`), an estimator nested in a step (one with
-`get_params`) or a fold scheme. A class of any other kind is refused before
-anything is built, even when its module is imported. A crafted file naming
-`subprocess.Popen` is the case this is for: `Popen` is none of those four,
-so it is refused and no process starts, whatever you imported.
+object with `fit` and `predict`), an estimator nested in the model's settings
+(one with `get_params`) or a fold scheme. A class of any other kind is refused
+before anything is built, even when its module is imported. A crafted file
+naming `subprocess.Popen` is the case this is for: `Popen` is none of those
+four, so it is refused and no process starts, whatever you imported.
 
 ## For authors of steps: `state_version`
 

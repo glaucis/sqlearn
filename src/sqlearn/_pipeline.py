@@ -607,8 +607,9 @@ class Pipeline:
         steps, model = self._split()
         if model is None:
             msg = (
-                "this pipeline has no model: its last element is a step, so "
-                "there is nothing to train. Fix: add a model last, such as "
+                "this pipeline has no model: its last element is a step. Why: "
+                "there is nothing to train or to put a model into. Fix: add a "
+                "model last, such as "
                 "('model', LogisticRegression()), or call learn and apply."
             )
             raise SqlearnError(msg)
@@ -1334,7 +1335,8 @@ class Pipeline:
         if model is None or not self._model_trained:
             msg = (
                 "this pipeline has no trained model: it has no model step or "
-                "has not been trained. Fix: call train(data, target=...) first."
+                "has not been trained. Why: the model is made by train. Fix: "
+                "call train(data, target=...) first."
             )
             raise SqlearnError(msg)
         return model.estimator
@@ -1381,7 +1383,7 @@ class Pipeline:
             If the pipeline has no model step, has no training record and no
             data, `target` or `feed` is given without `data`, `data` is given
             without `target`, `train` would refuse the data, or `model` is a
-            class, lacks ``fit`` or ``predict``, is of
+            class, an ``sq.Model``, lacks ``fit`` or ``predict``, is of
             another class than the recipe's, or is not trained.
 
         Examples
@@ -1416,38 +1418,50 @@ class Pipeline:
         if data is None and (self._feed is None or self._entries is None):
             msg = (
                 "this pipeline has no training record, so a model cannot be "
-                "put back without the data it was trained on. Fix: pass the "
-                "training data, as use_model(model, data=..., target=...), or "
-                "load the file sq.save wrote after train."
+                "put back. Why: the feeding and categories come from the data "
+                "it was trained on. Fix: pass the training data, as "
+                "use_model(model, data=..., target=...), or load the file "
+                "sq.save wrote after train."
             )
             raise SqlearnError(msg)
         wanted = type(step.estimator)
         if isinstance(model, type):
             msg = (
                 f"{model.__qualname__} is a class, not a trained model. "
+                "Why: predict needs the fitted object. "
                 f"Fix: pass a trained model object, a {wanted.__qualname__} "
                 "such as the one pipe.model_ gave."
+            )
+            raise SqlearnError(msg)
+        if isinstance(model, Model):
+            msg = (
+                "the model passed is an sq.Model, which wraps an estimator. "
+                "Why: the pipeline already holds its own sq.Model, and "
+                "predict needs the trained estimator inside. Fix: pass the "
+                "estimator itself, not sq.Model."
             )
             raise SqlearnError(msg)
         if not is_model(model):
             msg = (
                 f"a {type(model).__qualname__} has no fit or no predict, so "
-                "it is not a model. Fix: pass a trained model, an object "
-                "with fit and predict."
+                "it is not a model. Why: a pipeline's model step trains and "
+                "predicts through those two. Fix: pass a trained model, an "
+                "object with fit and predict."
             )
             raise SqlearnError(msg)
         if not isinstance(model, wanted):
             msg = (
                 f"the model is a {type(model).__qualname__}, but this pipeline "
-                f"holds a {wanted.__qualname__}. Fix: build the pipeline with "
+                f"holds a {wanted.__qualname__}. Why: the recipe's settings "
+                "and the model must belong together. Fix: build the pipeline with "
                 f"that model, or pass a {wanted.__qualname__}."
             )
             raise SqlearnError(msg)
         if not is_trained(model):
             msg = (
                 f"the {type(model).__qualname__} is not trained, so predict "
-                "would fail. Fix: fit it first, or call train(data, "
-                "target=...) on the pipeline."
+                "would fail. Why: it holds nothing learned. Fix: fit it "
+                "first, or call train(data, target=...) on the pipeline."
             )
             raise SqlearnError(msg)
         if data is not None:

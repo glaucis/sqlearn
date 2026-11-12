@@ -1,9 +1,10 @@
 """Steps and models as records, and the check of what a file may import.
 
 A step is written as its class and its settings; a model as the ``sq.Model``
-settings and its estimator, class and parameters. Nothing here imports a class
-named in a file is looked up: `check_imported` refuses a class whose module
-is not imported, and nothing is ever imported.
+settings and its estimator, class and parameters. Nothing here imports a
+class a file names: it is looked up among the modules already imported,
+`check_imported` refuses a class whose module is not imported, and nothing is
+ever imported.
 """
 
 import sys
@@ -22,6 +23,7 @@ __all__ = [
     "build_step",
     "check_imported",
     "check_model",
+    "check_record_text",
     "check_step",
     "class_path",
     "import_class",
@@ -153,9 +155,11 @@ def _static_attr(value: object, name: str) -> object | None:
     bound: a descriptor comes back as itself.
     """
     owner = value if issubclass(type(value), type) else type(value)
+    missing = object()
     for entry in _mro_of(cast("type", owner)):
-        found = _CLASS_DICT.__get__(entry).get(name)
-        if found is not None:
+        found = _CLASS_DICT.__get__(entry).get(name, missing)
+        if found is not missing:
+            # The first class that defines the name decides, even as None.
             return cast("object", found)
     return None
 
@@ -599,16 +603,67 @@ def _model_parts(
             "a model record holds an sq.Model.",
             "save the pipeline again, or restore the file from where it came.",
         )
+    typed = _estimator_part(record, where)
+    return cls, typed, _path(typed, where)
+
+
+def _estimator_part(record: Mapping[str, object], where: str) -> dict[str, object]:
+    """Return a model record's estimator record, checked for shape as text."""
     estimator_record = _field(record, "estimator", where)
-    if not isinstance(estimator_record, dict):
+    if not isinstance(estimator_record, dict) or estimator_record.get("$") != (
+        "estimator"
+    ):
         raise _refuse(
             where,
-            "the estimator is not an object",
+            "the estimator is not an estimator record",
             "it is not a record sqlearn writes, so the file is damaged or was edited.",
             "save the pipeline again, or restore the file from where it came.",
         )
-    typed: dict[str, object] = {str(k): v for k, v in estimator_record.items()}
-    return cls, typed, _path(typed, where)
+    return {str(k): v for k, v in estimator_record.items()}
+
+
+def _unimported_estimator(path: str, where: str) -> type:
+    """Accept an estimator path as text for the pre-import check: finds nothing."""
+    found = rebuilt().get(path)
+    if found is not None:
+        return found[0]
+    if path.partition(":")[0].split(".")[0] == "sqlearn":
+        raise _sqlearn_estimator(path, where)
+    return object
+
+
+def check_record_text(record: Mapping[str, object], where: str) -> None:
+    """Refuse, from the text alone, a class a record may not hold anywhere.
+
+    Run before `check_imported`, so the user is never told to import a package
+    for a place that can never hold a class: a step's or model's settings hold
+    no estimator and only the fold schemes, and a model's estimator tree holds
+    no other object. Nothing is imported or looked up.
+
+    Parameters
+    ----------
+    record : mapping
+        A step or model record, as read from the file.
+    where : str
+        The place, for errors.
+
+    Raises
+    ------
+    SqlearnError
+        When the settings or the estimator tree name a class that place may
+        not hold.
+
+    Examples
+    --------
+    >>> import sqlearn as sq
+    >>> from sqlearn._saving.recipe import check_record_text, step_record
+    >>> check_record_text(step_record("t", sq.transform.log(), 1), "t")
+    """
+    check_classes(_settings(record, where), where, partial(_registered, where=where))
+    if record.get("kind") == "model":
+        typed = _estimator_part(record, where)
+        resolve = partial(_unimported_estimator, where=where)
+        check_classes(typed, where, resolve)
 
 
 def check_step(record: Mapping[str, object], where: str) -> None:

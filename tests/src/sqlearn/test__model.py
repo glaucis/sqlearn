@@ -327,3 +327,20 @@ def test_a_model_is_trained_by_its_own_rule(name, tmp_path):
         assert not is_trained(reloaded)
         reloaded.load_model(path)
         assert is_trained(reloaded)
+
+
+class _Slotted:
+    __slots__ = ()
+
+    def fit(self, x, y):
+        return self
+
+    def predict(self, x):
+        return x
+
+
+def test_a_model_without_a_dict_is_not_trained_instead_of_failing():
+    """`__slots__` leaves no `__dict__`: the answer is False, not a TypeError."""
+    from sqlearn._model import is_trained
+
+    assert is_trained(_Slotted()) is False
