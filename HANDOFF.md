@@ -3,9 +3,9 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-12 · Branch: `main` · Last commit: merge of #55
-(`a61301a`) · Checks: passing (`just verify` on `a8558e3`: 2138 passed, 24
-skipped; `just test` on the merge: 2128 passed)
+Updated: 2026-11-12 · Branch: `main` · Last commit: `0cb2261 docs: the #55
+worktree is removed` · Checks: passing (`just test` on the merge `a61301a`:
+2128 passed, 24 skipped; `just verify` on `a8558e3`: 2138 passed)
 Verify with: `just verify`
 
 ## In progress
@@ -14,7 +14,10 @@ None.
 
 ## Waiting on the user
 
-None.
+- Push `main` (16 commits ahead of `origin/main`), then close #55 with a
+  summary comment listing the build's deferred minor findings (27, triaged by
+  the final review as safe to wait) and set its card to Done. Recommended:
+  push now. (since 2026-11-12)
 
 ## Next up
 
@@ -105,16 +108,5 @@ None.
   `trust_model=`, `model=` and pickle are gone; `pipe.model_` and
   `pipe.use_model` added; guide rewritten. Spec
   `docs/specs/library-saving-the-model.md`, ADR 0048. Merged in `a61301a`;
-  the build's small deferred findings are on #55.
+  not pushed yet (see "Waiting on the user").
   (2026-11-12)
-
-- #56: a zoned timestamp is learned as the same instant in UTC, with no pytz,
-  alone or inside a list, array, struct or map; `sq.encode.onehot` and
-  `ordinal` no longer fail on such a column. The merged `library-saving`
-  worktree and branch are deleted. (2026-11-11)
-
-- The sqlearn board (glaucis project 6) and ten milestones, one per overview
-  part (3.1 and 3.2 closed); all 57 issues placed, audit clean; named in
-  `docs/agents/issue-tracker.md` (`b54f3a7`). (2026-11-11)
-- The engineering skills setup checked: already complete, nothing changed.
-  (2026-11-11)
