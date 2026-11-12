@@ -3,9 +3,9 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-11 · Branch: `main` · Last commit: ADR 0048 · Checks:
-passing (`just verify` on `05c2293`: 2066 passed, 24 skipped; only docs
-changed since)
+Updated: 2026-11-12 · Branch: `main` · Last commit: merge of #55
+(`a61301a`) · Checks: passing (`just verify` on `a8558e3`: 2138 passed, 24
+skipped; `just test` on the merge: 2128 passed)
 Verify with: `just verify`
 
 ## In progress
@@ -30,6 +30,10 @@ None.
   or a fetcher of real datasets (ADR 0006: an explicit call).
 - The target encoder's learn after #41 is mostly Python `Fraction` arithmetic
   in `_encodings`/`_totals`: file an issue if it matters.
+- `just check` passed with a function defined twice in `_pipeline.py`
+  (ruff selects `F`, yet F811 stayed quiet): find out why.
+- Delete the merged worktree `.worktrees/library-saving-the-model` if it is
+  still there.
 
 ## Dead ends and traps
 
@@ -45,8 +49,12 @@ None.
   (2026-11-11)
 - `sq.load` security: per-task reviews each passed, yet the final review found
   two routes from a crafted file to `KeptFolds` (which creates a DuckDB file).
-  Probe every tag (`object`, `estimator`, `aggregate`, learned part,
-  `model_file`) end to end after any change to `_saving`. Saving tests print
+  Probe every tag (`object`, `estimator`, nested estimator, `aggregate`,
+  learned part, `trained`) end to end after any change to `_saving`. The
+  class lookup must stay static (#55): `getattr`, `hasattr`, `isinstance`,
+  `in` or `==` on anything a file reaches can run its code (a lazy module
+  `__getattr__`, a `__class__` property, a metaclass `__eq__`); read through
+  the type descriptors and compare by `is`. Saving tests print
   "nanobind: leaked" at exit (DuckDB); the exit code stays 0. (2026-11-11)
 - After a merge that adds a dependency, the pre-commit hook fails on `main`
   until its environment is synced: run `uv sync` (or `just pre-commit` once),
@@ -98,7 +106,8 @@ None.
   only steps, models, nested estimators and fold schemes; `allow=`,
   `trust_model=`, `model=` and pickle are gone; `pipe.model_` and
   `pipe.use_model` added; guide rewritten. Spec
-  `docs/specs/library-saving-the-model.md`, ADR 0048. Merge commit to add.
+  `docs/specs/library-saving-the-model.md`, ADR 0048. Merged in `a61301a`;
+  the build's small deferred findings are on #55.
   (2026-11-12)
 
 - #56: a zoned timestamp is learned as the same instant in UTC, with no pytz,
