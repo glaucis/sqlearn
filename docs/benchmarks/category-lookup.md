@@ -1,7 +1,7 @@
 ---
 type: note
 tags: [benchmarks, performance, encoders, ordinal, target, sqlearn]
-summary: "Times the ways a step can look a category up in one DuckDB expression, at 100, 1,000 and 10,000 categories on 1,000,000 rows, and the ordinal and target encoders with lookup=\"list\" and lookup=\"hash\" from Parquet up to 30,000 categories."
+summary: "Times the ways a step can look a category up in one DuckDB expression, at 100, 1,000 and 10,000 categories on 1,000,000 rows, and the ordinal and target encoders with lookup=\"list\" and lookup=\"hash\" from Parquet up to 100,000 categories."
 related: [index, onehot-second-run]
 ---
 # Looking a category up
@@ -190,8 +190,59 @@ point lies higher than the in-memory table suggests: the lookups alone cross
 between 10,000 and 30,000 categories, and so does the ordinal encoder's
 apply (1.604 s against 3.203 s at 10,000, 14.264 s against 5.228 s at
 30,000). The target encoder's apply was slower with the hash at every count,
-30,000 included. `sq.encode`'s warning threshold, `WARN_ABOVE`, is 30,000:
-the smallest count measured at which the hash applied faster.
+30,000 included. These times were taken under heavy load and were measured
+again on a quieter machine (below), which moved the threshold.
+
+## The encoders measured again, quieter
+
+Measured on 2026-11-12 as above (encoders' part alone, one count per process,
+from Parquet, 1,000,000 rows), sqlearn 0.1.dev350+g34c08d242, DuckDB 2.0.0,
+on an Apple M3, 8 cores, 16 GB. The machine still ran other work: a first run
+of 10,000 to 100,000 categories saw a load average between 8 and 34, so
+15,000, 20,000 and 30,000 were measured again, with 50,000, at a load
+between 4 and 8. The table holds the second run's rows, and the first run's
+for 10,000 and 100,000 (load between 8 and 12).
+
+| categories | encoder | learn s | apply s | list_position alone, from Parquet s | MD5 perfect hash alone, from Parquet s |
+|---|---|---|---|---|---|
+| 10,000 | ordinal | 0.285 | 0.937 | 0.374 | 0.787 |
+| 10,000 | ordinal, hash | 1.615 | 2.539 | 0.374 | 0.787 |
+| 10,000 | target | 2.498 | 1.099 | 0.374 | 0.787 |
+| 10,000 | target, hash | 4.044 | 1.888 | 0.374 | 0.787 |
+| 15,000 | ordinal | 0.154 | 0.620 | 0.339 | 0.398 |
+| 15,000 | ordinal, hash | 0.818 | 1.464 | 0.339 | 0.398 |
+| 15,000 | target | 3.483 | 1.524 | 0.339 | 0.398 |
+| 15,000 | target, hash | 4.085 | 2.340 | 0.339 | 0.398 |
+| 20,000 | ordinal | 0.229 | 2.370 | 2.094 | 0.599 |
+| 20,000 | ordinal, hash | 1.077 | 1.923 | 2.094 | 0.599 |
+| 20,000 | target | 4.638 | 3.497 | 2.094 | 0.599 |
+| 20,000 | target, hash | 5.290 | 2.897 | 2.094 | 0.599 |
+| 30,000 | ordinal | 0.284 | 3.393 | 2.796 | 0.724 |
+| 30,000 | ordinal, hash | 1.416 | 2.502 | 2.796 | 0.724 |
+| 30,000 | target | 6.559 | 4.922 | 2.796 | 0.724 |
+| 30,000 | target, hash | 7.357 | 3.867 | 2.796 | 0.724 |
+| 50,000 | ordinal | 0.412 | 5.456 | 4.994 | 1.095 |
+| 50,000 | ordinal, hash | 2.129 | 3.535 | 4.994 | 1.095 |
+| 50,000 | target | 10.250 | 8.245 | 4.994 | 1.095 |
+| 50,000 | target, hash | 11.237 | 5.764 | 4.994 | 1.095 |
+| 100,000 | ordinal | 1.110 | 15.403 | 22.239 | 1.932 |
+| 100,000 | ordinal, hash | 3.991 | 6.779 | 22.239 | 1.932 |
+| 100,000 | target | 21.497 | 24.722 | 22.239 | 1.932 |
+| 100,000 | target, hash | 20.315 | 10.478 | 22.239 | 1.932 |
+
+`list_position` alone steps up sixfold between 15,000 and 20,000 categories
+(0.339 s to 2.094 s; 0.317 s to 1.583 s in the first run), and from there both
+encoders apply faster with the hash: the ordinal encoder 1.923 s against
+2.370 s, the target encoder 2.897 s against 3.497 s. At 15,000 the list is
+faster for both. The two runs agree on that at 15,000 and 20,000. The first
+run's 30,000 for the target encoder (6.446 s with the list, 12.563 s with the
+hash) was taken at the busiest moment and is not repeated here: on the
+quieter machine the hash won (3.867 s against 4.922 s). Learning with the
+hash costs more at every count except the target encoder's 100,000.
+
+`sq.encode`'s warning threshold, `WARN_ABOVE`, is 20,000 for both encoders:
+the smallest count measured at which the hash applied faster. The crossing
+lies between 15,000 and 20,000.
 
 The hash costs more in an encoder than alone for two reasons, both found
 while measuring:

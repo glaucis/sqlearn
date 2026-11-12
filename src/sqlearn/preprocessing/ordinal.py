@@ -54,12 +54,12 @@ class Ordinal(Step):
         categories. ``"hash"`` finds it by an MD5 perfect hash, whose cost
         per row barely grows with the count, but whose SQL holds about 3.5
         constants per category, a fixed cost per query. On 1,000,000 rows
-        from Parquet the hash applied faster at 30,000 categories (5.2 s
-        against 14.3 s) and slower at 10,000 (3.2 s against 1.6 s; see
+        from Parquet the hash applied faster from 20,000 categories (1.9 s
+        against 2.4 s) and slower at 15,000 (1.5 s against 0.6 s; see
         ``docs/benchmarks/category-lookup.md``). The hash takes text columns
         alone (VARCHAR, ENUM) and compares the bytes exactly: DuckDB does not
         report a collation to a step, so a collated column is matched by its
-        bytes. Left out with more than 30,000 categories in a column, a
+        bytes. Left out with more than 20,000 categories in a column, a
         `SqlearnWarning` says so, once per process; passing either value is
         a choice and silences it.
 
@@ -154,7 +154,7 @@ class Ordinal(Step):
         return chosen
 
     def learned(self, values: Mapping[str, Mapping[str, object]]) -> None:
-        """Warn once at more than WARN_ABOVE (30,000) categories, lookup left out.
+        """Warn once at more than WARN_ABOVE (20,000) categories, lookup left out.
 
         Parameters
         ----------

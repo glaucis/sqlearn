@@ -3,9 +3,8 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-12 · Branch: `main` · Last commit: `83552f7 docs: update the
-handoff` · Checks: passing (`just test` on the merge `a61301a`: 2128 passed,
-24 skipped; `just verify` on `a8558e3`: 2138 passed)
+Updated: 2026-11-12 · Branch: `main` · Checks: passing (`just verify` on the
+category lookup change: 2139 passed, 24 skipped)
 Verify with: `just verify`
 
 ## In progress
@@ -18,11 +17,6 @@ None.
 
 ## Next up
 
-- Re-measure the category lookup on an idle machine (check `uptime` first;
-  the load was about 30 on 2026-11-11): both encoders at 15,000, 20,000 and
-  100,000 categories, one count per process, then lower `WARN_ABOVE` if the
-  ordinal crossover is below 30,000 and give the target encoder a warning if
-  the hash wins for it (R7, R8 on #31).
 - #46 (generators on many threads: needs a parallel, ordered, lazy row
   source; measurements in the issue) and #49 (learn nested aggregates; an ADR
   amending 0036/0044), both ready-for-agent and needing a design first.
@@ -58,6 +52,9 @@ None.
   then commit. A step's `inputs` sees only column names and types, never the
   source table, so nothing per table (a collation) can be checked there.
   (2026-11-11)
+- Benchmarks here share the machine with other projects' jobs (`ps -Ao
+  pcpu,comm -r`): record `uptime` before and after each count and measure
+  the counts near a crossing twice. (2026-11-12)
 - Timing a generator by summing two of its columns measures only those two:
   DuckDB drops the unread ones. Sum every column. `range()` and a `UNION ALL`
   of ranges run on one thread while insertion order is kept (#46). DuckDB
@@ -99,4 +96,8 @@ None.
 
 ## Just finished
 
-None.
+- The category lookup re-measured (R7, R8 on #31): for both encoders the hash
+  applies faster from 20,000 categories, so `WARN_ABOVE` is 20,000 and the
+  target encoder warns too. The machine was never fully idle (load 4 to 34;
+  other projects' jobs): the 15,000 and 20,000 rows were measured twice and
+  agree. Tables in `docs/benchmarks/category-lookup.md`.

@@ -35,14 +35,15 @@ __all__ = [
 LOOKUPS = ("list", "hash")
 """The lookups an encoder takes; None, the default, behaves as ``"list"``."""
 
-WARN_ABOVE = 30_000
+WARN_ABOVE = 20_000
 """Above this many categories a left-out lookup warns.
 
-Set from the benchmark's encoders from Parquet, 1,000,000 rows, at 1,000,
-3,000, 10,000 and 30,000 categories: the smallest count at which
-``lookup="hash"`` applied faster than ``lookup="list"`` (the ordinal
-encoder, 5.2 s against 14.3 s; at 10,000 the list was faster, 1.6 s
-against 3.2 s). See ``docs/benchmarks/category-lookup.md``.
+Set from the benchmark's encoders from Parquet, 1,000,000 rows, at 10,000,
+15,000, 20,000, 30,000, 50,000 and 100,000 categories: the smallest count
+at which ``lookup="hash"`` applied faster than ``lookup="list"``, for both
+encoders (ordinal 1.9 s against 2.4 s, target 2.9 s against 3.5 s; at
+15,000 the list was faster for both, 0.6 s against 1.5 s and 1.5 s against
+2.3 s). See ``docs/benchmarks/category-lookup.md``.
 """
 
 _PACKAGE = (str(Path(__file__).parents[1]),)

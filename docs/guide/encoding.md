@@ -104,20 +104,21 @@ categories and of rows. Applied to 1,000,000 rows read from Parquet
 
 | categories | ordinal, list | ordinal, hash | target, list | target, hash |
 |---|---|---|---|---|
-| 1,000 | 0.943 | 2.246 | 1.076 | 3.646 |
-| 3,000 | 0.489 | 3.443 | 2.118 | 2.702 |
-| 10,000 | 1.604 | 3.203 | 2.958 | 3.775 |
-| 30,000 | 14.264 | 5.228 | 12.620 | 20.325 |
+| 10,000 | 0.937 | 2.539 | 1.099 | 1.888 |
+| 15,000 | 0.620 | 1.464 | 1.524 | 2.340 |
+| 20,000 | 2.370 | 1.923 | 3.497 | 2.897 |
+| 30,000 | 3.393 | 2.502 | 4.922 | 3.867 |
+| 50,000 | 5.456 | 3.535 | 8.245 | 5.764 |
+| 100,000 | 15.403 | 6.779 | 24.722 | 10.478 |
 
-The machine was busy during that run, so the times are rough; the hash pays
-off from a few tens of thousands of categories, and more with more rows.
+For both encoders the hash applies faster from 20,000 categories, and the
+gap widens with more; below that the list is faster. Learning with the hash
+costs a little more at nearly every count.
 
-- Leave `lookup` out and the encoder uses `"list"`. When the ordinal encoder
-  learns more than 30,000 categories in a column it warns once, naming the
-  step, the count and `lookup="hash"`; passing either value is a choice and
-  silences it ([ADR 0046](../adr/0046-sqlearn-warns-the-user-chooses.md)).
-  The target encoder offers `lookup="hash"` but never warns: in the benchmark
-  the hash was slower for it at every count.
+- Leave `lookup` out and the encoder uses `"list"`. When an encoder learns
+  more than 20,000 categories in a column it warns once, naming the step, the
+  count and `lookup="hash"`; passing either value is a choice and silences it
+  ([ADR 0046](../adr/0046-sqlearn-warns-the-user-chooses.md)).
 - The hash reads text: it takes VARCHAR and ENUM columns, and refuses any
   other.
 - The hash compares the bytes exactly. A column declared with a collation

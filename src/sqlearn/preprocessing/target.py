@@ -15,7 +15,12 @@ from sqlearn._expr import const, target_stats
 from sqlearn._group import call_repr
 from sqlearn._selectors import Schema, Selector, _string
 from sqlearn._step import Learned, Step
-from sqlearn.preprocessing._lookup import check_lookup, check_text, position
+from sqlearn.preprocessing._lookup import (
+    check_lookup,
+    check_text,
+    position,
+    warn_many,
+)
 
 __all__ = ["TargetEncoder"]
 
@@ -139,15 +144,14 @@ class TargetEncoder(Step):
         column's collation. ``"hash"``: an MD5 perfect hash, whose cost per
         row barely grows with the count but whose SQL holds about 3.5
         constants per category, a fixed cost per query. On 1,000,000 rows
-        from Parquet the target encoder applied slower with the hash at
-        every count measured, up to 30,000 categories (20.3 s against
-        12.6 s; ``docs/benchmarks/category-lookup.md``); it pays only on
-        more rows than that, or more categories. The hash takes text columns
+        from Parquet the hash applied faster from 20,000 categories (2.9 s
+        against 3.5 s) and slower at 15,000 (2.3 s against 1.5 s; see
+        ``docs/benchmarks/category-lookup.md``). The hash takes text columns
         alone (VARCHAR, ENUM) and compares the bytes exactly, ignoring a
-        collation, which DuckDB does not report to a step. Unlike the
-        ordinal encoder, the target encoder never warns about the lookup,
-        however many categories it learns: the hash was slower for it in the
-        benchmark.
+        collation, which DuckDB does not report to a step. Left out with
+        more than 20,000 categories in a column, a `SqlearnWarning` says so,
+        once per process; passing either value is a choice and silences
+        it.
 
     Attributes
     ----------
@@ -295,6 +299,22 @@ class TargetEncoder(Step):
         chosen = super().inputs(schema)
         check_text("sq.encode.target", self.lookup, chosen, dict(schema))
         return chosen
+
+    def learned(self, values: Mapping[str, Mapping[str, object]]) -> None:
+        """Warn once at more than WARN_ABOVE (20,000) categories, lookup left out.
+
+        Parameters
+        ----------
+        values : mapping of str to mapping of str to object
+            Column, then learned name, to the value learned.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> sq.encode.target().learned({"c": {"categories": ["a"]}}) is None
+        True
+        """
+        warn_many(self, self.lookup, values)
 
     def learn(
         self, x: Expression, y: Expression | None = None

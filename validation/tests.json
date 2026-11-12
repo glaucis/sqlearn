@@ -6920,6 +6920,12 @@
     },
     {
       "area": "sqlearn/preprocessing/_lookup",
+      "name": "tests/src/sqlearn/preprocessing/test__lookup.py::test_many_categories_warn_when_lookup_is_left_out[target]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/_lookup",
       "name": "tests/src/sqlearn/preprocessing/test__lookup.py::test_onehot_takes_no_lookup",
       "outcome": "passed",
       "tier": "fast"
@@ -6932,7 +6938,7 @@
     },
     {
       "area": "sqlearn/preprocessing/_lookup",
-      "name": "tests/src/sqlearn/preprocessing/test__lookup.py::test_the_target_encoder_never_warns_about_the_lookup",
+      "name": "tests/src/sqlearn/preprocessing/test__lookup.py::test_the_lookup_warning_shows_once_in_a_search[target]",
       "outcome": "passed",
       "tier": "fast"
     },
