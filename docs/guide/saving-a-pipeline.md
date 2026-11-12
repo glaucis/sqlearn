@@ -260,10 +260,10 @@ imported. When one is missing, the whole file is refused, every missing
 class named at once:
 
 ```text
-sq.load: churn.json names catboost.core:CatBoostClassifier, but catboost.core
-is not imported. Why: sq.load imports nothing, so loading a file can never
-run code you did not choose to run. Fix: import CatBoostClassifier from
-catboost before loading.
+the file names 'catboost.core:CatBoostClassifier', which is not imported.
+Why: sq.load imports nothing, so loading a file can never run code you did
+not choose to run. Fix: import CatBoostClassifier from catboost before
+loading.
 ```
 
 You import the packages as you would to build the pipeline in code. The
