@@ -428,10 +428,6 @@ def _hold(source: Source) -> None:
     """Do nothing: a finaliser's argument stays alive until it is called."""
 
 
-def _no_fit() -> None:
-    """Stand in for the fit when the model given is trained already."""
-
-
 class Pipeline:
     """Named steps that learn from data together, then apply what they learned.
 
@@ -1270,15 +1266,13 @@ class Pipeline:
         fit: Callable[[], None]
         if feed == "stream":
             # Batch by batch through partial_fit; what the stream refuses is
-            # refused here, before the model is touched. A model given is
-            # not fitted, so there is nothing to stream.
-            fit = (
-                _no_fit
-                if model is not None
-                else stream_trainer(
-                    con, con.sql(sql), columns, TARGET, step, named=target
-                )
+            # refused here, before the model is touched: stream_trainer
+            # checks, and nothing is fitted until its callable runs. A model
+            # given is trained already, so the callable is replaced.
+            streamed = stream_trainer(
+                con, con.sql(sql), columns, TARGET, step, named=target
             )
+            fit = streamed if model is None else _no_fit
         else:
             x, y = fetch(
                 con.sql(sql), feed, columns, TARGET, named=target, categories=categories

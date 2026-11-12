@@ -1111,6 +1111,43 @@ def test_use_model_refuses_what_train_refuses():
         pipe.use_model(pipe.model_, data=MODEL_DATA, target="nope")
 
 
+def _streamer():
+    from sklearn.linear_model import SGDClassifier
+
+    return sq.Pipeline([sq.Model(SGDClassifier(random_state=0), feed="stream")])
+
+
+def _stream_error(data):
+    with pytest.raises(sq.errors.SqlearnError) as raised:
+        _streamer().train(data, target="y")
+    return str(raised.value)
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        MODEL_DATA.assign(y=[0, 0, None, 1, 1, 1]),
+        MODEL_DATA.assign(x=["a", "b", "c", "d", "e", "f"]),
+    ],
+)
+def test_use_model_with_the_stream_feed_refuses_what_train_refuses(data):
+    """A NULL target or a text feature: the same SqlearnError as `train`."""
+    want = _stream_error(data)
+    trained = _streamer().train(MODEL_DATA, target="y")
+    with pytest.raises(sq.errors.SqlearnError) as raised:
+        _streamer().use_model(trained.model_, data=data, target="y", feed="stream")
+    assert str(raised.value) == want
+
+
+def test_use_model_with_the_stream_feed_records_the_feed_and_no_categories():
+    """As `train` leaves them: the feed is stream, the categories empty."""
+    a = _streamer().train(MODEL_DATA, target="y")
+    b = _streamer().use_model(a.model_, data=MODEL_DATA, target="y")
+    assert b._feed == "stream"
+    assert b._categories == {} == a._categories
+    assert b.model_ is a.model_
+
+
 def test_a_model_trained_on_other_columns_fails_in_predict_with_its_own_error():
     """`use_model` takes it; `predict` raises scikit-learn's own ValueError."""
     from sklearn.linear_model import LogisticRegression
