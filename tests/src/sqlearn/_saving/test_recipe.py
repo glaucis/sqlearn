@@ -311,6 +311,8 @@ def _file_naming(tmp_path: Path, path: str, place: str) -> Path:
             step["class"] = path
         case "model":
             model_step["estimator"]["class"] = path
+        case "model record":
+            model_step["class"] = path
         case "nested":
             model_step["estimator"]["params"]["estimator"]["class"] = path
         case "object":
@@ -484,3 +486,17 @@ def test_a_module_blocked_in_sys_modules_is_refused_in_the_house_form(
         sq.load(target)
     text = str(raised.value)
     assert "blocked_for_test" in text and "Why:" in text and "Fix:" in text
+
+
+@pytest.mark.parametrize("place", ["step", "model record"])
+def test_comparing_kinds_runs_no_metaclass_eq_or_hash_of_the_class_named(
+    tmp_path: Path, place: str
+) -> None:
+    """A class named as a step or as the model record is not compared by ==."""
+    from tests.src.sqlearn._saving import probe
+
+    target = _file_naming(tmp_path, "tests.src.sqlearn._saving.probe:Comparable", place)
+    probe.calls.clear()
+    with pytest.raises(SqlearnError, match="Fix:"):
+        sq.load(target)
+    assert probe.calls == []

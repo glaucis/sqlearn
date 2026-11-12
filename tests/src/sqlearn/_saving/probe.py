@@ -32,3 +32,17 @@ class _Meta(type):
 
 class Thing(metaclass=_Meta):
     """A class that is no step, model or estimator, with a recording metaclass."""
+
+
+class _EqMeta(type):
+    def __eq__(cls, other: object) -> bool:
+        calls.append(f"eq {other!r}")
+        return cls is other
+
+    def __hash__(cls) -> int:
+        calls.append("hash")
+        return id(cls)
+
+
+class Comparable(metaclass=_EqMeta):
+    """A class whose metaclass records every comparison and hash."""

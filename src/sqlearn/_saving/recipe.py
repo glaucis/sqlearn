@@ -137,6 +137,14 @@ def _mro_of(cls: type) -> tuple[type, ...]:
 _CLASS_DICT = vars(type)["__dict__"]
 
 
+def _inherits(cls: type, base: type) -> bool:
+    """Say whether `base` is in a class's MRO, comparing by identity.
+
+    ``in`` would call the ``__eq__`` of a metaclass a file names.
+    """
+    return any(entry is base for entry in _mro_of(cls))
+
+
 def _static_attr(value: object, name: str) -> object | None:
     """Return a class attribute of `value` (or of its type), running no code.
 
@@ -254,7 +262,7 @@ def import_class(
             "save the pipeline again, or restore the file from where it came.",
         )
     cls = cast("type", found)
-    if kind == "step" and Step not in _mro_of(cls):
+    if kind == "step" and not _inherits(cls, Step):
         raise _not_a_pipeline_part(path, where)
     if kind == "model" and not (_has(cls, "fit") and _has(cls, "predict")):
         raise _not_a_pipeline_part(path, where)
@@ -584,7 +592,7 @@ def _model_parts(
     """Return a model record's class, estimator record and estimator's path."""
     path = _path(record, where)
     cls = import_class(path, "object", where)
-    if Model not in _mro_of(cls):
+    if not _inherits(cls, Model):
         raise _refuse(
             where,
             f"{path!r} is not sq.Model",
