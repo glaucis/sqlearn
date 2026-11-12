@@ -1020,13 +1020,95 @@ def test_use_model_refuses_a_class_instead_of_a_model():
         pipe.use_model(LogisticRegression)
 
 
-def test_use_model_with_data_waits_for_the_data_path():
-    """Until the data path exists, `data` raises NotImplementedError."""
+TEXT_DATA = pd.DataFrame(
+    {
+        "x": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+        "city": ["b", "a", "c", "a", "b", "c"],
+        "kind": ["u", "v", "v", "u", "w", "w"],
+        "y": [0, 0, 0, 1, 1, 1],
+    }
+)
+
+
+def _text_pipe(feed):
+    from sklearn.ensemble import HistGradientBoostingClassifier
+
+    model = HistGradientBoostingClassifier(
+        categorical_features="from_dtype" if feed == "pandas" else None
+    )
+    return sq.Pipeline([sq.Model(model, feed=feed)])
+
+
+@pytest.mark.parametrize("feed", ["pandas", "numpy"])
+def test_use_model_with_the_data_makes_the_training_record_train_would(feed):
+    """The feed and the categories (order included) equal `train`'s."""
+    data = TEXT_DATA if feed == "pandas" else MODEL_DATA
+    a = _text_pipe(feed).train(data, target="y")
+    b = _text_pipe(feed)
+    assert b.use_model(a.model_, data=data, target="y") is b
+    assert b._feed == a._feed
+    assert b._categories == a._categories
+    if feed == "pandas":
+        assert set(b._categories) == {"city", "kind"}
+    assert b.predict(data, out="numpy")["prediction"].tolist() == (
+        a.predict(data, out="numpy")["prediction"].tolist()
+    )
+
+
+def test_use_model_with_data_already_learned_learns_nothing_again():
+    """The steps were learned by `train`: the store finds them."""
+    a = _model_pipe().train(MODEL_DATA, target="y")
+    STORE.learns.clear()
+    _model_pipe().use_model(a.model_, data=MODEL_DATA, target="y")
+    assert not STORE.learns
+
+
+def test_use_model_with_data_learns_the_steps_again_from_the_data():
+    """No store entry for these steps: they are learned, the model is not."""
     from sklearn.linear_model import LogisticRegression
 
-    trained = LogisticRegression().fit([[1.0], [2.0]], [0, 1])
-    with pytest.raises(NotImplementedError):
-        _model_pipe().use_model(trained, data=MODEL_DATA, target="y")
+    model = LogisticRegression().fit([[1.0, 2.0], [2.0, 1.0]], [0, 1])
+    data = MODEL_DATA.assign(x=MODEL_DATA.x + 100.0)
+    pipe = _model_pipe().use_model(model, data=data, target="y")
+    assert pipe["scale"].center_ == {"x": 103.5, "z": 3.5}
+    assert pipe.model_ is model
+
+
+def test_use_model_with_data_does_not_fit_the_model():
+    """A model whose `fit` raises, trained before, is taken as it is."""
+    from sklearn.linear_model import LogisticRegression
+
+    model = LogisticRegression().fit([[1.0, 2.0], [2.0, 1.0]], [0, 1])
+
+    def refuse(*args, **kwargs):
+        raise AssertionError("fit was called")
+
+    model.fit = refuse
+    pipe = _model_pipe().use_model(model, data=MODEL_DATA, target="y")
+    assert pipe.model_ is model
+    assert pipe.predict(MODEL_DATA, out="numpy")["prediction"].shape == (6,)
+
+
+def test_use_model_refuses_target_or_feed_without_data():
+    """`target` or `feed` alone is a refusal, as is a missing training record."""
+    pipe = _model_pipe().train(MODEL_DATA, target="y")
+    for given in ({"target": "y"}, {"feed": "numpy"}):
+        with pytest.raises(sq.errors.SqlearnError, match=r"data.*Fix:"):
+            pipe.use_model(pipe.model_, **given)
+
+
+def test_use_model_refuses_data_without_target():
+    """The data needs its target, as `train` does."""
+    pipe = _model_pipe().train(MODEL_DATA, target="y")
+    with pytest.raises(sq.errors.SqlearnError, match=r"target.*Fix:"):
+        pipe.use_model(pipe.model_, data=MODEL_DATA)
+
+
+def test_use_model_refuses_what_train_refuses():
+    """A target that is not a column of the data."""
+    pipe = _model_pipe().train(MODEL_DATA, target="y")
+    with pytest.raises(sq.errors.SqlearnError, match="nope"):
+        pipe.use_model(pipe.model_, data=MODEL_DATA, target="nope")
 
 
 def test_a_model_trained_on_other_columns_fails_in_predict_with_its_own_error():

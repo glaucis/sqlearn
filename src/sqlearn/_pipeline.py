@@ -74,6 +74,10 @@ LearnedFrom = tuple[
 their types (as text)."""
 
 
+def _no_fit() -> None:
+    """Stand in for the fit when the model given is trained already."""
+
+
 def _default_name(step: Step | object) -> str:
     """Return the name a plain item gets: "model" for a model, else the step's."""
     if isinstance(step, Step) and not is_model(step):
@@ -422,6 +426,10 @@ def _changed_since_saved(source: Source) -> None:
 
 def _hold(source: Source) -> None:
     """Do nothing: a finaliser's argument stays alive until it is called."""
+
+
+def _no_fit() -> None:
+    """Stand in for the fit when the model given is trained already."""
 
 
 class Pipeline:
@@ -1225,10 +1233,24 @@ class Pipeline:
         rows = rel.project(*(duckdb.ColumnExpression(c) for c in names))
         return number_rows(rows.sql_query(), _ROW), features
 
-    def _train(self, source: Source, target: str, feed: str) -> "Pipeline":
-        """Train on data already read, as `train` describes."""
+    def _put_model(self, model: object) -> None:
+        """Make `model` the model step's estimator, holding the object itself."""
+        last = self.steps[-1]
+        if isinstance(last[1], Model):
+            last[1].estimator = model
+        else:
+            self.steps[-1] = (last[0], model)
+
+    def _train(
+        self, source: Source, target: str, feed: str, *, model: object | None = None
+    ) -> "Pipeline":
+        """Train on data already read, as `train` describes.
+
+        With `model` given, everything `train` does except the fit: the
+        model step then holds `model`, which is trained already.
+        """
         _changed_since_saved(source)
-        steps, model = self._modelled()
+        steps, step = self._modelled()
         con = connection()
         _source_sql(con, source)
         prepared = self._features(source, target)
@@ -1248,9 +1270,14 @@ class Pipeline:
         fit: Callable[[], None]
         if feed == "stream":
             # Batch by batch through partial_fit; what the stream refuses is
-            # refused here, before the model is touched.
-            fit = stream_trainer(
-                con, con.sql(sql), columns, TARGET, model, named=target
+            # refused here, before the model is touched. A model given is
+            # not fitted, so there is nothing to stream.
+            fit = (
+                _no_fit
+                if model is not None
+                else stream_trainer(
+                    con, con.sql(sql), columns, TARGET, step, named=target
+                )
             )
         else:
             x, y = fetch(
@@ -1258,7 +1285,8 @@ class Pipeline:
             )
 
             def fit() -> None:
-                model.estimator.fit(x, y)
+                if model is None:
+                    step.estimator.fit(x, y)
 
         # All or nothing: until the model is fitted, the pipeline keeps what
         # it had. A fit that fails may leave the model half changed, so the
@@ -1276,6 +1304,8 @@ class Pipeline:
             runs[-1][1].statements.append(sql)
         else:
             runs.append((the_plan.feed_run, Run([sql])))
+        if model is not None:
+            self._put_model(model)
         self._feed = feed
         self._model_trained = True
         self._categories = categories
@@ -1326,18 +1356,25 @@ class Pipeline:
 
         The pipeline holds the object passed (no copy). Without `data` it
         needs a training record: a pipeline trained in this process, or
-        loaded from a file saved after `train`. Nothing is read.
+        loaded from a file saved after `train`. Nothing is read. With `data`
+        and `target` it needs no record: it is made from the data.
 
         Parameters
         ----------
         model : object
             A trained model of the class the pipeline's model step holds.
-        data : optional
-            Reserved for the training data (not built yet).
+        data : str, pathlib.Path, duckdb.DuckDBPyRelation or pandas.DataFrame, optional
+            The training data. With it the steps are learned again from the
+            data (found in the store when already learned), the feeding is
+            worked out as `train` does, and the model is not fitted: the one
+            passed is used. It replaces any training record the pipeline had.
+            Without the saved JSON nothing checks that this is the data the
+            model was trained on, so pass the same training data.
         target : str, optional
-            Reserved, with `data`.
+            The target column, needed with `data`.
         feed : str, optional
-            Reserved, with `data`.
+            The form the model is fed in, as for `train`; the model step's
+            own by default. Only with `data`.
 
         Returns
         -------
@@ -1348,7 +1385,9 @@ class Pipeline:
         ------
         SqlearnError
             If the pipeline has no model step, has no training record and no
-            data, or `model` is a class, lacks ``fit`` or ``predict``, is of
+            data, `target` or `feed` is given without `data`, `data` is given
+            without `target`, `train` would refuse the data, or `model` is a
+            class, lacks ``fit`` or ``predict``, is of
             another class than the recipe's, or is not trained.
 
         Examples
@@ -1361,12 +1400,26 @@ class Pipeline:
         >>> b = sq.Pipeline([("model", LogisticRegression())]).train(data, "y")
         >>> b.use_model(a.model_).model_ is a.model_
         True
+        >>> c = sq.Pipeline([("model", LogisticRegression())])
+        >>> c.use_model(a.model_, data=data, target="y").model_ is a.model_
+        True
         """
         _, step = self._modelled()
-        if data is not None or target is not None or feed is not None:
-            msg = "use_model with data is not built yet"
-            raise NotImplementedError(msg)
-        if self._feed is None or self._entries is None:
+        if data is None and (target is not None or feed is not None):
+            msg = (
+                "target or feed was given without data, so there is nothing "
+                "to apply them to. Why: they describe the training data. "
+                "Fix: pass the training data as data=..., or drop them."
+            )
+            raise SqlearnError(msg)
+        if data is not None and target is None:
+            msg = (
+                "data was given without a target, so the steps cannot be "
+                "learned as train learns them. Why: the target is set aside "
+                "from the features. Fix: pass target=<the target column>."
+            )
+            raise SqlearnError(msg)
+        if data is None and (self._feed is None or self._entries is None):
             msg = (
                 "this pipeline has no training record, so a model cannot be "
                 "put back without the data it was trained on. Fix: pass the "
@@ -1403,11 +1456,12 @@ class Pipeline:
                 "target=...) on the pipeline."
             )
             raise SqlearnError(msg)
-        last = self.steps[-1]
-        if isinstance(last[1], Model):
-            last[1].estimator = model
-        else:
-            self.steps[-1] = (last[0], model)
+        if data is not None:
+            assert target is not None
+            feed = step.feed if feed is None else feed
+            check_feed(feed)
+            return self._train(read(data, learning=True), target, feed, model=model)
+        self._put_model(model)
         self._model_trained = True
         return self
 

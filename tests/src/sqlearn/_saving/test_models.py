@@ -262,3 +262,72 @@ def test_the_old_switches_are_gone(tmp_path: Path) -> None:
     for name, value in (("allow", ["sklearn"]), ("trust_model", True)):
         with pytest.raises(TypeError, match=name):
             sq.load(path, **{name: value})
+
+
+_WITH_DATA = textwrap.dedent(
+    """
+    import json
+
+    import catboost
+    import sqlearn as sq
+    from sqlearn._store import STORE
+
+    {build}
+    pipe.use_model(
+        catboost.CatBoostClassifier().load_model("model.cbm"),
+        data="customers.parquet",
+        target="y",
+    )
+    {after}
+    got = pipe.predict("customers.parquet", out="numpy")
+    print(json.dumps({{"predictions": got["prediction"].tolist()}}))
+    """
+)
+
+_BUILD = """pipe = sq.Pipeline([
+        sq.impute.median(),
+        sq.Model(
+            catboost.CatBoostClassifier(
+                iterations=10, verbose=0, allow_writing_files=False,
+                cat_features=["city"],
+            ),
+            feed="pandas",
+        ),
+    ])"""
+
+
+def _in_new_process(tmp_path: Path, build: str, after: str) -> list[Any]:
+    script = _WITH_DATA.format(build=build, after=after)
+    done = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert done.returncode == 0, done.stderr
+    return json.loads(done.stdout.strip().splitlines()[-1])["predictions"]
+
+
+def _catboost_files(tmp_path: Path) -> list[Any]:
+    pipe, _, _ = _cases()["catboost_pandas"]
+    duckdb.from_df(_frame()).write_parquet(str(tmp_path / "customers.parquet"))
+    pipe.train(str(tmp_path / "customers.parquet"), target="y")
+    pipe.model_.save_model(str(tmp_path / "model.cbm"))
+    return _predictions(pipe, str(tmp_path / "customers.parquet"))
+
+
+def test_a_users_model_predicts_with_the_data_and_no_file(tmp_path: Path) -> None:
+    """Built in code, given the model and the data: predictions as trained."""
+    want = _catboost_files(tmp_path)
+    assert _in_new_process(tmp_path, _BUILD, "") == want
+
+
+def test_a_pipeline_given_its_model_with_data_saves_and_loads(
+    tmp_path: Path,
+) -> None:
+    """The training record made from the data is saved; load needs no data."""
+    want = _catboost_files(tmp_path)
+    after = "sq.save(pipe, 'p.sqlearn.json')\npipe = sq.load('p.sqlearn.json')\n"
+    after += "pipe.use_model(catboost.CatBoostClassifier().load_model('model.cbm'))"
+    assert _in_new_process(tmp_path, _BUILD, after) == want
