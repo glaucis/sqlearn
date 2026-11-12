@@ -3,8 +3,8 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-12 · Branch: `main` · Last commit: `0cb2261 docs: the #55
-worktree is removed` · Checks: passing (`just test` on the merge `a61301a`:
+Updated: 2026-11-12 · Branch: `main` · Last commit: `5d89737 docs: update the
+handoff` · Checks: passing (`just test` on the merge `a61301a`:
 2128 passed, 24 skipped; `just verify` on `a8558e3`: 2138 passed)
 Verify with: `just verify`
 
@@ -14,10 +14,7 @@ None.
 
 ## Waiting on the user
 
-- Push `main` (16 commits ahead of `origin/main`), then close #55 with a
-  summary comment listing the build's deferred minor findings (27, triaged by
-  the final review as safe to wait) and set its card to Done. Recommended:
-  push now. (since 2026-11-12)
+None.
 
 ## Next up
 
@@ -107,6 +104,6 @@ None.
   only steps, models, nested estimators and fold schemes; `allow=`,
   `trust_model=`, `model=` and pickle are gone; `pipe.model_` and
   `pipe.use_model` added; guide rewritten. Spec
-  `docs/specs/library-saving-the-model.md`, ADR 0048. Merged in `a61301a`;
-  not pushed yet (see "Waiting on the user").
+  `docs/specs/library-saving-the-model.md`, ADR 0048. Merged in `a61301a`,
+  pushed; #55 closed with the deferred findings listed on it.
   (2026-11-12)
