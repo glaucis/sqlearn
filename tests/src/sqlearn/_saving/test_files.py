@@ -322,20 +322,20 @@ def test_a_model_setting_holding_an_estimator_is_refused(tmp_path: Path) -> None
 def test_the_models_categories_naming_a_class_build_nothing(
     tmp_path: Path,
 ) -> None:
-    """The model file's categories name no class, even with trust_model."""
+    """The training record's categories name no class."""
     made = tmp_path / "made.duckdb"
     path = tmp_path / "m.json"
     frame = _frame().assign(y=[0, 1, 0, 1])
     pipe = sq.Pipeline([sq.impute.median(), sq.Model(LogisticRegression())])
-    sq.save(pipe.train(frame.drop(columns="city"), target="y"), path, model="pickle")
+    sq.save(pipe.train(frame.drop(columns="city"), target="y"), path)
     data = json.loads(path.read_text())
-    data["model_file"]["categories"] = {
+    data["trained"]["categories"] = {
         "$": "dict",
         "items": [["city", _kept("object", made)]],
     }
     path.write_text(json.dumps(data))
     with pytest.raises(SqlearnError, match=r"(?s)KeptFolds.*Why:.*Fix:"):
-        sq.load(path, trust_model=True)
+        sq.load(path)
     assert not made.exists()
 
 
