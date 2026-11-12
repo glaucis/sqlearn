@@ -32,8 +32,6 @@ None.
   in `_encodings`/`_totals`: file an issue if it matters.
 - `just check` passed with a function defined twice in `_pipeline.py`
   (ruff selects `F`, yet F811 stayed quiet): find out why.
-- Delete the merged worktree `.worktrees/library-saving-the-model` if it is
-  still there.
 
 ## Dead ends and traps
 
