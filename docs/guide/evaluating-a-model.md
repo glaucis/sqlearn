@@ -19,10 +19,10 @@ one mistake for another. All of them are computed in SQL over a relation that
 holds the true label, the model's prediction and, for the probability scores,
 its probabilities.
 
-This page trains a model on the breast cancer data and evaluates it on the
-same rows to show the calls. A real evaluation scores rows the model did not
-train on: use `sq.search` ([tuning a model](tuning-a-model.md)) or split the
-rows first.
+This page holds out one fold of five of the breast cancer data with
+`sq.folds.kfold` ([tuning a model](tuning-a-model.md)), trains a model on the
+rest, and scores the held-out rows, which the model has not seen: scores on the
+rows it trained on are too optimistic.
 
 ```{code-cell} python
 import duckdb
@@ -32,18 +32,22 @@ from sklearn.linear_model import LogisticRegression
 import sqlearn as sq
 
 data = sq.datasets.breast_cancer()
-pipe = sq.Pipeline([sq.scale.standard(), LogisticRegression(max_iter=1000)])
-pipe.train(data, target="target")
+split = sq.folds.kfold(n=5, seed=0)
+train = split.rows(data, 0, held=False)
+held = split.rows(data, 0, held=True).df()
 
-# The model's probability of class 1, from the prepared features.
-prepare = sq.Pipeline([sq.scale.standard()]).learn(data, target="target")
-features = prepare.apply(data, out="pandas").to_numpy()
+pipe = sq.Pipeline([sq.scale.standard(), LogisticRegression(max_iter=1000)])
+pipe.train(train, target="target")
+
+# The model's probability of class 1, from the held rows' prepared features.
+prepare = sq.Pipeline([sq.scale.standard()]).learn(train, target="target")
+features = prepare.apply(held, out="pandas").to_numpy()
 proba = pipe.model_.predict_proba(features)
 
 scored = pd.DataFrame(
     {
-        "target": data.df()["target"],
-        "prediction": pipe.predict(data, out="pandas")["prediction"],
+        "target": held["target"],
+        "prediction": pipe.predict(held, out="pandas")["prediction"],
         "score": proba[:, 1],
     }
 )

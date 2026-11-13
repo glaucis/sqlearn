@@ -4,7 +4,7 @@ Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
 Updated: 2026-11-13 · Branch: `library-more-metrics` (not yet merged) ·
-Checks: passing (`just verify` on the closing commit: see Just finished)
+Checks: passing (`just verify`: 2278 passed, 24 skipped)
 Verify with: `just verify`
 
 ## In progress
@@ -93,15 +93,14 @@ None.
 
 ## Just finished
 
-- More metrics (#58), on branch `library-more-metrics`, not yet merged:
-  `fbeta`, `average_precision`, `confusion_matrix`, `classification_report`,
-  `roc_curve` and `precision_recall_curve` (the tables and curves are
-  relations, ADR 0049), the search refusing a table or unready metric, and
-  the guide `docs/guide/evaluating-a-model.md`. Spec
-  `docs/specs/library-more-metrics.md`, plan
-  `docs/plans/2026-11-13-library-more-metrics.md`. The closing commit is the
-  branch's tip: `docs: the evaluating-a-model guide; the second metrics slice
-  is built (#58)`.
+- More metrics (#58), on branch `library-more-metrics`, not yet merged: `fbeta`,
+  `average_precision`, `confusion_matrix`, `classification_report`, `roc_curve`
+  and `precision_recall_curve` (the tables and curves are relations, ADR 0049),
+  the search refusing a table or unready metric, and the guide
+  `docs/guide/evaluating-a-model.md`. Spec `docs/specs/library-more-metrics.md`,
+  plan `docs/plans/2026-11-13-library-more-metrics.md`. The closing commit is
+  `aea01de`, with a fix round after it (the guide scores held-out rows).
+  `just verify`: 2278 passed, 24 skipped on each interpreter.
 - The target encoder's learn: `derive` made every row exact again for each
   of the six encodings; it now sums once and takes a fold's complement as
   the whole less the fold, the same encodings to the bit. Learn at 30,000

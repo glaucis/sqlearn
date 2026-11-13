@@ -336,9 +336,10 @@ class Search:
         folds: Folds | None = None,
         keep_prepared: str | os.PathLike[str] | None = None,
     ) -> None:
-        if not isinstance(metric, Metric):
-            msg = (  # type: ignore[unreachable]
-                f"metric= was given {metric!r}, which is not a metric. Why: a "
+        candidate: object = metric  # a caller may pass what the types forbid
+        if not isinstance(candidate, Metric):
+            msg = (
+                f"metric= was given {candidate!r}, which is not a metric. Why: a "
                 "search needs a score to rank the settings by, and "
                 "confusion_matrix, classification_report, roc_curve and "
                 "precision_recall_curve give tables, not a score; a plain "
