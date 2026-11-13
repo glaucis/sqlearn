@@ -143,6 +143,18 @@ class Metric:
         Nothing to refuse here; a metric with a required setting overrides it.
         """
 
+    def _stage(
+        self, y: Expression, values: list[Expression], labels: list[object]
+    ) -> list[Expression] | None:
+        """Return each row's window values for the aggregate, or None for none.
+
+        A metric with `windows` stages them from the probabilities alone; one
+        that needs the target or the classes overrides this.
+        """
+        if self.windows is None:
+            return None
+        return self.windows(values)
+
     def _score_labels(
         self, rel: duckdb.DuckDBPyRelation, target: str, prediction: str
     ) -> float:
@@ -221,9 +233,9 @@ class Metric:
         types = _column_types(self.name, rel, columns)
         y = ColumnExpression(target)
         values = [ColumnExpression(c) for c in columns[1:]]
-        if proba and self.windows is not None:
+        ranks = self._stage(y, values, labels) if proba else None
+        if ranks is not None:
             # Each row's window values first, then the one aggregate.
-            ranks = self.windows(values)
             staged = [f"{_STAGE}{i}" for i in range(len(ranks))]
             rel = rel.project(
                 *(ColumnExpression(c) for c in columns),

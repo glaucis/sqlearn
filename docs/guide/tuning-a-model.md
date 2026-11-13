@@ -141,6 +141,7 @@ default is `sq.metrics.accuracy`.
 | `sq.metrics.fbeta(beta=2)` (`beta=` is required) | classification | higher |
 | `sq.metrics.log_loss` | classification, from `predict_proba` | lower |
 | `sq.metrics.roc_auc` | classification, from `predict_proba` | higher |
+| `sq.metrics.average_precision` | classification, from `predict_proba` | higher |
 | `sq.metrics.rmse`, `sq.metrics.mae` | regression | lower |
 | `sq.metrics.r2` | regression | higher |
 
@@ -150,6 +151,14 @@ is one-vs-rest, averaged over the classes (scikit-learn's
 `multi_class="ovr"`, `average="macro"`). A metric that needs probabilities
 refuses a model without `predict_proba` before any work. Where lower is
 better, the best setting is the lowest.
+
+`average_precision` reads the same probabilities. With two classes it scores
+the class `pos_label` (default `1`; text labels need
+`sq.metrics.average_precision(pos_label="b")`), as scikit-learn's
+`average_precision_score(y, proba[:, 1])`; with more it averages each class
+against the rest and `pos_label` must stay 1. Its search reference is
+`average_precision_score` of the fold's `predict_proba`, not scikit-learn's
+`scoring="average_precision"`, which reads `decision_function` first.
 
 `precision`, `recall` and `f1` behave as scikit-learn's `precision_score`,
 `recall_score` and `f1_score`. As there, they score the class `1` of two by

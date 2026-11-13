@@ -69,6 +69,8 @@ counterpart.
 | `precision_recall_fscore_support(y, p)` | the class rows of `classification_report` (`precision`, `recall`, `f1_score`, `support`) |
 | `scoring="neg_log_loss"` | `metric=sq.metrics.log_loss` |
 | `scoring="roc_auc"` (`"roc_auc_ovr"` for more than two classes) | `metric=sq.metrics.roc_auc` |
+| `average_precision_score(y, proba[:, 1])` | `sq.metrics.average_precision.compute(rel, "y", classes=[0, 1])` (`pos_label=` as `sq.metrics.average_precision(pos_label="b")`) |
+| `scoring="average_precision"` | `metric=sq.metrics.average_precision` (scores `predict_proba`; scikit-learn's scorer reads `decision_function` first, so the two can differ) |
 | `scoring="neg_root_mean_squared_error"` | `metric=sq.metrics.rmse` |
 | `scoring="neg_mean_absolute_error"` | `metric=sq.metrics.mae` |
 | `scoring="r2"` | `metric=sq.metrics.r2` |

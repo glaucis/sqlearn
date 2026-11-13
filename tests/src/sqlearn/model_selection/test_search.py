@@ -13,7 +13,7 @@ import pytest
 from search_data_for_tests import customers, slice_pipe
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import average_precision_score, roc_auc_score
 from sklearn.preprocessing import TargetEncoder
 from sklearn.svm import LinearSVC
 from sklearn.tree import DecisionTreeClassifier
@@ -1061,6 +1061,29 @@ def test_a_search_scores_by_roc_auc_as_scikit_learn_on_each_fold():
         model = LogisticRegression().fit((train[["a", "b"]] - mean) / std, train["y"])
         proba = model.predict_proba((held[["a", "b"]] - mean) / std)
         expected.append(roc_auc_score(held["y"], proba[:, 1]))
+    assert scores == pytest.approx(expected, rel=1e-9)
+
+
+def test_average_precision_scores_each_fold_as_sklearn():
+    """Each fold's score is average_precision_score of the model's predict_proba."""
+    folds = sq.folds.stratified(3)
+    search = sq.search(
+        PIPE_WITH_SCALE,
+        params={"model__C": [1.0]},
+        metric=sq.metrics.average_precision,
+        folds=folds,
+    )
+    search.train(SEPARABLE, target="y")
+    scores = [s for *_, s in search.results_.order("fold").fetchall()]
+    numbered = folds.numbered(connection().from_df(SEPARABLE), "f", "y")
+    expected = []
+    for k in range(3):
+        train = numbered.filter(folds.training("f", k)).df()
+        held = numbered.filter(folds.held("f", k)).df()
+        mean, std = train[["a", "b"]].mean(), train[["a", "b"]].std(ddof=0)
+        model = LogisticRegression().fit((train[["a", "b"]] - mean) / std, train["y"])
+        proba = model.predict_proba((held[["a", "b"]] - mean) / std)
+        expected.append(average_precision_score(held["y"], proba[:, 1]))
     assert scores == pytest.approx(expected, rel=1e-9)
 
 

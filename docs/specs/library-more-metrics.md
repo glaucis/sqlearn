@@ -85,6 +85,9 @@ scikit-learn's `average_precision_score`; a call sets it (ADR 0042).
   that class's probability column in `classes` (with labels `{1, 2}` it is
   class 1, `proba[:, 0]`, as scikit-learn). `pos_label` not among the
   classes refuses as scikit-learn does, so text labels need `pos_label=`.
+  (1.9.1 checks it against the labels present in the target, and only when
+  two are present; sqlearn checks it against the model's `classes`, so a fold
+  holding one class still refuses a wrong `pos_label`.)
 - **More:** each class against the rest, averaged with equal weight
   (scikit-learn 1.9.1's multiclass `average="macro"`). `pos_label` other
   than 1 refuses there, as scikit-learn fixes it to 1 for multiclass.
