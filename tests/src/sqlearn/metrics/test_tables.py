@@ -1,5 +1,8 @@
 """Tests of the table metrics: the confusion matrix against scikit-learn's."""
 
+import math
+import warnings
+
 import duckdb
 import numpy as np
 import pandas as pd
@@ -190,3 +193,142 @@ def test_a_label_named_as_the_target_ignoring_case_refuses():
         sq.errors.SqlearnError, match=r"confusion_matrix .*label 'Y'.*Fix:"
     ):
         sq.metrics.confusion_matrix(rel(frame), "y")
+
+
+def _sk_report(y, p, **kwargs):
+    """Return scikit-learn's report as a dict, its warnings set aside."""
+    import warnings
+
+    from sklearn.metrics import classification_report
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        return classification_report(y, p, output_dict=True, **kwargs)
+
+
+def _report_rows(got):
+    """Return a report's rows by label, each as a dict of its columns."""
+    names = got.columns
+    return {r[0]: dict(zip(names[1:], r[1:], strict=True)) for r in got.fetchall()}
+
+
+def _same(a, b):
+    return (
+        (a is None and b is None)
+        or (a == pytest.approx(b, rel=1e-14))
+        or (a != a and b != b)
+    )
+
+
+def test_classification_report_matches_sklearns_output_dict():
+    """A row per class, then accuracy, macro avg and weighted avg."""
+    got = sq.metrics.classification_report(
+        rel(pd.DataFrame({"y": Y, "prediction": P})), "y"
+    )
+    assert got.columns == ["label", "precision", "recall", "f1_score", "support"]
+    assert list(got.types) == ["VARCHAR", "DOUBLE", "DOUBLE", "DOUBLE", "BIGINT"]
+    rows = _report_rows(got)
+    want = _sk_report(Y, P)
+    assert list(rows) == ["0", "1", "2", "accuracy", "macro avg", "weighted avg"]
+    for label in ("0", "1", "2", "macro avg", "weighted avg"):
+        # scikit-learn averages in floats, sqlearn exactly: within 1e-14
+        for ours, theirs in (
+            ("precision", "precision"),
+            ("recall", "recall"),
+            ("f1_score", "f1-score"),
+            ("support", "support"),
+        ):
+            assert rows[label][ours] == pytest.approx(want[label][theirs], rel=1e-14)
+    assert rows["accuracy"] == {
+        "precision": None,
+        "recall": None,
+        "f1_score": want["accuracy"],
+        "support": len(Y),
+    }
+
+
+@pytest.mark.parametrize("zero_division", ["warn", 0.0, 1.0, math.nan])
+def test_the_reports_zero_division_matches_sklearn(zero_division):
+    """A class never predicted takes zero_division; nan leaves it out of macro."""
+    y, p = [0, 1, 2, 2], [0, 0, 2, 2]  # class 1 is never predicted
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        rows = _report_rows(
+            sq.metrics.classification_report(
+                rel(pd.DataFrame({"y": y, "prediction": p})),
+                "y",
+                zero_division=zero_division,
+            )
+        )
+    want = _sk_report(y, p, zero_division=zero_division)
+    for label in ("0", "1", "2", "macro avg", "weighted avg"):
+        for ours, theirs in (
+            ("precision", "precision"),
+            ("recall", "recall"),
+            ("f1_score", "f1-score"),
+        ):
+            assert _same(rows[label][ours], want[label][theirs]), (label, ours)
+
+
+def test_the_report_warns_once_naming_the_classes():
+    """One warning per undefined score kind, with the labels, as precision's."""
+    y, p = [0, 1, 2, 2], [0, 0, 2, 2]
+    with pytest.warns(sq.errors.UndefinedMetricWarning) as caught:
+        sq.metrics.classification_report(
+            rel(pd.DataFrame({"y": y, "prediction": p})), "y"
+        )
+    assert len(caught) == 1
+    assert "Precision is ill-defined" in str(caught[0].message)
+    assert "[1]" in str(caught[0].message)
+    assert "Fix: pass zero_division=" in str(caught[0].message)
+
+
+def test_the_report_does_not_warn_when_zero_division_is_given():
+    """Choosing zero_division silences the warning."""
+    y, p = [0, 1, 2, 2], [0, 0, 2, 2]
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        sq.metrics.classification_report(
+            rel(pd.DataFrame({"y": y, "prediction": p})), "y", zero_division=0.0
+        )
+
+
+def test_the_report_takes_text_labels():
+    """Labels are text in the label column, booleans as DuckDB renders them."""
+    y, p = ["a", "b", "b", "a"], ["a", "b", "a", "a"]
+    rows = _report_rows(
+        sq.metrics.classification_report(
+            rel(pd.DataFrame({"y": y, "prediction": p})), "y"
+        )
+    )
+    want = _sk_report(y, p)
+    assert rows["b"]["recall"] == want["b"]["recall"]
+    flags = pd.DataFrame({"y": [True, False, True], "prediction": [True, True, True]})
+    got = sq.metrics.classification_report(rel(flags), "y", zero_division=0.0)
+    assert [r[0] for r in got.fetchall()][:2] == ["false", "true"]
+
+
+def test_the_report_is_a_relation_unless_out_is_given():
+    """The report is a relation, or what out names."""
+    frame = rel(pd.DataFrame({"y": Y, "prediction": P}))
+    assert isinstance(
+        sq.metrics.classification_report(frame, "y"), duckdb.DuckDBPyRelation
+    )
+    out = sq.metrics.classification_report(frame, "y", out="pandas")
+    assert isinstance(out, pd.DataFrame)
+
+
+def test_the_report_refuses_what_precision_refuses():
+    """A NULL label refuses, naming the report."""
+    with pytest.raises(sq.errors.SqlearnError, match="classification_report"):
+        sq.metrics.classification_report(
+            rel(pd.DataFrame({"y": [0, None], "prediction": [0, 1]})), "y"
+        )
+
+
+def test_an_unknown_zero_division_refuses():
+    """A zero_division scikit-learn does not take refuses."""
+    with pytest.raises(sq.errors.SqlearnError, match="zero_division"):
+        sq.metrics.classification_report(
+            rel(pd.DataFrame({"y": Y, "prediction": P})), "y", zero_division=2
+        )

@@ -62,6 +62,9 @@ counterpart.
 | `precision_score(y, p, average="macro")` | `sq.metrics.precision(average="macro").compute(rel, "y", "p")` |
 | `confusion_matrix(y, p)` | `sq.metrics.confusion_matrix(rel, "y", "p", out="numpy")` (a relation by default) |
 | `confusion_matrix(y, p, normalize="true")` | `sq.metrics.confusion_matrix(rel, "y", "p", normalize="true")` |
+| `classification_report(y, p)` | `sq.metrics.classification_report(rel, "y", "p").show()` |
+| `classification_report(y, p, output_dict=True)` | `sq.metrics.classification_report(rel, "y", "p", out="pandas")` (rows `label`, `accuracy`, `macro avg`, `weighted avg`) |
+| `precision_recall_fscore_support(y, p)` | the class rows of `classification_report` (`precision`, `recall`, `f1_score`, `support`) |
 | `scoring="neg_log_loss"` | `metric=sq.metrics.log_loss` |
 | `scoring="roc_auc"` (`"roc_auc_ovr"` for more than two classes) | `metric=sq.metrics.roc_auc` |
 | `scoring="neg_root_mean_squared_error"` | `metric=sq.metrics.rmse` |

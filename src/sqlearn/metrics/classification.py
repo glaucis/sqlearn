@@ -393,28 +393,63 @@ class ClassificationMetric(Metric):
             for (lab, tgt, pred, both), _ in zip(scored, scores, strict=True)
             if self._denominator(both, pred - both, tgt - both) == 0
         ]
-        if undefined and self.zero_division == "warn" and self._warns():
-            name = (
-                self.score.capitalize()
-                if self.score in ("precision", "recall")
-                else "F-score"
-            )
-            where = (
-                f"due to {_UNDEFINED[self.score]}"
-                if self.average == "micro"
-                else f"in labels with {_UNDEFINED[self.score]}: {undefined}"
-            )
-            warnings.warn(
-                f"{name} is ill-defined and being set to 0.0 {where}. Fix: pass "
-                "zero_division= to choose the value (0.0, 1.0 or nan)."
-                f"{hint}",
-                UndefinedMetricWarning,
-                stacklevel=2,
-            )
+        self._warn_undefined(undefined, hint, micro=self.average == "micro")
         if self.average in ("binary", "micro"):
             return math.nan if scores[0] is None else float(scores[0])
         weights = [c[1] for c in counts] if self.average == "weighted" else None
         return _nanmean(scores, weights)
+
+    def _warn_undefined(
+        self,
+        undefined: list[object],
+        hint: str = "",
+        *,
+        micro: bool = False,
+        stacklevel: int = 3,
+    ) -> None:
+        """Warn, in scikit-learn's words, of the classes whose score divides by zero.
+
+        Only under ``zero_division="warn"`` and for a score scikit-learn
+        warns about. `stacklevel` counts from the caller of this method.
+        """
+        if not (undefined and self.zero_division == "warn" and self._warns()):
+            return
+        name = (
+            self.score.capitalize()
+            if self.score in ("precision", "recall")
+            else "F-score"
+        )
+        where = (
+            f"due to {_UNDEFINED[self.score]}"
+            if micro
+            else f"in labels with {_UNDEFINED[self.score]}: {undefined}"
+        )
+        warnings.warn(
+            f"{name} is ill-defined and being set to 0.0 {where}. Fix: pass "
+            "zero_division= to choose the value (0.0, 1.0 or nan)."
+            f"{hint}",
+            UndefinedMetricWarning,
+            stacklevel=stacklevel,
+        )
+
+    def _per_class(
+        self, counts: Counts, *, stacklevel: int = 3
+    ) -> list[Fraction | None]:
+        """Return each class's score from its counts, warning as `compute` does.
+
+        The classes' scores of a report: the same arithmetic and the same
+        warning as ``average=None`` would give, from counts already fetched.
+        """
+        scores = [
+            self._of(both, pred - both, tgt - both) for _, tgt, pred, both in counts
+        ]
+        undefined = [
+            lab
+            for lab, tgt, pred, both in counts
+            if self._denominator(both, pred - both, tgt - both) == 0
+        ]
+        self._warn_undefined(undefined, stacklevel=stacklevel + 1)
+        return scores
 
     def _check_binary(self, labels: list[object]) -> None:
         """Refuse what scikit-learn refuses under ``average="binary"``."""

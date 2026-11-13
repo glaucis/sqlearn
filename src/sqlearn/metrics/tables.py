@@ -4,17 +4,28 @@ Each is a function over a relation that hands back a lazy DuckDB relation,
 or what ``out=`` names, not a `Metric`: a table cannot rank a search.
 """
 
+import math
 import warnings
+from fractions import Fraction
 from typing import Any
 
 import duckdb
 
+from sqlearn._config import connection
 from sqlearn._errors import InternalError, SqlearnError, SqlearnWarning
 from sqlearn._expr import quote
 from sqlearn._output import Output, to_output
 from sqlearn.metrics._labels import check_labels
+from sqlearn.metrics.classification import (
+    _counts,
+    _nanmean,
+    _valid_zero_division,
+    f1,
+    precision,
+    recall,
+)
 
-__all__ = ["confusion_matrix"]
+__all__ = ["classification_report", "confusion_matrix"]
 
 _NORMALIZE = (None, "true", "pred", "all")
 
@@ -199,3 +210,134 @@ def confusion_matrix(
         "GROUP BY labels.label ORDER BY labels.label"
     )
     return to_output(_select(rel, sql), out)
+
+
+def _text_sql(label: object) -> str:
+    """Return the SQL of a label's text, as DuckDB renders the label."""
+    if isinstance(label, bool):
+        return "'true'" if label else "'false'"
+    if isinstance(label, int):
+        return f"CAST({label} AS VARCHAR)"
+    if isinstance(label, float):
+        return f"CAST({label!r}::DOUBLE AS VARCHAR)"
+    return "'" + str(label).replace("'", "''") + "'"
+
+
+def _as_float(value: Fraction | None) -> float:
+    """Return a score as a double; an undefined one (None) is NaN."""
+    return math.nan if value is None else float(value)
+
+
+def _double_sql(value: float | None) -> str:
+    """Return the SQL of a DOUBLE, NULL for None and NaN for nan."""
+    if value is None:
+        return "CAST(NULL AS DOUBLE)"
+    if math.isnan(value):
+        return "'NaN'::DOUBLE"
+    return f"{value!r}::DOUBLE"
+
+
+def classification_report(
+    rel: duckdb.DuckDBPyRelation,
+    target: str,
+    prediction: str = "prediction",
+    *,
+    zero_division: str | float = "warn",
+    out: str | Output | None = None,
+) -> Any:  # noqa: ANN401  (the form `out` names)
+    """Report each class's precision, recall, F1 and support, and the averages.
+
+    As scikit-learn 1.9.1's ``classification_report`` with
+    ``output_dict=True``, as rows of a relation: one per class in label
+    order, then ``accuracy`` (precision and recall NULL, `f1_score` the
+    accuracy, `support` every row), ``macro avg`` and ``weighted avg``. The
+    scores are exact arithmetic on one grouped count per class, as precision,
+    recall and F1 (ADR 0049); only those counts reach Python.
+
+    Parameters
+    ----------
+    rel : duckdb.DuckDBPyRelation
+        The rows, holding a target and a prediction column.
+    target : str
+        The column of true labels.
+    prediction : str, default "prediction"
+        The column of predicted labels.
+    zero_division : {"warn", 0.0, 1.0, nan}, default "warn"
+        The score of a class whose score divides by zero. ``"warn"`` sets
+        it to 0.0 and warns, once for each kind of score; nan leaves the
+        class out of the averages.
+    out : {"pandas", "polars", "numpy", "arrow"} or Output or None
+        What to hand back; None is a relation.
+
+    Returns
+    -------
+    duckdb.DuckDBPyRelation or object
+        The report, with columns `label` (`VARCHAR`, the class's text as
+        DuckDB renders it), `precision`, `recall`, `f1_score` (`DOUBLE`)
+        and `support` (`BIGINT`), or it as `out` names.
+
+    Raises
+    ------
+    SqlearnError
+        If `zero_division` is not one of its values, or the labels fail
+        precision's checks (no rows, NULL, NaN, infinity, continuous or
+        mixed-kind labels).
+
+    Warns
+    -----
+    UndefinedMetricWarning
+        Under ``zero_division="warn"``, for the classes never predicted
+        (precision) or never true (recall).
+
+    Examples
+    --------
+    >>> import duckdb
+    >>> import sqlearn as sq
+    >>> rel = duckdb.sql(
+    ...     "SELECT * FROM (VALUES (0, 0), (1, 0), (1, 1)) t(y, prediction)"
+    ... )
+    >>> sq.metrics.classification_report(rel, "y").fetchall()[-3]
+    ('accuracy', None, None, 0.6666666666666666, 3)
+    """
+    if not _valid_zero_division(zero_division):
+        msg = (
+            f"classification_report was given zero_division={zero_division!r}. "
+            'Why: it takes "warn", 0.0, 1.0 or nan, as scikit-learn. Fix: '
+            "use one of them."
+        )
+        raise SqlearnError(msg)
+    check_labels("classification_report", rel, target, prediction)
+    counts = _counts(rel, target, prediction)
+    scores = [
+        metric(zero_division=zero_division)._per_class(counts)
+        for metric in (precision, recall, f1)
+    ]
+    support = [c[1] for c in counts]
+    total = sum(support)
+    accuracy = float(Fraction(sum(c[3] for c in counts), total))
+    texts = [_text_sql(c[0]) for c in counts]
+    rows = [
+        (texts[i], *(_as_float(sc[i]) for sc in scores)) for i in range(len(counts))
+    ]
+    values = [
+        f"({t}, {_double_sql(p)}, {_double_sql(r)}, {_double_sql(f)}, "
+        f"CAST({n} AS BIGINT))"
+        for (t, p, r, f), n in zip(rows, support, strict=True)
+    ]
+    for name, weights in (("macro avg", None), ("weighted avg", support)):
+        p, r, f = (_nanmean(s, weights) for s in scores)
+        values.append(
+            f"('{name}', {_double_sql(p)}, {_double_sql(r)}, {_double_sql(f)}, "
+            f"CAST({total} AS BIGINT))"
+        )
+    values.insert(
+        len(counts),
+        f"('accuracy', {_double_sql(None)}, {_double_sql(None)}, "
+        f"{_double_sql(accuracy)}, CAST({total} AS BIGINT))",
+    )
+    sql = (
+        "SELECT * FROM (VALUES "
+        + ", ".join(values)
+        + ") t(label, precision, recall, f1_score, support)"
+    )
+    return to_output(connection().sql(sql), out)

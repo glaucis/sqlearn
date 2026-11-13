@@ -17,13 +17,14 @@ from sqlearn.metrics.classification import (
 )
 from sqlearn.metrics.probability import log_loss, roc_auc
 from sqlearn.metrics.regression import mae, r2, rmse
-from sqlearn.metrics.tables import confusion_matrix
+from sqlearn.metrics.tables import classification_report, confusion_matrix
 
 __all__ = [
     "ClassificationMetric",
     "Metric",
     "MissingClassError",
     "accuracy",
+    "classification_report",
     "confusion_matrix",
     "f1",
     "fbeta",
