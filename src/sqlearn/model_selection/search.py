@@ -337,7 +337,7 @@ class Search:
         keep_prepared: str | os.PathLike[str] | None = None,
     ) -> None:
         if not isinstance(metric, Metric):
-            msg = (
+            msg = (  # type: ignore[unreachable]
                 f"metric= was given {metric!r}, which is not a metric. Why: a "
                 "search needs a score to rank the settings by, and "
                 "confusion_matrix, classification_report, roc_curve and "

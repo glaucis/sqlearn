@@ -316,13 +316,11 @@ def classification_report(
     total = sum(support)
     accuracy = float(Fraction(sum(c[3] for c in counts), total))
     texts = [_text_sql(c[0]) for c in counts]
-    rows = [
-        (texts[i], *(_as_float(sc[i]) for sc in scores)) for i in range(len(counts))
-    ]
     values = [
-        f"({t}, {_double_sql(p)}, {_double_sql(r)}, {_double_sql(f)}, "
-        f"CAST({n} AS BIGINT))"
-        for (t, p, r, f), n in zip(rows, support, strict=True)
+        f"({texts[i]}, {_double_sql(_as_float(scores[0][i]))}, "
+        f"{_double_sql(_as_float(scores[1][i]))}, "
+        f"{_double_sql(_as_float(scores[2][i]))}, CAST({support[i]} AS BIGINT))"
+        for i in range(len(counts))
     ]
     for name, weights in (("macro avg", None), ("weighted avg", support)):
         p, r, f = (_nanmean(s, weights) for s in scores)
