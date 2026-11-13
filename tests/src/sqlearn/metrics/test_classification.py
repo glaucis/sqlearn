@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from sklearn.exceptions import UndefinedMetricWarning
-from sklearn.metrics import f1_score, precision_score, recall_score
+from sklearn.metrics import f1_score, fbeta_score, precision_score, recall_score
 
 import sqlearn as sq
 from sqlearn._config import connection
@@ -362,3 +362,87 @@ def test_a_pos_label_of_the_labels_kind_gets_no_hint():
     with pytest.raises(sq.errors.SqlearnError) as raised:
         sq.metrics.precision(pos_label=2).compute(rel(frame), "y")
     assert "numbers" not in str(raised.value)
+
+
+MULTI_Y = [0, 1, 2, 1, 0, 2, 2]
+MULTI_P = [0, 2, 2, 1, 0, 0, 1]
+
+
+@pytest.mark.parametrize("beta", [0.0, 0.5, 1.0, 2.0, math.inf, True])
+@pytest.mark.parametrize("average", ["binary", "macro", "micro", "weighted"])
+def test_fbeta_matches_sklearn(beta, average):
+    """fbeta is scikit-learn's fbeta_score for every average and beta."""
+    y, p = (
+        ([0, 1, 1, 0, 1, 1, 0, 0], [0, 1, 0, 0, 1, 1, 1, 0])
+        if average == "binary"
+        else (MULTI_Y, MULTI_P)
+    )
+    frame = pd.DataFrame({"y": y, "prediction": p})
+    got = sq.metrics.fbeta(beta=beta, average=average).compute(rel(frame), "y")
+    expected = fbeta_score(y, p, beta=beta, average=average)
+    # scikit-learn averages in doubles, sqlearn in exact fractions (ADR 0016):
+    # the means may differ by one double.
+    if average in ("binary", "micro"):
+        assert got == expected
+    else:
+        assert got == pytest.approx(expected, rel=1e-12)
+
+
+def test_fbeta_without_beta_refuses():
+    """fbeta has no default beta."""
+    with pytest.raises(
+        sq.errors.SqlearnError, match=r"beta=.*Why:.*Fix:.*fbeta\(beta=2"
+    ):
+        sq.metrics.fbeta.compute(rel(BINARY), "y")
+
+
+@pytest.mark.parametrize("beta", [-1.0, math.nan, "2"])
+def test_fbeta_refuses_a_beta_scikit_learn_refuses(beta):
+    """A negative, NaN or text beta is refused, naming beta."""
+    with pytest.raises(sq.errors.SqlearnError, match="beta="):
+        sq.metrics.fbeta(beta=beta)
+
+
+def test_beta_is_a_setting_of_fbeta_only():
+    """precision, recall and f1 refuse beta= as an unknown setting."""
+    for metric in (sq.metrics.precision, sq.metrics.recall, sq.metrics.f1):
+        with pytest.raises(sq.errors.SqlearnError, match="no setting beta="):
+            metric(beta=2.0)
+
+
+@pytest.mark.parametrize("beta", [0.0, 0.5, 2.0, math.inf])
+@pytest.mark.parametrize("zero_division", ["warn", 0.0, 1.0, math.nan])
+def test_fbeta_zero_division_matches_sklearn(beta, zero_division):
+    """A class never predicted nor present scores as scikit-learn's does."""
+
+    def run(call):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            value = call()
+        return value, sorted({w.category.__name__ for w in caught})
+
+    # Class 2 is only predicted: its recall and F divide by zero.
+    y2, p2 = [0, 0, 1, 1], [0, 0, 1, 2]
+    frame = pd.DataFrame({"y": y2, "prediction": p2})
+    ours, ours_w = run(
+        lambda: sq.metrics.fbeta(
+            beta=beta, average="macro", zero_division=zero_division
+        ).compute(rel(frame), "y")
+    )
+    theirs, theirs_w = run(
+        lambda: fbeta_score(
+            y2, p2, beta=beta, average="macro", zero_division=zero_division
+        )
+    )
+    assert (math.isnan(ours) and math.isnan(theirs)) or ours == theirs
+    assert ours_w == theirs_w
+
+
+def test_f1_is_fbeta_at_one():
+    """f1 is fbeta at beta 1, and the names show it."""
+    f = pd.DataFrame({"y": MULTI_Y, "prediction": MULTI_P})
+    assert sq.metrics.f1(average="macro").compute(rel(f), "y") == sq.metrics.fbeta(
+        beta=1, average="macro"
+    ).compute(rel(f), "y")
+    assert repr(sq.metrics.f1) == "f1"
+    assert repr(sq.metrics.fbeta(beta=2)) == "fbeta(beta=2)"

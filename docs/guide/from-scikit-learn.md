@@ -56,6 +56,8 @@ counterpart.
 | `scoring="accuracy"` | `metric=sq.metrics.accuracy` |
 | `scoring="precision"`, `"recall"`, `"f1"` | `metric=sq.metrics.precision`, `recall`, `f1` |
 | `scoring="f1_macro"` (and `"_micro"`, `"_weighted"`; the same for precision and recall) | `metric=sq.metrics.f1(average="macro")` |
+| `fbeta_score(y, p, beta=2)` | `sq.metrics.fbeta(beta=2).compute(rel, "y", "p")` |
+| `make_scorer(fbeta_score, beta=2)` | `metric=sq.metrics.fbeta(beta=2)` |
 | `make_scorer(f1_score, pos_label="yes", zero_division=0.0)` | `metric=sq.metrics.f1(pos_label="yes", zero_division=0.0)` |
 | `precision_score(y, p, average="macro")` | `sq.metrics.precision(average="macro").compute(rel, "y", "p")` |
 | `scoring="neg_log_loss"` | `metric=sq.metrics.log_loss` |

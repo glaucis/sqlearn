@@ -1255,6 +1255,55 @@ def test_f1_macro_matches_gridsearchcv():
         assert ours[setting] == pytest.approx(sk_mean, rel=1e-12)
 
 
+def test_a_search_refuses_fbeta_without_beta_before_any_work(monkeypatch):
+    """fbeta has no default beta: refused before the data is read."""
+
+    def unread(data, **_):
+        raise AssertionError("the data was read")
+
+    monkeypatch.setattr(search_module, "read", unread)
+    with pytest.raises(sq.errors.SqlearnError, match=r"beta=.*Why:.*Fix:"):
+        sq.search(
+            sq.Pipeline([("model", LogisticRegression())]),
+            params={"model__C": [1.0]},
+            metric=sq.metrics.fbeta,
+        ).train(SEPARABLE, target="y")
+
+
+def test_a_search_refuses_a_metric_that_is_not_a_metric():
+    """A plain function is no metric: refused when the search is made."""
+    with pytest.raises(sq.errors.SqlearnError, match=r"metric=.*Why:.*Fix:"):
+        sq.search(
+            sq.Pipeline([("model", LogisticRegression())]),
+            metric=lambda *a: 0.0,  # ty: ignore[invalid-argument-type]
+        )
+
+
+def test_fbeta_scores_as_gridsearchcv():
+    """fbeta(beta=2) scores as make_scorer(fbeta_score, beta=2)."""
+    from sklearn.metrics import fbeta_score, make_scorer
+    from sklearn.model_selection import GridSearchCV, PredefinedSplit
+
+    data = SEPARABLE[["a", "b", "y"]]
+    sk = GridSearchCV(
+        LogisticRegression(),
+        {"C": [0.01, 1.0]},
+        scoring=make_scorer(fbeta_score, beta=2),
+        cv=PredefinedSplit(_kfold_of(data)),
+    ).fit(data[["a", "b"]], data["y"])
+    search = sq.search(
+        sq.Pipeline([("model", LogisticRegression())]),
+        params={"model__C": [0.01, 1.0]},
+        metric=sq.metrics.fbeta(beta=2),
+    ).train(data, target="y")
+    ours = mean_scores(search)
+    for params, sk_mean in zip(
+        sk.cv_results_["params"], sk.cv_results_["mean_test_score"], strict=True
+    ):
+        setting = json.dumps({"model__C": params["C"]})
+        assert ours[setting] == pytest.approx(sk_mean, rel=1e-12)
+
+
 def test_a_fold_of_one_class_scores_and_does_not_stop_the_search():
     """Held-out rows of one class score with a warning; the search goes on."""
     with pytest.warns(sq.errors.UndefinedMetricWarning):

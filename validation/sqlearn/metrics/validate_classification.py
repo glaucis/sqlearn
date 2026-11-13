@@ -1,4 +1,4 @@
-"""Validate precision, recall and f1 against exact arithmetic and scikit-learn.
+"""Validate precision, recall, f1 and fbeta against exact arithmetic and scikit-learn.
 
 The canonical value is computed in pure Python as a `Fraction` (ADR 0016):
 each class's true positives, false positives and false negatives counted
@@ -16,7 +16,7 @@ from collections.abc import Callable
 from fractions import Fraction
 
 import numpy as np
-from sklearn.metrics import f1_score, precision_score, recall_score
+from sklearn.metrics import f1_score, fbeta_score, precision_score, recall_score
 
 import sqlearn as sq
 from validation import _cases
@@ -32,7 +32,15 @@ SCORES: dict[str, Callable[..., float]] = {
     "precision": precision_score,
     "recall": recall_score,
     "f1": f1_score,
+    "fbeta": fbeta_score,
 }
+BETAS = (0.5, 2.0)
+RUNS: list[tuple[str, float | None]] = [
+    ("precision", None),
+    ("recall", None),
+    ("f1", None),
+    *(("fbeta", b) for b in BETAS),
+]
 AVERAGES = ("binary", "macro", "micro", "weighted")
 
 
@@ -40,7 +48,10 @@ def _ratio(numerator: int, denominator: int) -> Fraction:
     return Fraction(numerator, denominator) if denominator else Fraction(0)
 
 
-def _score(name: str, tp: int, fp: int, fn: int) -> Fraction:
+def _score(name: str, tp: int, fp: int, fn: int, beta: float | None = None) -> Fraction:
+    if name == "fbeta":
+        b2 = Fraction(beta) ** 2  # type: ignore[arg-type]
+        return _ratio((1 + b2) * tp, (1 + b2) * tp + b2 * fn + fp)
     if name == "precision":
         return _ratio(tp, tp + fp)
     if name == "recall":
@@ -48,7 +59,14 @@ def _score(name: str, tp: int, fp: int, fn: int) -> Fraction:
     return _ratio(2 * tp, 2 * tp + fp + fn)
 
 
-def exact(name: str, average: str, y: tuple, p: tuple, pos_label: object) -> Fraction:
+def exact(
+    name: str,
+    average: str,
+    y: tuple,
+    p: tuple,
+    pos_label: object,
+    beta: float | None = None,
+) -> Fraction:
     """Return the score as an exact fraction, from counts over the rows."""
     labels = sorted(set(y) | set(p))
     counts = {
@@ -60,10 +78,12 @@ def exact(name: str, average: str, y: tuple, p: tuple, pos_label: object) -> Fra
         for c in labels
     }
     if average == "binary":
-        return _score(name, *counts.get(pos_label, (0, 0, 0)))
+        return _score(name, *counts.get(pos_label, (0, 0, 0)), beta)
     if average == "micro":
-        return _score(name, *(sum(c[i] for c in counts.values()) for i in range(3)))
-    scores = [_score(name, *counts[c]) for c in labels]
+        return _score(
+            name, *(sum(c[i] for c in counts.values()) for i in range(3)), beta
+        )
+    scores = [_score(name, *counts[c], beta) for c in labels]
     if average == "macro":
         return sum(scores, Fraction(0)) / len(scores)
     support = [counts[c][0] + counts[c][2] for c in labels]
@@ -116,11 +136,13 @@ def cases() -> list[dict]:
         answerable = bool(y) and not any(_cases.is_missing(v) for v in (*y, *p))
         two = len(labels) == 2
         pos_label = labels[-1]
-        for name in SCORES:
+        for name, beta in RUNS:
             for average in AVERAGES:
                 if average == "binary" and not two and answerable:
                     continue
                 settings = {"average": average}
+                if beta is not None:
+                    settings["beta"] = beta
                 if average == "binary":
                     settings["pos_label"] = pos_label
 
@@ -137,10 +159,13 @@ def cases() -> list[dict]:
 
                 out += _cases.measure_all(
                     step=name,
-                    formula=f"{name}, average={average}",
+                    formula=f"{name}, average={average}"
+                    + ("" if beta is None else f", beta={beta}"),
                     data=data,
                     type=kind,
-                    exact=exact(name, average, y, p, pos_label) if answerable else None,
+                    exact=exact(name, average, y, p, pos_label, beta)
+                    if answerable
+                    else None,
                     bound=BOUND,
                     answers={"sqlearn": ours, "scikit-learn": theirs},
                 )

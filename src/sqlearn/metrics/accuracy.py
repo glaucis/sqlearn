@@ -117,7 +117,8 @@ class Metric:
         Raises
         ------
         SqlearnError
-            Always: only precision, recall and f1 take settings.
+            Always: only precision, recall, f1, fbeta and average_precision
+            take settings.
 
         Examples
         --------
@@ -130,10 +131,17 @@ class Metric:
         given = ", ".join(f"{k}=" for k in settings) or "a call"
         msg = (
             f"{self.name} takes no settings, and was given {given}. Why: "
-            "only the classification metrics precision, recall and f1 have "
-            f"settings. Fix: use sq.metrics.{self.name} as it is."
+            "only the metrics precision, recall, f1, fbeta and "
+            f"average_precision have settings. Fix: use sq.metrics.{self.name} "
+            "as it is."
         )
         raise SqlearnError(msg)
+
+    def _ready(self) -> None:
+        """Refuse, before any work, a metric that cannot be computed as set.
+
+        Nothing to refuse here; a metric with a required setting overrides it.
+        """
 
     def _score_labels(
         self, rel: duckdb.DuckDBPyRelation, target: str, prediction: str
