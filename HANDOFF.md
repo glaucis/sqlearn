@@ -9,7 +9,10 @@ Verify with: `just verify`
 
 ## In progress
 
-None.
+- More metrics (#58): `fbeta`, `average_precision`, `confusion_matrix`,
+  `classification_report`, `roc_curve`, `precision_recall_curve`. Spec
+  `docs/specs/library-more-metrics.md`, written without a design talk at
+  Tomas's request; plan and build next, on a branch.
 
 ## Waiting on the user
 
@@ -20,8 +23,8 @@ None.
 - #46 (generators on many threads: needs a parallel, ordered, lazy row
   source; measurements in the issue) and #49 (learn nested aggregates; an ADR
   amending 0036/0044), both ready-for-agent and needing a design first.
-- The next 3.3 area: more metrics (confusion matrix, report, curves, fbeta),
-  or a fetcher of real datasets (ADR 0006: an explicit call).
+- After #58, the next 3.3 area: a fetcher of real datasets (ADR 0006: an
+  explicit call), or more scores (balanced accuracy, MCC, Brier).
 
 ## Dead ends and traps
 

@@ -202,3 +202,5 @@ extend-ignore-re = ["(?m)^mdindex: \\[.*\\]$", "\\b[0-9a-f]{7,12}\\b"]
 # A word typos mistakes for a misspelling goes here once, mapped to itself.
 # Tree-structured Parzen Estimator, a hyperparameter search method.
 TPE = "TPE"
+# False positive rate, a column of the ROC curve (scikit-learn's name).
+fpr = "fpr"
