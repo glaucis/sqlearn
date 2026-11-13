@@ -1,5 +1,9 @@
 """Tests of the environment as a whole."""
 
+import subprocess
+import sys
+from pathlib import Path
+
 import duckdb
 import pytest
 
@@ -27,3 +31,36 @@ def test_duckdb_spills_a_query_larger_than_its_memory_limit(tmp_path):
         con.execute(query).fetchone()
     con.execute(f"set temp_directory = '{tmp_path}'")
     assert con.execute(query).fetchone() == (10000000, 20000000)
+
+
+def test_the_linter_refuses_a_private_function_defined_twice(tmp_path):
+    """Ruff's F811 sees `_name` too, not only public names.
+
+    Its default `dummy-variable-rgx` takes any name starting with `_` for a
+    throwaway and skips it, and almost every helper here starts with `_`.
+    """
+    probe = tmp_path / "probe.py"
+    probe.write_text(
+        '"""Probe."""\n\n\ndef _helper() -> None:\n    """One."""\n\n\n'
+        'def _helper() -> None:\n    """Two."""\n'
+    )
+    root = Path(__file__).parents[1]
+    found = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "ruff",
+            "check",
+            "--config",
+            root / "pyproject.toml",
+            "--select",
+            "F811",
+            "--output-format",
+            "concise",
+            probe,
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert "F811" in found.stdout, found.stdout + found.stderr

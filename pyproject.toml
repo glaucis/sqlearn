@@ -92,6 +92,9 @@ select = [
 ]
 # A composite assertion with a message of its own reads as well as two.
 ignore = ["PT018"]
+# Only `_`, `__` and so on are throwaway names. Ruff's default takes any
+# `_name` for one, so F811 never saw a private helper defined twice.
+dummy-variable-rgx = "^_+$"
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"

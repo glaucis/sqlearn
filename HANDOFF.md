@@ -24,8 +24,6 @@ None.
   or a fetcher of real datasets (ADR 0006: an explicit call).
 - The target encoder's learn after #41 is mostly Python `Fraction` arithmetic
   in `_encodings`/`_totals`: file an issue if it matters.
-- `just check` passed with a function defined twice in `_pipeline.py`
-  (ruff selects `F`, yet F811 stayed quiet): find out why.
 
 ## Dead ends and traps
 
@@ -96,6 +94,10 @@ None.
 
 ## Just finished
 
+- Ruff's F811 skipped every `_name` (its default `dummy-variable-rgx` takes
+  them for throwaways), which is how `_no_fit` lived twice in `_pipeline.py`
+  (8841cae). `dummy-variable-rgx` is now `^_+$`, pinned by a test in
+  `tests/test_environment.py`; the repo is clean under it.
 - The category lookup re-measured (R7, R8 on #31): for both encoders the hash
   applies faster from 20,000 categories, so `WARN_ABOVE` is 20,000 and the
   target encoder warns too. The machine was never fully idle (load 4 to 34;
