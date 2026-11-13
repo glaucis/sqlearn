@@ -62,6 +62,23 @@ def _labels_of(
     return [label for label, _ in _label_rows(rel, target, prediction)]
 
 
+def _cell(i: int, normalize: str | None) -> str:
+    """Return the SQL of column `i`'s cell in a label's row of the grouped query.
+
+    Counts and totals are read by label index, never by column name, so
+    nothing depends on how DuckDB resolves the columns' names.
+    """
+    count = f"coalesce(sum(CASE WHEN pi = {i} THEN n END), 0)"
+    if normalize is None:
+        return f"CAST({count} AS BIGINT)"
+    total = {
+        "true": "coalesce(sum(n), 0)",
+        "pred": f"(SELECT coalesce(sum(n), 0) FROM counts WHERE pi = {i})",
+        "all": "(SELECT coalesce(sum(n), 0) FROM counts)",
+    }[normalize]
+    return f"CASE WHEN {total} = 0 THEN 0.0 ELSE CAST({count} AS DOUBLE) / {total} END"
+
+
 def confusion_matrix(
     rel: duckdb.DuckDBPyRelation,
     target: str,
@@ -124,6 +141,7 @@ def confusion_matrix(
         raise SqlearnError(msg)
     check_labels("confusion_matrix", rel, target, prediction)
     rows = _label_rows(rel, target, prediction)
+    seen: dict[str, tuple[object, str]] = {target.lower(): (target, target)}
     for label, text in rows:
         if text == "":
             msg = (
@@ -133,15 +151,29 @@ def confusion_matrix(
                 "label first, for example with 'none'."
             )
             raise SqlearnError(msg)
-        if text == target:
+        other = seen.get(text.lower())
+        if other is not None and other[1] == target and other[0] == target:
             msg = (
                 f"confusion_matrix cannot be computed: the label {label!r} "
-                f"has the same text as the target column {target!r}. Why: "
-                "each label is a column named by its text, beside the "
-                f"column {target!r} of true labels. Fix: rename the target "
-                "column, or the label."
+                f"has the same text as the target column {target!r}, ignoring "
+                "case. Why: each label is a column named by its text, beside "
+                f"the column {target!r} of true labels, and DuckDB names do "
+                "not differ by case. Fix: rename the target column, or the "
+                "label."
             )
             raise SqlearnError(msg)
+        if other is not None:
+            msg = (
+                f"confusion_matrix cannot be computed: the labels "
+                f"{other[0]!r} and {label!r} differ only by case. Why: each "
+                "label is a column named by its text, and DuckDB names do "
+                "not differ by case (it would rename one to "
+                f"{text + '_1'!r}). Fix: make the labels differ by more than "
+                "case, for example by lower-casing the target and the "
+                "prediction first."
+            )
+            raise SqlearnError(msg)
+        seen[text.lower()] = (label, text)
     if len(rows) == 1:
         warnings.warn(
             "A single label was found in the target and the prediction. "
@@ -151,12 +183,10 @@ def confusion_matrix(
             SqlearnWarning,
             stacklevel=2,
         )
-    names = [quote(text) for _, text in rows]
     cells = ", ".join(
-        f"CAST(coalesce(sum(CASE WHEN pi = {i} THEN n END), 0) AS BIGINT) AS {name}"
-        for i, name in enumerate(names)
+        f"{_cell(i, normalize)} AS {quote(text)}" for i, (_, text) in enumerate(rows)
     )
-    counted = (
+    sql = (
         f"WITH pairs AS ({_pairs(target, prediction)}), "
         "labels AS (SELECT label, row_number() OVER (ORDER BY label) - 1 "
         "AS idx FROM (SELECT DISTINCT label FROM ("
@@ -168,20 +198,4 @@ def confusion_matrix(
         "FROM labels LEFT JOIN counts ON labels.idx = counts.ti "
         "GROUP BY labels.label ORDER BY labels.label"
     )
-    if normalize is None:
-        sql = counted
-    else:
-        row = " + ".join(names)
-        grand = " + ".join(f"sum({n}) OVER ()" for n in names)
-        total = {"true": f"({row})", "pred": None, "all": f"({grand})"}[normalize]
-        divided = ", ".join(
-            "CASE WHEN {t} = 0 THEN 0.0 ELSE CAST({c} AS DOUBLE) / {t} END "
-            "AS {c}".format(c=n, t=total if total is not None else f"sum({n}) OVER ()")
-            for n in names
-        )
-        sql = (
-            f"WITH matrix AS ({counted}) "
-            f"SELECT {quote(target)}, {divided} FROM matrix "
-            f"ORDER BY {quote(target)}"
-        )
     return to_output(_select(rel, sql), out)

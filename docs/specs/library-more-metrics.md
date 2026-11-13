@@ -120,10 +120,11 @@ matrix (`C[i, j]`: rows of true label `i` predicted `j`).
   holding one label between them warn, as scikit-learn 1.9.1 does ("A single
   label was found"), and give a 1 by 1 matrix.
 - The first column holds the true label and is named as `target`; then one
-  column per label, named by the label's text as DuckDB renders it (a
-  boolean is `true`, not `True`). A label whose text equals `target`, or an
-  empty text label (DuckDB cannot name a column with no text), refuses,
-  saying why and how to fix it.
+  column per label, named by the label's text as DuckDB renders it (a boolean is
+  `true`, not `True`). A label whose text equals `target` ignoring case, two
+  labels whose texts differ only by case (DuckDB would rename one), or an empty
+  text label (DuckDB cannot name a column with no text), refuses, saying why and
+  how to fix it.
 - Counts are `BIGINT`. `normalize` is `None`, `"true"`, `"pred"` or `"all"`,
   as scikit-learn; normalised cells are `DOUBLE`, and a row or column with
   no rows gives 0, as scikit-learn's `nan_to_num`.

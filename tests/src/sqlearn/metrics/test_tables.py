@@ -159,3 +159,34 @@ def test_a_table_cannot_rank_a_search():
             {},
             metric=sq.metrics.confusion_matrix,  # ty: ignore[invalid-argument-type]
         )
+
+
+CASED = pd.DataFrame({"y": ["a", "A"], "prediction": ["A", "a"]})
+
+
+@pytest.mark.parametrize("normalize", [None, "true", "pred", "all"])
+def test_labels_that_differ_only_by_case_refuse(normalize):
+    """DuckDB renames the second of two columns named alike ("a_1"), so refuse."""
+    with pytest.raises(
+        sq.errors.SqlearnError,
+        match=r"confusion_matrix .*'A' and 'a'.*differ only by case.*Why:.*Fix:",
+    ):
+        sq.metrics.confusion_matrix(rel(CASED), "y", normalize=normalize)
+
+
+def test_labels_with_other_text_keep_their_case_in_pandas():
+    """Labels of mixed case, none alike ignoring case, keep their names."""
+    frame = pd.DataFrame({"y": ["a", "B"], "prediction": ["B", "a"]})
+    got = sq.metrics.confusion_matrix(rel(frame), "y", normalize="true", out="pandas")
+    assert list(got.columns) == ["y", "B", "a"]
+    assert got["B"].tolist() == [0.0, 1.0]
+    assert got["a"].tolist() == [1.0, 0.0]
+
+
+def test_a_label_named_as_the_target_ignoring_case_refuses():
+    """DuckDB names are case-insensitive: label 'Y' clashes with target 'y'."""
+    frame = pd.DataFrame({"y": ["Y", "n"], "prediction": ["Y", "Y"]})
+    with pytest.raises(
+        sq.errors.SqlearnError, match=r"confusion_matrix .*label 'Y'.*Fix:"
+    ):
+        sq.metrics.confusion_matrix(rel(frame), "y")

@@ -25,10 +25,11 @@ scikit-learn's form gets its own ADR.
   `"numpy"`, `"arrow"`, or a file).
 - **It is not a `Metric`.** A table cannot rank a search, so a search given
   one as `metric=` refuses, saying which functions are tables.
-- **A matrix is one row per true label and one column per predicted label,**
-  the first column named as the target and the others by the label's text as
-  DuckDB renders it. A label DuckDB cannot name (empty text) or that has the
-  target's name is refused, with a `Fix:`.
+- **A matrix is one row per true label and one column per predicted label,** the
+  first column named as the target and the others by the label's text as DuckDB
+  renders it. A label DuckDB cannot name (empty text), one with the target's
+  name, and two that differ only by case (DuckDB names do not) are refused, with
+  a `Fix:`.
 
 ## Consequences
 

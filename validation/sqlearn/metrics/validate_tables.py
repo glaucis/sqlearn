@@ -74,6 +74,15 @@ def _datasets() -> list[tuple[str, tuple, tuple, str, list]]:
             )
     # A label predicted but never true, so a "true" row has no rows.
     out.append(("never true", (0, 1, 0, 1), (0, 2, 2, 1), "INTEGER", [0, 1, 2]))
+    out.append(
+        (
+            "mixed case",
+            ("a", "B", "a", "B"),
+            ("B", "B", "a", "a"),
+            "VARCHAR",
+            ["a", "B"],
+        )
+    )
     return out
 
 
