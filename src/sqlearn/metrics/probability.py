@@ -120,8 +120,8 @@ class AveragePrecision(Metric):
     ----------
     pos_label : object, default 1
         The class scored when there are two. It is never converted: ``1`` and
-        ``"1"`` are different labels. With more than two classes it must
-        stay 1, as in scikit-learn.
+        ``"1"`` are different labels, but ``1`` and ``1.0`` are the same. With
+        more than two classes it must stay 1, as in scikit-learn.
 
     Notes
     -----
@@ -201,7 +201,7 @@ class AveragePrecision(Metric):
                 raise SqlearnError(msg)
             return list(range(len(labels)))
         for i, label in enumerate(labels):
-            if label == self.pos_label and type(label) is type(self.pos_label):
+            if label == self.pos_label:
                 return [i]
         known = list(labels)
         msg = (

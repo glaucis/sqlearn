@@ -74,8 +74,10 @@ class DefaultsUsedWarning(SqlearnWarning):
 class UndefinedMetricWarning(SqlearnWarning):
     """A score divided by zero and took ``zero_division``'s value.
 
-    Raised by precision, recall and f1 under ``zero_division="warn"``, as
-    scikit-learn raises its own ``UndefinedMetricWarning``.
+    Raised by precision, recall, f1 and fbeta under ``zero_division="warn"``,
+    and by average_precision when no row is of the class it scores (its
+    score is then 0.0), as scikit-learn raises its own
+    ``UndefinedMetricWarning``.
 
     Examples
     --------

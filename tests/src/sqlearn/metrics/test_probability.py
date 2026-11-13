@@ -1,4 +1,4 @@
-"""Tests of log_loss and roc_auc against scikit-learn."""
+"""Tests of log_loss, roc_auc and average_precision against scikit-learn."""
 
 import warnings
 
@@ -253,3 +253,24 @@ def test_average_precision_settings_are_pos_label_only():
     assert repr(sq.metrics.average_precision) == "average_precision"
     with pytest.raises(SqlearnError, match=r"no setting average=.*Fix: "):
         sq.metrics.average_precision(average="micro")
+
+
+@pytest.mark.parametrize(
+    ("classes", "pos_label"),
+    [
+        ([0, 1], np.int64(1)),
+        ([0, 1], 1.0),
+        ([False, True], True),
+        ([np.int64(0), np.int64(1)], np.int64(1)),
+    ],
+)
+def test_average_precision_matches_pos_label_by_value(con, classes, pos_label):
+    """A numpy, float or bool pos_label that equals a class scores it, as sklearn."""
+    y, proba = random_labels_and_probabilities(2, rows=200, ties=False)
+    target = np.array(classes)[y]
+    rel = proba_relation(con, target, proba)
+    got = sq.metrics.average_precision(pos_label=pos_label).compute(
+        rel, "y", classes=classes
+    )
+    expected = average_precision_score(target, proba[:, 1], pos_label=pos_label)
+    assert got == pytest.approx(expected, rel=1e-12)
