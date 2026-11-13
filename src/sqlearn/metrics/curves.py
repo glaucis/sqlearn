@@ -352,7 +352,7 @@ def precision_recall_curve(
             "m <= 2 OR i = 1 OR i = m "
             "OR tps <> lag(tps) OVER w OR tps <> lead(tps) OVER w"
         )
-    recall = "1.0" if positives == 0 else f"CAST(tps AS DOUBLE) / {positives}.0"
+    recall = "1.0::DOUBLE" if positives == 0 else f"CAST(tps AS DOUBLE) / {positives}.0"
     sql = (
         "WITH numbered AS (SELECT threshold, tps, fps, "
         "row_number() OVER w AS i, count(*) OVER () AS m, "
@@ -361,6 +361,7 @@ def precision_recall_curve(
         "SELECT CAST(tps AS DOUBLE) / CAST(tps + fps AS DOUBLE) AS precision, "
         f"{recall} AS recall, threshold FROM numbered WHERE kept "
         "UNION ALL "
-        "SELECT 1.0, 0.0, NULL::DOUBLE) ORDER BY threshold ASC NULLS LAST"
+        "SELECT 1.0::DOUBLE, 0.0::DOUBLE, NULL::DOUBLE) "
+        "ORDER BY threshold ASC NULLS LAST"
     )
     return to_output(_query(steps, _STEPS, sql), out)

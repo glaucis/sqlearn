@@ -274,3 +274,17 @@ def test_the_precision_recall_curve_takes_text_labels_with_pos_label():
     assert same(out["precision"], precision) and same(out["recall"], recall)
     with pytest.raises(sq.errors.SqlearnError, match=r"pos_label"):
         sq.metrics.precision_recall_curve(rel(pd.DataFrame({"y": y, "s": s})), "y", "s")
+
+
+@pytest.mark.parametrize("labels", [[0, 1, 1, 0], [0, 0, 0, 0], [1, 1, 1, 1]])
+def test_the_curves_columns_are_double_in_every_case(labels):
+    """Both curves' columns are DOUBLE with both, no positive or no negative."""
+    frame = rel(pd.DataFrame({"y": labels, "s": [0.1, 0.4, 0.35, 0.8]}))
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        for curve in (sq.metrics.roc_curve, sq.metrics.precision_recall_curve):
+            got = curve(frame, "y", "s")
+            assert [str(t) for t in got.types] == ["DOUBLE"] * 3
+            assert all(
+                type(v) is float for row in got.fetchall() for v in row if v is not None
+            )
