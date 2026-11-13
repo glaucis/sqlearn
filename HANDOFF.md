@@ -4,7 +4,7 @@ Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
 Updated: 2026-11-13 · Branch: `library-more-metrics` (not yet merged) ·
-Checks: passing (`just verify`: 2278 passed, 24 skipped)
+Checks: passing (`just verify`: 2298 passed, 24 skipped)
 Verify with: `just verify`
 
 ## In progress
@@ -102,9 +102,9 @@ None.
   and `precision_recall_curve` (the tables and curves are relations, ADR 0049),
   the search refusing a table or unready metric, and the guide
   `docs/guide/evaluating-a-model.md`. Spec `docs/specs/library-more-metrics.md`,
-  plan `docs/plans/2026-11-13-library-more-metrics.md`. The closing commit is
-  `aea01de`, with a fix round after it (the guide scores held-out rows).
-  `just verify`: 2278 passed, 24 skipped on each interpreter.
+  plan `docs/plans/2026-11-13-library-more-metrics.md`. Built in seven
+  reviewed tasks and a final review's fix wave (`c8f7c84`).
+  `just verify`: 2298 passed, 24 skipped on each interpreter.
 - The target encoder's learn: `derive` made every row exact again for each
   of the six encodings; it now sums once and takes a fold's complement as
   the whole less the fold, the same encodings to the bit. Learn at 30,000
