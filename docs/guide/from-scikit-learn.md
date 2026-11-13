@@ -60,12 +60,12 @@ counterpart.
 | `make_scorer(fbeta_score, beta=2)` | `metric=sq.metrics.fbeta(beta=2)` |
 | `make_scorer(f1_score, pos_label="yes", zero_division=0.0)` | `metric=sq.metrics.f1(pos_label="yes", zero_division=0.0)` |
 | `precision_score(y, p, average="macro")` | `sq.metrics.precision(average="macro").compute(rel, "y", "p")` |
-| `confusion_matrix(y, p)` | `sq.metrics.confusion_matrix(rel, "y", "p", out="numpy")` (a relation by default) |
+| `confusion_matrix(y, p)` | `sq.metrics.confusion_matrix(rel, "y", "p", out="numpy")` (a dict of columns; a relation by default) |
 | `confusion_matrix(y, p, normalize="true")` | `sq.metrics.confusion_matrix(rel, "y", "p", normalize="true")` |
 | `classification_report(y, p)` | `sq.metrics.classification_report(rel, "y", "p").show()` |
 | `classification_report(y, p, output_dict=True)` | `sq.metrics.classification_report(rel, "y", "p", out="pandas")` (rows `label`, `accuracy`, `macro avg`, `weighted avg`) |
-| `roc_curve(y, s)` | `sq.metrics.roc_curve(rel, "y", "s", out="numpy")` (a relation by default; columns `fpr`, `tpr`, `threshold`) |
-| `precision_recall_curve(y, s)` | `sq.metrics.precision_recall_curve(rel, "y", "s", out="numpy")` (a relation by default; columns `precision`, `recall`, `threshold`, the last threshold NULL) |
+| `roc_curve(y, s)` | `sq.metrics.roc_curve(rel, "y", "s", out="numpy")` (a dict of columns; a relation by default; columns `fpr`, `tpr`, `threshold`) |
+| `precision_recall_curve(y, s)` | `sq.metrics.precision_recall_curve(rel, "y", "s", out="numpy")` (a dict of columns; a relation by default; columns `precision`, `recall`, `threshold`, the last threshold NULL) |
 | `precision_recall_fscore_support(y, p)` | the class rows of `classification_report` (`precision`, `recall`, `f1_score`, `support`) |
 | `scoring="neg_log_loss"` | `metric=sq.metrics.log_loss` |
 | `scoring="roc_auc"` (`"roc_auc_ovr"` for more than two classes) | `metric=sq.metrics.roc_auc` |

@@ -3637,6 +3637,12 @@
       "tier": "fast"
     },
     {
+      "area": "sqlearn/metrics/_relations",
+      "name": "tests/src/sqlearn/metrics/test__relations.py::test_select_runs_on_the_relations_own_connection",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
       "area": "sqlearn/metrics/accuracy",
       "name": "tests/src/sqlearn/metrics/test_accuracy.py::test_accuracy_matches_sklearn_ints",
       "outcome": "passed",
@@ -5906,7 +5912,103 @@
     },
     {
       "area": "sqlearn/metrics/curves",
+      "name": "tests/src/sqlearn/metrics/test_curves.py::test_a_number_or_bool_pos_label_takes_an_integer_target[1-precision_recall_curve]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/curves",
+      "name": "tests/src/sqlearn/metrics/test_curves.py::test_a_number_or_bool_pos_label_takes_an_integer_target[1-roc_curve]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/curves",
+      "name": "tests/src/sqlearn/metrics/test_curves.py::test_a_number_or_bool_pos_label_takes_an_integer_target[1.0-precision_recall_curve]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/curves",
+      "name": "tests/src/sqlearn/metrics/test_curves.py::test_a_number_or_bool_pos_label_takes_an_integer_target[1.0-roc_curve]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/curves",
+      "name": "tests/src/sqlearn/metrics/test_curves.py::test_a_number_or_bool_pos_label_takes_an_integer_target[True-precision_recall_curve]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/curves",
+      "name": "tests/src/sqlearn/metrics/test_curves.py::test_a_number_or_bool_pos_label_takes_an_integer_target[True-roc_curve]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/curves",
       "name": "tests/src/sqlearn/metrics/test_curves.py::test_a_pos_label_of_another_kind_refuses",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/curves",
+      "name": "tests/src/sqlearn/metrics/test_curves.py::test_a_pos_label_of_another_kind_than_the_target_refuses[labels0-1-precision_recall_curve]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/curves",
+      "name": "tests/src/sqlearn/metrics/test_curves.py::test_a_pos_label_of_another_kind_than_the_target_refuses[labels0-1-roc_curve]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/curves",
+      "name": "tests/src/sqlearn/metrics/test_curves.py::test_a_pos_label_of_another_kind_than_the_target_refuses[labels1-1-precision_recall_curve]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/curves",
+      "name": "tests/src/sqlearn/metrics/test_curves.py::test_a_pos_label_of_another_kind_than_the_target_refuses[labels1-1-roc_curve]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/curves",
+      "name": "tests/src/sqlearn/metrics/test_curves.py::test_a_pos_label_of_another_kind_than_the_target_refuses[labels2-1-precision_recall_curve]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/curves",
+      "name": "tests/src/sqlearn/metrics/test_curves.py::test_a_pos_label_of_another_kind_than_the_target_refuses[labels2-1-roc_curve]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/curves",
+      "name": "tests/src/sqlearn/metrics/test_curves.py::test_a_pos_label_of_another_kind_than_the_target_refuses[labels3-True-precision_recall_curve]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/curves",
+      "name": "tests/src/sqlearn/metrics/test_curves.py::test_a_pos_label_of_another_kind_than_the_target_refuses[labels3-True-roc_curve]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/curves",
+      "name": "tests/src/sqlearn/metrics/test_curves.py::test_drop_intermediate_must_be_a_bool[precision_recall_curve]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/curves",
+      "name": "tests/src/sqlearn/metrics/test_curves.py::test_drop_intermediate_must_be_a_bool[roc_curve]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -6069,6 +6171,18 @@
     {
       "area": "sqlearn/metrics/curves",
       "name": "tests/src/sqlearn/metrics/test_curves.py::test_the_precision_recall_curve_takes_text_labels_with_pos_label",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/curves",
+      "name": "tests/src/sqlearn/metrics/test_curves.py::test_the_refusal_without_pos_label_names_every_accepted_set[precision_recall_curve]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/curves",
+      "name": "tests/src/sqlearn/metrics/test_curves.py::test_the_refusal_without_pos_label_names_every_accepted_set[roc_curve]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -6447,6 +6561,12 @@
     {
       "area": "sqlearn/metrics/tables",
       "name": "tests/src/sqlearn/metrics/test_tables.py::test_the_report_is_a_relation_unless_out_is_given",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/tables",
+      "name": "tests/src/sqlearn/metrics/test_tables.py::test_the_report_is_built_on_the_relations_own_connection",
       "outcome": "passed",
       "tier": "fast"
     },

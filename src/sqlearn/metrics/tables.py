@@ -1,7 +1,8 @@
 """Metrics that are tables: the confusion matrix (spec §4, ADR 0049).
 
 Each is a function over a relation that hands back a lazy DuckDB relation,
-or what ``out=`` names, not a `Metric`: a table cannot rank a search.
+or what ``out=`` names, not a `Metric`: a table cannot rank a search. The
+counts and the zero-division check come from `classification`.
 """
 
 import math
@@ -11,11 +12,11 @@ from typing import Any
 
 import duckdb
 
-from sqlearn._config import connection
-from sqlearn._errors import InternalError, SqlearnError, SqlearnWarning
+from sqlearn._errors import SqlearnError, SqlearnWarning
 from sqlearn._expr import quote
 from sqlearn._output import Output, to_output
 from sqlearn.metrics._labels import check_labels
+from sqlearn.metrics._relations import SOURCE, select
 from sqlearn.metrics.classification import (
     _counts,
     _nanmean,
@@ -30,22 +31,9 @@ __all__ = ["classification_report", "confusion_matrix"]
 _NORMALIZE = (None, "true", "pred", "all")
 
 
-_SOURCE = "_sqlearn_rows"
-"""The name the rows go by inside the SQL of a table metric."""
-
-
 def _pairs(target: str, prediction: str) -> str:
     """Return the SQL of the two label columns, as ``t`` and ``p``."""
-    return f"SELECT {quote(target)} AS t, {quote(prediction)} AS p FROM {_SOURCE}"
-
-
-def _select(rel: duckdb.DuckDBPyRelation, sql: str) -> duckdb.DuckDBPyRelation:
-    """Return the relation of a SELECT over `rel`, which the SQL names as _SOURCE."""
-    got = rel.query(_SOURCE, sql)
-    if got is None:  # a SELECT always gives a relation
-        msg = "DuckDB gave no relation for a SELECT"
-        raise InternalError(msg)
-    return got
+    return f"SELECT {quote(target)} AS t, {quote(prediction)} AS p FROM {SOURCE}"
 
 
 def _label_rows(
@@ -63,7 +51,7 @@ def _label_rows(
         "SELECT t AS label FROM pairs UNION ALL SELECT p FROM pairs)) "
         "ORDER BY label"
     )
-    return [(a, b) for a, b in _select(rel, sql).fetchall()]
+    return [(a, b) for a, b in select(rel, sql).fetchall()]
 
 
 def _labels_of(
@@ -209,7 +197,7 @@ def confusion_matrix(
         "FROM labels LEFT JOIN counts ON labels.idx = counts.ti "
         "GROUP BY labels.label ORDER BY labels.label"
     )
-    return to_output(_select(rel, sql), out)
+    return to_output(select(rel, sql), out)
 
 
 def _text_sql(label: object) -> str:
@@ -338,4 +326,4 @@ def classification_report(
         + ", ".join(values)
         + ") t(label, precision, recall, f1_score, support)"
     )
-    return to_output(connection().sql(sql), out)
+    return to_output(select(rel, sql), out)

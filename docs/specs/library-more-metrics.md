@@ -170,7 +170,10 @@ first row at threshold `inf`, then one row per distinct score, descending.
   booleans; other labels, and more than two classes, refuse, asking for
   `pos_label=`. With a `pos_label`, 1.9.1 takes any number of classes (that
   class against the rest), and so does `roc_curve`: it is not binary-only.
-  A `pos_label` DuckDB cannot compare with the labels refuses.
+  A `pos_label` of another kind than the target (text on numbers, a number on
+  text; `True` counts as the number 1) refuses, as `f1` does: scikit-learn
+  takes it for a different label and returns NaN rates. A `drop_intermediate`
+  that is not a bool refuses too.
 - `drop_intermediate=True` drops the points scikit-learn drops: a point
   whose second differences of both the false and the true positive counts
   are 0 (equal steps on both sides), not every point on a straight line.

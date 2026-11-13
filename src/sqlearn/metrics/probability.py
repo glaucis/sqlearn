@@ -7,6 +7,8 @@ two classes or more.
 As scikit-learn 1.9.1, a probability below 0 or above 1 is refused. Unlike
 it, a row whose probabilities do not sum to 1 is neither warned about nor
 refused: 1.9.1 warns, and that warning is not copied.
+
+The `pos_label` hint (`_type_hint`) comes from `classification`.
 """
 
 import sys

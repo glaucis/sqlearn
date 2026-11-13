@@ -22,6 +22,10 @@ None.
   amending 0036/0044), both ready-for-agent and needing a design first.
 - The next 3.3 area, not chosen yet: a fetcher of real datasets (ADR 0006:
   an explicit call), or more scores (balanced accuracy, MCC, Brier).
+- `Pipeline` has no `predict_proba`, so the curves and `average_precision`
+  (which need a scored relation) cannot be fed from sqlearn directly: worth
+  an issue.
+- `sq.folds.holdout` has no `.rows()` as `KFold` has.
 - Merge `library-more-metrics` (#58) into `main`.
 
 ## Dead ends and traps

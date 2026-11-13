@@ -3,7 +3,8 @@
 A curve is a function over a relation that hands back a lazy DuckDB
 relation, or what ``out=`` names, not a `Metric`: it cannot rank a search.
 Both curves read the same steps (`_steps`): one row per distinct score, with
-the running counts of positive and negative rows at or above it.
+the running counts of positive and negative rows at or above it. The
+`pos_label` hint (`_type_hint`) comes from `classification`.
 """
 
 import warnings
@@ -11,7 +12,7 @@ from typing import Any
 
 import duckdb
 
-from sqlearn._errors import InternalError, SqlearnError, UndefinedMetricWarning
+from sqlearn._errors import SqlearnError, UndefinedMetricWarning
 from sqlearn._expr import const, quote
 from sqlearn._output import Output, to_output
 from sqlearn.metrics._labels import (
@@ -22,11 +23,10 @@ from sqlearn.metrics._labels import (
     _first_line,
     check_labels,
 )
+from sqlearn.metrics._relations import SOURCE, select
+from sqlearn.metrics.classification import _type_hint
 
 __all__ = ["precision_recall_curve", "roc_curve"]
-
-_SOURCE = "_sqlearn_rows"
-"""The name the rows go by inside the SQL of a curve."""
 
 _STEPS = "_sqlearn_steps"
 """The name the steps go by inside the SQL of a curve."""
@@ -41,17 +41,6 @@ _ACCEPTED = (
 """The label sets scikit-learn 1.9.1 takes without a ``pos_label``."""
 
 
-def _query(
-    rel: duckdb.DuckDBPyRelation, name: str, sql: str
-) -> duckdb.DuckDBPyRelation:
-    """Return the relation of a SELECT over `rel`, which the SQL calls `name`."""
-    got = rel.query(name, sql)
-    if got is None:  # a SELECT always gives a relation
-        msg = "DuckDB gave no relation for a SELECT"
-        raise InternalError(msg)
-    return got
-
-
 def _positive(
     name: str, rel: duckdb.DuckDBPyRelation, target: str, pos_label: object
 ) -> str:
@@ -61,9 +50,19 @@ def _positive(
     {0, 1}, {-1, 1}, {0}, {1} or {-1}, and 1 is the positive; with one, any
     number of classes does.
     """
-    if pos_label is not None:
-        return f"{quote(target)} = {const(pos_label)}"
     found = [r[0] for r in rel.project(quote(target)).distinct().limit(4).fetchall()]
+    if pos_label is not None:
+        text = dict(zip(rel.columns, map(str, rel.types), strict=True))[target]
+        if (text == "VARCHAR" or text.startswith("ENUM")) != isinstance(pos_label, str):
+            msg = (
+                f"{name} cannot be computed: pos_label={pos_label!r} is of "
+                f"another kind than the target {target!r} ({text}). Why: "
+                "sqlearn never converts pos_label, and scikit-learn takes "
+                f"them for different labels too.{_type_hint(pos_label, found)} "
+                "Fix: pass a pos_label of the kind the target holds."
+            )
+            raise SqlearnError(msg)
+        return f"{quote(target)} = {const(pos_label)}"
     if frozenset(found) not in _ACCEPTED:
         shown = ", ".join(repr(x) for x in found[:3]) + (
             ", ..." if len(found) > 3 else ""
@@ -71,11 +70,23 @@ def _positive(
         msg = (
             f"{name} cannot be computed: the target {target!r} holds the labels "
             f"{shown} and pos_label is not given. Why: scikit-learn takes "
-            "the labels {0, 1} or {-1, 1} alone, and calls 1 the positive. "
+            "the labels {0, 1}, {-1, 1}, {0}, {1} or {-1} alone, and calls 1 "
+            "the positive. "
             "Fix: pass pos_label= with the label to treat as positive."
         )
         raise SqlearnError(msg)
     return f"{quote(target)} = 1"
+
+
+def _check_flag(name: str, drop_intermediate: object) -> None:
+    """Refuse a `drop_intermediate` that is not a bool, as scikit-learn does."""
+    if not isinstance(drop_intermediate, bool):
+        msg = (
+            f"{name} was given drop_intermediate={drop_intermediate!r}. Why: "
+            "it takes True or False, and a string such as 'no' would count "
+            "as True. Fix: pass drop_intermediate=True or False."
+        )
+        raise SqlearnError(msg)
 
 
 def _steps(
@@ -149,7 +160,7 @@ def _steps(
             raise SqlearnError(msg)
     sql = (
         f"WITH g AS (SELECT {quote(score)} AS s, count(*) AS n, "
-        f"count(CASE WHEN {positive} THEN 1 END) AS p FROM {_SOURCE} "
+        f"count(CASE WHEN {positive} THEN 1 END) AS p FROM {SOURCE} "
         f"GROUP BY {quote(score)}) "
         "SELECT CAST(s AS DOUBLE) AS threshold, "
         "CAST(sum(p) OVER w AS HUGEINT) AS tps, "
@@ -157,7 +168,7 @@ def _steps(
         "WINDOW w AS (ORDER BY s DESC)"
     )
     positives = int(got["positive"])
-    return _query(rel, _SOURCE, sql), positives, int(got["rows"]) - positives
+    return select(rel, sql), positives, int(got["rows"]) - positives
 
 
 def _rate(count: str, total: int) -> str:
@@ -214,9 +225,9 @@ def roc_curve(
     ------
     SqlearnError
         If the labels fail precision's checks (no rows, NULL, NaN, infinity,
-        continuous labels), the labels need a `pos_label` or it cannot be
-        compared with them, or the score is not a number or holds NULL, NaN
-        or infinity.
+        continuous labels), `drop_intermediate` is not a bool, the labels need
+        a `pos_label` or it is of another kind than they are, or the score is
+        not a number or holds NULL, NaN or infinity.
 
     Warns
     -----
@@ -234,6 +245,7 @@ def roc_curve(
     >>> sq.metrics.roc_curve(rel, "y", "s", drop_intermediate=False).fetchall()
     [(0.0, 0.0, inf), (0.0, 0.5, 0.8), (0.5, 1.0, 0.4), (1.0, 1.0, 0.1)]
     """
+    _check_flag("roc_curve", drop_intermediate)
     steps, positives, negatives = _steps("roc_curve", rel, target, score, pos_label)
     if negatives == 0:
         warnings.warn(
@@ -253,7 +265,7 @@ def roc_curve(
     if drop_intermediate:
         # 1.9.1 drops a point whose second difference of both counts is 0.
         keep = (
-            "m <= 2 OR i = 1 OR i = m "
+            "i = 1 OR i = m "
             "OR lag(fps) OVER w - 2 * fps + lead(fps) OVER w <> 0 "
             "OR lag(tps) OVER w - 2 * tps + lead(tps) OVER w <> 0"
         )
@@ -267,7 +279,7 @@ def roc_curve(
         f"SELECT {_rate('fps', negatives)}, {_rate('tps', positives)}, threshold "
         "FROM numbered WHERE kept ORDER BY threshold DESC"
     )
-    return to_output(_query(steps, _STEPS, sql), out)
+    return to_output(select(steps, sql, _STEPS), out)
 
 
 def precision_recall_curve(
@@ -316,9 +328,9 @@ def precision_recall_curve(
     ------
     SqlearnError
         If the labels fail precision's checks (no rows, NULL, NaN, infinity,
-        continuous labels), the labels need a `pos_label` or it cannot be
-        compared with them, or the score is not a number or holds NULL, NaN
-        or infinity.
+        continuous labels), `drop_intermediate` is not a bool, the labels need
+        a `pos_label` or it is of another kind than they are, or the score is
+        not a number or holds NULL, NaN or infinity.
 
     Warns
     -----
@@ -336,6 +348,7 @@ def precision_recall_curve(
     >>> sq.metrics.precision_recall_curve(rel, "y", "s").fetchall()
     [(0.5, 1.0, 0.1), (0.6666666666666666, 1.0, 0.4), (1.0, 0.5, 0.8), (1.0, 0.0, None)]
     """
+    _check_flag("precision_recall_curve", drop_intermediate)
     steps, positives, _ = _steps(
         "precision_recall_curve", rel, target, score, pos_label
     )
@@ -348,10 +361,7 @@ def precision_recall_curve(
     keep = "TRUE"
     if drop_intermediate:
         # 1.9.1 keeps a point whose true positives differ from a neighbour's.
-        keep = (
-            "m <= 2 OR i = 1 OR i = m "
-            "OR tps <> lag(tps) OVER w OR tps <> lead(tps) OVER w"
-        )
+        keep = "i = 1 OR i = m OR tps <> lag(tps) OVER w OR tps <> lead(tps) OVER w"
     recall = "1.0::DOUBLE" if positives == 0 else f"CAST(tps AS DOUBLE) / {positives}.0"
     sql = (
         "WITH numbered AS (SELECT threshold, tps, fps, "
@@ -364,4 +374,4 @@ def precision_recall_curve(
         "SELECT 1.0::DOUBLE, 0.0::DOUBLE, NULL::DOUBLE) "
         "ORDER BY threshold ASC NULLS LAST"
     )
-    return to_output(_query(steps, _STEPS, sql), out)
+    return to_output(select(steps, sql, _STEPS), out)

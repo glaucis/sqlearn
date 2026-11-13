@@ -354,3 +354,11 @@ def test_the_reports_label_text_is_the_confusion_matrixs_column_name(labels):
     report = sq.metrics.classification_report(rel(frame), "y")
     texts = [r[0] for r in report.fetchall()][: len(labels)]
     assert texts == matrix_columns
+
+
+def test_the_report_is_built_on_the_relations_own_connection():
+    """The report is built on the relation's connection, so it joins with it."""
+    con = duckdb.connect()
+    frame = con.sql("SELECT * FROM (VALUES (0, 0), (1, 1), (1, 0)) t(y, prediction)")
+    report = sq.metrics.classification_report(frame, "y")
+    assert report.set_alias("r").join(frame.set_alias("f"), "1=1").limit(1).fetchall()

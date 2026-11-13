@@ -248,6 +248,55 @@ def pr_cases() -> list[dict]:
     return out
 
 
+def kind_cases() -> list[dict]:
+    """Return the cases of a pos_label of another kind than the target.
+
+    scikit-learn takes ``"1"`` on integers and ``1`` on text for a label the
+    target never holds, so its curve has no positive rows (NaN true positive
+    rate, recall 1); sqlearn refuses instead (the other metrics do), which is
+    the agreement checked here.
+    """
+    y, s = (0, 1, 1, 0, 1), (0.1, 0.8, 0.4, 0.5, 0.9)
+    out = []
+    for kind, labels, positive in (
+        ("INTEGER", y, "1"),
+        ("VARCHAR", tuple(str(v) for v in y), 1),
+    ):
+        table = _cases.sqlearn_table({"y": labels, "s": s}, {"y": kind, "s": "DOUBLE"})
+        for step, curve, sk_curve in (
+            ("roc_curve", sq.metrics.roc_curve, sk_roc_curve),
+            ("precision_recall_curve", sq.metrics.precision_recall_curve, sk_pr_curve),
+        ):
+            try:
+                curve(table, "y", "s", pos_label=positive)
+                refused = False
+            except sq.errors.SqlearnError:
+                refused = True
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                values = sk_curve(list(labels), list(s), pos_label=positive)
+            # No row is of the label: ROC's rate of positives is NaN, and
+            # the precision-recall curve's recall is 1 at every threshold.
+            nan = bool(
+                np.isnan(values[1]).all()
+                if step == "roc_curve"
+                else (values[1][:-1] == 1.0).all()
+            )
+            out.append(
+                _cases.exact_case(
+                    step=step,
+                    formula=f"{step}, pos_label={positive!r} on {kind}",
+                    dataset="kind mismatch",
+                    rows=len(y),
+                    type=kind,
+                    mismatches=0 if refused and nan else 1,
+                    cells=1,
+                    compared_with="scikit-learn (no positive rows)",
+                )
+            )
+    return out
+
+
 def cases() -> list[dict]:
     """Return every curve's cases."""
-    return roc_cases() + pr_cases()
+    return roc_cases() + pr_cases() + kind_cases()

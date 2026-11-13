@@ -288,3 +288,51 @@ def test_the_curves_columns_are_double_in_every_case(labels):
             assert all(
                 type(v) is float for row in got.fetchall() for v in row if v is not None
             )
+
+
+CURVES = [sq.metrics.roc_curve, sq.metrics.precision_recall_curve]
+
+
+@pytest.mark.parametrize("curve", CURVES)
+@pytest.mark.parametrize(
+    ("labels", "pos_label"),
+    [
+        ([0, 1, 1, 0], "1"),
+        (["0", "1", "1", "0"], 1),
+        ([0, 1, 1, 0], np.str_("1")),
+        (["0", "1", "1", "0"], True),
+    ],
+)
+def test_a_pos_label_of_another_kind_than_the_target_refuses(curve, labels, pos_label):
+    """A text pos_label on numbers, or a number on text, is another label."""
+    frame = rel(pd.DataFrame({"y": labels, "s": [0.1, 0.8, 0.4, 0.5]}))
+    with pytest.raises(sq.errors.SqlearnError, match=r"different label") as info:
+        curve(frame, "y", "s", pos_label=pos_label)
+    assert "Fix:" in str(info.value)
+
+
+@pytest.mark.parametrize("curve", CURVES)
+@pytest.mark.parametrize("pos_label", [True, 1, 1.0])
+def test_a_number_or_bool_pos_label_takes_an_integer_target(curve, pos_label):
+    """True is 1 as scikit-learn takes it: the kinds agree."""
+    frame = rel(pd.DataFrame({"y": [0, 1, 1, 0], "s": [0.1, 0.8, 0.4, 0.5]}))
+    assert len(curve(frame, "y", "s", pos_label=pos_label, out="numpy")) == 3
+
+
+@pytest.mark.parametrize("curve", CURVES)
+def test_drop_intermediate_must_be_a_bool(curve):
+    """'no' is truthy: scikit-learn raises, and so do the curves."""
+    frame = rel(pd.DataFrame({"y": [0, 1, 1, 0], "s": [0.1, 0.8, 0.4, 0.5]}))
+    with pytest.raises(sq.errors.SqlearnError, match=r"drop_intermediate") as info:
+        curve(frame, "y", "s", drop_intermediate="no")
+    assert "Fix:" in str(info.value)
+
+
+@pytest.mark.parametrize("curve", CURVES)
+def test_the_refusal_without_pos_label_names_every_accepted_set(curve):
+    """The lone labels {0}, {1} and {-1} are named as accepted too."""
+    frame = rel(pd.DataFrame({"y": [2, 3, 2], "s": [0.1, 0.8, 0.4]}))
+    with pytest.raises(sq.errors.SqlearnError) as info:
+        curve(frame, "y", "s")
+    for named in ("{0}", "{1}", "{-1}"):
+        assert named in str(info.value)
