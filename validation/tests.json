@@ -12877,6 +12877,12 @@
       "tier": "slow"
     },
     {
+      "area": "environment",
+      "name": "tests/test_environment.py::test_the_linter_refuses_a_private_function_defined_twice",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
       "area": "validation/__main__",
       "name": "tests/validation/test___main__.py::test_a_failing_runner_makes_it_exit_one",
       "outcome": "passed",

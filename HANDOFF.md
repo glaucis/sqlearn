@@ -22,8 +22,6 @@ None.
   amending 0036/0044), both ready-for-agent and needing a design first.
 - The next 3.3 area: more metrics (confusion matrix, report, curves, fbeta),
   or a fetcher of real datasets (ADR 0006: an explicit call).
-- The target encoder's learn after #41 is mostly Python `Fraction` arithmetic
-  in `_encodings`/`_totals`: file an issue if it matters.
 
 ## Dead ends and traps
 
@@ -94,6 +92,12 @@ None.
 
 ## Just finished
 
+- The target encoder's learn: `derive` made every row exact again for each
+  of the six encodings; it now sums once and takes a fold's complement as
+  the whole less the fold, the same encodings to the bit. Learn at 30,000
+  categories 6.56 s to 3.58 s (`docs/benchmarks/category-lookup.md`). What
+  remains is the scikit-learn formula in `Fraction`, once per category and
+  key.
 - Ruff's F811 skipped every `_name` (its default `dummy-variable-rgx` takes
   them for throwaways), which is how `_no_fit` lived twice in `_pipeline.py`
   (8841cae). `dummy-variable-rgx` is now `^_+$`, pinned by a test in

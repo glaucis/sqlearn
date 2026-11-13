@@ -244,6 +244,14 @@ hash costs more at every count except the target encoder's 100,000.
 the smallest count measured at which the hash applied faster. The crossing
 lies between 15,000 and 20,000.
 
+Most of the target encoder's learn above was Python: at 30,000 categories its
+`derive` made every row's sums exact again for each of the six encodings
+("all" and the five inner folds), about 6 million `Fraction`s. It now makes
+each exact once and takes a fold's complement as the whole less the fold,
+which gives the same encodings to the bit. Measured again at 30,000
+categories (load average about 8): learn 3.582 s with the list and 4.839 s
+with the hash, against 6.559 s and 7.357 s above.
+
 The hash costs more in an encoder than alone for two reasons, both found
 while measuring:
 

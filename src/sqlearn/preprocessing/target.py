@@ -50,6 +50,12 @@ _NAN = math.nan
 Stats = Sequence[tuple[int, object, int, float, float]]
 """Per inner fold and category: fold, category, count, sum(y), sum(y * y)."""
 
+Sums = tuple[int, Fraction, Fraction]
+"""A count and the exact sums of y and of y * y over some rows."""
+
+_NO_ROWS: Sums = (0, Fraction(0), Fraction(0))
+"""The sums over no rows."""
+
 
 def _fn(name: str, *args: Expression) -> Expression:
     return duckdb.FunctionExpression(name, *args)
@@ -83,6 +89,59 @@ def _totals(rows: Stats) -> tuple[int, Fraction, Fraction]:
     n = sum(r[2] for r in rows)
     total = sum((Fraction(r[3]) for r in rows), Fraction(0))
     return n, total, sum((Fraction(r[4]) for r in rows), Fraction(0))
+
+
+def _plus(a: Sums, b: Sums) -> Sums:
+    """Return the sums over the rows of `a` and of `b`."""
+    return a[0] + b[0], a[1] + b[1], a[2] + b[2]
+
+
+def _minus(a: Sums, b: Sums) -> Sums:
+    """Return the sums over the rows of `a` that are not in `b`, a part of it."""
+    return a[0] - b[0], a[1] - b[1], a[2] - b[2]
+
+
+def _sums_by_key(
+    rows: Stats, k: int
+) -> dict[str, tuple[Sums | None, dict[object, Sums]]]:
+    """Return, per key, the sums of the rows used and of each category's.
+
+    The keys are ``"all"`` (every row) and ``"0"`` ... ``str(k - 1)`` (the
+    rows outside that fold); the sums are None when no row is used. Each
+    row is made exact once: a fold's complement is the whole less the fold,
+    exactly, so it equals the sum over the complement's rows.
+    """
+    per_fold: dict[int, dict[object, Sums]] = {}
+    for f, c, n, s, ss in rows:
+        cells = per_fold.setdefault(f, {})
+        cells[c] = _plus(cells.get(c, _NO_ROWS), (n, Fraction(s), Fraction(ss)))
+    every: dict[object, Sums] = {}
+    fold_sums: dict[int, Sums] = {}
+    for f, cells in per_fold.items():
+        fold = _NO_ROWS
+        for c, sums in cells.items():
+            every[c] = _plus(every.get(c, _NO_ROWS), sums)
+            fold = _plus(fold, sums)
+        fold_sums[f] = fold
+    whole = _NO_ROWS
+    for fold in fold_sums.values():
+        whole = _plus(whole, fold)
+    out: dict[str, tuple[Sums | None, dict[object, Sums]]] = {
+        "all": (whole if per_fold else None, every)
+    }
+    for i in range(k):
+        if set(per_fold) <= {i}:
+            out[str(i)] = (None, {})
+            continue
+        mine = per_fold.get(i, {})
+        out[str(i)] = (
+            _minus(whole, fold_sums.get(i, _NO_ROWS)),
+            {
+                c: _minus(sums, mine[c]) if c in mine else sums
+                for c, sums in every.items()
+            },
+        )
+    return out
 
 
 def _moments(n: int, total: Fraction, squares: Fraction) -> tuple[Fraction, Fraction]:
@@ -411,37 +470,37 @@ class TargetEncoder(Step):
         The formulae are computed exactly (`Fraction`) from the fetched
         sums, so each encoding is the double nearest their answer.
         """
-        rows = [(f, _key(c), n, s, ss) for f, c, n, s, ss in stats]
-        categories = _sorted(dict.fromkeys(r[1] for r in rows))
+        return self._encoded(_sums_by_key(stats, k), stats, offset)
+
+    def _encoded(
+        self,
+        by_key: dict[str, tuple[Sums | None, dict[object, Sums]]],
+        stats: Stats,
+        offset: float,
+    ) -> dict[str, dict[object, float]]:
+        """Encode every category per key from `_sums_by_key`'s sums."""
+        categories = _sorted(dict.fromkeys(_key(r[1]) for r in stats))
         shift = Fraction(offset)
         out: dict[str, dict[object, float]] = {}
-        for key in ["all", *(str(i) for i in range(k))]:
-            used = rows if key == "all" else [r for r in rows if r[0] != int(key)]
-            if not used:
+        for key, (used, per) in by_key.items():
+            if used is None:
                 out[key] = dict.fromkeys(categories, math.nan)
                 continue
-            mean, variance = _moments(*_totals(used))
-            per: dict[object, list[tuple[int, float, float]]] = {}
-            for _, c, n, s, ss in used:
-                per.setdefault(c, []).append((n, s, ss))
+            mean, variance = _moments(*used)
             out[key] = {
-                c: float(self._encode(per.get(c, []), mean, variance) + shift)
+                c: float(self._encode(per.get(c, _NO_ROWS), mean, variance) + shift)
                 for c in categories
             }
         return out
 
-    def _encode(
-        self, rows: list[tuple[int, float, float]], mean: Fraction, variance: Fraction
-    ) -> Fraction:
-        """Encode one category from its rows' statistics, as scikit-learn."""
-        n = sum(r[0] for r in rows)
-        total = sum((Fraction(r[1]) for r in rows), Fraction(0))
+    def _encode(self, sums: Sums, mean: Fraction, variance: Fraction) -> Fraction:
+        """Encode one category from its rows' sums, as scikit-learn."""
+        n, total, squares = sums
         if self.smooth != "auto":
             smooth = Fraction(self.smooth)
             return mean if n + smooth == 0 else (total + smooth * mean) / (n + smooth)
         if n == 0:
             return mean
-        squares = sum((Fraction(r[2]) for r in rows), Fraction(0))
         mu, spread = _moments(n, total, squares)
         weight = n * variance + spread
         if weight == 0:
@@ -522,14 +581,15 @@ class TargetEncoder(Step):
         else:
             offset = low
         self._check_folds(stats, k)
-        encoded = self._encodings(stats, k, offset)
+        by_key = _sums_by_key(stats, k)
+        encoded = self._encoded(by_key, stats, offset)
         out: dict[str, dict[str, object]] = {}
         for key, table in encoded.items():
-            used = stats if key == "all" else [r for r in stats if r[0] != int(key)]
+            used = by_key[key][0]
             known = [c for c in table if c is not None]
             mean = (
-                float(_moments(*_totals(used))[0] + Fraction(offset))
-                if used
+                float(_moments(*used)[0] + Fraction(offset))
+                if used is not None
                 else math.nan
             )
             out[key] = {
