@@ -60,6 +60,8 @@ counterpart.
 | `make_scorer(fbeta_score, beta=2)` | `metric=sq.metrics.fbeta(beta=2)` |
 | `make_scorer(f1_score, pos_label="yes", zero_division=0.0)` | `metric=sq.metrics.f1(pos_label="yes", zero_division=0.0)` |
 | `precision_score(y, p, average="macro")` | `sq.metrics.precision(average="macro").compute(rel, "y", "p")` |
+| `confusion_matrix(y, p)` | `sq.metrics.confusion_matrix(rel, "y", "p", out="numpy")` (a relation by default) |
+| `confusion_matrix(y, p, normalize="true")` | `sq.metrics.confusion_matrix(rel, "y", "p", normalize="true")` |
 | `scoring="neg_log_loss"` | `metric=sq.metrics.log_loss` |
 | `scoring="roc_auc"` (`"roc_auc_ovr"` for more than two classes) | `metric=sq.metrics.roc_auc` |
 | `scoring="neg_root_mean_squared_error"` | `metric=sq.metrics.rmse` |
