@@ -162,10 +162,12 @@ sq.metrics.roc_curve(rel, target, score, *, pos_label=None, drop_intermediate=Tr
 Columns `fpr`, `tpr`, `threshold` (`DOUBLE`), in scikit-learn's order: the
 first row at threshold `inf`, then one row per distinct score, descending.
 
-- Binary target only, as scikit-learn. `pos_label=None` takes what
-  scikit-learn 1.9.1 takes: the labels `{0, 1}`, `{-1, 1}`, or one of `{0}`,
-  `{1}`, `{-1}`, as integers, floats or booleans; other labels refuse,
-  asking for `pos_label=`.
+- `pos_label=None` takes what scikit-learn 1.9.1 takes: the labels `{0, 1}`,
+  `{-1, 1}`, or one of `{0}`, `{1}`, `{-1}`, as integers, floats or
+  booleans; other labels, and more than two classes, refuse, asking for
+  `pos_label=`. With a `pos_label`, 1.9.1 takes any number of classes (that
+  class against the rest), and so does `roc_curve`: it is not binary-only.
+  A `pos_label` DuckDB cannot compare with the labels refuses.
 - `drop_intermediate=True` drops the points scikit-learn drops: a point
   whose second differences of both the false and the true positive counts
   are 0 (equal steps on both sides), not every point on a straight line.

@@ -81,6 +81,7 @@ The API of the sqlearn package, generated from its docstrings.
    sqlearn.metrics.fbeta
    sqlearn.metrics.classification_report
    sqlearn.metrics.confusion_matrix
+   sqlearn.metrics.roc_curve
    sqlearn.metrics.ClassificationMetric
    sqlearn.metrics.MissingClassError
    sqlearn.datasets

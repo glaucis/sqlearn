@@ -15,6 +15,7 @@ from sqlearn.metrics.classification import (
     precision,
     recall,
 )
+from sqlearn.metrics.curves import roc_curve
 from sqlearn.metrics.probability import log_loss, roc_auc
 from sqlearn.metrics.regression import mae, r2, rmse
 from sqlearn.metrics.tables import classification_report, confusion_matrix
@@ -35,4 +36,5 @@ __all__ = [
     "recall",
     "rmse",
     "roc_auc",
+    "roc_curve",
 ]
