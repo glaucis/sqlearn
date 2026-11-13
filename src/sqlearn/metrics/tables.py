@@ -178,10 +178,10 @@ def confusion_matrix(
                 f"confusion_matrix cannot be computed: the labels "
                 f"{other[0]!r} and {label!r} differ only by case. Why: each "
                 "label is a column named by its text, and DuckDB names do "
-                "not differ by case (it would rename one to "
-                f"{text + '_1'!r}). Fix: make the labels differ by more than "
-                "case, for example by lower-casing the target and the "
-                "prediction first."
+                "not differ by case (converting to pandas or numpy "
+                f"would rename one to {text + '_1'!r}). Fix: make the "
+                "labels differ by more than case, for example by "
+                "lower-casing the target and the prediction first."
             )
             raise SqlearnError(msg)
         seen[text.lower()] = (label, text)

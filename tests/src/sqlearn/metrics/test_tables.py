@@ -1,5 +1,6 @@
 """Tests of the table metrics: the confusion matrix against scikit-learn's."""
 
+import datetime
 import math
 import warnings
 
@@ -197,8 +198,6 @@ def test_a_label_named_as_the_target_ignoring_case_refuses():
 
 def _sk_report(y, p, **kwargs):
     """Return scikit-learn's report as a dict, its warnings set aside."""
-    import warnings
-
     from sklearn.metrics import classification_report
 
     with warnings.catch_warnings():
@@ -213,6 +212,7 @@ def _report_rows(got):
 
 
 def _same(a, b):
+    """Say whether two cells agree: both NULL, both NaN, or equal to 14 digits."""
     return (
         (a is None and b is None)
         or (a == pytest.approx(b, rel=1e-14))
@@ -332,3 +332,25 @@ def test_an_unknown_zero_division_refuses():
         sq.metrics.classification_report(
             rel(pd.DataFrame({"y": Y, "prediction": P})), "y", zero_division=2
         )
+
+
+@pytest.mark.parametrize(
+    "labels",
+    [
+        [False, True],
+        [0, 1, 2],
+        [0.0, 1.0],
+        [datetime.date(2024, 1, 1), datetime.date(2024, 2, 1)],
+        [datetime.datetime(2024, 1, 1, 12), datetime.datetime(2024, 2, 1, 13, 30)],
+    ],
+    ids=["bool", "int", "whole float", "date", "timestamp"],
+)
+def test_the_reports_label_text_is_the_confusion_matrixs_column_name(labels):
+    """A label reads the same in both tables: the report's text, the matrix's name."""
+    y = labels * 2
+    p = labels[::-1] + labels
+    frame = pd.DataFrame({"y": y, "prediction": p})
+    matrix_columns = sq.metrics.confusion_matrix(rel(frame), "y").columns[1:]
+    report = sq.metrics.classification_report(rel(frame), "y")
+    texts = [r[0] for r in report.fetchall()][: len(labels)]
+    assert texts == matrix_columns

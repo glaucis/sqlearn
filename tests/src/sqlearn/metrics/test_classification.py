@@ -1,4 +1,4 @@
-"""Tests of precision, recall and f1 against scikit-learn's."""
+"""Tests of precision, recall, f1 and fbeta against scikit-learn's."""
 
 import math
 import warnings

@@ -178,7 +178,7 @@ def _same(a: object, b: object) -> bool:
 
 @dataclass(frozen=True)
 class ClassificationMetric(Metric):
-    """A classification score counted per class: precision, recall or F1.
+    """A classification score counted per class: precision, recall, F1 or fbeta.
 
     Attributes
     ----------
@@ -274,10 +274,10 @@ class ClassificationMetric(Metric):
                 )
                 raise SqlearnError(msg)
         if "average" in changes and changes["average"] not in AVERAGES:
-            known = ", ".join(repr(a) for a in AVERAGES)
+            averages = ", ".join(repr(a) for a in AVERAGES)
             msg = (
                 f"{self.name} was given average={changes['average']!r}. Why: "
-                f'the averages are {known} (scikit-learn\'s "samples" is for '
+                f'the averages are {averages} (scikit-learn\'s "samples" is for '
                 "multilabel data, which sqlearn does not have). Fix: use one "
                 "of them."
             )
@@ -410,7 +410,8 @@ class ClassificationMetric(Metric):
         """Warn, in scikit-learn's words, of the classes whose score divides by zero.
 
         Only under ``zero_division="warn"`` and for a score scikit-learn
-        warns about. `stacklevel` counts from the caller of this method.
+        warns about. `stacklevel` counts from this method: 1 is the warning's own line
+        here, 2 the method that called this one, 3 that method's caller.
         """
         if not (undefined and self.zero_division == "warn" and self._warns()):
             return

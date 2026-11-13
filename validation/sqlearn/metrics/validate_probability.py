@@ -42,8 +42,8 @@ PROBA = "__sqlearn_proba_"
 # measured at 1 double at most: each step's precision is one rounded
 # quotient, the steps are summed with compensation (fsum, ADR 0033), and the
 # sum is divided once per class, so the roundings of the quotients are all
-# the error there is. The plain-DuckDB reference answers (an unsummed
-# reference, up to 14 doubles off) are flagged as anomalies: expected.
+# the error there is. The plain-DuckDB reference answers (DuckDB's own
+# sum, up to 14 doubles off) are flagged as anomalies: expected.
 BOUNDS = {"log_loss": 2, "roc_auc": 1, "average_precision": 1}
 
 

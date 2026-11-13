@@ -5,9 +5,10 @@ each class's true positives, false positives and false negatives counted
 over the rows, each class's score a ratio of whole numbers, and the macro and
 weighted averages exact means of those ratios. A class whose score divides by
 zero counts as 0, as under the default ``zero_division="warn"``. Beside
-sqlearn: scikit-learn's ``precision_score``, ``recall_score`` and
-``f1_score`` with the same ``average`` and ``pos_label``; their macro and
-weighted means are sums of doubles, 1 double from the exact value at worst.
+sqlearn: scikit-learn's ``precision_score``, ``recall_score``,
+``f1_score`` and ``fbeta_score`` with the same ``average`` and ``pos_label``;
+their macro and weighted means are sums of doubles, 1 double from the exact
+value at worst.
 Labels with NULL, and no rows, have no right answer: sqlearn must refuse
 them.
 """
@@ -130,7 +131,7 @@ def _datasets() -> list[tuple[_cases.Dataset, str, tuple, str, tuple, str, list]
 
 
 def cases() -> list[dict]:
-    """Return precision, recall and f1's cases: each average, dataset and reference."""
+    """Return the cases of precision, recall, f1 and fbeta: each average, dataset."""
     out = []
     for data, y_col, y, p_col, p, kind, labels in _datasets():
         answerable = bool(y) and not any(_cases.is_missing(v) for v in (*y, *p))

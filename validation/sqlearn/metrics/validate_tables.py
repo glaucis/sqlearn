@@ -1,8 +1,9 @@
 """Validate the table metrics against a count in pure Python and scikit-learn.
 
 The report is checked against exact `Fraction`s (scikit-learn averages in
-floats, so it can differ by an ULP and is not the reference). The confusion
-matrix is counted over the rows in pure Python; normalised
+floats, so it can differ by an ULP and is not the reference) and, within the
+rounding of its averages, against scikit-learn's ``classification_report``.
+The confusion matrix is counted over the rows in pure Python; normalised
 cells are the exact `Fraction` of two whole counts, rounded once to a double
 (the one division sqlearn does). sqlearn's matrix must equal both the count
 and scikit-learn's ``confusion_matrix``, cell for cell.
@@ -13,6 +14,7 @@ import warnings
 from fractions import Fraction
 
 import numpy as np
+from sklearn.metrics import classification_report as sk_classification_report
 from sklearn.metrics import confusion_matrix as sk_confusion_matrix
 
 import sqlearn as sq
@@ -21,6 +23,9 @@ from validation import _cases
 # Counts are whole numbers and a cell is one division of two of them, which
 # both sides round once: 0 mismatches, measured on every case below.
 BOUND = 0
+
+# scikit-learn's report averages in doubles: a few ULPs from the exact value.
+REPORT_TOLERANCE = 1e-12
 
 NORMALIZE = (None, "true", "pred", "all")
 
@@ -151,6 +156,42 @@ def agree(a: float | None, b: float | None) -> bool:
     return a == b or (math.isnan(a) and math.isnan(b))
 
 
+def _report_row(entry: dict) -> list:
+    """Return one of scikit-learn's report entries as precision, recall, f1, support."""
+    return [
+        entry["precision"],
+        entry["recall"],
+        entry["f1-score"],
+        float(entry["support"]),
+    ]
+
+
+def sk_report_rows(y: tuple, p: tuple, zero_division: str | float) -> list[list]:
+    """Return scikit-learn's report as rows like the exact one's (None for blanks)."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        report = sk_classification_report(
+            list(y), list(p), output_dict=True, zero_division=zero_division
+        )
+    keys = sorted(
+        k for k in report if k not in ("accuracy", "macro avg", "weighted avg")
+    )
+    rows = [_report_row(report[k]) for k in keys]
+    rows.append([None, None, report["accuracy"], float(len(y))])
+    for k in ("macro avg", "weighted avg"):
+        rows.append(_report_row(report[k]))
+    return rows
+
+
+def close(a: float | None, b: float | None) -> bool:
+    """Say whether two cells agree within the report's tolerance."""
+    if a is None or b is None:
+        return a is None and b is None
+    if math.isnan(a) or math.isnan(b):
+        return math.isnan(a) and math.isnan(b)
+    return math.isclose(a, b, rel_tol=REPORT_TOLERANCE, abs_tol=1e-15)
+
+
 def report_cases() -> list[dict]:
     """Return the classification report's cases: each zero_division and dataset."""
     out = []
@@ -181,6 +222,24 @@ def report_cases() -> list[dict]:
                     mismatches=mismatches,
                     cells=len(cells),
                     compared_with="pure Python (Fraction)",
+                )
+            )
+            reference = sk_report_rows(y, p, zero_division)
+            near = [
+                (a, b)
+                for got, row in zip(ours, reference, strict=True)
+                for a, b in zip(got[1:], row, strict=True)
+            ]
+            out.append(
+                _cases.exact_case(
+                    step="classification_report",
+                    formula=f"classification_report, zero_division={zero_division}",
+                    dataset=name,
+                    rows=len(y),
+                    type=kind,
+                    mismatches=sum(1 for a, b in near if not close(a, b)),
+                    cells=len(near),
+                    compared_with="scikit-learn",
                 )
             )
     return out

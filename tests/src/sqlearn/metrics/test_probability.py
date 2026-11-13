@@ -260,6 +260,7 @@ def test_average_precision_settings_are_pos_label_only():
     [
         ([0, 1], np.int64(1)),
         ([0, 1], 1.0),
+        ([0, 1], True),
         ([False, True], True),
         ([np.int64(0), np.int64(1)], np.int64(1)),
     ],
