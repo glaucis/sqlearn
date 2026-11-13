@@ -190,6 +190,9 @@ whose `threshold` is NULL (scikit-learn returns one threshold fewer than
 points).
 
 - The same labels, `pos_label` and refusals as `roc_curve`.
+- `drop_intermediate` (default False) is 1.9.1's rule, which differs from
+  `roc_curve`'s: a point goes when its true positive count equals both
+  neighbours' (the first and last stay).
 - Missing classes as scikit-learn 1.9.1, which differs from `roc_curve`: no
   positive rows warn (scikit-learn's `UserWarning`, "No positive class found
   in y_true, recall is set to one for all thresholds"), recall is 1 and

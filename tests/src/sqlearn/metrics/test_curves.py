@@ -7,6 +7,7 @@ import duckdb
 import numpy as np
 import pandas as pd
 import pytest
+from sklearn.metrics import precision_recall_curve as sk_pr_curve
 from sklearn.metrics import roc_curve as sk_roc_curve
 
 import sqlearn as sq
@@ -195,3 +196,81 @@ def test_a_curve_over_many_rows_is_a_relation():
     curve = sq.metrics.roc_curve(big, "y", "s")
     assert isinstance(curve, duckdb.DuckDBPyRelation)
     assert curve.count("*").fetchall()[0][0] <= 1001
+
+
+@pytest.mark.parametrize("drop_intermediate", [False, True])
+def test_precision_recall_curve_matches_sklearn(drop_intermediate):
+    """Every column is scikit-learn's; the last threshold is NULL."""
+    y = [0, 0, 1, 1, 0, 1, 1, 0, 1, 1]
+    s = [0.1, 0.4, 0.35, 0.8, 0.4, 0.8, 0.9, 0.2, 0.7, 0.6]
+    out = sq.metrics.precision_recall_curve(
+        rel(pd.DataFrame({"y": y, "s": s})),
+        "y",
+        "s",
+        drop_intermediate=drop_intermediate,
+        out="numpy",
+    )
+    precision, recall, threshold = sk_pr_curve(
+        y, s, drop_intermediate=drop_intermediate
+    )
+    assert list(out) == ["precision", "recall", "threshold"]
+    assert same(out["precision"], precision)
+    assert same(out["recall"], recall)
+    assert same(out["threshold"][:-1], threshold)
+    assert out["threshold"][-1] is np.ma.masked
+
+
+def test_precision_recall_curve_rows_keep_sklearns_order():
+    """Fetched rows run thresholds increasing, then (1, 0, NULL)."""
+    frame = rel(pd.DataFrame({"y": [0, 1, 1, 0], "s": [0.1, 0.8, 0.4, 0.4]}))
+    rows = sq.metrics.precision_recall_curve(frame, "y", "s").fetchall()
+    assert [r[2] for r in rows] == [0.1, 0.4, 0.8, None]
+    assert rows[-1] == (1.0, 0.0, None)
+
+
+def test_precision_recall_curve_drops_points_with_equal_tps_either_side():
+    """Only a point whose true positives equal both neighbours' goes."""
+    y = [1, 1, 0, 0, 0, 1]
+    s = [0.9, 0.8, 0.7, 0.6, 0.5, 0.4]
+    out = sq.metrics.precision_recall_curve(
+        rel(pd.DataFrame({"y": y, "s": s})),
+        "y",
+        "s",
+        drop_intermediate=True,
+        out="numpy",
+    )
+    precision, recall, threshold = sk_pr_curve(y, s, drop_intermediate=True)
+    assert len(threshold) < 6
+    assert same(out["precision"], precision) and same(out["recall"], recall)
+
+
+def test_no_positive_rows_warn_and_give_recall_one():
+    """With no positive row recall is 1 and precision 0, then (1, 0)."""
+    frame = rel(pd.DataFrame({"y": [0, 0], "s": [0.5, 0.4]}))
+    with pytest.warns(UserWarning, match="No positive class found in y_true"):
+        out = sq.metrics.precision_recall_curve(frame, "y", "s", out="numpy")
+    assert out["recall"].tolist() == [1.0, 1.0, 0.0]
+    assert out["precision"].tolist() == [0.0, 0.0, 1.0]
+
+
+def test_no_negative_rows_give_precision_one_without_a_warning():
+    """With no negative row precision is 1, and nothing is raised."""
+    frame = rel(pd.DataFrame({"y": [1, 1], "s": [0.5, 0.4]}))
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        out = sq.metrics.precision_recall_curve(frame, "y", "s", out="numpy")
+    precision, recall, _ = sk_pr_curve([1, 1], [0.5, 0.4])
+    assert same(out["precision"], precision) and same(out["recall"], recall)
+
+
+def test_the_precision_recall_curve_takes_text_labels_with_pos_label():
+    """A text label and one class of three, each against the rest."""
+    y = ["no", "yes", "yes", "maybe", "no"]
+    s = [0.1, 0.9, 0.5, 0.5, 0.3]
+    out = sq.metrics.precision_recall_curve(
+        rel(pd.DataFrame({"y": y, "s": s})), "y", "s", pos_label="yes", out="numpy"
+    )
+    precision, recall, _ = sk_pr_curve(y, s, pos_label="yes")
+    assert same(out["precision"], precision) and same(out["recall"], recall)
+    with pytest.raises(sq.errors.SqlearnError, match=r"pos_label"):
+        sq.metrics.precision_recall_curve(rel(pd.DataFrame({"y": y, "s": s})), "y", "s")

@@ -1,4 +1,4 @@
-"""Metrics that are curves: the ROC curve (spec §4, ADR 0049).
+"""Metrics that are curves: the ROC and precision-recall curves (spec §4, ADR 0049).
 
 A curve is a function over a relation that hands back a lazy DuckDB
 relation, or what ``out=`` names, not a `Metric`: it cannot rank a search.
@@ -23,7 +23,7 @@ from sqlearn.metrics._labels import (
     check_labels,
 )
 
-__all__ = ["roc_curve"]
+__all__ = ["precision_recall_curve", "roc_curve"]
 
 _SOURCE = "_sqlearn_rows"
 """The name the rows go by inside the SQL of a curve."""
@@ -266,5 +266,101 @@ def roc_curve(
         "UNION ALL "
         f"SELECT {_rate('fps', negatives)}, {_rate('tps', positives)}, threshold "
         "FROM numbered WHERE kept ORDER BY threshold DESC"
+    )
+    return to_output(_query(steps, _STEPS, sql), out)
+
+
+def precision_recall_curve(
+    rel: duckdb.DuckDBPyRelation,
+    target: str,
+    score: str,
+    *,
+    pos_label: object = None,
+    drop_intermediate: bool = False,
+    out: str | Output | None = None,
+) -> Any:  # noqa: ANN401  (the form `out` names)
+    """Trace precision against recall over every threshold.
+
+    As scikit-learn 1.9.1's ``precision_recall_curve`` without
+    ``sample_weight=``, as a relation: one row per distinct score, thresholds
+    increasing, then a final row (precision 1, recall 0) whose threshold is
+    NULL. Each value is one division of two exact counts, which DuckDB sums in
+    windows over the distinct scores (ADR 0049); no row reaches Python.
+
+    Parameters
+    ----------
+    rel : duckdb.DuckDBPyRelation
+        The rows, holding a target and a score column.
+    target : str
+        The column of true labels.
+    score : str
+        The column of scores: numbers, higher for the positive class.
+    pos_label : object, default None
+        The positive label. None takes 1, and needs the labels to be among
+        {0, 1}, {-1, 1}, {0}, {1} or {-1}, as scikit-learn. With a label,
+        any number of classes works: that class against the rest.
+    drop_intermediate : bool, default False
+        Drop the points scikit-learn drops: those whose true positive count
+        equals both its neighbours' (they lie on a vertical line of the
+        plot). The first and last points stay.
+    out : {"pandas", "polars", "numpy", "arrow"} or Output or None
+        What to hand back; None is a lazy relation.
+
+    Returns
+    -------
+    duckdb.DuckDBPyRelation or object
+        The curve, with columns `precision`, `recall` and `threshold`
+        (`DOUBLE`), or it as `out` names.
+
+    Raises
+    ------
+    SqlearnError
+        If the labels fail precision's checks (no rows, NULL, NaN, infinity,
+        continuous labels), the labels need a `pos_label` or it cannot be
+        compared with them, or the score is not a number or holds NULL, NaN
+        or infinity.
+
+    Warns
+    -----
+    UserWarning
+        If no row is positive: recall is then 1 for every threshold, as
+        scikit-learn. No negative row gives precision 1 and no warning.
+
+    Examples
+    --------
+    >>> import duckdb
+    >>> import sqlearn as sq
+    >>> rel = duckdb.sql(
+    ...     "SELECT * FROM (VALUES (0, 0.1), (1, 0.8), (0, 0.4), (1, 0.4)) t(y, s)"
+    ... )
+    >>> sq.metrics.precision_recall_curve(rel, "y", "s").fetchall()
+    [(0.5, 1.0, 0.1), (0.6666666666666666, 1.0, 0.4), (1.0, 0.5, 0.8), (1.0, 0.0, None)]
+    """
+    steps, positives, _ = _steps(
+        "precision_recall_curve", rel, target, score, pos_label
+    )
+    if positives == 0:
+        warnings.warn(
+            "No positive class found in y_true, recall is set to one for all "
+            "thresholds. Fix: check pos_label names a label the target holds.",
+            stacklevel=2,
+        )
+    keep = "TRUE"
+    if drop_intermediate:
+        # 1.9.1 keeps a point whose true positives differ from a neighbour's.
+        keep = (
+            "m <= 2 OR i = 1 OR i = m "
+            "OR tps <> lag(tps) OVER w OR tps <> lead(tps) OVER w"
+        )
+    recall = "1.0" if positives == 0 else f"CAST(tps AS DOUBLE) / {positives}.0"
+    sql = (
+        "WITH numbered AS (SELECT threshold, tps, fps, "
+        "row_number() OVER w AS i, count(*) OVER () AS m, "
+        f"{keep} AS kept FROM {_STEPS} WINDOW w AS (ORDER BY threshold DESC)) "
+        "SELECT * FROM ("
+        "SELECT CAST(tps AS DOUBLE) / CAST(tps + fps AS DOUBLE) AS precision, "
+        f"{recall} AS recall, threshold FROM numbered WHERE kept "
+        "UNION ALL "
+        "SELECT 1.0, 0.0, NULL::DOUBLE) ORDER BY threshold ASC NULLS LAST"
     )
     return to_output(_query(steps, _STEPS, sql), out)
