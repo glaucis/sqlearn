@@ -3,8 +3,8 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-13 · Branch: `library-more-metrics` (not yet merged) ·
-Checks: passing (`just verify`: 2298 passed, 24 skipped)
+Updated: 2026-11-14 · Branch: `main` · Checks: passing (`just test` on the
+merge `7e51b56`: 2288 passed, 24 skipped; `just verify` on the branch: 2298)
 Verify with: `just verify`
 
 ## In progress
@@ -26,7 +26,6 @@ None.
   (which need a scored relation) cannot be fed from sqlearn directly: worth
   an issue.
 - `sq.folds.holdout` has no `.rows()` as `KFold` has.
-- Merge `library-more-metrics` (#58) into `main`.
 
 ## Dead ends and traps
 
@@ -97,7 +96,7 @@ None.
 
 ## Just finished
 
-- More metrics (#58), on branch `library-more-metrics`, not yet merged: `fbeta`,
+- More metrics (#58), merged in `7e51b56`: `fbeta`,
   `average_precision`, `confusion_matrix`, `classification_report`, `roc_curve`
   and `precision_recall_curve` (the tables and curves are relations, ADR 0049),
   the search refusing a table or unready metric, and the guide
