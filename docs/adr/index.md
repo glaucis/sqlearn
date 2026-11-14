@@ -79,6 +79,7 @@ The verbs and conventions users write against.
 - [0041: The hand-over](0041-the-hand-over.md)
 - [0042: A metric's settings are a call](0042-a-metrics-settings-are-a-call.md)
 - [0043: Repeatable within rounding](0043-repeatable-within-rounding.md)
+- [0049: Table metrics are relations](0049-table-metrics-are-relations.md)
 
 ## Numerics and validation
 

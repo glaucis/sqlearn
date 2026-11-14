@@ -28,7 +28,12 @@ built.
   #45. Its fifth, saving a pipeline (`sq.save`, `sq.load`), is built: spec
   `docs/specs/library-saving.md`, plan
   `docs/plans/2026-11-11-library-saving.md`, ADR 0047, summary in issue
-  #57. **Next:** the next 3.3 area, not chosen yet.
+  #57. Its sixth, more metrics (`fbeta`, `average_precision`,
+  `confusion_matrix`, `classification_report`, `roc_curve`,
+  `precision_recall_curve`), is built: spec
+  `docs/specs/library-more-metrics.md`, plan
+  `docs/plans/2026-11-13-library-more-metrics.md`, ADR 0049, summary in issue
+  #58. **Next:** the next 3.3 area, not chosen yet.
 
 Rules from the ADRs:
 

@@ -336,6 +336,17 @@ class Search:
         folds: Folds | None = None,
         keep_prepared: str | os.PathLike[str] | None = None,
     ) -> None:
+        candidate: object = metric  # a caller may pass what the types forbid
+        if not isinstance(candidate, Metric):
+            msg = (
+                f"metric= was given {candidate!r}, which is not a metric. Why: a "
+                "search needs a score to rank the settings by, and "
+                "confusion_matrix, classification_report, roc_curve and "
+                "precision_recall_curve give tables, not a score; a plain "
+                "function has no SQL to run. Fix: pass one of sq.metrics' "
+                "scores, as metric=sq.metrics.f1."
+            )
+            raise SqlearnError(msg)
         self.pipe = pipe
         self.params = params
         self.metric = metric
@@ -449,6 +460,7 @@ class Search:
         space, used_params = self._space(model_name, model)
         method = Grid() if self.method is None else self.method
         folds: Folds = KFold() if self.folds is None else self.folds
+        self.metric._ready()  # before any work
         method.start(space, maximize=self.metric.greater_is_better)
         asked: list[Params] = []
         if method.knows_all:

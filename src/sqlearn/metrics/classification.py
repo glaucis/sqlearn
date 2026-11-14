@@ -1,12 +1,13 @@
-"""Precision, recall and F1, counted per class in one grouped query.
+"""Precision, recall, F1 and F-beta, counted per class in one grouped query.
 
-As scikit-learn 1.9.1's ``precision_score``, ``recall_score`` and
-``f1_score`` (spec §1): the same settings, defaults and refusals. Each
-class's rows in the target, in the prediction and in both come from DuckDB;
-the scores are arithmetic on those few counts (ADR 0042).
+As scikit-learn 1.9.1's ``precision_score``, ``recall_score``,
+``f1_score`` and ``fbeta_score`` (spec §1, §3): the same settings, defaults
+and refusals. Each class's rows in the target, in the prediction and in both
+come from DuckDB; the scores are arithmetic on those few counts (ADR 0042).
 """
 
 import math
+import numbers
 import warnings
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
@@ -26,12 +27,13 @@ from sqlearn._expr import const
 from sqlearn.metrics._labels import check_labels
 from sqlearn.metrics.accuracy import Metric
 
-__all__ = ["ClassificationMetric", "f1", "precision", "recall"]
+__all__ = ["ClassificationMetric", "f1", "fbeta", "precision", "recall"]
 
 Counts = list[tuple[object, int, int, int]]
 
 AVERAGES = ("binary", "macro", "micro", "weighted")
 _DEFAULTS = {"average": "binary", "pos_label": 1, "zero_division": "warn"}
+_BETA_DEFAULTS = {"beta": None, **_DEFAULTS}
 
 
 def _not_an_expression(*_: Expression) -> Expression:
@@ -123,6 +125,7 @@ _UNDEFINED = {
     "precision": "no predicted samples",
     "recall": "no true samples",
     "f1": "no true nor predicted samples",
+    "fbeta": "no true nor predicted samples",
 }
 
 
@@ -175,12 +178,16 @@ def _same(a: object, b: object) -> bool:
 
 @dataclass(frozen=True)
 class ClassificationMetric(Metric):
-    """A classification score counted per class: precision, recall or F1.
+    """A classification score counted per class: precision, recall, F1 or fbeta.
 
     Attributes
     ----------
-    score : {"precision", "recall", "f1"}
+    score : {"precision", "recall", "f1", "fbeta"}
         Which score.
+    beta : float, optional
+        For ``"fbeta"``, the weight of recall against precision, in
+        ``[0, inf]``; it has no default, so ``sq.metrics.fbeta`` must be
+        called with ``beta=``. ``f1`` is ``beta=1.0``.
     average : str, default "binary"
         How the classes' scores are combined, as scikit-learn's `average`.
     pos_label : object, default 1
@@ -207,7 +214,8 @@ class ClassificationMetric(Metric):
     0.5
     """
 
-    score: Literal["precision", "recall", "f1"] = "f1"
+    score: Literal["precision", "recall", "f1", "fbeta"] = "f1"
+    beta: float | None = None
     average: str = "binary"
     pos_label: object = 1
     zero_division: str | float = "warn"
@@ -218,8 +226,10 @@ class ClassificationMetric(Metric):
         Parameters
         ----------
         **settings : object
-            Any of ``average`` ({"binary", "macro", "micro", "weighted"}:
-            how the classes' scores are combined), ``pos_label`` (the class
+            Any of ``beta`` (``fbeta`` only: the weight of recall against
+            precision, a number in ``[0, inf]``), ``average``
+            ({"binary", "macro", "micro", "weighted"}: how the classes'
+            scores are combined), ``pos_label`` (the class
             scored under ``average="binary"``) and ``zero_division``
             ({"warn", 0.0, 1.0, nan}: the score of a class whose score
             divides by zero).
@@ -232,29 +242,42 @@ class ClassificationMetric(Metric):
         Raises
         ------
         SqlearnError
-            If a setting is not one of the three, or `average` or
-            `zero_division` is not one of its values.
+            If a setting is not one of the metric's, or `beta`, `average`
+            or `zero_division` is not one of its values.
 
         Examples
         --------
         >>> import sqlearn as sq
         >>> sq.metrics.f1(average="macro")
         f1(average='macro')
+        >>> sq.metrics.fbeta(beta=2)
+        fbeta(beta=2)
         """
-        unknown = [k for k in settings if k not in _DEFAULTS]
+        known = self._settings()
+        unknown = [k for k in settings if k not in known]
         if unknown:
             msg = (
                 f"{self.name} has no setting {unknown[0]}=. Why: its settings "
-                f"are {', '.join(_DEFAULTS)}, as scikit-learn's. Fix: use one "
+                f"are {', '.join(known)}, as scikit-learn's. Fix: use one "
                 "of them."
             )
             raise SqlearnError(msg)
         changes = dict(settings)
+        if "beta" in changes:
+            beta = changes["beta"]
+            if not isinstance(beta, numbers.Real) or not (0 <= float(beta) <= math.inf):
+                msg = (
+                    f"{self.name} was given beta={beta!r}. Why: beta is the "
+                    "weight of recall against precision, a number from 0 to "
+                    "inf, as scikit-learn's. Fix: pass one, as "
+                    "sq.metrics.fbeta(beta=2.0)."
+                )
+                raise SqlearnError(msg)
         if "average" in changes and changes["average"] not in AVERAGES:
-            known = ", ".join(repr(a) for a in AVERAGES)
+            averages = ", ".join(repr(a) for a in AVERAGES)
             msg = (
                 f"{self.name} was given average={changes['average']!r}. Why: "
-                f'the averages are {known} (scikit-learn\'s "samples" is for '
+                f'the averages are {averages} (scikit-learn\'s "samples" is for '
                 "multilabel data, which sqlearn does not have). Fix: use one "
                 "of them."
             )
@@ -280,11 +303,26 @@ class ClassificationMetric(Metric):
             )
         return configured
 
+    def _settings(self) -> dict[str, object]:
+        """Return the settings this metric takes, with their defaults."""
+        return dict(_BETA_DEFAULTS if self.score == "fbeta" else _DEFAULTS)
+
+    def _ready(self) -> None:
+        """Refuse an fbeta without its beta: it has no score to compute."""
+        if self.score == "fbeta" and self.beta is None:
+            msg = (
+                "fbeta needs beta=, the weight of recall against precision. "
+                "Why: scikit-learn's fbeta_score has no default for it, and "
+                "sqlearn does not choose one for you. Fix: pass it, as "
+                "sq.metrics.fbeta(beta=2.0)."
+            )
+            raise SqlearnError(msg)
+
     def __repr__(self) -> str:
         """Return the name, with the settings away from the defaults."""
         changed = [
             f"{k}={getattr(self, k)!r}"
-            for k, v in _DEFAULTS.items()
+            for k, v in self._settings().items()
             if not _same(getattr(self, k), v)
         ]
         return f"{self.name}({', '.join(changed)})" if changed else self.name
@@ -330,6 +368,7 @@ class ClassificationMetric(Metric):
         >>> sq.metrics.precision.compute(rel, "y")
         0.5
         """
+        self._ready()
         check_labels(self.name, rel, target, prediction)
         hint = ""
         counts = _counts(rel, target, prediction)
@@ -354,24 +393,64 @@ class ClassificationMetric(Metric):
             for (lab, tgt, pred, both), _ in zip(scored, scores, strict=True)
             if self._denominator(both, pred - both, tgt - both) == 0
         ]
-        if undefined and self.zero_division == "warn":
-            name = self.score.capitalize() if self.score != "f1" else "F-score"
-            where = (
-                f"due to {_UNDEFINED[self.score]}"
-                if self.average == "micro"
-                else f"in labels with {_UNDEFINED[self.score]}: {undefined}"
-            )
-            warnings.warn(
-                f"{name} is ill-defined and being set to 0.0 {where}. Fix: pass "
-                "zero_division= to choose the value (0.0, 1.0 or nan)."
-                f"{hint}",
-                UndefinedMetricWarning,
-                stacklevel=2,
-            )
+        self._warn_undefined(undefined, hint, micro=self.average == "micro")
         if self.average in ("binary", "micro"):
             return math.nan if scores[0] is None else float(scores[0])
         weights = [c[1] for c in counts] if self.average == "weighted" else None
         return _nanmean(scores, weights)
+
+    def _warn_undefined(
+        self,
+        undefined: list[object],
+        hint: str = "",
+        *,
+        micro: bool = False,
+        stacklevel: int = 3,
+    ) -> None:
+        """Warn, in scikit-learn's words, of the classes whose score divides by zero.
+
+        Only under ``zero_division="warn"`` and for a score scikit-learn
+        warns about. `stacklevel` counts from this method: 1 is the warning's own line
+        here, 2 the method that called this one, 3 that method's caller.
+        """
+        if not (undefined and self.zero_division == "warn" and self._warns()):
+            return
+        name = (
+            self.score.capitalize()
+            if self.score in ("precision", "recall")
+            else "F-score"
+        )
+        where = (
+            f"due to {_UNDEFINED[self.score]}"
+            if micro
+            else f"in labels with {_UNDEFINED[self.score]}: {undefined}"
+        )
+        warnings.warn(
+            f"{name} is ill-defined and being set to 0.0 {where}. Fix: pass "
+            "zero_division= to choose the value (0.0, 1.0 or nan)."
+            f"{hint}",
+            UndefinedMetricWarning,
+            stacklevel=stacklevel,
+        )
+
+    def _per_class(
+        self, counts: Counts, *, stacklevel: int = 3
+    ) -> list[Fraction | None]:
+        """Return each class's score from its counts, warning as `compute` does.
+
+        The classes' scores of a report: the same arithmetic and the same
+        warning as ``average=None`` would give, from counts already fetched.
+        """
+        scores = [
+            self._of(both, pred - both, tgt - both) for _, tgt, pred, both in counts
+        ]
+        undefined = [
+            lab
+            for lab, tgt, pred, both in counts
+            if self._denominator(both, pred - both, tgt - both) == 0
+        ]
+        self._warn_undefined(undefined, stacklevel=stacklevel + 1)
+        return scores
 
     def _check_binary(self, labels: list[object]) -> None:
         """Refuse what scikit-learn refuses under ``average="binary"``."""
@@ -394,21 +473,46 @@ class ClassificationMetric(Metric):
             )
             raise SqlearnError(msg)
 
-    def _denominator(self, tp: int, fp: int, fn: int) -> int:
-        """Return what this score divides by, for one class's counts."""
-        if self.score == "precision":
-            return tp + fp
-        if self.score == "recall":
-            return tp + fn
-        return 2 * tp + fp + fn
+    def _form(self) -> str:
+        """Return the counts this score is: fbeta at 0 is precision, at inf recall."""
+        if self.score == "fbeta":
+            if self.beta == 0:
+                return "precision"
+            if self.beta == math.inf:
+                return "recall"
+        return self.score
 
-    def _divide(self, numerator: int, denominator: int) -> Fraction | None:
+    def _warns(self) -> bool:
+        """Say whether a zero division warns: scikit-learn warns for F only.
+
+        Its fbeta at 0 and at inf are the precision and the recall, divided
+        without a warning.
+        """
+        return self.score != "fbeta" or self._form() == "fbeta"
+
+    def _b2(self) -> Fraction:
+        """Return beta squared, exactly (1 for f1)."""
+        if self.score == "f1" or self.beta is None:
+            return Fraction(1)
+        return Fraction(self.beta) ** 2
+
+    def _denominator(self, tp: int, fp: int, fn: int) -> Fraction:
+        """Return what this score divides by, for one class's counts."""
+        form = self._form()
+        if form == "precision":
+            return Fraction(tp + fp)
+        if form == "recall":
+            return Fraction(tp + fn)
+        b2 = self._b2()
+        return (1 + b2) * tp + b2 * fn + fp
+
+    def _divide(self, numerator: Fraction, denominator: Fraction) -> Fraction | None:
         """Divide exactly; a zero denominator gives zero_division's value.
 
         None stands for NaN, which the averages leave out.
         """
         if denominator:
-            return Fraction(numerator, denominator)
+            return numerator / denominator
         if self.zero_division == "warn":
             return Fraction(0)
         value = float(self.zero_division)
@@ -416,7 +520,10 @@ class ClassificationMetric(Metric):
 
     def _of(self, tp: int, fp: int, fn: int) -> Fraction | None:
         """Return this score from one class's counts."""
-        numerator = 2 * tp if self.score == "f1" else tp
+        form = self._form()
+        numerator = (
+            Fraction(tp) if form in ("precision", "recall") else (1 + self._b2()) * tp
+        )
         return self._divide(numerator, self._denominator(tp, fp, fn))
 
 
@@ -424,4 +531,5 @@ precision = ClassificationMetric(
     "precision", _not_an_expression, True, score="precision"
 )
 recall = ClassificationMetric("recall", _not_an_expression, True, score="recall")
-f1 = ClassificationMetric("f1", _not_an_expression, True, score="f1")
+f1 = ClassificationMetric("f1", _not_an_expression, True, score="f1", beta=1.0)
+fbeta = ClassificationMetric("fbeta", _not_an_expression, True, score="fbeta")

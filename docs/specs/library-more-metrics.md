@@ -85,6 +85,9 @@ scikit-learn's `average_precision_score`; a call sets it (ADR 0042).
   that class's probability column in `classes` (with labels `{1, 2}` it is
   class 1, `proba[:, 0]`, as scikit-learn). `pos_label` not among the
   classes refuses as scikit-learn does, so text labels need `pos_label=`.
+  (1.9.1 checks it against the labels present in the target, and only when
+  two are present; sqlearn checks it against the model's `classes`, so a fold
+  holding one class still refuses a wrong `pos_label`.)
 - **More:** each class against the rest, averaged with equal weight
   (scikit-learn 1.9.1's multiclass `average="macro"`). `pos_label` other
   than 1 refuses there, as scikit-learn fixes it to 1 for multiclass.
@@ -120,8 +123,11 @@ matrix (`C[i, j]`: rows of true label `i` predicted `j`).
   holding one label between them warn, as scikit-learn 1.9.1 does ("A single
   label was found"), and give a 1 by 1 matrix.
 - The first column holds the true label and is named as `target`; then one
-  column per label, named by the label's text (`str(label)` for a number).
-  A label whose text equals `target` refuses, naming the clash.
+  column per label, named by the label's text as DuckDB renders it (a boolean is
+  `true`, not `True`). A label whose text equals `target` ignoring case, two
+  labels whose texts differ only by case (DuckDB would rename one), or an empty
+  text label (DuckDB cannot name a column with no text), refuses, saying why and
+  how to fix it.
 - Counts are `BIGINT`. `normalize` is `None`, `"true"`, `"pred"` or `"all"`,
   as scikit-learn; normalised cells are `DOUBLE`, and a row or column with
   no rows gives 0, as scikit-learn's `nan_to_num`.
@@ -159,10 +165,15 @@ sq.metrics.roc_curve(rel, target, score, *, pos_label=None, drop_intermediate=Tr
 Columns `fpr`, `tpr`, `threshold` (`DOUBLE`), in scikit-learn's order: the
 first row at threshold `inf`, then one row per distinct score, descending.
 
-- Binary target only, as scikit-learn. `pos_label=None` takes what
-  scikit-learn 1.9.1 takes: the labels `{0, 1}`, `{-1, 1}`, or one of `{0}`,
-  `{1}`, `{-1}`, as integers, floats or booleans; other labels refuse,
-  asking for `pos_label=`.
+- `pos_label=None` takes what scikit-learn 1.9.1 takes: the labels `{0, 1}`,
+  `{-1, 1}`, or one of `{0}`, `{1}`, `{-1}`, as integers, floats or
+  booleans; other labels, and more than two classes, refuse, asking for
+  `pos_label=`. With a `pos_label`, 1.9.1 takes any number of classes (that
+  class against the rest), and so does `roc_curve`: it is not binary-only.
+  A `pos_label` of another kind than the target (text on numbers, a number on
+  text; `True` counts as the number 1) refuses, as `f1` does: scikit-learn
+  takes it for a different label and returns NaN rates. A `drop_intermediate`
+  that is not a bool refuses too.
 - `drop_intermediate=True` drops the points scikit-learn drops: a point
   whose second differences of both the false and the true positive counts
   are 0 (equal steps on both sides), not every point on a straight line.
@@ -185,6 +196,9 @@ whose `threshold` is NULL (scikit-learn returns one threshold fewer than
 points).
 
 - The same labels, `pos_label` and refusals as `roc_curve`.
+- `drop_intermediate` (default False) is 1.9.1's rule, which differs from
+  `roc_curve`'s: a point goes when its true positive count equals both
+  neighbours' (the first and last stay).
 - Missing classes as scikit-learn 1.9.1, which differs from `roc_curve`: no
   positive rows warn (scikit-learn's `UserWarning`, "No positive class found
   in y_true, recall is set to one for all thresholds"), recall is 1 and

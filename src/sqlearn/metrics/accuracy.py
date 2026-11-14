@@ -117,7 +117,8 @@ class Metric:
         Raises
         ------
         SqlearnError
-            Always: only precision, recall and f1 take settings.
+            Always: only precision, recall, f1, fbeta and average_precision
+            take settings.
 
         Examples
         --------
@@ -130,10 +131,29 @@ class Metric:
         given = ", ".join(f"{k}=" for k in settings) or "a call"
         msg = (
             f"{self.name} takes no settings, and was given {given}. Why: "
-            "only the classification metrics precision, recall and f1 have "
-            f"settings. Fix: use sq.metrics.{self.name} as it is."
+            "only the metrics precision, recall, f1, fbeta and "
+            f"average_precision have settings. Fix: use sq.metrics.{self.name} "
+            "as it is."
         )
         raise SqlearnError(msg)
+
+    def _ready(self) -> None:
+        """Refuse, before any work, a metric that cannot be computed as set.
+
+        Nothing to refuse here; a metric with a required setting overrides it.
+        """
+
+    def _stage(
+        self, y: Expression, values: list[Expression], labels: list[object]
+    ) -> list[Expression] | None:
+        """Return each row's window values for the aggregate, or None for none.
+
+        A metric with `windows` stages them from the probabilities alone; one
+        that needs the target or the classes overrides this.
+        """
+        if self.windows is None:
+            return None
+        return self.windows(values)
 
     def _score_labels(
         self, rel: duckdb.DuckDBPyRelation, target: str, prediction: str
@@ -213,9 +233,9 @@ class Metric:
         types = _column_types(self.name, rel, columns)
         y = ColumnExpression(target)
         values = [ColumnExpression(c) for c in columns[1:]]
-        if proba and self.windows is not None:
+        ranks = self._stage(y, values, labels) if proba else None
+        if ranks is not None:
             # Each row's window values first, then the one aggregate.
-            ranks = self.windows(values)
             staged = [f"{_STAGE}{i}" for i in range(len(ranks))]
             rel = rel.project(
                 *(ColumnExpression(c) for c in columns),

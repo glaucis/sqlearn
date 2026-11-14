@@ -1,4 +1,4 @@
-"""Validate log_loss and roc_auc against exact arithmetic.
+"""Validate log_loss, roc_auc and average_precision against exact arithmetic.
 
 The canonical values are computed in pure Python from the doubles' exact
 values (ADR 0016). log_loss: minus the mean of the natural log of each row's
@@ -7,7 +7,11 @@ scikit-learn 1.9.1 clips, at 50 digits with mpmath. roc_auc: for each class
 against the rest, the share of (class, other) pairs the class's probability
 ranks higher, a tie counting half, as a `Fraction`; two classes score the
 second class, more average the classes with equal weight (scikit-learn's
-``multi_class="ovr"``, ``average="macro"``). Beside sqlearn: DuckDB alone
+``multi_class="ovr"``, ``average="macro"``). average_precision: for each class
+against the rest, the sum over the distinct scores, highest first, of
+(positives at the score) times (positives at or above it over rows at or above
+it), over the positives, as a `Fraction`; two classes score the second class,
+more average the classes. Beside sqlearn: DuckDB alone
 (and at one thread), numpy (with scipy's average ranks) and scikit-learn.
 Probabilities with NULL or NaN, and no rows, have no right answer: sqlearn
 must refuse them; so must roc_auc where every target is one class.
@@ -22,7 +26,7 @@ import duckdb
 import mpmath
 import numpy as np
 from scipy.stats import rankdata
-from sklearn.metrics import log_loss, roc_auc_score
+from sklearn.metrics import average_precision_score, log_loss, roc_auc_score
 
 import sqlearn as sq
 from validation import _cases
@@ -34,8 +38,13 @@ PROBA = "__sqlearn_proba_"
 # the exact value. Loosening a bound needs a written reason here, never a
 # quiet edit. Measured at 1 double at most for both, on every dataset:
 # roc_auc divides two exact integers once per class (then averages the
-# classes); log_loss is a compensated mean of logs.
-BOUNDS = {"log_loss": 2, "roc_auc": 1}
+# classes); log_loss is a compensated mean of logs. average_precision, first
+# measured at 1 double at most: each step's precision is one rounded
+# quotient, the steps are summed with compensation (fsum, ADR 0033), and the
+# sum is divided once per class, so the roundings of the quotients are all
+# the error there is. The plain-DuckDB reference answers (DuckDB's own
+# sum, up to 14 doubles off) are flagged as anomalies: expected.
+BOUNDS = {"log_loss": 2, "roc_auc": 1, "average_precision": 1}
 
 
 def _draw(
@@ -122,9 +131,36 @@ def _exact_roc_auc(y: tuple, proba: list[tuple]) -> Fraction | None:
     return sum(areas, Fraction(0)) / len(areas)
 
 
+def _exact_ap(positive: list[bool], scores: tuple) -> Fraction | None:
+    """Return the step sum of precision over recall, one step per distinct score."""
+    n_pos = sum(positive)
+    if n_pos == 0:
+        return None
+    pairs = sorted(zip(scores, positive, strict=True), reverse=True)
+    total = Fraction(0)
+    tp = seen = 0
+    for _, group in groupby(pairs, key=lambda pair: pair[0]):
+        flags = [flag for _, flag in group]
+        tp += sum(flags)
+        seen += len(flags)
+        total += sum(flags) * Fraction(tp, seen)
+    return total / n_pos
+
+
+def _exact_average_precision(y: tuple, proba: list[tuple]) -> Fraction | None:
+    if len(proba) == 2:
+        return _exact_ap([c == 1 for c in y], proba[1])
+    areas = [_exact_ap([c == j for c in y], p) for j, p in enumerate(proba)]
+    if any(a is None for a in areas):
+        return None
+    return sum(areas, Fraction(0)) / len(areas)
+
+
 def _exact(metric: str, y: tuple, proba: list[tuple]) -> Fraction | mpmath.mpf | None:
     if metric == "log_loss":
         return _exact_log_loss(y, proba)
+    if metric == "average_precision":
+        return _exact_average_precision(y, proba)
     return _exact_roc_auc(y, proba)
 
 
@@ -138,6 +174,15 @@ def _sql(metric: str, classes: int) -> str:
             f"1 - {EPS!r})))) FROM data"
         )
     scored = [(1, cols[1])] if classes == 2 else list(enumerate(cols))
+    if metric == "average_precision":
+        areas = [
+            f"(SELECT sum(pos * tp / n) / sum(pos) FROM (SELECT pos, "
+            f"sum(pos) OVER w AS tp, count(*) OVER w AS n FROM (SELECT "
+            f"CAST(y = {j} AS INTEGER) AS pos, {c} AS s FROM data) "
+            f"WINDOW w AS (ORDER BY s DESC)))"
+            for j, c in scored
+        ]
+        return f"SELECT ({' + '.join(areas)}) / {len(areas)}"
     ranks = ", ".join(
         f"2 * rank() OVER (ORDER BY {c}) + count(*) OVER (PARTITION BY {c}) - 1 AS r{j}"
         for j, c in scored
@@ -174,6 +219,14 @@ def _numpy(metric: str, y: np.ndarray, proba: np.ndarray) -> float:
     areas = []
     for j in scored:
         positive = y == j
+        if metric == "average_precision":
+            order = np.argsort(-proba[:, j], kind="stable")
+            sorted_s, flags = proba[order, j], positive[order]
+            last = np.append(np.nonzero(np.diff(sorted_s))[0], len(y) - 1)
+            tp = np.cumsum(flags)[last]
+            steps = np.diff(tp, prepend=0)
+            areas.append(float(np.sum(steps * tp / (last + 1)) / positive.sum()))
+            continue
         n_pos, n_neg = positive.sum(), (~positive).sum()
         ranks = rankdata(proba[:, j])
         areas.append(
@@ -187,11 +240,13 @@ def _sklearn(metric: str, y: np.ndarray, proba: np.ndarray) -> float:
     if metric == "log_loss":
         return log_loss(y, proba, labels=labels)
     score = proba[:, 1] if proba.shape[1] == 2 else proba
+    if metric == "average_precision":
+        return average_precision_score(y, score)
     return roc_auc_score(y, score, multi_class="ovr", average="macro", labels=labels)
 
 
 def cases() -> list[dict]:
-    """Return the cases of log_loss and roc_auc: each dataset and reference."""
+    """Return the cases of the three metrics: each dataset and reference."""
     out = []
     for data, y, proba in _datasets():
         values = [v for p in proba for v in p]

@@ -3,16 +3,13 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-12 · Branch: `main` · Checks: passing (`just verify` on the
-category lookup change: 2139 passed, 24 skipped)
+Updated: 2026-11-13 · Branch: `library-more-metrics` (not yet merged) ·
+Checks: passing (`just verify`: 2298 passed, 24 skipped)
 Verify with: `just verify`
 
 ## In progress
 
-- More metrics (#58): `fbeta`, `average_precision`, `confusion_matrix`,
-  `classification_report`, `roc_curve`, `precision_recall_curve`. Spec
-  `docs/specs/library-more-metrics.md`, written without a design talk at
-  Tomas's request; plan and build next, on a branch.
+None.
 
 ## Waiting on the user
 
@@ -23,8 +20,13 @@ None.
 - #46 (generators on many threads: needs a parallel, ordered, lazy row
   source; measurements in the issue) and #49 (learn nested aggregates; an ADR
   amending 0036/0044), both ready-for-agent and needing a design first.
-- After #58, the next 3.3 area: a fetcher of real datasets (ADR 0006: an
-  explicit call), or more scores (balanced accuracy, MCC, Brier).
+- The next 3.3 area, not chosen yet: a fetcher of real datasets (ADR 0006:
+  an explicit call), or more scores (balanced accuracy, MCC, Brier).
+- `Pipeline` has no `predict_proba`, so the curves and `average_precision`
+  (which need a scored relation) cannot be fed from sqlearn directly: worth
+  an issue.
+- `sq.folds.holdout` has no `.rows()` as `KFold` has.
+- Merge `library-more-metrics` (#58) into `main`.
 
 ## Dead ends and traps
 
@@ -95,6 +97,14 @@ None.
 
 ## Just finished
 
+- More metrics (#58), on branch `library-more-metrics`, not yet merged: `fbeta`,
+  `average_precision`, `confusion_matrix`, `classification_report`, `roc_curve`
+  and `precision_recall_curve` (the tables and curves are relations, ADR 0049),
+  the search refusing a table or unready metric, and the guide
+  `docs/guide/evaluating-a-model.md`. Spec `docs/specs/library-more-metrics.md`,
+  plan `docs/plans/2026-11-13-library-more-metrics.md`. Built in seven
+  reviewed tasks and a final review's fix wave (`c8f7c84`).
+  `just verify`: 2298 passed, 24 skipped on each interpreter.
 - The target encoder's learn: `derive` made every row exact again for each
   of the six encodings; it now sums once and takes a fold's complement as
   the whole less the fold, the same encodings to the bit. Learn at 30,000

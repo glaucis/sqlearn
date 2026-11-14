@@ -13,7 +13,7 @@ import pytest
 from search_data_for_tests import customers, slice_pipe
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import average_precision_score, roc_auc_score
 from sklearn.preprocessing import TargetEncoder
 from sklearn.svm import LinearSVC
 from sklearn.tree import DecisionTreeClassifier
@@ -1064,6 +1064,29 @@ def test_a_search_scores_by_roc_auc_as_scikit_learn_on_each_fold():
     assert scores == pytest.approx(expected, rel=1e-9)
 
 
+def test_average_precision_scores_each_fold_as_sklearn():
+    """Each fold's score is average_precision_score of the model's predict_proba."""
+    folds = sq.folds.stratified(3)
+    search = sq.search(
+        PIPE_WITH_SCALE,
+        params={"model__C": [1.0]},
+        metric=sq.metrics.average_precision,
+        folds=folds,
+    )
+    search.train(SEPARABLE, target="y")
+    scores = [s for *_, s in search.results_.order("fold").fetchall()]
+    numbered = folds.numbered(connection().from_df(SEPARABLE), "f", "y")
+    expected = []
+    for k in range(3):
+        train = numbered.filter(folds.training("f", k)).df()
+        held = numbered.filter(folds.held("f", k)).df()
+        mean, std = train[["a", "b"]].mean(), train[["a", "b"]].std(ddof=0)
+        model = LogisticRegression().fit((train[["a", "b"]] - mean) / std, train["y"])
+        proba = model.predict_proba((held[["a", "b"]] - mean) / std)
+        expected.append(average_precision_score(held["y"], proba[:, 1]))
+    assert scores == pytest.approx(expected, rel=1e-9)
+
+
 def test_roc_auc_on_a_one_class_time_fold_names_a_fix_for_time():
     """A held-out time fold of one class: fewer folds or a later cut-off."""
     with pytest.raises(sq.errors.SqlearnError, match=r"fold 1 .*fewer folds") as e:
@@ -1246,6 +1269,55 @@ def test_f1_macro_matches_gridsearchcv():
         sq.Pipeline([("model", LogisticRegression())]),
         params={"model__C": [0.01, 1.0]},
         metric=sq.metrics.f1(average="macro"),
+    ).train(data, target="y")
+    ours = mean_scores(search)
+    for params, sk_mean in zip(
+        sk.cv_results_["params"], sk.cv_results_["mean_test_score"], strict=True
+    ):
+        setting = json.dumps({"model__C": params["C"]})
+        assert ours[setting] == pytest.approx(sk_mean, rel=1e-12)
+
+
+def test_a_search_refuses_fbeta_without_beta_before_any_work(monkeypatch):
+    """fbeta has no default beta: refused before the data is read."""
+
+    def unread(data, **_):
+        raise AssertionError("the data was read")
+
+    monkeypatch.setattr(search_module, "read", unread)
+    with pytest.raises(sq.errors.SqlearnError, match=r"beta=.*Why:.*Fix:"):
+        sq.search(
+            sq.Pipeline([("model", LogisticRegression())]),
+            params={"model__C": [1.0]},
+            metric=sq.metrics.fbeta,
+        ).train(SEPARABLE, target="y")
+
+
+def test_a_search_refuses_a_metric_that_is_not_a_metric():
+    """A plain function is no metric: refused when the search is made."""
+    with pytest.raises(sq.errors.SqlearnError, match=r"metric=.*Why:.*Fix:"):
+        sq.search(
+            sq.Pipeline([("model", LogisticRegression())]),
+            metric=lambda *a: 0.0,  # ty: ignore[invalid-argument-type]
+        )
+
+
+def test_fbeta_scores_as_gridsearchcv():
+    """fbeta(beta=2) scores as make_scorer(fbeta_score, beta=2)."""
+    from sklearn.metrics import fbeta_score, make_scorer
+    from sklearn.model_selection import GridSearchCV, PredefinedSplit
+
+    data = SEPARABLE[["a", "b", "y"]]
+    sk = GridSearchCV(
+        LogisticRegression(),
+        {"C": [0.01, 1.0]},
+        scoring=make_scorer(fbeta_score, beta=2),
+        cv=PredefinedSplit(_kfold_of(data)),
+    ).fit(data[["a", "b"]], data["y"])
+    search = sq.search(
+        sq.Pipeline([("model", LogisticRegression())]),
+        params={"model__C": [0.01, 1.0]},
+        metric=sq.metrics.fbeta(beta=2),
     ).train(data, target="y")
     ours = mean_scores(search)
     for params, sk_mean in zip(

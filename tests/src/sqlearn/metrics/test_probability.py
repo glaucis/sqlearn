@@ -1,13 +1,16 @@
-"""Tests of log_loss and roc_auc against scikit-learn."""
+"""Tests of log_loss, roc_auc and average_precision against scikit-learn."""
+
+import warnings
 
 import numpy as np
 import pandas as pd
 import pytest
-from sklearn.metrics import log_loss, roc_auc_score
+from sklearn.metrics import average_precision_score, log_loss, roc_auc_score
 
 import sqlearn as sq
 from sqlearn._config import connection
-from sqlearn._errors import SqlearnError
+from sqlearn._errors import SqlearnError, UndefinedMetricWarning
+from sqlearn.metrics import MissingClassError
 
 PROBA = "__sqlearn_proba_"
 
@@ -161,3 +164,114 @@ def test_a_target_incomparable_with_the_classes_is_refused_with_a_fix():
     assert "Fix: cast one" in text
     assert "LINE" not in text
     assert "\n" not in text
+
+
+def test_average_precision_matches_sklearn_on_two_classes(con):
+    """Two classes, with ties: the second class's column, as proba[:, 1]."""
+    y, proba = random_labels_and_probabilities(2, rows=400, ties=True)
+    rel = proba_relation(con, y, proba)
+    got = sq.metrics.average_precision.compute(rel, "y", classes=[0, 1])
+    assert got == pytest.approx(average_precision_score(y, proba[:, 1]), rel=1e-12)
+
+
+def test_average_precision_scores_pos_label_on_labels_one_and_two(con):
+    """Classes [1, 2]: pos_label 1 is the first class, proba[:, 0]."""
+    y, proba = random_labels_and_probabilities(2, rows=300, ties=False)
+    rel = proba_relation(con, y + 1, proba)
+    got = sq.metrics.average_precision.compute(rel, "y", classes=[1, 2])
+    assert got == pytest.approx(average_precision_score(y + 1, proba[:, 0]), rel=1e-12)
+    two = sq.metrics.average_precision(pos_label=2).compute(rel, "y", classes=[1, 2])
+    expected = average_precision_score(y + 1, proba[:, 1], pos_label=2)
+    assert two == pytest.approx(expected, rel=1e-12)
+
+
+def test_average_precision_needs_pos_label_for_text_labels(con):
+    """Text classes: pos_label=1 is none of them; a pos_label names a column."""
+    y, proba = random_labels_and_probabilities(2, rows=200, ties=False)
+    text = np.where(y == 1, "b", "a")
+    rel = proba_relation(con, text, proba)
+    with pytest.raises(SqlearnError, match=r"pos_label=1.*Fix: .*pos_label='b'"):
+        sq.metrics.average_precision.compute(rel, "y", classes=["a", "b"])
+    got = sq.metrics.average_precision(pos_label="b").compute(
+        rel, "y", classes=["a", "b"]
+    )
+    expected = average_precision_score(text, proba[:, 1], pos_label="b")
+    assert got == pytest.approx(expected, rel=1e-12)
+
+
+def test_average_precision_matches_sklearn_on_three_classes(con):
+    """More classes: each class against the rest, macro averaged."""
+    y, proba = random_labels_and_probabilities(3, rows=400, ties=True)
+    rel = proba_relation(con, y, proba)
+    got = sq.metrics.average_precision.compute(rel, "y", classes=[0, 1, 2])
+    assert got == pytest.approx(average_precision_score(y, proba), rel=1e-12)
+
+
+def test_average_precision_refuses_pos_label_on_more_classes(con):
+    """As scikit-learn, pos_label is fixed to 1 for more than two classes."""
+    y, proba = random_labels_and_probabilities(3, rows=60, ties=False)
+    rel = proba_relation(con, y, proba)
+    with pytest.raises(SqlearnError, match=r"pos_label=2.*more than two.*Fix: "):
+        sq.metrics.average_precision(pos_label=2).compute(rel, "y", classes=[0, 1, 2])
+
+
+def test_no_positive_rows_give_zero_with_sklearns_warning(con):
+    """No row of the scored class: 0.0 and a warning, as scikit-learn."""
+    proba = np.array([[0.9, 0.1], [0.6, 0.4], [0.3, 0.7]])
+    rel = proba_relation(con, np.array([0, 0, 0]), proba)
+    with pytest.warns(UndefinedMetricWarning, match=r"No positive class.*Fix: "):
+        got = sq.metrics.average_precision.compute(rel, "y", classes=[0, 1])
+    assert got == 0.0
+
+
+def test_no_negative_rows_give_one(con):
+    """Every row of the scored class: 1.0, and no warning."""
+    proba = np.array([[0.9, 0.1], [0.6, 0.4], [0.3, 0.7]])
+    rel = proba_relation(con, np.array([1, 1, 1]), proba)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        got = sq.metrics.average_precision.compute(rel, "y", classes=[0, 1])
+    assert got == 1.0
+
+
+def test_a_class_missing_on_more_classes_is_a_missing_class_error(con):
+    """With three classes, a class absent from the target has no answer."""
+    y, proba = random_labels_and_probabilities(3, rows=60, ties=False)
+    rel = proba_relation(con, np.where(y == 2, 1, y), proba)
+    with pytest.raises(MissingClassError, match=r"class 2 has no row.*Fix: "):
+        sq.metrics.average_precision.compute(rel, "y", classes=[0, 1, 2])
+
+
+def test_average_precision_settings_are_pos_label_only():
+    """The call takes pos_label, keeps the metric's name and says what it set."""
+    metric = sq.metrics.average_precision(pos_label="b")
+    assert (metric.name, metric.pos_label, repr(metric)) == (
+        "average_precision",
+        "b",
+        "average_precision(pos_label='b')",
+    )
+    assert repr(sq.metrics.average_precision) == "average_precision"
+    with pytest.raises(SqlearnError, match=r"no setting average=.*Fix: "):
+        sq.metrics.average_precision(average="micro")
+
+
+@pytest.mark.parametrize(
+    ("classes", "pos_label"),
+    [
+        ([0, 1], np.int64(1)),
+        ([0, 1], 1.0),
+        ([0, 1], True),
+        ([False, True], True),
+        ([np.int64(0), np.int64(1)], np.int64(1)),
+    ],
+)
+def test_average_precision_matches_pos_label_by_value(con, classes, pos_label):
+    """A numpy, float or bool pos_label that equals a class scores it, as sklearn."""
+    y, proba = random_labels_and_probabilities(2, rows=200, ties=False)
+    target = np.array(classes)[y]
+    rel = proba_relation(con, target, proba)
+    got = sq.metrics.average_precision(pos_label=pos_label).compute(
+        rel, "y", classes=classes
+    )
+    expected = average_precision_score(target, proba[:, 1], pos_label=pos_label)
+    assert got == pytest.approx(expected, rel=1e-12)

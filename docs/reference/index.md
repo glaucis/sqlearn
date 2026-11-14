@@ -75,10 +75,17 @@ The API of the sqlearn package, generated from its docstrings.
    sqlearn.metrics.r2
    sqlearn.metrics.log_loss
    sqlearn.metrics.roc_auc
+   sqlearn.metrics.average_precision
    sqlearn.metrics.precision
    sqlearn.metrics.recall
    sqlearn.metrics.f1
+   sqlearn.metrics.fbeta
+   sqlearn.metrics.classification_report
+   sqlearn.metrics.confusion_matrix
+   sqlearn.metrics.roc_curve
+   sqlearn.metrics.precision_recall_curve
    sqlearn.metrics.ClassificationMetric
+   sqlearn.metrics.AveragePrecision
    sqlearn.metrics.MissingClassError
    sqlearn.datasets
    sqlearn.datasets.iris

@@ -56,10 +56,21 @@ counterpart.
 | `scoring="accuracy"` | `metric=sq.metrics.accuracy` |
 | `scoring="precision"`, `"recall"`, `"f1"` | `metric=sq.metrics.precision`, `recall`, `f1` |
 | `scoring="f1_macro"` (and `"_micro"`, `"_weighted"`; the same for precision and recall) | `metric=sq.metrics.f1(average="macro")` |
+| `fbeta_score(y, p, beta=2)` | `sq.metrics.fbeta(beta=2).compute(rel, "y", "p")` |
+| `make_scorer(fbeta_score, beta=2)` | `metric=sq.metrics.fbeta(beta=2)` |
 | `make_scorer(f1_score, pos_label="yes", zero_division=0.0)` | `metric=sq.metrics.f1(pos_label="yes", zero_division=0.0)` |
 | `precision_score(y, p, average="macro")` | `sq.metrics.precision(average="macro").compute(rel, "y", "p")` |
+| `confusion_matrix(y, p)` | `sq.metrics.confusion_matrix(rel, "y", "p", out="numpy")` (a dict of columns; a relation by default) |
+| `confusion_matrix(y, p, normalize="true")` | `sq.metrics.confusion_matrix(rel, "y", "p", normalize="true")` |
+| `classification_report(y, p)` | `sq.metrics.classification_report(rel, "y", "p").show()` |
+| `classification_report(y, p, output_dict=True)` | `sq.metrics.classification_report(rel, "y", "p", out="pandas")` (rows `label`, `accuracy`, `macro avg`, `weighted avg`) |
+| `roc_curve(y, s)` | `sq.metrics.roc_curve(rel, "y", "s", out="numpy")` (a dict of columns; a relation by default; columns `fpr`, `tpr`, `threshold`) |
+| `precision_recall_curve(y, s)` | `sq.metrics.precision_recall_curve(rel, "y", "s", out="numpy")` (a dict of columns; a relation by default; columns `precision`, `recall`, `threshold`, the last threshold NULL) |
+| `precision_recall_fscore_support(y, p)` | the class rows of `classification_report` (`precision`, `recall`, `f1_score`, `support`) |
 | `scoring="neg_log_loss"` | `metric=sq.metrics.log_loss` |
 | `scoring="roc_auc"` (`"roc_auc_ovr"` for more than two classes) | `metric=sq.metrics.roc_auc` |
+| `average_precision_score(y, proba[:, 1])` | `sq.metrics.average_precision.compute(rel, "y", classes=[0, 1])` (`pos_label=` as `sq.metrics.average_precision(pos_label="b")`) |
+| `scoring="average_precision"` | `metric=sq.metrics.average_precision` (scores `predict_proba`; scikit-learn's scorer reads `decision_function` first, so the two can differ) |
 | `scoring="neg_root_mean_squared_error"` | `metric=sq.metrics.rmse` |
 | `scoring="neg_mean_absolute_error"` | `metric=sq.metrics.mae` |
 | `scoring="r2"` | `metric=sq.metrics.r2` |
