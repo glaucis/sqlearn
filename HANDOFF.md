@@ -3,8 +3,9 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-14 · Branch: `main` · Checks: passing (`just test` on the
-merge `7e51b56`: 2288 passed, 24 skipped; `just verify` on the branch: 2298)
+Updated: 2026-11-14 · Branch: `main` · Last commit: `cc6ebe2 docs: the second
+metrics slice is merged (#58)` · Checks: passing (`just test` on the merge
+`7e51b56`: 2288 passed, 24 skipped; `just verify` on the branch: 2298)
 Verify with: `just verify`
 
 ## In progress
@@ -17,17 +18,27 @@ None.
 
 ## Next up
 
+- #59 `Pipeline.predict_proba`: the curves and `average_precision` need a
+  scored relation users cannot get from sqlearn; needs a short design.
+  Recommended first: it completes #58 for users.
+- #60 `sq.folds.holdout` has no `.rows()` as `kfold` has (the evaluating
+  guide holds out a kfold fold instead).
 - #46 (generators on many threads: needs a parallel, ordered, lazy row
   source; measurements in the issue) and #49 (learn nested aggregates; an ADR
   amending 0036/0044), both ready-for-agent and needing a design first.
 - The next 3.3 area, not chosen yet: a fetcher of real datasets (ADR 0006:
   an explicit call), or more scores (balanced accuracy, MCC, Brier).
-- `Pipeline` has no `predict_proba`, so the curves and `average_precision`
-  (which need a scored relation) cannot be fed from sqlearn directly: worth
-  an issue.
-- `sq.folds.holdout` has no `.rows()` as `KFold` has.
 
 ## Dead ends and traps
+
+- DuckDB cannot name a column `""`, and `.df()`/`.fetchnumpy()` rename the
+  second of two names differing only by case (`a`, `A_1`); a bare `1.0` in
+  SQL is DECIMAL, write `1.0::DOUBLE`. commitlint here takes no scope but
+  `hooks`, `site`, `deps`, and a header of 72 characters at most.
+  (2026-11-13)
+- When the network drops mid-build, resume the same subagent (SendMessage
+  to its id) to check and finish; killing a stray test run is not allowed
+  here, so wait on its PID before a new `just verify`. (2026-11-14)
 
 - DuckDB hands a `TIMESTAMP WITH TIME ZONE` to Python only through pytz,
   which is not installed. sqlearn's learned values come through
@@ -104,18 +115,3 @@ None.
   plan `docs/plans/2026-11-13-library-more-metrics.md`. Built in seven
   reviewed tasks and a final review's fix wave (`c8f7c84`).
   `just verify`: 2298 passed, 24 skipped on each interpreter.
-- The target encoder's learn: `derive` made every row exact again for each
-  of the six encodings; it now sums once and takes a fold's complement as
-  the whole less the fold, the same encodings to the bit. Learn at 30,000
-  categories 6.56 s to 3.58 s (`docs/benchmarks/category-lookup.md`). What
-  remains is the scikit-learn formula in `Fraction`, once per category and
-  key.
-- Ruff's F811 skipped every `_name` (its default `dummy-variable-rgx` takes
-  them for throwaways), which is how `_no_fit` lived twice in `_pipeline.py`
-  (8841cae). `dummy-variable-rgx` is now `^_+$`, pinned by a test in
-  `tests/test_environment.py`; the repo is clean under it.
-- The category lookup re-measured (R7, R8 on #31): for both encoders the hash
-  applies faster from 20,000 categories, so `WARN_ABOVE` is 20,000 and the
-  target encoder warns too. The machine was never fully idle (load 4 to 34;
-  other projects' jobs): the 15,000 and 20,000 rows were measured twice and
-  agree. Tables in `docs/benchmarks/category-lookup.md`.
