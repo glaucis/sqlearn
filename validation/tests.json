@@ -7484,6 +7484,12 @@
     },
     {
       "area": "sqlearn/model_selection/search",
+      "name": "tests/src/sqlearn/model_selection/test_search.py::test_predict_proba_uses_the_best_pipeline",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/search",
       "name": "tests/src/sqlearn/model_selection/test_search.py::test_predict_uses_the_best_pipeline",
       "outcome": "passed",
       "tier": "fast"
@@ -12524,6 +12530,48 @@
     },
     {
       "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_predict_proba_gives_the_target_beside_each_class_in_input_order",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_predict_proba_hands_back_a_null_target",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_predict_proba_keeps_text_labels",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_predict_proba_of_a_loaded_pipeline_matches",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_predict_proba_refuses_mistakes",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_predict_proba_uses_the_trained_feed",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_predict_proba_without_the_target_gives_the_probabilities_only",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
       "name": "tests/src/sqlearn/test__pipeline.py::test_predict_refuses_a_connection_not_keeping_order",
       "outcome": "passed",
       "tier": "fast"
@@ -12561,6 +12609,12 @@
     {
       "area": "sqlearn/_pipeline",
       "name": "tests/src/sqlearn/test__pipeline.py::test_predictions_outlive_the_input",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_probabilities_line_up_with_a_large_parquet_input",
       "outcome": "passed",
       "tier": "fast"
     },

@@ -3,14 +3,17 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-14 · Branch: `main` · Last commit: `cc6ebe2 docs: the second
-metrics slice is merged (#58)` · Checks: passing (`just test` on the merge
-`7e51b56`: 2288 passed, 24 skipped; `just verify` on the branch: 2298)
+Updated: 2026-11-15 · Branch: `pipeline-predict-proba` · Last commit: the
+guide's predict_proba commit (#59) · Checks: passing (`just verify` on the
+branch: 2307 passed, 24 skipped on each interpreter)
 Verify with: `just verify`
 
 ## In progress
 
-None.
+- #59 `Pipeline.predict_proba` on branch `pipeline-predict-proba`: built
+  (spec `docs/specs/pipeline-predict-proba.md`, plan
+  `docs/plans/2026-11-15-pipeline-predict-proba.md`, ADR 0050); the final
+  whole-branch review and the merge are next.
 
 ## Waiting on the user
 
@@ -18,9 +21,6 @@ None.
 
 ## Next up
 
-- #59 `Pipeline.predict_proba`: the curves and `average_precision` need a
-  scored relation users cannot get from sqlearn; needs a short design.
-  Recommended first: it completes #58 for users.
 - #60 `sq.folds.holdout` has no `.rows()` as `kfold` has (the evaluating
   guide holds out a kfold fold instead).
 - #46 (generators on many threads: needs a parallel, ordered, lazy row
@@ -31,6 +31,9 @@ None.
 
 ## Dead ends and traps
 
+- `main` failed `just check-docstrings` after `c8f7c84` (the curves'
+  `metrics/_relations.select` had a one-line docstring); fixed on
+  `pipeline-predict-proba`. (2026-11-15)
 - DuckDB cannot name a column `""`, and `.df()`/`.fetchnumpy()` rename the
   second of two names differing only by case (`a`, `A_1`); a bare `1.0` in
   SQL is DECIMAL, write `1.0::DOUBLE`. commitlint here takes no scope but

@@ -26,7 +26,6 @@ rows it trained on are too optimistic.
 
 ```{code-cell} python
 import duckdb
-import pandas as pd
 from sklearn.linear_model import LogisticRegression
 
 import sqlearn as sq
@@ -39,18 +38,9 @@ held = split.rows(data, 0, held=True).df()
 pipe = sq.Pipeline([sq.scale.standard(), LogisticRegression(max_iter=1000)])
 pipe.train(train, target="target")
 
-# The model's probability of class 1, from the held rows' prepared features.
-prepare = sq.Pipeline([sq.scale.standard()]).learn(train, target="target")
-features = prepare.apply(held, out="pandas").to_numpy()
-proba = pipe.model_.predict_proba(features)
-
-scored = pd.DataFrame(
-    {
-        "target": held["target"],
-        "prediction": pipe.predict(held, out="pandas")["prediction"],
-        "score": proba[:, 1],
-    }
-)
+# The held rows' target, then the model's probability of each class.
+scored = pipe.predict_proba(held, out="pandas")
+scored["prediction"] = pipe.predict(held, out="pandas")["prediction"]
 rows = duckdb.from_df(scored)
 rows.limit(3)
 ```
@@ -73,16 +63,12 @@ It takes the same `average=`, `pos_label=` and `zero_division=` as
 
 `average_precision` summarises the precision-recall curve from the model's
 probabilities, so it reads one column per class, `__sqlearn_proba_<i>`, and
-the model's `classes_`. In a search, `metric=sq.metrics.average_precision`
-supplies both.
+the classes they belong to, in order: `pipe.classes_`. `predict_proba` hands
+back the target first when the data holds it, so its result is scored as it
+is. In a search, `metric=sq.metrics.average_precision` supplies both.
 
 ```{code-cell} python
-with_proba = duckdb.from_df(
-    scored.assign(__sqlearn_proba_0=proba[:, 0], __sqlearn_proba_1=proba[:, 1])
-)
-sq.metrics.average_precision.compute(
-    with_proba, "target", classes=pipe.model_.classes_.tolist()
-)
+sq.metrics.average_precision.compute(rows, "target", classes=pipe.classes_)
 ```
 
 With two classes it scores the class `pos_label` (1 by default; name another
@@ -118,12 +104,13 @@ matrix.
 
 ## Trading one mistake for another: the curves
 
-`roc_curve` and `precision_recall_curve` take a score column and give one row
-per threshold. Handed with `out="pandas"` (or `"numpy"`), they go straight to
-your plotting library; sqlearn has no plotting dependency.
+`roc_curve` and `precision_recall_curve` take a score column, here the
+probability of class 1, `__sqlearn_proba_1`, and give one row per threshold.
+Handed with `out="pandas"` (or `"numpy"`), they go straight to your plotting
+library; sqlearn has no plotting dependency.
 
 ```{code-cell} python
-roc = sq.metrics.roc_curve(rows, "target", "score", out="pandas")
+roc = sq.metrics.roc_curve(rows, "target", "__sqlearn_proba_1", out="pandas")
 roc.head()
 ```
 
@@ -133,5 +120,5 @@ up. `precision_recall_curve` has the columns `precision`, `recall` and
 `threshold`; its last threshold is NULL, the point at recall 0.
 
 ```{code-cell} python
-sq.metrics.precision_recall_curve(rows, "target", "score").limit(3)
+sq.metrics.precision_recall_curve(rows, "target", "__sqlearn_proba_1").limit(3)
 ```
