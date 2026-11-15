@@ -40,14 +40,16 @@ Tomas chose C: one call gives a relation every metric reads.
   by default; `out=` as for `predict`.
 - **`Pipeline.classes_`**: the trained model's `classes_` as a list, so a
   user need not reach into `model_`. An untrained pipeline, or a model with
-  no `classes_`, raises `AttributeError` with a `Fix:` line, as a missing
-  attribute does.
+  no `classes_`, raises `SqlearnError` with a `Fix:` line, as `model_` does
+  (a build ruling; the design said `AttributeError`, so `hasattr` raises on
+  an untrained pipeline rather than answering False).
 - **Refusals** (`SqlearnError`, with a `Fix:`): the pipeline is not trained
   (the message of `predict`); the model has no `predict_proba`; the model has
   no `classes_` (worded as the search's `_no_classes`, without a metric).
   All three are checked before any query runs. The checks of
   `predict` hold too (a missing column, `__sqlearn_row` in the data,
-  insertion order not kept).
+  insertion order not kept). A target named `__sqlearn_proba_<i>` is refused,
+  as it could not be told apart from a class's column.
 - **`Search.predict_proba(data, out=None)`** hands off to `best_pipeline_`,
   as `Search.predict` does, and refuses an untrained search alike.
 - **The guide** drops the second pipeline and the pandas stitching and calls
@@ -62,7 +64,10 @@ Tomas chose C: one call gives a relation every metric reads.
 
 - How `predict` and `predict_proba` share their code (one private helper is
   expected).
-- How the target is carried beside the stream's output: it may be fetched
-  sorted by the row number and joined positionally, or carried through
-  `stream_into`, as long as no row reaches Python but the features the model
-  reads.
+- How the target is carried beside the stream's output, as long as no row
+  reaches Python but the features the model reads. Built: the source is read
+  once, into a temporary table of the prepared rows with the target set
+  aside (DuckDB spills it as it needs); the model reads its features from it
+  and the target is joined from it by row number. A second read of the
+  source would put a target on another row's probabilities when the source
+  is shuffled, sampled or changed between reads (found by the final review).

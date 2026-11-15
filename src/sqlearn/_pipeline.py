@@ -32,10 +32,11 @@ from sqlearn._config import connection, get_config
 from sqlearn._diagnose import diagnose
 from sqlearn._errors import SqlearnError, StepError
 from sqlearn._expr import quote
-from sqlearn._feed import ROW, fetch, predict_streamed, stream_trainer
+from sqlearn._feed import PROBA, ROW, fetch, predict_streamed, stream_trainer
 from sqlearn._inputs import (
     DataKey,
     Source,
+    _drop_later,
     _names_and_types,
     read,
     warn_changed_since_saved,
@@ -54,6 +55,7 @@ _ROW = ROW
 _FOLD_TABLE = "__sqlearn_fold_"
 """The prefix of the temporary tables holding a search's prepared folds."""
 _fold_tables = itertools.count()
+_scored_tables = itertools.count()
 
 
 class _FoldTable(NamedTuple):
@@ -1583,6 +1585,14 @@ class Pipeline:
             )
             raise SqlearnError(msg)
         _ = self.classes_  # refused before any query when the model has none
+        target = self._target
+        if target is not None and target.lower().startswith(PROBA):
+            msg = (
+                f"the target is named {target!r}, as predict_proba names the "
+                "probability of a class, so the two columns could not be told "
+                "apart. Fix: rename the target column and train again."
+            )
+            raise SqlearnError(msg)
         rel = self._predicted(data, "predict_proba")
         return to_output(rel, out if out is not None else get_config().out)
 
@@ -1639,8 +1649,12 @@ class Pipeline:
         """Prepare the data and stream it through the model's `method`.
 
         The result is sorted back into the input's order. For
-        ``"predict_proba"``, when the data holds the target, the target is
-        joined (in DuckDB, by row number) in front of the probabilities.
+        ``"predict_proba"``, when the data holds the target, the source is
+        read once: the prepared rows, with the target set aside beside them,
+        are written to a temporary table (DuckDB spills it to disk as it
+        needs), the model reads its features from there, and the target is
+        joined from there in front of the probabilities, by row number. The
+        table is dropped once the relation returned is gone.
         """
         steps, model = self._modelled()
         assert self._feed is not None and self._entries is not None
@@ -1658,14 +1672,19 @@ class Pipeline:
         _check_numbering(con, source.schema)
         full = number_rows(source.relation.sql_query(), _ROW)
         if kept is not None:
-            numbered = f"SELECT * EXCLUDE ({quote(kept)}) FROM ({full})"
+            numbered = (
+                f"SELECT * EXCLUDE ({quote(kept)}), {quote(kept)} AS "
+                f"{quote(TARGET)} FROM ({full})"
+            )
+            aside = [TARGET]
         else:
             source = _without(source, target)
             numbered = number_rows(source.relation.sql_query(), _ROW)
-        schema = describe(con, numbered, [])
+            aside = []
+        schema = [c for c in describe(con, numbered, []) if c[0] not in aside]
         stages, reaching, _ = self._stages(
             con, numbered, schema, steps, self._entries, self._types,
-            self._names,
+            self._names, aside=aside,
         )  # fmt: skip
         have = {c for c, _ in reaching}
         missing = [c for c in self._columns_out if c not in have]
@@ -1681,16 +1700,29 @@ class Pipeline:
         # Streamed: the model is handed one batch at a time, in the feed the
         # pipeline was trained with.
         fed = Model(model.estimator, self._feed)
-        # The target, numbered as the features were (the same input read in
-        # the same order), is joined in front of the probabilities.
-        front = (
-            con.sql(f"SELECT {quote(_ROW)}, {quote(kept)} FROM ({full})")
-            if kept is not None
-            else None
-        )
-        rel = predict_streamed(
-            con, con.sql(sql), self._columns_out, _ROW, fed,
-            method=method, categories=self._categories, front=front,
-        )  # fmt: skip
-        self.runs_ = [Run([sql])]
+        if kept is None:
+            rel = predict_streamed(
+                con, con.sql(sql), self._columns_out, _ROW, fed,
+                method=method, categories=self._categories,
+            )  # fmt: skip
+            self.runs_ = [Run([sql])]
+            return rel
+        # One read of the source: the features and the target both come from
+        # this table, so each target stays beside its own row's features.
+        table = quote(f"_sqlearn_scored_{next(_scored_tables)}")
+        statement = f"CREATE TEMP TABLE {table} AS {sql}"
+        con.execute(statement)
+        try:
+            front = con.sql(
+                f"SELECT {quote(_ROW)}, {quote(TARGET)} AS {quote(kept)} FROM {table}"
+            )
+            rel = predict_streamed(
+                con, con.sql(f"FROM {table}"), self._columns_out, _ROW, fed,
+                method=method, categories=self._categories, front=front,
+            )  # fmt: skip
+        except BaseException:
+            con.execute(f"DROP TABLE IF EXISTS {table}")
+            raise
+        weakref.finalize(rel, _drop_later, con, table)
+        self.runs_ = [Run([statement])]
         return rel

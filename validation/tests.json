@@ -12530,6 +12530,12 @@
     },
     {
       "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_predict_proba_drops_its_scored_rows_once_the_result_is_gone",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
       "name": "tests/src/sqlearn/test__pipeline.py::test_predict_proba_gives_the_target_beside_each_class_in_input_order",
       "outcome": "passed",
       "tier": "fast"
@@ -12548,7 +12554,31 @@
     },
     {
       "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_predict_proba_keeps_the_rows_it_scored_after_the_data_changes",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
       "name": "tests/src/sqlearn/test__pipeline.py::test_predict_proba_of_a_loaded_pipeline_matches",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_predict_proba_reads_an_unstable_source_once[ORDER BY random()]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_predict_proba_reads_an_unstable_source_once[USING SAMPLE 50 PERCENT (bernoulli)]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_predict_proba_refuses_a_target_named_as_a_probability_column",
       "outcome": "passed",
       "tier": "fast"
     },

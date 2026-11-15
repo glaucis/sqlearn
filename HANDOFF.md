@@ -5,15 +5,15 @@ versions.
 
 Updated: 2026-11-15 · Branch: `pipeline-predict-proba` · Last commit: the
 guide's predict_proba commit (#59) · Checks: passing (`just verify` on the
-branch: 2307 passed, 24 skipped on each interpreter)
+branch: 2312 passed, 24 skipped on each interpreter)
 Verify with: `just verify`
 
 ## In progress
 
 - #59 `Pipeline.predict_proba` on branch `pipeline-predict-proba`: built
   (spec `docs/specs/pipeline-predict-proba.md`, plan
-  `docs/plans/2026-11-15-pipeline-predict-proba.md`, ADR 0050); the final
-  whole-branch review and the merge are next.
+  `docs/plans/2026-11-15-pipeline-predict-proba.md`, ADR 0050) and reviewed;
+  the merge into `main` is next.
 
 ## Waiting on the user
 

@@ -769,6 +769,81 @@ def test_probabilities_line_up_with_a_large_parquet_input(tmp_path):
     np.testing.assert_allclose(got["__sqlearn_proba_1"] * 1e6, want["x"], rtol=1e-9)
 
 
+def _separable(n=2000):
+    """Return n rows whose class 1 has x above 1e6 / 2: Shares scores x / 1e6."""
+    x = np.linspace(0.0, 1e6, n)
+    return pd.DataFrame({"x": x, "y": (x > 5e5).astype(int)})
+
+
+def _misplaced(rel):
+    """Count the rows whose target disagrees with its probability's side."""
+    got = rel.fetchnumpy()
+    return int(np.sum((got["__sqlearn_proba_1"] > 0.5) != (got["y"] == 1)))
+
+
+@pytest.mark.parametrize(
+    "order", ["ORDER BY random()", "USING SAMPLE 50 PERCENT (bernoulli)"]
+)
+def test_predict_proba_reads_an_unstable_source_once(order):
+    """A source read in another order each time keeps targets on their rows."""
+    frame = _separable()
+    pipe = sq.Pipeline([Shares()]).train(frame, target="y")
+    con = connection()
+    con.register("separable", frame)
+    try:
+        rel = pipe.predict_proba(con.sql(f"SELECT * FROM separable {order}"))
+        assert _misplaced(rel) == 0
+        assert len(rel.fetchall()) == len(rel.fetchall())
+    finally:
+        con.unregister("separable")
+
+
+def test_predict_proba_keeps_the_rows_it_scored_after_the_data_changes():
+    """A table changed after the call does not change the targets handed back."""
+    frame = _separable()
+    pipe = sq.Pipeline([Shares()]).train(frame, target="y")
+    con = connection()
+    con.execute("CREATE OR REPLACE TEMP TABLE held AS FROM frame")
+    try:
+        rel = pipe.predict_proba(con.table("held"))
+        con.execute("UPDATE held SET y = 1 - y")
+        assert _misplaced(rel) == 0
+    finally:
+        con.execute("DROP TABLE held")
+
+
+def test_predict_proba_drops_its_scored_rows_once_the_result_is_gone():
+    """The table the target is read from lives only as long as the result."""
+    frame = _separable(10)
+    pipe = sq.Pipeline([Shares()]).train(frame, target="y")
+
+    def scored_tables():
+        return (
+            connection()
+            .sql(
+                "SELECT count(*) FROM duckdb_tables() "
+                "WHERE table_name LIKE '\\_sqlearn\\_scored\\_%' ESCAPE '\\'"
+            )
+            .fetchall()[0][0]
+        )
+
+    before = scored_tables()
+    rel = pipe.predict_proba(frame)
+    assert scored_tables() == before + 1
+    del rel
+    gc.collect()
+    pipe.predict(frame).fetchall()  # the next read drops what is pending
+    assert scored_tables() == before
+
+
+def test_predict_proba_refuses_a_target_named_as_a_probability_column():
+    """A target named __sqlearn_proba_<i> would be confused with a class."""
+    frame = pd.DataFrame({"x": [1.0, 2.0], "__sqlearn_proba_0": [0, 1]})
+    pipe = sq.Pipeline([Shares()]).train(frame, target="__sqlearn_proba_0")
+    with pytest.raises(sq.errors.SqlearnError, match="Fix: rename"):
+        pipe.predict_proba(frame)
+
+
 def test_predict_proba_refuses_mistakes():
     """Untrained, no predict_proba, no classes_: each refused with a fix."""
     frame = pd.DataFrame({"x": [1.0, 2.0], "y": [0, 1]})
