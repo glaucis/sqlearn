@@ -1521,7 +1521,112 @@ class Pipeline:
         ... ].tolist()
         [0, 0, 1, 1]
         """
-        steps, model = self._modelled()
+        self._check_trained()
+        rel = self._predicted(data, "predict")
+        return to_output(rel, out if out is not None else get_config().out)
+
+    def predict_proba(self, data: object, out: str | Output | None = None) -> Any:  # noqa: ANN401  (the form `out` names)
+        """Prepare data and hand back the model's probability of each class.
+
+        As `predict`: one query prepares the data, its rows numbered in the
+        order they are read, the rows are streamed to the model's
+        ``predict_proba`` and the probabilities are sorted back, so row
+        ``i`` belongs to row ``i`` of the input. When the data holds the
+        target the pipeline was trained on, it is handed back first, under
+        its own name, so a probability metric or curve reads the result
+        directly (ADR 0050).
+
+        Parameters
+        ----------
+        data : str, pathlib.Path, duckdb.DuckDBPyRelation or pandas.DataFrame
+            A file path or glob, a table name, a relation or a pandas frame.
+        out : {"pandas", "polars", "numpy", "arrow"} or Output, optional
+            What to hand back, as for `apply`.
+
+        Returns
+        -------
+        object
+            A `duckdb.DuckDBPyRelation`: the target (when the data holds it),
+            then one `DOUBLE` column per class, ``__sqlearn_proba_0``,
+            ``__sqlearn_proba_1``, ... in the order of `classes_`, one row
+            per input row in the input's order; or that in the form `out`
+            names.
+
+        Raises
+        ------
+        SqlearnError
+            If the pipeline has no model or has not been trained, the model
+            has no ``predict_proba`` or no ``classes_``, or as for `predict`.
+        StepError
+            As for `apply`.
+
+        Examples
+        --------
+        >>> import pandas as pd
+        >>> import sqlearn as sq
+        >>> from sklearn.linear_model import LogisticRegression
+        >>> data = pd.DataFrame({"x": [1.0, 2.0, 3.0, 4.0], "y": [0, 0, 1, 1]})
+        >>> pipe = sq.Pipeline([sq.scale.standard(), LogisticRegression()])
+        >>> scored = pipe.train(data, target="y").predict_proba(data)
+        >>> scored.columns
+        ['y', '__sqlearn_proba_0', '__sqlearn_proba_1']
+        >>> sq.metrics.average_precision.compute(scored, "y", classes=pipe.classes_)
+        1.0
+        """
+        self._check_trained()
+        estimator = self.model_
+        if not callable(getattr(estimator, "predict_proba", None)):
+            msg = (
+                f"the model {type(estimator).__name__} has no predict_proba, "
+                "so it gives no probabilities. Fix: use a classifier that has "
+                "one, or call predict."
+            )
+            raise SqlearnError(msg)
+        _ = self.classes_  # refused before any query when the model has none
+        rel = self._predicted(data, "predict_proba")
+        return to_output(rel, out if out is not None else get_config().out)
+
+    @property
+    def classes_(self) -> list[Any]:
+        """The trained model's classes: the labels of `predict_proba`'s columns.
+
+        ``__sqlearn_proba_<i>`` holds the probability of ``classes_[i]``.
+
+        Returns
+        -------
+        list
+            The model's ``classes_``, as Python values, in its order.
+
+        Raises
+        ------
+        SqlearnError
+            If the pipeline has no model or has not been trained, or the
+            model has no ``classes_``.
+
+        Examples
+        --------
+        >>> import pandas as pd
+        >>> import sqlearn as sq
+        >>> from sklearn.linear_model import LogisticRegression
+        >>> data = pd.DataFrame({"x": [1.0, 2.0, 3.0, 4.0], "y": ["a", "a", "b", "b"]})
+        >>> sq.Pipeline([LogisticRegression()]).train(data, target="y").classes_
+        ['a', 'b']
+        """
+        estimator = self.model_
+        classes = getattr(estimator, "classes_", None)
+        if classes is None:
+            msg = (
+                f"the fitted model {type(estimator).__name__} has no classes_ "
+                "naming its probability columns, so no column can be matched "
+                "to a label. Fix: use a classifier that sets classes_ when "
+                "fitted, as scikit-learn's do."
+            )
+            raise SqlearnError(msg)
+        return classes.tolist() if hasattr(classes, "tolist") else list(classes)
+
+    def _check_trained(self) -> None:
+        """Refuse a pipeline whose model has not been trained."""
+        self._modelled()
         if not self._model_trained or self._feed is None or self._entries is None:
             msg = (
                 "this pipeline has not been trained yet, so its model cannot "
@@ -1529,12 +1634,32 @@ class Pipeline:
                 "trained model back with use_model(model)."
             )
             raise SqlearnError(msg)
+
+    def _predicted(self, data: object, method: str) -> duckdb.DuckDBPyRelation:
+        """Prepare the data and stream it through the model's `method`.
+
+        The result is sorted back into the input's order. For
+        ``"predict_proba"``, when the data holds the target, the target is
+        joined (in DuckDB, by row number) in front of the probabilities.
+        """
+        steps, model = self._modelled()
+        assert self._feed is not None and self._entries is not None
         source = read(data)
         con = connection()
         _source_sql(con, source)
-        source = _without(source, self._target)
+        target = self._target
+        keep = (
+            method == "predict_proba"
+            and target is not None
+            and any(c == target for c, _ in source.schema)
+        )
         _check_numbering(con, source.schema)
-        numbered = number_rows(source.relation.sql_query(), _ROW)
+        full = number_rows(source.relation.sql_query(), _ROW)
+        if keep:
+            numbered = f"SELECT * EXCLUDE ({quote(target)}) FROM ({full})"
+        else:
+            source = _without(source, target)
+            numbered = number_rows(source.relation.sql_query(), _ROW)
         schema = describe(con, numbered, [])
         stages, reaching, _ = self._stages(
             con, numbered, schema, steps, self._entries, self._types,
@@ -1554,9 +1679,16 @@ class Pipeline:
         # Streamed: the model is handed one batch at a time, in the feed the
         # pipeline was trained with.
         fed = Model(model.estimator, self._feed)
+        # The target, numbered as the features were (the same input read in
+        # the same order), is joined in front of the probabilities.
+        front = (
+            con.sql(f"SELECT {quote(_ROW)}, {quote(target)} FROM ({full})")
+            if keep and target is not None
+            else None
+        )
         rel = predict_streamed(
             con, con.sql(sql), self._columns_out, _ROW, fed,
-            categories=self._categories,
+            method=method, categories=self._categories, front=front,
         )  # fmt: skip
         self.runs_ = [Run([sql])]
-        return to_output(rel, out if out is not None else get_config().out)
+        return rel
