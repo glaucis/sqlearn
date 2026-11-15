@@ -137,6 +137,49 @@ def test_holdout_is_one_split_of_about_the_share():
     assert folds.splits == 1 and 1900 < held < 2100
 
 
+def test_holdout_rows_split_the_data():
+    """The held-out and training rows are the data, apart, held about the share."""
+    rel = connection().sql("SELECT * FROM range(10000) t(i)")
+    folds = sq.folds.holdout(test=0.2, seed=0)
+    held = {i for (i,) in folds.rows(rel, held=True).fetchall()}
+    trained = {i for (i,) in folds.rows(rel, held=False).fetchall()}
+    assert held | trained == set(range(10000))
+    assert not held & trained
+    assert 1900 < len(held) < 2100
+    numbered = dict(folds.numbered(rel, "f").fetchall())
+    assert held == {i for i, f in numbered.items() if f == 0}
+    assert {i for (i,) in folds.rows(rel, 0, held=True).fetchall()} == held
+    assert {i for (i,) in folds.rows(rel, held=True).fetchall()} == held
+    assert folds.rows(rel, held=True).columns == ["i"]
+
+
+def test_holdout_rows_keep_identical_rows_together():
+    """A row's side is a hash of its values: copies of it fall on one side."""
+    rel = connection().sql(
+        "SELECT x, y FROM (VALUES (1, 'a'), (2, 'b'), (3, 'c')) t(x, y), range(50)"
+    )
+    folds = sq.folds.holdout(test=0.5, seed=0)
+    held = folds.rows(rel, held=True).fetchall()
+    trained = folds.rows(rel, held=False).fetchall()
+    assert not set(held) & set(trained)
+    assert len(held) + len(trained) == 150
+
+
+@pytest.mark.parametrize("k", [1, -1, True, 0.0])
+def test_holdout_rows_refuse_a_fold_other_than_zero(k):
+    """A holdout has one split, fold 0: any other k is refused."""
+    rel = connection().sql("SELECT 1 AS a")
+    with pytest.raises(SqlearnError, match="only fold 0"):
+        sq.folds.holdout().rows(rel, k, held=True)
+
+
+def test_holdout_rows_refuse_the_row_alias():
+    """A column named as the row alias is refused, as for numbered."""
+    rel = connection().sql(f'SELECT 1 AS "{ALIAS}"')
+    with pytest.raises(SqlearnError, match="rename"):
+        sq.folds.holdout().rows(rel, held=True)
+
+
 @pytest.mark.parametrize("test", [0, 1, -0.1, 1.5, True, "a"])
 def test_holdout_refuses_a_share_outside_zero_and_one(test):
     """A share of 0, 1 or beyond, or not a number, is refused."""
