@@ -80,6 +80,7 @@ The verbs and conventions users write against.
 - [0042: A metric's settings are a call](0042-a-metrics-settings-are-a-call.md)
 - [0043: Repeatable within rounding](0043-repeatable-within-rounding.md)
 - [0049: Table metrics are relations](0049-table-metrics-are-relations.md)
+- [0050: predict_proba keeps the target](0050-predict-proba-keeps-the-target.md)
 
 ## Numerics and validation
 
