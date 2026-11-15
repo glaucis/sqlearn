@@ -102,10 +102,10 @@ None.
 
 ## Just finished
 
-- `Holdout.rows(rel, k=0, *, held)` (#60): a holdout's held-out or training
-  rows, as `KFold.rows`; any `k` but 0 is refused. The evaluating guide now
-  holds out a fifth with `sq.folds.holdout`. Design on the issue, plan
-  `docs/plans/2026-11-15-holdout-rows.md`.
+- `Holdout.rows(rel, k=0, *, held)` (#60), merged in `ed06a24`: a holdout's
+  held-out or training rows, as `KFold.rows`; any `k` but 0 is refused. The
+  evaluating guide now holds out a fifth with `sq.folds.holdout`. Design on the
+  issue, plan `docs/plans/2026-11-15-holdout-rows.md`.
 - `Pipeline.predict_proba` (#59), merged in `8288e35`: the target (when
   the data holds it) beside one `__sqlearn_proba_<i>` column per class in
   input order, `Pipeline.classes_`, `Search.predict_proba`, and the
