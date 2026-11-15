@@ -3,9 +3,9 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-15 · Branch: `main` · Last commit: the merge of
-`holdout-rows` (#60) · Checks: passing (`just verify` on the branch: 2321
-passed, 24 skipped on each interpreter)
+Updated: 2026-11-15 · Branch: `main` · Last commit: `f550462 docs:
+Holdout.rows is merged (#60)` · Checks: passing (`just test` on the merge
+`ed06a24`: 2311 passed, 24 skipped; `just verify` on the branch: 2321)
 Verify with: `just verify`
 
 ## In progress
@@ -26,6 +26,15 @@ None.
 
 ## Dead ends and traps
 
+- Projecting `rel.columns` back by name (`ColumnExpression(c)`) loses a
+  column differing only by case (`a`, `A`): DuckDB resolves `A` to `a`. Use
+  `StarExpression()` (fixed in the folds' `rows`, `f405ef5`). Reading the
+  source twice (once for features, once for a target) misaligns rows on a
+  shuffled or sampled source: read it once (#59). (2026-11-15)
+- `_drop_later` tables are dropped at the next `read`, not on garbage
+  collection: a test checking a drop reads once more first. A `just verify`
+  rerun can flip a large-set result to "anomaly" (DuckDB's reference drifting
+  by thread order, ADR 0016): discard it as a ULP diff. (2026-11-15)
 - DuckDB cannot name a column `""`, and `.df()`/`.fetchnumpy()` rename the
   second of two names differing only by case (`a`, `A_1`); a bare `1.0` in
   SQL is DECIMAL, write `1.0::DOUBLE`. commitlint here takes no scope but
@@ -105,7 +114,7 @@ None.
 - `Holdout.rows(rel, k=0, *, held)` (#60), merged in `ed06a24`: a holdout's
   held-out or training rows, as `KFold.rows`; any `k` but 0 is refused. The
   evaluating guide now holds out a fifth with `sq.folds.holdout`. Design on the
-  issue, plan `docs/plans/2026-11-15-holdout-rows.md`.
+  issue, plan `docs/plans/2026-11-15-holdout-rows.md`. (2026-11-15)
 - `Pipeline.predict_proba` (#59), merged in `8288e35`: the target (when
   the data holds it) beside one `__sqlearn_proba_<i>` column per class in
   input order, `Pipeline.classes_`, `Search.predict_proba`, and the
@@ -114,4 +123,4 @@ None.
   `docs/plans/2026-11-15-pipeline-predict-proba.md`. The final review found
   the target read twice (misaligned on a shuffled or sampled source); fixed
   in `f3eb279` by reading the data once into a temporary table. Also fixed
-  `main`'s failing `check-docstrings` (`b5cd3e1`).
+  `main`'s failing `check-docstrings` (`b5cd3e1`). (2026-11-15)
