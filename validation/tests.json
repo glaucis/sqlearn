@@ -6734,6 +6734,48 @@
     },
     {
       "area": "sqlearn/model_selection/folds",
+      "name": "tests/src/sqlearn/model_selection/test_folds.py::test_holdout_rows_keep_identical_rows_together",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/folds",
+      "name": "tests/src/sqlearn/model_selection/test_folds.py::test_holdout_rows_refuse_a_fold_other_than_zero[-1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/folds",
+      "name": "tests/src/sqlearn/model_selection/test_folds.py::test_holdout_rows_refuse_a_fold_other_than_zero[0.0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/folds",
+      "name": "tests/src/sqlearn/model_selection/test_folds.py::test_holdout_rows_refuse_a_fold_other_than_zero[1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/folds",
+      "name": "tests/src/sqlearn/model_selection/test_folds.py::test_holdout_rows_refuse_a_fold_other_than_zero[True]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/folds",
+      "name": "tests/src/sqlearn/model_selection/test_folds.py::test_holdout_rows_refuse_the_row_alias",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/folds",
+      "name": "tests/src/sqlearn/model_selection/test_folds.py::test_holdout_rows_split_the_data",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/folds",
       "name": "tests/src/sqlearn/model_selection/test_folds.py::test_identical_rows_share_a_fold_and_the_seed_moves_them",
       "outcome": "passed",
       "tier": "fast"
@@ -6759,6 +6801,18 @@
     {
       "area": "sqlearn/model_selection/folds",
       "name": "tests/src/sqlearn/model_selection/test_folds.py::test_new_schemes_refuse_bad_settings",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/folds",
+      "name": "tests/src/sqlearn/model_selection/test_folds.py::test_rows_keep_columns_differing_only_by_case[folds0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/folds",
+      "name": "tests/src/sqlearn/model_selection/test_folds.py::test_rows_keep_columns_differing_only_by_case[folds1]",
       "outcome": "passed",
       "tier": "fast"
     },

@@ -401,7 +401,7 @@ class KFold(_Scheme):
         aliased, fold = self._fold(rel)
         k_value = duckdb.ConstantExpression(k)
         kept = aliased.filter(fold == k_value if held else fold != k_value)
-        return kept.project(*(duckdb.ColumnExpression(c) for c in rel.columns))
+        return kept.project(duckdb.StarExpression())
 
 
 class Stratified(_Scheme):
@@ -833,6 +833,56 @@ class Holdout(_Scheme):
         """
         fold = duckdb.SQLExpression(self.expression(ALIAS))
         return _whole_row(rel).project(duckdb.StarExpression(), fold.alias(name))
+
+    def rows(
+        self, rel: duckdb.DuckDBPyRelation, k: int = 0, *, held: bool
+    ) -> duckdb.DuckDBPyRelation:
+        """Return the rows the split holds out, or the rows it learns from.
+
+        As `KFold.rows`, for the one split: `k` is 0, the default, so code
+        written for a k-fold's ``rows(rel, k, held=...)`` works unchanged.
+
+        Parameters
+        ----------
+        rel : duckdb.DuckDBPyRelation
+            The data.
+        k : int, default 0
+            The fold; a holdout has only fold 0.
+        held : bool
+            True for the held-out rows, False for the training rows.
+
+        Returns
+        -------
+        duckdb.DuckDBPyRelation
+            The rows, with the data's columns.
+
+        Raises
+        ------
+        SqlearnError
+            If `k` is not 0, or the data has a column named as the row
+            alias, `ALIAS`.
+
+        Examples
+        --------
+        >>> import duckdb
+        >>> import sqlearn as sq
+        >>> rel = duckdb.sql("SELECT range AS i FROM range(10)")
+        >>> split = sq.folds.holdout(test=0.3)
+        >>> rows = split.rows(rel, held=True).count("*").fetchall()[0][0]
+        >>> rows + split.rows(rel, held=False).count("*").fetchall()[0][0]
+        10
+        """
+        if type(k) is not int or k != 0:
+            msg = (
+                f"a holdout has only fold 0 (the split), so k={k!r} names no "
+                "fold. Fix: leave k out, or pass k=0."
+            )
+            raise SqlearnError(msg)
+        aliased = _whole_row(rel)
+        fold = duckdb.SQLExpression(self.expression(ALIAS))
+        zero = duckdb.ConstantExpression(0)
+        kept = aliased.filter(fold == zero if held else fold != zero)
+        return kept.project(duckdb.StarExpression())
 
 
 class TimeSplit(_Scheme):
