@@ -833,3 +833,49 @@ class Search:
             )
             raise SqlearnError(msg)
         return best.predict(data, out)
+
+    def predict_proba(self, data: object, out: str | Output | None = None) -> Any:  # noqa: ANN401  (the form `out` names)
+        """Hand back the best pipeline's probabilities, as `Pipeline.predict_proba`.
+
+        Parameters
+        ----------
+        data : str, pathlib.Path, duckdb.DuckDBPyRelation or pandas.DataFrame
+            A file path or glob, a table name, a relation or a pandas frame.
+        out : {"pandas", "polars", "numpy", "arrow"} or Output, optional
+            What to hand back, as for `Pipeline.predict_proba`.
+
+        Returns
+        -------
+        object
+            The target (when the data holds it) and one probability column
+            per class, as `Pipeline.predict_proba` returns them; the classes
+            are ``best_pipeline_.classes_``.
+
+        Raises
+        ------
+        SqlearnError
+            If the search has not been trained, or as for
+            `Pipeline.predict_proba`.
+
+        Examples
+        --------
+        >>> import pandas as pd
+        >>> import sqlearn as sq
+        >>> from sklearn.linear_model import LogisticRegression
+        >>> data = pd.DataFrame({"x": range(20), "y": [0] * 10 + [1] * 10})
+        >>> pipe = sq.Pipeline([("model", LogisticRegression())])
+        >>> search = sq.search(
+        ...     pipe, params={"model__C": [1.0]}, folds=sq.folds.kfold(2)
+        ... )
+        >>> search.train(data, target="y").predict_proba(data).columns
+        ['y', '__sqlearn_proba_0', '__sqlearn_proba_1']
+        """
+        best: Pipeline | None = getattr(self, "best_pipeline_", None)
+        if best is None:
+            msg = (
+                "this search has not been trained yet, so it has no best "
+                "pipeline to predict with. Fix: call train(data, target=...) "
+                "first."
+            )
+            raise SqlearnError(msg)
+        return best.predict_proba(data, out)
