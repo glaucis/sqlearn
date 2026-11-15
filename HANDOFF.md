@@ -4,7 +4,7 @@ Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
 Updated: 2026-11-15 · Branch: `main` · Last commit: the merge of
-`holdout-rows` (#60) · Checks: passing (`just verify` on the branch: 2319
+`holdout-rows` (#60) · Checks: passing (`just verify` on the branch: 2321
 passed, 24 skipped on each interpreter)
 Verify with: `just verify`
 

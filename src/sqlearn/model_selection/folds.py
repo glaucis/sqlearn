@@ -401,7 +401,7 @@ class KFold(_Scheme):
         aliased, fold = self._fold(rel)
         k_value = duckdb.ConstantExpression(k)
         kept = aliased.filter(fold == k_value if held else fold != k_value)
-        return kept.project(*(duckdb.ColumnExpression(c) for c in rel.columns))
+        return kept.project(duckdb.StarExpression())
 
 
 class Stratified(_Scheme):
@@ -882,7 +882,7 @@ class Holdout(_Scheme):
         fold = duckdb.SQLExpression(self.expression(ALIAS))
         zero = duckdb.ConstantExpression(0)
         kept = aliased.filter(fold == zero if held else fold != zero)
-        return kept.project(*(duckdb.ColumnExpression(c) for c in rel.columns))
+        return kept.project(duckdb.StarExpression())
 
 
 class TimeSplit(_Scheme):

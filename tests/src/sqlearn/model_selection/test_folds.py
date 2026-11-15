@@ -156,13 +156,28 @@ def test_holdout_rows_split_the_data():
 def test_holdout_rows_keep_identical_rows_together():
     """A row's side is a hash of its values: copies of it fall on one side."""
     rel = connection().sql(
-        "SELECT x, y FROM (VALUES (1, 'a'), (2, 'b'), (3, 'c')) t(x, y), range(50)"
+        "SELECT a.range AS x, a.range::VARCHAR AS y FROM range(20) a, range(50) b"
     )
     folds = sq.folds.holdout(test=0.5, seed=0)
     held = folds.rows(rel, held=True).fetchall()
     trained = folds.rows(rel, held=False).fetchall()
+    assert held and trained  # both sides hold distinct rows
     assert not set(held) & set(trained)
-    assert len(held) + len(trained) == 150
+    assert all(held.count(r) == 50 for r in set(held))
+    assert all(trained.count(r) == 50 for r in set(trained))
+    assert len(held) + len(trained) == 1000
+
+
+@pytest.mark.parametrize(
+    "folds", [sq.folds.holdout(test=0.5, seed=0), sq.folds.kfold(2, seed=0)]
+)
+def test_rows_keep_columns_differing_only_by_case(folds):
+    """Columns a and A both come back with their own values."""
+    rel = connection().sql("SELECT range AS a, range + 100 AS A FROM range(40)")
+    both = folds.rows(rel, 0, held=True).fetchall() + (
+        folds.rows(rel, 0, held=False).fetchall()
+    )
+    assert sorted(both) == [(i, i + 100) for i in range(40)]
 
 
 @pytest.mark.parametrize("k", [1, -1, True, 0.0])

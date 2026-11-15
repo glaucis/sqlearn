@@ -6806,6 +6806,18 @@
     },
     {
       "area": "sqlearn/model_selection/folds",
+      "name": "tests/src/sqlearn/model_selection/test_folds.py::test_rows_keep_columns_differing_only_by_case[folds0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/folds",
+      "name": "tests/src/sqlearn/model_selection/test_folds.py::test_rows_keep_columns_differing_only_by_case[folds1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/folds",
       "name": "tests/src/sqlearn/model_selection/test_folds.py::test_stratified_balances_each_class",
       "outcome": "passed",
       "tier": "fast"
