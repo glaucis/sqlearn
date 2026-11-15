@@ -96,6 +96,10 @@ pipe.learn(data).apply(data, out="pandas")
 
 - **Verbs.** `learn` and `apply` for steps, `train` and `predict` for models.
   The result of `apply` is a lazy DuckDB relation, not an array.
+- **Probabilities beside the target.** `pipe.predict_proba(data)` hands back
+  the target first, when `data` holds it, then one column per class,
+  `__sqlearn_proba_0`, `__sqlearn_proba_1`, ... in the order of
+  `pipe.classes_`, so the probability metrics and curves read it as it is.
 - **Columns first.** A step takes the columns it works on as its first
   arguments: `sq.scale.robust("age", "income")`. With none, it works on the
   columns its kind suits.

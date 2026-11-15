@@ -445,6 +445,18 @@ def test_predict_uses_the_best_pipeline():
     assert len(got) == len(data)
 
 
+def test_predict_proba_uses_the_best_pipeline():
+    """`predict_proba` is the best pipeline's, trained on all the data."""
+    data = customers()
+    search = sq.search(slice_pipe(), params=GRID)
+    with pytest.raises(sq.errors.SqlearnError, match="train"):
+        search.predict_proba(data)
+    search.train(data, target="churned")
+    got = search.predict_proba(data).fetchall()
+    assert got == search.best_pipeline_.predict_proba(data).fetchall()
+    assert len(got) == len(data)
+
+
 def test_the_input_is_read_once(monkeypatch):
     """A search reads (and fingerprints) its input once, final training included."""
     from sqlearn import _inputs

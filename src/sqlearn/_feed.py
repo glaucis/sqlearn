@@ -631,6 +631,7 @@ def predict_streamed(
     *,
     method: str = "predict",
     categories: Mapping[str, Sequence[str]] | None = None,
+    front: duckdb.DuckDBPyRelation | None = None,
 ) -> duckdb.DuckDBPyRelation:
     """Predict a relation one batch at a time, sorted back by row number.
 
@@ -656,13 +657,17 @@ def predict_streamed(
     categories : mapping of str to sequence of str, optional
         Each text feature's categories as the model was trained on them
         (see `fetch`): every batch keeps their codes.
+    front : duckdb.DuckDBPyRelation, optional
+        Columns to hand back before the predictions: a relation of `row`
+        and those columns, joined to the predictions by `row` in DuckDB.
 
     Returns
     -------
     duckdb.DuckDBPyRelation
         One column, ``prediction`` (or, for ``predict_proba``, one column
         per class, ``__sqlearn_proba_0``, ``__sqlearn_proba_1``, ...), one
-        row per row of `rel`, sorted by `row`.
+        row per row of `rel`, sorted by `row`; after the columns of `front`
+        but `row`, when given.
 
     Raises
     ------
@@ -685,11 +690,12 @@ def predict_streamed(
     name, outputs = stream_into(
         con, rel, columns, row, model, method=method, categories=categories
     )
-    out = (
-        con.sql(f"FROM {name}")
-        .order(duckdb.ColumnExpression(row))
-        .project(*(duckdb.ColumnExpression(c) for c in outputs))
-    )
+    shown = [duckdb.ColumnExpression(c) for c in outputs]
+    rows = con.sql(f"FROM {name}")
+    if front is not None:
+        shown = [duckdb.ColumnExpression(c) for c in front.columns if c != row] + shown
+        rows = front.join(rows, row)
+    out = rows.order(duckdb.ColumnExpression(row)).project(*shown)
     # Drop the table once the relation is gone.
     weakref.finalize(out, _drop_later, con, name)
     return out

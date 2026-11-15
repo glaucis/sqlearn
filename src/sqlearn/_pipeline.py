@@ -32,10 +32,11 @@ from sqlearn._config import connection, get_config
 from sqlearn._diagnose import diagnose
 from sqlearn._errors import SqlearnError, StepError
 from sqlearn._expr import quote
-from sqlearn._feed import ROW, fetch, predict_streamed, stream_trainer
+from sqlearn._feed import PROBA, ROW, fetch, predict_streamed, stream_trainer
 from sqlearn._inputs import (
     DataKey,
     Source,
+    _drop_later,
     _names_and_types,
     read,
     warn_changed_since_saved,
@@ -54,6 +55,7 @@ _ROW = ROW
 _FOLD_TABLE = "__sqlearn_fold_"
 """The prefix of the temporary tables holding a search's prepared folds."""
 _fold_tables = itertools.count()
+_scored_tables = itertools.count()
 
 
 class _FoldTable(NamedTuple):
@@ -1521,7 +1523,120 @@ class Pipeline:
         ... ].tolist()
         [0, 0, 1, 1]
         """
-        steps, model = self._modelled()
+        self._check_trained()
+        rel = self._predicted(data, "predict")
+        return to_output(rel, out if out is not None else get_config().out)
+
+    def predict_proba(self, data: object, out: str | Output | None = None) -> Any:  # noqa: ANN401  (the form `out` names)
+        """Prepare data and hand back the model's probability of each class.
+
+        As `predict`: one query prepares the data, its rows numbered in the
+        order they are read, the rows are streamed to the model's
+        ``predict_proba`` and the probabilities are sorted back, so row
+        ``i`` belongs to row ``i`` of the input. When the data holds the
+        target the pipeline was trained on, it is handed back first, under
+        its own name, so a probability metric or curve reads the result
+        directly (ADR 0050).
+
+        Parameters
+        ----------
+        data : str, pathlib.Path, duckdb.DuckDBPyRelation or pandas.DataFrame
+            A file path or glob, a table name, a relation or a pandas frame.
+        out : {"pandas", "polars", "numpy", "arrow"} or Output, optional
+            What to hand back, as for `apply`.
+
+        Returns
+        -------
+        object
+            A `duckdb.DuckDBPyRelation`: the target (when the data holds it),
+            then one `DOUBLE` column per class, ``__sqlearn_proba_0``,
+            ``__sqlearn_proba_1``, ... in the order of `classes_`, one row
+            per input row in the input's order; or that in the form `out`
+            names.
+
+        Raises
+        ------
+        SqlearnError
+            If the pipeline has no model or has not been trained, the model
+            has no ``predict_proba`` or no ``classes_``, or as for `predict`.
+        StepError
+            As for `apply`.
+
+        Examples
+        --------
+        >>> import pandas as pd
+        >>> import sqlearn as sq
+        >>> from sklearn.linear_model import LogisticRegression
+        >>> data = pd.DataFrame({"x": [1.0, 2.0, 3.0, 4.0], "y": [0, 0, 1, 1]})
+        >>> pipe = sq.Pipeline([sq.scale.standard(), LogisticRegression()])
+        >>> scored = pipe.train(data, target="y").predict_proba(data)
+        >>> scored.columns
+        ['y', '__sqlearn_proba_0', '__sqlearn_proba_1']
+        >>> sq.metrics.average_precision.compute(scored, "y", classes=pipe.classes_)
+        1.0
+        """
+        self._check_trained()
+        estimator = self.model_
+        if not callable(getattr(estimator, "predict_proba", None)):
+            msg = (
+                f"the model {type(estimator).__name__} has no predict_proba, "
+                "so it gives no probabilities. Fix: use a classifier that has "
+                "one, or call predict."
+            )
+            raise SqlearnError(msg)
+        _ = self.classes_  # refused before any query when the model has none
+        target = self._target
+        if target is not None and target.lower().startswith(PROBA):
+            msg = (
+                f"the target is named {target!r}, as predict_proba names the "
+                "probability of a class, so the two columns could not be told "
+                "apart. Fix: rename the target column and train again."
+            )
+            raise SqlearnError(msg)
+        rel = self._predicted(data, "predict_proba")
+        return to_output(rel, out if out is not None else get_config().out)
+
+    @property
+    def classes_(self) -> list[Any]:
+        """The trained model's classes: the labels of `predict_proba`'s columns.
+
+        ``__sqlearn_proba_<i>`` holds the probability of ``classes_[i]``.
+
+        Returns
+        -------
+        list
+            The model's ``classes_``, as Python values, in its order.
+
+        Raises
+        ------
+        SqlearnError
+            If the pipeline has no model or has not been trained, or the
+            model has no ``classes_``.
+
+        Examples
+        --------
+        >>> import pandas as pd
+        >>> import sqlearn as sq
+        >>> from sklearn.linear_model import LogisticRegression
+        >>> data = pd.DataFrame({"x": [1.0, 2.0, 3.0, 4.0], "y": ["a", "a", "b", "b"]})
+        >>> sq.Pipeline([LogisticRegression()]).train(data, target="y").classes_
+        ['a', 'b']
+        """
+        estimator = self.model_
+        classes = getattr(estimator, "classes_", None)
+        if classes is None:
+            msg = (
+                f"the fitted model {type(estimator).__name__} has no classes_ "
+                "naming its probability columns, so no column can be matched "
+                "to a label. Fix: use a classifier that sets classes_ when "
+                "fitted, as scikit-learn's do."
+            )
+            raise SqlearnError(msg)
+        return classes.tolist() if hasattr(classes, "tolist") else list(classes)
+
+    def _check_trained(self) -> None:
+        """Refuse a pipeline whose model has not been trained."""
+        self._modelled()
         if not self._model_trained or self._feed is None or self._entries is None:
             msg = (
                 "this pipeline has not been trained yet, so its model cannot "
@@ -1529,16 +1644,47 @@ class Pipeline:
                 "trained model back with use_model(model)."
             )
             raise SqlearnError(msg)
+
+    def _predicted(self, data: object, method: str) -> duckdb.DuckDBPyRelation:
+        """Prepare the data and stream it through the model's `method`.
+
+        The result is sorted back into the input's order. For
+        ``"predict_proba"``, when the data holds the target, the source is
+        read once: the prepared rows, with the target set aside beside them,
+        are written to a temporary table (DuckDB spills it to disk as it
+        needs), the model reads its features from there, and the target is
+        joined from there in front of the probabilities, by row number. The
+        table is dropped once the relation returned is gone.
+        """
+        steps, model = self._modelled()
+        assert self._feed is not None and self._entries is not None
         source = read(data)
         con = connection()
         _source_sql(con, source)
-        source = _without(source, self._target)
+        target = self._target
+        # The target handed back in front of the probabilities, when the data
+        # holds it.
+        kept = (
+            target
+            if method == "predict_proba" and any(c == target for c, _ in source.schema)
+            else None
+        )
         _check_numbering(con, source.schema)
-        numbered = number_rows(source.relation.sql_query(), _ROW)
-        schema = describe(con, numbered, [])
+        full = number_rows(source.relation.sql_query(), _ROW)
+        if kept is not None:
+            numbered = (
+                f"SELECT * EXCLUDE ({quote(kept)}), {quote(kept)} AS "
+                f"{quote(TARGET)} FROM ({full})"
+            )
+            aside = [TARGET]
+        else:
+            source = _without(source, target)
+            numbered = number_rows(source.relation.sql_query(), _ROW)
+            aside = []
+        schema = [c for c in describe(con, numbered, []) if c[0] not in aside]
         stages, reaching, _ = self._stages(
             con, numbered, schema, steps, self._entries, self._types,
-            self._names,
+            self._names, aside=aside,
         )  # fmt: skip
         have = {c for c, _ in reaching}
         missing = [c for c in self._columns_out if c not in have]
@@ -1554,9 +1700,29 @@ class Pipeline:
         # Streamed: the model is handed one batch at a time, in the feed the
         # pipeline was trained with.
         fed = Model(model.estimator, self._feed)
-        rel = predict_streamed(
-            con, con.sql(sql), self._columns_out, _ROW, fed,
-            categories=self._categories,
-        )  # fmt: skip
-        self.runs_ = [Run([sql])]
-        return to_output(rel, out if out is not None else get_config().out)
+        if kept is None:
+            rel = predict_streamed(
+                con, con.sql(sql), self._columns_out, _ROW, fed,
+                method=method, categories=self._categories,
+            )  # fmt: skip
+            self.runs_ = [Run([sql])]
+            return rel
+        # One read of the source: the features and the target both come from
+        # this table, so each target stays beside its own row's features.
+        table = quote(f"_sqlearn_scored_{next(_scored_tables)}")
+        statement = f"CREATE TEMP TABLE {table} AS {sql}"
+        con.execute(statement)
+        try:
+            front = con.sql(
+                f"SELECT {quote(_ROW)}, {quote(TARGET)} AS {quote(kept)} FROM {table}"
+            )
+            rel = predict_streamed(
+                con, con.sql(f"FROM {table}"), self._columns_out, _ROW, fed,
+                method=method, categories=self._categories, front=front,
+            )  # fmt: skip
+        except BaseException:
+            con.execute(f"DROP TABLE IF EXISTS {table}")
+            raise
+        weakref.finalize(rel, _drop_later, con, table)
+        self.runs_ = [Run([statement])]
+        return rel

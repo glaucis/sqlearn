@@ -649,6 +649,218 @@ def test_predictions_outlive_the_input():
     assert rel.fetchall() == [(7.0,), (8.0,)]
 
 
+PROBA_COLUMNS = ["__sqlearn_proba_0", "__sqlearn_proba_1"]
+
+
+class Shares:
+    """A classifier whose probability of class 1 is its first column / 1e6."""
+
+    def fit(self, x, y):
+        """Remember the classes and the form of what was handed over."""
+        self.classes_ = np.array([0, 1])
+        self.seen_ = []
+        return self
+
+    def predict(self, x):
+        """Return class 1 for a share above one half."""
+        return (self.predict_proba(x)[:, 1] > 0.5).astype(int)
+
+    def predict_proba(self, x):
+        """Return [1 - share, share] per row, recording the form of `x`."""
+        self.seen_.append(type(x))
+        share = np.asarray(x, dtype=float)[:, 0] / 1e6
+        return np.column_stack([1 - share, share])
+
+
+class Unnamed(Shares):
+    """A classifier with probabilities but no classes_ naming them."""
+
+    def fit(self, x, y):
+        """Fit without setting classes_."""
+        self.seen_ = []
+        return self
+
+
+def test_predict_proba_gives_the_target_beside_each_class_in_input_order():
+    """With the target in the data: it first, then one column per class."""
+    from sklearn.linear_model import LogisticRegression
+
+    frame = pd.DataFrame({"x": [5.0, 1.0, 4.0, 2.0, 3.0], "y": [1, 0, 1, 0, 1]})
+    pipe = sq.Pipeline([sq.scale.standard(), LogisticRegression()])
+    pipe.train(frame, target="y")
+    rel = pipe.predict_proba(frame)
+    assert isinstance(rel, duckdb.DuckDBPyRelation)
+    assert rel.columns == ["y", *PROBA_COLUMNS]
+    got = rel.fetchnumpy()
+    assert got["y"].tolist() == [1, 0, 1, 0, 1]
+    scaled = (frame[["x"]] - 3.0) / frame["x"].std(ddof=0)
+    want = pipe.model_.predict_proba(scaled.to_numpy())
+    np.testing.assert_allclose(got["__sqlearn_proba_0"], want[:, 0], rtol=1e-12)
+    np.testing.assert_allclose(got["__sqlearn_proba_1"], want[:, 1], rtol=1e-12)
+    assert pipe.classes_ == [0, 1]
+    assert len(pipe.runs_) == 1
+
+
+def test_predict_proba_without_the_target_gives_the_probabilities_only():
+    """Data without the target gets one column per class and nothing else."""
+    frame = pd.DataFrame({"x": [250000.0, 750000.0], "y": [0, 1]})
+    pipe = sq.Pipeline([Shares()]).train(frame, target="y")
+    rel = pipe.predict_proba(frame.drop(columns="y"))
+    assert rel.columns == PROBA_COLUMNS
+    assert rel.fetchall() == [(0.75, 0.25), (0.25, 0.75)]
+
+
+def test_predict_proba_keeps_text_labels():
+    """A text target comes back as text; classes_ names the columns."""
+    from sklearn.tree import DecisionTreeClassifier
+
+    frame = pd.DataFrame({"x": [0.0, 1.0, 2.0, 3.0], "y": ["no", "yes", "no", "yes"]})
+    pipe = sq.Pipeline([DecisionTreeClassifier()]).train(frame, "y")
+    got = pipe.predict_proba(frame).fetchall()
+    assert got == [("no", 1.0, 0.0), ("yes", 0.0, 1.0), ("no", 1.0, 0.0),
+                   ("yes", 0.0, 1.0)]  # fmt: skip
+    assert pipe.classes_ == ["no", "yes"]
+
+
+def test_predict_proba_hands_back_a_null_target():
+    """A row whose target is missing is scored, its target NULL."""
+    frame = pd.DataFrame({"x": [250000.0, 750000.0], "y": [0, 1]})
+    pipe = sq.Pipeline([Shares()]).train(frame, target="y")
+    gaps = connection().sql(
+        "SELECT * FROM (VALUES (500000.0, NULL::BIGINT), (0.0, 1)) t(x, y)"
+    )
+    assert pipe.predict_proba(gaps).fetchall() == [(None, 0.5, 0.5), (1, 1.0, 0.0)]
+
+
+def test_predict_proba_of_a_loaded_pipeline_matches(tmp_path):
+    """A pipeline saved, loaded and given its model back scores the same."""
+    from sklearn.linear_model import LogisticRegression
+
+    frame = pd.DataFrame({"x": [5.0, 1.0, 4.0, 2.0], "y": [1, 0, 1, 0]})
+    pipe = sq.Pipeline([sq.scale.standard(), LogisticRegression()])
+    pipe.train(frame, target="y")
+    sq.save(pipe, tmp_path / "pipe.sqlearn.json")
+    loaded = sq.load(tmp_path / "pipe.sqlearn.json").use_model(pipe.model_)
+    assert loaded.predict_proba(frame).fetchall() == (
+        pipe.predict_proba(frame).fetchall()
+    )
+
+
+def test_predict_proba_uses_the_trained_feed():
+    """A model trained with feed="pandas" is asked for probabilities in pandas."""
+    frame = pd.DataFrame({"x": [250000.0, 750000.0], "y": [0, 1]})
+    pipe = sq.Pipeline([sq.Model(Shares(), feed="pandas")]).train(frame, "y")
+    pipe.predict_proba(frame).fetchall()
+    assert pipe.model_.seen_ == [pd.DataFrame]
+
+
+def test_probabilities_line_up_with_a_large_parquet_input(tmp_path):
+    """A million rows read by several threads keep the target beside its row."""
+    path = tmp_path / "big.parquet"
+    connection().execute(
+        "COPY (SELECT (i * 7919) % 1000003 AS x, i % 2 AS y FROM range(1000000) "
+        f"t(i)) TO '{path}' (FORMAT parquet, ROW_GROUP_SIZE 50000)"
+    )
+    pipe = sq.Pipeline([("impute", sq.impute()), ("model", Shares())])
+    pipe.train(path, target="y")
+    got = pipe.predict_proba(path, out="numpy")
+    want = connection().sql(f"SELECT x, y FROM '{path}'").fetchnumpy()
+    np.testing.assert_array_equal(got["y"], want["y"])
+    np.testing.assert_allclose(got["__sqlearn_proba_1"] * 1e6, want["x"], rtol=1e-9)
+
+
+def _separable(n=2000):
+    """Return n rows whose class 1 has x above 1e6 / 2: Shares scores x / 1e6."""
+    x = np.linspace(0.0, 1e6, n)
+    return pd.DataFrame({"x": x, "y": (x > 5e5).astype(int)})
+
+
+def _misplaced(rel):
+    """Count the rows whose target disagrees with its probability's side."""
+    got = rel.fetchnumpy()
+    return int(np.sum((got["__sqlearn_proba_1"] > 0.5) != (got["y"] == 1)))
+
+
+@pytest.mark.parametrize(
+    "order", ["ORDER BY random()", "USING SAMPLE 50 PERCENT (bernoulli)"]
+)
+def test_predict_proba_reads_an_unstable_source_once(order):
+    """A source read in another order each time keeps targets on their rows."""
+    frame = _separable()
+    pipe = sq.Pipeline([Shares()]).train(frame, target="y")
+    con = connection()
+    con.register("separable", frame)
+    try:
+        rel = pipe.predict_proba(con.sql(f"SELECT * FROM separable {order}"))
+        assert _misplaced(rel) == 0
+        assert len(rel.fetchall()) == len(rel.fetchall())
+    finally:
+        con.unregister("separable")
+
+
+def test_predict_proba_keeps_the_rows_it_scored_after_the_data_changes():
+    """A table changed after the call does not change the targets handed back."""
+    frame = _separable()
+    pipe = sq.Pipeline([Shares()]).train(frame, target="y")
+    con = connection()
+    con.execute("CREATE OR REPLACE TEMP TABLE held AS FROM frame")
+    try:
+        rel = pipe.predict_proba(con.table("held"))
+        con.execute("UPDATE held SET y = 1 - y")
+        assert _misplaced(rel) == 0
+    finally:
+        con.execute("DROP TABLE held")
+
+
+def test_predict_proba_drops_its_scored_rows_once_the_result_is_gone():
+    """The table the target is read from lives only as long as the result."""
+    frame = _separable(10)
+    pipe = sq.Pipeline([Shares()]).train(frame, target="y")
+
+    def scored_tables():
+        return (
+            connection()
+            .sql(
+                "SELECT count(*) FROM duckdb_tables() "
+                "WHERE table_name LIKE '\\_sqlearn\\_scored\\_%' ESCAPE '\\'"
+            )
+            .fetchall()[0][0]
+        )
+
+    before = scored_tables()
+    rel = pipe.predict_proba(frame)
+    assert scored_tables() == before + 1
+    del rel
+    gc.collect()
+    pipe.predict(frame).fetchall()  # the next read drops what is pending
+    assert scored_tables() == before
+
+
+def test_predict_proba_refuses_a_target_named_as_a_probability_column():
+    """A target named __sqlearn_proba_<i> would be confused with a class."""
+    frame = pd.DataFrame({"x": [1.0, 2.0], "__sqlearn_proba_0": [0, 1]})
+    pipe = sq.Pipeline([Shares()]).train(frame, target="__sqlearn_proba_0")
+    with pytest.raises(sq.errors.SqlearnError, match="Fix: rename"):
+        pipe.predict_proba(frame)
+
+
+def test_predict_proba_refuses_mistakes():
+    """Untrained, no predict_proba, no classes_: each refused with a fix."""
+    frame = pd.DataFrame({"x": [1.0, 2.0], "y": [0, 1]})
+    with pytest.raises(sq.errors.SqlearnError, match="not been trained"):
+        sq.Pipeline([Shares()]).predict_proba(frame)
+    with pytest.raises(sq.errors.SqlearnError, match="Fix: call train"):
+        _ = sq.Pipeline([Shares()]).classes_
+    echo = sq.Pipeline([Echo()]).train(frame, target="y")
+    with pytest.raises(sq.errors.SqlearnError, match="Echo has no predict_proba"):
+        echo.predict_proba(frame)
+    unnamed = sq.Pipeline([Unnamed()]).train(frame, target="y")
+    with pytest.raises(sq.errors.SqlearnError, match="Unnamed has no classes_"):
+        unnamed.predict_proba(frame)
+    with pytest.raises(sq.errors.SqlearnError, match="Unnamed has no classes_"):
+        _ = unnamed.classes_
+
+
 def test_train_takes_a_model_or_a_wrapped_model_and_a_feed():
     """`sq.Model` carries the feed; `train(feed=...)` overrides it per call."""
     frame = pd.DataFrame({"x": [1.0, 2.0], "y": [0, 1]})
