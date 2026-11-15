@@ -3,9 +3,9 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-15 · Branch: `main` · Last commit: the merge `8288e35`
-of `pipeline-predict-proba` (#59) · Checks: passing (`just test` on the
-merge: 2302 passed, 24 skipped; `just verify` on the branch: 2312)
+Updated: 2026-11-15 · Branch: `main` · Last commit: the merge of
+`holdout-rows` (#60) · Checks: passing (`just verify` on the branch: 2319
+passed, 24 skipped on each interpreter)
 Verify with: `just verify`
 
 ## In progress
@@ -18,8 +18,6 @@ None.
 
 ## Next up
 
-- #60 `sq.folds.holdout` has no `.rows()` as `kfold` has (the evaluating
-  guide holds out a kfold fold instead).
 - #46 (generators on many threads: needs a parallel, ordered, lazy row
   source; measurements in the issue) and #49 (learn nested aggregates; an ADR
   amending 0036/0044), both ready-for-agent and needing a design first.
@@ -104,6 +102,10 @@ None.
 
 ## Just finished
 
+- `Holdout.rows(rel, k=0, *, held)` (#60): a holdout's held-out or training
+  rows, as `KFold.rows`; any `k` but 0 is refused. The evaluating guide now
+  holds out a fifth with `sq.folds.holdout`. Design on the issue, plan
+  `docs/plans/2026-11-15-holdout-rows.md`.
 - `Pipeline.predict_proba` (#59), merged in `8288e35`: the target (when
   the data holds it) beside one `__sqlearn_proba_<i>` column per class in
   input order, `Pipeline.classes_`, `Search.predict_proba`, and the

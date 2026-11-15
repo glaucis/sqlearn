@@ -19,8 +19,8 @@ one mistake for another. All of them are computed in SQL over a relation that
 holds the true label, the model's prediction and, for the probability scores,
 its probabilities.
 
-This page holds out one fold of five of the breast cancer data with
-`sq.folds.kfold` ([tuning a model](tuning-a-model.md)), trains a model on the
+This page holds out about a fifth of the breast cancer data with
+`sq.folds.holdout` ([tuning a model](tuning-a-model.md)), trains a model on the
 rest, and scores the held-out rows, which the model has not seen: scores on the
 rows it trained on are too optimistic.
 
@@ -31,9 +31,9 @@ from sklearn.linear_model import LogisticRegression
 import sqlearn as sq
 
 data = sq.datasets.breast_cancer()
-split = sq.folds.kfold(n=5, seed=0)
-train = split.rows(data, 0, held=False)
-held = split.rows(data, 0, held=True).df()
+split = sq.folds.holdout(test=0.2, seed=0)
+train = split.rows(data, held=False)
+held = split.rows(data, held=True).df()
 
 pipe = sq.Pipeline([sq.scale.standard(), LogisticRegression(max_iter=1000)])
 pipe.train(train, target="target")
