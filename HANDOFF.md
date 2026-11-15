@@ -3,17 +3,14 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-15 · Branch: `pipeline-predict-proba` · Last commit: the
-guide's predict_proba commit (#59) · Checks: passing (`just verify` on the
-branch: 2312 passed, 24 skipped on each interpreter)
+Updated: 2026-11-15 · Branch: `main` · Last commit: the merge `8288e35`
+of `pipeline-predict-proba` (#59) · Checks: passing (`just test` on the
+merge: 2302 passed, 24 skipped; `just verify` on the branch: 2312)
 Verify with: `just verify`
 
 ## In progress
 
-- #59 `Pipeline.predict_proba` on branch `pipeline-predict-proba`: built
-  (spec `docs/specs/pipeline-predict-proba.md`, plan
-  `docs/plans/2026-11-15-pipeline-predict-proba.md`, ADR 0050) and reviewed;
-  the merge into `main` is next.
+None.
 
 ## Waiting on the user
 
@@ -31,9 +28,6 @@ None.
 
 ## Dead ends and traps
 
-- `main` failed `just check-docstrings` after `c8f7c84` (the curves'
-  `metrics/_relations.select` had a one-line docstring); fixed on
-  `pipeline-predict-proba`. (2026-11-15)
 - DuckDB cannot name a column `""`, and `.df()`/`.fetchnumpy()` rename the
   second of two names differing only by case (`a`, `A_1`); a bare `1.0` in
   SQL is DECIMAL, write `1.0::DOUBLE`. commitlint here takes no scope but
@@ -110,11 +104,12 @@ None.
 
 ## Just finished
 
-- More metrics (#58), merged in `7e51b56`: `fbeta`,
-  `average_precision`, `confusion_matrix`, `classification_report`, `roc_curve`
-  and `precision_recall_curve` (the tables and curves are relations, ADR 0049),
-  the search refusing a table or unready metric, and the guide
-  `docs/guide/evaluating-a-model.md`. Spec `docs/specs/library-more-metrics.md`,
-  plan `docs/plans/2026-11-13-library-more-metrics.md`. Built in seven
-  reviewed tasks and a final review's fix wave (`c8f7c84`).
-  `just verify`: 2298 passed, 24 skipped on each interpreter.
+- `Pipeline.predict_proba` (#59), merged in `8288e35`: the target (when
+  the data holds it) beside one `__sqlearn_proba_<i>` column per class in
+  input order, `Pipeline.classes_`, `Search.predict_proba`, and the
+  evaluating guide using them. ADR 0050, spec
+  `docs/specs/pipeline-predict-proba.md`, plan
+  `docs/plans/2026-11-15-pipeline-predict-proba.md`. The final review found
+  the target read twice (misaligned on a shuffled or sampled source); fixed
+  in `f3eb279` by reading the data once into a temporary table. Also fixed
+  `main`'s failing `check-docstrings` (`b5cd3e1`).
