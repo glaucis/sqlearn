@@ -1648,15 +1648,17 @@ class Pipeline:
         con = connection()
         _source_sql(con, source)
         target = self._target
-        keep = (
-            method == "predict_proba"
-            and target is not None
-            and any(c == target for c, _ in source.schema)
+        # The target handed back in front of the probabilities, when the data
+        # holds it.
+        kept = (
+            target
+            if method == "predict_proba" and any(c == target for c, _ in source.schema)
+            else None
         )
         _check_numbering(con, source.schema)
         full = number_rows(source.relation.sql_query(), _ROW)
-        if keep:
-            numbered = f"SELECT * EXCLUDE ({quote(target)}) FROM ({full})"
+        if kept is not None:
+            numbered = f"SELECT * EXCLUDE ({quote(kept)}) FROM ({full})"
         else:
             source = _without(source, target)
             numbered = number_rows(source.relation.sql_query(), _ROW)
@@ -1682,8 +1684,8 @@ class Pipeline:
         # The target, numbered as the features were (the same input read in
         # the same order), is joined in front of the probabilities.
         front = (
-            con.sql(f"SELECT {quote(_ROW)}, {quote(target)} FROM ({full})")
-            if keep and target is not None
+            con.sql(f"SELECT {quote(_ROW)}, {quote(kept)} FROM ({full})")
+            if kept is not None
             else None
         )
         rel = predict_streamed(
