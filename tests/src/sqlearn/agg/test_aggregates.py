@@ -716,6 +716,79 @@ def test_duckdbs_own_median_written_by_a_user_is_learned_as_written():
     assert "row_number()" not in sql
 
 
+class _Mad(sq.Step):
+    """Learn each column's median absolute deviation."""
+
+    def learn(self, x):
+        """Learn the deviation."""
+        return {"mad": _mad(x)}
+
+    def apply(self, x, learned):
+        """Leave the column."""
+        return x
+
+
+def test_two_columns_share_each_level():
+    """Two columns' deviations: one sort per level, two in all, not four."""
+    con = duckdb.connect()
+    con.sql(
+        "CREATE TABLE t AS SELECT * FROM "
+        "(VALUES (1.0, 10.0), (2.0, 40.0), (3.0, 20.0), (100.0, NULL)) v(a, b)"
+    )
+    schema = [("a", DOUBLE), ("b", DOUBLE)]
+    stage = step_stage(1, "mad", _Mad(), schema, SOURCE)
+    values, _, run = execute(con, "t", [stage], produce=False)
+    assert run.statements[0].count("row_number()") == 2
+    a, b = np.array([1.0, 2.0, 3.0, 100.0]), np.array([10.0, 40.0, 20.0])
+    assert values["s01_mad"]["mad"] == {
+        "a": np.median(np.abs(a - np.median(a))),
+        "b": np.median(np.abs(b - np.median(b))),
+    }
+
+
+def test_three_levels_deep_are_learned():
+    """The median distance from the median distance from the median."""
+
+    def build(x):
+        return sq.agg.median(sq.fn.abs(x - _mad(x)))
+
+    v = SAMPLE
+    want = np.median(np.abs(v - np.median(np.abs(v - np.median(v)))))
+    assert _learned(build, v) == want
+
+
+def test_a_nested_value_beside_a_text_mode():
+    """A text column's mode and a number's deviation, in one pipeline."""
+    data = pd.DataFrame({"city": ["b", "a", "b"], "a": [1.0, 2.0, 9.0]})
+    pipe = sq.Pipeline(
+        [("mode", Learn(cols=["city"], value=sq.agg.mode)), ("mad", _Mad(cols=["a"]))]
+    ).learn(data)
+    assert pipe["mode"].v_ == {"city": "b"}
+    assert pipe["mad"].mad_ == {"a": 1.0}
+
+
+def test_a_nested_value_is_reused_from_the_store():
+    """A second learn of the same data learns nothing again."""
+    data = pd.DataFrame({"a": [1.0, 2.0, 9.0]})
+    sq.Pipeline([("mad", _Mad())]).learn(data)
+    before = dict(STORE.learns)
+    again = sq.Pipeline([("mad", _Mad())]).learn(data)
+    assert dict(STORE.learns) == before
+    assert again["mad"].mad_ == {"a": 1.0}
+
+
+def test_an_aggregate_inside_a_target_statistic_is_refused():
+    """The target's statistics read the rows themselves: no aggregate inside."""
+    from sqlearn._expr import target_stats
+
+    def build(x):
+        return target_stats(x, sq.agg.mean(x), sq.fn.const(0))
+
+    data = pd.DataFrame({"a": [1.0, 2.0, 9.0]})
+    with pytest.raises(sq.errors.StepError, match=r"\(step 1\).*target.*Fix:"):
+        sq.Pipeline([("bad", _Learns(build))]).learn(data)
+
+
 def test_an_approximate_median_is_close_to_the_exact_one():
     """On 100,000 normal values the approximation is within 1% of a std."""
     values = np.random.default_rng(0).normal(5, 2, 100_000)

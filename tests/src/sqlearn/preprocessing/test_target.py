@@ -486,3 +486,12 @@ def test_two_columns_in_one_step_each_match_fit_then_transform():
             theirs.transform(as_sklearn(frame, column))[:, 0], rel=1e-12
         )
     assert not np.allclose(got["plan"], got["tier"])
+
+
+def test_the_target_encoder_keeps_one_statistics_stage():
+    """Its statistics are one whole staged value: one stage, read beside the scan."""
+    pipe = sq.Pipeline([("target", sq.encode.target("plan"))])
+    pipe.learn(sample(), target="y")
+    sql = pipe.runs_[0].statements[0]
+    assert sql.count('_stats" AS MATERIALIZED') == 1
+    assert "_l2" not in sql
