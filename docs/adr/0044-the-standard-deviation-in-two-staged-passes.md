@@ -73,6 +73,12 @@ it cannot be one aggregate in the learn stage's row.
 
 ## Amended by #44
 
+Superseded by [ADR 0051](0051-aggregates-learn-in-levels.md) (#49): a plain
+aggregate inside a staged one, a standard deviation inside another, and a
+quantile or mode of an expression holding a standard deviation are learned in
+levels; the refusals below and in **Nesting** above no longer apply, but for
+an aggregate inside the target's statistics, which stays refused.
+
 A staged aggregate's argument may hold other staged aggregates, never a plain
 DuckDB aggregate. `sq.agg.std(x - sq.agg.mean(x))` (likewise a median or a
 mode of it) is refused in the house form, naming the step and saying a plain

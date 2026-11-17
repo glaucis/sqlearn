@@ -62,6 +62,12 @@ BOUNDS = {
     "count": 1,
 }
 
+MAD_BOUND = 1
+"""The median absolute deviation's bound (issue #49), set from its first
+measurement as the others: a median of distances from a median, each
+distance one rounded subtraction. First measured: 0 ULPs on every set,
+against sqlearn, DuckDB's `mad`, numpy and scipy alike."""
+
 QS = (0.1, 0.25, 0.9)
 """The quantiles validated, for each method."""
 
@@ -198,6 +204,7 @@ def _measure(
     sql: str | None,
     numpy: Callable | None,
     pandas: Callable | None,
+    others: dict[str, Callable[[np.ndarray], object]] | None = None,
 ) -> list[dict]:
     values = _cases.present(data.values)
     answers: dict[str, Callable[[], object]] = {
@@ -212,6 +219,8 @@ def _measure(
         answers["pandas"] = lambda: pandas(pd.Series(_cases.as_nan(data.values)))
     if formula == "mode":
         answers["pandas"] = lambda: _pandas_mode(data.values)
+    for reference, compute in (others or {}).items():
+        answers[reference] = lambda c=compute: c(np.array(values, dtype=float))
     return _cases.measure_all(
         step="agg",
         formula=formula,
@@ -340,6 +349,29 @@ def _distinct_numbers(data: _cases.Dataset) -> dict:
     )
 
 
+def exact_mad(values: list[float]) -> Fraction:
+    """Return the median of the exact distances from the exact median."""
+    middle = exact_quantile(values, 0.5, "linear")
+    return exact_quantile([abs(Fraction(v) - middle) for v in values], 0.5, "linear")
+
+
+def _mad(data: _cases.Dataset) -> list[dict]:
+    """The median absolute deviation, nested in levels (ADR 0051)."""
+    from scipy.stats import median_abs_deviation
+
+    return _measure(
+        data,
+        "median(abs(x - median(x)))",
+        lambda x: sq.agg.median(sq.fn.abs(x - sq.agg.median(x))),
+        MAD_BOUND,
+        exact_mad,
+        "mad(x)",
+        lambda v: np.median(np.abs(v - np.median(v))),
+        None,
+        {"scipy": lambda v: median_abs_deviation(v, scale=1.0)},
+    )
+
+
 def cases() -> list[dict]:
     """Return the aggregates' cases: each aggregate, dataset and reference."""
     out = []
@@ -353,6 +385,7 @@ def cases() -> list[dict]:
                 data, name, aggregate, BOUNDS[name], exact, sql, numpy, pandas
             )
         out += _quantiles(data)
+        out += _mad(data)
         out.append(_distinct_numbers(data))
     for data in _cases.labels():
         out += _labels(data)

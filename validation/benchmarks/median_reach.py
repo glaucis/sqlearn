@@ -9,7 +9,10 @@ Parquet file written once per probe by DuckDB (the rows come from ``range()``
 and a fixed seed, never from Python). The boundary points are then repeated
 three times for their times. It prints Markdown tables; it decides nothing.
 
-Run it with ``uv run python -m validation.benchmarks.median_reach``. Files go
+With ``mad`` it measures the median absolute deviation instead,
+``median(abs(x - median(x)))``: two sorts, one per level (ADR 0051, #49).
+
+Run it with ``uv run python -m validation.benchmarks.median_reach [mad]``. Files go
 under ``SQLEARN_BENCH_DIR`` (default: a temporary directory) and are removed.
 Not part of ``just test``.
 """
@@ -57,8 +60,26 @@ DATA = """
 """One DOUBLE column: a tenth NULL, the rest spread evenly over 900 to 1,100."""
 
 
-def _worker(path: str, limit: str, spill: str) -> None:
-    """Learn the median from ``path`` and print the seconds taken as JSON."""
+class Mad:
+    """Make the step learning each column's median absolute deviation."""
+
+    @staticmethod
+    def step(column: str) -> object:
+        """Return a step learning ``median(abs(x - median(x)))`` of `column`."""
+        import sqlearn as sq
+
+        class _Mad(sq.Step):
+            def learn(self, x):
+                return {"mad": sq.agg.median(sq.fn.abs(x - sq.agg.median(x)))}
+
+            def apply(self, x, learned):
+                return x
+
+        return _Mad(cols=[column])
+
+
+def _worker(path: str, limit: str, spill: str, what: str = "median") -> None:
+    """Learn the median (or ``mad``) from ``path``; print the seconds as JSON."""
     import sqlearn as sq
     from sqlearn._store import STORE
 
@@ -69,8 +90,13 @@ def _worker(path: str, limit: str, spill: str) -> None:
     sq.set_config(connection=con)
     STORE.clear()
     start = time.perf_counter()
-    sq.Pipeline([sq.impute.median("x")]).learn(path)
+    step = Mad.step("x") if what == "mad" else sq.impute.median("x")
+    sq.Pipeline([step]).learn(path)
     print(json.dumps({"s": time.perf_counter() - start}))  # noqa: T201
+
+
+WHAT = "median"
+"""What is learned: ``median``, or ``mad`` (set from the command line)."""
 
 
 def _probe(rows: int, limit: str, root: Path) -> tuple[bool, float | None, str]:
@@ -84,7 +110,7 @@ def _probe(rows: int, limit: str, root: Path) -> tuple[bool, float | None, str]:
     try:
         done = subprocess.run(
             [sys.executable, "-m", "validation.benchmarks.median_reach",
-             "--worker", str(path), limit, str(spill)],
+             "--worker", str(path), limit, str(spill), WHAT],
             capture_output=True, text=True, timeout=TIMEOUT, check=False,
         )  # fmt: skip
     except subprocess.TimeoutExpired:
@@ -161,6 +187,7 @@ def main() -> None:
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--worker":
-        _worker(*sys.argv[2:5])
+        _worker(*sys.argv[2:6])
     else:
+        WHAT = sys.argv[1] if len(sys.argv) > 1 else "median"
         main()

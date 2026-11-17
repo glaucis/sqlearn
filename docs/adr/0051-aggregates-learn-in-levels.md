@@ -6,7 +6,7 @@ related: [docs/specs/learn-nested-aggregates.md, docs/adr/0036-staged-aggregates
 ---
 # 0051: Aggregates learn in levels
 
-Status: proposed (2026-11-17). Issue #49,
+Status: accepted (2026-11-17). Issue #49,
 [spec](../specs/learn-nested-aggregates.md). Amends
 [ADR 0036](0036-staged-aggregates-anywhere-in-a-learned-value.md) and
 [ADR 0044](0044-the-standard-deviation-in-two-staged-passes.md).
@@ -66,7 +66,18 @@ the engine. DuckDB 2.0 has no rule merging the two.
 - Cost per level beyond the first: one pass over the materialized input for
   its plain aggregates, a sort when it holds a quantile, a count when it
   holds a mode, two passes when it holds a standard deviation or variance.
-  Learned values without nesting keep their cost. (Measured cost and the
-  median absolute deviation's reach under a memory limit: filled in by the
-  build.)
+  Learned values without nesting keep their cost.
+- Measured on 20,000,000 rows from Parquet on one thread, the median of three
+  alternating runs, load average 17 to 23
+  (`validation/benchmarks/nested_cost.py`): the median absolute deviation
+  took 5.58 s against 2.66 s for `median(abs(x))` (its second sort costs
+  about what the first does), `std(x - mean(x))` 0.77 s against 0.63 s for
+  `std(x)`, `sum(x - mean(x))` 0.25 s against 0.09 s for `sum(x)` (one more
+  compensated pass and the input materialized).
+- Reach: the median absolute deviation learns 85% to 92% of the rows one
+  median does under 32, 64 and 128 MB on one thread (100,000,000 rows under
+  128 MB; [the measurement](../benchmarks/median-reach.md)). The two sorts
+  share the limit.
+- Validated: 0 ULPs from the exact value on every dataset, as DuckDB's `mad`,
+  numpy and scipy are (bound 1).
 - No algebraic rewriting: `std(x - mean(x))` is computed as written.
