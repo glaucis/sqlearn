@@ -3,17 +3,14 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-15 · Branch: `main` · Last commit: `f550462 docs:
-Holdout.rows is merged (#60)` · Checks: passing (`just test` on the merge
-`ed06a24`: 2311 passed, 24 skipped; `just verify` on the branch: 2321)
+Updated: 2026-11-17 · Branch: `main` · Last commit: the merge `b1599cf` of
+`learn-nested-aggregates` (#49) · Checks: passing (`just test` on the merge:
+2328 passed, 24 skipped; `just verify` on the branch: 2338)
 Verify with: `just verify`
 
 ## In progress
 
-- [verified] #49 nested aggregates on branch `learn-nested-aggregates`: built
-  in levels (spec `docs/specs/learn-nested-aggregates.md`, plan
-  `docs/plans/2026-11-17-learn-nested-aggregates.md`, ADR 0051), validated,
-  reach and cost measured, reviewed and fixed. Next: the merge.
+None.
 
 ## Waiting on the user
 
@@ -114,6 +111,12 @@ None.
 
 ## Just finished
 
+- Nested aggregates (#49), merged in `b1599cf`: any aggregate inside any
+  other, at any depth, learned in levels within one query (ADR 0051, spec
+  `docs/specs/learn-nested-aggregates.md`). The median absolute deviation
+  reaches 85-92% of one median's rows. Deferred minors: DuckDB's macro
+  aggregates (`geomean`) are not seen; an aggregate both top-level and
+  nested is computed twice. (2026-11-17)
 - `Holdout.rows(rel, k=0, *, held)` (#60), merged in `ed06a24`: a holdout's
   held-out or training rows, as `KFold.rows`; any `k` but 0 is refused. The
   evaluating guide now holds out a fifth with `sq.folds.holdout`. Design on the
