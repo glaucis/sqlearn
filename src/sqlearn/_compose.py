@@ -892,27 +892,9 @@ class _Staged:
         whole = text[marker.start : marker.end]
         if marker.kind in (STD, VAR) and len(marker.args) == 1:
             return self._std(stage, whole, marker, nested=nested)
+        # The planner has placed every aggregate inside in a level below;
+        # what is left is a window function, read per row as today.
         for arg in marker.args:
-            inner = _markers(arg)
-            if any(m.kind in (STD, VAR) for m in inner):
-                raise _refuse(
-                    stage,
-                    whole,
-                    "a quantile, mode or target statistic of an expression "
-                    "holding a standard deviation or variance, which cannot be staged: "
-                    "those are computed from the stage's input before the "
-                    "standard deviations, which may read them.",
-                    "learn the standard deviation or variance in an earlier step, or "
-                    "learn each aggregate of the column on its own.",
-                )
-            if inner:
-                raise _refuse(
-                    stage,
-                    whole,
-                    "an aggregate of an aggregate (a quantile or mode of "
-                    "one), which has no meaning over one column.",
-                    "learn each aggregate of the column on its own.",
-                )
             _refuse_plain_aggregate(stage, whole, arg)
         if marker.kind == TARGET_STATS and len(marker.args) == 3:
             x, y, fold = marker.args
@@ -943,28 +925,17 @@ class _Staged:
     def _std(self, stage: Stage, whole: str, marker: _Marker, *, nested: bool) -> str:
         """Return the expression standing for the std or variance in `marker`.
 
-        The staged markers inside `values` (``std(x - median(x))``) are
-        replaced by plain columns of their one-row stages, which the
-        standard deviation's passes cross-join: those stages read the
-        stage's input, as the passes do, and come before them. A standard
-        deviation or variance inside another is refused: both are computed
-        in the same two passes, so one cannot read the other. A variance is
-        the stage's column; a standard deviation its square root.
+        The planner has replaced the aggregates inside `values` by plain
+        columns of the levels below (ADR 0051), which the passes cross-join;
+        a staged marker still found here is one the planner did not reach
+        and is read from this stage's own one-row stages, which come before
+        the passes. A variance is the stage's column; a standard deviation
+        its square root.
         """
         values = marker.args[0]
         pieces: list[str] = []
         last = 0
         for inner in _markers(values):
-            if inner.kind in (STD, VAR):
-                raise _refuse(
-                    stage,
-                    whole,
-                    "a standard deviation or variance of an expression holding "
-                    "another, which cannot be staged: both are "
-                    "computed in the same two passes, so one cannot read "
-                    "the other.",
-                    "learn the inner one in an earlier step.",
-                )
             pieces += [
                 values[last : inner.start],
                 self.reference(stage, values, inner, nested=True),
@@ -1015,7 +986,10 @@ _METHOD_CODES = {"linear": 0, "averaged_inverted_cdf": 1}
 
 
 def _quantile_ctes(
-    name: str, quantiles: dict[tuple[str, str, str], int], previous: str
+    name: str,
+    quantiles: dict[tuple[str, str, str], int],
+    previous: str,
+    rows: Sequence[str] = (),
 ) -> list[str]:
     """Return the stages computing a learn stage's quantiles, as one list.
 
@@ -1044,7 +1018,12 @@ def _quantile_ctes(
     expression sorted: unnesting each row's values instead, which reads the
     previous stage once, ran out of memory under 64 MB where the branches
     spill.
+
+    `rows` are the one-row stages of the levels below (ADR 0051) that the
+    expressions sorted read; they are cross-joined into the read of the
+    previous stage.
     """
+    joins = "".join(f" CROSS JOIN {quote(r)}" for r in rows)
     values, counts = (quote(f"{name}_quantile_{part}") for part in ("values", "counts"))
     t, x, r, n, start, k = (quote(c) for c in ("t", "x", "r", "n", "start", "k"))
     i, q, m, lo, hi, w = (quote(c) for c in ("i", "q", "m", "lo", "hi", "w"))
@@ -1054,6 +1033,7 @@ def _quantile_ctes(
         tags.setdefault(inner, len(tags))
     tagged = " UNION ALL ".join(
         f"SELECT {tag} AS {t}, CAST({inner} AS DOUBLE) AS {x} FROM {quote(previous)}"
+        f"{joins}"
         for inner, tag in tags.items()
     )
     # The quantiles asked for, as one constant: per tag, a list of
@@ -1124,20 +1104,24 @@ def _one_row(table: str, branches: list[tuple[str, str]]) -> str:
     return f"{quote(table)} AS MATERIALIZED (SELECT {picks} FROM ({stacked}))"
 
 
-def _mode_ctes(table: str, modes: dict[str, int], previous: str) -> list[str]:
+def _mode_ctes(
+    table: str, modes: dict[str, int], previous: str, rows: Sequence[str] = ()
+) -> list[str]:
     """Return the stage computing a learn stage's modes, as one row.
 
     Each mode counts each value in a ``GROUP BY``, which spills to disk; of
     the values counted most often, the smallest is kept (``min_by`` over
-    count descending, then value). NULL when there is no value.
+    count descending, then value). NULL when there is no value. `rows` are
+    the one-row stages of the levels below that the expressions read.
     """
+    joins = "".join(f" CROSS JOIN {quote(r)}" for r in rows)
     x, c = quote("x"), quote("c")
     branches = [
         (
             f"m{index}",
             f"SELECT min_by({x}, row(-{c}, {x})) AS {quote(f'm{index}')} FROM "
             f"(SELECT {x}, count(*) AS {c} FROM "
-            f"(SELECT {inner} AS {x} FROM {quote(previous)}) "
+            f"(SELECT {inner} AS {x} FROM {quote(previous)}{joins}) "
             f"WHERE {x} IS NOT NULL GROUP BY {x})",
         )
         for inner, index in modes.items()
@@ -1214,68 +1198,263 @@ def _stats_ctes(
     return [_one_row(table, branches)]
 
 
-def _learn_ctes(stage: Stage, learn: dict[str, Expression], previous: str) -> list[str]:
-    """Return a learn stage, after the stages of the staged markers it learns.
+@dataclass(frozen=True)
+class _Call:
+    """One aggregate call found in a learned value's SQL text.
 
-    Each staged marker in a learned value is replaced by a reference to the
-    one row its stages computed, so a quantile may sit anywhere in a learned
-    value (``iqr`` is one quantile less another). The rows a reference
-    inside a larger value reads are cross-joined into the learn stage's scan
-    of the previous stage and read with ``any_value``, or as plain columns
-    inside another aggregate (``mean(abs(x - median(x)))``); a scalar
-    subquery per reference instead made DuckDB plan one join per reference
-    (4.6 s for 600 references, and past its expression depth at 1,000). A
-    learned value that is one whole marker (the target encoder's statistics,
-    a bare median) is not computed in the scan: it is read once, as the plain
-    column of its row, cross-joined with the scan's one row (issue #41: the
-    scan carried the 50,000-element statistics list on every source row).
-    The stage's columns keep the learned values' order, then the row count.
+    `name` is the function's name as written, `start` and `end` delimit the
+    whole call (its ``FILTER (WHERE ...)`` included), `open` and `close` are
+    the indices of its own brackets, so ``text[open + 1 : close]`` is its
+    argument list.
     """
-    staged = _Staged(stage.learn_name)
+
+    name: str
+    start: int
+    open: int
+    close: int
+    end: int
+
+    @property
+    def staged(self) -> bool:
+        """Whether it is one of sq.agg's staged markers."""
+        return self.name in _STAGED
+
+    def rebuilt(self, text: str, inner: str) -> str:
+        """Return the call's text with its argument list replaced by `inner`."""
+        return text[self.start : self.open + 1] + inner + text[self.close : self.end]
+
+
+_STAGED = frozenset({QUANTILE, MODE, STD, VAR, TARGET_STATS})
+"""The names of sq.agg's staged markers."""
+
+_FILTER = re.compile(r"\s*FILTER\s*\(", re.IGNORECASE)
+"""An aggregate's ``FILTER (WHERE ...)``, which belongs to its call."""
+
+_OVER = re.compile(r"\s*OVER\b", re.IGNORECASE)
+"""A window's ``OVER``: an aggregate followed by it is a window function."""
+
+
+def _calls(text: str) -> list[_Call]:
+    """Find the outermost aggregate calls of `text`, staged or plain, in order.
+
+    An aggregate is one of sq.agg's staged markers or one of DuckDB's
+    aggregate functions; a name is matched only outside quotes and as a
+    whole name. A call followed by ``OVER`` is a window function, not an
+    aggregate: the search goes on inside it, as inside any other function.
+    The text is read once from start to end.
+    """
+    names = _aggregate_names()
+    found: list[_Call] = []
+    i = 0
+    while (match := _CALL.search(text, i)) is not None:
+        name = match.group(1)
+        if name is None or (name not in _STAGED and name.lower() not in names):
+            i = match.end()  # a quote, a bracket, or another function: go on
+            continue
+        opened = match.end() - 1
+        after, _ = _scan(text, opened)
+        if after < 0:
+            break
+        end = after
+        clause = _FILTER.match(text, after)
+        if clause is not None:
+            end, _ = _scan(text, clause.end() - 1)
+            if end < 0:
+                break
+        if _OVER.match(text, end):
+            i = match.end()
+            continue
+        found.append(_Call(name, match.start(), opened, after - 1, end))
+        i = end
+    return found
+
+
+@dataclass
+class _Level:
+    """One level of a learn stage (ADR 0051): the aggregates of one height.
+
+    `staged` holds its quantiles, modes, statistics and variances; `plain`
+    maps each plain aggregate's text to its column (``p0``, ...) of the
+    level's plain stage; `reads` names the one-row stages of the levels below
+    its expressions read, in the order first read.
+    """
+
+    staged: _Staged
+    plain: dict[str, int] = field(default_factory=dict)
+    reads: list[str] = field(default_factory=list)
+
+    @property
+    def plain_table(self) -> str:
+        """Return the name of the level's stage of plain aggregates."""
+        return self.staged.name + "_plain"
+
+
+class _Planner:
+    """Place each aggregate of a learn stage in the level of its height.
+
+    An aggregate's height is 1 when its argument holds none, else one more
+    than the highest inside it; it is computed in level `height`, over the
+    stage's input cross-joined with the one-row stages of the levels below it
+    reads, and stands in the text above it as the plain column of its row.
+    Level 1 keeps the learn stage's own name, so a learned value without
+    nesting is computed as before.
+    """
+
+    def __init__(self, stage: Stage) -> None:
+        self.stage = stage
+        self.levels: dict[int, _Level] = {}
+
+    def level(self, k: int) -> _Level:
+        """Return level `k`, made when first asked for."""
+        if k not in self.levels:
+            base = self.stage.learn_name
+            self.levels[k] = _Level(_Staged(base if k == 1 else f"{base}_l{k}"))
+        return self.levels[k]
+
+    def inside(self, text: str) -> tuple[str, int, list[str]]:
+        """Replace each aggregate in `text` by a reference to its level's row.
+
+        Returns the text, the highest level placed (0 when none) and the
+        one-row stages the references read, in order.
+        """
+        pieces: list[str] = []
+        last = 0
+        height = 0
+        reads: list[str] = []
+        for call in _calls(text):
+            reference, k, table = self.place(text, call, nested=True)
+            pieces += [text[last : call.start], reference]
+            last = call.end
+            height = max(height, k)
+            if table not in reads:
+                reads.append(table)
+        pieces.append(text[last:])
+        return "".join(pieces), height, reads
+
+    def place(self, text: str, call: _Call, *, nested: bool) -> tuple[str, int, str]:
+        """Place `call` (found in `text`) in its level.
+
+        Its argument's aggregates are placed first, in the levels below.
+        Returns the reference standing for it, its level and the one-row
+        stage the reference reads. `nested` tells a staged result read inside
+        another aggregate (a plain column) from one read beside the scan
+        (``any_value``).
+        """
+        inner, below, reads = self.inside(text[call.open + 1 : call.close])
+        rebuilt = call.rebuilt(text, inner)
+        k = below + 1
+        level = self.level(k)
+        for table in reads:
+            if table not in level.reads:
+                level.reads.append(table)
+        if not call.staged:
+            index = level.plain.setdefault(rebuilt, len(level.plain))
+            column = f"{quote(level.plain_table)}.{quote(f'p{index}')}"
+            return column, k, level.plain_table
+        (marker,) = _markers(rebuilt)
+        if marker.kind == TARGET_STATS and below:
+            raise _refuse(
+                self.stage,
+                rebuilt,
+                "an aggregate inside the target's statistics, which are "
+                "learned per fold and category from the rows themselves.",
+                "learn the inner aggregate in an earlier step.",
+            )
+        reference = level.staged.reference(self.stage, rebuilt, marker, nested=nested)
+        return reference, k, level.staged.table(marker)
+
+    def ctes(self, previous: str) -> tuple[list[str], list[str]]:
+        """Return every level's stages, lowest first, and their one-row stages."""
+        ctes: list[str] = []
+        rows: list[str] = []
+        for k in sorted(self.levels):
+            level = self.levels[k]
+            staged, below = level.staged, level.reads
+            mine: list[str] = []
+            if staged.quantiles:
+                ctes.extend(
+                    _quantile_ctes(staged.name, staged.quantiles, previous, below)
+                )
+                mine.append(staged.name + "_quantile")
+            if staged.modes:
+                ctes.extend(
+                    _mode_ctes(staged.name + "_modes", staged.modes, previous, below)
+                )
+                mine.append(staged.name + "_modes")
+            if staged.stats:
+                ctes.extend(_stats_ctes(staged.name + "_stats", staged.stats, previous))
+                mine.append(staged.name + "_stats")
+            if staged.stds:  # last: its passes may read the stages above
+                read = [*below, *(r for r in mine if r in staged.std_reads)]
+                ctes.extend(_std_ctes(staged.name, staged.stds, previous, read))
+                mine.append(staged.name + "_std")
+            if level.plain:
+                joins = "".join(f" CROSS JOIN {quote(r)}" for r in below)
+                picks = ", ".join(
+                    f"{sql} AS {quote(f'p{index}')}"
+                    for sql, index in level.plain.items()
+                )
+                ctes.append(
+                    f"{quote(level.plain_table)} AS MATERIALIZED "
+                    f"(SELECT {picks} FROM {quote(previous)}{joins})"
+                )
+                mine.append(level.plain_table)
+            rows.extend(mine)
+        return ctes, rows
+
+
+def _learn_ctes(stage: Stage, learn: dict[str, Expression], previous: str) -> list[str]:
+    """Return a learn stage, after the levels of the aggregates nested in it.
+
+    Each aggregate inside another, and each staged marker anywhere, is
+    placed in the level of its height (ADR 0051) and replaced by a reference
+    to the one row its level computed, so an aggregate may sit inside any
+    other, at any depth (``median(abs(x - median(x)))``). The plain
+    aggregates not inside another are computed in the learn stage's scan of
+    the previous stage, which cross-joins the rows its references read and
+    reads a staged result with ``any_value`` (inside an aggregate, as a plain
+    column); a scalar subquery per reference instead made DuckDB plan one
+    join per reference (4.6 s for 600 references, and past its expression
+    depth at 1,000). A learned value that is one whole staged marker (the
+    target encoder's statistics, a bare median) is not computed in the scan:
+    it is read once, as the plain column of its row, cross-joined with the
+    scan's one row (issue #41: the scan carried the 50,000-element
+    statistics list on every source row). The stage's columns keep the
+    learned values' order, then the row count.
+    """
+    planner = _Planner(stage)
     items: dict[str, str] = {}  # computed in the scan
     whole: dict[str, str] = {}  # one whole marker each, read beside the scan
     scan_reads: set[str] = set()  # the one-row stages each part reads
     whole_reads: set[str] = set()
     for key, expression in learn.items():
         text = str(expression)
-        markers = _markers(text)
+        calls = _calls(text)
         if (
-            len(markers) == 1
-            and not text[: markers[0].start].strip()
-            and not text[markers[0].end :].strip()
+            len(calls) == 1
+            and calls[0].staged
+            and not text[: calls[0].start].strip()
+            and not text[calls[0].end :].strip()
         ):
-            (marker,) = markers
-            whole[key] = staged.reference(stage, text, marker, nested=True)
-            whole_reads.add(staged.table(marker))
+            reference, _, table = planner.place(text, calls[0], nested=True)
+            whole[key] = reference
+            whole_reads.add(table)
             continue
         pieces: list[str] = []
         last = 0
-        spans = _in_aggregates(text) if markers else []
-        for marker in markers:
-            nested = any(a <= marker.start < b for a, b in spans)
-            pieces += [
-                text[last : marker.start],
-                staged.reference(stage, text, marker, nested=nested),
-            ]
-            scan_reads.add(staged.table(marker))
-            last = marker.end
+        for call in calls:
+            if call.staged:
+                reference, _, table = planner.place(text, call, nested=False)
+                scan_reads.add(table)
+            else:  # computed in the scan itself, over the levels it reads
+                inner, _, reads = planner.inside(text[call.open + 1 : call.close])
+                reference = call.rebuilt(text, inner)
+                scan_reads.update(reads)
+            pieces += [text[last : call.start], reference]
+            last = call.end
         pieces.append(text[last:])
         items[key] = "".join(pieces)
-    ctes: list[str] = []
-    rows: list[str] = []  # the one-row stages, in the order computed
-    if staged.quantiles:
-        ctes.extend(_quantile_ctes(staged.name, staged.quantiles, previous))
-        rows.append(staged.name + "_quantile")
-    if staged.modes:
-        ctes.extend(_mode_ctes(staged.name + "_modes", staged.modes, previous))
-        rows.append(staged.name + "_modes")
-    if staged.stats:
-        ctes.extend(_stats_ctes(staged.name + "_stats", staged.stats, previous))
-        rows.append(staged.name + "_stats")
-    if staged.stds:  # last: its passes may read the stages above
-        read = [r for r in rows if r in staged.std_reads]
-        ctes.extend(_std_ctes(staged.name, staged.stds, previous, read))
-        rows.append(staged.name + "_std")
+    ctes, rows = planner.ctes(previous)
     joins = "".join(f" CROSS JOIN {quote(r)}" for r in rows if r in scan_reads)
     # The row count beside the values tells "no rows" from NULL values.
     scan = ", ".join(

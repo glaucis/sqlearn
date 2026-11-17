@@ -508,13 +508,13 @@ class Nested(sq.Step):
         return {"m": sq.agg.median(sq.agg.median(x))}
 
 
-def test_an_aggregate_of_an_aggregate_is_refused(con):
-    """A quantile of a quantile is refused, naming the step."""
+def test_a_median_of_a_median_is_learned(con):
+    """The median of one value, the column's median, is that median."""
     stage = step_stage(1, "nest", Nested(), SCHEMA, SOURCE)
-    with pytest.raises(
-        sq.errors.StepError, match=r"nest \(step 1\).*aggregate of an aggregate"
-    ):
-        execute(con, "t", [stage], produce=False)
+    values, _, _ = execute(con, "t", [stage], produce=False)
+    plain = step_stage(1, "one", Middle(), SCHEMA, SOURCE)
+    want, _, _ = execute(con, "t", [plain], produce=False)
+    assert values["s01_nest"]["m"] == want["s01_one"]["median"]
 
 
 class HandMade(sq.Step):

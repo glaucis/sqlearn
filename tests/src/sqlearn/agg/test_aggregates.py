@@ -2,6 +2,7 @@
 
 import math
 import pickle
+import statistics
 
 import duckdb
 import numpy as np
@@ -484,13 +485,6 @@ def test_var_and_std_of_one_column_share_their_passes():
     assert run.statements[0].count("_std_means") == 2  # its definition, one use
 
 
-def test_var_of_an_expression_holding_a_plain_aggregate_is_refused():
-    """``var(x - mean(x))`` is refused as ``std`` of it is (issue #44)."""
-    step = Learn(value=lambda x: sq.agg.var(x - sq.agg.mean(x)))
-    with pytest.raises(SqlearnError, match="plain"):
-        sq.Pipeline([("learn", step)]).learn(pd.DataFrame({"a": [1.0, 2.0]}))
-
-
 def test_std_is_two_passes_and_may_sit_anywhere_in_a_learned_value():
     """Inside another aggregate, beside a median, in an expression: numpy's values.
 
@@ -572,60 +566,89 @@ class _Learns(sq.Step):
         return x
 
 
+def _learned(build, values):
+    """Return what a step learning `build` of column ``a`` learns from `values`."""
+    data = pd.DataFrame({"a": values})
+    return sq.Pipeline([("learn", _Learns(build))]).learn(data)["learn"].v_["a"]
+
+
+def _mad(x):
+    """Return the median absolute deviation of `x`, as sqlearn learns it."""
+    return sq.agg.median(sq.fn.abs(x - sq.agg.median(x)))
+
+
+def test_the_median_absolute_deviation_is_learned():
+    """The median of the distances from the median: inner first, then outer."""
+    assert _learned(_mad, [1.0, 2.0, 3.0, 4.0, 100.0]) == 1.0
+    v = np.random.default_rng(0).normal(5, 2, 1_000)
+    assert _learned(_mad, v) == np.median(np.abs(v - np.median(v)))
+
+
+def test_a_mode_of_an_expression_holding_a_median_is_learned():
+    """The most frequent distance from the median, rounded down."""
+
+    def build(x):
+        return sq.agg.mode(duckdb.FunctionExpression("floor", x - sq.agg.median(x)))
+
+    v = [1.0, 2.0, 2.0, 7.0, 7.0, 7.0]
+    assert _learned(build, v) == statistics.mode(np.floor(np.array(v) - np.median(v)))
+
+
+SAMPLE = np.random.default_rng(1).normal(5, 2, 1_000)
+"""1,000 normal values: numpy's two-pass results are the reference."""
+
+NESTED_ULPS = 4
+"""A nested value against numpy's: each side rounds the inner value (a
+standard deviation within 2 ULPs, ADR 0044), and the outer one carries that
+rounding on, squared in a variance, so two bounds add up."""
+
+
 @pytest.mark.parametrize(
-    ("build", "why"),
+    ("build", "numpy"),
     [
-        (
-            lambda x: sq.agg.std(x - sq.agg.std(x)),
-            "standard deviation or variance of an expression holding another, "
-            "which cannot be staged",
-        ),
+        (lambda x: sq.agg.std(x - sq.agg.std(x)), lambda v: np.std(v - np.std(v))),
         (
             lambda x: sq.agg.median(x / sq.agg.std(x)),
-            "quantile, mode or target statistic of an expression holding a "
-            "standard deviation or variance, which cannot be staged",
+            lambda v: np.median(v / np.std(v)),
         ),
+        (lambda x: sq.agg.var(sq.agg.std(x) * x), lambda v: np.var(np.std(v) * v)),
     ],
-    ids=["std of std", "median of std"],
+    ids=["std of std", "median of std", "var of std"],
 )
-def test_a_std_the_stages_cannot_order_is_refused(build, why):
-    """Each refusal names the step and why the stages cannot compute it."""
-    data = pd.DataFrame({"a": [1.0, 2.0, 6.0]})
-    with pytest.raises(sq.errors.StepError, match=r"\(step 1\).*" + why):
-        sq.Pipeline([("bad", _Learns(build))]).learn(data)
+def test_a_std_inside_another_aggregate_is_learned(build, numpy):
+    """Within `NESTED_ULPS` of numpy: the inner rounding carries on."""
+    for values in ([1.0, 2.0, 6.0], SAMPLE):
+        got = _learned(build, values)
+        assert _cases.ulps(got, float(numpy(np.asarray(values)))) <= NESTED_ULPS
 
 
 @pytest.mark.parametrize(
-    "build",
+    ("build", "numpy"),
     [
-        lambda x: sq.agg.std(x - sq.agg.mean(x)),
-        lambda x: sq.agg.median(x - sq.agg.mean(x)),
-        lambda x: sq.agg.mode(x - sq.agg.mean(x)),
+        (lambda x: sq.agg.std(x - sq.agg.mean(x)), lambda v: np.std(v - np.mean(v))),
+        (lambda x: sq.agg.var(x - sq.agg.mean(x)), lambda v: np.var(v - np.mean(v))),
+        (
+            lambda x: sq.agg.median(x - sq.agg.mean(x)),
+            lambda v: np.median(v - np.mean(v)),
+        ),
     ],
-    ids=["std", "median", "mode"],
+    ids=["std", "var", "median"],
 )
-def test_a_plain_aggregate_inside_a_staged_one_is_refused(build):
-    """Each refusal names the step and position, not DuckDB's GROUP BY error."""
-    data = pd.DataFrame({"a": [1.0, 2.0, 6.0]})
-    with pytest.raises(sq.errors.StepError, match=r"\(step 1\)") as raised:
-        sq.Pipeline([("bad", _Learns(build))]).learn(data)
-    message = str(raised.value)
-    assert message.startswith("bad (step 1)")
-    assert "a plain aggregate" in message
-    assert "Fix:" in message
-    assert "Binder Error" not in message
+def test_a_plain_aggregate_inside_a_staged_one_is_learned(build, numpy):
+    """The inner mean is learned first; numpy's values within `NESTED_ULPS`."""
+    for values in ([1.0, 2.0, 6.0], SAMPLE):
+        got = _learned(build, values)
+        assert _cases.ulps(got, float(numpy(np.asarray(values)))) <= NESTED_ULPS
 
 
-def test_the_advice_on_a_plain_aggregate_holds_for_a_median_too():
-    """The Fix does not claim the median of x - mean(x) is the median of x."""
-    data = pd.DataFrame({"a": [1.0, 2.0, 6.0]})
-    with pytest.raises(sq.errors.StepError) as raised:
-        sq.Pipeline(
-            [("bad", _Learns(lambda x: sq.agg.median(x - sq.agg.mean(x))))]
-        ).learn(data)
-    fix = str(raised.value).split("Fix:")[1]
-    assert "is the spread of x" not in fix
-    assert "earlier step" in fix
+def test_a_mode_of_an_expression_holding_a_plain_aggregate_is_learned():
+    """The most frequent distance from the mean, rounded down."""
+
+    def build(x):
+        return sq.agg.mode(duckdb.FunctionExpression("floor", x - sq.agg.mean(x)))
+
+    v = np.array([1.0, 2.0, 2.0, 7.0, 7.0, 7.0])
+    assert _learned(build, v) == statistics.mode(np.floor(v - np.mean(v)))
 
 
 def test_an_approximate_median_is_close_to_the_exact_one():
