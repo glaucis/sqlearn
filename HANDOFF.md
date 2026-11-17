@@ -3,9 +3,9 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-17 · Branch: `main` · Last commit: the merge `b1599cf` of
-`learn-nested-aggregates` (#49) · Checks: passing (`just test` on the merge:
-2328 passed, 24 skipped; `just verify` on the branch: 2338)
+Updated: 2026-11-17 · Branch: `main` · Last commit: `83a2cbd docs: nested
+aggregates are merged (#49)` · Checks: passing (`just test` on the merge
+`b1599cf`: 2328 passed, 24 skipped; `just verify` on the branch: 2338)
 Verify with: `just verify`
 
 ## In progress
@@ -26,6 +26,14 @@ None.
 
 ## Dead ends and traps
 
+- The level planner (`_calls` in `_compose.py`) reads SQL text: a name in
+  `duckdb_functions()` of type aggregate is an aggregate, but DuckDB's scalar
+  `filter` (`list_filter`) is not, a subquery's aggregates are its own, and
+  macro aggregates (`geomean`) are not listed at all. Nested values against
+  numpy carry the inner rounding: allow 4 ULPs (`NESTED_ULPS`). (2026-11-17)
+- DuckDB rounds halves away from zero (`round(-2.5)` is -3), numpy to even:
+  compare with `floor`. A pandas frame hands NaN to DuckDB as NULL; insert
+  into a DuckDB table to test NaN. (2026-11-17)
 - Projecting `rel.columns` back by name (`ColumnExpression(c)`) loses a
   column differing only by case (`a`, `A`): DuckDB resolves `A` to `a`. Use
   `StarExpression()` (fixed in the folds' `rows`, `f405ef5`). Reading the
@@ -43,7 +51,6 @@ None.
 - When the network drops mid-build, resume the same subagent (SendMessage
   to its id) to check and finish; killing a stray test run is not allowed
   here, so wait on its PID before a new `just verify`. (2026-11-14)
-
 - DuckDB hands a `TIMESTAMP WITH TIME ZONE` to Python only through pytz,
   which is not installed. sqlearn's learned values come through
   `_fetch_learned` (UTC); a test reading zoned output fetches it as text
@@ -114,19 +121,6 @@ None.
 - Nested aggregates (#49), merged in `b1599cf`: any aggregate inside any
   other, at any depth, learned in levels within one query (ADR 0051, spec
   `docs/specs/learn-nested-aggregates.md`). The median absolute deviation
-  reaches 85-92% of one median's rows. Deferred minors: DuckDB's macro
-  aggregates (`geomean`) are not seen; an aggregate both top-level and
-  nested is computed twice. (2026-11-17)
-- `Holdout.rows(rel, k=0, *, held)` (#60), merged in `ed06a24`: a holdout's
-  held-out or training rows, as `KFold.rows`; any `k` but 0 is refused. The
-  evaluating guide now holds out a fifth with `sq.folds.holdout`. Design on the
-  issue, plan `docs/plans/2026-11-15-holdout-rows.md`. (2026-11-15)
-- `Pipeline.predict_proba` (#59), merged in `8288e35`: the target (when
-  the data holds it) beside one `__sqlearn_proba_<i>` column per class in
-  input order, `Pipeline.classes_`, `Search.predict_proba`, and the
-  evaluating guide using them. ADR 0050, spec
-  `docs/specs/pipeline-predict-proba.md`, plan
-  `docs/plans/2026-11-15-pipeline-predict-proba.md`. The final review found
-  the target read twice (misaligned on a shuffled or sampled source); fixed
-  in `f3eb279` by reading the data once into a temporary table. Also fixed
-  `main`'s failing `check-docstrings` (`b5cd3e1`). (2026-11-15)
+  reaches 85-92% of one median's rows. Deferred minors (on the issue):
+  macro aggregates not seen; an aggregate both top-level and nested is
+  computed twice. (2026-11-17)
