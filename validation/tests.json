@@ -1586,6 +1586,12 @@
     },
     {
       "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_a_filter_clause_on_a_staged_aggregate_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
       "name": "tests/src/sqlearn/agg/test_aggregates.py::test_a_linear_quantile_interpolates_as_numpy_does",
       "outcome": "passed",
       "tier": "fast"
@@ -1689,6 +1695,18 @@
     {
       "area": "sqlearn/agg/aggregates",
       "name": "tests/src/sqlearn/agg/test_aggregates.py::test_an_aggregate_equals_only_aggregates",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_an_aggregate_inside_a_filter_clause_is_learned_first",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_an_aggregate_inside_a_scalar_subquery_reads_its_own_table",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -2703,6 +2721,12 @@
     {
       "area": "sqlearn/agg/aggregates",
       "name": "tests/src/sqlearn/agg/test_aggregates.py::test_the_repr_sorts_params_and_leaves_defaults_out",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_the_scalar_filter_function_is_not_an_aggregate",
       "outcome": "passed",
       "tier": "fast"
     },

@@ -789,6 +789,48 @@ def test_an_aggregate_inside_a_target_statistic_is_refused():
         sq.Pipeline([("bad", _Learns(build))]).learn(data)
 
 
+def test_the_scalar_filter_function_is_not_an_aggregate():
+    """filter(list, lambda), DuckDB's list_filter, stays per row (review #49)."""
+    data = [1.0, 2.0, 3.0, 4.0, 100.0]
+    expr = duckdb.SQLExpression('"a" * len(filter(["a"], lambda y: y > 2))')
+    v = np.array(data)
+    assert _learned(lambda x: sq.agg.mean(expr), data) == np.mean(v * (v > 2))
+    assert _learned(lambda x: sq.agg.median(expr), data) == np.median(v * (v > 2))
+
+
+def test_an_aggregate_inside_a_scalar_subquery_reads_its_own_table():
+    """(SELECT max(b) FROM other) is the subquery's, not a level's (review #49)."""
+    con = connection()
+    con.execute("CREATE OR REPLACE TABLE other AS SELECT 1000.0 AS b")
+    try:
+        lookup = duckdb.SQLExpression("(SELECT max(b) FROM other)")
+        got = _learned(lambda x: _duck("sum", x - lookup), [1.0, 2.0])
+        assert got == -1997.0
+    finally:
+        con.execute("DROP TABLE other")
+
+
+def test_an_aggregate_inside_a_filter_clause_is_learned_first():
+    """count(*) FILTER (WHERE x > median(x)): the median, then the count."""
+
+    def build(x):
+        return duckdb.SQLExpression(f"count(*) FILTER (WHERE {x} > {sq.agg.median(x)})")
+
+    v = np.array([1.0, 2.0, 3.0, 4.0, 100.0])
+    assert _learned(build, v) == int(np.sum(v > np.median(v)))
+
+
+def test_a_filter_clause_on_a_staged_aggregate_is_refused():
+    """sq.agg's markers take no FILTER clause: refused, not dropped (review #49)."""
+
+    def build(x):
+        return duckdb.SQLExpression(str(sq.agg.median(x)) + ' FILTER (WHERE "a" > 3)')
+
+    data = pd.DataFrame({"a": [1.0, 2.0, 3.0, 4.0, 100.0]})
+    with pytest.raises(sq.errors.StepError, match=r"\(step 1\).*FILTER.*Fix:"):
+        sq.Pipeline([("bad", _Learns(build))]).learn(data)
+
+
 def test_an_approximate_median_is_close_to_the_exact_one():
     """On 100,000 normal values the approximation is within 1% of a std."""
     values = np.random.default_rng(0).normal(5, 2, 100_000)

@@ -798,10 +798,17 @@ def test_a_nested_quantile_over_no_rows_gives_one_row():
 
 
 def test_spans_inside_aggregates_are_found_once():
-    """Only the outermost aggregate's brackets count; quotes and FILTER are read."""
-    text = "sum(abs(\"x\" - m)) + f('sum(') + count(*) FILTER (WHERE y > m) + g(1)) "
+    """Only the outermost aggregate's brackets count; quotes are skipped.
+
+    ``filter`` is DuckDB's scalar ``list_filter`` as a function: not an
+    aggregate (a FILTER clause is read with its aggregate, by `_calls`).
+    """
+    text = (
+        "sum(abs(\"x\" - m)) + f('sum(') + count(*) FILTER (WHERE y > m) "
+        "+ len(filter(l, lambda v: v > 1)) + g(1)) "
+    )
     spans = [text[a:b] for a, b in _in_aggregates(text)]
-    assert spans == ['abs("x" - m)', "*", "WHERE y > m"]
+    assert spans == ['abs("x" - m)', "*"]
 
 
 CHAINED = """

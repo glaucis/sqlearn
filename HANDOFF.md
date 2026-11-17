@@ -13,7 +13,7 @@ Verify with: `just verify`
 - [verified] #49 nested aggregates on branch `learn-nested-aggregates`: built
   in levels (spec `docs/specs/learn-nested-aggregates.md`, plan
   `docs/plans/2026-11-17-learn-nested-aggregates.md`, ADR 0051), validated,
-  reach and cost measured. Next: the final whole-branch review, then merge.
+  reach and cost measured, reviewed and fixed. Next: the merge.
 
 ## Waiting on the user
 

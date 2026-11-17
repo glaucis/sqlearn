@@ -780,14 +780,15 @@ _CALL = re.compile(
 def _aggregate_names() -> frozenset[str]:
     """Return the names of DuckDB's aggregate functions, lower case.
 
-    ``filter`` is among them: an aggregate's ``FILTER (WHERE ...)`` is read
-    per row, as its arguments are.
+    ``filter`` is not among them: as a function it is DuckDB's scalar
+    ``list_filter``, and an aggregate's ``FILTER (WHERE ...)`` clause is
+    read with that aggregate (`_calls`).
     """
     rows = duckdb.connect().sql(
         "SELECT DISTINCT lower(function_name) FROM duckdb_functions() "
         "WHERE function_type = 'aggregate'"
     )
-    return frozenset(str(name) for (name,) in rows.fetchall()) | {"filter"}
+    return frozenset(str(name) for (name,) in rows.fetchall()) - {"filter"}
 
 
 def _in_aggregates(text: str) -> list[tuple[int, int]]:
@@ -1219,9 +1220,9 @@ class _Call:
         """Whether it is one of sq.agg's staged markers."""
         return self.name in _STAGED
 
-    def rebuilt(self, text: str, inner: str) -> str:
-        """Return the call's text with its argument list replaced by `inner`."""
-        return text[self.start : self.open + 1] + inner + text[self.close : self.end]
+    def rebuilt(self, text: str, inner: str, clause: str) -> str:
+        """Return the call's text with its arguments and its clause replaced."""
+        return text[self.start : self.open + 1] + inner + ")" + clause
 
 
 _STAGED = frozenset({QUANTILE, MODE, STD, VAR, TARGET_STATS})
@@ -1233,6 +1234,9 @@ _FILTER = re.compile(r"\s*FILTER\s*\(", re.IGNORECASE)
 _OVER = re.compile(r"\s*OVER\b", re.IGNORECASE)
 """A window's ``OVER``: an aggregate followed by it is a window function."""
 
+_SUBQUERY = re.compile(r"\s*(?:SELECT|WITH|FROM)\b", re.IGNORECASE)
+"""A bracket opening a subquery, whose aggregates read its own tables."""
+
 
 def _calls(text: str) -> list[_Call]:
     """Find the outermost aggregate calls of `text`, staged or plain, in order.
@@ -1241,12 +1245,23 @@ def _calls(text: str) -> list[_Call]:
     aggregate functions; a name is matched only outside quotes and as a
     whole name. A call followed by ``OVER`` is a window function, not an
     aggregate: the search goes on inside it, as inside any other function.
-    The text is read once from start to end.
+    A subquery (a bracket opening with ``SELECT``, ``WITH`` or ``FROM``) is
+    skipped whole: its aggregates read its own tables. ``filter`` is not
+    taken for an aggregate: as a function it is DuckDB's ``list_filter``, and
+    as an aggregate's clause it is read with that aggregate. The text is
+    read once from start to end.
     """
     names = _aggregate_names()
     found: list[_Call] = []
     i = 0
     while (match := _CALL.search(text, i)) is not None:
+        piece = match.group()
+        if piece[-1] == "(" and _SUBQUERY.match(text, match.end()):
+            after, _ = _scan(text, match.end() - 1)  # a subquery: skip it
+            if after < 0:
+                break
+            i = after
+            continue
         name = match.group(1)
         if name is None or (name not in _STAGED and name.lower() not in names):
             i = match.end()  # a quote, a bracket, or another function: go on
@@ -1331,6 +1346,21 @@ class _Planner:
         pieces.append(text[last:])
         return "".join(pieces), height, reads
 
+    def rewritten(self, text: str, call: _Call) -> tuple[str, int, list[str]]:
+        """Return `call` with the aggregates in its arguments and clause placed.
+
+        Its ``FILTER (WHERE ...)`` is read per row, as its arguments are, so
+        an aggregate there is placed in a level below too. Returns the text,
+        the highest level placed inside (0 when none) and the stages read.
+        """
+        inner, below, reads = self.inside(text[call.open + 1 : call.close])
+        clause, also, more = self.inside(text[call.close + 1 : call.end])
+        return (
+            call.rebuilt(text, inner, clause),
+            max(below, also),
+            [*reads, *(r for r in more if r not in reads)],
+        )
+
     def place(self, text: str, call: _Call, *, nested: bool) -> tuple[str, int, str]:
         """Place `call` (found in `text`) in its level.
 
@@ -1340,8 +1370,16 @@ class _Planner:
         another aggregate (a plain column) from one read beside the scan
         (``any_value``).
         """
-        inner, below, reads = self.inside(text[call.open + 1 : call.close])
-        rebuilt = call.rebuilt(text, inner)
+        if call.staged and call.end > call.close + 1:
+            raise _refuse(
+                self.stage,
+                text[call.start : call.end],
+                "a FILTER clause on one of sq.agg's aggregates, which take "
+                "none: it would be left out, not applied.",
+                "filter inside the aggregate's argument instead, such as "
+                "sq.agg.median(CASE WHEN x > 3 THEN x END).",
+            )
+        rebuilt, below, reads = self.rewritten(text, call)
         k = below + 1
         level = self.level(k)
         for table in reads:
@@ -1447,8 +1485,7 @@ def _learn_ctes(stage: Stage, learn: dict[str, Expression], previous: str) -> li
                 reference, _, table = planner.place(text, call, nested=False)
                 scan_reads.add(table)
             else:  # computed in the scan itself, over the levels it reads
-                inner, _, reads = planner.inside(text[call.open + 1 : call.close])
-                reference = call.rebuilt(text, inner)
+                reference, _, reads = planner.rewritten(text, call)
                 scan_reads.update(reads)
             pieces += [text[last : call.start], reference]
             last = call.end
