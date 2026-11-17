@@ -63,3 +63,25 @@ limit: doubling the limit multiplied the passing rows by 4.0, then 3.4.
 For scale, a row is one 8-byte DOUBLE (a tenth NULL), so 110,000,000 rows are
 about 0.9 GB of values, about seven times a 128 MB limit; 32,500,000 rows are
 about 4 times a 64 MB limit.
+
+## The median absolute deviation (2026-11-17)
+
+[Issue #49](https://github.com/glaucis/sqlearn/issues/49) learns an aggregate
+inside another in levels
+([ADR 0051](../adr/0051-aggregates-learn-in-levels.md)):
+`sq.agg.median(sq.fn.abs(x - sq.agg.median(x)))` is two sorts, one per level, in
+one query. The same method and data, learning that instead
+(`uv run python -m validation.benchmarks.median_reach mad`), sqlearn
+`0.1.dev393`, the machine shared with other jobs (load average 12 to 76):
+
+| memory limit | largest passing rows | smallest failing rows | of the median's reach |
+|---|---|---|---|
+| 32 MB | 6,875,000 | 7,500,000 | 85% |
+| 64 MB | 30,000,000 | 32,500,000 | 92% |
+| 128 MB | 100,000,000 | 110,000,000 | 91% |
+
+Every failure was DuckDB's out-of-memory error, reported by sqlearn naming
+the step. The second sort reads the stage's input with the first level's one
+row cross-joined, and the two sorts share the limit, so the reach is a little
+below one median's. The times are not recorded: under that load one passing
+run took 605 s where its neighbours took about 200.

@@ -43,6 +43,9 @@ appear anywhere in a learned value, including inside another aggregate:
 
 ## Amended by #44
 
+Superseded by [ADR 0051](0051-aggregates-learn-in-levels.md) (#49): a plain
+aggregate inside a staged one is learned, one level earlier.
+
 "Combine staged aggregates freely" stops at a plain DuckDB aggregate inside a
 staged one's argument (`sq.agg.std(x - sq.agg.mean(x))`): it is refused, naming
 the step. See [ADR 0044](0044-the-standard-deviation-in-two-staged-passes.md).

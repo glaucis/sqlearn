@@ -1586,37 +1586,79 @@
     },
     {
       "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_a_filter_clause_on_a_staged_aggregate_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
       "name": "tests/src/sqlearn/agg/test_aggregates.py::test_a_linear_quantile_interpolates_as_numpy_does",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "sqlearn/agg/aggregates",
-      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_a_plain_aggregate_inside_a_staged_one_is_refused[median]",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_a_mode_of_an_expression_holding_a_median_is_learned",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "sqlearn/agg/aggregates",
-      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_a_plain_aggregate_inside_a_staged_one_is_refused[mode]",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_a_mode_of_an_expression_holding_a_plain_aggregate_is_learned",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "sqlearn/agg/aggregates",
-      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_a_plain_aggregate_inside_a_staged_one_is_refused[std]",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_a_nested_value_beside_a_text_mode",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "sqlearn/agg/aggregates",
-      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_a_std_the_stages_cannot_order_is_refused[median of std]",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_a_nested_value_is_reused_from_the_store",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "sqlearn/agg/aggregates",
-      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_a_std_the_stages_cannot_order_is_refused[std of std]",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_a_plain_aggregate_inside_a_plain_one_is_learned",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_a_plain_aggregate_inside_a_staged_one_is_learned[median]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_a_plain_aggregate_inside_a_staged_one_is_learned[std]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_a_plain_aggregate_inside_a_staged_one_is_learned[var]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_a_std_inside_another_aggregate_is_learned[median of std]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_a_std_inside_another_aggregate_is_learned[std of std]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_a_std_inside_another_aggregate_is_learned[var of std]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1658,6 +1700,24 @@
     },
     {
       "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_an_aggregate_inside_a_filter_clause_is_learned_first",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_an_aggregate_inside_a_scalar_subquery_reads_its_own_table",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_an_aggregate_inside_a_target_statistic_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
       "name": "tests/src/sqlearn/agg/test_aggregates.py::test_an_aggregate_is_a_value_and_a_builder",
       "outcome": "passed",
       "tier": "fast"
@@ -1689,6 +1749,18 @@
     {
       "area": "sqlearn/agg/aggregates",
       "name": "tests/src/sqlearn/agg/test_aggregates.py::test_an_approximate_median_sits_inside_a_larger_expression",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_an_inner_aggregate_keeps_its_filter",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_an_inner_value_of_no_present_value_reaches_the_outer_as_null",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1737,6 +1809,12 @@
     {
       "area": "sqlearn/agg/aggregates",
       "name": "tests/src/sqlearn/agg/test_aggregates.py::test_distinct_values_of_no_rows_is_empty",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_duckdbs_own_median_written_by_a_user_is_learned_as_written",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -2618,13 +2696,19 @@
     },
     {
       "area": "sqlearn/agg/aggregates",
-      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_the_advice_on_a_plain_aggregate_holds_for_a_median_too",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_text_that_looks_like_an_aggregate_is_not_one",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "sqlearn/agg/aggregates",
       "name": "tests/src/sqlearn/agg/test_aggregates.py::test_the_approx_param_of_the_median_is_a_bool_and_prints",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_the_median_absolute_deviation_is_learned",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -2637,6 +2721,24 @@
     {
       "area": "sqlearn/agg/aggregates",
       "name": "tests/src/sqlearn/agg/test_aggregates.py::test_the_repr_sorts_params_and_leaves_defaults_out",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_the_scalar_filter_function_is_not_an_aggregate",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_three_levels_deep_are_learned",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/agg/aggregates",
+      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_two_columns_share_each_level",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -2661,12 +2763,6 @@
     {
       "area": "sqlearn/agg/aggregates",
       "name": "tests/src/sqlearn/agg/test_aggregates.py::test_var_of_a_constant_column_is_exactly_zero[1]",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "sqlearn/agg/aggregates",
-      "name": "tests/src/sqlearn/agg/test_aggregates.py::test_var_of_an_expression_holding_a_plain_aggregate_is_refused",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -10124,6 +10220,12 @@
     },
     {
       "area": "sqlearn/preprocessing/target",
+      "name": "tests/src/sqlearn/preprocessing/test_target.py::test_the_target_encoder_keeps_one_statistics_stage",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/preprocessing/target",
       "name": "tests/src/sqlearn/preprocessing/test_target.py::test_three_large_whole_values_are_multiclass",
       "outcome": "passed",
       "tier": "fast"
@@ -10526,6 +10628,12 @@
     },
     {
       "area": "sqlearn/_compose",
+      "name": "tests/src/sqlearn/test__compose.py::test_a_median_of_a_median_is_learned",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_compose",
       "name": "tests/src/sqlearn/test__compose.py::test_a_median_of_text_holding_parentheses_and_quotes",
       "outcome": "passed",
       "tier": "fast"
@@ -10599,12 +10707,6 @@
     {
       "area": "sqlearn/_compose",
       "name": "tests/src/sqlearn/test__compose.py::test_a_step_may_return_full_names",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "sqlearn/_compose",
-      "name": "tests/src/sqlearn/test__compose.py::test_an_aggregate_of_an_aggregate_is_refused",
       "outcome": "passed",
       "tier": "fast"
     },

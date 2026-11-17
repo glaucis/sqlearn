@@ -10,7 +10,10 @@ Verify with: `just verify`
 
 ## In progress
 
-None.
+- [verified] #49 nested aggregates on branch `learn-nested-aggregates`: built
+  in levels (spec `docs/specs/learn-nested-aggregates.md`, plan
+  `docs/plans/2026-11-17-learn-nested-aggregates.md`, ADR 0051), validated,
+  reach and cost measured, reviewed and fixed. Next: the merge.
 
 ## Waiting on the user
 
@@ -19,8 +22,8 @@ None.
 ## Next up
 
 - #46 (generators on many threads: needs a parallel, ordered, lazy row
-  source; measurements in the issue) and #49 (learn nested aggregates; an ADR
-  amending 0036/0044), both ready-for-agent and needing a design first.
+  source; measurements in the issue), ready-for-agent, needing a design
+  first.
 - The next 3.3 area, not chosen yet: a fetcher of real datasets (ADR 0006:
   an explicit call), or more scores (balanced accuracy, MCC, Brier).
 

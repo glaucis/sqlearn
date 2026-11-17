@@ -2,6 +2,7 @@
 
 import math
 import pickle
+import statistics
 
 import duckdb
 import numpy as np
@@ -484,13 +485,6 @@ def test_var_and_std_of_one_column_share_their_passes():
     assert run.statements[0].count("_std_means") == 2  # its definition, one use
 
 
-def test_var_of_an_expression_holding_a_plain_aggregate_is_refused():
-    """``var(x - mean(x))`` is refused as ``std`` of it is (issue #44)."""
-    step = Learn(value=lambda x: sq.agg.var(x - sq.agg.mean(x)))
-    with pytest.raises(SqlearnError, match="plain"):
-        sq.Pipeline([("learn", step)]).learn(pd.DataFrame({"a": [1.0, 2.0]}))
-
-
 def test_std_is_two_passes_and_may_sit_anywhere_in_a_learned_value():
     """Inside another aggregate, beside a median, in an expression: numpy's values.
 
@@ -572,60 +566,269 @@ class _Learns(sq.Step):
         return x
 
 
+def _learned(build, values):
+    """Return what a step learning `build` of column ``a`` learns from `values`."""
+    data = pd.DataFrame({"a": values})
+    return sq.Pipeline([("learn", _Learns(build))]).learn(data)["learn"].v_["a"]
+
+
+def _mad(x):
+    """Return the median absolute deviation of `x`, as sqlearn learns it."""
+    return sq.agg.median(sq.fn.abs(x - sq.agg.median(x)))
+
+
+def test_the_median_absolute_deviation_is_learned():
+    """The median of the distances from the median: inner first, then outer."""
+    assert _learned(_mad, [1.0, 2.0, 3.0, 4.0, 100.0]) == 1.0
+    v = np.random.default_rng(0).normal(5, 2, 1_000)
+    assert _learned(_mad, v) == np.median(np.abs(v - np.median(v)))
+
+
+def test_a_mode_of_an_expression_holding_a_median_is_learned():
+    """The most frequent distance from the median, rounded down."""
+
+    def build(x):
+        return sq.agg.mode(duckdb.FunctionExpression("floor", x - sq.agg.median(x)))
+
+    v = [1.0, 2.0, 2.0, 7.0, 7.0, 7.0]
+    assert _learned(build, v) == statistics.mode(np.floor(np.array(v) - np.median(v)))
+
+
+SAMPLE = np.random.default_rng(1).normal(5, 2, 1_000)
+"""1,000 normal values: numpy's two-pass results are the reference."""
+
+NESTED_ULPS = 4
+"""A nested value against numpy's: each side rounds the inner value (a
+standard deviation within 2 ULPs, ADR 0044), and the outer one carries that
+rounding on, squared in a variance, so two bounds add up."""
+
+
 @pytest.mark.parametrize(
-    ("build", "why"),
+    ("build", "numpy"),
     [
-        (
-            lambda x: sq.agg.std(x - sq.agg.std(x)),
-            "standard deviation or variance of an expression holding another, "
-            "which cannot be staged",
-        ),
+        (lambda x: sq.agg.std(x - sq.agg.std(x)), lambda v: np.std(v - np.std(v))),
         (
             lambda x: sq.agg.median(x / sq.agg.std(x)),
-            "quantile, mode or target statistic of an expression holding a "
-            "standard deviation or variance, which cannot be staged",
+            lambda v: np.median(v / np.std(v)),
         ),
+        (lambda x: sq.agg.var(sq.agg.std(x) * x), lambda v: np.var(np.std(v) * v)),
     ],
-    ids=["std of std", "median of std"],
+    ids=["std of std", "median of std", "var of std"],
 )
-def test_a_std_the_stages_cannot_order_is_refused(build, why):
-    """Each refusal names the step and why the stages cannot compute it."""
-    data = pd.DataFrame({"a": [1.0, 2.0, 6.0]})
-    with pytest.raises(sq.errors.StepError, match=r"\(step 1\).*" + why):
-        sq.Pipeline([("bad", _Learns(build))]).learn(data)
+def test_a_std_inside_another_aggregate_is_learned(build, numpy):
+    """Within `NESTED_ULPS` of numpy: the inner rounding carries on."""
+    for values in ([1.0, 2.0, 6.0], SAMPLE):
+        got = _learned(build, values)
+        assert _cases.ulps(got, float(numpy(np.asarray(values)))) <= NESTED_ULPS
 
 
 @pytest.mark.parametrize(
-    "build",
+    ("build", "numpy"),
     [
-        lambda x: sq.agg.std(x - sq.agg.mean(x)),
-        lambda x: sq.agg.median(x - sq.agg.mean(x)),
-        lambda x: sq.agg.mode(x - sq.agg.mean(x)),
+        (lambda x: sq.agg.std(x - sq.agg.mean(x)), lambda v: np.std(v - np.mean(v))),
+        (lambda x: sq.agg.var(x - sq.agg.mean(x)), lambda v: np.var(v - np.mean(v))),
+        (
+            lambda x: sq.agg.median(x - sq.agg.mean(x)),
+            lambda v: np.median(v - np.mean(v)),
+        ),
     ],
-    ids=["std", "median", "mode"],
+    ids=["std", "var", "median"],
 )
-def test_a_plain_aggregate_inside_a_staged_one_is_refused(build):
-    """Each refusal names the step and position, not DuckDB's GROUP BY error."""
-    data = pd.DataFrame({"a": [1.0, 2.0, 6.0]})
-    with pytest.raises(sq.errors.StepError, match=r"\(step 1\)") as raised:
+def test_a_plain_aggregate_inside_a_staged_one_is_learned(build, numpy):
+    """The inner mean is learned first; numpy's values within `NESTED_ULPS`."""
+    for values in ([1.0, 2.0, 6.0], SAMPLE):
+        got = _learned(build, values)
+        assert _cases.ulps(got, float(numpy(np.asarray(values)))) <= NESTED_ULPS
+
+
+def test_a_mode_of_an_expression_holding_a_plain_aggregate_is_learned():
+    """The most frequent distance from the mean, rounded down."""
+
+    def build(x):
+        return sq.agg.mode(duckdb.FunctionExpression("floor", x - sq.agg.mean(x)))
+
+    v = np.array([1.0, 2.0, 2.0, 7.0, 7.0, 7.0])
+    assert _learned(build, v) == statistics.mode(np.floor(v - np.mean(v)))
+
+
+def _duck(name, *args):
+    """Return DuckDB's own function `name` of `args`, as a user would write it."""
+    return duckdb.FunctionExpression(name, *args)
+
+
+def test_a_plain_aggregate_inside_a_plain_one_is_learned():
+    """DuckDB refuses sum(x - avg(x)) as written; sqlearn learns it in levels."""
+    for values in ([1.0, 2.0, 6.0], SAMPLE):
+        v = np.asarray(values)
+        got = _learned(lambda x: _duck("sum", x - sq.agg.mean(x)), v)
+        assert got == pytest.approx(np.sum(v - np.mean(v)), abs=1e-9)
+
+
+def test_an_inner_value_of_no_present_value_reaches_the_outer_as_null():
+    """Each outer aggregate does with a NULL inner value what its SQL does."""
+    empty = [None, None, None]
+    assert _learned(lambda x: sq.agg.std(x - sq.agg.mean(x)), empty) is None
+    assert _learned(lambda x: _duck("count", x - sq.agg.mean(x)), empty) == 0
+    # DuckDB's own avg keeps NaN (a table keeps it; a pandas frame turns it
+    # into NULL), so the inner value is NaN, and so is the sum.
+    got = learn([1.0, NAN], lambda x: _duck("sum", x - _duck("avg", x)))
+    assert math.isnan(got)
+
+
+def test_text_that_looks_like_an_aggregate_is_not_one():
+    """A column named sum(a) and a literal 'median(' are not aggregates."""
+    con = connection()
+    con.execute('CREATE OR REPLACE TABLE t ("sum(a)" DOUBLE)')
+    con.executemany("INSERT INTO t VALUES (?)", [[1.0], [2.0], [6.0]])
+
+    def build(x):
+        shift = _duck("length", sq.fn.const("median("))  # 7
+        return sq.agg.std(x - shift - sq.agg.mean(x))
+
+    step = _Learns(build, cols=["sum(a)"])
+    got = sq.Pipeline([("learn", step)]).learn(con.table("t"))["learn"].v_["sum(a)"]
+    v = np.array([1.0, 2.0, 6.0])
+    assert _cases.ulps(got, float(np.std(v - 7 - np.mean(v)))) <= NESTED_ULPS
+
+
+def test_an_inner_aggregate_keeps_its_filter():
+    """The inner avg's FILTER (WHERE ...) is computed with it, in its level."""
+
+    def build(x):
+        inner = duckdb.SQLExpression('avg("a") FILTER (WHERE "a" > 0)')
+        return _duck("sum", x - inner)
+
+    v = np.array([-3.0, 1.0, 2.0, 6.0])
+    assert _learned(build, v) == pytest.approx(np.sum(v - np.mean(v[v > 0])))
+
+
+def test_duckdbs_own_median_written_by_a_user_is_learned_as_written():
+    """A user's DuckDB median is learned as DuckDB's median, not sqlearn's sort."""
+
+    def build(x):
+        return _duck("median", sq.fn.abs(x - _duck("median", x)))
+
+    data = pd.DataFrame({"a": [1.0, 2.0, 3.0, 4.0, 100.0]})
+    pipe = sq.Pipeline([("learn", _Learns(build))]).learn(data)
+    assert pipe["learn"].v_["a"] == 1.0
+    sql = pipe.runs_[0].statements[0]
+    assert "median(" in sql
+    assert "row_number()" not in sql
+
+
+class _Mad(sq.Step):
+    """Learn each column's median absolute deviation."""
+
+    def learn(self, x):
+        """Learn the deviation."""
+        return {"mad": _mad(x)}
+
+    def apply(self, x, learned):
+        """Leave the column."""
+        return x
+
+
+def test_two_columns_share_each_level():
+    """Two columns' deviations: one sort per level, two in all, not four."""
+    con = duckdb.connect()
+    con.sql(
+        "CREATE TABLE t AS SELECT * FROM "
+        "(VALUES (1.0, 10.0), (2.0, 40.0), (3.0, 20.0), (100.0, NULL)) v(a, b)"
+    )
+    schema = [("a", DOUBLE), ("b", DOUBLE)]
+    stage = step_stage(1, "mad", _Mad(), schema, SOURCE)
+    values, _, run = execute(con, "t", [stage], produce=False)
+    assert run.statements[0].count("row_number()") == 2
+    a, b = np.array([1.0, 2.0, 3.0, 100.0]), np.array([10.0, 40.0, 20.0])
+    assert values["s01_mad"]["mad"] == {
+        "a": np.median(np.abs(a - np.median(a))),
+        "b": np.median(np.abs(b - np.median(b))),
+    }
+
+
+def test_three_levels_deep_are_learned():
+    """The median distance from the median distance from the median."""
+
+    def build(x):
+        return sq.agg.median(sq.fn.abs(x - _mad(x)))
+
+    v = SAMPLE
+    want = np.median(np.abs(v - np.median(np.abs(v - np.median(v)))))
+    assert _learned(build, v) == want
+
+
+def test_a_nested_value_beside_a_text_mode():
+    """A text column's mode and a number's deviation, in one pipeline."""
+    data = pd.DataFrame({"city": ["b", "a", "b"], "a": [1.0, 2.0, 9.0]})
+    pipe = sq.Pipeline(
+        [("mode", Learn(cols=["city"], value=sq.agg.mode)), ("mad", _Mad(cols=["a"]))]
+    ).learn(data)
+    assert pipe["mode"].v_ == {"city": "b"}
+    assert pipe["mad"].mad_ == {"a": 1.0}
+
+
+def test_a_nested_value_is_reused_from_the_store():
+    """A second learn of the same data learns nothing again."""
+    data = pd.DataFrame({"a": [1.0, 2.0, 9.0]})
+    sq.Pipeline([("mad", _Mad())]).learn(data)
+    before = dict(STORE.learns)
+    again = sq.Pipeline([("mad", _Mad())]).learn(data)
+    assert dict(STORE.learns) == before
+    assert again["mad"].mad_ == {"a": 1.0}
+
+
+def test_an_aggregate_inside_a_target_statistic_is_refused():
+    """The target's statistics read the rows themselves: no aggregate inside."""
+    from sqlearn._expr import target_stats
+
+    def build(x):
+        return target_stats(x, sq.agg.mean(x), sq.fn.const(0))
+
+    data = pd.DataFrame({"a": [1.0, 2.0, 9.0]})
+    with pytest.raises(sq.errors.StepError, match=r"\(step 1\).*target.*Fix:"):
         sq.Pipeline([("bad", _Learns(build))]).learn(data)
-    message = str(raised.value)
-    assert message.startswith("bad (step 1)")
-    assert "a plain aggregate" in message
-    assert "Fix:" in message
-    assert "Binder Error" not in message
 
 
-def test_the_advice_on_a_plain_aggregate_holds_for_a_median_too():
-    """The Fix does not claim the median of x - mean(x) is the median of x."""
-    data = pd.DataFrame({"a": [1.0, 2.0, 6.0]})
-    with pytest.raises(sq.errors.StepError) as raised:
-        sq.Pipeline(
-            [("bad", _Learns(lambda x: sq.agg.median(x - sq.agg.mean(x))))]
-        ).learn(data)
-    fix = str(raised.value).split("Fix:")[1]
-    assert "is the spread of x" not in fix
-    assert "earlier step" in fix
+def test_the_scalar_filter_function_is_not_an_aggregate():
+    """filter(list, lambda), DuckDB's list_filter, stays per row (review #49)."""
+    data = [1.0, 2.0, 3.0, 4.0, 100.0]
+    expr = duckdb.SQLExpression('"a" * len(filter(["a"], lambda y: y > 2))')
+    v = np.array(data)
+    assert _learned(lambda x: sq.agg.mean(expr), data) == np.mean(v * (v > 2))
+    assert _learned(lambda x: sq.agg.median(expr), data) == np.median(v * (v > 2))
+
+
+def test_an_aggregate_inside_a_scalar_subquery_reads_its_own_table():
+    """(SELECT max(b) FROM other) is the subquery's, not a level's (review #49)."""
+    con = connection()
+    con.execute("CREATE OR REPLACE TABLE other AS SELECT 1000.0 AS b")
+    try:
+        lookup = duckdb.SQLExpression("(SELECT max(b) FROM other)")
+        got = _learned(lambda x: _duck("sum", x - lookup), [1.0, 2.0])
+        assert got == -1997.0
+    finally:
+        con.execute("DROP TABLE other")
+
+
+def test_an_aggregate_inside_a_filter_clause_is_learned_first():
+    """count(*) FILTER (WHERE x > median(x)): the median, then the count."""
+
+    def build(x):
+        return duckdb.SQLExpression(f"count(*) FILTER (WHERE {x} > {sq.agg.median(x)})")
+
+    v = np.array([1.0, 2.0, 3.0, 4.0, 100.0])
+    assert _learned(build, v) == int(np.sum(v > np.median(v)))
+
+
+def test_a_filter_clause_on_a_staged_aggregate_is_refused():
+    """sq.agg's markers take no FILTER clause: refused, not dropped (review #49)."""
+
+    def build(x):
+        return duckdb.SQLExpression(str(sq.agg.median(x)) + ' FILTER (WHERE "a" > 3)')
+
+    data = pd.DataFrame({"a": [1.0, 2.0, 3.0, 4.0, 100.0]})
+    with pytest.raises(sq.errors.StepError, match=r"\(step 1\).*FILTER.*Fix:"):
+        sq.Pipeline([("bad", _Learns(build))]).learn(data)
 
 
 def test_an_approximate_median_is_close_to_the_exact_one():
