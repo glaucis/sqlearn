@@ -81,6 +81,7 @@ The verbs and conventions users write against.
 - [0043: Repeatable within rounding](0043-repeatable-within-rounding.md)
 - [0049: Table metrics are relations](0049-table-metrics-are-relations.md)
 - [0050: predict_proba keeps the target](0050-predict-proba-keeps-the-target.md)
+- [0051: Aggregates learn in levels](0051-aggregates-learn-in-levels.md)
 
 ## Numerics and validation
 
