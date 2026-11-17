@@ -651,6 +651,71 @@ def test_a_mode_of_an_expression_holding_a_plain_aggregate_is_learned():
     assert _learned(build, v) == statistics.mode(np.floor(v - np.mean(v)))
 
 
+def _duck(name, *args):
+    """Return DuckDB's own function `name` of `args`, as a user would write it."""
+    return duckdb.FunctionExpression(name, *args)
+
+
+def test_a_plain_aggregate_inside_a_plain_one_is_learned():
+    """DuckDB refuses sum(x - avg(x)) as written; sqlearn learns it in levels."""
+    for values in ([1.0, 2.0, 6.0], SAMPLE):
+        v = np.asarray(values)
+        got = _learned(lambda x: _duck("sum", x - sq.agg.mean(x)), v)
+        assert got == pytest.approx(np.sum(v - np.mean(v)), abs=1e-9)
+
+
+def test_an_inner_value_of_no_present_value_reaches_the_outer_as_null():
+    """Each outer aggregate does with a NULL inner value what its SQL does."""
+    empty = [None, None, None]
+    assert _learned(lambda x: sq.agg.std(x - sq.agg.mean(x)), empty) is None
+    assert _learned(lambda x: _duck("count", x - sq.agg.mean(x)), empty) == 0
+    # DuckDB's own avg keeps NaN (a table keeps it; a pandas frame turns it
+    # into NULL), so the inner value is NaN, and so is the sum.
+    got = learn([1.0, NAN], lambda x: _duck("sum", x - _duck("avg", x)))
+    assert math.isnan(got)
+
+
+def test_text_that_looks_like_an_aggregate_is_not_one():
+    """A column named sum(a) and a literal 'median(' are not aggregates."""
+    con = connection()
+    con.execute('CREATE OR REPLACE TABLE t ("sum(a)" DOUBLE)')
+    con.executemany("INSERT INTO t VALUES (?)", [[1.0], [2.0], [6.0]])
+
+    def build(x):
+        shift = _duck("length", sq.fn.const("median("))  # 7
+        return sq.agg.std(x - shift - sq.agg.mean(x))
+
+    step = _Learns(build, cols=["sum(a)"])
+    got = sq.Pipeline([("learn", step)]).learn(con.table("t"))["learn"].v_["sum(a)"]
+    v = np.array([1.0, 2.0, 6.0])
+    assert _cases.ulps(got, float(np.std(v - 7 - np.mean(v)))) <= NESTED_ULPS
+
+
+def test_an_inner_aggregate_keeps_its_filter():
+    """The inner avg's FILTER (WHERE ...) is computed with it, in its level."""
+
+    def build(x):
+        inner = duckdb.SQLExpression('avg("a") FILTER (WHERE "a" > 0)')
+        return _duck("sum", x - inner)
+
+    v = np.array([-3.0, 1.0, 2.0, 6.0])
+    assert _learned(build, v) == pytest.approx(np.sum(v - np.mean(v[v > 0])))
+
+
+def test_duckdbs_own_median_written_by_a_user_is_learned_as_written():
+    """A user's DuckDB median is learned as DuckDB's median, not sqlearn's sort."""
+
+    def build(x):
+        return _duck("median", sq.fn.abs(x - _duck("median", x)))
+
+    data = pd.DataFrame({"a": [1.0, 2.0, 3.0, 4.0, 100.0]})
+    pipe = sq.Pipeline([("learn", _Learns(build))]).learn(data)
+    assert pipe["learn"].v_["a"] == 1.0
+    sql = pipe.runs_[0].statements[0]
+    assert "median(" in sql
+    assert "row_number()" not in sql
+
+
 def test_an_approximate_median_is_close_to_the_exact_one():
     """On 100,000 normal values the approximation is within 1% of a std."""
     values = np.random.default_rng(0).normal(5, 2, 100_000)
