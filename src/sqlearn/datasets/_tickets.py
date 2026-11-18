@@ -38,6 +38,19 @@ FAN_OUT = 4_096
 _LOCK = threading.Lock()
 _TABLE = re.compile(r"tickets_([1-9][0-9]*)")
 _PACKAGE = (str(Path(__file__).parents[1]),)
+_THERE = f"WHERE database_name = '{DATABASE}'"
+_OTHER_OBJECTS = (
+    "SELECT 'view', schema_name || '.' || view_name "
+    f"FROM duckdb_views() {_THERE} AND NOT internal UNION ALL "
+    "SELECT 'sequence', schema_name || '.' || sequence_name "
+    f"FROM duckdb_sequences() {_THERE} UNION ALL "
+    "SELECT 'macro', schema_name || '.' || function_name "
+    f"FROM duckdb_functions() {_THERE} AND NOT internal UNION ALL "
+    "SELECT 'type', schema_name || '.' || type_name "
+    f"FROM duckdb_types() {_THERE} AND NOT internal UNION ALL "
+    f"SELECT 'schema', schema_name FROM duckdb_schemas() {_THERE} AND NOT internal"
+)
+"""What ``meta_sqlearn`` holds besides tables: sqlearn makes none of these."""
 
 
 class _UnusableError(Exception):
@@ -130,9 +143,13 @@ def _check_ownership(cursor: duckdb.DuckDBPyConnection) -> None:
     """Raise `_UnusableError` unless ``meta_sqlearn`` holds only sqlearn's tickets.
 
     It is sqlearn's when it is in memory, is named exactly ``meta_sqlearn``,
-    and every table in it is ``tickets_<groups>`` with the one ``BIGINT``
-    column ``ticket``, exactly ``groups * ROW_GROUP`` rows, and ``ticket``
-    equal to ``rowid`` throughout.
+    holds no view, sequence, macro, type or schema of its own, and every table
+    in it is ``tickets_<groups>`` with the one ``BIGINT`` column ``ticket``,
+    exactly ``groups * ROW_GROUP`` rows, and ``ticket`` equal to ``rowid``
+    throughout. An empty one in memory counts as sqlearn's.
+
+    The cursor sees committed state only: what an open transaction of the
+    user's has made in the database is not seen here.
     """
     # DuckDB ignores case in database names, so ATTACH IF NOT EXISTS and
     # three-part names reach META_SQLEARN too: only the exact name is sqlearn's.
@@ -144,6 +161,9 @@ def _check_ownership(cursor: duckdb.DuckDBPyConnection) -> None:
         name, path = row
         held = "an in-memory database" if path is None else f"the file {path}"
         raise _UnusableError(f"{held} is open under the name {name}")
+    other = cursor.execute(_OTHER_OBJECTS).fetchone()
+    if other is not None:
+        raise _UnusableError(f"the {other[0]} {other[1]} in it is not sqlearn's")
     tables = cursor.execute(
         "SELECT schema_name, table_name FROM duckdb_tables() "
         f"WHERE database_name = '{DATABASE}'"

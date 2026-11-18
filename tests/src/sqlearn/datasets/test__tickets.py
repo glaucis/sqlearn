@@ -278,6 +278,7 @@ def _falls_back() -> None:
         "SELECT range AS ticket FROM range(5)",  # tickets_8 of the wrong size
         "SELECT 983039 - range AS ticket FROM range(983040)",  # reversed
         "SELECT range::INT AS ticket FROM range(983040)",  # of the wrong type
+        "SELECT range AS ticket, 1 AS mine FROM range(983040)",  # a second column
         "SELECT NULL::BIGINT AS ticket FROM range(983040)",  # all NULL
         "SELECT if(range % 2 = 0, range, NULL)::BIGINT AS ticket "
         "FROM range(983040)",  # partly NULL
@@ -289,6 +290,39 @@ def test_a_foreign_database_in_memory_is_left_alone(table):
     con.execute("ATTACH ':memory:' AS meta_sqlearn")
     con.execute(f"CREATE TABLE meta_sqlearn.tickets_8 AS {table}")
     _falls_back()
+    assert _ticket_tables(con) == ["tickets_8"]
+
+
+@pytest.mark.parametrize(
+    "made",
+    [
+        "CREATE TABLE meta_sqlearn.mine AS SELECT 1 AS a",
+        "CREATE SCHEMA meta_sqlearn.other; "
+        "CREATE TABLE meta_sqlearn.other.tickets_8 AS "
+        "SELECT range AS ticket FROM range(983040)",
+        "CREATE SCHEMA meta_sqlearn.other",
+        "CREATE VIEW meta_sqlearn.mine AS SELECT 1 AS a",
+        "CREATE SEQUENCE meta_sqlearn.mine",
+        "CREATE MACRO meta_sqlearn.mine(a) AS a",
+        "CREATE MACRO meta_sqlearn.mine(a) AS TABLE SELECT a",
+        "CREATE TYPE meta_sqlearn.mine AS ENUM ('a')",
+    ],
+)
+def test_a_foreign_database_holding_anything_else_is_left_alone(made):
+    """Any object of the user's marks an in-memory meta_sqlearn as theirs."""
+    con = connection()
+    con.execute("ATTACH ':memory:' AS meta_sqlearn")
+    con.execute(made)
+    before = _ticket_tables(con)
+    _falls_back()
+    assert _ticket_tables(con) == before
+
+
+def test_an_empty_database_in_memory_counts_as_sqlearns():
+    """An empty in-memory meta_sqlearn is used without a warning."""
+    con = connection()
+    con.execute("ATTACH ':memory:' AS meta_sqlearn")
+    assert "meta_sqlearn" in sq.datasets.blobs(rows=10).sql_query()
     assert _ticket_tables(con) == ["tickets_8"]
 
 
