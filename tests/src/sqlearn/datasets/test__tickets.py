@@ -278,6 +278,9 @@ def _falls_back() -> None:
         "SELECT range AS ticket FROM range(5)",  # tickets_8 of the wrong size
         "SELECT 983039 - range AS ticket FROM range(983040)",  # reversed
         "SELECT range::INT AS ticket FROM range(983040)",  # of the wrong type
+        "SELECT NULL::BIGINT AS ticket FROM range(983040)",  # all NULL
+        "SELECT if(range % 2 = 0, range, NULL)::BIGINT AS ticket "
+        "FROM range(983040)",  # partly NULL
     ],
 )
 def test_a_foreign_database_in_memory_is_left_alone(table):

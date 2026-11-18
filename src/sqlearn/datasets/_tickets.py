@@ -156,7 +156,7 @@ def _check_ownership(cursor: duckdb.DuckDBPyConnection) -> None:
         if columns != [("ticket", "BIGINT")]:
             raise _UnusableError(f"the table {name} in it has other columns")
         row = cursor.execute(
-            f"SELECT count(*), count(*) FILTER (WHERE ticket <> rowid) "
+            f"SELECT count(*), count(*) FILTER (WHERE ticket IS DISTINCT FROM rowid) "
             f"FROM {DATABASE}.main.{name}"
         ).fetchone()
         if row != (int(match[1]) * ROW_GROUP, 0):
