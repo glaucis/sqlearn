@@ -50,7 +50,7 @@ def row_source(rows: int, parallel: bool) -> str | None:
     if not parallel:
         return None
     tickets = 8 * ROW_GROUP
-    table = f"{DATABASE}.tickets_8"
+    table = f"{DATABASE}.main.tickets_8"
     # A cursor has its own transaction, so the user's is neither joined nor
     # ended, and it may attach a database even when the user's is read-only.
     cursor = connection().cursor()

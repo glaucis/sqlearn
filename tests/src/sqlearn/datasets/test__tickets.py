@@ -133,3 +133,17 @@ def test_tickets_are_in_order_whatever_the_users_settings():
     assert (
         first.fetchall() == sq.datasets.blobs(rows=300_000, parallel=False).fetchall()
     )
+
+
+@pytest.mark.parametrize("before", [True, False])
+def test_a_users_schema_named_like_the_tickets_database_is_not_in_the_way(before):
+    """A schema meta_sqlearn made before or after a relation was built is fine."""
+    con = duckdb.connect()
+    sq.set_config(connection=con)
+    if before:
+        con.execute("CREATE SCHEMA meta_sqlearn")
+    first = sq.datasets.blobs(rows=100)
+    if not before:
+        con.execute("CREATE SCHEMA meta_sqlearn")
+    assert first.fetchall() == sq.datasets.blobs(rows=100, parallel=False).fetchall()
+    assert sq.datasets.blobs(rows=100).fetchall() == first.fetchall()
