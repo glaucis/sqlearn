@@ -44,8 +44,8 @@ def test_random_sql_grows_linearly():
 def test_the_same_seed_gives_the_same_values_on_any_thread_count():
     """One thread and eight give the same rows.
 
-    DuckDB's ``range()`` reads on one thread today, so this cannot fail yet: it
-    guards a future parallel row source.
+    The default source, DuckDB's ``range()``, reads on one thread, so this
+    cannot fail; the generators' tests run the same check over work tickets.
     """
     sql = random_columns(11, 100_000, {"u": 0, "v": 1}, {"n": 2})
     con = duckdb.connect()
@@ -102,3 +102,18 @@ def test_the_largest_normal_stream_matches_the_python_reference():
     stream = 2**63 - 1
     rows = connection().sql(random_columns(1, 3, {}, {"n": stream})).fetchall()
     assert [r[1] for r in rows] == [normal(1, i, stream) for i in range(3)]
+
+
+def test_a_row_source_gives_the_rows_of_range():
+    """A row source standing for ``range`` changes no value."""
+    con = connection()
+    plain = random_columns(5, 1_000, {"u": 0}, {"n": 1})
+    other = random_columns(
+        5, 1_000, {"u": 0}, {"n": 1}, row_source="SELECT range FROM range(1000)"
+    )
+    assert con.sql(plain).fetchall() == con.sql(other).fetchall()
+
+
+def test_without_a_row_source_the_sql_reads_range():
+    """The default SQL is unchanged."""
+    assert "FROM range(10)" in random_columns(0, 10, {"u": 0}, {})

@@ -65,8 +65,14 @@ customers = sq.datasets.customers(rows=5_000, seed=0)  # gaps, text, a target
   two departures, both sqlearn's existing words: **`rows=`** for `n_samples`
   and **`seed=`** for `random_state` (an `int`, default 0, as
   `sq.encode.target`'s and `sq.folds`'s).
-- **A generated relation is a query, not a table.** Creating it reads and
-  writes nothing; each use computes its rows again, the same ones.
+- **A generated relation is a query, not a table.** Creating it computes no
+  data row; each use computes its rows again, the same ones. The first
+  generator call on a connection makes a small table of work tickets in
+  `meta_sqlearn`, an in-memory database sqlearn attaches, from which the
+  generators number their rows so that DuckDB can share them between threads
+  (ADR 0052, spec `datasets-many-threads.md`). The four generators take
+  `parallel=True`; `parallel=False` numbers the rows with `range(rows)` on one
+  thread, attaches nothing, and gives the same rows.
 - **Bad settings are refused** with a `SqlearnError` in the house form (what,
   `Why:`, `Fix:`), where scikit-learn raises `ValueError`: a non-integer or
   non-positive `rows`, `n_informative + n_redundant > n_features`,

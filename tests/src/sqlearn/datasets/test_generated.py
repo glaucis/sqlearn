@@ -4,6 +4,7 @@ import threading
 import warnings
 from typing import Any, cast
 
+import duckdb
 import numpy as np
 import pytest
 
@@ -622,10 +623,10 @@ def test_ordered_rows_come_in_row_order_with_insertion_order_off():
     """ordered=True gives the rows of the row order, whatever DuckDB keeps.
 
     On DuckDB 2.0 no input was found that reorders the default relation with
-    the setting off (200,000 to 6 million rows, 8 threads, a filter, Arrow):
-    ``range()`` is read on one thread. So the equality below is a guard, not
-    proof; the plan assertion carries the proof that the ordered relation
-    sorts by the row number even with the setting off.
+    the setting off (200,000 to 6 million rows, 8 threads, a filter, Arrow),
+    from ``range()`` (one thread) or from work tickets. So the equality below
+    is a guard, not proof; the plan assertion carries the proof that the
+    ordered relation sorts by the row number even with the setting off.
     """
     con = connection()
     setting = con.sql("SELECT current_setting('preserve_insertion_order')")
@@ -665,3 +666,126 @@ def test_ordered_is_refused_unless_a_bool():
             assert "ordered" in message
         relation = make(rows=5, ordered=cast("Any", np.True_))
         assert relation.count("*").fetchall()[0][0] == 5
+
+
+@pytest.mark.parametrize("threads", [1, 2, 8])
+@pytest.mark.parametrize("make", GENERATORS)
+def test_every_generator_gives_the_same_rows_parallel_or_not(make, threads):
+    """Work tickets and ``range`` give the same rows on any thread count."""
+    connection().execute(f"SET threads = {threads}")
+    assert make(rows=5_000, seed=3).fetchall() == (
+        make(rows=5_000, seed=3, parallel=False).fetchall()
+    )
+
+
+@pytest.mark.parametrize(("parallel", "shared"), [(True, True), (False, False)])
+def test_work_tickets_share_the_work_between_threads(parallel, shared):
+    """Tickets spread the work over threads; ``range`` keeps it on one."""
+    con = connection()
+    con.execute("SET threads = 4")
+    seen: set[int] = set()
+
+    def note(x: float) -> float:
+        seen.add(threading.get_ident())
+        return x
+
+    con.create_function("note", note, ["DOUBLE"], "DOUBLE", side_effects=True)
+    rel = sq.datasets.blobs(rows=1_000_000, n_features=1, parallel=parallel)
+    rel.aggregate("sum(note(x0))").fetchall()
+    assert (len(seen) > 1) is shared
+
+
+def test_parallel_false_needs_no_meta_sqlearn():
+    """parallel=False names no ``meta_sqlearn`` and attaches none."""
+    rel = sq.datasets.blobs(rows=10, parallel=False)
+    assert "meta_sqlearn" not in rel.sql_query()
+    names = connection().sql("SELECT database_name FROM duckdb_databases()")
+    assert ("meta_sqlearn",) not in names.fetchall()
+
+
+def test_a_view_over_parallel_false_survives_reopening(tmp_path):
+    """A view over parallel=False reads again after the file is reopened."""
+    path = tmp_path / "work.duckdb"
+    con = duckdb.connect(path)
+    sq.set_config(connection=con)
+    sq.datasets.blobs(rows=10, parallel=False).create_view("kept")
+    con.close()
+    assert duckdb.connect(path).sql("SELECT count(*) FROM kept").fetchall() == [(10,)]
+
+
+@pytest.mark.parametrize("make", GENERATORS)
+def test_parallel_must_be_a_bool(make):
+    """A parallel that is not a bool is refused by name."""
+    assert "parallel" in _refused(make, parallel="yes")
+
+
+def test_limit_and_ordered_keep_their_meaning():
+    """``limit`` and ``ordered=True`` give the same rows either way."""
+    rel = sq.datasets.blobs(rows=10_000, seed=1)
+    plain = sq.datasets.blobs(rows=10_000, seed=1, parallel=False)
+    assert rel.limit(5).fetchall() == plain.limit(5).fetchall()
+    assert sq.datasets.blobs(rows=10_000, seed=1, ordered=True).fetchall() == (
+        sq.datasets.blobs(rows=10_000, seed=1, ordered=True, parallel=False).fetchall()
+    )
+
+
+def test_without_insertion_order_the_rows_are_the_same_set():
+    """With insertion order off the rows are the same set, in any order."""
+    con = connection()
+    con.execute("SET preserve_insertion_order = false")
+    got = sq.datasets.blobs(rows=10_000, seed=1).fetchall()
+    assert sorted(got) == sorted(
+        sq.datasets.blobs(rows=10_000, seed=1, parallel=False).fetchall()
+    )
+
+
+def test_a_pipeline_learned_from_tickets_saves_loads_and_applies(tmp_path):
+    """A pipeline learned from tickets saves, loads and applies again."""
+    rel = sq.datasets.blobs(rows=1_000, seed=2)
+    pipe = sq.Pipeline([sq.scale.standard()]).learn(rel)
+    sq.save(pipe, tmp_path / "pipe.json")
+    again = sq.load(tmp_path / "pipe.json")
+    assert again.apply(rel).fetchall() == pipe.apply(rel).fetchall()
+
+
+@pytest.mark.parametrize(("parallel", "folder"), [(True, True), (False, False)])
+def test_an_ordered_export_under_a_memory_limit(tmp_path, parallel, folder):
+    """Tickets may overflow to the temporary folder; ``range`` needs none."""
+    con = duckdb.connect()
+    sq.set_config(connection=con)
+    rel = sq.datasets.blobs(rows=4_000_000, n_features=1, parallel=parallel)
+    place = tmp_path / "spill" if folder else ""
+    con.execute(f"SET threads = 4; SET temp_directory = '{place}'")
+    con.execute("SET memory_limit = '60MB'")
+    out = tmp_path / "out.parquet"
+    con.execute(f"COPY ({rel.sql_query()}) TO '{out}' (FORMAT parquet)")
+    assert con.sql(f"SELECT count(*) FROM '{out}'").fetchall() == [(4_000_000,)]
+
+
+def test_the_largest_row_count_is_created_at_once():
+    """At ``2**63 - 1`` rows the relation is created and limited at once."""
+    rel = sq.datasets.blobs(rows=2**63 - 1, n_features=1)
+    assert rel.limit(3).count("*").fetchall() == [(3,)]
+
+
+def test_a_model_streams_from_a_generated_relation():
+    """A ``feed="stream"`` model is fitted from a generated relation."""
+
+    class Count:
+        def __init__(self):
+            self.seen = 0
+
+        def partial_fit(self, x, y, classes=None):
+            self.seen += len(x)
+            return self
+
+        def fit(self, x, y):
+            raise AssertionError("fit called")
+
+        def predict(self, x):
+            return np.zeros(len(x))
+
+    estimator = Count()
+    pipe = sq.Pipeline([sq.Model(estimator, feed="stream", rows=500)])
+    pipe.train(sq.datasets.blobs(rows=2_000), target="target")
+    assert estimator.seen == 2_000

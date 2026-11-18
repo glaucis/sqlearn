@@ -38,6 +38,7 @@ Computation as SQL, and how a pipeline becomes runs.
 - [0015: DuckDB's expression objects, no sqlglot](0015-duckdb-expressions-no-sqlglot.md)
 - [0018: Runs follow the chains between steps](0018-runs-follow-the-chains-between-steps.md)
 - [0023: Lazy results, `out=` and `feed=`](0023-lazy-results-out-and-feed.md)
+- [0052: sqlearn's own tables live in `meta_sqlearn`](0052-meta-sqlearn.md)
 
 ## The API
 

@@ -2768,6 +2768,12 @@
     },
     {
       "area": "sqlearn/datasets/_random",
+      "name": "tests/src/sqlearn/datasets/test__random.py::test_a_row_source_gives_the_rows_of_range",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_random",
       "name": "tests/src/sqlearn/datasets/test__random.py::test_negative_and_large_seeds_match_the_python_reference",
       "outcome": "passed",
       "tier": "fast"
@@ -2881,6 +2887,606 @@
       "tier": "fast"
     },
     {
+      "area": "sqlearn/datasets/_random",
+      "name": "tests/src/sqlearn/datasets/test__random.py::test_without_a_row_source_the_sql_reads_range",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_a_connection_that_sees_no_ticket_table_falls_back",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_a_cursor_may_be_sqlearns_connection",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_a_database_file_is_left_as_it_was",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_a_database_named_in_another_case_is_left_alone[attached file]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_a_database_named_in_another_case_is_left_alone[attached memory]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_a_database_named_in_another_case_is_left_alone[main file]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_a_failure_to_make_tickets_falls_back",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_a_foreign_database_file_is_left_alone",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_a_foreign_database_holding_anything_else_is_left_alone[CREATE MACRO meta_sqlearn.mine(a) AS TABLE SELECT a]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_a_foreign_database_holding_anything_else_is_left_alone[CREATE MACRO meta_sqlearn.mine(a) AS a]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_a_foreign_database_holding_anything_else_is_left_alone[CREATE SCHEMA meta_sqlearn.other]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_a_foreign_database_holding_anything_else_is_left_alone[CREATE SEQUENCE meta_sqlearn.mine]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_a_foreign_database_holding_anything_else_is_left_alone[CREATE TABLE meta_sqlearn.mine AS SELECT 1 AS a]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_a_foreign_database_holding_anything_else_is_left_alone[CREATE TYPE meta_sqlearn.mine AS ENUM ('a')]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_a_foreign_database_holding_anything_else_is_left_alone[CREATE VIEW meta_sqlearn.mine AS SELECT 1 AS a]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_a_foreign_database_holding_anything_else_is_left_alone[made1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_a_foreign_database_in_memory_is_left_alone[SELECT 1 AS mine]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_a_foreign_database_in_memory_is_left_alone[SELECT 983039 - range AS ticket FROM range(983040)]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_a_foreign_database_in_memory_is_left_alone[SELECT NULL::BIGINT AS ticket FROM range(983040)]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_a_foreign_database_in_memory_is_left_alone[SELECT if(range % 2 = 0, range, NULL)::BIGINT AS ticket FROM range(983040)]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_a_foreign_database_in_memory_is_left_alone[SELECT range AS ticket FROM range(5)]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_a_foreign_database_in_memory_is_left_alone[SELECT range AS ticket, 1 AS mine FROM range(983040)]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_a_foreign_database_in_memory_is_left_alone[SELECT range::INT AS ticket FROM range(983040)]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_a_relation_keeps_its_rows_when_threads_rise",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_a_small_fan_out_widens_in_several_steps_without_a_gap[3-100-2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_a_small_fan_out_widens_in_several_steps_without_a_gap[3-100-3]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_a_small_fan_out_widens_in_several_steps_without_a_gap[4-1001-2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_a_small_fan_out_widens_in_several_steps_without_a_gap[4-1001-3]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_a_small_fan_out_widens_in_several_steps_without_a_gap[5-997-2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_a_small_fan_out_widens_in_several_steps_without_a_gap[5-997-3]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_a_transaction_that_cannot_see_a_new_table_still_gets_every_row",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_a_users_own_tickets_table_is_not_read",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_a_users_schema_named_like_the_tickets_database_is_not_in_the_way[False]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_a_users_schema_named_like_the_tickets_database_is_not_in_the_way[True]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_after_a_detach_the_next_generator_attaches_again",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_an_empty_database_in_memory_counts_as_sqlearns",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_an_open_transaction_is_left_alone[COMMIT-True-False]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_an_open_transaction_is_left_alone[COMMIT-True-True]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_an_open_transaction_is_left_alone[ROLLBACK-False-False]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_an_open_transaction_is_left_alone[ROLLBACK-False-True]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_building_a_generator_keeps_the_users_unfinished_result",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_each_connection_has_its_own_meta_sqlearn",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_generators_work_on_a_read_only_database",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_more_threads_add_a_larger_ticket_table",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_the_largest_row_count_ends_on_its_last_row",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_the_largest_row_count_starts_at_zero",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_tickets_are_in_order_whatever_the_users_settings",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_two_python_threads_may_make_the_first_ticket_table_at_once",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[1-1-1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[1-1-2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[1-1-8]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[1-2097152-1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[1-2097152-2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[1-2097152-8]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[1-4096-1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[1-4096-2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[1-4096-8]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[1-4097-1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[1-4097-2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[1-4097-8]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[8-3000001-1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[8-3000001-2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[8-3000001-8]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[8-32768-1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[8-32768-2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[8-32768-8]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[8-32769-1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[8-32769-2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[8-32769-8]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[8-8-1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[8-8-2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[8-8-8]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[983040-1-1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[983040-1-2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[983040-1-8]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[983040-122879-1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[983040-122879-2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[983040-122879-8]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[983040-122880-1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[983040-122880-2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[983040-122880-8]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[983040-122881-1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[983040-122881-2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[983040-122881-8]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[983040-3000001-1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[983040-3000001-2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[983040-3000001-8]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[983040-7-1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[983040-7-2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[983040-7-8]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[983040-983039-1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[983040-983039-2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[983040-983039-8]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[983040-983040-1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[983040-983040-2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[983040-983040-8]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[983040-983041-1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[983040-983041-2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/_tickets",
+      "name": "tests/src/sqlearn/datasets/test__tickets.py::test_work_tickets_number_every_row_once_in_order[983040-983041-8]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
       "area": "sqlearn/datasets/bundled",
       "name": "tests/src/sqlearn/datasets/test_bundled.py::test_a_dataset_lands_on_the_configured_connection_and_calls_are_independent[blobs]",
       "outcome": "passed",
@@ -2925,6 +3531,18 @@
     {
       "area": "sqlearn/datasets/bundled",
       "name": "tests/src/sqlearn/datasets/test_bundled.py::test_dataset_has_its_rows_features_and_a_target[wine]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/generated",
+      "name": "tests/src/sqlearn/datasets/test_generated.py::test_a_model_streams_from_a_generated_relation",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/generated",
+      "name": "tests/src/sqlearn/datasets/test_generated.py::test_a_pipeline_learned_from_tickets_saves_loads_and_applies",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -3069,6 +3687,24 @@
     {
       "area": "sqlearn/datasets/generated",
       "name": "tests/src/sqlearn/datasets/test_generated.py::test_a_trillion_rows_are_created_at_once",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/generated",
+      "name": "tests/src/sqlearn/datasets/test_generated.py::test_a_view_over_parallel_false_survives_reopening",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/generated",
+      "name": "tests/src/sqlearn/datasets/test_generated.py::test_an_ordered_export_under_a_memory_limit[False-False]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/generated",
+      "name": "tests/src/sqlearn/datasets/test_generated.py::test_an_ordered_export_under_a_memory_limit[True-True]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -3458,6 +4094,78 @@
     },
     {
       "area": "sqlearn/datasets/generated",
+      "name": "tests/src/sqlearn/datasets/test_generated.py::test_every_generator_gives_the_same_rows_parallel_or_not[blobs-1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/generated",
+      "name": "tests/src/sqlearn/datasets/test_generated.py::test_every_generator_gives_the_same_rows_parallel_or_not[blobs-2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/generated",
+      "name": "tests/src/sqlearn/datasets/test_generated.py::test_every_generator_gives_the_same_rows_parallel_or_not[blobs-8]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/generated",
+      "name": "tests/src/sqlearn/datasets/test_generated.py::test_every_generator_gives_the_same_rows_parallel_or_not[classification-1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/generated",
+      "name": "tests/src/sqlearn/datasets/test_generated.py::test_every_generator_gives_the_same_rows_parallel_or_not[classification-2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/generated",
+      "name": "tests/src/sqlearn/datasets/test_generated.py::test_every_generator_gives_the_same_rows_parallel_or_not[classification-8]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/generated",
+      "name": "tests/src/sqlearn/datasets/test_generated.py::test_every_generator_gives_the_same_rows_parallel_or_not[customers-1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/generated",
+      "name": "tests/src/sqlearn/datasets/test_generated.py::test_every_generator_gives_the_same_rows_parallel_or_not[customers-2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/generated",
+      "name": "tests/src/sqlearn/datasets/test_generated.py::test_every_generator_gives_the_same_rows_parallel_or_not[customers-8]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/generated",
+      "name": "tests/src/sqlearn/datasets/test_generated.py::test_every_generator_gives_the_same_rows_parallel_or_not[regression-1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/generated",
+      "name": "tests/src/sqlearn/datasets/test_generated.py::test_every_generator_gives_the_same_rows_parallel_or_not[regression-2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/generated",
+      "name": "tests/src/sqlearn/datasets/test_generated.py::test_every_generator_gives_the_same_rows_parallel_or_not[regression-8]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/generated",
       "name": "tests/src/sqlearn/datasets/test_generated.py::test_flip_y_flips_that_share",
       "outcome": "passed",
       "tier": "fast"
@@ -3465,6 +4173,12 @@
     {
       "area": "sqlearn/datasets/generated",
       "name": "tests/src/sqlearn/datasets/test_generated.py::test_informative_features_sit_round_hypercube_vertices",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/generated",
+      "name": "tests/src/sqlearn/datasets/test_generated.py::test_limit_and_ordered_keep_their_meaning",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -3513,6 +4227,36 @@
     {
       "area": "sqlearn/datasets/generated",
       "name": "tests/src/sqlearn/datasets/test_generated.py::test_ordered_rows_come_in_row_order_with_insertion_order_off",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/generated",
+      "name": "tests/src/sqlearn/datasets/test_generated.py::test_parallel_false_needs_no_meta_sqlearn",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/generated",
+      "name": "tests/src/sqlearn/datasets/test_generated.py::test_parallel_must_be_a_bool[blobs]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/generated",
+      "name": "tests/src/sqlearn/datasets/test_generated.py::test_parallel_must_be_a_bool[classification]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/generated",
+      "name": "tests/src/sqlearn/datasets/test_generated.py::test_parallel_must_be_a_bool[customers]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/generated",
+      "name": "tests/src/sqlearn/datasets/test_generated.py::test_parallel_must_be_a_bool[regression]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -3698,6 +4442,12 @@
     },
     {
       "area": "sqlearn/datasets/generated",
+      "name": "tests/src/sqlearn/datasets/test_generated.py::test_the_largest_row_count_is_created_at_once",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/generated",
       "name": "tests/src/sqlearn/datasets/test_generated.py::test_the_same_seed_gives_the_same_rows_and_another_seed_others",
       "outcome": "passed",
       "tier": "fast"
@@ -3705,6 +4455,24 @@
     {
       "area": "sqlearn/datasets/generated",
       "name": "tests/src/sqlearn/datasets/test_generated.py::test_the_same_seed_gives_the_same_rows_on_any_thread_count",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/generated",
+      "name": "tests/src/sqlearn/datasets/test_generated.py::test_without_insertion_order_the_rows_are_the_same_set",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/generated",
+      "name": "tests/src/sqlearn/datasets/test_generated.py::test_work_tickets_share_the_work_between_threads[False-False]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/datasets/generated",
+      "name": "tests/src/sqlearn/datasets/test_generated.py::test_work_tickets_share_the_work_between_threads[True-True]",
       "outcome": "passed",
       "tier": "fast"
     },
