@@ -43,3 +43,16 @@ def test_the_largest_row_count_ends_on_its_last_row():
         (rows - 1,),
         (rows - 2,),
     ]
+
+
+@pytest.mark.parametrize("fan_out", [2, 3])
+@pytest.mark.parametrize(("tickets", "rows"), [(3, 100), (4, 1_001), (5, 997)])
+def test_a_small_fan_out_widens_in_several_steps_without_a_gap(
+    monkeypatch, fan_out, tickets, rows
+):
+    """Blocks that do not divide evenly cross several widening steps in order."""
+    monkeypatch.setattr("sqlearn.datasets._tickets.FAN_OUT", fan_out)
+    con = duckdb.connect()
+    con.execute(f"CREATE TABLE t AS SELECT range AS ticket FROM range({tickets})")
+    got = con.sql(ticket_rows(rows, "t", tickets)).fetchnumpy()["range"]
+    assert got.tolist() == list(range(rows))

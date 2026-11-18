@@ -225,17 +225,22 @@ For `rows` = N and T tickets in the table:
    for `range`: at `2**63 - 1` rows the sums overflow `BIGINT`.
 
 The column it gives is `range`, as today, so the rest of `random_columns` does
-not change. Sketch, as probed:
+not change. Sketch (the last block of a step ends where its parent does, so
+a width that is not a multiple of the child width repeats no row):
 
 ```sql
-SELECT unnest(range(a::BIGINT, least(a + w, N)::BIGINT)) AS range
+SELECT unnest(range(least(a, N)::BIGINT, least(a + w, N)::BIGINT)) AS range
 FROM (
-  SELECT unnest(range(a::BIGINT, least(a + w, N)::BIGINT, child))::HUGEINT AS a,
-         child::HUGEINT AS w
+  SELECT s AS a, least(child::HUGEINT, e - s) AS w
   FROM (
-    SELECT ticket::HUGEINT * size AS a, size::HUGEINT AS w
-    FROM meta_sqlearn.tickets_8
-    WHERE ticket < used
+    SELECT unnest(range(least(a, N)::BIGINT, least(a + w, N)::BIGINT, child))
+             ::HUGEINT AS s,
+           a + w AS e
+    FROM (
+      SELECT ticket::HUGEINT * size AS a, size::HUGEINT AS w
+      FROM meta_sqlearn.tickets_8
+      WHERE ticket < used
+    )
   )
 )
 ```

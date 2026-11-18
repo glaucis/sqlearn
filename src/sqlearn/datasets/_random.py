@@ -223,10 +223,10 @@ def random_columns(
     Returns
     -------
     str
-        A query over ``range(rows)`` with column ``i`` (the row, BIGINT), then
-        one DOUBLE column per name, uniforms first: ``uniform(seed, i,
-        stream)`` or ``normal(seed, i, stream)``, equal to the Python ones bit
-        for bit.
+        A query over the row source, by default ``range(rows)``, with column
+        ``i`` (the row, BIGINT), then one DOUBLE column per name, uniforms
+        first: ``uniform(seed, i, stream)`` or ``normal(seed, i, stream)``,
+        equal to the Python ones bit for bit.
 
     Raises
     ------
