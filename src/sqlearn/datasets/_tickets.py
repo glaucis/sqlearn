@@ -51,12 +51,17 @@ def row_source(rows: int, parallel: bool) -> str | None:
         return None
     tickets = 8 * ROW_GROUP
     table = f"{DATABASE}.tickets_8"
-    con = connection()
-    con.execute(f"ATTACH IF NOT EXISTS ':memory:' AS {DATABASE}")
-    con.execute(
-        f"CREATE TABLE IF NOT EXISTS {table} AS "
-        f"SELECT range AS ticket FROM range({tickets})"
-    )
+    # A cursor has its own transaction, so the user's is neither joined nor
+    # ended, and it may attach a database even when the user's is read-only.
+    cursor = connection().cursor()
+    try:
+        cursor.execute(f"ATTACH IF NOT EXISTS ':memory:' AS {DATABASE} (READ_WRITE)")
+        cursor.execute(
+            f"CREATE TABLE IF NOT EXISTS {table} AS "
+            f"SELECT range AS ticket FROM range({tickets}) ORDER BY range"
+        )
+    finally:
+        cursor.close()
     return ticket_rows(rows, table, tickets)
 
 

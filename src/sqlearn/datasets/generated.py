@@ -2,10 +2,9 @@
 
 Each function returns a relation over the row numbers ``0`` to ``rows - 1``,
 from work tickets or, with ``parallel=False``, from ``range(rows)``: each use
-computes the same rows again (ADR 0045). Every
-random value is a pure function of ``(seed, row, stream)``; Python draws only
-a handful of constants (centres, coefficients, matrices) at rows from
-``CONSTANT_ROW``.
+computes the same rows again (ADR 0045). Every random value is a pure function
+of ``(seed, row, stream)``; Python draws only a handful of constants (centres,
+coefficients, matrices) at rows from ``CONSTANT_ROW``.
 
 The streams of each function, so that no two values of one row share one
 (a normal of stream ``n`` draws on uniform streams ``2n`` and ``2n + 1``):
