@@ -117,5 +117,11 @@ That table has to live somewhere, and where it lives matters (spec section 2):
   thread and 1.76 s on four from `range`, and 1.80 s and 0.88 s from tickets.
   At 100 rows to 100,000 rows the difference is a few milliseconds; at 10 to
   the 12th rows `limit 3` took 5 ms from `range` and 34 ms from tickets.
-  The final measurement at 1, 2, 4 and 8 threads on a quiet machine is a later
-  step, and no speed-up figure is promised here.
+  The final measurement is on
+  [its own page](../benchmarks/generators-on-many-threads.md), on a machine
+  that was not quiet (load average about 4 to about 35): 20M rows of 20
+  features summed took 23.74 s with `parallel=False` and 8.83 s with tickets
+  on 8 threads (fastest of three, about 2.7 times), and the two were the same
+  on 1 thread. A 100-row relation cost 24.11 ms against 10.31 ms, and an
+  ordered export gained no speed and held about 630 MB of temporary disk
+  against a 485 MB file.

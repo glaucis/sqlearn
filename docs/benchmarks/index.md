@@ -3,7 +3,7 @@ type: note
 tags: [benchmarks, performance, index]
 summary: "Index page for sqlearn benchmarks comparing its speed against the libraries it imitates, linking to individual benchmark pages."
 mdindex: [type=edb465, tags=d09494, summary=a67b0a]
-related: [onehot-second-run, category-lookup, standard-deviation, median-reach]
+related: [onehot-second-run, category-lookup, standard-deviation, median-reach, generators-on-many-threads]
 ---
 # Benchmarks
 
@@ -16,4 +16,5 @@ onehot-second-run
 category-lookup
 standard-deviation
 median-reach
+generators-on-many-threads
 ```

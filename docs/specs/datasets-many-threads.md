@@ -342,6 +342,9 @@ are updated. Validation of the distributions stays as it is.
   laptop responsive. **Tomas is asked before that run**, which needs all 8
   threads. No speed-up figure is promised in advance: this machine has 4
   performance and 4 efficiency cores.
+  Measured on 2026-11-18, not on a quiet machine (load average about 4 to
+  about 35): see
+  [the benchmark](../benchmarks/generators-on-many-threads.md).
 - `just verify` passes, and #46 is closed with the results.
 
 ## 9. Left to the builder

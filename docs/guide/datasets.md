@@ -118,9 +118,12 @@ instead, with no `meta_sqlearn`. Do that when:
 - You write an ordered export under a memory limit. Rows finished early must
   wait for their turn, and then overflow to DuckDB's temporary folder: `.tmp`
   in the current directory for an in-memory database, `<file>.tmp` beside a
-  file database. It must be writable, and on 20 million rows it held 433 MB
-  at peak in one measurement (4 threads, 150 MB limit, 4 normals; `range` used
-  none).
+  file database. It must be writable, and its size can exceed the file you
+  write: 20 million rows of 3 features on 8 threads under a 150 MB limit held
+  about 630 MB at peak for a 485 MB file, and ran no faster (4.84 to 5.99 s,
+  against 4.26 to 4.58 s from `range`, which used none). The machine was not
+  quiet; see
+  [the benchmark](../benchmarks/generators-on-many-threads.md).
 - You keep a view in a database file, or run the SQL elsewhere. The view over
   tickets names `meta_sqlearn`, which is gone after reopening the file.
 

@@ -3,9 +3,9 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-17 · Branch: `main` · Last commit: `83a2cbd docs: nested
-aggregates are merged (#49)` · Checks: passing (`just test` on the merge
-`b1599cf`: 2328 passed, 24 skipped; `just verify` on the branch: 2338)
+Updated: 2026-11-18 · Branch: `datasets-many-threads` · Last commit:
+`713f183 chore: list the tests of generators on many threads (#46)` · Checks:
+passing (`just verify` on `82d3cae`: 2456 passed, 24 skipped)
 Verify with: `just verify`
 
 ## In progress
@@ -14,18 +14,25 @@ None.
 
 ## Waiting on the user
 
-None.
+- #46's branch (`datasets-many-threads`) is built and reviewed: it awaits
+  Tomas's decision to merge. The benchmark
+  (`docs/benchmarks/generators-on-many-threads.md`) was not on a quiet
+  machine (load average about 4 to about 35) and can be rerun if he wants.
 
 ## Next up
 
-- #46 (generators on many threads: needs a parallel, ordered, lazy row
-  source; measurements in the issue), ready-for-agent, needing a design
-  first.
 - The next 3.3 area, not chosen yet: a fetcher of real datasets (ADR 0006:
   an explicit call), or more scores (balanced accuracy, MCC, Brier).
 
 ## Dead ends and traps
 
+- `meta_sqlearn` (ADR 0052): one transaction writes one attached database,
+  so it is written through a cursor. `con.execute` on the user's connection
+  discards their unfinished result, so only bind there. A transaction may
+  not see a ticket table made after it read that database. Database names
+  match case-insensitively in `ATTACH` and three-part names but not in
+  `duckdb_databases()` string comparisons. A two-part name is ambiguous
+  with a same-named schema. (2026-11-18)
 - The level planner (`_calls` in `_compose.py`) reads SQL text: a name in
   `duckdb_functions()` of type aggregate is an aggregate, but DuckDB's scalar
   `filter` (`list_filter`) is not, a subquery's aggregates are its own, and
@@ -79,7 +86,8 @@ None.
   the counts near a crossing twice. (2026-11-12)
 - Timing a generator by summing two of its columns measures only those two:
   DuckDB drops the unread ones. Sum every column. `range()` and a `UNION ALL`
-  of ranges run on one thread while insertion order is kept (#46). DuckDB
+  of ranges run on one thread while insertion order is kept; the generators
+  no longer do, they use tickets (#46). DuckDB
   2.0's relations have no `fetchone()`. (2026-11-10)
 - A wait loop `while pgrep -f name` matches its own command line and never
   ends; wait on a PID or let the harness notify. A `VALUES ('a'::ENUM(...))`
@@ -124,3 +132,14 @@ None.
   reaches 85-92% of one median's rows. Deferred minors (on the issue):
   macro aggregates not seen; an aggregate both top-level and nested is
   computed twice. (2026-11-17)
+- Generators on many threads (#46), branch `datasets-many-threads`, awaiting
+  merge: the four generators number rows from work tickets in
+  `meta_sqlearn`; `parallel=False` keeps `range` (spec
+  `docs/specs/datasets-many-threads.md`, ADR 0052, benchmark
+  `docs/benchmarks/generators-on-many-threads.md`: about 2.7 times faster on
+  8 threads, not a quiet machine). Deferred: the ownership check costs about
+  10 ms per generator call (a cheaper form moves the macro query to just
+  before `CREATE`); row counts just above the ticket table's size fill fewer
+  row groups; a write-write conflict's warning gets the memory advice; a
+  foreign in-memory `meta_sqlearn` whose only contents are uncommitted looks
+  empty and receives a ticket table. (2026-11-18)
