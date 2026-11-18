@@ -15,10 +15,9 @@ None.
 
 ## Waiting on the user
 
-- #46 is merged on local `main`: pushing it, and then closing the issue, is
-  Tomas's call. The benchmark
-  (`docs/benchmarks/generators-on-many-threads.md`) was not on a quiet
-  machine (load average about 4 to about 35) and can be rerun if he wants.
+- The #46 benchmark (`docs/benchmarks/generators-on-many-threads.md`) was not
+  on a quiet machine (load average about 4 to about 35) and can be rerun if
+  he wants.
 
 ## Next up
 
