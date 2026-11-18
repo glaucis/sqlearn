@@ -102,3 +102,18 @@ def test_the_largest_normal_stream_matches_the_python_reference():
     stream = 2**63 - 1
     rows = connection().sql(random_columns(1, 3, {}, {"n": stream})).fetchall()
     assert [r[1] for r in rows] == [normal(1, i, stream) for i in range(3)]
+
+
+def test_a_row_source_gives_the_rows_of_range():
+    """A row source standing for ``range`` changes no value."""
+    con = connection()
+    plain = random_columns(5, 1_000, {"u": 0}, {"n": 1})
+    other = random_columns(
+        5, 1_000, {"u": 0}, {"n": 1}, row_source="SELECT range FROM range(1000)"
+    )
+    assert con.sql(plain).fetchall() == con.sql(other).fetchall()
+
+
+def test_without_a_row_source_the_sql_reads_range():
+    """The default SQL is unchanged."""
+    assert "FROM range(10)" in random_columns(0, 10, {"u": 0}, {})

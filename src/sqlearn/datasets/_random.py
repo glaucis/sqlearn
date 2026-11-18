@@ -200,6 +200,7 @@ def random_columns(
     rows: int,
     uniforms: Mapping[str, int],
     normals: Mapping[str, int],
+    row_source: str | None = None,
 ) -> str:
     """Return the SQL of `rows` rows of random columns.
 
@@ -215,6 +216,9 @@ def random_columns(
         Each normal column's name and stream, in ``[0, 2**63)``. Normal
         stream ``n`` draws on uniform streams ``2n`` and ``2n + 1``, so no
         uniform may use either.
+    row_source : str or None, default=None
+        A query with one ``BIGINT`` column ``range``, holding ``0`` to
+        ``rows - 1`` in order, to read instead of ``range(rows)``.
 
     Returns
     -------
@@ -245,9 +249,10 @@ def random_columns(
         {*uniforms.values()} | {s for n in normals.values() for s in (2 * n, 2 * n + 1)}
     )
     seeded = splitmix64(seed & MASK)
+    origin = f"({row_source})" if row_source is not None else f"range({rows})"
     source = _mixed(
         f"SELECT range AS i, xor(range::UBIGINT, {seeded}::UBIGINT) AS _row "
-        f"FROM range({rows})",
+        f"FROM {origin}",
         ["_row"],
     )
     keys = ", ".join(f"xor(_row, {s}::UBIGINT) AS _k{s}" for s in streams)
