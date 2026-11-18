@@ -86,7 +86,7 @@ def _make_table(con: duckdb.DuckDBPyConnection) -> None:
             row = cursor.execute("SELECT current_setting('threads')").fetchone()
             assert row is not None
             wanted = max(MIN_GROUPS, int(row[0]))
-            if max(_visible_tables(cursor), default=0) < wanted:
+            if max(_all_tables(cursor), default=0) < wanted:
                 cursor.execute(
                     f"CREATE TABLE IF NOT EXISTS {DATABASE}.main.tickets_{wanted} AS "
                     f"SELECT range AS ticket FROM range({wanted * ROW_GROUP}) "
@@ -96,8 +96,8 @@ def _make_table(con: duckdb.DuckDBPyConnection) -> None:
             cursor.close()
 
 
-def _visible_tables(con: duckdb.DuckDBPyConnection) -> dict[int, str]:
-    """Return the ticket tables `con` sees, as row groups to full table name.
+def _all_tables(con: duckdb.DuckDBPyConnection) -> dict[int, str]:
+    """Return the committed ticket tables, as row groups to full table name.
 
     Only ``meta_sqlearn.main.tickets_<groups>`` counts: a table of the user's
     with another name, schema or database is not a ticket table.
@@ -112,6 +112,28 @@ def _visible_tables(con: duckdb.DuckDBPyConnection) -> dict[int, str]:
         if match is not None:
             found[int(match[1])] = f"{DATABASE}.main.{name}"
     return found
+
+
+def _visible_tables(con: duckdb.DuckDBPyConnection) -> dict[int, str]:
+    """Return the ticket tables `con` itself sees, as groups to full name.
+
+    The tables are listed on a cursor, then each is only bound on `con`
+    (never executed), so a result the user has begun to read stays whole, and
+    a table made after the user's transaction began is left out.
+    """
+    cursor = con.cursor()
+    try:
+        candidates = _all_tables(cursor)
+    finally:
+        cursor.close()
+    visible = {}
+    for groups, name in candidates.items():
+        try:
+            con.sql(f"SELECT ticket FROM {name}")
+        except duckdb.CatalogException:
+            continue
+        visible[groups] = name
+    return visible
 
 
 def ticket_rows(rows: int, table: str, tickets: int) -> str:

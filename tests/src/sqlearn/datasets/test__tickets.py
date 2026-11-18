@@ -7,7 +7,13 @@ import pytest
 
 import sqlearn as sq
 from sqlearn._config import connection
-from sqlearn.datasets._tickets import ROW_GROUP, _make_table, _row_numbers, ticket_rows
+from sqlearn.datasets._tickets import (
+    ROW_GROUP,
+    _make_table,
+    _row_numbers,
+    row_source,
+    ticket_rows,
+)
 
 
 @pytest.mark.parametrize("threads", [1, 2, 8])
@@ -152,6 +158,12 @@ def test_a_users_schema_named_like_the_tickets_database_is_not_in_the_way(before
     assert sq.datasets.blobs(rows=100).fetchall() == first.fetchall()
 
 
+def _source() -> str:
+    sql = row_source(10, True)
+    assert sql is not None
+    return sql
+
+
 def _ticket_tables(con) -> list[str]:
     return sorted(
         r[0]
@@ -173,6 +185,7 @@ def test_more_threads_add_a_larger_ticket_table():
     assert _ticket_tables(con) == ["tickets_8", "tickets_9"]
     count = con.sql("SELECT count(*) FROM meta_sqlearn.tickets_9").fetchall()
     assert count == [(9 * ROW_GROUP,)]
+    assert "tickets_9" in _source()
 
 
 def test_a_relation_keeps_its_rows_when_threads_rise():
@@ -195,6 +208,8 @@ def test_a_transaction_that_cannot_see_a_new_table_still_gets_every_row(tmp_path
     con.execute("BEGIN")
     con.sql("SELECT count(*) FROM meta_sqlearn.tickets_8").fetchall()
     con.execute("SET threads = 9")
+    assert "tickets_8" in _source()
+    assert "tickets_9" not in _source()
     rel = sq.datasets.blobs(rows=1_000_000, n_features=1, seed=5)
     plain = sq.datasets.blobs(rows=1_000_000, n_features=1, seed=5, parallel=False)
     assert rel.fetchall() == plain.fetchall()
@@ -232,3 +247,12 @@ def test_each_connection_has_its_own_meta_sqlearn():
     sq.set_config(connection=second)
     other = sq.datasets.blobs(rows=10, seed=1)
     assert rel.fetchall() == other.fetchall()
+
+
+def test_building_a_generator_keeps_the_users_unfinished_result():
+    """A result the user has begun to read is still there after a generator."""
+    con = connection()
+    con.execute("SELECT * FROM range(5)")
+    assert con.fetchone() == (0,)
+    sq.datasets.blobs(rows=10)
+    assert con.fetchall() == [(1,), (2,), (3,), (4,)]
