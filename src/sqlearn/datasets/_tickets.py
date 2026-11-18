@@ -129,15 +129,21 @@ def _make_table(con: duckdb.DuckDBPyConnection) -> None:
 def _check_ownership(cursor: duckdb.DuckDBPyConnection) -> None:
     """Raise `_UnusableError` unless ``meta_sqlearn`` holds only sqlearn's tickets.
 
-    It is sqlearn's when it is in memory and every table in it is
-    ``tickets_<groups>`` with the one ``BIGINT`` column ``ticket``, exactly
-    ``groups * ROW_GROUP`` rows, and ``ticket`` equal to ``rowid`` throughout.
+    It is sqlearn's when it is in memory, is named exactly ``meta_sqlearn``,
+    and every table in it is ``tickets_<groups>`` with the one ``BIGINT``
+    column ``ticket``, exactly ``groups * ROW_GROUP`` rows, and ``ticket``
+    equal to ``rowid`` throughout.
     """
-    path = cursor.execute(
-        f"SELECT path FROM duckdb_databases() WHERE database_name = '{DATABASE}'"
+    # DuckDB ignores case in database names, so ATTACH IF NOT EXISTS and
+    # three-part names reach META_SQLEARN too: only the exact name is sqlearn's.
+    row = cursor.execute(
+        "SELECT database_name, path FROM duckdb_databases() "
+        f"WHERE lower(database_name) = '{DATABASE}'"
     ).fetchone()
-    if path is not None and path[0] is not None:
-        raise _UnusableError(f"a database file ({path[0]}) is attached as {DATABASE}")
+    if row is not None and row != (DATABASE, None):
+        name, path = row
+        held = "an in-memory database" if path is None else f"the file {path}"
+        raise _UnusableError(f"{held} is open under the name {name}")
     tables = cursor.execute(
         "SELECT schema_name, table_name FROM duckdb_tables() "
         f"WHERE database_name = '{DATABASE}'"

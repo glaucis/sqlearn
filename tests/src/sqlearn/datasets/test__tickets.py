@@ -170,7 +170,7 @@ def _ticket_tables(con) -> list[str]:
         r[0]
         for r in con.sql(
             "SELECT table_name FROM duckdb_tables() "
-            "WHERE database_name = 'meta_sqlearn'"
+            "WHERE lower(database_name) = 'meta_sqlearn'"
         ).fetchall()
     )
 
@@ -296,6 +296,21 @@ def test_a_foreign_database_file_is_left_alone(tmp_path):
     """A file attached as meta_sqlearn is not written to."""
     con = connection()
     con.execute(f"ATTACH '{tmp_path / 'other.duckdb'}' AS meta_sqlearn")
+    _falls_back()
+    assert _ticket_tables(con) == []
+
+
+@pytest.mark.parametrize("kind", ["attached file", "attached memory", "main file"])
+def test_a_database_named_in_another_case_is_left_alone(tmp_path, kind):
+    """DuckDB ignores case in database names: META_SQLEARN is not sqlearn's."""
+    path = tmp_path / "META_SQLEARN.duckdb"
+    if kind == "main file":
+        con = duckdb.connect(path)
+        sq.set_config(connection=con)
+    else:
+        con = connection()
+        source = path if kind == "attached file" else ":memory:"
+        con.execute(f"ATTACH '{source}' AS META_SQLEARN")
     _falls_back()
     assert _ticket_tables(con) == []
 
