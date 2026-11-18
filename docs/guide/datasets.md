@@ -99,9 +99,12 @@ The four generators number their rows from small work tickets in a table, so
 that DuckDB can share the work between all the threads it is given. The rows
 and their order are the same as on one thread. The first call on a connection
 makes the table of tickets in `meta_sqlearn`, an in-memory database that
-sqlearn attaches beside yours. You will see it in `SHOW DATABASES`, and it
-holds about 8 MiB of memory until the connection closes. sqlearn writes
-nothing to your own database, and your transactions are left alone.
+sqlearn attaches beside yours. You will see it in `SHOW DATABASES`. The table
+holds about 8 MiB of memory for up to 8 threads, and about 1 MiB per thread
+above that. More threads add a larger table and the earlier ones stay, until
+the connection closes: 8.25 MiB for 8 threads came to 74 MiB in all once a
+table for 64 was added. sqlearn writes nothing to your own database, and your
+transactions are left alone.
 
 ```{code-cell} python
 sq.datasets.blobs(rows=5, seed=1).fetchall() == sq.datasets.blobs(
@@ -121,9 +124,11 @@ instead, with no `meta_sqlearn`. Do that when:
 - You keep a view in a database file, or run the SQL elsewhere. The view over
   tickets names `meta_sqlearn`, which is gone after reopening the file.
 
-If a database of another kind is already called `meta_sqlearn`, sqlearn does
-not touch it: the generators run on one thread, give the same rows, and warn
-with a `Fix:` line.
+If another database already goes by the name `meta_sqlearn`, in capitals or
+not (DuckDB ignores case in database names), sqlearn does not touch it. The
+generators then run on one thread, give the same rows, and warn. They do the
+same when DuckDB cannot make the table, or when your open transaction began
+before there was one; each warning's `Fix:` line says what to do.
 
 ## Writing one to Parquet
 

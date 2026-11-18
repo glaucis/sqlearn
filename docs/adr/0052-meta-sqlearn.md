@@ -52,18 +52,22 @@ That table has to live somewhere, and where it lives matters (spec section 2):
   missing without an error. A generator uses the largest table the user's
   connection sees; a transaction that cannot see a newer table uses a smaller
   one, on fewer threads, with the same rows.
-- **Ownership.** A database named `meta_sqlearn` counts as sqlearn's only if it
-  is in memory and every table in it is `tickets_<groups>` with one `BIGINT`
-  column `ticket`, `groups * 122880` rows, and no row where
+- **Ownership.** DuckDB ignores case in database names, so `META_SQLEARN`
+  takes the name too. A database counts as sqlearn's only if it is named
+  exactly `meta_sqlearn`, is in memory, holds no view, sequence, macro, type
+  or schema of its own, and every table in it is `tickets_<groups>` with one
+  `BIGINT` column `ticket`, `groups * 122880` rows, and no row where
   `ticket IS DISTINCT FROM rowid`. An empty in-memory database of that name
-  counts as sqlearn's. sqlearn writes nothing to any other.
+  counts as sqlearn's. sqlearn writes nothing to any other. The check runs on
+  a cursor, so it sees committed state only.
 - **Fallback.** When tickets cannot be used (the name is taken by another
   database, attaching or creating fails, or the user's connection sees no
   ticket table because its transaction began before any), the generator reads
   `range(rows)`: the same rows, on one thread, with a `SqlearnWarning` in the
-  house form whose `Fix:` names the other database and `parallel=False`
-  ([ADR 0046](0046-sqlearn-warns-the-user-chooses.md)). A generator never
-  fails for this reason.
+  house form ([ADR 0046](0046-sqlearn-warns-the-user-chooses.md)). Its `Fix:`
+  gives the remedy for the cause (detach or rename the other database; free
+  memory or allow a temporary folder; end the transaction) and always offers
+  `parallel=False`. A generator never fails for this reason.
 - **`parallel=False`**, a last setting of `blobs`, `regression`,
   `classification` and `customers`, gives today's SQL: `range(rows)`, one
   thread, and `meta_sqlearn` neither attached nor named. The rows are the same.
@@ -91,8 +95,10 @@ That table has to live somewhere, and where it lives matters (spec section 2):
 ## Consequences
 
 - The first generator call on a connection makes a ticket table: `meta_sqlearn`
-  shows in `SHOW DATABASES`, and about 8 MiB of memory is held for the life of
-  the connection (a table of 8 row groups was 8.2 MiB, made in 3 to 18 ms). So
+  shows in `SHOW DATABASES`, and memory is held for the life of the connection:
+  about 8 MiB for up to 8 threads, about 1 MiB per thread above that, and
+  earlier tables stay (a table of 8 row groups was 8.25 MiB, made in 3 to
+  18 ms; adding one of 64 brought the total to 74 MiB). So
   [ADR 0045](0045-datasets-are-relations-built-in-sql.md)'s "reads and writes
   nothing" becomes "computes no data row".
 - An ordered export must hold finished blocks until their turn. Under a memory

@@ -351,11 +351,11 @@ def blobs(
         Whether the rows are numbered from work tickets, so that DuckDB runs
         the work on every thread it is allowed, not one. The rows are the
         same either way. Tickets are kept in an in-memory database,
-        ``meta_sqlearn``, and a large export may overflow them to DuckDB's
-        temporary folder. False numbers the rows with ``range`` instead: one
-        thread, no temporary disk for an ordered export, and SQL that stays
-        valid without ``meta_sqlearn``, as a saved view needs or text run on
-        another connection.
+        ``meta_sqlearn``. In a large ordered export, finished rows waiting
+        their turn may overflow to DuckDB's temporary folder. False numbers
+        the rows with ``range`` instead: one thread, no temporary disk for an
+        ordered export, and SQL that stays valid without ``meta_sqlearn``, as
+        a saved view needs or text run on another connection.
 
     Returns
     -------
@@ -448,11 +448,11 @@ def regression(
         Whether the rows are numbered from work tickets, so that DuckDB runs
         the work on every thread it is allowed, not one. The rows are the
         same either way. Tickets are kept in an in-memory database,
-        ``meta_sqlearn``, and a large export may overflow them to DuckDB's
-        temporary folder. False numbers the rows with ``range`` instead: one
-        thread, no temporary disk for an ordered export, and SQL that stays
-        valid without ``meta_sqlearn``, as a saved view needs or text run on
-        another connection.
+        ``meta_sqlearn``. In a large ordered export, finished rows waiting
+        their turn may overflow to DuckDB's temporary folder. False numbers
+        the rows with ``range`` instead: one thread, no temporary disk for an
+        ordered export, and SQL that stays valid without ``meta_sqlearn``, as
+        a saved view needs or text run on another connection.
 
     Returns
     -------
@@ -741,11 +741,11 @@ def classification(
         Whether the rows are numbered from work tickets, so that DuckDB runs
         the work on every thread it is allowed, not one. The rows are the
         same either way. Tickets are kept in an in-memory database,
-        ``meta_sqlearn``, and a large export may overflow them to DuckDB's
-        temporary folder. False numbers the rows with ``range`` instead: one
-        thread, no temporary disk for an ordered export, and SQL that stays
-        valid without ``meta_sqlearn``, as a saved view needs or text run on
-        another connection.
+        ``meta_sqlearn``. In a large ordered export, finished rows waiting
+        their turn may overflow to DuckDB's temporary folder. False numbers
+        the rows with ``range`` instead: one thread, no temporary disk for an
+        ordered export, and SQL that stays valid without ``meta_sqlearn``, as
+        a saved view needs or text run on another connection.
 
     Returns
     -------
@@ -885,11 +885,11 @@ def customers(
         Whether the rows are numbered from work tickets, so that DuckDB runs
         the work on every thread it is allowed, not one. The rows are the
         same either way. Tickets are kept in an in-memory database,
-        ``meta_sqlearn``, and a large export may overflow them to DuckDB's
-        temporary folder. False numbers the rows with ``range`` instead: one
-        thread, no temporary disk for an ordered export, and SQL that stays
-        valid without ``meta_sqlearn``, as a saved view needs or text run on
-        another connection.
+        ``meta_sqlearn``. In a large ordered export, finished rows waiting
+        their turn may overflow to DuckDB's temporary folder. False numbers
+        the rows with ``range`` instead: one thread, no temporary disk for an
+        ordered export, and SQL that stays valid without ``meta_sqlearn``, as
+        a saved view needs or text run on another connection.
 
     Returns
     -------

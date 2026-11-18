@@ -257,20 +257,24 @@ FROM (
 
 With `parallel=True`, the generator falls back to `FROM range(rows)`: **the same
 rows, on one thread**, with a `SqlearnWarning` in the house form (ADR 0046),
-whose `Fix:` also names `parallel=False` for silencing it. A generator never
+whose `Fix:` gives the remedy for the case and also names `parallel=False` for
+silencing it. A generator never
 fails for this reason.
 
 | Case | What happens |
 |---|---|
-| A database named `meta_sqlearn` exists and is not sqlearn's | fall back, warn; `Fix:` detach or rename that database. sqlearn does not write to it |
-| Attaching or creating fails for another reason | fall back, warn, with DuckDB's message and a `Fix:` |
-| The user's connection sees no ticket table (its transaction began before any was made) | fall back, warn |
+| A database named `meta_sqlearn`, in any case, exists and is not sqlearn's | fall back, warn; `Fix:` detach or rename that database. sqlearn does not write to it |
+| Attaching or creating fails for another reason | fall back, warn, with the first line of DuckDB's message; `Fix:` free memory or allow a temporary folder |
+| The user's connection sees no ticket table (its transaction began before any was made) | fall back, warn; `Fix:` end the transaction |
 | The user detached `meta_sqlearn` after a relation was made | that relation fails on reading, as any relation whose table is gone; the next generator call attaches it again |
 
-`meta_sqlearn` counts as sqlearn's when it is in memory (no path) and every
-table in it is `tickets_<groups>` with one `BIGINT` column `ticket`,
-`groups * 122880` rows, and no row where `ticket IS DISTINCT FROM rowid`. An
-empty in-memory database of that name counts as sqlearn's.
+DuckDB ignores case in database names. A database counts as sqlearn's when it
+is named exactly `meta_sqlearn`, is in memory (no path), holds no view,
+sequence, macro, type or schema of its own, and every table in it is
+`tickets_<groups>` with one `BIGINT` column `ticket`, `groups * 122880` rows,
+and no row where `ticket IS DISTINCT FROM rowid`. An empty in-memory database
+of that name counts as sqlearn's. The check runs on a cursor and sees committed
+state only.
 
 ## 6. Tests
 
@@ -322,9 +326,10 @@ are updated. Validation of the distributions stays as it is.
   connection makes the small ticket table.
 - `docs/specs/library-datasets.md` and `docs/guide/datasets.md`: the same two
   points, what a user sees (`meta_sqlearn` in `SHOW DATABASES`, about 8 MiB of
-  memory), and when to pass `parallel=False`: the temporary disk of an ordered
-  export (needing a writable temporary folder), and views or SQL that must
-  outlive the connection. The generators' docstrings describe the setting.
+  memory up to 8 threads and about 1 MiB per thread above), and when to pass
+  `parallel=False`: the temporary disk of an ordered export (needing a writable
+  temporary folder), and views or SQL that must outlive the connection. The
+  generators' docstrings describe the setting.
 - `docs/benchmarks/`: the measurements of §8 on a page of their own.
 - `HANDOFF.md`: #46 moved to "Just finished", and the traps saying `range()`
   and generators run on one thread kept only where still true.
