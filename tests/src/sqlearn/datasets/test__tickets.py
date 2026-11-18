@@ -1,10 +1,13 @@
 """Tests of the row numbers made from work tickets."""
 
+import threading
+
 import duckdb
 import pytest
 
 import sqlearn as sq
-from sqlearn.datasets._tickets import _row_numbers, ticket_rows
+from sqlearn._config import connection
+from sqlearn.datasets._tickets import ROW_GROUP, _make_table, _row_numbers, ticket_rows
 
 
 @pytest.mark.parametrize("threads", [1, 2, 8])
@@ -147,3 +150,85 @@ def test_a_users_schema_named_like_the_tickets_database_is_not_in_the_way(before
         con.execute("CREATE SCHEMA meta_sqlearn")
     assert first.fetchall() == sq.datasets.blobs(rows=100, parallel=False).fetchall()
     assert sq.datasets.blobs(rows=100).fetchall() == first.fetchall()
+
+
+def _ticket_tables(con) -> list[str]:
+    return sorted(
+        r[0]
+        for r in con.sql(
+            "SELECT table_name FROM duckdb_tables() "
+            "WHERE database_name = 'meta_sqlearn'"
+        ).fetchall()
+    )
+
+
+def test_more_threads_add_a_larger_ticket_table():
+    """A higher thread count adds a bigger ticket table beside the old one."""
+    con = connection()
+    con.execute("SET threads = 2")
+    sq.datasets.blobs(rows=10).fetchall()
+    assert _ticket_tables(con) == ["tickets_8"]
+    con.execute("SET threads = 9")
+    sq.datasets.blobs(rows=10).fetchall()
+    assert _ticket_tables(con) == ["tickets_8", "tickets_9"]
+    count = con.sql("SELECT count(*) FROM meta_sqlearn.tickets_9").fetchall()
+    assert count == [(9 * ROW_GROUP,)]
+
+
+def test_a_relation_keeps_its_rows_when_threads_rise():
+    """A relation built before the threads rose reads the same rows after."""
+    con = connection()
+    con.execute("SET threads = 2")
+    rel = sq.datasets.blobs(rows=1_000, seed=4)
+    before = rel.fetchall()
+    con.execute("SET threads = 9")
+    sq.datasets.blobs(rows=10).fetchall()
+    assert rel.fetchall() == before
+
+
+def test_a_transaction_that_cannot_see_a_new_table_still_gets_every_row(tmp_path):
+    """Rows come from the largest table the transaction sees."""
+    con = duckdb.connect(tmp_path / "work.duckdb")
+    sq.set_config(connection=con)
+    con.execute("SET threads = 2")
+    sq.datasets.blobs(rows=10).fetchall()
+    con.execute("BEGIN")
+    con.sql("SELECT count(*) FROM meta_sqlearn.tickets_8").fetchall()
+    con.execute("SET threads = 9")
+    rel = sq.datasets.blobs(rows=1_000_000, n_features=1, seed=5)
+    plain = sq.datasets.blobs(rows=1_000_000, n_features=1, seed=5, parallel=False)
+    assert rel.fetchall() == plain.fetchall()
+    con.execute("ROLLBACK")
+
+
+def test_two_python_threads_may_make_the_first_ticket_table_at_once():
+    """Eight Python threads making the first ticket table meet no conflict.
+
+    The threads share one connection, which refuses a second call while busy
+    (even without tickets), so only the table-making is called at once.
+    """
+    con = duckdb.connect()
+    start, errors = threading.Barrier(8), []
+
+    def work():
+        try:
+            start.wait()
+            _make_table(con)
+        except Exception as error:  # noqa: BLE001
+            errors.append(error)
+
+    threads = [threading.Thread(target=work) for _ in range(8)]
+    [t.start() for t in threads]
+    [t.join() for t in threads]
+    assert not errors
+    assert _ticket_tables(con) == ["tickets_8"]
+
+
+def test_each_connection_has_its_own_meta_sqlearn():
+    """Two connections make their own ticket tables and agree on the rows."""
+    first, second = duckdb.connect(), duckdb.connect()
+    sq.set_config(connection=first)
+    rel = sq.datasets.blobs(rows=10, seed=1)
+    sq.set_config(connection=second)
+    other = sq.datasets.blobs(rows=10, seed=1)
+    assert rel.fetchall() == other.fetchall()

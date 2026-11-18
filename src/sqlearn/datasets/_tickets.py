@@ -16,7 +16,11 @@ Examples
 [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 """
 
+import re
+import threading
 from collections.abc import Callable
+
+import duckdb
 
 from sqlearn._config import connection
 
@@ -28,6 +32,8 @@ MIN_GROUPS = 8
 """The fewest row groups of tickets in a table."""
 FAN_OUT = 4_096
 """The most children one ticket widens into per step, so no list is large."""
+_LOCK = threading.Lock()
+_TABLE = re.compile(r"tickets_([1-9][0-9]*)")
 
 
 def row_source(rows: int, parallel: bool) -> str | None:
@@ -43,26 +49,69 @@ def row_source(rows: int, parallel: bool) -> str | None:
     Returns
     -------
     str or None
-        None when not `parallel`: the caller reads ``range(rows)``. Otherwise
-        a query as for `ticket_rows`, over a ticket table in ``meta_sqlearn``
-        on sqlearn's connection, made if need be.
+        None when not `parallel`, or when the connection sees no ticket table
+        (a transaction begun before any): the caller reads ``range(rows)``.
+        Otherwise a query as for `ticket_rows`, over the largest ticket table
+        the connection sees in ``meta_sqlearn``, one for the thread count
+        made if need be.
     """
     if not parallel:
         return None
-    tickets = 8 * ROW_GROUP
-    table = f"{DATABASE}.main.tickets_8"
-    # A cursor has its own transaction, so the user's is neither joined nor
-    # ended, and it may attach a database even when the user's is read-only.
-    cursor = connection().cursor()
-    try:
-        cursor.execute(f"ATTACH IF NOT EXISTS ':memory:' AS {DATABASE} (READ_WRITE)")
-        cursor.execute(
-            f"CREATE TABLE IF NOT EXISTS {table} AS "
-            f"SELECT range AS ticket FROM range({tickets}) ORDER BY range"
-        )
-    finally:
-        cursor.close()
-    return ticket_rows(rows, table, tickets)
+    con = connection()
+    _make_table(con)
+    tables = _visible_tables(con)
+    if not tables:
+        # A transaction of the user's that began before any ticket table.
+        return None
+    groups = max(tables)
+    return ticket_rows(rows, tables[groups], groups * ROW_GROUP)
+
+
+def _make_table(con: duckdb.DuckDBPyConnection) -> None:
+    """Make sure a ticket table for the current thread count exists.
+
+    A ticket table is never changed, replaced or dropped: a larger one is
+    added beside the smaller ones, so a relation built earlier keeps reading
+    the table it names. One lock serialises the writers in this process.
+    """
+    with _LOCK:
+        # A cursor has its own transaction, so the user's is neither joined
+        # nor ended, and it may attach a database even when the user's is
+        # read-only.
+        cursor = con.cursor()
+        try:
+            cursor.execute(
+                f"ATTACH IF NOT EXISTS ':memory:' AS {DATABASE} (READ_WRITE)"
+            )
+            row = cursor.execute("SELECT current_setting('threads')").fetchone()
+            assert row is not None
+            wanted = max(MIN_GROUPS, int(row[0]))
+            if max(_visible_tables(cursor), default=0) < wanted:
+                cursor.execute(
+                    f"CREATE TABLE IF NOT EXISTS {DATABASE}.main.tickets_{wanted} AS "
+                    f"SELECT range AS ticket FROM range({wanted * ROW_GROUP}) "
+                    "ORDER BY range"
+                )
+        finally:
+            cursor.close()
+
+
+def _visible_tables(con: duckdb.DuckDBPyConnection) -> dict[int, str]:
+    """Return the ticket tables `con` sees, as row groups to full table name.
+
+    Only ``meta_sqlearn.main.tickets_<groups>`` counts: a table of the user's
+    with another name, schema or database is not a ticket table.
+    """
+    rows = con.execute(
+        "SELECT table_name FROM duckdb_tables() "
+        f"WHERE database_name = '{DATABASE}' AND schema_name = 'main'"
+    ).fetchall()
+    found = {}
+    for (name,) in rows:
+        match = _TABLE.fullmatch(name)
+        if match is not None:
+            found[int(match[1])] = f"{DATABASE}.main.{name}"
+    return found
 
 
 def ticket_rows(rows: int, table: str, tickets: int) -> str:
