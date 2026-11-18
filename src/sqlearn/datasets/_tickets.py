@@ -18,6 +18,8 @@ Examples
 
 from collections.abc import Callable
 
+from sqlearn._config import connection
+
 DATABASE = "meta_sqlearn"
 """The in-memory database that holds the ticket tables."""
 ROW_GROUP = 122_880
@@ -26,6 +28,36 @@ MIN_GROUPS = 8
 """The fewest row groups of tickets in a table."""
 FAN_OUT = 4_096
 """The most children one ticket widens into per step, so no list is large."""
+
+
+def row_source(rows: int, parallel: bool) -> str | None:
+    """Return the SQL of the row numbers for a generator, or None for ``range``.
+
+    Parameters
+    ----------
+    rows : int
+        The number of rows, at least 1 and at most ``2**63 - 1``.
+    parallel : bool
+        Whether to number the rows from work tickets.
+
+    Returns
+    -------
+    str or None
+        None when not `parallel`: the caller reads ``range(rows)``. Otherwise
+        a query as for `ticket_rows`, over a ticket table in ``meta_sqlearn``
+        on sqlearn's connection, made if need be.
+    """
+    if not parallel:
+        return None
+    tickets = 8 * ROW_GROUP
+    table = f"{DATABASE}.tickets_8"
+    con = connection()
+    con.execute(f"ATTACH IF NOT EXISTS ':memory:' AS {DATABASE}")
+    con.execute(
+        f"CREATE TABLE IF NOT EXISTS {table} AS "
+        f"SELECT range AS ticket FROM range({tickets})"
+    )
+    return ticket_rows(rows, table, tickets)
 
 
 def ticket_rows(rows: int, table: str, tickets: int) -> str:

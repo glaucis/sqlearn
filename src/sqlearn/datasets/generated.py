@@ -1,7 +1,8 @@
 """Generated datasets: rows built in SQL from a seed, any number of them.
 
-Each function returns a relation over ``range(rows)``: creating it reads and
-writes nothing, and each use computes the same rows again (ADR 0045). Every
+Each function returns a relation over the row numbers ``0`` to ``rows - 1``,
+from work tickets or, with ``parallel=False``, from ``range(rows)``: each use
+computes the same rows again (ADR 0045). Every
 random value is a pure function of ``(seed, row, stream)``; Python draws only
 a handful of constants (centres, coefficients, matrices) at rows from
 ``CONSTANT_ROW``.
@@ -53,6 +54,7 @@ import duckdb
 from sqlearn._config import connection
 from sqlearn._errors import SqlearnError, SqlearnWarning
 from sqlearn.datasets._random import CONSTANT_ROW, MASK, key, random_columns, uniform
+from sqlearn.datasets._tickets import row_source
 
 _PACKAGE = (str(Path(__file__).parents[1]),)
 
@@ -223,6 +225,18 @@ def _check_ordered(function: str, ordered: object) -> bool:
     return bool(ordered)
 
 
+def _check_parallel(function: str, parallel: object) -> bool:
+    """Return `parallel`, refusing anything but a bool (numpy's too, by name)."""
+    if type(parallel).__name__ not in ("bool", "bool_"):
+        msg = (
+            f"sq.datasets.{function} got parallel={_shown(parallel)}. Why: "
+            "parallel is True or False. Fix: pass parallel=False to number "
+            "the rows with range on one thread, or leave it out."
+        )
+        raise SqlearnError(msg)
+    return bool(parallel)
+
+
 def _relation(sql: str, ordered: bool) -> duckdb.DuckDBPyRelation:
     """Return `sql` as a relation on sqlearn's connection, computed on use.
 
@@ -302,6 +316,7 @@ def blobs(
     center_box: tuple[float, float] = (-10.0, 10.0),
     seed: int = 0,
     ordered: bool = False,
+    parallel: bool = True,
 ) -> duckdb.DuckDBPyRelation:
     """Return isotropic Gaussian blobs round a few centres, as ``make_blobs``.
 
@@ -333,6 +348,15 @@ def blobs(
         default they do only while ``preserve_insertion_order`` is on. True
         sorts the relation by the row number: it costs a sort, and the
         relation is no longer lazy (it reads every row to sort them).
+    parallel : bool, default True
+        Whether the rows are numbered from work tickets, so that DuckDB runs
+        the work on every thread it is allowed, not one. The rows are the
+        same either way. Tickets are kept in an in-memory database,
+        ``meta_sqlearn``, and a large export may overflow them to DuckDB's
+        temporary folder. False numbers the rows with ``range`` instead: one
+        thread, no temporary disk for an ordered export, and SQL that stays
+        valid without ``meta_sqlearn``, as a saved view needs or text run on
+        another connection.
 
     Returns
     -------
@@ -357,6 +381,7 @@ def blobs(
     rows = _check_rows(rows)
     seed = _check_seed(seed)
     ordered = _check_ordered("blobs", ordered)
+    parallel = _check_parallel("blobs", parallel)
     if _whole(centers) is not None:
         n_features = _check_count("blobs", "n_features", n_features, 1)
     box = _check_box(center_box)
@@ -365,7 +390,7 @@ def blobs(
     spreads = _blob_spreads(cluster_std, len(points))
     count = len(points)
     noise = {f"_z{j}": j + 1 for j in range(n_features)}
-    source = random_columns(seed, rows, {"_c": 0}, noise)
+    source = random_columns(seed, rows, {"_c": 0}, noise, row_source(rows, parallel))
     target = f"least(floor(_c * {count})::BIGINT, {count - 1})"
     spread = f"[{', '.join(_double(s) for s in spreads)}][target + 1]"
     features = []
@@ -387,6 +412,7 @@ def regression(
     noise: float = 0.0,
     seed: int = 0,
     ordered: bool = False,
+    parallel: bool = True,
 ) -> duckdb.DuckDBPyRelation:
     """Return a linear regression problem, as ``make_regression``.
 
@@ -419,6 +445,15 @@ def regression(
         default they do only while ``preserve_insertion_order`` is on. True
         sorts the relation by the row number: it costs a sort, and the
         relation is no longer lazy (it reads every row to sort them).
+    parallel : bool, default True
+        Whether the rows are numbered from work tickets, so that DuckDB runs
+        the work on every thread it is allowed, not one. The rows are the
+        same either way. Tickets are kept in an in-memory database,
+        ``meta_sqlearn``, and a large export may overflow them to DuckDB's
+        temporary folder. False numbers the rows with ``range`` instead: one
+        thread, no temporary disk for an ordered export, and SQL that stays
+        valid without ``meta_sqlearn``, as a saved view needs or text run on
+        another connection.
 
     Returns
     -------
@@ -446,6 +481,7 @@ def regression(
     rows = _check_rows(rows)
     seed = _check_seed(seed)
     ordered = _check_ordered("regression", ordered)
+    parallel = _check_parallel("regression", parallel)
     n_features = _check_count("regression", "n_features", n_features, 1)
     if n_informative is None:
         n_informative = min(10, n_features)
@@ -465,7 +501,7 @@ def regression(
     normals = {f"x{j}": j for j in range(n_features)}
     if noise:
         normals["_noise"] = n_features
-    source = random_columns(seed, rows, {}, normals)
+    source = random_columns(seed, rows, {}, normals, row_source(rows, parallel))
     terms = [f"{_double(c)} * x{j}" for j, c in enumerate(coef)]
     terms.append(_double(bias))
     if noise:
@@ -649,6 +685,7 @@ def classification(
     class_sep: float = 1.0,
     seed: int = 0,
     ordered: bool = False,
+    parallel: bool = True,
 ) -> duckdb.DuckDBPyRelation:
     """Return a random n-class classification problem, as ``make_classification``.
 
@@ -701,6 +738,15 @@ def classification(
         default they do only while ``preserve_insertion_order`` is on. True
         sorts the relation by the row number: it costs a sort, and the
         relation is no longer lazy (it reads every row to sort them).
+    parallel : bool, default True
+        Whether the rows are numbered from work tickets, so that DuckDB runs
+        the work on every thread it is allowed, not one. The rows are the
+        same either way. Tickets are kept in an in-memory database,
+        ``meta_sqlearn``, and a large export may overflow them to DuckDB's
+        temporary folder. False numbers the rows with ``range`` instead: one
+        thread, no temporary disk for an ordered export, and SQL that stays
+        valid without ``meta_sqlearn``, as a saved view needs or text run on
+        another connection.
 
     Returns
     -------
@@ -726,6 +772,7 @@ def classification(
     rows = _check_rows(rows)
     seed = _check_seed(seed)
     ordered = _check_ordered("classification", ordered)
+    parallel = _check_parallel("classification", parallel)
     n_features, n_informative, n_redundant, n_classes, per_class = _check_classes(
         n_features, n_informative, n_redundant, n_classes, n_clusters_per_class
     )
@@ -759,7 +806,7 @@ def classification(
     uniforms = {"_u": 2 * count}
     if flip_y > 0:
         uniforms |= {"_flip": 2 * count + 1, "_new": 2 * count + 2}
-    source = random_columns(seed, rows, uniforms, normals)
+    source = random_columns(seed, rows, uniforms, normals, row_source(rows, parallel))
     target = f"_k % {n_classes}"
     if flip_y > 0:
         redrawn = f"least(floor(_new * {n_classes})::BIGINT, {n_classes - 1})"
@@ -808,7 +855,10 @@ _PLAN_SHARES = (0.5, 0.3, 0.2)
 
 
 def customers(
-    rows: int = 1000, seed: int = 0, ordered: bool = False
+    rows: int = 1000,
+    seed: int = 0,
+    ordered: bool = False,
+    parallel: bool = True,
 ) -> duckdb.DuckDBPyRelation:
     """Return sqlearn's own table of customers: numbers and text with gaps.
 
@@ -832,6 +882,15 @@ def customers(
         default they do only while ``preserve_insertion_order`` is on. True
         sorts the relation by the row number: it costs a sort, and the
         relation is no longer lazy (it reads every row to sort them).
+    parallel : bool, default True
+        Whether the rows are numbered from work tickets, so that DuckDB runs
+        the work on every thread it is allowed, not one. The rows are the
+        same either way. Tickets are kept in an in-memory database,
+        ``meta_sqlearn``, and a large export may overflow them to DuckDB's
+        temporary folder. False numbers the rows with ``range`` instead: one
+        thread, no temporary disk for an ordered export, and SQL that stays
+        valid without ``meta_sqlearn``, as a saved view needs or text run on
+        another connection.
 
     Returns
     -------
@@ -855,11 +914,13 @@ def customers(
     rows = _check_rows(rows)
     seed = _check_seed(seed)
     ordered = _check_ordered("customers", ordered)
+    parallel = _check_parallel("customers", parallel)
     source = random_columns(
         seed,
         rows,
         {"_city": 6, "_plan": 7, "_age_gap": 8, "_income_gap": 9},
         {"_age_z": 0, "_income_z": 1, "_noise": 2},
+        row_source(rows, parallel),
     )
     drawn = (
         "SELECT i, 40.0 + 12.0 * _age_z AS _age,"

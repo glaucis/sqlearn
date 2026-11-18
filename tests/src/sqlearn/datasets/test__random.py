@@ -44,8 +44,8 @@ def test_random_sql_grows_linearly():
 def test_the_same_seed_gives_the_same_values_on_any_thread_count():
     """One thread and eight give the same rows.
 
-    DuckDB's ``range()`` reads on one thread today, so this cannot fail yet: it
-    guards a future parallel row source.
+    The default source, DuckDB's ``range()``, reads on one thread, so this
+    cannot fail; the generators' tests run the same check over work tickets.
     """
     sql = random_columns(11, 100_000, {"u": 0, "v": 1}, {"n": 2})
     con = duckdb.connect()
