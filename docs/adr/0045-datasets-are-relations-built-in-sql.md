@@ -6,7 +6,8 @@ related: [docs/specs/library-datasets.md, docs/adr/0002-sql-on-duckdb-execution-
 ---
 # 0045: Datasets are relations built in SQL
 
-Status: accepted (2026-11-10). Spec:
+Status: accepted (2026-11-10). Amended 2026-11-18 by
+[ADR 0052](0052-meta-sqlearn.md). Spec:
 [library datasets](../specs/library-datasets.md), sections 3 and 4.
 
 ## Context
@@ -24,8 +25,10 @@ larger than memory.
   names).
 - **Every function returns a `duckdb.DuckDBPyRelation`** on sqlearn's
   connection: what every sqlearn verb takes, lazy, and writable anywhere with
-  DuckDB. A generated relation is a query, not a table: creating it reads and
-  writes nothing, and each use computes the same rows again.
+  DuckDB. A generated relation is a query, not a table: creating it computes no
+  data row, and each use computes the same rows again. (The first generator
+  call on a connection makes a small table of work tickets in `meta_sqlearn`,
+  [ADR 0052](0052-meta-sqlearn.md).)
 - **The target is a column named `target`**, last, as in scikit-learn's
   `as_frame=True` frame.
 - **Settings keep scikit-learn's names** with two departures, both sqlearn's
@@ -73,9 +76,11 @@ larger than memory.
   never the same numbers. Validation checks the distributions, not the draws.
 - A normal costs two keys, a logarithm and a cosine per value: 10,000,000 rows
   of 20 normals summed take about 22.5 s on one thread (2026-11-10; the machine
-  has 8 cores). DuckDB's `range()` is one thread, so the generators run on one
-  thread; the low 64 bits are taken with a mask, the same value as `% 2**64` and
-  about twelve times faster.
+  has 8 cores). DuckDB's `range()` is one thread, so the generators number their
+  rows from work tickets in a stored table, which DuckDB shares between threads
+  ([ADR 0052](0052-meta-sqlearn.md); `parallel=False` gives `range` and one
+  thread); the low 64 bits are taken with a mask, the same value as `% 2**64`
+  and about twelve times faster.
 - A generated relation's rows come in row order while DuckDB's
   `preserve_insertion_order` is on (its default; sqlearn's predict refuses a
   connection with it off). The SQL has no `ORDER BY` by default, which would

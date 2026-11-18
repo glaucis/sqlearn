@@ -187,25 +187,33 @@ both values.
   a read-only main database.
 - **Every write goes through a `cursor()` of that connection**, closed
   afterwards. A write on the connection itself would join the user's
-  transaction and break it (§2).
+  transaction and break it (§2). sqlearn never executes or fetches on the
+  user's connection for this either: that would discard a result the user has
+  begun to read. It checks, attaches and creates through a cursor.
 - It goes away when the connection closes. sqlearn never drops it or its
   tables while the connection lives: relations already made read them.
 
 ### Ticket tables
 
-- `meta_sqlearn.tickets_<groups>`, one `BIGINT` column `ticket`, holding
-  `0` to `groups * 122880 - 1` in order.
+- `meta_sqlearn.main.tickets_<groups>`, named in three parts because a
+  two-part name is ambiguous when the user has a schema called `meta_sqlearn`.
+  One `BIGINT` column `ticket`, holding `0` to `groups * 122880 - 1` in order,
+  made `ORDER BY range`.
 - `groups` is `max(8, threads)`, reading DuckDB's `threads` setting when the
   generator is called.
 - **A ticket table is never changed or replaced.** A larger thread count makes
   a new, larger table. This is what keeps a transaction safe: replacing a table
   would leave a running transaction seeing the old rows while new SQL counted
   on the new ones, and rows would go missing without an error.
-- A generator asks **the user's connection** which ticket tables it can see,
-  after creating any it wants, and uses the largest it sees. A transaction that
-  cannot see the new table uses a smaller one, on fewer threads, with the same
-  rows.
-- Creation is safe when two Python threads call generators at once.
+- A generator finds which ticket tables **the user's connection** can see by
+  binding a query against each (listed on a cursor, never executed on the
+  connection), after creating any it wants, and uses the largest it sees. A
+  transaction that cannot see the new table uses a smaller one, on fewer
+  threads, with the same rows.
+- Creating ticket tables is safe when two Python threads call generators at
+  once (one lock). Generators on one shared connection called at the same time
+  remain refused by DuckDB's Python connection ("connection is busy"), as they
+  are today and with `parallel=False` too.
 
 ### The row source
 
@@ -256,10 +264,13 @@ fails for this reason.
 |---|---|
 | A database named `meta_sqlearn` exists and is not sqlearn's | fall back, warn; `Fix:` detach or rename that database. sqlearn does not write to it |
 | Attaching or creating fails for another reason | fall back, warn, with DuckDB's message and a `Fix:` |
+| The user's connection sees no ticket table (its transaction began before any was made) | fall back, warn |
 | The user detached `meta_sqlearn` after a relation was made | that relation fails on reading, as any relation whose table is gone; the next generator call attaches it again |
 
 `meta_sqlearn` counts as sqlearn's when it is in memory (no path) and every
-table in it is a ticket table of the right shape and contents.
+table in it is `tickets_<groups>` with one `BIGINT` column `ticket`,
+`groups * 122880` rows, and no row where `ticket IS DISTINCT FROM rowid`. An
+empty in-memory database of that name counts as sqlearn's.
 
 ## 6. Tests
 
@@ -283,7 +294,8 @@ watched failing first.
   tickets remain.
 - Thread count raised during a transaction that has read `meta_sqlearn`: a new
   relation has every row, in order.
-- Two Python threads calling generators at once on a new connection.
+- Two Python threads calling generators at once on a new connection: the
+  ticket table is made once and no call fails for it.
 - A foreign `meta_sqlearn`, in memory and as a file: right rows, one warning,
   nothing written to it.
 - Streaming to a model through a cursor (`feed="stream"`) reads a generated

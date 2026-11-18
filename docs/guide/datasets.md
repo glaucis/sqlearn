@@ -5,8 +5,8 @@ kernelspec:
   display_name: Python 3
   language: python
 type: guide
-tags: [datasets, iris, wine, breast-cancer, blobs, regression, classification, customers, seed, parquet, larger-than-memory]
-summary: "What sq.datasets gives: three small bundled datasets and four generators written in SQL (blobs, regression, classification, customers), the seed that repeats them, why each is a relation that is a query, writing one to Parquet, and generating more rows than memory holds."
+tags: [datasets, threads, parallel, iris, wine, breast-cancer, blobs, regression, classification, customers, seed, parquet, larger-than-memory]
+summary: "What sq.datasets gives: three small bundled datasets and four generators written in SQL (blobs, regression, classification, customers), the seed that repeats them, why each is a relation that is a query, how they use many threads and when to pass parallel=False, writing one to Parquet, and generating more rows than memory holds."
 related: [docs/specs/library-datasets.md, docs/adr/0045-datasets-are-relations-built-in-sql.md, docs/adr/0006-local-and-offline.md, docs/adr/0043-repeatable-within-rounding.md]
 ---
 
@@ -73,7 +73,7 @@ promised to round alike everywhere
 
 ## A relation is a query
 
-A generated relation reads and writes nothing when you create it. Each use
+A generated relation computes no data row when you create it. Each use
 computes its rows again, and they are the same rows. So a relation of a
 billion rows is created at once, and its first rows come back at once:
 
@@ -92,6 +92,38 @@ The rows of a generator come in row order while DuckDB's
 setting, pass `ordered=True`: the relation sorts by the row number. That costs
 a sort, and the relation is no longer lazy: it reads every row to sort them,
 so a `limit` no longer stops early.
+
+## Threads
+
+The four generators number their rows from small work tickets in a table, so
+that DuckDB can share the work between all the threads it is given. The rows
+and their order are the same as on one thread. The first call on a connection
+makes the table of tickets in `meta_sqlearn`, an in-memory database that
+sqlearn attaches beside yours. You will see it in `SHOW DATABASES`, and it
+holds about 8 MiB of memory until the connection closes. sqlearn writes
+nothing to your own database, and your transactions are left alone.
+
+```{code-cell} python
+sq.datasets.blobs(rows=5, seed=1).fetchall() == sq.datasets.blobs(
+    rows=5, seed=1, parallel=False
+).fetchall()
+```
+
+Pass `parallel=False` to number the rows with DuckDB's `range` on one thread
+instead, with no `meta_sqlearn`. Do that when:
+
+- You write an ordered export under a memory limit. Rows finished early must
+  wait for their turn, and then overflow to DuckDB's temporary folder: `.tmp`
+  in the current directory for an in-memory database, `<file>.tmp` beside a
+  file database. It must be writable, and on 20 million rows it held 433 MB
+  at peak in one measurement (4 threads, 150 MB limit, 4 normals; `range` used
+  none).
+- You keep a view in a database file, or run the SQL elsewhere. The view over
+  tickets names `meta_sqlearn`, which is gone after reopening the file.
+
+If a database of another kind is already called `meta_sqlearn`, sqlearn does
+not touch it: the generators run on one thread, give the same rows, and warn
+with a `Fix:` line.
 
 ## Writing one to Parquet
 
