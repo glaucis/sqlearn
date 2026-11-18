@@ -260,11 +260,25 @@ def test_building_a_generator_keeps_the_users_unfinished_result():
     assert con.fetchall() == [(1,), (2,), (3,), (4,)]
 
 
-def _falls_back() -> None:
+_ADVICE = {
+    "foreign": "detach",
+    "transaction": "COMMIT",
+    "failure": "temp_directory",
+}
+
+
+def _advises(text: str, cause: str) -> None:
+    """The warning is one line, and gives the advice for `cause` alone."""
+    assert all(w in text for w in ("meta_sqlearn", "Why:", "Fix:", "parallel=False"))
+    assert "\n" not in text
+    fix = text.split("Fix:")[1]
+    assert {c for c, word in _ADVICE.items() if word in fix} == {cause}
+
+
+def _falls_back(cause: str = "foreign") -> None:
     with pytest.warns(SqlearnWarning) as caught:
         rel = sq.datasets.blobs(rows=100, seed=1)
-    text = str(caught[0].message)
-    assert all(w in text for w in ("meta_sqlearn", "Why:", "Fix:", "parallel=False"))
+    _advises(str(caught[0].message), cause)
     assert "meta_sqlearn" not in rel.sql_query()
     assert (
         rel.fetchall() == sq.datasets.blobs(rows=100, seed=1, parallel=False).fetchall()
@@ -357,8 +371,11 @@ def test_a_failure_to_make_tickets_falls_back():
     with pytest.warns(SqlearnWarning, match="meta_sqlearn") as caught:
         rel = sq.datasets.blobs(rows=100, seed=1)
     con.execute("SET memory_limit = '200MB'")
-    assert "Fix:" in str(caught[0].message)
+    _advises(str(caught[0].message), "failure")
     assert "meta_sqlearn" not in rel.sql_query()
+    assert (
+        rel.fetchall() == sq.datasets.blobs(rows=100, seed=1, parallel=False).fetchall()
+    )
 
 
 def test_after_a_detach_the_next_generator_attaches_again():
@@ -378,5 +395,5 @@ def test_a_connection_that_sees_no_ticket_table_falls_back():
     con.execute("ATTACH ':memory:' AS meta_sqlearn")
     con.execute("BEGIN")
     con.sql("SELECT count(*) FROM duckdb_tables()").fetchall()
-    _falls_back()
+    _falls_back("transaction")
     con.execute("ROLLBACK")

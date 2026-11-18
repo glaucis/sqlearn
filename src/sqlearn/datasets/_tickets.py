@@ -53,8 +53,34 @@ _OTHER_OBJECTS = (
 """What ``meta_sqlearn`` holds besides tables: sqlearn makes none of these."""
 
 
+_RENAME = (
+    "detach the other database or open it under another name (DuckDB ignores "
+    "case in database names, and sqlearn never writes to a database that is "
+    "not its own)"
+)
+_END_TRANSACTION = (
+    "end the open transaction with COMMIT or ROLLBACK, then call the generator again"
+)
+_FREE_MEMORY = (
+    "if DuckDB ran out of memory, free some, raise memory_limit, or allow a "
+    "temporary folder with SET temp_directory"
+)
+
+
 class _UnusableError(Exception):
-    """Tickets cannot be used on this connection; the message says why."""
+    """Tickets cannot be used on this connection.
+
+    Parameters
+    ----------
+    reason : str
+        Why they cannot.
+    remedy : str, default _RENAME
+        What the user can do about it, for the warning's ``Fix:``.
+    """
+
+    def __init__(self, reason: str, remedy: str = _RENAME) -> None:
+        super().__init__(reason)
+        self.remedy = remedy
 
 
 def row_source(rows: int, parallel: bool) -> str | None:
@@ -78,6 +104,13 @@ def row_source(rows: int, parallel: bool) -> str | None:
         Otherwise a query as for `ticket_rows`, over the largest ticket table
         the connection sees in ``meta_sqlearn``, one for the thread count
         made if need be.
+
+    Examples
+    --------
+    >>> row_source(3, parallel=False) is None
+    True
+    >>> connection().sql(row_source(3, parallel=True)).fetchall()
+    [(0,), (1,), (2,)]
     """
     if not parallel:
         return None
@@ -87,24 +120,28 @@ def row_source(rows: int, parallel: bool) -> str | None:
         tables = _visible_tables(con)
         if not tables:
             # A transaction of the user's that began before any ticket table.
-            raise _UnusableError("this connection sees no ticket table")
-    except (_UnusableError, duckdb.Error) as error:
-        _warn(error)
+            raise _UnusableError(
+                "this connection sees no ticket table", _END_TRANSACTION
+            )
+    except _UnusableError as error:
+        _warn(str(error), error.remedy)
+        return None
+    except duckdb.Error as error:
+        # DuckDB's first line says what happened; the rest is its own advice.
+        _warn(str(error).strip().partition("\n")[0].rstrip(". "), _FREE_MEMORY)
         return None
     groups = max(tables)
     return ticket_rows(rows, tables[groups], groups * ROW_GROUP)
 
 
-def _warn(error: Exception) -> None:
-    """Warn that generators fall back to one thread, and why."""
-    detail = str(error).strip()
+def _warn(detail: str, remedy: str) -> None:
+    """Warn that generators fall back to one thread, why, and what to do."""
     text = (
         f"sqlearn cannot use its work tickets in {DATABASE}: {detail}. "
         "Why: the generators number their rows from tickets in an in-memory "
         f"database named {DATABASE}, so that every thread has work; they now "
-        "run on one thread, with the same rows. Fix: detach or rename the "
-        f"other database called {DATABASE} (sqlearn never writes to one that "
-        "is not its own), or pass parallel=False to silence this warning."
+        f"run on one thread, with the same rows. Fix: {remedy}; or pass "
+        "parallel=False to silence this warning."
     )
     warnings.warn(text, SqlearnWarning, skip_file_prefixes=_PACKAGE)
 
@@ -118,8 +155,8 @@ def _make_table(con: duckdb.DuckDBPyConnection) -> None:
     """
     with _LOCK:
         # A cursor has its own transaction, so the user's is neither joined
-        # nor ended, and it may attach a database even when the user's is
-        # read-only.
+        # nor ended. READ_WRITE is what permits attaching when the user's
+        # database is read-only.
         cursor = con.cursor()
         try:
             cursor.execute(
