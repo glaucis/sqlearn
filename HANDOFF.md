@@ -3,9 +3,10 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-18 · Branch: `datasets-many-threads` · Last commit:
-`713f183 chore: list the tests of generators on many threads (#46)` · Checks:
-passing (`just verify` on `82d3cae`: 2456 passed, 24 skipped)
+Updated: 2026-11-18 · Branch: `main` · Last commit: `591b2ba Merge branch
+'datasets-many-threads': generators on many threads (#46)` · Checks: passing
+(`just test` on the merge: 2456 passed, 24 skipped; `just verify` on the
+branch: 2466)
 Verify with: `just verify`
 
 ## In progress
@@ -14,8 +15,8 @@ None.
 
 ## Waiting on the user
 
-- #46's branch (`datasets-many-threads`) is built and reviewed: it awaits
-  Tomas's decision to merge. The benchmark
+- #46 is merged on local `main`: pushing it, and then closing the issue, is
+  Tomas's call. The benchmark
   (`docs/benchmarks/generators-on-many-threads.md`) was not on a quiet
   machine (load average about 4 to about 35) and can be rerun if he wants.
 
@@ -132,8 +133,8 @@ None.
   reaches 85-92% of one median's rows. Deferred minors (on the issue):
   macro aggregates not seen; an aggregate both top-level and nested is
   computed twice. (2026-11-17)
-- Generators on many threads (#46), branch `datasets-many-threads`, awaiting
-  merge: the four generators number rows from work tickets in
+- Generators on many threads (#46), merged in `591b2ba`: the four generators
+  number rows from work tickets in
   `meta_sqlearn`; `parallel=False` keeps `range` (spec
   `docs/specs/datasets-many-threads.md`, ADR 0052, benchmark
   `docs/benchmarks/generators-on-many-threads.md`: about 2.7 times faster on
