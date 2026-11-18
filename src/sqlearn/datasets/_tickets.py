@@ -18,11 +18,14 @@ Examples
 
 import re
 import threading
+import warnings
 from collections.abc import Callable
+from pathlib import Path
 
 import duckdb
 
 from sqlearn._config import connection
+from sqlearn._errors import SqlearnWarning
 
 DATABASE = "meta_sqlearn"
 """The in-memory database that holds the ticket tables."""
@@ -34,6 +37,11 @@ FAN_OUT = 4_096
 """The most children one ticket widens into per step, so no list is large."""
 _LOCK = threading.Lock()
 _TABLE = re.compile(r"tickets_([1-9][0-9]*)")
+_PACKAGE = (str(Path(__file__).parents[1]),)
+
+
+class _UnusableError(Exception):
+    """Tickets cannot be used on this connection; the message says why."""
 
 
 def row_source(rows: int, parallel: bool) -> str | None:
@@ -49,8 +57,11 @@ def row_source(rows: int, parallel: bool) -> str | None:
     Returns
     -------
     str or None
-        None when not `parallel`, or when the connection sees no ticket table
-        (a transaction begun before any): the caller reads ``range(rows)``.
+        None when not `parallel`, or when tickets cannot be used (the database
+        ``meta_sqlearn`` is not sqlearn's, DuckDB refused to make a table, or
+        the connection sees no ticket table because a transaction began before
+        any): the caller reads ``range(rows)``, and a `SqlearnWarning` says
+        why.
         Otherwise a query as for `ticket_rows`, over the largest ticket table
         the connection sees in ``meta_sqlearn``, one for the thread count
         made if need be.
@@ -58,13 +69,31 @@ def row_source(rows: int, parallel: bool) -> str | None:
     if not parallel:
         return None
     con = connection()
-    _make_table(con)
-    tables = _visible_tables(con)
-    if not tables:
-        # A transaction of the user's that began before any ticket table.
+    try:
+        _make_table(con)
+        tables = _visible_tables(con)
+        if not tables:
+            # A transaction of the user's that began before any ticket table.
+            raise _UnusableError("this connection sees no ticket table")
+    except (_UnusableError, duckdb.Error) as error:
+        _warn(error)
         return None
     groups = max(tables)
     return ticket_rows(rows, tables[groups], groups * ROW_GROUP)
+
+
+def _warn(error: Exception) -> None:
+    """Warn that generators fall back to one thread, and why."""
+    detail = str(error).strip()
+    text = (
+        f"sqlearn cannot use its work tickets in {DATABASE}: {detail}. "
+        "Why: the generators number their rows from tickets in an in-memory "
+        f"database named {DATABASE}, so that every thread has work; they now "
+        "run on one thread, with the same rows. Fix: detach or rename the "
+        f"other database called {DATABASE} (sqlearn never writes to one that "
+        "is not its own), or pass parallel=False to silence this warning."
+    )
+    warnings.warn(text, SqlearnWarning, skip_file_prefixes=_PACKAGE)
 
 
 def _make_table(con: duckdb.DuckDBPyConnection) -> None:
@@ -83,6 +112,7 @@ def _make_table(con: duckdb.DuckDBPyConnection) -> None:
             cursor.execute(
                 f"ATTACH IF NOT EXISTS ':memory:' AS {DATABASE} (READ_WRITE)"
             )
+            _check_ownership(cursor)
             row = cursor.execute("SELECT current_setting('threads')").fetchone()
             assert row is not None
             wanted = max(MIN_GROUPS, int(row[0]))
@@ -94,6 +124,43 @@ def _make_table(con: duckdb.DuckDBPyConnection) -> None:
                 )
         finally:
             cursor.close()
+
+
+def _check_ownership(cursor: duckdb.DuckDBPyConnection) -> None:
+    """Raise `_UnusableError` unless ``meta_sqlearn`` holds only sqlearn's tickets.
+
+    It is sqlearn's when it is in memory and every table in it is
+    ``tickets_<groups>`` with the one ``BIGINT`` column ``ticket``, exactly
+    ``groups * ROW_GROUP`` rows, and ``ticket`` equal to ``rowid`` throughout.
+    """
+    path = cursor.execute(
+        f"SELECT path FROM duckdb_databases() WHERE database_name = '{DATABASE}'"
+    ).fetchone()
+    if path is not None and path[0] is not None:
+        raise _UnusableError(f"a database file ({path[0]}) is attached as {DATABASE}")
+    tables = cursor.execute(
+        "SELECT schema_name, table_name FROM duckdb_tables() "
+        f"WHERE database_name = '{DATABASE}'"
+    ).fetchall()
+    for schema, name in tables:
+        match = _TABLE.fullmatch(name)
+        if match is None or schema != "main":
+            raise _UnusableError(
+                f"the table {schema}.{name} in it is not a ticket table"
+            )
+        columns = cursor.execute(
+            "SELECT column_name, data_type FROM duckdb_columns() "
+            f"WHERE database_name = '{DATABASE}' AND schema_name = 'main' "
+            f"AND table_name = '{name}'"
+        ).fetchall()
+        if columns != [("ticket", "BIGINT")]:
+            raise _UnusableError(f"the table {name} in it has other columns")
+        row = cursor.execute(
+            f"SELECT count(*), count(*) FILTER (WHERE ticket <> rowid) "
+            f"FROM {DATABASE}.main.{name}"
+        ).fetchone()
+        if row != (int(match[1]) * ROW_GROUP, 0):
+            raise _UnusableError(f"the table {name} in it does not hold the tickets")
 
 
 def _all_tables(con: duckdb.DuckDBPyConnection) -> dict[int, str]:

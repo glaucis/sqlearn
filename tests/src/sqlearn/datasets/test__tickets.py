@@ -7,6 +7,7 @@ import pytest
 
 import sqlearn as sq
 from sqlearn._config import connection
+from sqlearn._errors import SqlearnWarning
 from sqlearn.datasets._tickets import (
     ROW_GROUP,
     _make_table,
@@ -214,6 +215,7 @@ def test_a_transaction_that_cannot_see_a_new_table_still_gets_every_row(tmp_path
     plain = sq.datasets.blobs(rows=1_000_000, n_features=1, seed=5, parallel=False)
     assert rel.fetchall() == plain.fetchall()
     con.execute("ROLLBACK")
+    assert "tickets_9" in _ticket_tables(con)
 
 
 def test_two_python_threads_may_make_the_first_ticket_table_at_once():
@@ -256,3 +258,73 @@ def test_building_a_generator_keeps_the_users_unfinished_result():
     assert con.fetchone() == (0,)
     sq.datasets.blobs(rows=10)
     assert con.fetchall() == [(1,), (2,), (3,), (4,)]
+
+
+def _falls_back() -> None:
+    with pytest.warns(SqlearnWarning) as caught:
+        rel = sq.datasets.blobs(rows=100, seed=1)
+    text = str(caught[0].message)
+    assert all(w in text for w in ("meta_sqlearn", "Why:", "Fix:", "parallel=False"))
+    assert "meta_sqlearn" not in rel.sql_query()
+    assert (
+        rel.fetchall() == sq.datasets.blobs(rows=100, seed=1, parallel=False).fetchall()
+    )
+
+
+@pytest.mark.parametrize(
+    "table",
+    [
+        "SELECT 1 AS mine",
+        "SELECT range AS ticket FROM range(5)",  # tickets_8 of the wrong size
+        "SELECT 983039 - range AS ticket FROM range(983040)",  # reversed
+        "SELECT range::INT AS ticket FROM range(983040)",  # of the wrong type
+    ],
+)
+def test_a_foreign_database_in_memory_is_left_alone(table):
+    """An in-memory meta_sqlearn that is not sqlearn's is not read or written."""
+    con = connection()
+    con.execute("ATTACH ':memory:' AS meta_sqlearn")
+    con.execute(f"CREATE TABLE meta_sqlearn.tickets_8 AS {table}")
+    _falls_back()
+    assert _ticket_tables(con) == ["tickets_8"]
+
+
+def test_a_foreign_database_file_is_left_alone(tmp_path):
+    """A file attached as meta_sqlearn is not written to."""
+    con = connection()
+    con.execute(f"ATTACH '{tmp_path / 'other.duckdb'}' AS meta_sqlearn")
+    _falls_back()
+    assert _ticket_tables(con) == []
+
+
+def test_a_failure_to_make_tickets_falls_back():
+    """When DuckDB cannot make the table the generators run on one thread."""
+    con = duckdb.connect()
+    sq.set_config(connection=con)
+    con.execute("SET temp_directory = ''; SET memory_limit = '1MB'")
+    with pytest.warns(SqlearnWarning, match="meta_sqlearn") as caught:
+        rel = sq.datasets.blobs(rows=100, seed=1)
+    con.execute("SET memory_limit = '200MB'")
+    assert "Fix:" in str(caught[0].message)
+    assert "meta_sqlearn" not in rel.sql_query()
+
+
+def test_after_a_detach_the_next_generator_attaches_again():
+    """Detaching meta_sqlearn breaks old relations, not new generators."""
+    con = connection()
+    old = sq.datasets.blobs(rows=10)
+    con.execute("DETACH meta_sqlearn")
+    with pytest.raises(duckdb.Error):
+        old.fetchall()
+    assert sq.datasets.blobs(rows=10).count("*").fetchall() == [(10,)]
+
+
+def test_a_connection_that_sees_no_ticket_table_falls_back():
+    """A transaction begun before any ticket table gets the warning too."""
+    con = duckdb.connect()
+    sq.set_config(connection=con)
+    con.execute("ATTACH ':memory:' AS meta_sqlearn")
+    con.execute("BEGIN")
+    con.sql("SELECT count(*) FROM duckdb_tables()").fetchall()
+    _falls_back()
+    con.execute("ROLLBACK")
