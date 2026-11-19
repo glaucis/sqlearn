@@ -4,8 +4,8 @@ Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
 Updated: 2026-11-19 · Branch: `main` · Last commit: the merge of branch
-`remove-datasets`: datasets out of the package (#61) · Checks: passing
-(`just verify` on the branch: 2466 passed, 24 skipped)
+`balanced-scores`: balanced accuracy, MCC and Brier (#62) · Checks: passing
+(`just verify` on the branch: 2497 passed, 24 skipped)
 Verify with: `just verify`
 
 ## In progress
@@ -129,7 +129,8 @@ None.
   `labels=` change nothing given every probability column). Spec
   `docs/specs/library-balanced-scores.md`, plan
   `docs/plans/2026-11-19-library-balanced-scores.md`. sqlearn rounds the exact
-  score once, so scikit-learn can differ by up to 2 doubles. (2026-11-19)
+  score once, so scikit-learn can differ by up to 2 doubles. Deferred minors
+  are on #62. (2026-11-19)
 - Datasets left the package (#61, ADR 0053): `sq.datasets` is gone, and the
   code, tests and validation moved to `devdata/`, `tests/devdata/` and
   `validation/devdata/`, for development only. Guide pages and the tuning
