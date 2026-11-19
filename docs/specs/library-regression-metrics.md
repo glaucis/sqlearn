@@ -100,8 +100,11 @@ Notes on each, from probing scikit-learn 1.9.1:
   epsilon, so a target of 0 gives a very large score, not an error. sqlearn
   gives the same number.
 - **`explained_variance`** is one minus the variance of the error over the
-  variance of the target. A constant target scores 1 when predicted exactly
-  and 0 otherwise, as `r2` does.
+  variance of the target. A constant target scores 1 when the error's
+  variance is 0 (every prediction off by the same amount, or none off) and 0
+  otherwise. **Corrected after a probe of scikit-learn 1.9.1 (2026-11-19):**
+  the first text said "when predicted exactly"; scikit-learn's numerator is
+  the error's variance, not its size.
 - **`tweedie_deviance(power=)`** takes a power at most 0 or at least 1; a
   power between 0 and 1 is refused at the call. Power 0 is the squared error,
   1 Poisson, 2 gamma. The ranges refused follow scikit-learn's per power: for
@@ -113,9 +116,15 @@ Notes on each, from probing scikit-learn 1.9.1:
   refused at the call.
 - **The D² scores** are one minus the model's deviance over the deviance of
   a constant guess taken from the target: its mean for `d2_tweedie`, its
-  alpha-quantile for `d2_pinball` (linear interpolation, DuckDB's
-  `quantile_cont`), its median for `d2_absolute_error` (`d2_pinball` at
-  alpha 0.5).
+  alpha-quantile for `d2_pinball`, its median for `d2_absolute_error`
+  (`d2_pinball` at alpha 0.5). **Corrected after a probe of scikit-learn
+  1.9.1 (2026-11-19):** the quantile is not linear interpolation but numpy's
+  `averaged_inverted_cdf` (scikit-learn's `_weighted_percentile` with
+  `average=True`): with `n` rows sorted and `k = n * alpha`, the mean of rows
+  `k` and `k + 1` when `k` is whole, else row `ceil(k)`, counted from 1 and
+  kept within 1 to `n`. Neither `quantile_cont` nor `quantile_disc` gives it,
+  so the window stage numbers the sorted rows and averages the one or two it
+  needs (section 7).
 
 ## 6. Edge cases, and where sqlearn departs
 
@@ -135,18 +144,21 @@ Notes on each, from probing scikit-learn 1.9.1:
 ## 7. How it is built
 
 Chosen by Tomas: **the D² baseline comes from a window stage.** Each row
-first gets the constant guess as a window over the whole relation
-(`avg(target) OVER ()`, `quantile_cont(target, alpha) OVER ()`), then the one
-aggregate scores the model's deviance and the baseline's row by row. This is
+first gets the constant guess as a window over the whole relation, then the
+one aggregate scores the model's deviance and the baseline's row by row. For
+`d2_tweedie` the guess is `favg(target) OVER ()`. For the pinball scores it
+takes two window stages: first `row_number() OVER (ORDER BY target)` and
+`count(*) OVER ()`, then the average of the target over the one or two rows
+section 5 names (`avg(target) FILTER (WHERE ...) OVER ()`). This is
 the path `roc_auc` already takes for its ranks (`Metric.windows`, `_stage`);
 it opens to `"predict"` metrics, which today never stage. One query, one read
 of the source, and no cancellation from expanding the baseline's deviance into
 sums.
 
 The trade-off accepted with it: a window over the whole relation holds every
-row, as `roc_auc`'s ranks already do. `median_absolute_error` and the
-quantile in `d2_pinball` are exact quantiles, which DuckDB also computes by
-holding the values.
+row, as `roc_auc`'s ranks already do, and the pinball scores sort it, as
+those ranks do. `median_absolute_error` is an exact quantile, which DuckDB
+also computes by holding the values.
 
 Approaches considered:
 
