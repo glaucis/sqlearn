@@ -116,6 +116,51 @@ def test_a_last_step_dropping_columns_loads(tmp_path: Path, step: sq.Step) -> No
     assert not STORE.learns
 
 
+def _without(names: list[str], column: str) -> list[str]:
+    return [n for n in names if n != column]
+
+
+@pytest.mark.parametrize(
+    ("change", "says"),
+    [
+        (
+            lambda learned: learned.update(
+                names=[{"b": ["b"]}], columns_out=_without(learned["columns_out"], "a")
+            ),
+            "'a'",
+        ),
+        (lambda learned: learned.update(names=[{"b": ["b"]}]), "'a'"),
+        (lambda learned: learned["columns_out"].append("c"), "'c'"),
+    ],
+    ids=["kept column claimed dropped", "kept column unnamed", "dropped column out"],
+)
+def test_a_whole_row_step_damaged_at_load_is_refused(
+    tmp_path: Path, change: Any, says: str
+) -> None:
+    """What a whole-row step gives is derived from its learned values at load.
+
+    sq.select.best(k=2) keeps a and b: a file claiming otherwise is refused
+    at load, not at apply, and nothing is restored.
+    """
+    df = pd.DataFrame(
+        {
+            "a": [1.0, 2.0, 5.0, 6.0],
+            "b": [1.0, 0.0, 2.0, 9.0],
+            "c": [3.0, 1.0, 4.0, 1.0],
+            "y": [0, 0, 1, 1],
+        }
+    )
+    pipe = sq.Pipeline([sq.select.best(k=2)]).learn(df, target="y")
+    assert pipe.columns_out_ == ["a", "b"]
+    path = tmp_path / "p.json"
+    sq.save(pipe, path)
+    record = json.loads(path.read_text())
+    change(record["learned"])
+    path.write_text(json.dumps(record))
+    with pytest.raises(SqlearnError, match=rf"(?s){re.escape(says)}.*damaged.*Fix:"):
+        sq.load(path)
+
+
 def test_learned_values_read_as_attributes_after_load(tmp_path: Path) -> None:
     """A step's learned values read as attributes after load."""
     pipe = _learned(_frame())

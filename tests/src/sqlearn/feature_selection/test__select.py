@@ -1,7 +1,8 @@
-"""Tests of ``sq.select``, its shortcuts, and its selectors in pipelines.
+"""Tests of ``sq.select``, its shortcuts, and its feature selectors.
 
-The selectors in a pipeline, a search, the learning store and a saved file,
-against scikit-learn's ``Pipeline`` and ``GridSearchCV`` (spec §2, §7).
+The feature selectors in a pipeline, a search, the learning store and a
+saved file, against scikit-learn's ``Pipeline`` and ``GridSearchCV`` (spec
+§2, §7).
 """
 
 import json

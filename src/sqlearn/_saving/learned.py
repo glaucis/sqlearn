@@ -13,6 +13,7 @@ from collections.abc import Mapping
 import duckdb
 from duckdb.sqltypes import DuckDBPyType
 
+from sqlearn._compose import step_stage
 from sqlearn._errors import PACKAGE_FILES, SqlearnError, SqlearnWarning
 from sqlearn._inputs import DataKey
 from sqlearn._pipeline import LearnedFrom, Pipeline
@@ -358,6 +359,44 @@ def _check_step(
             _check_values(fold_values, entry.columns, learns, where)
 
 
+def _check_created(
+    name: str,
+    step: Step,
+    position: int,
+    entry: Entry,
+    types: dict[str, DuckDBPyType],
+    created: dict[str, list[str]],
+    where: str,
+) -> None:
+    """Refuse created names a whole-row step does not give from its values.
+
+    A whole-row step's outputs depend on all it learned (a feature selector
+    keeps some columns): its stage is built from the restored values, as
+    `apply` builds it, with the file's names, so a file claiming other
+    columns is refused here rather than at apply. A step without ``keep``
+    gives exactly its created names.
+    """
+    if not step.rowwise:
+        return
+    schema = [(c, types[c]) for c in entry.columns]
+    try:
+        stage = step_stage(
+            position,
+            name,
+            step,
+            schema,
+            "_sqlearn_load",
+            entry.values,
+            columns=entry.columns,
+            names=created,
+        )
+    except Exception as exc:
+        what = f"what it learned does not give its columns ({exc})"
+        raise _damaged(where, what) from exc
+    if not step.keep and set(stage.columns) != {n for v in created.values() for n in v}:
+        raise _damaged(where, "the created names are not the columns it gives")
+
+
 def _check_columns_out(
     columns_out: list[str],
     step: Step,
@@ -369,13 +408,15 @@ def _check_columns_out(
 
     A column the step learned from and created nothing from passed through
     under its own name, except for a whole-row step without ``keep``: its
-    created names are every column it gives, so it gave nothing from that
-    column (a feature selector drops it).
+    created names are every column it gives (checked against its learned
+    values by `_check_created`), so it gave nothing from that column (a
+    feature selector drops it), and the column is not out.
     """
     if len(set(columns_out)) != len(columns_out):
         raise _damaged(where, "the columns out name a column twice")
     out = set(columns_out)
     dropped = step.rowwise and not step.keep
+    given = {n for names in created.values() for n in names}
     for column in entry.columns:
         made = created.get(column, [] if dropped else [column])
         missing = [c for c in made if c not in out]
@@ -383,6 +424,11 @@ def _check_columns_out(
             raise _damaged(
                 where,
                 f"the columns out lack {missing[0]!r}, which the last step gives",
+            )
+        if dropped and column in out and column not in given:
+            raise _damaged(
+                where,
+                f"the columns out name {column!r}, which the last step drops",
             )
 
 
@@ -475,6 +521,7 @@ def restore_learned(
         start=1,
     ):
         _check_step(step, position, entry, t, c, d, n)
+        _check_created(steps[position - 1][0], step, position, entry, t, c, n)
     if entries:
         _check_columns_out(columns_out, steps[-1][1], entries[-1], created[-1], where)
     source = _learned_from(record.get("data"), where)
