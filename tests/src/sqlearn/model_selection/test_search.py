@@ -1516,3 +1516,65 @@ def test_every_setting_nan_by_d2_tweedie_below_zero_names_the_mean():
     text = str(e.value)
     assert "negative" in text
     assert "Fix:" in text
+
+
+class Pick(sq.Step):
+    """A step whose `k` chooses only its output; `centre` changes what it learns.
+
+    It learns one value for its one column, so the store counts one learn
+    per key it misses.
+    """
+
+    output_settings: ClassVar[frozenset[str]] = frozenset({"k"})
+
+    def __init__(self, k=1, centre="mean", cols=("x",), keep=False, suffix=None):
+        """Set the settings."""
+        self.k, self.centre, self.cols = k, centre, cols
+        self.keep, self.suffix = keep, suffix
+
+    def learn(self, x):
+        """Learn the column's centre."""
+        return {"centre": getattr(sq.agg, self.centre)(x)}
+
+    def apply(self, x, learned):
+        """Centre the column, then scale it by `k`."""
+        return (x - learned.centre) * sq.fn.const(self.k)
+
+
+def _pick_pipe():
+    return sq.Pipeline([("pick", Pick()), ("model", LogisticRegression())])
+
+
+def test_a_search_over_an_output_setting_learns_each_fold_once():
+    """3 settings of `k` x 3 folds: 3 learns, plus 1 for the final training.
+
+    With `k` in the key it would be 9 plus 1 (ADR 0056).
+    """
+    search = sq.search(
+        _pick_pipe(), params={"pick__k": [1, 2, 3]}, folds=sq.folds.kfold(3)
+    )
+    search.train(DATA, target="y")
+    assert dict(STORE.learns) == {"pick": 4}
+
+
+def test_a_search_over_a_learning_setting_learns_per_setting():
+    """2 centres x 3 folds: 6 learns, plus 1 for the final training.
+
+    `k` beside it adds none: 2 settings of `k` share each centre's values.
+    """
+    search = sq.search(
+        _pick_pipe(),
+        params={"pick__k": [1, 2], "pick__centre": ["mean", "median"]},
+        folds=sq.folds.kfold(3),
+    )
+    search.train(DATA, target="y")
+    assert dict(STORE.learns) == {"pick": 7}
+
+
+def test_an_output_setting_applies_its_own_value_on_shared_learned_values():
+    """`k=2` finds what `k=1` learned, and still outputs with `k=2`."""
+    data = DATA[["x"]]
+    one = sq.Pipeline([("pick", Pick(k=1))]).learn(data).apply(data, out="pandas")
+    two = sq.Pipeline([("pick", Pick(k=2))]).learn(data).apply(data, out="pandas")
+    assert dict(STORE.learns) == {"pick": 1}
+    np.testing.assert_array_equal(two["x"], 2 * one["x"])

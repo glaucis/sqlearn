@@ -306,6 +306,15 @@ pairs = pd.DataFrame({"up": [1.0, 2.0, 4.0], "down": [3.0, 2.0, 0.0],
 sq.Pipeline([Rising()]).learn(pairs, target="y").apply(pairs).columns
 ```
 
+A setting that changes only which output a step gives from what it learned,
+never what it learns, as a feature selector's `k`, can be named in
+`output_settings = frozenset({"k"})`
+([ADR 0056](../adr/0056-settings-that-only-choose-the-output-stay-out-of-the-learn-key.md)).
+It stays out of the key of what the step learns, so a search over `k` learns
+each fold once; the step's output, and every later step reading it, still
+follow it. Name a setting there only when what `learn` returns does not depend
+on it: otherwise the step reuses values it should not.
+
 ## Placeholders
 
 When a query both learns and applies, the learned values do not exist yet. So

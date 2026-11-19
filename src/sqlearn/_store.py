@@ -51,7 +51,10 @@ def step_key(
     The key holds the data, the fold, the name, class and settings of the
     step and of every step it depends on, in pipeline order, and the columns
     the step's selector resolved to, so a step reading other columns never
-    finds another's entry. The class is the
+    finds another's entry. The step's own `output_settings` are left out
+    (ADR 0056): they change only what it outputs, so the values learned for
+    one are found for another; a step that depends on it keeps them all, as
+    its input follows them. The class is the
     class object itself (so a redefined class gets a new key) beside its dotted
     path. Settings are sorted by name; plain values are kept with their type
     (so ``True`` and ``1`` differ), selectors and models by their ``repr``,
@@ -93,7 +96,11 @@ def step_key(
             type(steps[i][1]),
             f"{type(steps[i][1]).__module__}.{type(steps[i][1]).__qualname__}",
             tuple(
-                sorted((k, _freeze(v)) for k, v in steps[i][1].settings().items()),
+                sorted(
+                    (k, _freeze(v))
+                    for k, v in steps[i][1].settings().items()
+                    if i != index or k not in steps[i][1].output_settings
+                ),
             ),
         )
         for i in sorted({index, *depends_on})

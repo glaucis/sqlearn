@@ -230,6 +230,12 @@ class Step:
         learns from the target once, on the rows given, as a feature
         selector does (ADR 0055): it has no ``cv`` or ``seed``, and its
         outputs are any a step may give, dynamic or whole-row included.
+    output_settings : frozenset of str
+        The settings that change only which output the step gives from what
+        it learned, never what it learns, as a feature selector's ``k``
+        (ADR 0056): they stay out of the key of what it learns, so a search
+        over them learns each fold once. Its output, and every later step
+        reading it, still follow them. Empty by default.
     state_version : int
         The version of what `learn` returns, written with a saved pipeline:
         raise it when the names or meaning of what `learn` returns change; a
@@ -263,6 +269,7 @@ class Step:
     rowwise: ClassVar[bool] = False
     uses_target: ClassVar[bool] = False
     cross_fits: ClassVar[bool] = True
+    output_settings: ClassVar[frozenset[str]] = frozenset()
     state_version: ClassVar[int] = 1
 
     def __init__(
