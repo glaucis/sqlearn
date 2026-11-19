@@ -1124,6 +1124,23 @@ def test_roc_auc_on_a_one_class_time_fold_names_a_fix_for_time():
     assert "stratified" not in str(e.value)
 
 
+def test_every_setting_nan_names_a_fix_the_metric_has():
+    """All-NaN scores without zero_division=: the Fix never names that setting."""
+    with (
+        pytest.warns(sq.errors.SqlearnWarning),
+        pytest.raises(sq.errors.SqlearnError, match="every setting scored NaN") as e,
+    ):
+        sq.search(
+            PIPE_WITH_SCALE,
+            params={"model__C": [0.001, 10.0]},
+            metric=sq.metrics.balanced_accuracy(adjusted=True),
+            folds=sq.folds.time("t", 3),
+        ).train(SORTED_BY_CLASS, target="y")
+    assert "zero_division" not in str(e.value)
+    assert "Fix:" in str(e.value)
+    assert "adjusted=" in str(e.value)
+
+
 def test_roc_auc_on_a_one_class_kfold_fold_names_stratified():
     """Under folds dealt by a hash, the fix names stratified folds."""
     rare = pd.DataFrame({"x": np.arange(40.0), "y": [1] * 37 + [0] * 3})
