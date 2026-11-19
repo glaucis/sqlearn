@@ -1,5 +1,11 @@
 """The exceptions and warnings sqlearn raises."""
 
+from pathlib import Path
+
+PACKAGE_FILES = (str(Path(__file__).parent),)
+"""sqlearn's own files: a warning is placed at the first frame outside them
+(``warnings.warn(..., skip_file_prefixes=PACKAGE_FILES)``)."""
+
 
 class SqlearnError(Exception):
     """Base class of every exception sqlearn raises on purpose.

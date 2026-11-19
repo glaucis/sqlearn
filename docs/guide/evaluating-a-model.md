@@ -225,7 +225,13 @@ guess (the mean for `d2_tweedie`, the quantile for `d2_pinball`, the median for
 prediction equals the target and 0 otherwise (for the pinball scores, 1 when
 the model's loss is 0), as `r2` does
 ([ADR 0054](../adr/0054-d2-tweedie-on-a-constant-target.md)). On a single row
-the D² scores are NaN, with a warning.
+the D² scores are NaN, with a warning. Below power 0, `d2_tweedie` is NaN too
+where the target's mean is negative and `1 - power` is not whole, as
+scikit-learn's is.
+
+The D² scores and the ranking scores (`roc_auc`, `average_precision`) compute
+helper columns named `__sqlearn_stage_...` beside the rows, so they refuse rows
+that already have a column of such a name, in any case.
 
 ### Searching by a quantile
 

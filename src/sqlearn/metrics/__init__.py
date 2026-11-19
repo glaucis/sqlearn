@@ -26,6 +26,7 @@ from sqlearn.metrics.probability import (
     roc_auc,
 )
 from sqlearn.metrics.regression import (
+    LogError,
     PinballLoss,
     TweedieDeviance,
     d2_absolute_error,
@@ -53,6 +54,7 @@ __all__ = [
     "BrierScore",
     "ClassificationMetric",
     "CountMetric",
+    "LogError",
     "Metric",
     "MissingClassError",
     "PinballLoss",

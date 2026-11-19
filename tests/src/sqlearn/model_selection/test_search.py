@@ -12,6 +12,7 @@ import pandas as pd
 import pytest
 from search_data_for_tests import customers, slice_pipe
 from sklearn.base import BaseEstimator, ClassifierMixin
+from sklearn.dummy import DummyRegressor
 from sklearn.linear_model import LogisticRegression, Ridge
 from sklearn.metrics import average_precision_score, roc_auc_score
 from sklearn.preprocessing import TargetEncoder
@@ -1499,3 +1500,19 @@ def test_a_search_prepares_an_edited_table_again_and_says_so(tmp_path):
     assert first.transforms_ == 2
     assert second.transforms_ == 2  # prepared again, not read back
     assert mean_scores(second) != pytest.approx(mean_scores(first))
+
+
+def test_every_setting_nan_by_d2_tweedie_below_zero_names_the_mean():
+    """Below power 0 a negative mean is NaN too: the message says so, not rows."""
+    rows = pd.DataFrame({"a": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0], "y": [-3.0] * 6})
+    rows.loc[::2, "y"] = 1.0
+    with pytest.raises(sq.errors.SqlearnError, match="every setting scored NaN") as e:
+        sq.search(
+            sq.Pipeline([("model", DummyRegressor(strategy="constant"))]),
+            params={"model__constant": [1.0, 2.0]},
+            metric=sq.metrics.d2_tweedie(power=-0.5),
+            folds=sq.folds.kfold(2),
+        ).train(rows, target="y")
+    text = str(e.value)
+    assert "negative" in text
+    assert "Fix:" in text

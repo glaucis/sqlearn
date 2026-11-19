@@ -1,6 +1,7 @@
 """Tests of log_loss, roc_auc and average_precision against scikit-learn."""
 
 import warnings
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -346,3 +347,13 @@ def test_brier_refuses_a_probability_above_one():
     matrix = np.array([[0.9, 0.1], [0.1, 1.2]])
     with pytest.raises(SqlearnError, match="above 1"):
         sq.metrics.brier.compute(proba_rel([0, 1], matrix), "y", classes=[0, 1])
+
+
+def test_brier_built_directly_refuses_a_setting_out_of_range():
+    """The class checks scale_by_half as the call does."""
+    half: Any = 1
+    expression = sq.metrics.brier.expression
+    with pytest.raises(SqlearnError, match="scale_by_half"):
+        sq.metrics.BrierScore(
+            "b", expression, False, "predict_proba", scale_by_half=half
+        )

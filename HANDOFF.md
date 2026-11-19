@@ -3,10 +3,10 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-19 · Branch: `main` · Last commit: `88e12ce` Merge branch
-'regression-metrics': the regression metrics (#63) · Checks: passing
-(`just test` on the merged `main`: 2626 passed, 24 skipped; `just verify` on
-the branch before its last wording fixes: 2635 passed)
+Updated: 2026-11-19 · Branch: `tidy-regression-metrics` · Last commit on
+`main`: `c8466e1` docs: update the handoff · Checks: passing (`just verify`
+on the branch: 2649 passed, 24 skipped; regression validation 2,359 pass,
+138 anomaly, 0 fail)
 Verify with: `just verify`
 
 ## In progress
@@ -15,14 +15,23 @@ None.
 
 ## Waiting on the user
 
+- Feature selection is the chosen next 3.3 area (2026-11-19): drop
+  near-constant columns, keep the k best (or a percentage) by ANOVA F,
+  correlation F or chi². Waiting on one decision: a step that learns from the
+  target without cross-fitting (A: split "learns from the target" from
+  "cross-fits", an ADR; B: selectors cross-fit too; C: target scores later).
+  Recommended A. Out: mutual information, selection by a model, by p-value.
 - The #46 benchmark (`docs/benchmarks/generators-on-many-threads.md`) was not
   on a quiet machine (load average about 4 to about 35) and can be rerun on
   request. (since 2026-11-18)
 
 ## Next up
 
-- The next 3.3 area, not chosen yet. No dataset fetcher (ADR 0053). Or #63's
-  deferred minors.
+- Feature selection: after the decision above, the spec
+  (`docs/specs/library-feature-selection.md`), then the plan. Today
+  `uses_target` means cross-fitted (`cv`, `seed`, one DOUBLE out, ends its
+  run); a rowwise dynamic step's `apply_row` sees every column's learned
+  values, which the k-best ranking needs.
 
 ## Dead ends and traps
 
@@ -130,6 +139,11 @@ None.
 
 ## Just finished
 
+- #63's deferred minors, on branch `tidy-regression-metrics`. Found on the
+  way: a scored column named `__sqlearn_stage_...` silently replaced a D² or
+  ranking score's own (now refused). The deviances keep 4 or 5 digits far
+  from zero, not the 6 #63 said. `msle` and the deviances now run on
+  `offset` with measured bounds. (2026-11-19)
 - Regression metrics (#63, ADR 0054): `mse`, `msle`, `rmsle`,
   `median_absolute_error`, `max_error`, `mape`, `explained_variance`, the
   Poisson, gamma and Tweedie deviances (`power=`), `pinball_loss`

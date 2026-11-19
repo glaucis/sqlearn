@@ -50,8 +50,10 @@ squared sum would lose every digit; ``tiny`` holds values near 1e-9, where
 ``ln(1 + x)`` loses the digits ``log1p`` keeps (DuckDB alone, which has no
 log1p, is an anomaly there, expected); ``negative mean`` gives d2_tweedie
 below power 0 a baseline at or below 0, which scikit-learn scores.
-``offset`` runs only the scores whose row is a difference of the two values
-(`OFFSET` says why).
+On ``offset`` a log or a power of values near 1e6 (msle, the deviances
+other than power 0) is a difference of terms a million times its size in
+every library alike: their bounds there are wide, each at its measurement
+(`WIDE`).
 
 Anomalies expected of the references, by design rather than defect:
 
@@ -64,6 +66,9 @@ Anomalies expected of the references, by design rather than defect:
   roundings (about 1e15) where ADR 0054's rule gives 0 or 1.
 - d2_tweedie at power 1.5 on ``constant zero``: scikit-learn's baseline,
   the mean 0, is outside the range and its deviance is NaN.
+- tweedie_deviance at power -1 on ``offset``: numpy and scikit-learn take
+  ``pow`` of values near 1e6 and land about 40 times further from the exact
+  value than sqlearn, whose bound there is its own measurement.
 
 And one that is scikit-learn's own rounding, not sqlearn's (an open
 question when the validation was written, settled by probing):
@@ -159,26 +164,31 @@ WIDE = {
     ("tweedie_deviance, power=2.0", "constant, offset"): 32,  # measured 23
     ("tweedie_deviance, power=-1.0", "zero target"): 40,  # measured 36
     ("tweedie_deviance, power=-1.0", "constant, exact"): 4_382_002_437_431_492_608,
+    ("tweedie_deviance, power=3.0", "constant, offset"): 8,  # measured 4
     ("poisson_deviance", "constant, offset"): 24,  # measured 20
     ("gamma_deviance", "constant, offset"): 32,  # measured 23
+    # On ``offset`` a log or a power of values near 1e6 is a difference of
+    # terms a million times its size, in scikit-learn's formula and in every
+    # library alike (scikit-learn and numpy measured as far or further);
+    # each bound is its measurement (2026-11-19) with about a tenth to spare.
+    ("msle", "offset"): 760_000,  # measured 683,262
+    ("rmsle", "offset"): 360_000,  # measured 320,499
+    ("tweedie_deviance, power=-1.0", "offset"): 620_000_000,  # 559,754,483
+    ("tweedie_deviance, power=1.0", "offset"): 136_000_000_000,  # 122.8e9
+    ("tweedie_deviance, power=1.5", "offset"): 70_000_000_000,  # 62.3e9
+    ("tweedie_deviance, power=2.0", "offset"): 212_000_000_000,  # 191.9e9
+    ("tweedie_deviance, power=3.0", "offset"): 288_000_000_000,  # 259.0e9
+    ("poisson_deviance", "offset"): 136_000_000_000,  # 122.8e9
+    ("gamma_deviance", "offset"): 212_000_000_000,  # 191.9e9
+    ("d2_tweedie, power=-1.0", "offset"): 83_000_000_000,  # 74.4e9
+    ("d2_tweedie, power=1.0", "offset"): 64_000_000_000,  # 57.7e9
+    ("d2_tweedie, power=1.5", "offset"): 436_000_000_000,  # 392.2e9
+    ("d2_tweedie, power=2.0", "offset"): 108_000_000_000,  # 97.0e9
+    ("d2_tweedie, power=3.0", "offset"): 91_000_000_000,  # 82.0e9
 }
 """Bounds wider than `BOUNDS` for one formula on one dataset, each at its
 measurement and for the reason above `BOUNDS`. Keyed by formula, so a
 widening for one power leaves every other power at its step's bound."""
-
-OFFSET = frozenset({
-    "rmse", "mae", "r2", "mse", "max_error", "median_absolute_error", "mape",
-    "explained_variance", "tweedie_deviance, power=0.0", "d2_tweedie, power=0.0",
-    "pinball_loss, alpha=0.1", "pinball_loss, alpha=0.5", "pinball_loss, alpha=0.9",
-    "d2_pinball, alpha=0.1", "d2_pinball, alpha=0.5", "d2_pinball, alpha=0.9",
-    "d2_absolute_error",
-})  # fmt: skip
-"""The scores run on ``offset``: those whose row is a difference of the two
-values. A log or a power of values near 1e6 (msle, the other deviances) is a
-difference of terms a million times its size in every library alike, the
-conditioning of scikit-learn's formula rather than of a sum: first measured
-at 1e5 to 4e11 doubles for sqlearn and scikit-learn both, which a bound in
-doubles cannot tell from a defect, so those are not measured there."""
 
 POWERS = (-1.0, 0.0, 1.0, 1.5, 2.0, 3.0)
 ALPHAS = (0.1, 0.5, 0.9)
@@ -403,7 +413,10 @@ def _deviance(y: object, mu: object, power: float) -> object:
 
 @functools.cache
 def _deviance_sum(y: tuple, mu: tuple | Fraction, power: float) -> object:
-    """Return the exact sum of the deviances of `y` about `mu` (a column or a value)."""
+    """Return the exact sum of the deviances of `y` about `mu`.
+
+    `mu` is a column of predictions or one value, a baseline.
+    """
     rational = power in RATIONAL
     cast = Fraction if rational else _mpf
     guesses = mu if isinstance(mu, tuple) else (mu,) * len(y)
@@ -717,8 +730,6 @@ def _runs_on(score: Score, pair: Pair) -> bool:
     if score.alphas_from:
         alpha = score.metric.alpha  # type: ignore[attr-defined]
         return alpha in NEAR_WHOLE.get(pair.data.name, ())
-    if pair.data.name == "offset":
-        return score.formula in OFFSET
     if pair.every:
         return True
     return score.inside(pair.y, pair.p)

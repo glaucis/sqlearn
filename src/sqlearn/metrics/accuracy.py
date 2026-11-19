@@ -2,7 +2,7 @@
 
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from typing import SupportsFloat
+from typing import NoReturn, SupportsFloat
 
 import duckdb
 from duckdb import ColumnExpression, Expression, StarExpression
@@ -25,6 +25,39 @@ from sqlearn.metrics._labels import (
 __all__ = ["Metric", "MissingClassError", "accuracy"]
 
 _STAGE = "__sqlearn_stage_"
+"""The prefix of the columns a metric stages before its aggregate: a column
+of the scored rows whose name starts with it (in any case) is refused."""
+
+_SETTABLE = (
+    "precision, recall, f1, fbeta, balanced_accuracy, average_precision, "
+    "brier, pinball_loss, tweedie_deviance, d2_tweedie and d2_pinball"
+)
+"""The metrics that take settings, as the refusal of a setting names them."""
+
+
+def _refuse_settings(name: str, settings: dict[str, object]) -> NoReturn:
+    """Refuse settings given to the metric `name`, which takes none (ADR 0042)."""
+    given = ", ".join(f"{k}=" for k in settings) or "a call"
+    msg = (
+        f"{name} takes no settings, and was given {given}. Why: only the "
+        f"metrics {_SETTABLE} have settings. Fix: use sq.metrics.{name} as "
+        "it is."
+    )
+    raise SqlearnError(msg)
+
+
+def _refuse_stage_names(name: str, rel: duckdb.DuckDBPyRelation) -> None:
+    """Refuse a relation with a column named as a staged column would be."""
+    clash = [c for c in rel.columns if c.lower().startswith(_STAGE)]
+    if clash:
+        msg = (
+            f"{name} cannot be computed: the rows have a column named "
+            f"{clash[0]!r}. Why: {name} computes columns named {_STAGE}... "
+            "beside the rows before it scores them, and DuckDB would read "
+            "that column in place of its own. Fix: rename the column, or "
+            "leave it out of the rows scored."
+        )
+        raise SqlearnError(msg)
 
 
 class MissingClassError(SqlearnError):
@@ -105,6 +138,8 @@ class Metric:
     greater_is_better: bool
     needs: str = "predict"
     windows: Callable[[list[Expression]], list[Expression]] | None = None
+    # True for a metric scored by `check_labels_with` (accuracy): that path
+    # checks the labels and gaps in its own pass and reads no `_outside`.
     _checks_labels: bool = field(default=False, init=False, repr=False)
 
     def __call__(self, **settings: object) -> "Metric":
@@ -130,16 +165,7 @@ class Metric:
         ...
         sqlearn.errors.SqlearnError: accuracy takes no settings, ...
         """
-        given = ", ".join(f"{k}=" for k in settings) or "a call"
-        msg = (
-            f"{self.name} takes no settings, and was given {given}. Why: "
-            "only the metrics precision, recall, f1, fbeta, balanced_accuracy, "
-            "average_precision, brier, pinball_loss, tweedie_deviance, "
-            "d2_tweedie and d2_pinball have settings. "
-            "Fix: use "
-            f"sq.metrics.{self.name} as it is."
-        )
-        raise SqlearnError(msg)
+        _refuse_settings(self.name, settings)
 
     def _ready(self) -> None:
         """Refuse, before any work, a metric that cannot be computed as set.
@@ -193,7 +219,9 @@ class Metric:
         meet it (``"a target at or below -1"``) and why such a row has no
         score. A ``"predict"`` metric counts them with the gaps, and
         refuses a relation with any, in a message with a ``Fix:`` line. None
-        here; a metric with a range overrides it.
+        here; a metric with a range overrides it. A metric scored by
+        `check_labels_with` (``_checks_labels``, as accuracy) reads none: a
+        label metric has no range.
         """
         return []
 
@@ -277,6 +305,8 @@ class Metric:
         values = [ColumnExpression(c) for c in columns[1:]]
         ranks = self._stage(y, values, labels) if proba else None
         stages = [] if proba else self._predict_stages(y, values[0])
+        if ranks is not None or stages:
+            _refuse_stage_names(self.name, rel)
         if ranks is not None:
             # Each row's window values first, then the one aggregate.
             staged = [f"{_STAGE}{i}" for i in range(len(ranks))]
