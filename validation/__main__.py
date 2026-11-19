@@ -29,6 +29,7 @@ RUNNERS = (
     "validation.sqlearn.metrics.validate_regression",
     "validation.sqlearn.metrics.validate_probability",
     "validation.sqlearn.metrics.validate_classification",
+    "validation.sqlearn.metrics.validate_balanced",
     "validation.sqlearn.metrics.validate_tables",
     "validation.sqlearn.metrics.validate_curves",
     "validation.pipelines.validate_slice",
