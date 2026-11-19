@@ -204,3 +204,5 @@ extend-ignore-re = ["(?m)^mdindex: \\[.*\\]$", "\\b[0-9a-f]{7,12}\\b"]
 TPE = "TPE"
 # False positive rate, a column of the ROC curve (scikit-learn's name).
 fpr = "fpr"
+# Mean absolute percentage error, a regression metric (scikit-learn's short name).
+mape = "mape"

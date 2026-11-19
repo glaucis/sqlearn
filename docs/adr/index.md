@@ -82,6 +82,7 @@ The verbs and conventions users write against.
 - [0042: A metric's settings are a call](0042-a-metrics-settings-are-a-call.md)
 - [0043: Repeatable within rounding](0043-repeatable-within-rounding.md)
 - [0049: Table metrics are relations](0049-table-metrics-are-relations.md)
+- [0054: D² Tweedie on a constant target](0054-d2-tweedie-on-a-constant-target.md)
 - [0050: predict_proba keeps the target](0050-predict-proba-keeps-the-target.md)
 - [0051: Aggregates learn in levels](0051-aggregates-learn-in-levels.md)
 
