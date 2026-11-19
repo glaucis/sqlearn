@@ -36,8 +36,7 @@ built.
   `docs/plans/2026-11-19-library-balanced-scores.md`, issue #62. Its eighth,
   regression metrics, is built: spec `docs/specs/library-regression-metrics.md`,
   plan `docs/plans/2026-11-19-library-regression-metrics.md`, ADR 0054,
-  issue #63. **Next:**
-  the next 3.3 area, not chosen yet.
+  summary in issue #63. **Next:** the next 3.3 area, not chosen yet.
 
 Rules from the ADRs:
 

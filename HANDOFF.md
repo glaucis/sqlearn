@@ -3,15 +3,14 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-19 · Branch: `regression-metrics` · Last commit: the
-final-review fix commit on the branch (#63) ·
-Checks: passing (`just verify` on the branch: 2635 passed, 24 skipped)
+Updated: 2026-11-19 · Branch: `main` · Last commit: the merge of branch
+`regression-metrics`: the regression metrics (#63) · Checks: passing
+(`just verify` on the branch: 2635 passed, 24 skipped)
 Verify with: `just verify`
 
 ## In progress
 
-- The regression metrics (#63, ADR 0054) on branch `regression-metrics`:
-  reviewed, awaiting merge.
+None.
 
 ## Waiting on the user
 
@@ -131,6 +130,14 @@ Verify with: `just verify`
 
 ## Just finished
 
+- Regression metrics (#63, ADR 0054): `mse`, `msle`, `rmsle`,
+  `median_absolute_error`, `max_error`, `mape`, `explained_variance`, the
+  Poisson, gamma and Tweedie deviances (`power=`), `pinball_loss`
+  (`alpha=`) and the D² scores. `Metric` gained `_outside` (range
+  refusals), `_predict_stages` (window projections) and `_finish`. Spec
+  `docs/specs/library-regression-metrics.md` (section 6 lists the
+  departures), plan `docs/plans/2026-11-19-library-regression-metrics.md`.
+  Deferred minors are on #63. (2026-11-19)
 - Balanced scores (#62): `sq.metrics.balanced_accuracy` (`adjusted=`),
   `mcc` and `brier` (`scale_by_half=` only: scikit-learn's `pos_label=` and
   `labels=` change nothing given every probability column). Spec
