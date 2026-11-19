@@ -5,7 +5,7 @@ import warnings
 import numpy as np
 import pandas as pd
 import pytest
-from sklearn.feature_selection import SelectKBest, chi2, f_classif
+from sklearn.feature_selection import SelectKBest, SelectPercentile, chi2, f_classif
 
 import sqlearn as sq
 from sqlearn._config import connection
@@ -163,3 +163,73 @@ def test_best_refuses_a_bad_k_or_score(bad):
     """At the call, as scikit-learn's parameter check (True is refused too)."""
     with pytest.raises(SqlearnError, match="Fix:"):
         sq.select.best(**bad)
+
+
+def wide(seed=9, rows=90):
+    """Return 13 numeric columns, some related to the class, and the class."""
+    rng = np.random.default_rng(seed)
+    y = rng.integers(0, 3, rows)
+    frame = pd.DataFrame(
+        {f"c{i:02d}": rng.normal(0, 1, rows) + (i % 5) * 0.2 * y for i in range(13)}
+    )
+    return frame, y
+
+
+@pytest.mark.parametrize("percentile", [5, 10, 50, 99, 100])
+def test_percentile_keeps_the_columns_scikit_learn_keeps(percentile):
+    """The same columns are kept, in their own order, unchanged."""
+    frame, y = wide()
+    sk = SelectPercentile(f_classif, percentile=percentile).fit(frame, y)
+    kept = list(sk.get_feature_names_out())
+    pipe = learn(sq.select.percentile(percentile=percentile), frame, y)
+    assert pipe.columns_out_ == kept
+    pd.testing.assert_frame_equal(pipe.apply(frame, out="pandas"), frame[kept])
+
+
+def test_percentile_ties_keep_the_earlier_columns():
+    """Equal scores at the threshold: the earliest are kept, as scikit-learn's."""
+    frame, y = wide()
+    frame = frame.assign(twin=frame["c03"], twin2=frame["c03"])
+    for percentile in (20, 40, 60):
+        sk = SelectPercentile(f_classif, percentile=percentile).fit(frame, y)
+        pipe = learn(sq.select.percentile(percentile=percentile), frame, y)
+        assert pipe.columns_out_ == list(sk.get_feature_names_out())
+
+
+def test_percentile_zero_keeps_none_and_warns():
+    """percentile=0 keeps none of its columns; a text column passes beside them."""
+    frame, y = wide()
+    frame = frame.assign(city="x")
+    with pytest.warns(SqlearnWarning, match="percentile=0") as caught:
+        pipe = learn(sq.select.percentile(percentile=0), frame, y)
+    assert "Fix:" in str(caught[0].message)
+    assert pipe.columns_out_ == ["city"]
+
+
+@pytest.mark.filterwarnings("ignore::sqlearn.errors.SqlearnWarning")
+def test_percentile_zero_with_no_other_column_raises():
+    """Nothing would remain: learn raises, with a Fix line."""
+    frame, y = wide()
+    with pytest.raises(StepError, match="no column") as e:
+        learn(sq.select.percentile(percentile=0), frame, y)
+    assert "Fix:" in str(e.value)
+
+
+@pytest.mark.parametrize("bad", [-1, 100.5, True, float("nan"), "10"])
+def test_percentile_refuses_a_value_outside_0_to_100(bad):
+    """At the call, as scikit-learn's parameter check."""
+    with pytest.raises(SqlearnError, match="Fix:"):
+        sq.select.percentile(percentile=bad)
+
+
+def test_percentile_is_an_output_setting_and_shares_the_scores():
+    """Its repr, name and scores follow best's."""
+    frame, y = wide()
+    step = sq.select.percentile(percentile=30, score="f_classif")
+    assert repr(step) == "sq.select.percentile(percentile=30)"
+    assert step.default_name() == "percentile"
+    assert step.output_settings == frozenset({"percentile"})
+    pipe = learn(step, frame, y)
+    assert (
+        pipe["percentile"].scores_ == learn(sq.select.best(), frame, y)["best"].scores_
+    )

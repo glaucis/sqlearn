@@ -22,7 +22,7 @@ from sqlearn.feature_selection._scores import (
 from sqlearn.preprocessing.scale import _numeric_inputs
 from sqlearn.preprocessing.target import _NUMBERS
 
-__all__ = ["SelectKBest"]
+__all__ = ["SelectKBest", "SelectPercentile"]
 
 
 def _score(call: str, value: object) -> str:
@@ -49,6 +49,32 @@ def _k(value: object) -> int | str:
         'checks. Fix: give such a number, such as k=10, or k="all".'
     )
     raise SqlearnError(msg)
+
+
+def _percentile(value: object) -> float:
+    """Return `value` when it is a number from 0 to 100, else refuse it."""
+    number = isinstance(value, int | float) and not isinstance(value, bool)
+    if number and 0 <= cast("float", value) <= 100:  # False for NaN
+        return cast("float", value)
+    msg = (
+        f"sq.select.percentile got percentile={value!r}. Why: percentile is "
+        "the share of columns to keep, a number from 0 to 100, as "
+        "scikit-learn's SelectPercentile checks. Fix: give such a number, "
+        "such as percentile=10."
+    )
+    raise SqlearnError(msg)
+
+
+def _quantile(sorted_values: list[float], q: float) -> float:
+    """Return numpy's ``percentile(values, q)`` of a sorted list (linear)."""
+    virtual = (len(sorted_values) - 1) * (q / 100)
+    below = math.floor(virtual)
+    above = min(below + 1, len(sorted_values) - 1)
+    t = virtual - below
+    a, b = sorted_values[below], sorted_values[above]
+    diff = b - a
+    # numpy's lerp: from the nearer end, so the result is exact at both.
+    return b - diff * (1 - t) if t >= 0.5 else a + diff * t
 
 
 def _ranked(score: float) -> float:
@@ -470,3 +496,119 @@ class SelectKBest(_Univariate):
         # A stable sort: among equal scores the later column sorts later.
         order = sorted(scores, key=lambda c: _ranked(scores[c]))
         return set(order[-k:])
+
+
+class SelectPercentile(_Univariate):
+    """Keep the top `percentile` per cent of the numeric columns by score.
+
+    Build it with `sq.select.percentile <SelectGroup>`. As scikit-learn's
+    ``SelectPercentile``: it scores each column against the target by `score`
+    (see `SelectKBest` for the scores) and keeps the columns whose score is
+    above the ``100 - percentile`` percentile of the scores (numpy's linear
+    interpolation), then, among those whose score equals it, the earliest
+    until ``int(n * percentile / 100)`` columns are kept. A NaN score ranks
+    lowest. 100 keeps all, and 0 keeps none and warns. It learns once on the
+    rows given, without cross-fitting (ADR 0055).
+
+    Parameters
+    ----------
+    percentile : float, default 10
+        The share of columns to keep, from 0 to 100. It chooses only which
+        columns are output, so a search over it learns each fold once
+        (``output_settings``).
+    score : str, default "f_classif"
+        The score: ``"f_classif"``, ``"f_regression"`` or ``"chi2"``.
+    cols : Selector or str or sequence of str, optional
+        The columns to choose among; by default the numeric ones. Columns
+        not chosen pass through.
+
+    Attributes
+    ----------
+    scores_ : dict of str to float
+        After learning, each column's score.
+
+    Raises
+    ------
+    SqlearnError
+        If `percentile` is not a number from 0 to 100, or `score` is not one
+        of the three.
+
+    Examples
+    --------
+    >>> import pandas as pd
+    >>> import sqlearn as sq
+    >>> data = pd.DataFrame(
+    ...     {"a": [1.0, 2.0, 5.0, 6.0], "b": [3.0, 1.0, 2.0, 2.0], "y": [0, 0, 1, 1]}
+    ... )
+    >>> pipe = sq.Pipeline([sq.select.percentile(percentile=50)]).learn(
+    ...     data, target="y"
+    ... )
+    >>> pipe.columns_out_
+    ['a']
+    """
+
+    output_settings: ClassVar[frozenset[str]] = frozenset({"percentile"})
+    _call: ClassVar[str] = "sq.select.percentile"
+
+    def __init__(
+        self,
+        percentile: float = 10,
+        score: str = "f_classif",
+        cols: Selector | str | tuple[str, ...] | list[str] | None = _numeric(),  # noqa: B008
+    ) -> None:
+        super().__init__(score=score, cols=cols)
+        self.percentile = _percentile(percentile)
+
+    def default_name(self) -> str:
+        """Return ``percentile``.
+
+        Returns
+        -------
+        str
+            ``percentile``, whatever the settings.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> sq.select.percentile(percentile=30).default_name()
+        'percentile'
+        """
+        return "percentile"
+
+    def __repr__(self) -> str:
+        """Return the shortest call that rebuilds the step."""
+        kwargs: dict[str, object] = {}
+        if self.percentile != 10:
+            kwargs["percentile"] = self.percentile
+        if self.score != "f_classif":
+            kwargs["score"] = self.score
+        if self.cols != _numeric():
+            kwargs["cols"] = self.cols
+        return call_repr(self._call, **kwargs)
+
+    def _warn(self, count: int) -> None:
+        """Warn when `percentile` is 0."""
+        if self.percentile == 0:
+            text = (
+                "sq.select.percentile: percentile=0 keeps none of the "
+                "columns scored, as scikit-learn's SelectPercentile warns "
+                "that no column was selected. Fix: give a percentile above "
+                "0 to keep the best ones."
+            )
+            warnings.warn(text, SqlearnWarning, skip_file_prefixes=PACKAGE_FILES)
+
+    def _kept(self, scores: Mapping[str, float]) -> set[str]:
+        """Return the columns of scikit-learn's ``_get_support_mask``."""
+        if self.percentile == 100:
+            return set(scores)
+        if self.percentile == 0:
+            return set()
+        names = list(scores)
+        ranked = [_ranked(scores[c]) for c in names]
+        threshold = _quantile(sorted(ranked), 100 - self.percentile)
+        kept = [i for i, score in enumerate(ranked) if score > threshold]
+        ties = [i for i, score in enumerate(ranked) if score == threshold]
+        room = int(len(ranked) * self.percentile / 100)
+        # A negative stop drops from the end, as the slice does in scikit-learn.
+        kept += ties[: room - len(kept)]
+        return {names[i] for i in kept}

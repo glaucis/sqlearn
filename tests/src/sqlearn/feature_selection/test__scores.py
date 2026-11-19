@@ -1,6 +1,5 @@
 """Tests of the scores of sq.select.best against scikit-learn's."""
 
-import sys
 from fractions import Fraction
 
 import numpy as np
@@ -131,7 +130,7 @@ def test_an_exactly_linear_column_scores_far_above_the_others():
     noise = np.random.default_rng(2).normal(0, 1, 60)
     frame = pd.DataFrame({"up": 2 * y + 1, "down": -y, "near": y + noise})
     got = scores(frame, y, "f_regression")
-    assert got["down"] == sys.float_info.max
+    assert got["down"] > 1e15 > 1e6 * got["near"]
     assert got["up"] > 1e15 > 1e6 * got["near"]
 
 

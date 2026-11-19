@@ -61,14 +61,17 @@ sq.search(pipe, params={"best__k": [5, 10, 20]}, metric=sq.metrics.f1)
 
 ## 4. The group: `sq.select`
 
-A step group (ADR 0034) with three shortcuts. Each selector is a dynamic step:
-the columns it outputs depend on what it learned. A column kept passes through
-unchanged (its name, type and values); a column dropped is gone. Its `cols`
-default to the numeric columns, and it refuses a chosen column that is not
-numeric, with a `Fix:` line naming an encoder. The learned values readable
-after `learn` follow scikit-learn's: `variances_` for `variance`, `scores_`
-(and for the F scores `pvalues_`, see §6) for the others, keyed by column as
-other steps' learned values are, and `columns_out_` names what was kept.
+A step group (ADR 0034) with three shortcuts, and callable for its general form:
+`sq.select(*names, method="variance", ...)` builds the same step each shortcut
+builds, and refuses a setting that does not belong to `method`. Each selector is
+a dynamic step: the columns it outputs depend on what it learned. A column kept
+passes through unchanged (its name, type and values); a column dropped is gone.
+Its `cols` default to the numeric columns, and it refuses a chosen column that
+is not numeric, with a `Fix:` line naming an encoder. The learned values
+readable after `learn` follow scikit-learn's: `variances_` for `variance`,
+`scores_` (and for the F scores `pvalues_`, see §6) for the others, keyed by
+column as other steps' learned values are, and `columns_out_` names what was
+kept.
 
 ### 4.1 `sq.select.variance(threshold=0.0)`
 
@@ -111,8 +114,8 @@ As `SelectPercentile`: keeps the columns whose score is above the
 `100 - percentile` percentile of the scores (numpy's linear interpolation),
 then, among the columns whose score equals that percentile, the earliest ones
 until `int(n * percentile / 100)` columns are kept. 100 keeps all and 0 keeps
-none (with scikit-learn's warning). A percentile outside 0 to 100 is refused
-at the call.
+none (with scikit-learn's warning). A NaN score ranks lowest, as for `best`.
+A percentile outside 0 to 100 is refused at the call.
 
 ### 4.4 The scores
 
