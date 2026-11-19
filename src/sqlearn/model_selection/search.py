@@ -29,6 +29,7 @@ from sqlearn._inputs import Source, _release_later, read
 from sqlearn._model import Model, _numpy, missing_target
 from sqlearn._output import Output
 from sqlearn._pipeline import _ROW, Pipeline, _FoldTable, _positioned, _source_sql
+from sqlearn._step import cross_fitted
 from sqlearn._store import FoldKey
 from sqlearn.metrics import Metric, MissingClassError, accuracy
 from sqlearn.model_selection.defaults import default_space, hint
@@ -641,7 +642,7 @@ class Search:
         for i, params in enumerate(settings):
             groups.setdefault(_preparation(params, model_name), []).append(i)
         numbered = folds.numbered(source.relation, FOLD, target)
-        if any(s.uses_target for _, s in self.pipe._split()[0]):
+        if any(cross_fitted(s) for _, s in self.pipe._split()[0]):
             # Every row numbered once, before the folds split them, so a
             # fold's training rows keep the positions their inner folds
             # are dealt by in the fold's query too.

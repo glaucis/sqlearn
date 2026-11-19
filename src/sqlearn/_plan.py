@@ -16,6 +16,7 @@ from sqlearn._step import (
     Learned,
     Step,
     classify,
+    cross_fitted,
     output_labels,
     row_outputs,
     row_owners,
@@ -154,12 +155,13 @@ def plan(steps: Sequence[tuple[str, Step]], schema: Schema) -> Plan:
     selected; its outputs are named as the compositor names them, or unknown
     when its inputs or outputs are not known before it learns. A dynamic
     step that keeps its inputs (``keeps_inputs``) takes none away: each is
-    there again, of its kind, from the run after it learns. A step that
-    learns from the target (``uses_target``) ends its run, as a dynamic step
-    does: in training, the rows reaching a later step take their values from
-    what it learned on their inner fold's complement, known only once it has
-    learned. Its outputs are known: one DOUBLE per input, named as a static
-    step's.
+    there again, of its kind, from the run after it learns. A step
+    cross-fitted on the target (``uses_target`` and ``cross_fits``, ADR 0055)
+    ends its run, as a dynamic step does: in training, the rows reaching a
+    later step take their values from what it learned on their inner fold's
+    complement, known only once it has learned. Its outputs are known: one
+    DOUBLE per input, named as a static step's. A target step that does not
+    cross-fit is planned as any other.
 
     Parameters
     ----------
@@ -205,7 +207,7 @@ def plan(steps: Sequence[tuple[str, Step]], schema: Schema) -> Plan:
                 "Fix: declare one, or neither (sqlearn will then detect it)."
             )
             raise StepError(msg, step=step_name, position=i + 1)
-        if step.uses_target:
+        if cross_fitted(step):
             _check_target_step(step, step_name, i + 1)
         dynamic = classify(step, _known(columns)) == "dynamic"
         read = _read(step, columns)
@@ -215,7 +217,7 @@ def plan(steps: Sequence[tuple[str, Step]], schema: Schema) -> Plan:
         deps = frozenset().union(*(c.deps for c in [*read, rows, *absent]))
         if _reads_every_column(step):
             deps = frozenset(range(i))
-        ready = learn + 1 if dynamic or step.uses_target else learn
+        ready = learn + 1 if dynamic or cross_fitted(step) else learn
         mine = deps | {i}
         result.learn_run.append(learn)
         result.apply_run.append(ready)
@@ -223,7 +225,7 @@ def plan(steps: Sequence[tuple[str, Step]], schema: Schema) -> Plan:
         try:
             if step.rowwise and not dynamic:
                 columns, gone = _write_row(step, step_name, columns, read, ready, mine)
-            elif step.uses_target and not dynamic:
+            elif cross_fitted(step) and not dynamic:
                 columns, gone = _write(
                     step, step_name, columns, read, ready, mine, False, DOUBLE
                 )
@@ -251,15 +253,16 @@ def _at(position: int, _: str) -> int:
 
 
 def _check_target_step(step: Step, step_name: str, position: int) -> None:
-    """Refuse a target step without whole-number ``cv`` and ``seed`` settings."""
+    """Refuse a cross-fitted step without whole-number ``cv`` and ``seed``."""
     for setting in ("cv", "seed"):
         value = getattr(step, setting, None)
         if isinstance(value, bool) or not isinstance(value, int):
             msg = (
-                f"{step_name} (step {position}) learns from the target, so it "
-                f"needs the setting {setting} as a whole number (its inner "
-                f"folds), but has {setting}={value!r}. Fix: set self.{setting} "
-                "in __init__, such as cv=5, seed=0."
+                f"{step_name} (step {position}) learns from the target and "
+                f"cross-fits, so it needs the setting {setting} as a whole "
+                f"number (its inner folds), but has {setting}={value!r}. Fix: "
+                f"set self.{setting} in __init__, such as cv=5, seed=0, or "
+                "declare cross_fits = False to learn once on all rows."
             )
             raise StepError(msg, step=step_name, position=position)
 
@@ -340,10 +343,10 @@ def _labels(
     returns one expression or the column is not known by name. A step left
     undeclared whose `apply` cannot be read with placeholders is planned as
     one output, as before; for one declaring ``static=True`` the failure is
-    raised, since its columns must follow from its settings. A step learning
-    from the target writes one expression per input.
+    raised, since its columns must follow from its settings. A cross-fitted
+    step writes one expression per input.
     """
-    if name is None or step.uses_target:
+    if name is None or cross_fitted(step):
         return None
     x = duckdb.ColumnExpression(name)
     try:

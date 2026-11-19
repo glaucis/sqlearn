@@ -277,6 +277,35 @@ fold the values learned on all rows: `OverTarget` above is not cross-fitted.
 and sum of squares of the target per fold and category, in one `GROUP BY`,
 and derives every fold's encodings from them in Python.
 
+A step that learns from the target need not cross-fit
+([ADR 0055](../adr/0055-a-target-step-need-not-cross-fit.md)). With
+`cross_fits = False` it has no `cv` or `seed`, learns once on the rows given,
+as scikit-learn's `SelectKBest.fit` does, and its `apply` may give any output
+a step may, a dynamic one included. Inside a search it is learned again on
+each fold's training rows. This one keeps a column when it rises with the
+target:
+
+```{code-cell} python
+import duckdb
+
+
+class Rising(sq.Step):
+    uses_target = True
+    cross_fits = False
+    dynamic = True
+
+    def learn(self, x, y=None):
+        return {"r": duckdb.FunctionExpression("corr", x, y)}
+
+    def apply(self, x, learned):
+        return {"": x} if learned.raw("r") > 0 else {}
+
+
+pairs = pd.DataFrame({"up": [1.0, 2.0, 4.0], "down": [3.0, 2.0, 0.0],
+                      "y": [1.0, 2.0, 3.0]})
+sq.Pipeline([Rising()]).learn(pairs, target="y").apply(pairs).columns
+```
+
 ## Placeholders
 
 When a query both learns and applies, the learned values do not exist yet. So

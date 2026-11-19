@@ -218,11 +218,18 @@ class Step:
         `apply`. `learn` stays per column.
     uses_target : bool
         True for a step that learns from the target: its `learn` is
-        ``learn(x, y)``, given the target as `y`; it has the settings ``cv``
-        (the number of inner folds) and ``seed``, and turns what it fetched
-        into the values for all rows and for each inner fold's complement in
-        `derive`. Such a step ends its run, and its `apply` returns one
-        expression, a DOUBLE.
+        ``learn(x, y)``, given the target as `y`, and `learn` without a
+        target refuses it. Whether it cross-fits is `cross_fits`.
+    cross_fits : bool
+        Read only when `uses_target` is True. True (the default) for a step
+        cross-fitted in training, as ``sq.encode.target``: it has the
+        settings ``cv`` (the number of inner folds) and ``seed``, and turns
+        what it fetched into the values for all rows and for each inner
+        fold's complement in `derive`. Such a step ends its run, and its
+        `apply` returns one expression, a DOUBLE. False for a step that
+        learns from the target once, on the rows given, as a feature
+        selector does (ADR 0055): it has no ``cv`` or ``seed``, and its
+        outputs are any a step may give, dynamic or whole-row included.
     state_version : int
         The version of what `learn` returns, written with a saved pipeline:
         raise it when the names or meaning of what `learn` returns change; a
@@ -255,6 +262,7 @@ class Step:
     names_are_labels: ClassVar[bool] = True
     rowwise: ClassVar[bool] = False
     uses_target: ClassVar[bool] = False
+    cross_fits: ClassVar[bool] = True
     state_version: ClassVar[int] = 1
 
     def __init__(
@@ -808,6 +816,33 @@ def _inspect(step: Step, schema: Schema) -> Literal["static", "dynamic"]:
     except Exception:  # noqa: BLE001  (any failure means the output is dynamic)
         return "dynamic"
     return "static" if isinstance(result, Expression) else "dynamic"
+
+
+def cross_fitted(step: Step) -> bool:
+    """Say whether a step is cross-fitted in training (ADR 0055).
+
+    A step is when it learns from the target (``uses_target``) and declares
+    it cross-fits (``cross_fits``, the default).
+
+    Parameters
+    ----------
+    step : Step
+        The step.
+
+    Returns
+    -------
+    bool
+        True when each row reaching later steps in training takes values
+        learned without its own inner fold.
+
+    Examples
+    --------
+    >>> import sqlearn as sq
+    >>> from sqlearn._step import cross_fitted
+    >>> cross_fitted(sq.encode.target("plan")), cross_fitted(sq.Step())
+    (True, False)
+    """
+    return step.uses_target and step.cross_fits
 
 
 def output_labels(

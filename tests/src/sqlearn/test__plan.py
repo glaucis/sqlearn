@@ -338,6 +338,18 @@ def test_a_target_step_without_folds_is_refused():
         runs(NoFolds("city"))
 
 
+def test_a_target_step_that_does_not_cross_fit_plans_as_any_step():
+    """Without cross-fitting it needs no cv or seed, nor ends its run."""
+
+    class Once(sq.Step):
+        uses_target = True
+        cross_fits = False
+        static = True
+
+    p = runs(Once("city"), sq.scale.standard())
+    assert (p.learn_run, p.apply_run, p.feed_run) == ([0, 0], [0, 0], 0)
+
+
 class Pieces(sq.Step):
     """A static step making two labelled columns from each input."""
 
