@@ -1,6 +1,7 @@
 """SelectKBest: keep the numeric columns that score best against the target."""
 
 import math
+import numbers
 import sys
 import warnings
 from collections.abc import Mapping
@@ -39,10 +40,16 @@ def _score(call: str, value: object) -> str:
 
 
 def _k(value: object) -> int | str:
-    """Return `value` when it is a whole number from 0 up or ``"all"``."""
-    whole = isinstance(value, int) and not isinstance(value, bool)
-    if value == "all" or (whole and cast("int", value) >= 0):
-        return cast("int | str", value)
+    """Return `value` when it is a whole number from 0 up or ``"all"``.
+
+    Any whole number (a numpy one too, as scikit-learn's ``Integral`` check
+    takes) is kept as a plain ``int``; a bool is refused.
+    """
+    if isinstance(value, str) and value == "all":
+        return value
+    whole = isinstance(value, numbers.Integral) and not isinstance(value, bool)
+    if whole and int(cast("int", value)) >= 0:
+        return int(cast("int", value))
     msg = (
         f"sq.select.best got k={value!r}. Why: k is how many columns to keep, "
         'a whole number from 0 up or "all", as scikit-learn\'s SelectKBest '
@@ -52,10 +59,16 @@ def _k(value: object) -> int | str:
 
 
 def _percentile(value: object) -> float:
-    """Return `value` when it is a number from 0 to 100, else refuse it."""
-    number = isinstance(value, int | float) and not isinstance(value, bool)
+    """Return `value` when it is a number from 0 to 100, else refuse it.
+
+    Any real number (a numpy one too, as scikit-learn's ``Real`` check takes)
+    is kept as a plain ``int`` or ``float``; a bool is refused.
+    """
+    number = isinstance(value, numbers.Real) and not isinstance(value, bool)
     if number and 0 <= cast("float", value) <= 100:  # False for NaN
-        return cast("float", value)
+        if isinstance(value, numbers.Integral):
+            return int(value)
+        return float(cast("float", value))
     msg = (
         f"sq.select.percentile got percentile={value!r}. Why: percentile is "
         "the share of columns to keep, a number from 0 to 100, as "

@@ -233,3 +233,62 @@ def test_percentile_is_an_output_setting_and_shares_the_scores():
     assert (
         pipe["percentile"].scores_ == learn(sq.select.best(), frame, y)["best"].scores_
     )
+
+
+@pytest.mark.parametrize(
+    ("make", "value", "setting"),
+    [
+        (sq.select.best, np.int64(3), "k"),
+        (sq.select.percentile, np.int64(10), "percentile"),
+        (sq.select.percentile, np.float64(12.5), "percentile"),
+    ],
+)
+def test_numpy_numbers_are_taken_as_scikit_learn_takes_them(make, value, setting):
+    """A numpy number is a number, as scikit-learn's Interval checks; kept plain."""
+    step = make(**{setting: value})
+    got = getattr(step, setting)
+    assert got == value
+    assert type(got) in (int, float)
+    frame, y = wide()
+    sk_class = SelectKBest if setting == "k" else SelectPercentile
+    sk = sk_class(f_classif, **{setting: value}).fit(frame, y)
+    pipe = learn(step, frame, y)
+    assert pipe.columns_out_ == list(sk.get_feature_names_out())
+
+
+@pytest.mark.parametrize("bad", [np.float64(2.0), np.bool_(True), np.int64(-1)])
+def test_best_refuses_a_numpy_value_scikit_learn_refuses(bad):
+    """A numpy float or bool is not a whole number, nor a negative one."""
+    with pytest.raises(SqlearnError, match="Fix:"):
+        sq.select.best(k=bad)
+
+
+@pytest.mark.parametrize("bad", [np.bool_(True), np.float64("nan"), np.int64(101)])
+def test_percentile_refuses_a_numpy_value_outside_0_to_100(bad):
+    """A numpy bool, NaN, or a number above 100 is refused."""
+    with pytest.raises(SqlearnError, match="Fix:"):
+        sq.select.percentile(percentile=bad)
+
+
+@pytest.mark.parametrize("percentile", [10, 30, 50, 80, 95])
+def test_percentile_ranks_a_nan_score_lowest_as_scikit_learn(percentile):
+    """A constant column scores NaN under f_classif: it is the last kept."""
+    frame, y = wide()
+    frame = frame.assign(flat=1.0)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")  # both warn of the constant column
+        sk = SelectPercentile(f_classif, percentile=percentile).fit(frame, y)
+        pipe = learn(sq.select.percentile(percentile=percentile), frame, y)
+    assert np.isnan(pipe["percentile"].scores_["flat"])
+    assert pipe.columns_out_ == list(sk.get_feature_names_out())
+
+
+@pytest.mark.parametrize("columns", [["c04"], ["c04", "c01"]])
+@pytest.mark.parametrize("percentile", [1, 49, 50, 51, 99, 100])
+def test_percentile_of_one_or_two_columns_keeps_scikit_learns(columns, percentile):
+    """With one or two columns the threshold is a column's own score."""
+    frame, y = wide()
+    frame = frame[columns]
+    sk = SelectPercentile(f_classif, percentile=percentile).fit(frame, y)
+    pipe = learn(sq.select.percentile(percentile=percentile), frame.assign(t="x"), y)
+    assert pipe.columns_out_ == [*sk.get_feature_names_out(), "t"]
