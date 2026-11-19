@@ -137,20 +137,21 @@ A percentile outside 0 to 100 is refused at the call.
   infinite (a correlation of 1 or -1 in the variances and the covariance
   learned) scores the largest double.
 - **The exact score (Tomas, 2026-11-19).** sqlearn combines what it learned
-  exactly (the per-class sums of the column less its minimum; the variances
-  and the covariance), so its score departs from the exact one only by the
-  rounding of those sums. Where scikit-learn's own rounding departs from
-  it, sqlearn gives the exact score, and the columns kept can then differ:
-  a constant 0.1 scores NaN for `f_classif` (scikit-learn's sums leave
-  -0.0); a column far from zero, such as 1e6 plus noise, scores within
-  rounding of the exact value, where scikit-learn's cancellation is about 1%
-  off (`f_classif` 0.37616 exact against 0.38044, `f_regression` 2.41271
-  against 2.41348). An exactly linear column scores the largest double for
-  `f_regression` when the learned variances and covariance come out
-  consistent, and otherwise a large finite F (2y + 1 over 60 rows: about
-  4e17), far above any column that is not linear; scikit-learn's r² can
-  round just below 1 (a large finite F) or above it (a negative F, which
-  ranks lowest).
+  exactly (the per-class sums of the column less its minimum; the variances and
+  the covariance), so its score departs from the exact one only by the rounding
+  of those sums. Where scikit-learn's own rounding departs from it, sqlearn
+  gives the exact score, and the columns kept can then differ: a constant 0.1
+  scores NaN for `f_classif` (scikit-learn's sums leave -0.0); a column far from
+  zero, such as 1e6 plus noise, scores within rounding of the exact value for
+  `f_classif` and `chi2`, where scikit-learn's cancellation is about 1% off
+  (`f_classif` 0.37616 exact against 0.38044); for `f_regression` it keeps about
+  9 significant digits there (1.5e-9 relative, from DuckDB's covariance and
+  variance, §6), against scikit-learn's 0.15% (2.41271 exact against 2.41348).
+  An exactly linear column scores the largest double for `f_regression` when the
+  learned variances and covariance come out consistent, and otherwise a large
+  finite F (2y + 1 over 60 rows: about 4e17), far above any column that is not
+  linear; scikit-learn's r² can round just below 1 (a large finite F) or above
+  it (a negative F, which ranks lowest).
 - `chi2` refuses a negative value in a scored column, as scikit-learn refuses
   it, with a `Fix:` line (`sq.scale.minmax`, or `f_classif`).
 - A missing value (NULL, NaN) in a scored column is refused for all three, as

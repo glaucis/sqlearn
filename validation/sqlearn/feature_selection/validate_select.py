@@ -53,8 +53,11 @@ Anomalies expected of the references, by design rather than defect:
   class mean carries the offset's rounding); ``chi2``'s observed less
   expected sums cancel the same way in every reference (6e-10 to 6e-9
   relative). On ``far from zero, numeric`` scikit-learn's ``f_regression``
-  is 0.15% off. sqlearn sums the column less its minimum, combines the sums
-  exactly, and passes there; the kept columns agree.
+  is 0.15% off. For ``f_classif`` and ``chi2`` sqlearn sums the column less
+  its minimum, combines the sums exactly, and passes within `BOUNDS` there;
+  its ``f_regression`` comes from DuckDB's unshifted ``covar_pop`` and
+  ``var_pop`` (spec §6) and passes there only under `WIDE`, about 9
+  significant digits (1.5e-9 relative). The kept columns agree.
 - The exact score again, on ``nearly linear`` (a column 2y + 1, rounded per
   row, exact F 3.7e34): scikit-learn's r² rounds above 1, its F is negative
   (-6.5e16) and the column ranks lowest, so scikit-learn keeps other
@@ -139,9 +142,11 @@ WIDE = {
     # and the covariance, small beside the offset, carries a relative error
     # near 1e-9: measured 10,093,532 doubles (1.5e-9 relative) on ``far``
     # and 1,292,258 on ``far signal``, 2026-11-19, against scikit-learn's
-    # 0.15% (spec §4.4). A step's learn sees only its columns, so it cannot
-    # shift by the mean first: the limit of the aggregate, recorded and
-    # named, as r2's in the regression runner.
+    # 0.15% (spec §4.4). The reason is spec §6's choice: f_regression learns
+    # DuckDB's covar_pop and var_pop of the column as it is, not shifted (as
+    # f_classif and chi2 shift by the column's minimum), so this is the
+    # limit of those aggregates, recorded and named, as r2's in the
+    # regression runner.
     ("f_regression", "far from zero, numeric"): 11_200_000,
 }
 """Bounds wider than `BOUNDS` for one score on one dataset, each at its
@@ -309,8 +314,16 @@ def _problems() -> list[Problem]:
     counts = list(cols["counts"])
     counts[7] = math.inf
     out.append(Problem("infinity", "one value infinite",
-                       dict(cols, counts=tuple(counts)), y, "BIGINT", SCORES,
-                       variance=False, every=True))  # fmt: skip
+                       dict(cols, counts=tuple(counts)), y, "BIGINT",
+                       ("f_classif", "f_regression"), variance=False,
+                       every=True))  # fmt: skip
+    # chi2 refuses the negative values of the columns above first: its own
+    # dataset holds only values from 0 up, so the refusal met is infinity's.
+    out.append(Problem("infinity, from 0 up",
+                       "one value infinite, none below 0",
+                       {"uniform": cols["uniform"], "counts": tuple(counts)}, y,
+                       "BIGINT", ("chi2",), variance=False,
+                       every=True))  # fmt: skip
     gaps = tuple(None if i == 3 else v for i, v in enumerate(y))
     out.append(Problem("missing target", "one target NULL", cols, gaps, "BIGINT",
                        SCORES, variance=False, every=True))  # fmt: skip
