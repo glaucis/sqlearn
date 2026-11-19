@@ -92,7 +92,9 @@ As `SelectKBest`: learns each column's score against the target and keeps the
 stable sort breaks them: among equal scores the later column is kept. `k`
 greater than the number of columns keeps them all and warns, as scikit-learn
 warns; `k=0` keeps none and warns, as scikit-learn warns; `k="all"` keeps all.
-A negative or non-whole `k` is refused at the call.
+A negative or non-whole `k` is refused at the call, and so are `True` and
+`False`, which scikit-learn takes as 1 and 0 (as `variance` refuses a boolean
+threshold).
 
 **When nothing would remain (spec's call, 2026-11-19).** A feature selector
 that keeps none of its columns (`k=0`, `percentile=0`) keeps none and warns,
@@ -119,12 +121,15 @@ at the call.
 | `score=` | Target | Per column it learns | scikit-learn |
 |---|---|---|---|
 | `"f_classif"` | classes (any type) | per class: count, sum, sum of squares | `f_classif`: the ANOVA F |
-| `"f_regression"` | a number | count, sums, sums of squares, sum of products with the target | `f_regression(center=True, force_finite=True)`: the F of the correlation |
+| `"f_regression"` | a number | count, the variances of the column and the target, their covariance | `f_regression(center=True, force_finite=True)`: the F of the correlation |
 | `"chi2"` | classes | per class: the sum of the column; the class counts | `chi2`: observed against expected sums |
 
 - `f_classif` of a constant column is NaN (it ranks lowest), as scikit-learn's,
   which also warns that the column is constant: so does sqlearn, once per step
-  and naming the columns.
+  and naming the columns. The per-class sums are of the column less its
+  minimum, combined exactly, so a constant column is NaN whatever the
+  rounding of its value (scikit-learn's own sums can leave a constant 0.1
+  at a score of -0.0).
 - `f_regression` with `force_finite=True`: a constant column or a constant
   target scores 0, and an F that comes out infinite (a correlation of exactly
   1 or -1) is the largest double, as scikit-learn's.
@@ -132,7 +137,8 @@ at the call.
   it, with a `Fix:` line (`sq.scale.minmax`, or `f_classif`).
 - A missing value (NULL, NaN) in a scored column is refused for all three, as
   scikit-learn refuses NaN, with a `Fix:` line (`sq.impute` before the step).
-  So is a missing target value.
+  So is an infinite value, as scikit-learn's input check refuses infinity,
+  and a missing or infinite target value.
 - Other scores (`mutual_info_*`, `r_regression`) are not in this spec (§9).
 
 ## 5. The contract: a target step that does not cross-fit

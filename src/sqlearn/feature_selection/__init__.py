@@ -7,6 +7,7 @@ Examples
 0.0
 """
 
+from sqlearn.feature_selection.univariate import SelectKBest
 from sqlearn.feature_selection.variance import VarianceThreshold
 
-__all__ = ["VarianceThreshold"]
+__all__ = ["SelectKBest", "VarianceThreshold"]

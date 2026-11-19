@@ -466,6 +466,16 @@ def step_stage(
         created.setdefault(c, []).append(n)
     named = iter(final)
     outputs = {k if isinstance(k, str) else next(named): e for k, e in out}
+    if not outputs and per_column:
+        # A dynamic step keeping none of its columns, with none beside them.
+        msg = (
+            f"{step_name} (step {position}) leaves no column: it keeps none "
+            "of the columns it chose, and no other column passes beside "
+            "them. Why: a table needs a column, and a model a feature. Fix: "
+            "keep one at least (for a feature selector, a larger k or "
+            "percentile), or let a column it does not choose pass beside it."
+        )
+        raise StepError(msg, step=step_name, position=position)
     outputs.update({a: duckdb.ColumnExpression(previous, a) for a in aside})
 
     remake = partial(step_stage, position, step_name, step, schema, previous)

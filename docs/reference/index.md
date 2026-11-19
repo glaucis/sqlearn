@@ -60,6 +60,8 @@ The API of the sqlearn package, generated from its docstrings.
    sqlearn.select
    sqlearn.select.variance
    sqlearn.feature_selection.VarianceThreshold
+   sqlearn.select.best
+   sqlearn.feature_selection.SelectKBest
    sqlearn.search
    sqlearn.search.grid
    sqlearn.search.optuna

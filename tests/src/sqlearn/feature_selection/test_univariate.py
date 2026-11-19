@@ -1,0 +1,157 @@
+"""Tests of sq.select.best against scikit-learn's SelectKBest."""
+
+import warnings
+
+import numpy as np
+import pandas as pd
+import pytest
+from sklearn.feature_selection import SelectKBest, chi2, f_classif
+
+import sqlearn as sq
+from sqlearn._config import connection
+from sqlearn.errors import SqlearnError, SqlearnWarning, StepError
+
+
+def data(seed=5, rows=80):
+    """Return 6 numeric columns, some related to the class, and the class."""
+    rng = np.random.default_rng(seed)
+    y = rng.integers(0, 2, rows)
+    frame = pd.DataFrame(
+        {
+            "a": rng.normal(0, 1, rows) + y,
+            "b": rng.normal(0, 1, rows),
+            "c": rng.uniform(0, 1, rows) + 2 * y,
+            "d": rng.normal(5, 2, rows),
+            "e": rng.normal(0, 1, rows) + 0.5 * y,
+            "f": rng.integers(0, 4, rows).astype("int64"),
+        }
+    )
+    return frame, y
+
+
+def learn(step, frame, y):
+    """Learn a pipeline of `step` on `frame` with the target `y`."""
+    return sq.Pipeline([step]).learn(frame.assign(y=y), target="y")
+
+
+@pytest.mark.parametrize("k", [1, 3, 6, "all"])
+def test_best_keeps_the_columns_scikit_learn_keeps(k):
+    """The same columns are kept, in their own order, unchanged."""
+    frame, y = data()
+    sk = SelectKBest(f_classif, k=k).fit(frame, y)
+    kept = list(sk.get_feature_names_out())
+    pipe = learn(sq.select.best(k=k), frame, y)
+    assert pipe.columns_out_ == kept
+    out = pipe.apply(frame, out="pandas")
+    pd.testing.assert_frame_equal(out, frame[kept])
+
+
+def test_ties_keep_the_later_column():
+    """Equal scores: the later column is kept, as scikit-learn's stable sort."""
+    frame, y = data()
+    frame = frame.assign(twin=frame["c"])
+    sk = SelectKBest(f_classif, k=1).fit(frame, y)
+    pipe = learn(sq.select.best(k=1), frame, y)
+    assert pipe.columns_out_ == list(sk.get_feature_names_out()) == ["twin"]
+
+
+def test_a_constant_column_ranks_last_and_is_warned_about():
+    """f_classif of a constant column is NaN: it ranks lowest, and is named."""
+    frame, y = data()
+    frame = frame.assign(flat=1.0)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")  # its own: constant, divide by 0
+        sk = SelectKBest(f_classif, k=6).fit(frame, y)
+    with pytest.warns(SqlearnWarning, match="'flat'") as caught:
+        pipe = learn(sq.select.best(k=6), frame, y)
+    assert len([w for w in caught if "flat" in str(w.message)]) == 1
+    assert "Fix:" in str(caught[0].message)
+    assert np.isnan(pipe["best"].scores_["flat"])
+    assert pipe.columns_out_ == list(sk.get_feature_names_out())
+    assert "flat" not in pipe.columns_out_
+
+
+def test_k_above_the_column_count_keeps_all_and_warns():
+    """k=9 of 6 columns keeps all 6, with scikit-learn's warning."""
+    frame, y = data()
+    with pytest.warns(SqlearnWarning, match="k=9") as caught:
+        pipe = learn(sq.select.best(k=9), frame, y)
+    assert "Fix:" in str(caught[0].message)
+    assert pipe.columns_out_ == list(frame.columns)
+
+
+def test_k_zero_keeps_none_and_warns():
+    """k=0 keeps none of its columns; a text column passes beside them."""
+    frame, y = data()
+    frame = frame.assign(city="x")
+    with pytest.warns(SqlearnWarning, match="k=0") as caught:
+        pipe = learn(sq.select.best(k=0), frame, y)
+    assert "Fix:" in str(caught[0].message)
+    assert pipe.columns_out_ == ["city"]
+
+
+@pytest.mark.filterwarnings("ignore::sqlearn.errors.SqlearnWarning")
+def test_learn_raises_when_no_column_would_remain():
+    """k=0 with no other column: a table needs a column, so learn raises."""
+    frame, y = data()
+    with pytest.raises(StepError, match="no column") as e:
+        learn(sq.select.best(k=0), frame, y)
+    assert "Fix:" in str(e.value)
+
+
+def test_chi2_refuses_a_negative_value():
+    """As scikit-learn's chi2 refuses it, naming the column."""
+    frame, y = data()
+    with pytest.raises(ValueError, match="non-negative"):
+        chi2(frame, y)
+    with pytest.raises(StepError, match="'a'") as e:
+        learn(sq.select.best(k=2, score="chi2"), frame, y)
+    assert "Fix:" in str(e.value)
+    assert "sq.scale.minmax" in str(e.value)
+
+
+@pytest.mark.parametrize("score", ["f_classif", "f_regression", "chi2"])
+def test_the_scores_refuse_a_missing_value(score):
+    """NULL from pandas, NaN and infinity from a DuckDB table: refused."""
+    frame, y = data()
+    frame = frame.abs()
+    holed = frame.astype({"b": "float64"})
+    holed.loc[3, "b"] = None
+    with pytest.raises(StepError, match=r"'b'.*missing") as e:
+        learn(sq.select.best(k=2, score=score), holed, y)
+    assert "sq.impute" in str(e.value)
+    con = connection()
+    con.execute(
+        "CREATE OR REPLACE TABLE holed AS SELECT * FROM (VALUES "
+        "(1.0, 'NaN'::DOUBLE, 0), (2.0, 1.0, 1), (3.0, 2.0, 0), (4.0, 0.5, 1)) "
+        "t(a, b, y)"
+    )
+    with pytest.raises(StepError, match=r"'b'.*missing") as e:
+        sq.Pipeline([sq.select.best(k=1, score=score)]).learn("holed", target="y")
+    assert "Fix:" in str(e.value)
+    con.execute(
+        "CREATE OR REPLACE TABLE holed AS SELECT * FROM (VALUES "
+        "(1.0, 'inf'::DOUBLE, 0), (2.0, 1.0, 1), (3.0, 2.0, 0), (4.0, 0.5, 1)) "
+        "t(a, b, y)"
+    )
+    with pytest.raises(StepError, match=r"'b'.*infinite") as e:
+        sq.Pipeline([sq.select.best(k=1, score=score)]).learn("holed", target="y")
+    assert "Fix:" in str(e.value)
+
+
+@pytest.mark.parametrize("score", ["f_classif", "f_regression", "chi2"])
+def test_a_missing_target_is_refused(score):
+    """A NULL target value is refused, as scikit-learn refuses NaN in y."""
+    frame, y = data()
+    target = y.astype(float)
+    target[7] = np.nan
+    with pytest.raises(StepError, match="target") as e:
+        learn(sq.select.best(k=2, score=score), frame.abs(), target)
+    assert "Fix:" in str(e.value)
+
+
+@pytest.mark.parametrize("bad", [{"k": -1}, {"k": 2.5}, {"k": True}, {"score": "f"}])
+def test_best_refuses_a_bad_k_or_score(bad):
+    """At the call, as scikit-learn's parameter check (True is refused too)."""
+    with pytest.raises(SqlearnError, match="Fix:"):
+        sq.select.best(**bad)
