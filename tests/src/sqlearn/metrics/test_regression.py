@@ -8,6 +8,8 @@ import pandas as pd
 import pytest
 from sklearn.linear_model import Ridge
 from sklearn.metrics import (
+    d2_absolute_error_score,
+    d2_pinball_score,
     d2_tweedie_score,
     explained_variance_score,
     max_error,
@@ -534,6 +536,172 @@ def test_a_search_by_d2_tweedie():
         sq.Pipeline([("model", Ridge())]),
         params={"model__alpha": [1000.0, 0.01]},
         metric=sq.metrics.d2_tweedie(power=1.5),
+        folds=sq.folds.kfold(3),
+    )
+    assert search.train(data, target="y").best_params_ == {"model__alpha": 0.01}
+
+
+@pytest.mark.parametrize(("alpha", "expected"), [(0.5, 0.375), (0.9, -0.75)])
+def test_d2_pinball_on_the_probe_data(alpha, expected):
+    """The fixed data gives the probed value at each alpha."""
+    frame = pd.DataFrame({"y": Y4, "prediction": P4})
+    got = sq.metrics.d2_pinball(alpha=alpha).compute(rel(frame), "y")
+    assert got == pytest.approx(expected, rel=1e-12)
+
+
+@pytest.mark.parametrize("n", [4, 5, 7, 10])
+@pytest.mark.parametrize("alpha", [0.1, 0.25, 0.3, 0.5, 0.7, 0.9])
+def test_d2_pinball_matches_scikit_learn(n, alpha):
+    """Each alpha and row count scores as scikit-learn's D2 pinball score."""
+    y, p = RNG.normal(size=n), RNG.normal(size=n)
+    frame = pd.DataFrame({"y": y, "prediction": p})
+    got = sq.metrics.d2_pinball(alpha=alpha).compute(rel(frame), "y")
+    assert got == pytest.approx(d2_pinball_score(y, p, alpha=alpha), rel=1e-12)
+
+
+def _distinct_rows(n, seed):
+    """Return `n` distinct whole-number targets and predictions near them."""
+    rng = np.random.default_rng(seed)
+    y = rng.choice(4 * n, size=n, replace=False).astype(float)
+    return y, np.round(y + rng.normal(size=n), 1)
+
+
+@pytest.mark.parametrize(
+    ("alpha", "n", "seed"),
+    [
+        # 100 * alpha / 100 * n is exactly 3 and 7: the mean of rows 3 and 4
+        # (7 and 8), not either alone.
+        (0.3, 10, 47),
+        (0.7, 10, 905),
+        # It is 7.000000000000001 and 28.999999999999996 where n * alpha is
+        # 7 and 29: row 8 (29) alone, not row 7 (30) or the mean of the two.
+        (0.14, 50, 808),
+        (0.58, 50, 2922),
+        # It is 0.9999999999999998 and 1.9999999999999998, within the
+        # double epsilon of 1 and 2: the mean of rows 1 and 2 (2 and 3), not
+        # either alone.
+        (1 / 3, 3, 33),
+        (1 / 17, 34, 393),
+    ],
+)
+def test_d2_pinball_picks_scikit_learns_rows_when_n_alpha_is_nearly_whole(
+    alpha, n, seed
+):
+    """Where n times alpha is nearly whole, the baseline's rows are scikit-learn's.
+
+    Between the two rows the loss is flat, so the rows chosen show only in
+    the last bits: on these rows (seeds found by search) each other choice
+    named gives a different double.
+    """
+    y, p = _distinct_rows(n, seed)
+    frame = pd.DataFrame({"y": y, "prediction": p})
+    got = sq.metrics.d2_pinball(alpha=alpha).compute(rel(frame), "y")
+    assert got == d2_pinball_score(y, p, alpha=alpha)
+
+
+@pytest.mark.parametrize(
+    ("y", "p", "alpha"),
+    [
+        (Y4, [1.0, 2.0, 3.0, 4.0], 0.0),
+        (Y4, [0.0, 2.0, 3.0, 4.0], 0.0),
+        (Y4, [2.0, 2.0, 3.0, 4.0], 0.0),
+        (Y4, [2.0, 2.0, 3.0, 4.0], 1.0),
+        (Y4, [2.0, 2.0, 3.0, 5.0], 1.0),
+        ([2.0, 2.0, 2.0], [1.0, 1.0, 1.0], 0.0),
+    ],
+)
+def test_d2_pinball_at_alpha_zero_or_one_follows_scikit_learn(y, p, alpha):
+    """At alpha 0 or 1 the baseline loses nothing: 1 or 0, as scikit-learn."""
+    frame = pd.DataFrame({"y": y, "prediction": p})
+    got = sq.metrics.d2_pinball(alpha=alpha).compute(rel(frame), "y")
+    assert got == d2_pinball_score(y, p, alpha=alpha)
+
+
+def test_d2_absolute_error_is_d2_pinball_at_a_half():
+    """d2_absolute_error is d2_pinball at alpha 0.5, and takes no settings."""
+    y, p = RNG.normal(size=50), RNG.normal(size=50)
+    frame = pd.DataFrame({"y": y, "prediction": p})
+    got = sq.metrics.d2_absolute_error.compute(rel(frame), "y")
+    assert got == sq.metrics.d2_pinball.compute(rel(frame), "y")
+    assert got == pytest.approx(d2_absolute_error_score(y, p), rel=1e-12)
+    assert sq.metrics.d2_absolute_error.greater_is_better is True
+    assert repr(sq.metrics.d2_absolute_error) == "d2_absolute_error"
+    with pytest.raises(SqlearnError, match=r"takes no settings.*Fix:"):
+        sq.metrics.d2_absolute_error(alpha=0.9)
+
+
+def test_d2_pinball_is_higher_better_and_shows_its_alpha():
+    """D2 pinball is a score, higher is better, and its repr names its alpha."""
+    assert sq.metrics.d2_pinball.greater_is_better is True
+    assert repr(sq.metrics.d2_pinball) == "d2_pinball"
+    assert repr(sq.metrics.d2_pinball(alpha=0.9)) == "d2_pinball(alpha=0.9)"
+    with pytest.raises(SqlearnError, match="Fix:"):
+        sq.metrics.d2_pinball(alpha=1.5)
+
+
+@pytest.mark.parametrize(
+    ("metric", "y", "p", "expected"),
+    [
+        (sq.metrics.d2_pinball, [2.0, 2.0], [2.0, 2.0], 1.0),
+        (sq.metrics.d2_pinball, [2.0, 2.0], [1.0, 3.0], 0.0),
+        (sq.metrics.d2_pinball(alpha=0.9), [0.1] * 1000, [0.1] * 1000, 1.0),
+        (sq.metrics.d2_pinball(alpha=0.9), [0.1] * 1000, [0.2] * 1000, 0.0),
+        (sq.metrics.d2_absolute_error, [0.1] * 7, [0.1] * 7, 1.0),
+        (sq.metrics.d2_absolute_error, [0.1] * 7, [0.3] * 7, 0.0),
+    ],
+)
+def test_d2_pinball_of_a_constant_target_is_one_or_zero(metric, y, p, expected):
+    """A constant target scores 1 when predicted exactly, else 0 (ADR 0054)."""
+    frame = pd.DataFrame({"y": y, "prediction": p})
+    assert metric.compute(rel(frame), "y") == expected
+    assert expected == d2_pinball_score(y, p, alpha=metric.alpha)
+
+
+@pytest.mark.parametrize("metric", ["d2_pinball", "d2_absolute_error"])
+def test_d2_pinball_of_one_row_is_nan_with_a_warning(metric):
+    """One row has no D2 score: NaN, with a warning that says why and the fix."""
+    frame = pd.DataFrame({"y": [1.0], "prediction": [2.0]})
+    with pytest.warns(SqlearnWarning, match=rf"^{metric} .*Why: .*Fix: ") as caught:
+        got = getattr(sq.metrics, metric).compute(rel(frame), "y")
+    assert math.isnan(got)
+    assert caught[0].filename == __file__
+
+
+def test_d2_pinball_reads_the_source_once(tmp_path):
+    """The quantile and the score come from one query with one scan."""
+    con = connection()
+    con.execute(
+        "CREATE OR REPLACE TABLE d2_source AS SELECT i::DOUBLE + 1 AS y, "
+        "i::DOUBLE + 1.5 AS prediction FROM range(1000) r(i)"
+    )
+    profile = tmp_path / "profile.json"
+    try:
+        con.execute("PRAGMA enable_profiling = 'json'")
+        con.execute(f"PRAGMA profiling_output = '{profile}'")
+        got = sq.metrics.d2_pinball(alpha=0.9).compute(con.table("d2_source"), "y")
+    finally:
+        con.execute("PRAGMA disable_profiling")
+        con.execute("RESET profiling_output")
+        con.execute("DROP TABLE d2_source")
+    assert got < 1.0
+    tree = json.loads(profile.read_text())
+    assert _scans(tree["operator"], "d2_source") == 1
+
+
+def test_a_search_by_d2_pinball():
+    """Higher D2 wins: a search runs with an alpha and picks by max."""
+    x = RNG.uniform(1, 3, size=(120, 2))
+    data = pd.DataFrame(
+        {
+            "a": x[:, 0],
+            "b": x[:, 1],
+            "y": 3 * x[:, 0] + 2 * x[:, 1] + RNG.uniform(0.1, 0.5, size=120),
+        }
+    )
+    search = sq.search(
+        sq.Pipeline([("model", Ridge())]),
+        params={"model__alpha": [1000.0, 0.01]},
+        metric=sq.metrics.d2_pinball(alpha=0.9),
         folds=sq.folds.kfold(3),
     )
     assert search.train(data, target="y").best_params_ == {"model__alpha": 0.01}

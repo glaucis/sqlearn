@@ -28,6 +28,8 @@ from sqlearn.metrics.probability import (
 from sqlearn.metrics.regression import (
     PinballLoss,
     TweedieDeviance,
+    d2_absolute_error,
+    d2_pinball,
     d2_tweedie,
     explained_variance,
     gamma_deviance,
@@ -61,6 +63,8 @@ __all__ = [
     "brier",
     "classification_report",
     "confusion_matrix",
+    "d2_absolute_error",
+    "d2_pinball",
     "d2_tweedie",
     "explained_variance",
     "f1",

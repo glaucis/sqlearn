@@ -2,8 +2,8 @@
 
 The metrics are rmse, mae, r2, mse, max_error, median_absolute_error,
 mape, explained_variance, msle, rmsle, pinball_loss, the deviances
-tweedie_deviance, poisson_deviance and gamma_deviance, and the D2 score
-d2_tweedie.
+tweedie_deviance, poisson_deviance and gamma_deviance, and the D2 scores
+d2_tweedie, d2_pinball and d2_absolute_error.
 """
 
 import math
@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import SupportsFloat
 
 import duckdb
-from duckdb import Expression
+from duckdb import ColumnExpression, Expression
 
 from sqlearn._errors import SqlearnError, SqlearnWarning
 from sqlearn._expr import const
@@ -24,6 +24,8 @@ __all__ = [
     "LogError",
     "PinballLoss",
     "TweedieDeviance",
+    "d2_absolute_error",
+    "d2_pinball",
     "d2_tweedie",
     "explained_variance",
     "gamma_deviance",
@@ -213,6 +215,12 @@ def _named(
     if metric.settable and value != default:
         return f"{metric.name}({setting}={value!r})"
     return metric.name
+
+
+_PLACE = "__sqlearn_stage_place"
+_ROWS = "__sqlearn_stage_rows"
+"""The D2 pinball stage's columns: each row's place in the sorted target
+and the row count."""
 
 
 def _d2_finish(name: str, value: SupportsFloat, total: int) -> float:
@@ -441,12 +449,25 @@ class PinballLoss(Metric):
     and ``1 - alpha`` times how far it is below. Alpha 0.5 is half the mean
     absolute error. No row is refused.
 
+    With ``d2`` it is the D2 pinball score instead (``d2_pinball``, and
+    ``d2_absolute_error`` at alpha 0.5), as scikit-learn's
+    ``d2_pinball_score``: one minus the model's pinball loss over the loss of
+    the target's alpha-quantile. The quantile is scikit-learn's: with ``n``
+    rows sorted and ``k = n * alpha``, the mean of rows ``k`` and ``k + 1``
+    when ``k`` is whole (to within scikit-learn's rounding), else row
+    ``ceil(k)``, counted from 1 and kept within 1 to ``n``. Higher is better.
+    One row has no score: NaN, with a warning. When the quantile loses
+    nothing (a constant target, or alpha 0 or 1), it scores 1 when the model
+    loses nothing too and 0 otherwise, as scikit-learn does; on a constant
+    target that is the rule ADR 0054 gives ``d2_tweedie``.
+
     Attributes
     ----------
     alpha : float, default 0.5
         The quantile: from 0 to 1, both included.
     d2 : bool, default False
-        Reserved for the D2 score; not a setting here.
+        Whether this is the D2 score rather than the mean loss; not a
+        setting.
     settable : bool, default True
         Whether the alpha can be set by a call.
 
@@ -457,6 +478,14 @@ class PinballLoss(Metric):
     pinball_loss(alpha=0.9)
     >>> sq.metrics.pinball_loss.greater_is_better
     False
+    >>> sq.metrics.d2_pinball(alpha=0.9)
+    d2_pinball(alpha=0.9)
+    >>> import duckdb
+    >>> rel = duckdb.sql(
+    ...     "SELECT * FROM (VALUES (1, 1.5), (2, 2), (3, 2), (4, 5)) t(y, prediction)"
+    ... )
+    >>> sq.metrics.d2_absolute_error.compute(rel, "y")
+    0.375
     """
 
     alpha: float = 0.5
@@ -483,8 +512,8 @@ class PinballLoss(Metric):
         Raises
         ------
         SqlearnError
-            If a setting is not ``alpha``, or the alpha is not a number from
-            0 to 1.
+            If this metric has a fixed alpha, a setting is not ``alpha``, or
+            the alpha is not a number from 0 to 1.
 
         Examples
         --------
@@ -501,7 +530,7 @@ class PinballLoss(Metric):
         ):
             msg = (
                 f"{self.name} was given alpha={alpha!r}. Why: it takes a "
-                "number from 0 to 1, as scikit-learn's mean_pinball_loss. "
+                f"number from 0 to 1, as scikit-learn's {self._reference}. "
                 "Fix: use such an alpha, for example alpha=0.9."
             )
             raise SqlearnError(msg)
@@ -511,14 +540,82 @@ class PinballLoss(Metric):
         """Return the name, with the alpha when it is set."""
         return _named(self, "alpha", 0.5)
 
-    def _expression(self, y: Expression, p: Expression) -> Expression:
+    @property
+    def _reference(self) -> str:
+        """Return the name of scikit-learn's function for this metric."""
+        return "d2_pinball_score" if self.d2 else "mean_pinball_loss"
+
+    def _predict_stages(
+        self, y: Expression, p: Expression
+    ) -> list[dict[str, Expression]]:
+        # The D2 baseline, the target's alpha-quantile as scikit-learn's
+        # _weighted_percentile(y, ones, 100 * alpha, average=True) takes it,
+        # on every row: first each row's place in the sorted target and the
+        # row count, then the mean of the one or two rows it averages.
+        if not self.d2:
+            return []
+        target = y.cast("DOUBLE")
+        place = ColumnExpression(_PLACE)
+        n = ColumnExpression(_ROWS).cast("DOUBLE")
+        # Its arithmetic in doubles: k = 100 * alpha / 100 * n, its
+        # percentile rank scaled back (for alpha 1/17, 100 * alpha / 100 is
+        # one double below alpha). With unit weights the cumulative weights
+        # are 1 to n, so its sorted search is the first row whose place is at
+        # least k (at least the first row, at most the last), and it averages
+        # that row with the next (at most the last) unless the row's place
+        # passes k by more than the double epsilon.
+        k = const(self.alpha * 100.0 / 100.0) * n
+        row = _fn("least", _fn("greatest", _fn("ceil", k), const(1.0)), n)
+        above = (row - k) > const(_EPSILON)
+        plus_one = duckdb.CaseExpression(above, row).otherwise(
+            _fn("least", row + const(1.0), n)
+        )
+        chosen = duckdb.CaseExpression((place == row) | (place == plus_one), target)
+        return [
+            {
+                _PLACE: _fn("row_number").over(order_by=[target]),
+                _ROWS: _fn("count_star").over(),
+            },
+            {"__sqlearn_stage_quantile": _fn("avg", chosen).over()},
+        ]
+
+    def _finish(self, value: SupportsFloat, total: int) -> float:
+        if self.d2:
+            return _d2_finish(self.name, value, total)
+        return super()._finish(value, total)
+
+    def _expression(
+        self, y: Expression, p: Expression, *quantile: Expression
+    ) -> Expression:
         # alpha * max(y - p, 0) + (1 - alpha) * max(p - y, 0), compensated
-        # mean (favg, ADR 0033).
+        # mean (favg, ADR 0033), or for D2 one minus the model's compensated
+        # sum over the quantile's.
         target, mu = y.cast("DOUBLE"), p.cast("DOUBLE")
+        if not self.d2:
+            return _fn("favg", self._row(target, mu))
+        (baseline,) = quantile
+        model = _fn("fsum", self._row(target, mu))
+        guess = _fn("fsum", self._row(target, baseline))
+        # When the quantile loses nothing, 1 if the model loses nothing too,
+        # else 0, as scikit-learn's force_finite has it: a constant target
+        # (minimum equals maximum, ADR 0054), or at alpha 0 or 1 any target,
+        # since its quantile is then the least or the greatest value. The
+        # mean of one or two equal values is exact, so a constant target's
+        # quantile loses exactly 0 and the two tests agree there.
+        exact = duckdb.CaseExpression(model == const(0.0), const(1.0)).otherwise(
+            const(0.0)
+        )
+        nothing = (_fn("min", target) == _fn("max", target)) | (guess == const(0.0))
+        return duckdb.CaseExpression(nothing, exact).otherwise(
+            const(1.0) - model / guess
+        )
+
+    def _row(self, target: Expression, mu: Expression) -> Expression:
+        # One row's pinball loss.
         zero = const(0.0)
         over = _fn("greatest", target - mu, zero)
         under = _fn("greatest", mu - target, zero)
-        return _fn("favg", const(self.alpha) * over + const(1.0 - self.alpha) * under)
+        return const(self.alpha) * over + const(1.0 - self.alpha) * under
 
 
 rmse = Metric("rmse", _rmse, False)
@@ -540,3 +637,7 @@ gamma_deviance = TweedieDeviance(
 )
 pinball_loss = PinballLoss("pinball_loss", _unused, False)
 d2_tweedie = TweedieDeviance("d2_tweedie", _unused, True, d2=True)
+d2_pinball = PinballLoss("d2_pinball", _unused, True, d2=True)
+d2_absolute_error = PinballLoss(
+    "d2_absolute_error", _unused, True, d2=True, settable=False
+)

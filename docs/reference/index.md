@@ -95,6 +95,8 @@ The API of the sqlearn package, generated from its docstrings.
    sqlearn.metrics.poisson_deviance
    sqlearn.metrics.gamma_deviance
    sqlearn.metrics.d2_tweedie
+   sqlearn.metrics.d2_pinball
+   sqlearn.metrics.d2_absolute_error
    sqlearn.metrics.classification_report
    sqlearn.metrics.confusion_matrix
    sqlearn.metrics.roc_curve
