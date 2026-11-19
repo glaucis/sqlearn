@@ -25,7 +25,15 @@ from sqlearn.metrics.probability import (
     log_loss,
     roc_auc,
 )
-from sqlearn.metrics.regression import mae, r2, rmse
+from sqlearn.metrics.regression import (
+    mae,
+    mape,
+    max_error,
+    median_absolute_error,
+    mse,
+    r2,
+    rmse,
+)
 from sqlearn.metrics.tables import classification_report, confusion_matrix
 
 __all__ = [
@@ -45,7 +53,11 @@ __all__ = [
     "fbeta",
     "log_loss",
     "mae",
+    "mape",
+    "max_error",
     "mcc",
+    "median_absolute_error",
+    "mse",
     "precision",
     "precision_recall_curve",
     "r2",

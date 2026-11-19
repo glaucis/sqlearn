@@ -1,10 +1,18 @@
-"""Tests of rmse, mae and r2 against scikit-learn."""
+"""Tests of the regression metrics against scikit-learn."""
 
 import numpy as np
 import pandas as pd
 import pytest
 from sklearn.linear_model import Ridge
-from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error
+from sklearn.metrics import (
+    max_error,
+    mean_absolute_error,
+    mean_absolute_percentage_error,
+    mean_squared_error,
+    median_absolute_error,
+    r2_score,
+    root_mean_squared_error,
+)
 
 import sqlearn as sq
 from sqlearn._config import connection
@@ -24,6 +32,10 @@ def rel(frame):
         (sq.metrics.rmse, root_mean_squared_error),
         (sq.metrics.mae, mean_absolute_error),
         (sq.metrics.r2, r2_score),
+        (sq.metrics.mse, mean_squared_error),
+        (sq.metrics.max_error, max_error),
+        (sq.metrics.median_absolute_error, median_absolute_error),
+        (sq.metrics.mape, mean_absolute_percentage_error),
     ],
 )
 def test_regression_metrics_match_scikit_learn(metric, sk):
@@ -37,6 +49,10 @@ def test_the_direction_of_each_metric():
     """Errors are better lower, r2 higher."""
     assert not sq.metrics.rmse.greater_is_better
     assert not sq.metrics.mae.greater_is_better
+    assert not sq.metrics.mse.greater_is_better
+    assert not sq.metrics.max_error.greater_is_better
+    assert not sq.metrics.median_absolute_error.greater_is_better
+    assert not sq.metrics.mape.greater_is_better
     assert sq.metrics.r2.greater_is_better
 
 
@@ -58,7 +74,18 @@ def test_r2_survives_a_large_offset():
     assert got == pytest.approx(r2_score(y, p), rel=1e-10)
 
 
-@pytest.mark.parametrize("metric", [sq.metrics.rmse, sq.metrics.mae, sq.metrics.r2])
+@pytest.mark.parametrize(
+    "metric",
+    [
+        sq.metrics.rmse,
+        sq.metrics.mae,
+        sq.metrics.r2,
+        sq.metrics.mse,
+        sq.metrics.max_error,
+        sq.metrics.median_absolute_error,
+        sq.metrics.mape,
+    ],
+)
 def test_regression_metrics_refuse_missing_values_and_no_rows(metric):
     """NULL, NaN and an empty relation have no score."""
     good = pd.DataFrame({"y": [1.0, 2.0], "prediction": [1.0, 2.0]})
@@ -81,6 +108,18 @@ def test_regression_metrics_refuse_missing_values_and_no_rows(metric):
             ),
             "y",
         )
+
+
+def test_mape_of_a_zero_target_is_scikit_learns_large_number():
+    """A zero target divides by machine epsilon, as scikit-learn does."""
+    frame = pd.DataFrame({"y": [0.0, 1.0], "prediction": [1.0, 1.0]})
+    assert sq.metrics.mape.compute(rel(frame), "y") == 2251799813685248.0
+
+
+def test_median_absolute_error_of_an_even_count_is_the_middle_mean():
+    """Four errors have the mean of the middle two as their median."""
+    frame = pd.DataFrame({"y": [1, 2, 3, 4], "prediction": [1.5, 2, 2, 5]})
+    assert sq.metrics.median_absolute_error.compute(rel(frame), "y") == 0.75
 
 
 def test_a_search_minimises_rmse():
