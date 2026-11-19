@@ -202,11 +202,17 @@ class _Univariate(Step):
             ]
             if constant:
                 names = ", ".join(map(repr, constant))
+                which = (
+                    f"column {names} is constant, so its"
+                    if len(constant) == 1
+                    else f"columns {names} are constant, so their"
+                )
                 text = (
-                    f"{self._call}: columns {names} are constant, so their "
-                    "f_classif score is NaN and they rank lowest, as "
-                    "scikit-learn's f_classif warns. Fix: drop them first "
-                    "with sq.select.variance(), or leave them out with cols=."
+                    f"{self._call}: {which} "
+                    "f_classif score is NaN, which ranks lowest, as "
+                    "scikit-learn's f_classif warns. Fix: drop constant "
+                    "columns first with sq.select.variance(), or leave them "
+                    "out with cols=."
                 )
                 warnings.warn(text, SqlearnWarning, skip_file_prefixes=PACKAGE_FILES)
         self._warn(len(values))

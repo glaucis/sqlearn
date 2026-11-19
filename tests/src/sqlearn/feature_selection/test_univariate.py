@@ -62,13 +62,21 @@ def test_a_constant_column_ranks_last_and_is_warned_about():
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")  # its own: constant, divide by 0
         sk = SelectKBest(f_classif, k=6).fit(frame, y)
-    with pytest.warns(SqlearnWarning, match="'flat'") as caught:
+    with pytest.warns(SqlearnWarning, match="column 'flat' is constant") as caught:
         pipe = learn(sq.select.best(k=6), frame, y)
     assert len([w for w in caught if "flat" in str(w.message)]) == 1
     assert "Fix:" in str(caught[0].message)
     assert np.isnan(pipe["best"].scores_["flat"])
     assert pipe.columns_out_ == list(sk.get_feature_names_out())
     assert "flat" not in pipe.columns_out_
+
+
+def test_several_constant_columns_are_named_in_one_warning():
+    """One warning names every constant column."""
+    frame, y = data()
+    frame = frame.assign(flat=1.0, level=0.0)
+    with pytest.warns(SqlearnWarning, match="columns 'flat', 'level' are constant"):
+        learn(sq.select.best(k=2), frame, y)
 
 
 def test_k_above_the_column_count_keeps_all_and_warns():

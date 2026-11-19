@@ -126,13 +126,28 @@ at the call.
 
 - `f_classif` of a constant column is NaN (it ranks lowest), as scikit-learn's,
   which also warns that the column is constant: so does sqlearn, once per step
-  and naming the columns. The per-class sums are of the column less its
-  minimum, combined exactly, so a constant column is NaN whatever the
-  rounding of its value (scikit-learn's own sums can leave a constant 0.1
-  at a score of -0.0).
+  and naming the constant columns. scikit-learn's wider condition (it also
+  names a column constant within each class, whenever some column's
+  between-class spread is 0) is not copied: it is a warning, not a result.
 - `f_regression` with `force_finite=True`: a constant column or a constant
-  target scores 0, and an F that comes out infinite (a correlation of exactly
-  1 or -1) is the largest double, as scikit-learn's.
+  target scores 0, at two rows every column scores 0, and an F that comes out
+  infinite (a correlation of 1 or -1 in the variances and the covariance
+  learned) scores the largest double.
+- **The exact score (Tomas, 2026-11-19).** sqlearn combines what it learned
+  exactly (the per-class sums of the column less its minimum; the variances
+  and the covariance), so its score departs from the exact one only by the
+  rounding of those sums. Where scikit-learn's own rounding departs from
+  it, sqlearn gives the exact score, and the columns kept can then differ:
+  a constant 0.1 scores NaN for `f_classif` (scikit-learn's sums leave
+  -0.0); a column far from zero, such as 1e6 plus noise, scores within
+  rounding of the exact value, where scikit-learn's cancellation is about 1%
+  off (`f_classif` 0.37616 exact against 0.38044, `f_regression` 2.41271
+  against 2.41348). An exactly linear column scores the largest double for
+  `f_regression` when the learned variances and covariance come out
+  consistent, and otherwise a large finite F (2y + 1 over 60 rows: about
+  4e17), far above any column that is not linear; scikit-learn's r² can
+  round just below 1 (a large finite F) or above it (a negative F, which
+  ranks lowest).
 - `chi2` refuses a negative value in a scored column, as scikit-learn refuses
   it, with a `Fix:` line (`sq.scale.minmax`, or `f_classif`).
 - A missing value (NULL, NaN) in a scored column is refused for all three, as
@@ -190,8 +205,12 @@ which refits for each `k` and gets the same scores.
 
 ## 6. Numbers and p-values
 
-- The F and chi² scores are computed from compensated sums (ADR 0033), within
-  bounds set from measurement against exact values (ADR 0016).
+- `f_classif` and `chi2` are computed from compensated sums (`fsum`, ADR
+  0033) of the column less its minimum, combined exactly. `f_regression` uses
+  DuckDB's covariance and variance (`covar_pop`, `var_pop`: a running update
+  about the mean, as `r2`'s total sum of squares). Both are held within
+  bounds set by the validation runner's measurement against exact values
+  (ADR 0016).
 - scikit-learn's `pvalues_` need the F and chi² distributions. They select
   nothing in this spec (selection by p-value is §9), so sqlearn does not
   compute them: the step has no `pvalues_`, and its reference page says so.
