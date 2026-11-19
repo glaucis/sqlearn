@@ -1,7 +1,7 @@
 """Regression metrics, each one aggregate query.
 
 The metrics are rmse, mae, r2, mse, max_error, median_absolute_error,
-mape, explained_variance, msle, rmsle, and the deviances tweedie_deviance,
+mape, explained_variance, msle, rmsle, pinball_loss, and the deviances tweedie_deviance,
 poisson_deviance and gamma_deviance.
 """
 
@@ -18,6 +18,7 @@ from sqlearn.metrics.accuracy import Metric
 
 __all__ = [
     "LogError",
+    "PinballLoss",
     "TweedieDeviance",
     "explained_variance",
     "gamma_deviance",
@@ -27,6 +28,7 @@ __all__ = [
     "median_absolute_error",
     "mse",
     "msle",
+    "pinball_loss",
     "poisson_deviance",
     "r2",
     "rmse",
@@ -176,6 +178,34 @@ def _positive(x: Expression) -> Expression:
     return duckdb.CaseExpression(x > const(0.0), x).otherwise(const(1.0))
 
 
+def _only_setting(
+    metric: "TweedieDeviance | PinballLoss", settings: dict[str, object], only: str
+) -> None:
+    # The refusals shared by the metrics with one setting: a fixed metric
+    # takes none, and no other name is one.
+    if not metric.settable:
+        Metric.__call__(metric, **settings)  # always raises: no settings here
+        raise AssertionError("unreachable")  # pragma: no cover
+    unknown = [k for k in settings if k != only]
+    if unknown:
+        msg = (
+            f"{metric.name} has no setting {unknown[0]}=. Why: its only "
+            f"setting is {only}. Fix: use {only}=, or "
+            f"sq.metrics.{metric.name} as it is."
+        )
+        raise SqlearnError(msg)
+
+
+def _named(
+    metric: "TweedieDeviance | PinballLoss", setting: str, default: float
+) -> str:
+    # The name, with the setting when it is set to other than its default.
+    value = getattr(metric, setting)
+    if metric.settable and value != default:
+        return f"{metric.name}({setting}={value!r})"
+    return metric.name
+
+
 @dataclass(frozen=True)
 class TweedieDeviance(Metric):
     """The mean Tweedie deviance, as scikit-learn's ``mean_tweedie_deviance``.
@@ -237,17 +267,7 @@ class TweedieDeviance(Metric):
         >>> sq.metrics.tweedie_deviance(power=2)
         tweedie_deviance(power=2.0)
         """
-        if not self.settable:
-            super().__call__(**settings)  # always raises: no settings here
-            raise AssertionError("unreachable")  # pragma: no cover
-        unknown = [k for k in settings if k != "power"]
-        if unknown:
-            msg = (
-                f"{self.name} has no setting {unknown[0]}=. Why: its only "
-                "setting is power. Fix: use power=, or "
-                f"sq.metrics.{self.name} as it is."
-            )
-            raise SqlearnError(msg)
+        _only_setting(self, settings, "power")
         power = settings.get("power", self.power)
         if (
             isinstance(power, bool)
@@ -266,9 +286,7 @@ class TweedieDeviance(Metric):
 
     def __repr__(self) -> str:
         """Return the name, with the power when it is set."""
-        if self.settable and self.power != 0.0:
-            return f"{self.name}(power={self.power!r})"
-        return self.name
+        return _named(self, "power", 0.0)
 
     def _expression(self, y: Expression, p: Expression) -> Expression:
         # scikit-learn's per-row deviance, then the compensated mean (favg,
@@ -326,6 +344,94 @@ class TweedieDeviance(Metric):
         return rows
 
 
+@dataclass(frozen=True)
+class PinballLoss(Metric):
+    """The mean pinball loss, as scikit-learn's ``mean_pinball_loss``.
+
+    A row costs ``alpha`` times how far the target is above the prediction,
+    and ``1 - alpha`` times how far it is below. Alpha 0.5 is half the mean
+    absolute error. No row is refused.
+
+    Attributes
+    ----------
+    alpha : float, default 0.5
+        The quantile: from 0 to 1, both included.
+    d2 : bool, default False
+        Reserved for the D2 score; not a setting here.
+    settable : bool, default True
+        Whether the alpha can be set by a call.
+
+    Examples
+    --------
+    >>> import sqlearn as sq
+    >>> sq.metrics.pinball_loss(alpha=0.9)
+    pinball_loss(alpha=0.9)
+    >>> sq.metrics.pinball_loss.greater_is_better
+    False
+    """
+
+    alpha: float = 0.5
+    d2: bool = False
+    settable: bool = True
+
+    def __post_init__(self) -> None:
+        """Set the aggregate, which reads this metric's alpha."""
+        object.__setattr__(self, "expression", self._expression)
+
+    def __call__(self, **settings: object) -> "PinballLoss":
+        """Return a copy with the given alpha.
+
+        Parameters
+        ----------
+        **settings : object
+            ``alpha``: a number from 0 to 1.
+
+        Returns
+        -------
+        PinballLoss
+            The configured copy.
+
+        Raises
+        ------
+        SqlearnError
+            If a setting is not ``alpha``, or the alpha is not a number from
+            0 to 1.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> sq.metrics.pinball_loss(alpha=0.1)
+        pinball_loss(alpha=0.1)
+        """
+        _only_setting(self, settings, "alpha")
+        alpha = settings.get("alpha", self.alpha)
+        if (
+            isinstance(alpha, bool)
+            or not isinstance(alpha, Real)
+            or not 0.0 <= float(alpha) <= 1.0
+        ):
+            msg = (
+                f"{self.name} was given alpha={alpha!r}. Why: it takes a "
+                "number from 0 to 1, as scikit-learn's mean_pinball_loss. "
+                "Fix: use such an alpha, for example alpha=0.9."
+            )
+            raise SqlearnError(msg)
+        return replace(self, alpha=float(alpha))
+
+    def __repr__(self) -> str:
+        """Return the name, with the alpha when it is set."""
+        return _named(self, "alpha", 0.5)
+
+    def _expression(self, y: Expression, p: Expression) -> Expression:
+        # alpha * max(y - p, 0) + (1 - alpha) * max(p - y, 0), compensated
+        # mean (favg, ADR 0033).
+        target, mu = y.cast("DOUBLE"), p.cast("DOUBLE")
+        zero = const(0.0)
+        over = _fn("greatest", target - mu, zero)
+        under = _fn("greatest", mu - target, zero)
+        return _fn("favg", const(self.alpha) * over + const(1.0 - self.alpha) * under)
+
+
 rmse = Metric("rmse", _rmse, False)
 mae = Metric("mae", _mae, False)
 r2 = Metric("r2", _r2, True)
@@ -343,3 +449,4 @@ poisson_deviance = TweedieDeviance(
 gamma_deviance = TweedieDeviance(
     "gamma_deviance", _unused, False, power=2.0, settable=False
 )
+pinball_loss = PinballLoss("pinball_loss", _unused, False)

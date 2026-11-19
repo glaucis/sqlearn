@@ -10,6 +10,7 @@ from sklearn.metrics import (
     mean_absolute_error,
     mean_absolute_percentage_error,
     mean_gamma_deviance,
+    mean_pinball_loss,
     mean_poisson_deviance,
     mean_squared_error,
     mean_squared_log_error,
@@ -344,6 +345,66 @@ def test_a_search_by_a_deviance_with_a_power():
         pipe,
         params={"model__alpha": [0.01, 1000.0]},
         metric=sq.metrics.tweedie_deviance(power=1.5),
+        folds=sq.folds.kfold(3),
+    )
+    assert search.train(data, target="y").best_params_ == {"model__alpha": 0.01}
+
+
+@pytest.mark.parametrize("alpha", [0, 0.1, 0.5, 0.9, 1])
+def test_pinball_loss_matches_scikit_learn(alpha):
+    """Each alpha scores as scikit-learn's mean pinball loss."""
+    y, p = RNG.normal(size=300), RNG.normal(size=300)
+    frame = pd.DataFrame({"y": y, "prediction": p})
+    got = sq.metrics.pinball_loss(alpha=alpha).compute(rel(frame), "y")
+    assert got == pytest.approx(mean_pinball_loss(y, p, alpha=alpha), rel=1e-12)
+
+
+def test_pinball_loss_on_the_probe_data():
+    """Alpha 0.9 on the fixed data gives the probed value."""
+    frame = pd.DataFrame({"y": Y4, "prediction": P4})
+    got = sq.metrics.pinball_loss(alpha=0.9).compute(rel(frame), "y")
+    assert got == pytest.approx(0.26249999999999996, rel=1e-12)
+    assert got == pytest.approx(mean_pinball_loss(Y4, P4, alpha=0.9), rel=1e-12)
+
+
+@pytest.mark.parametrize(
+    "settings",
+    [
+        {"alpha": 1.5},
+        {"alpha": -0.1},
+        {"alpha": True},
+        {"alpha": "0.5"},
+        {"alpha": float("nan")},
+        {"alpha": float("inf")},
+        {"power": 1},
+    ],
+)
+def test_pinball_loss_takes_only_alpha_in_zero_to_one(settings):
+    """A bad alpha, or another setting, is refused at the call."""
+    with pytest.raises(SqlearnError, match="Fix:"):
+        sq.metrics.pinball_loss(**settings)
+
+
+def test_pinball_loss_repr_shows_an_alpha():
+    """The repr names the alpha once it is set."""
+    assert repr(sq.metrics.pinball_loss) == "pinball_loss"
+    assert repr(sq.metrics.pinball_loss(alpha=0.9)) == "pinball_loss(alpha=0.9)"
+
+
+def test_a_search_by_a_pinball_loss():
+    """Lower loss wins: a search runs with an alpha and picks by min."""
+    x = RNG.uniform(1, 3, size=(120, 2))
+    data = pd.DataFrame(
+        {
+            "a": x[:, 0],
+            "b": x[:, 1],
+            "y": 3 * x[:, 0] + 2 * x[:, 1] + RNG.uniform(0.1, 0.5, size=120),
+        }
+    )
+    search = sq.search(
+        sq.Pipeline([("model", Ridge())]),
+        params={"model__alpha": [0.01, 1000.0]},
+        metric=sq.metrics.pinball_loss(alpha=0.9),
         folds=sq.folds.kfold(3),
     )
     assert search.train(data, target="y").best_params_ == {"model__alpha": 0.01}

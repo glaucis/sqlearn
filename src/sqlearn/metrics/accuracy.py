@@ -118,8 +118,8 @@ class Metric:
         ------
         SqlearnError
             Always: only precision, recall, f1, fbeta, balanced_accuracy,
-            average_precision, brier and tweedie_deviance take
-            settings.
+            average_precision, brier, pinball_loss and tweedie_deviance
+            take settings.
 
         Examples
         --------
@@ -133,7 +133,8 @@ class Metric:
         msg = (
             f"{self.name} takes no settings, and was given {given}. Why: "
             "only the metrics precision, recall, f1, fbeta, balanced_accuracy, "
-            "average_precision, brier and tweedie_deviance have settings. "
+            "average_precision, brier, pinball_loss and tweedie_deviance have "
+            "settings. "
             "Fix: use "
             f"sq.metrics.{self.name} as it is."
         )

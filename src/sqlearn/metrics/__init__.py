@@ -26,6 +26,7 @@ from sqlearn.metrics.probability import (
     roc_auc,
 )
 from sqlearn.metrics.regression import (
+    PinballLoss,
     TweedieDeviance,
     explained_variance,
     gamma_deviance,
@@ -35,6 +36,7 @@ from sqlearn.metrics.regression import (
     median_absolute_error,
     mse,
     msle,
+    pinball_loss,
     poisson_deviance,
     r2,
     rmse,
@@ -50,6 +52,7 @@ __all__ = [
     "CountMetric",
     "Metric",
     "MissingClassError",
+    "PinballLoss",
     "TweedieDeviance",
     "accuracy",
     "average_precision",
@@ -69,6 +72,7 @@ __all__ = [
     "median_absolute_error",
     "mse",
     "msle",
+    "pinball_loss",
     "poisson_deviance",
     "precision",
     "precision_recall_curve",
