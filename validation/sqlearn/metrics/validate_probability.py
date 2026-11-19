@@ -1,4 +1,4 @@
-"""Validate log_loss, roc_auc and average_precision against exact arithmetic.
+"""Validate log_loss, roc_auc, average_precision and brier against exact arithmetic.
 
 The canonical values are computed in pure Python from the doubles' exact
 values (ADR 0016). log_loss: minus the mean of the natural log of each row's
@@ -11,7 +11,10 @@ second class, more average the classes with equal weight (scikit-learn's
 against the rest, the sum over the distinct scores, highest first, of
 (positives at the score) times (positives at or above it over rows at or above
 it), over the positives, as a `Fraction`; two classes score the second class,
-more average the classes. Beside sqlearn: DuckDB alone
+more average the classes. brier: the mean over rows of the sum over the
+classes of (probability - 1 for the row's class, else 0) squared, halved with
+two classes (scikit-learn's ``scale_by_half="auto"``), as a `Fraction`.
+Beside sqlearn: DuckDB alone
 (and at one thread), numpy (with scipy's average ranks) and scikit-learn.
 Probabilities with NULL or NaN, and no rows, have no right answer: sqlearn
 must refuse them; so must roc_auc where every target is one class.
@@ -26,7 +29,12 @@ import duckdb
 import mpmath
 import numpy as np
 from scipy.stats import rankdata
-from sklearn.metrics import average_precision_score, log_loss, roc_auc_score
+from sklearn.metrics import (
+    average_precision_score,
+    brier_score_loss,
+    log_loss,
+    roc_auc_score,
+)
 
 import sqlearn as sq
 from validation import _cases
@@ -43,8 +51,10 @@ PROBA = "__sqlearn_proba_"
 # quotient, the steps are summed with compensation (fsum, ADR 0033), and the
 # sum is divided once per class, so the roundings of the quotients are all
 # the error there is. The plain-DuckDB reference answers (DuckDB's own
-# sum, up to 14 doubles off) are flagged as anomalies: expected.
-BOUNDS = {"log_loss": 2, "roc_auc": 1, "average_precision": 1}
+# sum, up to 14 doubles off) are flagged as anomalies: expected. brier, first
+# measured at 1 double at most (2026-11-19): each square of a difference is a
+# rounded double before the compensated mean (favg, ADR 0033).
+BOUNDS = {"log_loss": 2, "roc_auc": 1, "average_precision": 1, "brier": 1}
 
 
 def _draw(
@@ -156,7 +166,18 @@ def _exact_average_precision(y: tuple, proba: list[tuple]) -> Fraction | None:
     return sum(areas, Fraction(0)) / len(areas)
 
 
+def _exact_brier(y: tuple, proba: list[tuple]) -> Fraction:
+    total = Fraction(0)
+    for i, label in enumerate(y):
+        for j, column in enumerate(proba):
+            total += (Fraction(column[i]) - (1 if label == j else 0)) ** 2
+    score = total / len(y)
+    return score / 2 if len(proba) == 2 else score
+
+
 def _exact(metric: str, y: tuple, proba: list[tuple]) -> Fraction | mpmath.mpf | None:
+    if metric == "brier":
+        return _exact_brier(y, proba)
     if metric == "log_loss":
         return _exact_log_loss(y, proba)
     if metric == "average_precision":
@@ -173,6 +194,12 @@ def _sql(metric: str, classes: int) -> str:
             f"SELECT -favg(ln(greatest({EPS!r}, least(CASE y {own} END, "
             f"1 - {EPS!r})))) FROM data"
         )
+    if metric == "brier":
+        terms = " + ".join(
+            f"pow({c} - CAST(y = {j} AS DOUBLE), 2)" for j, c in enumerate(cols)
+        )
+        half = " * 0.5" if classes == 2 else ""
+        return f"SELECT favg({terms}){half} FROM data"
     scored = [(1, cols[1])] if classes == 2 else list(enumerate(cols))
     if metric == "average_precision":
         areas = [
@@ -215,6 +242,10 @@ def _numpy(metric: str, y: np.ndarray, proba: np.ndarray) -> float:
     if metric == "log_loss":
         own = proba[np.arange(len(y)), y]
         return float(-np.mean(np.log(np.clip(own, EPS, 1 - EPS))))
+    if metric == "brier":
+        onehot = np.eye(proba.shape[1])[y]
+        score = float(np.mean(np.sum((proba - onehot) ** 2, axis=1)))
+        return score / 2 if proba.shape[1] == 2 else score
     scored = [1] if proba.shape[1] == 2 else range(proba.shape[1])
     areas = []
     for j in scored:
@@ -239,6 +270,8 @@ def _sklearn(metric: str, y: np.ndarray, proba: np.ndarray) -> float:
     labels = list(range(proba.shape[1]))
     if metric == "log_loss":
         return log_loss(y, proba, labels=labels)
+    if metric == "brier":
+        return brier_score_loss(y, proba, labels=labels)
     score = proba[:, 1] if proba.shape[1] == 2 else proba
     if metric == "average_precision":
         return average_precision_score(y, score)
@@ -246,7 +279,7 @@ def _sklearn(metric: str, y: np.ndarray, proba: np.ndarray) -> float:
 
 
 def cases() -> list[dict]:
-    """Return the cases of the three metrics: each dataset and reference."""
+    """Return the cases of the four metrics: each dataset and reference."""
     out = []
     for data, y, proba in _datasets():
         values = [v for p in proba for v in p]
