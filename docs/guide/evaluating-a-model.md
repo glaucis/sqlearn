@@ -5,9 +5,9 @@ kernelspec:
   display_name: Python 3
   language: python
 type: guide
-tags: [metrics, fbeta, average-precision, confusion-matrix, classification-report, roc-curve, precision-recall-curve, evaluation]
-summary: "Scoring a trained classifier beyond accuracy: fbeta, average_precision, the confusion matrix and classification report as relations, and the ROC and precision-recall curves as relations you plot with your own library."
-related: [docs/specs/library-more-metrics.md, docs/adr/0049-table-metrics-are-relations.md, docs/guide/tuning-a-model.md, docs/guide/from-scikit-learn.md]
+tags: [metrics, fbeta, average-precision, balanced-accuracy, mcc, brier, confusion-matrix, classification-report, roc-curve, precision-recall-curve, evaluation]
+summary: "Scoring a trained classifier beyond accuracy: fbeta, average_precision, balanced accuracy, MCC and Brier for imbalanced classes, the confusion matrix and classification report as relations, and the ROC and precision-recall curves as relations you plot with your own library."
+related: [docs/specs/library-more-metrics.md, docs/specs/library-balanced-scores.md, docs/adr/0049-table-metrics-are-relations.md, docs/guide/tuning-a-model.md, docs/guide/from-scikit-learn.md]
 ---
 
 # Evaluating a model
@@ -80,6 +80,40 @@ With two classes it scores the class `pos_label` (1 by default; name another
 with `sq.metrics.average_precision(pos_label="b")`). A `pos_label` that is not
 one of the model's classes is refused, even on a fold that holds only one
 class, where scikit-learn 1.9.1 would score 0.0.
+
+## Scores for imbalanced classes
+
+When one class is rare, accuracy flatters. A model that always says 0, on 95
+rows of 0 and 5 of 1, is right 95 times in 100, yet it has learned nothing.
+`balanced_accuracy` is the mean recall over the classes, and `mcc`, the
+Matthews correlation coefficient, is 0 for a prediction no better than
+chance and 1 for a perfect one.
+
+```{code-cell} python
+rare = con.sql(
+    "SELECT 0 AS target, 0 AS prediction FROM range(95) "
+    "UNION ALL SELECT 1, 0 FROM range(5)"
+)
+{
+    name: getattr(sq.metrics, name).compute(rare, "target")
+    for name in ("accuracy", "balanced_accuracy", "mcc")
+}
+```
+
+`sq.metrics.balanced_accuracy(adjusted=True)` rescales it so that chance
+scores 0, as scikit-learn's `adjusted=True`.
+
+`brier` judges the probabilities themselves: the mean squared distance
+between each row's probabilities and its true class, halved with two classes.
+Lower is better, and it reads the same columns as `average_precision`.
+
+```{code-cell} python
+sq.metrics.brier.compute(rows, "target", classes=pipe.classes_)
+```
+
+Its one setting is `scale_by_half=` (`True`, `False` or `"auto"`, the
+default). scikit-learn's `pos_label=` and `labels=` change nothing when every
+probability column is given, as sqlearn gives them, so they are not settings.
 
 ## Where it goes wrong: the confusion matrix
 

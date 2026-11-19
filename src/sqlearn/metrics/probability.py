@@ -1,4 +1,4 @@
-"""Probability metrics: log_loss, roc_auc and average_precision.
+"""Probability metrics: log_loss, roc_auc, average_precision and brier.
 
 They read the model's predict_proba. Each probability column belongs to one
 class, in the order of the model's ``classes_`` (spec §7); the metrics take
@@ -24,7 +24,14 @@ from sqlearn._expr import const
 from sqlearn.metrics.accuracy import Metric
 from sqlearn.metrics.classification import _type_hint
 
-__all__ = ["AveragePrecision", "average_precision", "log_loss", "roc_auc"]
+__all__ = [
+    "AveragePrecision",
+    "BrierScore",
+    "average_precision",
+    "brier",
+    "log_loss",
+    "roc_auc",
+]
 
 _EPS = sys.float_info.epsilon
 
@@ -327,3 +334,125 @@ class AveragePrecision(Metric):
 average_precision = AveragePrecision(
     "average_precision", _unused, True, needs="predict_proba"
 )
+
+
+_HALVES = (True, False, "auto")
+
+
+@dataclass(frozen=True)
+class BrierScore(Metric):
+    """The Brier score, as scikit-learn's ``brier_score_loss``.
+
+    The mean over rows of the sum, over the classes, of the squared
+    difference between a class's probability and 1 for the row's class, 0
+    for the others; halved when ``scale_by_half`` is True, or ``"auto"`` with
+    two classes, so that two classes score as one column would.
+
+    Attributes
+    ----------
+    scale_by_half : bool or "auto", default "auto"
+        Whether to halve the score.
+
+    Notes
+    -----
+    scikit-learn's ``pos_label=`` and ``labels=`` change nothing when every
+    probability column is given, as sqlearn always gives them, and the
+    classes come from the model; so they are not settings here. A class with
+    no scored row is scored, as scikit-learn scores it given ``labels=``. The
+    mean is compensated (ADR 0033).
+
+    Examples
+    --------
+    >>> import duckdb
+    >>> import sqlearn as sq
+    >>> rel = duckdb.sql(
+    ...     "SELECT * FROM (VALUES (0, 0.9, 0.1), (1, 0.1, 0.9)) "
+    ...     "t(y, __sqlearn_proba_0, __sqlearn_proba_1)"
+    ... )
+    >>> round(sq.metrics.brier.compute(rel, "y", classes=[0, 1]), 4)
+    0.01
+    """
+
+    scale_by_half: bool | str = "auto"
+
+    def __post_init__(self) -> None:
+        """Set the aggregate, which reads this metric's setting."""
+        object.__setattr__(self, "expression", self._expression)
+
+    def __call__(self, **settings: object) -> "BrierScore":
+        """Return a copy with the given setting.
+
+        Parameters
+        ----------
+        **settings : object
+            ``scale_by_half``: True, False or ``"auto"``.
+
+        Returns
+        -------
+        BrierScore
+            The configured copy.
+
+        Raises
+        ------
+        SqlearnError
+            If a setting is not ``scale_by_half``, or its value is not one of
+            True, False and ``"auto"``.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> sq.metrics.brier(scale_by_half=False)
+        brier(scale_by_half=False)
+        """
+        unknown = [k for k in settings if k != "scale_by_half"]
+        if unknown:
+            msg = (
+                f"{self.name} has no setting {unknown[0]}=. Why: its only "
+                "setting is scale_by_half; given every probability column, as "
+                "sqlearn gives them, scikit-learn's pos_label= and labels= "
+                "change nothing, and the classes come from the model. Fix: "
+                f"use scale_by_half=, or sq.metrics.{self.name} as it is."
+            )
+            raise SqlearnError(msg)
+        half = settings.get("scale_by_half", self.scale_by_half)
+        if not any(half is h or (isinstance(half, str) and half == h) for h in _HALVES):
+            msg = (
+                f"{self.name} was given scale_by_half={half!r}. Why: it takes "
+                'True, False or "auto", as scikit-learn. Fix: use one of them.'
+            )
+            raise SqlearnError(msg)
+        return replace(self, **settings)  # type: ignore[arg-type]
+
+    def __repr__(self) -> str:
+        """Return the name, with scale_by_half when it is not "auto"."""
+        if isinstance(self.scale_by_half, str):
+            return self.name
+        return f"{self.name}(scale_by_half={self.scale_by_half!r})"
+
+    def _expression(
+        self, y: Expression, probabilities: list[Expression], classes: list[object]
+    ) -> Expression:
+        # Each row's squared distance to its one-hot target, summed over the
+        # classes, then the compensated mean (favg, ADR 0033) of the rows.
+        terms = [
+            _fn(
+                "pow",
+                p.cast("DOUBLE")
+                - duckdb.CaseExpression(y == const(c), const(1.0)).otherwise(
+                    const(0.0)
+                ),
+                const(2.0),
+            )
+            for p, c in zip(probabilities, classes, strict=True)
+        ]
+        row = terms[0]
+        for term in terms[1:]:
+            row = row + term
+        half = self.scale_by_half is True or (
+            self.scale_by_half == "auto" and len(classes) == 2
+        )
+        mean = _fn("favg", row)
+        return mean * const(0.5) if half else mean
+
+
+brier = BrierScore("brier", _unused, False, needs="predict_proba")

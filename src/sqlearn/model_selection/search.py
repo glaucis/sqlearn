@@ -547,12 +547,24 @@ class Search:
         # as GridSearchCV ranks it; with every mean NaN there is no best.
         scorable = [i for i, m in enumerate(means) if not math.isnan(m)]
         if not scorable:
+            if hasattr(self.metric, "zero_division"):
+                why = (
+                    "Why: a fold of each setting divided by zero, and "
+                    "zero_division=nan makes that score NaN. Fix: give the "
+                    'metric zero_division=0.0 (or "warn"), or use folds where '
+                    "every class is predicted."
+                )
+            else:
+                why = (
+                    "Why: a fold of each setting scored NaN; "
+                    "balanced_accuracy(adjusted=True) does on held rows of one "
+                    "class, all predicted right. Fix: use folds whose held rows "
+                    "hold two classes or more (stratified, or fewer folds), or "
+                    "leave adjusted= out."
+                )
             msg = (
                 f"every setting scored NaN with {self.metric!r}, so none is "
-                "the best. Why: a fold of each setting divided by zero, and "
-                "zero_division=nan makes that score NaN. Fix: give the "
-                'metric zero_division=0.0 (or "warn"), or use folds where '
-                "every class is predicted."
+                f"the best. {why}"
             )
             raise SqlearnError(msg)
         pick = max if self.metric.greater_is_better else min

@@ -5,7 +5,12 @@ import warnings
 import numpy as np
 import pandas as pd
 import pytest
-from sklearn.metrics import average_precision_score, log_loss, roc_auc_score
+from sklearn.metrics import (
+    average_precision_score,
+    brier_score_loss,
+    log_loss,
+    roc_auc_score,
+)
 
 import sqlearn as sq
 from sqlearn._config import connection
@@ -70,6 +75,8 @@ def test_the_direction_and_method_of_each_metric():
     assert sq.metrics.log_loss.needs == "predict_proba"
     assert sq.metrics.roc_auc.needs == "predict_proba"
     assert sq.metrics.accuracy.needs == "predict"
+    assert not sq.metrics.brier.greater_is_better
+    assert sq.metrics.brier.needs == "predict_proba"
 
 
 def test_log_loss_clips_certain_probabilities_as_scikit_learn(con):
@@ -275,3 +282,67 @@ def test_average_precision_matches_pos_label_by_value(con, classes, pos_label):
     )
     expected = average_precision_score(target, proba[:, 1], pos_label=pos_label)
     assert got == pytest.approx(expected, rel=1e-12)
+
+
+def proba_rel(y, matrix):
+    """Return a relation of target `y` and one probability column per class."""
+    frame = pd.DataFrame(
+        {"y": y, **{f"{PROBA}{j}": matrix[:, j] for j in range(matrix.shape[1])}}
+    )
+    return connection().from_df(frame)
+
+
+TWO = np.array([[0.9, 0.1], [0.1, 0.9], [0.2, 0.8]])
+THREE = np.array([[0.7, 0.2, 0.1], [0.1, 0.8, 0.1], [0.2, 0.2, 0.6]])
+
+
+@pytest.mark.parametrize(
+    ("y", "matrix", "half"),
+    [
+        ([0, 1, 1], TWO, "auto"),
+        ([0, 1, 1], TWO, False),
+        ([0, 1, 1], TWO, True),
+        ([0, 1, 2], THREE, "auto"),
+        ([0, 1, 2], THREE, True),
+        ([2, 2, 0], THREE, "auto"),
+    ],
+)
+def test_brier_matches_scikit_learn_binary_and_multiclass(y, matrix, half):
+    """The mean squared distance to the one-hot target, halved as scikit-learn."""
+    classes = list(range(matrix.shape[1]))
+    metric = sq.metrics.brier(scale_by_half=half)
+    got = metric.compute(proba_rel(y, matrix), "y", classes=classes)
+    expected = brier_score_loss(y, matrix, labels=classes, scale_by_half=half)
+    assert abs(got - expected) <= 2 * np.spacing(expected)
+
+
+def test_brier_scores_a_class_with_no_row():
+    """Every row of one class: the model's classes still give the score."""
+    got = sq.metrics.brier.compute(proba_rel([1, 1, 1], TWO), "y", classes=[0, 1])
+    expected = brier_score_loss([1, 1, 1], TWO, labels=[0, 1])
+    assert abs(got - expected) <= 2 * np.spacing(expected)
+
+
+def test_brier_reads_text_classes_in_the_order_given():
+    """Text labels: each probability column belongs to its class in order."""
+    got = sq.metrics.brier.compute(
+        proba_rel(["b", "a", "a"], TWO), "y", classes=["b", "a"]
+    )
+    assert abs(got - 0.02) <= 2 * np.spacing(0.02)
+
+
+def test_brier_takes_only_scale_by_half():
+    """scale_by_half= is its one setting, True, False or "auto"."""
+    with pytest.raises(SqlearnError, match="scale_by_half"):
+        sq.metrics.brier(pos_label=1)
+    with pytest.raises(SqlearnError, match="scale_by_half"):
+        sq.metrics.brier(scale_by_half="x")
+    assert repr(sq.metrics.brier) == "brier"
+    assert repr(sq.metrics.brier(scale_by_half=False)) == "brier(scale_by_half=False)"
+
+
+def test_brier_refuses_a_probability_above_one():
+    """A probability above 1 is refused, as scikit-learn refuses it."""
+    matrix = np.array([[0.9, 0.1], [0.1, 1.2]])
+    with pytest.raises(SqlearnError, match="above 1"):
+        sq.metrics.brier.compute(proba_rel([0, 1], matrix), "y", classes=[0, 1])

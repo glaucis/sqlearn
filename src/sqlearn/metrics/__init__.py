@@ -8,6 +8,7 @@ Examples
 """
 
 from sqlearn.metrics.accuracy import Metric, MissingClassError, accuracy
+from sqlearn.metrics.balanced import CountMetric, balanced_accuracy, mcc
 from sqlearn.metrics.classification import (
     ClassificationMetric,
     f1,
@@ -18,7 +19,9 @@ from sqlearn.metrics.classification import (
 from sqlearn.metrics.curves import precision_recall_curve, roc_curve
 from sqlearn.metrics.probability import (
     AveragePrecision,
+    BrierScore,
     average_precision,
+    brier,
     log_loss,
     roc_auc,
 )
@@ -27,17 +30,22 @@ from sqlearn.metrics.tables import classification_report, confusion_matrix
 
 __all__ = [
     "AveragePrecision",
+    "BrierScore",
     "ClassificationMetric",
+    "CountMetric",
     "Metric",
     "MissingClassError",
     "accuracy",
     "average_precision",
+    "balanced_accuracy",
+    "brier",
     "classification_report",
     "confusion_matrix",
     "f1",
     "fbeta",
     "log_loss",
     "mae",
+    "mcc",
     "precision",
     "precision_recall_curve",
     "r2",

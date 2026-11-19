@@ -4621,6 +4621,120 @@
       "tier": "fast"
     },
     {
+      "area": "sqlearn/metrics/balanced",
+      "name": "tests/src/sqlearn/metrics/test_balanced.py::test_a_predicted_class_outside_the_target_is_warned",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/balanced",
+      "name": "tests/src/sqlearn/metrics/test_balanced.py::test_adjusted_on_one_class_is_minus_infinity_with_a_warning",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/balanced",
+      "name": "tests/src/sqlearn/metrics/test_balanced.py::test_balanced_accuracy_is_the_double_nearest_the_exact_score",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/balanced",
+      "name": "tests/src/sqlearn/metrics/test_balanced.py::test_balanced_accuracy_matches_scikit_learn[y0-prediction0-False]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/balanced",
+      "name": "tests/src/sqlearn/metrics/test_balanced.py::test_balanced_accuracy_matches_scikit_learn[y1-prediction1-True]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/balanced",
+      "name": "tests/src/sqlearn/metrics/test_balanced.py::test_balanced_accuracy_matches_scikit_learn[y2-prediction2-False]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/balanced",
+      "name": "tests/src/sqlearn/metrics/test_balanced.py::test_balanced_accuracy_matches_scikit_learn[y3-prediction3-False]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/balanced",
+      "name": "tests/src/sqlearn/metrics/test_balanced.py::test_balanced_accuracy_matches_scikit_learn[y4-prediction4-True]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/balanced",
+      "name": "tests/src/sqlearn/metrics/test_balanced.py::test_balanced_accuracy_reads_predict_and_higher_is_better",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/balanced",
+      "name": "tests/src/sqlearn/metrics/test_balanced.py::test_balanced_accuracy_takes_only_adjusted",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/balanced",
+      "name": "tests/src/sqlearn/metrics/test_balanced.py::test_counts_scores_refuse_no_rows_and_missing_values",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/balanced",
+      "name": "tests/src/sqlearn/metrics/test_balanced.py::test_mcc_counts_an_integer_and_a_double_one_as_one_class",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/balanced",
+      "name": "tests/src/sqlearn/metrics/test_balanced.py::test_mcc_matches_scikit_learn[y0-prediction0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/balanced",
+      "name": "tests/src/sqlearn/metrics/test_balanced.py::test_mcc_matches_scikit_learn[y1-prediction1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/balanced",
+      "name": "tests/src/sqlearn/metrics/test_balanced.py::test_mcc_matches_scikit_learn[y2-prediction2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/balanced",
+      "name": "tests/src/sqlearn/metrics/test_balanced.py::test_mcc_matches_scikit_learn[y3-prediction3]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/balanced",
+      "name": "tests/src/sqlearn/metrics/test_balanced.py::test_mcc_matches_scikit_learn[y4-prediction4]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/balanced",
+      "name": "tests/src/sqlearn/metrics/test_balanced.py::test_mcc_of_one_label_is_zero",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/balanced",
+      "name": "tests/src/sqlearn/metrics/test_balanced.py::test_mcc_takes_no_settings",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
       "area": "sqlearn/metrics/classification",
       "name": "tests/src/sqlearn/metrics/test_classification.py::test_a_date_target_against_integer_predictions_is_refused[f1]",
       "outcome": "passed",
@@ -7136,6 +7250,66 @@
     },
     {
       "area": "sqlearn/metrics/probability",
+      "name": "tests/src/sqlearn/metrics/test_probability.py::test_brier_matches_scikit_learn_binary_and_multiclass[y0-matrix0-auto]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/probability",
+      "name": "tests/src/sqlearn/metrics/test_probability.py::test_brier_matches_scikit_learn_binary_and_multiclass[y1-matrix1-False]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/probability",
+      "name": "tests/src/sqlearn/metrics/test_probability.py::test_brier_matches_scikit_learn_binary_and_multiclass[y2-matrix2-True]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/probability",
+      "name": "tests/src/sqlearn/metrics/test_probability.py::test_brier_matches_scikit_learn_binary_and_multiclass[y3-matrix3-auto]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/probability",
+      "name": "tests/src/sqlearn/metrics/test_probability.py::test_brier_matches_scikit_learn_binary_and_multiclass[y4-matrix4-True]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/probability",
+      "name": "tests/src/sqlearn/metrics/test_probability.py::test_brier_matches_scikit_learn_binary_and_multiclass[y5-matrix5-auto]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/probability",
+      "name": "tests/src/sqlearn/metrics/test_probability.py::test_brier_reads_text_classes_in_the_order_given",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/probability",
+      "name": "tests/src/sqlearn/metrics/test_probability.py::test_brier_refuses_a_probability_above_one",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/probability",
+      "name": "tests/src/sqlearn/metrics/test_probability.py::test_brier_scores_a_class_with_no_row",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/probability",
+      "name": "tests/src/sqlearn/metrics/test_probability.py::test_brier_takes_only_scale_by_half",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/probability",
       "name": "tests/src/sqlearn/metrics/test_probability.py::test_log_loss_and_roc_auc_match_scikit_learn_binary_and_multiclass",
       "outcome": "passed",
       "tier": "fast"
@@ -8186,6 +8360,12 @@
     },
     {
       "area": "sqlearn/model_selection/search",
+      "name": "tests/src/sqlearn/model_selection/test_search.py::test_a_search_by_brier_picks_the_lowest",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/search",
       "name": "tests/src/sqlearn/model_selection/test_search.py::test_a_search_codes_an_enum_feature_alike_in_every_fold",
       "outcome": "passed",
       "tier": "fast"
@@ -8325,6 +8505,12 @@
     {
       "area": "sqlearn/model_selection/search",
       "name": "tests/src/sqlearn/model_selection/test_search.py::test_every_setting_nan_is_refused_naming_zero_division",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/search",
+      "name": "tests/src/sqlearn/model_selection/test_search.py::test_every_setting_nan_names_a_fix_the_metric_has",
       "outcome": "passed",
       "tier": "fast"
     },
