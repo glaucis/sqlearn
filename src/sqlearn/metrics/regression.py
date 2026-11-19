@@ -10,15 +10,14 @@ import math
 import warnings
 from dataclasses import dataclass, replace
 from numbers import Real
-from pathlib import Path
 from typing import SupportsFloat
 
 import duckdb
 from duckdb import ColumnExpression, Expression
 
-from sqlearn._errors import SqlearnError, SqlearnWarning
+from sqlearn._errors import PACKAGE_FILES, SqlearnError, SqlearnWarning
 from sqlearn._expr import const
-from sqlearn.metrics.accuracy import Metric
+from sqlearn.metrics.accuracy import _STAGE, Metric, _refuse_settings
 
 __all__ = [
     "LogError",
@@ -44,12 +43,15 @@ __all__ = [
 ]
 
 
-_PACKAGE = (str(Path(__file__).parents[1]),)
-"""sqlearn's own files: a warning is placed at the first frame outside them."""
-
-
 def _fn(name: str, *args: Expression) -> Expression:
     return duckdb.FunctionExpression(name, *args)
+
+
+def _one_or_zero(condition: Expression) -> Expression:
+    # The score of a case with nothing to compare against (a constant
+    # target, or a baseline that loses nothing): 1 when the condition holds,
+    # else 0, as scikit-learn's force_finite has it.
+    return duckdb.CaseExpression(condition, const(1.0)).otherwise(const(0.0))
 
 
 def _error(y: Expression, p: Expression) -> Expression:
@@ -57,8 +59,7 @@ def _error(y: Expression, p: Expression) -> Expression:
 
 
 def _rmse(y: Expression, p: Expression) -> Expression:
-    error = _error(y, p)
-    return _fn("sqrt", _fn("favg", error * error))
+    return _fn("sqrt", _mse(y, p))
 
 
 def _mae(y: Expression, p: Expression) -> Expression:
@@ -99,9 +100,7 @@ def _r2(y: Expression, p: Expression) -> Expression:
     error = _error(y, p)
     residual = _fn("fsum", error * error)
     total = _fn("var_pop", y.cast("DOUBLE")) * _fn("count", y)
-    constant = duckdb.CaseExpression(residual == const(0.0), const(1.0)).otherwise(
-        const(0.0)
-    )
+    constant = _one_or_zero(residual == const(0.0))
     return duckdb.CaseExpression(total == const(0.0), constant).otherwise(
         const(1.0) - residual / total
     )
@@ -118,9 +117,7 @@ def _ev(y: Expression, p: Expression) -> Expression:
     target = y.cast("DOUBLE")
     numerator = _fn("var_pop", _error(y, p))
     denominator = _fn("var_pop", target)
-    constant = duckdb.CaseExpression(numerator == const(0.0), const(1.0)).otherwise(
-        const(0.0)
-    )
+    constant = _one_or_zero(numerator == const(0.0))
     return duckdb.CaseExpression(
         _fn("min", target) == _fn("max", target), constant
     ).otherwise(const(1.0) - numerator / denominator)
@@ -190,13 +187,12 @@ def _positive(x: Expression) -> Expression:
 
 
 def _only_setting(
-    metric: "TweedieDeviance | PinballLoss", settings: dict[str, object], only: str
+    metric: "_OneSetting", settings: dict[str, object], only: str
 ) -> None:
     # The refusals shared by the metrics with one setting: a fixed metric
     # takes none, and no other name is one.
     if not metric.settable:
-        Metric.__call__(metric, **settings)  # always raises: no settings here
-        raise AssertionError("unreachable")  # pragma: no cover
+        _refuse_settings(metric.name, settings)
     unknown = [k for k in settings if k != only]
     if unknown:
         msg = (
@@ -207,9 +203,7 @@ def _only_setting(
         raise SqlearnError(msg)
 
 
-def _named(
-    metric: "TweedieDeviance | PinballLoss", setting: str, default: float
-) -> str:
+def _named(metric: "_OneSetting", setting: str, default: float) -> str:
     # The name, with the setting when it is set to other than its default.
     value = getattr(metric, setting)
     if metric.settable and value != default:
@@ -217,10 +211,13 @@ def _named(
     return metric.name
 
 
-_PLACE = "__sqlearn_stage_place"
-_ROWS = "__sqlearn_stage_rows"
-"""The D2 pinball stage's columns: each row's place in the sorted target
-and the row count."""
+_PLACE = f"{_STAGE}place"
+_ROWS = f"{_STAGE}rows"
+_QUANTILE = f"{_STAGE}quantile"
+"""The D2 pinball stages' columns: each row's place in the sorted target and
+the row count, then the target's alpha-quantile."""
+_MEAN = f"{_STAGE}mean"
+"""The D2 Tweedie stage's column: the target's mean."""
 
 
 def _d2_finish(name: str, value: SupportsFloat, total: int) -> float:
@@ -235,7 +232,7 @@ def _d2_finish(name: str, value: SupportsFloat, total: int) -> float:
             "score two rows or more (in a search, folds that each hold two "
             "rows or more)."
         )
-        warnings.warn(text, SqlearnWarning, skip_file_prefixes=_PACKAGE)
+        warnings.warn(text, SqlearnWarning, skip_file_prefixes=PACKAGE_FILES)
         return math.nan
     return float(value)
 
@@ -248,7 +245,12 @@ class TweedieDeviance(Metric):
     deviance. The rows refused follow scikit-learn: for a power below 0 a
     prediction at or below 0; for 0 none; for 1 up to 2 a negative target or
     a prediction at or below 0; for 2 and above a target or a prediction at
-    or below 0.
+    or below 0. Each row is scikit-learn's formula, a difference of terms
+    that grow with the values: on a target far from 0 those terms cancel,
+    and the deviance keeps only 4 or 5 significant digits where the mean
+    is a million times the spread, as scikit-learn's does (a relative error
+    of 2e-5 to 8e-5 in both, at powers 1 to 3). Power 0 is a difference of
+    the two values and keeps its digits.
 
     With ``d2`` it is the D2 Tweedie score instead (``d2_tweedie``), as
     scikit-learn's ``d2_tweedie_score``: one minus the model's deviance over
@@ -256,7 +258,11 @@ class TweedieDeviance(Metric):
     better. One row has no score: NaN, with a warning. A departure from
     scikit-learn 1.9.1, which raises ``ZeroDivisionError`` there (ADR 0054):
     a constant target (its minimum equals its maximum) scores 1 when every
-    prediction equals it and 0 otherwise, as ``r2`` does.
+    prediction equals it and 0 otherwise, as ``r2`` does. Below power 0 the
+    target's mean may be negative, and is scored as scikit-learn scores it;
+    at a power whose ``1 - power`` is not whole that mean's power is
+    undefined and the score is NaN, as scikit-learn's is (a search then
+    ranks that setting last).
 
     Attributes
     ----------
@@ -290,7 +296,28 @@ class TweedieDeviance(Metric):
     settable: bool = True
 
     def __post_init__(self) -> None:
-        """Set the aggregate, which reads this metric's power."""
+        """Refuse a power out of range; set the aggregate, which reads it.
+
+        Raises
+        ------
+        SqlearnError
+            If the power is not a finite number at most 0 or at least 1.
+        """
+        power: object = self.power  # as given, which may not be a float
+        if (
+            isinstance(power, bool)
+            or not isinstance(power, Real)
+            or not math.isfinite(float(power))
+            or 0 < float(power) < 1
+        ):
+            msg = (
+                f"{self.name} was given power={power!r}. Why: it takes a "
+                "finite number at most 0 or at least 1, as scikit-learn's "
+                f"{self._reference}. Fix: use such a power, for example "
+                "power=1.5."
+            )
+            raise SqlearnError(msg)
+        object.__setattr__(self, "power", float(power))
         object.__setattr__(self, "expression", self._expression)
 
     def __call__(self, **settings: object) -> "TweedieDeviance":
@@ -319,21 +346,7 @@ class TweedieDeviance(Metric):
         tweedie_deviance(power=2.0)
         """
         _only_setting(self, settings, "power")
-        power = settings.get("power", self.power)
-        if (
-            isinstance(power, bool)
-            or not isinstance(power, Real)
-            or not math.isfinite(float(power))
-            or 0 < float(power) < 1
-        ):
-            msg = (
-                f"{self.name} was given power={power!r}. Why: it takes a "
-                "finite number at most 0 or at least 1, as scikit-learn's "
-                f"{self._reference}. Fix: use such a power, for example "
-                "power=1.5."
-            )
-            raise SqlearnError(msg)
-        return replace(self, power=float(power))
+        return replace(self, **settings)  # type: ignore[arg-type]
 
     def __repr__(self) -> str:
         """Return the name, with the power when it is set."""
@@ -351,7 +364,7 @@ class TweedieDeviance(Metric):
         # every row, a window over the whole relation.
         if not self.d2:
             return []
-        return [{"__sqlearn_stage_mean": _fn("favg", y.cast("DOUBLE")).over()}]
+        return [{_MEAN: _fn("favg", y.cast("DOUBLE")).over()}]
 
     def _finish(self, value: SupportsFloat, total: int) -> float:
         if self.d2:
@@ -377,9 +390,7 @@ class TweedieDeviance(Metric):
         # every prediction equals it and 0 otherwise: its mean can be one
         # rounding off, and a deviance of an exact prediction need not round
         # to 0 (power -1).
-        exact = duckdb.CaseExpression(
-            _fn("bool_and", target == mu), const(1.0)
-        ).otherwise(const(0.0))
+        exact = _one_or_zero(_fn("bool_and", target == mu))
         return duckdb.CaseExpression(
             _fn("min", target) == _fn("max", target), exact
         ).otherwise(const(1.0) - model / guess)
@@ -493,7 +504,26 @@ class PinballLoss(Metric):
     settable: bool = True
 
     def __post_init__(self) -> None:
-        """Set the aggregate, which reads this metric's alpha."""
+        """Refuse an alpha out of range; set the aggregate, which reads it.
+
+        Raises
+        ------
+        SqlearnError
+            If the alpha is not a number from 0 to 1.
+        """
+        alpha: object = self.alpha  # as given, which may not be a float
+        if (
+            isinstance(alpha, bool)
+            or not isinstance(alpha, Real)
+            or not 0.0 <= float(alpha) <= 1.0
+        ):
+            msg = (
+                f"{self.name} was given alpha={alpha!r}. Why: it takes a "
+                f"number from 0 to 1, as scikit-learn's {self._reference}. "
+                "Fix: use such an alpha, for example alpha=0.9."
+            )
+            raise SqlearnError(msg)
+        object.__setattr__(self, "alpha", float(alpha))
         object.__setattr__(self, "expression", self._expression)
 
     def __call__(self, **settings: object) -> "PinballLoss":
@@ -522,19 +552,7 @@ class PinballLoss(Metric):
         pinball_loss(alpha=0.1)
         """
         _only_setting(self, settings, "alpha")
-        alpha = settings.get("alpha", self.alpha)
-        if (
-            isinstance(alpha, bool)
-            or not isinstance(alpha, Real)
-            or not 0.0 <= float(alpha) <= 1.0
-        ):
-            msg = (
-                f"{self.name} was given alpha={alpha!r}. Why: it takes a "
-                f"number from 0 to 1, as scikit-learn's {self._reference}. "
-                "Fix: use such an alpha, for example alpha=0.9."
-            )
-            raise SqlearnError(msg)
-        return replace(self, alpha=float(alpha))
+        return replace(self, **settings)  # type: ignore[arg-type]
 
     def __repr__(self) -> str:
         """Return the name, with the alpha when it is set."""
@@ -576,7 +594,7 @@ class PinballLoss(Metric):
                 _PLACE: _fn("row_number").over(order_by=[target]),
                 _ROWS: _fn("count_star").over(),
             },
-            {"__sqlearn_stage_quantile": _fn("avg", chosen).over()},
+            {_QUANTILE: _fn("avg", chosen).over()},
         ]
 
     def _finish(self, value: SupportsFloat, total: int) -> float:
@@ -602,9 +620,7 @@ class PinballLoss(Metric):
         # since its quantile is then the least or the greatest value. The
         # mean of one or two equal values is exact, so a constant target's
         # quantile loses exactly 0 and the two tests agree there.
-        exact = duckdb.CaseExpression(model == const(0.0), const(1.0)).otherwise(
-            const(0.0)
-        )
+        exact = _one_or_zero(model == const(0.0))
         nothing = (_fn("min", target) == _fn("max", target)) | (guess == const(0.0))
         return duckdb.CaseExpression(nothing, exact).otherwise(
             const(1.0) - model / guess
@@ -617,6 +633,9 @@ class PinballLoss(Metric):
         under = _fn("greatest", mu - target, zero)
         return const(self.alpha) * over + const(1.0 - self.alpha) * under
 
+
+_OneSetting = TweedieDeviance | PinballLoss
+"""The metrics with one setting, as `_only_setting` and `_named` read them."""
 
 rmse = Metric("rmse", _rmse, False)
 mae = Metric("mae", _mae, False)
@@ -723,6 +742,8 @@ _document(
     "offset in the errors.",
     "On a constant target it scores 1 when the errors have no variance and 0 "
     "otherwise. A target all 0.3 with predictions all 0.1 scores the exact 1 "
-    "here, where scikit-learn gives 0.75 from numpy's rounding of the mean.",
+    "here, where scikit-learn's rounding of the mean leaves a variance that "
+    "is tiny but not 0, so its score depends on the row count (0.75 on "
+    "1,000 rows, 0 on 100, 1 on 10).",
     "0.9571734475374732",
 )

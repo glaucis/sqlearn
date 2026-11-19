@@ -376,7 +376,20 @@ class BrierScore(Metric):
     scale_by_half: bool | str = "auto"
 
     def __post_init__(self) -> None:
-        """Set the aggregate, which reads this metric's setting."""
+        """Refuse a setting out of range; set the aggregate, which reads it.
+
+        Raises
+        ------
+        SqlearnError
+            If ``scale_by_half`` is not one of True, False and ``"auto"``.
+        """
+        half = self.scale_by_half
+        if not any(half is h or (isinstance(half, str) and half == h) for h in _HALVES):
+            msg = (
+                f"{self.name} was given scale_by_half={half!r}. Why: it takes "
+                'True, False or "auto", as scikit-learn. Fix: use one of them.'
+            )
+            raise SqlearnError(msg)
         object.__setattr__(self, "expression", self._expression)
 
     def __call__(self, **settings: object) -> "BrierScore":
@@ -412,13 +425,6 @@ class BrierScore(Metric):
                 "sqlearn gives them, scikit-learn's pos_label= and labels= "
                 "change nothing, and the classes come from the model. Fix: "
                 f"use scale_by_half=, or sq.metrics.{self.name} as it is."
-            )
-            raise SqlearnError(msg)
-        half = settings.get("scale_by_half", self.scale_by_half)
-        if not any(half is h or (isinstance(half, str) and half == h) for h in _HALVES):
-            msg = (
-                f"{self.name} was given scale_by_half={half!r}. Why: it takes "
-                'True, False or "auto", as scikit-learn. Fix: use one of them.'
             )
             raise SqlearnError(msg)
         return replace(self, **settings)  # type: ignore[arg-type]

@@ -13,13 +13,12 @@ import functools
 import hashlib
 import warnings
 from collections.abc import Mapping, Sequence
-from pathlib import Path
 
 import duckdb
 from duckdb import Expression
 from duckdb.sqltypes import HUGEINT, INTEGER, VARCHAR, DuckDBPyType
 
-from sqlearn._errors import SqlearnError, SqlearnWarning, StepError
+from sqlearn._errors import PACKAGE_FILES, SqlearnError, SqlearnWarning, StepError
 from sqlearn._expr import const
 
 __all__ = [
@@ -46,8 +45,6 @@ encoders (ordinal 1.9 s against 2.4 s, target 2.9 s against 3.5 s; at
 2.3 s). See ``docs/benchmarks/category-lookup.md``.
 """
 
-_PACKAGE = (str(Path(__file__).parents[1]),)
-"""sqlearn's own files: a warning is placed at the first frame outside them."""
 
 _warned: set[tuple[str, str, int]] = set()
 """The (step, column, count) already warned about: once per process each."""
@@ -353,4 +350,4 @@ def warn_many(
             'collation), or lookup="list" to keep this lookup without the '
             "warning."
         )
-        warnings.warn(text, SqlearnWarning, skip_file_prefixes=_PACKAGE)
+        warnings.warn(text, SqlearnWarning, skip_file_prefixes=PACKAGE_FILES)

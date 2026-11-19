@@ -9,14 +9,13 @@ import itertools
 import math
 import warnings
 from collections.abc import Mapping, Sequence
-from pathlib import Path
 from typing import TypedDict, Unpack, cast
 
 import duckdb
 from duckdb import Expression
 from duckdb.sqltypes import DOUBLE, INTEGER
 
-from sqlearn._errors import SqlearnError, SqlearnWarning
+from sqlearn._errors import PACKAGE_FILES, SqlearnError, SqlearnWarning
 from sqlearn._expr import const, is_missing
 from sqlearn._group import Group, call_repr, columns_arg
 from sqlearn._selectors import Schema, Selector
@@ -44,9 +43,6 @@ _QUANTILE_METHOD = "averaged_inverted_cdf"
 """The quantile method of scikit-learn 1.9's ``KBinsDiscretizer``."""
 
 _WHY_NUMBERS = "binning compares each value with numbers"
-
-_PACKAGE = (str(Path(__file__).parents[1]),)
-"""sqlearn's own files: a warning is placed at the first frame outside them."""
 
 
 def _fn(name: str, *args: Expression) -> Expression:
@@ -386,7 +382,7 @@ class Bin(Step):
                 "away, as scikit-learn merges them, and a constant column has "
                 "one bin. Fix: ask for fewer bins, or bin the column uniformly."
             )
-            warnings.warn(text, SqlearnWarning, skip_file_prefixes=_PACKAGE)
+            warnings.warn(text, SqlearnWarning, skip_file_prefixes=PACKAGE_FILES)
 
 
 class Binarize(Step):

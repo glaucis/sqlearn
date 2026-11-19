@@ -13,7 +13,7 @@ from typing import Any, Protocol, cast
 import duckdb
 
 from sqlearn._config import connection
-from sqlearn._errors import SqlearnError, SqlearnWarning
+from sqlearn._errors import PACKAGE_FILES, SqlearnError, SqlearnWarning
 from sqlearn._expr import quote
 from sqlearn._selectors import Schema
 
@@ -28,8 +28,6 @@ _ACCEPTED = (
     "a DuckDB relation, or a pandas DataFrame"
 )
 _frame_ids = itertools.count()
-_PACKAGE = (str(Path(__file__).parent),)
-"""sqlearn's own files: a warning is placed at the first frame outside them."""
 Storage = tuple[tuple[int, ...], tuple[int, ...], int]
 """A file table's storage: its blocks, the row groups edited since the last
 checkpoint, and the number of its segments not yet written to the file."""
@@ -350,7 +348,7 @@ def _notice_edit(
         "Fix: nothing to do; to have every edit seen, run CHECKPOINT after "
         "editing the table."
     )
-    warnings.warn(text, SqlearnWarning, skip_file_prefixes=_PACKAGE)
+    warnings.warn(text, SqlearnWarning, skip_file_prefixes=PACKAGE_FILES)
 
 
 def _named(origin: tuple[str, str, str]) -> str:
@@ -425,7 +423,7 @@ def warn_changed_since_saved(
         f"learned ({_why_changed(saved, now)}), so sqlearn learned "
         "them again. Fix: save the pipeline again to keep the new values."
     )
-    warnings.warn(text, SqlearnWarning, skip_file_prefixes=_PACKAGE)
+    warnings.warn(text, SqlearnWarning, skip_file_prefixes=PACKAGE_FILES)
 
 
 def _read_table(name: str, *, learning: bool) -> Source:

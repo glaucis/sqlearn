@@ -7250,6 +7250,12 @@
     },
     {
       "area": "sqlearn/metrics/probability",
+      "name": "tests/src/sqlearn/metrics/test_probability.py::test_brier_built_directly_refuses_a_setting_out_of_range",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/probability",
       "name": "tests/src/sqlearn/metrics/test_probability.py::test_brier_matches_scikit_learn_binary_and_multiclass[y0-matrix0-auto]",
       "outcome": "passed",
       "tier": "fast"
@@ -7370,7 +7376,55 @@
     },
     {
       "area": "sqlearn/metrics/regression",
+      "name": "tests/src/sqlearn/metrics/test_regression.py::test_a_column_named_as_a_metric_stage_is_refused[metric0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/regression",
+      "name": "tests/src/sqlearn/metrics/test_regression.py::test_a_column_named_as_a_metric_stage_is_refused[metric1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/regression",
+      "name": "tests/src/sqlearn/metrics/test_regression.py::test_a_column_named_as_a_metric_stage_is_refused[metric2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/regression",
       "name": "tests/src/sqlearn/metrics/test_regression.py::test_a_gap_is_refused_before_a_range",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/regression",
+      "name": "tests/src/sqlearn/metrics/test_regression.py::test_a_metric_built_directly_refuses_a_setting_out_of_range[PinballLoss-setting2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/regression",
+      "name": "tests/src/sqlearn/metrics/test_regression.py::test_a_metric_built_directly_refuses_a_setting_out_of_range[PinballLoss-setting3]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/regression",
+      "name": "tests/src/sqlearn/metrics/test_regression.py::test_a_metric_built_directly_refuses_a_setting_out_of_range[TweedieDeviance-setting0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/regression",
+      "name": "tests/src/sqlearn/metrics/test_regression.py::test_a_metric_built_directly_refuses_a_setting_out_of_range[TweedieDeviance-setting1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/regression",
+      "name": "tests/src/sqlearn/metrics/test_regression.py::test_a_range_refusal_names_a_fix_for_what_it_refused",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -7401,6 +7455,12 @@
     {
       "area": "sqlearn/metrics/regression",
       "name": "tests/src/sqlearn/metrics/test_regression.py::test_a_search_minimises_rmse",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/regression",
+      "name": "tests/src/sqlearn/metrics/test_regression.py::test_a_zero_target_between_powers_one_and_two_matches_scikit_learn",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -7695,6 +7755,24 @@
     {
       "area": "sqlearn/metrics/regression",
       "name": "tests/src/sqlearn/metrics/test_regression.py::test_d2_pinball_reads_the_source_once",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/regression",
+      "name": "tests/src/sqlearn/metrics/test_regression.py::test_d2_tweedie_below_power_zero_on_a_negative_mean_follows_scikit_learn[-0.5]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/regression",
+      "name": "tests/src/sqlearn/metrics/test_regression.py::test_d2_tweedie_below_power_zero_on_a_negative_mean_follows_scikit_learn[-1.0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/metrics/regression",
+      "name": "tests/src/sqlearn/metrics/test_regression.py::test_d2_tweedie_below_power_zero_on_a_negative_mean_follows_scikit_learn[-2.0]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -9327,6 +9405,12 @@
     {
       "area": "sqlearn/model_selection/search",
       "name": "tests/src/sqlearn/model_selection/test_search.py::test_every_setting_nan_by_a_d2_score_names_rows_per_fold[metric2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/search",
+      "name": "tests/src/sqlearn/model_selection/test_search.py::test_every_setting_nan_by_d2_tweedie_below_zero_names_the_mean",
       "outcome": "passed",
       "tier": "fast"
     },

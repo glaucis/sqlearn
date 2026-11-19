@@ -105,6 +105,7 @@ The API of the sqlearn package, generated from its docstrings.
    sqlearn.metrics.AveragePrecision
    sqlearn.metrics.CountMetric
    sqlearn.metrics.BrierScore
+   sqlearn.metrics.LogError
    sqlearn.metrics.PinballLoss
    sqlearn.metrics.TweedieDeviance
    sqlearn.metrics.MissingClassError

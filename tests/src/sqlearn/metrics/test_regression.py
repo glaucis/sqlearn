@@ -3,6 +3,7 @@
 import json
 import math
 
+import duckdb
 import numpy as np
 import pandas as pd
 import pytest
@@ -26,6 +27,7 @@ from sklearn.metrics import (
     root_mean_squared_error,
     root_mean_squared_log_error,
 )
+from sklearn.utils.stats import _weighted_percentile
 
 import sqlearn as sq
 from sqlearn._config import connection
@@ -224,7 +226,8 @@ def test_msle_keeps_its_digits_for_values_near_zero(metric, sk):
 def test_msle_takes_an_integer_target():
     """An INTEGER target is read as a number, as scikit-learn reads it."""
     p = [1.5, 2.5, 2.0]
-    frame = pd.DataFrame({"y": [1, 2, 3], "prediction": p})
+    frame = pd.DataFrame({"y": np.array([1, 2, 3], dtype=np.int32), "prediction": p})
+    assert rel(frame).types[0] == "INTEGER"
     got = sq.metrics.msle.compute(rel(frame), "y")
     assert got == pytest.approx(mean_squared_log_error([1, 2, 3], p), rel=1e-12)
 
@@ -589,14 +592,33 @@ def test_d2_pinball_picks_scikit_learns_rows_when_n_alpha_is_nearly_whole(
 ):
     """Where n times alpha is nearly whole, the baseline's rows are scikit-learn's.
 
-    Between the two rows the loss is flat, so the rows chosen show only in
-    the last bits: on these rows (seeds found by search) each other choice
-    named gives a different double.
+    The baseline is the mean of the rows chosen, and any other choice named
+    in the comments above gives another value, so it is checked against
+    scikit-learn's ``_weighted_percentile`` itself; the score then follows.
     """
     y, p = _distinct_rows(n, seed)
     frame = pd.DataFrame({"y": y, "prediction": p})
-    got = sq.metrics.d2_pinball(alpha=alpha).compute(rel(frame), "y")
-    assert got == d2_pinball_score(y, p, alpha=alpha)
+    metric = sq.metrics.d2_pinball(alpha=alpha)
+    expected = _weighted_percentile(y, np.ones(n), 100 * alpha, average=True)
+    assert _staged_baseline(metric, frame) == expected
+    got = metric.compute(rel(frame), "y")
+    assert got == pytest.approx(d2_pinball_score(y, p, alpha=alpha), rel=1e-12)
+
+
+def _staged_baseline(metric, frame):
+    """Return the baseline `metric` stages on every row of `frame`, as one value."""
+    data = rel(frame)
+    stages = metric._predict_stages(
+        duckdb.ColumnExpression("y"), duckdb.ColumnExpression("prediction")
+    )
+    for stage in stages:
+        data = data.project(
+            duckdb.StarExpression(), *(e.alias(name) for name, e in stage.items())
+        )
+    (name,) = stages[-1]
+    values = {v for (v,) in data.select(name).fetchall()}
+    assert len(values) == 1
+    return values.pop()
 
 
 @pytest.mark.parametrize(
@@ -719,3 +741,58 @@ def test_a_range_refusal_names_a_fix_for_what_it_refused():
     with pytest.raises(SqlearnError, match="Fix:") as info:
         sq.metrics.poisson_deviance.compute(rel(predictions), "y")
     assert "predictions stay in the range" in str(info.value).split("Fix:")[1]
+
+
+@pytest.mark.parametrize(
+    ("kind", "setting"),
+    [
+        (sq.metrics.TweedieDeviance, {"power": 0.5}),
+        (sq.metrics.TweedieDeviance, {"power": True}),
+        (sq.metrics.PinballLoss, {"alpha": 1.5}),
+        (sq.metrics.PinballLoss, {"alpha": "0.5"}),
+    ],
+)
+def test_a_metric_built_directly_refuses_a_setting_out_of_range(kind, setting):
+    """The class checks its setting as the call does, built directly or not."""
+    with pytest.raises(SqlearnError, match="Fix:"):
+        kind("built", sq.metrics.mse.expression, False, **setting)
+
+
+def test_a_zero_target_between_powers_one_and_two_matches_scikit_learn():
+    """Between powers 1 and 2 a target of 0 is scored, as scikit-learn scores it."""
+    y, p = [0.0, 1.0, 3.0], [0.5, 1.5, 2.0]
+    frame = pd.DataFrame({"y": y, "prediction": p})
+    got = sq.metrics.tweedie_deviance(power=1.5).compute(rel(frame), "y")
+    assert got == pytest.approx(mean_tweedie_deviance(y, p, power=1.5), rel=1e-12)
+
+
+@pytest.mark.parametrize("power", [-1.0, -2.0, -0.5])
+def test_d2_tweedie_below_power_zero_on_a_negative_mean_follows_scikit_learn(power):
+    """A baseline mean below 0 is scored below power 0; a fractional power is NaN."""
+    y, p = [-3.0, 1.0, -2.0], [1.0, 1.0, 1.0]
+    frame = pd.DataFrame({"y": y, "prediction": p})
+    got = sq.metrics.d2_tweedie(power=power).compute(rel(frame), "y")
+    with np.errstate(invalid="ignore"):  # numpy's warning at the NaN power
+        expected = d2_tweedie_score(y, p, power=power)
+    if math.isnan(expected):
+        assert math.isnan(got)
+    else:
+        assert got == pytest.approx(expected, rel=1e-12)
+
+
+@pytest.mark.parametrize(
+    "metric", [sq.metrics.d2_tweedie, sq.metrics.d2_pinball, sq.metrics.roc_auc]
+)
+def test_a_column_named_as_a_metric_stage_is_refused(metric):
+    """A column named __sqlearn_stage_... would be read as the metric's own."""
+    frame = pd.DataFrame(
+        {
+            "y": [0, 1, 1],
+            "prediction": [0.0, 1.0, 0.5],
+            "__sqlearn_proba_0": [0.9, 0.2, 0.4],
+            "__sqlearn_proba_1": [0.1, 0.8, 0.6],
+            "__SQLEARN_STAGE_mean": [9.0, 9.0, 9.0],
+        }
+    )
+    with pytest.raises(SqlearnError, match=r"__SQLEARN_STAGE_mean.*Fix:"):
+        metric.compute(rel(frame), "y", classes=[0, 1])

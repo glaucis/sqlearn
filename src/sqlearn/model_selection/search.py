@@ -554,6 +554,17 @@ class Search:
                     'metric zero_division=0.0 (or "warn"), or use folds where '
                     "every class is predicted."
                 )
+            elif getattr(self.metric, "d2", False) and (
+                getattr(self.metric, "power", 0.0) < 0.0
+            ):
+                why = (
+                    "Why: a fold of each setting scored NaN; below power 0 "
+                    "d2_tweedie is NaN on a fold whose target has a negative "
+                    "mean when 1 - power is not whole (as scikit-learn's), "
+                    "and any D2 score is NaN on a fold that holds out one "
+                    "row. Fix: use a whole power such as power=-1, or folds "
+                    "that each hold out two rows or more."
+                )
             elif getattr(self.metric, "d2", False):
                 why = (
                     "Why: a fold of each setting scored NaN; a D2 score is "

@@ -13,8 +13,8 @@ from collections.abc import Mapping
 import duckdb
 from duckdb.sqltypes import DuckDBPyType
 
-from sqlearn._errors import SqlearnError, SqlearnWarning
-from sqlearn._inputs import _PACKAGE, DataKey
+from sqlearn._errors import PACKAGE_FILES, SqlearnError, SqlearnWarning
+from sqlearn._inputs import DataKey
 from sqlearn._pipeline import LearnedFrom, Pipeline
 from sqlearn._saving.codec import decode, encode, no_class
 from sqlearn._step import Step
@@ -62,7 +62,7 @@ def _data_record(source: LearnedFrom | None) -> dict[str, object]:
                 "CHECKPOINT before learning and saving, so the learned "
                 "values carry across processes.",
                 SqlearnWarning,
-                skip_file_prefixes=_PACKAGE,
+                skip_file_prefixes=PACKAGE_FILES,
             )
             return dict(_UNKNOWN)
         return {
