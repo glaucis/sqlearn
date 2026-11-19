@@ -26,6 +26,7 @@ from sqlearn.metrics.probability import (
     roc_auc,
 )
 from sqlearn.metrics.regression import (
+    explained_variance,
     mae,
     mape,
     max_error,
@@ -49,6 +50,7 @@ __all__ = [
     "brier",
     "classification_report",
     "confusion_matrix",
+    "explained_variance",
     "f1",
     "fbeta",
     "log_loss",

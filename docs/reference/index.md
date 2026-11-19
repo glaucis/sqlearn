@@ -77,6 +77,7 @@ The API of the sqlearn package, generated from its docstrings.
    sqlearn.metrics.max_error
    sqlearn.metrics.median_absolute_error
    sqlearn.metrics.mape
+   sqlearn.metrics.explained_variance
    sqlearn.metrics.log_loss
    sqlearn.metrics.roc_auc
    sqlearn.metrics.average_precision
