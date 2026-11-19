@@ -80,12 +80,17 @@ The API of the sqlearn package, generated from its docstrings.
    sqlearn.metrics.recall
    sqlearn.metrics.f1
    sqlearn.metrics.fbeta
+   sqlearn.metrics.balanced_accuracy
+   sqlearn.metrics.mcc
+   sqlearn.metrics.brier
    sqlearn.metrics.classification_report
    sqlearn.metrics.confusion_matrix
    sqlearn.metrics.roc_curve
    sqlearn.metrics.precision_recall_curve
    sqlearn.metrics.ClassificationMetric
    sqlearn.metrics.AveragePrecision
+   sqlearn.metrics.CountMetric
+   sqlearn.metrics.BrierScore
    sqlearn.metrics.MissingClassError
    sqlearn.save
    sqlearn.load

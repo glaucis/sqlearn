@@ -26,7 +26,7 @@ from sqlearn.metrics.classification import _type_hint
 
 __all__ = [
     "AveragePrecision",
-    "Brier",
+    "BrierScore",
     "average_precision",
     "brier",
     "log_loss",
@@ -340,7 +340,7 @@ _HALVES = (True, False, "auto")
 
 
 @dataclass(frozen=True)
-class Brier(Metric):
+class BrierScore(Metric):
     """The Brier score, as scikit-learn's ``brier_score_loss``.
 
     The mean over rows of the sum, over the classes, of the squared
@@ -379,7 +379,7 @@ class Brier(Metric):
         """Set the aggregate, which reads this metric's setting."""
         object.__setattr__(self, "expression", self._expression)
 
-    def __call__(self, **settings: object) -> "Brier":
+    def __call__(self, **settings: object) -> "BrierScore":
         """Return a copy with the given setting.
 
         Parameters
@@ -389,7 +389,7 @@ class Brier(Metric):
 
         Returns
         -------
-        Brier
+        BrierScore
             The configured copy.
 
         Raises
@@ -455,4 +455,4 @@ class Brier(Metric):
         return mean * const(0.5) if half else mean
 
 
-brier = Brier("brier", _unused, False, needs="predict_proba")
+brier = BrierScore("brier", _unused, False, needs="predict_proba")

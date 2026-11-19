@@ -139,9 +139,11 @@ default is `sq.metrics.accuracy`.
 | `sq.metrics.accuracy` | classification | higher |
 | `sq.metrics.precision`, `sq.metrics.recall`, `sq.metrics.f1` | classification | higher |
 | `sq.metrics.fbeta(beta=2)` (`beta=` is required) | classification | higher |
+| `sq.metrics.balanced_accuracy`, `sq.metrics.mcc` | classification | higher |
 | `sq.metrics.log_loss` | classification, from `predict_proba` | lower |
 | `sq.metrics.roc_auc` | classification, from `predict_proba` | higher |
 | `sq.metrics.average_precision` | classification, from `predict_proba` | higher |
+| `sq.metrics.brier` | classification, from `predict_proba` | lower |
 | `sq.metrics.rmse`, `sq.metrics.mae` | regression | lower |
 | `sq.metrics.r2` | regression | higher |
 

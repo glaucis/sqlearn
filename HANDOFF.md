@@ -20,8 +20,7 @@ None.
 
 ## Next up
 
-- The next 3.3 area, not chosen yet: more scores (balanced accuracy, MCC,
-  Brier) is the candidate. No dataset fetcher (ADR 0053).
+- The next 3.3 area, not chosen yet. No dataset fetcher (ADR 0053).
 
 ## Dead ends and traps
 
@@ -125,6 +124,12 @@ None.
 
 ## Just finished
 
+- Balanced scores (#62): `sq.metrics.balanced_accuracy` (`adjusted=`),
+  `mcc` and `brier` (`scale_by_half=` only: scikit-learn's `pos_label=` and
+  `labels=` change nothing given every probability column). Spec
+  `docs/specs/library-balanced-scores.md`, plan
+  `docs/plans/2026-11-19-library-balanced-scores.md`. sqlearn rounds the exact
+  score once, so scikit-learn can differ by up to 2 doubles. (2026-11-19)
 - Datasets left the package (#61, ADR 0053): `sq.datasets` is gone, and the
   code, tests and validation moved to `devdata/`, `tests/devdata/` and
   `validation/devdata/`, for development only. Guide pages and the tuning

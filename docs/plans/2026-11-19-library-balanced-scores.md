@@ -19,7 +19,7 @@ a search's `metric=`.
 counts, which `classification._counts` already gets in one grouped query; they
 share a new frozen dataclass `CountMetric(Metric)` in a new module
 `metrics/balanced.py`. `brier` is one aggregate over the probability columns,
-a frozen dataclass `Brier(Metric)` in `metrics/probability.py` built like
+a frozen dataclass `BrierScore(Metric)` in `metrics/probability.py` built like
 `AveragePrecision`.
 
 **Tech Stack:** Python 3.12, DuckDB expressions, pytest, scikit-learn 1.9.1 as
@@ -139,7 +139,7 @@ the reference.
 
 **Files:**
 - Modify: `src/sqlearn/metrics/probability.py`,
-  `src/sqlearn/metrics/__init__.py` (export `Brier`, `brier`)
+  `src/sqlearn/metrics/__init__.py` (export `BrierScore`, `brier`)
 - Test: `tests/src/sqlearn/metrics/test_probability.py`
 
 **Interfaces:**
@@ -200,12 +200,13 @@ the reference.
 ### Task 5: documentation and project notes
 
 **Files:**
-- Modify: `docs/guide/evaluating-a-model.md` (a section "Scores for
-  imbalanced classes", on the page's `rows`), `docs/reference/index.md`
+- Modify: `docs/guide/evaluating-a-model.md` (a section "Scores for imbalanced
+  classes", on the page's `rows`), `docs/reference/index.md`
   (`sqlearn.metrics.balanced_accuracy`, `.mcc`, `.brier`, `.CountMetric`,
-  `.Brier`), any page that lists the metrics (`git grep -n average_precision
-  docs/guide`), `CLAUDE.md` and `HANDOFF.md` (the area is built),
-  `src/sqlearn/_errors.py` only if a warning class is added.
+  `.BrierScore`), any page that lists the metrics
+  (`git grep -n average_precision docs/guide`), `CLAUDE.md` and `HANDOFF.md`
+  (the area is built), `src/sqlearn/_errors.py` only if a warning class is
+  added.
 
 - [ ] **Step 1: Write the guide section:** the 95/5 example as a small table
   built in the page, accuracy against `balanced_accuracy` and `mcc`, then

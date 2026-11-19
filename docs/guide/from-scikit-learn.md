@@ -67,6 +67,12 @@ counterpart.
 | `roc_curve(y, s)` | `sq.metrics.roc_curve(rel, "y", "s", out="numpy")` (a dict of columns; a relation by default; columns `fpr`, `tpr`, `threshold`) |
 | `precision_recall_curve(y, s)` | `sq.metrics.precision_recall_curve(rel, "y", "s", out="numpy")` (a dict of columns; a relation by default; columns `precision`, `recall`, `threshold`, the last threshold NULL) |
 | `precision_recall_fscore_support(y, p)` | the class rows of `classification_report` (`precision`, `recall`, `f1_score`, `support`) |
+| `balanced_accuracy_score(y, p)` | `sq.metrics.balanced_accuracy.compute(rel, "y", "p")` (`adjusted=` as `sq.metrics.balanced_accuracy(adjusted=True)`) |
+| `scoring="balanced_accuracy"` | `metric=sq.metrics.balanced_accuracy` |
+| `matthews_corrcoef(y, p)` | `sq.metrics.mcc.compute(rel, "y", "p")` |
+| `scoring="matthews_corrcoef"` | `metric=sq.metrics.mcc` |
+| `brier_score_loss(y, proba, labels=[0, 1])` | `sq.metrics.brier.compute(rel, "y", classes=[0, 1])` (every probability column; no `pos_label=` or `labels=`) |
+| `scoring="neg_brier_score"` | `metric=sq.metrics.brier` |
 | `scoring="neg_log_loss"` | `metric=sq.metrics.log_loss` |
 | `scoring="roc_auc"` (`"roc_auc_ovr"` for more than two classes) | `metric=sq.metrics.roc_auc` |
 | `average_precision_score(y, proba[:, 1])` | `sq.metrics.average_precision.compute(rel, "y", classes=[0, 1])` (`pos_label=` as `sq.metrics.average_precision(pos_label="b")`) |
@@ -117,7 +123,7 @@ pipe.learn(data).apply(data, out="pandas")
 - **Target encoding.** Cross-fitting happens in `train` only. Learn-then-apply
   does not cross-fit, and a text target is refused.
 - **Scores keep their sign.** A metric where lower is better (`log_loss`,
-  `rmse`, `mae`) is reported as it is, and the search keeps the lowest;
+  `brier`, `rmse`, `mae`) is reported as it is, and the search keeps the lowest;
   scikit-learn negates it and keeps the highest.
 - **Folds are dealt by value.** `sq.folds.kfold`, `stratified` and `group`
   deal rows by a hash of their values, so identical rows share a fold; the
