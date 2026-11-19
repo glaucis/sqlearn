@@ -3,9 +3,10 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-19 · Branch: `main` · Last commit: the merge of branch
-`regression-metrics`: the regression metrics (#63) · Checks: passing
-(`just verify` on the branch: 2635 passed, 24 skipped)
+Updated: 2026-11-19 · Branch: `main` · Last commit: `88e12ce` Merge branch
+'regression-metrics': the regression metrics (#63) · Checks: passing
+(`just test` on the merged `main`: 2626 passed, 24 skipped; `just verify` on
+the branch before its last wording fixes: 2635 passed)
 Verify with: `just verify`
 
 ## In progress
@@ -15,12 +16,13 @@ None.
 ## Waiting on the user
 
 - The #46 benchmark (`docs/benchmarks/generators-on-many-threads.md`) was not
-  on a quiet machine (load average about 4 to about 35) and can be rerun if
-  he wants.
+  on a quiet machine (load average about 4 to about 35) and can be rerun on
+  request. (since 2026-11-18)
 
 ## Next up
 
-- The next 3.3 area, not chosen yet. No dataset fetcher (ADR 0053).
+- The next 3.3 area, not chosen yet. No dataset fetcher (ADR 0053). Or #63's
+  deferred minors.
 
 ## Dead ends and traps
 
@@ -29,7 +31,9 @@ None.
   `_weighted_percentile(average=True)`, not any DuckDB quantile
   (`quantile_cont` and `quantile_disc` both differ). The full validation
   takes about 47 minutes under load; one runner can run alone through
-  `validation.__main__.main([module], ROOT)`. (2026-11-19)
+  `validation.__main__.main([module], ROOT)`. The docs tagger's uncommitted
+  frontmatter edits on `main` can block a merge: save that file's diff as a
+  patch, `git checkout` it, merge, `git apply` the patch. (2026-11-19)
 - `meta_sqlearn` (ADR 0052): one transaction writes one attached database,
   so it is written through a cursor. `con.execute` on the user's connection
   discards their unfinished result, so only bind there. A transaction may
@@ -85,16 +89,13 @@ None.
   then commit. A step's `inputs` sees only column names and types, never the
   source table, so nothing per table (a collation) can be checked there.
   (2026-11-11)
-- Benchmarks here share the machine with other projects' jobs (`ps -Ao
-  pcpu,comm -r`): record `uptime` before and after each count and measure
-  the counts near a crossing twice. (2026-11-12)
-- Timing a generator by summing two of its columns measures only those two:
-  DuckDB drops the unread ones. Sum every column. `range()` and a `UNION ALL`
-  of ranges run on one thread while insertion order is kept; the generators
-  no longer do, they use tickets (#46). DuckDB
-  2.0's relations have no `fetchone()`. (2026-11-10)
-- A wait loop `while pgrep -f name` matches its own command line and never
-  ends; wait on a PID or let the harness notify. A `VALUES ('a'::ENUM(...))`
+- Benchmarks share the machine with other jobs: record `uptime` before and
+  after each count. (2026-11-12)
+- Timing a query by summing two columns measures only those two: DuckDB
+  drops the unread ones. DuckDB 2.0's relations have no `fetchone()`.
+  (2026-11-10)
+- `while pgrep -f name` matches itself and never ends: wait on a PID. A
+  `VALUES ('a'::ENUM(...))`
   relation comes out VARCHAR: cast over the VALUES instead. (2026-11-10)
 - DuckDB reports a collated VARCHAR as plain `VARCHAR`; a NULL-only column's
   type is `"NULL"`, quotes included. Arrow batches keep only the ENUM values
@@ -117,11 +118,10 @@ None.
   (2026-11-07)
 - A subagent that has handed back can still run a background step: check the
   agent panel, stop it with `TaskStop`. (2026-11-08)
-- Wall-clock tests: an absolute limit fails under heavy load (load average 60
-  slowed a learn 8 times). Compare two sizes in the same test (median of three
-  each, alternating), as `test_a_cold_learn_of_many_staged_aggregates_is_fast`.
-  Reproduce load with 32 busy shell loops. Never pipe `just test` through
-  `tail` before `&&`. (2026-11-10)
+- Wall-clock tests: an absolute limit fails under heavy load. Compare two
+  sizes in the same test, as
+  `test_a_cold_learn_of_many_staged_aggregates_is_fast`. Never pipe
+  `just test` through `tail` before `&&`. (2026-11-10)
 - DuckDB 2.0: NaN sorts greatest; a staged result read with `any_value` breaks
   inside another aggregate; chained quantile stages spill only with the SQL of
   `b633816`; `range()` is read on one thread. (2026-11-08)
@@ -137,32 +137,4 @@ None.
   refusals), `_predict_stages` (window projections) and `_finish`. Spec
   `docs/specs/library-regression-metrics.md` (section 6 lists the
   departures), plan `docs/plans/2026-11-19-library-regression-metrics.md`.
-  Deferred minors are on #63. (2026-11-19)
-- Balanced scores (#62): `sq.metrics.balanced_accuracy` (`adjusted=`),
-  `mcc` and `brier` (`scale_by_half=` only: scikit-learn's `pos_label=` and
-  `labels=` change nothing given every probability column). Spec
-  `docs/specs/library-balanced-scores.md`, plan
-  `docs/plans/2026-11-19-library-balanced-scores.md`. sqlearn rounds the exact
-  score once, so scikit-learn can differ by up to 2 doubles. Deferred minors
-  are on #62. (2026-11-19)
-- Datasets left the package (#61, ADR 0053): `sq.datasets` is gone, and the
-  code, tests and validation moved to `devdata/`, `tests/devdata/` and
-  `validation/devdata/`, for development only. Guide pages and the tuning
-  example build their own tables. (2026-11-18)
-- Nested aggregates (#49), merged in `b1599cf`: any aggregate inside any
-  other, at any depth, learned in levels within one query (ADR 0051, spec
-  `docs/specs/learn-nested-aggregates.md`). The median absolute deviation
-  reaches 85-92% of one median's rows. Deferred minors (on the issue):
-  macro aggregates not seen; an aggregate both top-level and nested is
-  computed twice. (2026-11-17)
-- Generators on many threads (#46), merged in `591b2ba`: the four generators
-  number rows from work tickets in
-  `meta_sqlearn`; `parallel=False` keeps `range` (spec
-  `docs/specs/datasets-many-threads.md`, ADR 0052, benchmark
-  `docs/benchmarks/generators-on-many-threads.md`: about 2.7 times faster on
-  8 threads, not a quiet machine). Deferred: the ownership check costs about
-  10 ms per generator call (a cheaper form moves the macro query to just
-  before `CREATE`); row counts just above the ticket table's size fill fewer
-  row groups; a write-write conflict's warning gets the memory advice; a
-  foreign in-memory `meta_sqlearn` whose only contents are uncommitted looks
-  empty and receives a ticket table. (2026-11-18)
+  Merged in `88e12ce` and pushed; deferred minors are on #63. (2026-11-19)
