@@ -1,18 +1,22 @@
 """Regression metrics, each one aggregate query.
 
 The metrics are rmse, mae, r2, mse, max_error, median_absolute_error,
-mape, explained_variance, msle, rmsle, pinball_loss, and the deviances tweedie_deviance,
-poisson_deviance and gamma_deviance.
+mape, explained_variance, msle, rmsle, pinball_loss, the deviances
+tweedie_deviance, poisson_deviance and gamma_deviance, and the D2 score
+d2_tweedie.
 """
 
 import math
+import warnings
 from dataclasses import dataclass, replace
 from numbers import Real
+from pathlib import Path
+from typing import SupportsFloat
 
 import duckdb
 from duckdb import Expression
 
-from sqlearn._errors import SqlearnError
+from sqlearn._errors import SqlearnError, SqlearnWarning
 from sqlearn._expr import const
 from sqlearn.metrics.accuracy import Metric
 
@@ -20,6 +24,7 @@ __all__ = [
     "LogError",
     "PinballLoss",
     "TweedieDeviance",
+    "d2_tweedie",
     "explained_variance",
     "gamma_deviance",
     "mae",
@@ -35,6 +40,10 @@ __all__ = [
     "rmsle",
     "tweedie_deviance",
 ]
+
+
+_PACKAGE = (str(Path(__file__).parents[1]),)
+"""sqlearn's own files: a warning is placed at the first frame outside them."""
 
 
 def _fn(name: str, *args: Expression) -> Expression:
@@ -206,6 +215,23 @@ def _named(
     return metric.name
 
 
+def _d2_finish(name: str, value: SupportsFloat, total: int) -> float:
+    # A D2 score compares the model with a constant taken from the target,
+    # which one row cannot tell from the model: NaN with a warning, as
+    # scikit-learn has it.
+    if total < 2:
+        text = (
+            f"{name} of {total} row is NaN. Why: a D2 score compares the "
+            "model with a constant guess taken from the target, and one row "
+            "leaves nothing to compare; scikit-learn returns NaN too. Fix: "
+            "score two rows or more (in a search, folds that each hold two "
+            "rows or more)."
+        )
+        warnings.warn(text, SqlearnWarning, skip_file_prefixes=_PACKAGE)
+        return math.nan
+    return float(value)
+
+
 @dataclass(frozen=True)
 class TweedieDeviance(Metric):
     """The mean Tweedie deviance, as scikit-learn's ``mean_tweedie_deviance``.
@@ -216,12 +242,21 @@ class TweedieDeviance(Metric):
     a prediction at or below 0; for 2 and above a target or a prediction at
     or below 0.
 
+    With ``d2`` it is the D2 Tweedie score instead (``d2_tweedie``), as
+    scikit-learn's ``d2_tweedie_score``: one minus the model's deviance over
+    the deviance of the target's mean, refusing the same rows. Higher is
+    better. One row has no score: NaN, with a warning. A departure from
+    scikit-learn 1.9.1, which raises ``ZeroDivisionError`` there (ADR 0054):
+    a constant target (its minimum equals its maximum) scores 1 when every
+    prediction equals it and 0 otherwise, as ``r2`` does.
+
     Attributes
     ----------
     power : float, default 0.0
         The power: at most 0 or at least 1.
     d2 : bool, default False
-        Reserved for the D2 score; not a setting here.
+        Whether this is the D2 score rather than the mean deviance; not a
+        setting.
     settable : bool, default True
         Whether the power can be set by a call.
 
@@ -230,6 +265,14 @@ class TweedieDeviance(Metric):
     >>> import sqlearn as sq
     >>> sq.metrics.tweedie_deviance(power=1.5)
     tweedie_deviance(power=1.5)
+    >>> sq.metrics.d2_tweedie(power=2)
+    d2_tweedie(power=2.0)
+    >>> import duckdb
+    >>> rel = duckdb.sql(
+    ...     "SELECT * FROM (VALUES (1, 1.5), (2, 2), (3, 2), (4, 5)) t(y, prediction)"
+    ... )
+    >>> sq.metrics.d2_tweedie.compute(rel, "y")
+    0.55
     >>> sq.metrics.poisson_deviance.greater_is_better
     False
     """
@@ -278,7 +321,7 @@ class TweedieDeviance(Metric):
             msg = (
                 f"{self.name} was given power={power!r}. Why: it takes a "
                 "finite number at most 0 or at least 1, as scikit-learn's "
-                "mean_tweedie_deviance. Fix: use such a power, for example "
+                f"{self._reference}. Fix: use such a power, for example "
                 "power=1.5."
             )
             raise SqlearnError(msg)
@@ -288,16 +331,62 @@ class TweedieDeviance(Metric):
         """Return the name, with the power when it is set."""
         return _named(self, "power", 0.0)
 
-    def _expression(self, y: Expression, p: Expression) -> Expression:
+    @property
+    def _reference(self) -> str:
+        """Return the name of scikit-learn's function for this metric."""
+        return "d2_tweedie_score" if self.d2 else "mean_tweedie_deviance"
+
+    def _predict_stages(
+        self, y: Expression, p: Expression
+    ) -> list[dict[str, Expression]]:
+        # The D2 baseline: the target's compensated mean (favg, ADR 0033) on
+        # every row, a window over the whole relation.
+        if not self.d2:
+            return []
+        return [{"__sqlearn_stage_mean": _fn("favg", y.cast("DOUBLE")).over()}]
+
+    def _finish(self, value: SupportsFloat, total: int) -> float:
+        if self.d2:
+            return _d2_finish(self.name, value, total)
+        return super()._finish(value, total)
+
+    def _expression(
+        self, y: Expression, p: Expression, *mean: Expression
+    ) -> Expression:
         # scikit-learn's per-row deviance, then the compensated mean (favg,
-        # ADR 0033). A pow or ln is guarded so that a row outside the range
-        # gives a number and the refusal comes after the aggregate.
-        power = self.power
+        # ADR 0033), or for D2 one minus the model's compensated sum over
+        # the mean's.
         target, mu = y.cast("DOUBLE"), p.cast("DOUBLE")
+        if not self.d2:
+            return _fn("favg", self._row(target, mu))
+        (baseline,) = mean
+        model = _fn("fsum", self._row(target, mu))
+        # The mean as scikit-learn takes it: unguarded below power 0, where
+        # a mean at or below 0 still has a deviance; from power 1 a mean at
+        # or below 0 means a refused row or a constant target of 0.
+        guess = _fn("fsum", self._row(target, baseline, guard=self.power >= 1.0))
+        # A constant target (minimum equals maximum, ADR 0054) scores 1 when
+        # every prediction equals it and 0 otherwise: its mean can be one
+        # rounding off, and a deviance of an exact prediction need not round
+        # to 0 (power -1).
+        exact = duckdb.CaseExpression(
+            _fn("bool_and", target == mu), const(1.0)
+        ).otherwise(const(0.0))
+        return duckdb.CaseExpression(
+            _fn("min", target) == _fn("max", target), exact
+        ).otherwise(const(1.0) - model / guess)
+
+    def _row(
+        self, target: Expression, mu: Expression, *, guard: bool = True
+    ) -> Expression:
+        # One row's deviance. A pow or ln is guarded so that a row outside
+        # the range gives a number and the refusal comes after the
+        # aggregate.
+        power = self.power
         if power == 0.0:
             error = target - mu
-            return _fn("favg", error * error)
-        mu = _positive(mu)
+            return error * error
+        mu = _positive(mu) if guard else mu
         if power == 1.0:
             # xlogy(y, y / mu): 0 where y is 0.
             ratio = _fn("ln", _positive(target / mu))
@@ -310,7 +399,7 @@ class TweedieDeviance(Metric):
             row = const(2.0) * (_fn("ln", mu / positive) + positive / mu - const(1.0))
         else:
             row = self._general(target, mu, power)
-        return _fn("favg", row)
+        return row
 
     @staticmethod
     def _general(target: Expression, mu: Expression, power: float) -> Expression:
@@ -334,7 +423,7 @@ class TweedieDeviance(Metric):
         zero = const(0.0)
         why = (
             f"the Tweedie deviance of power {power!r} is not defined there, "
-            "and scikit-learn's mean_tweedie_deviance refuses such values too."
+            f"and scikit-learn's {self._reference} refuses such values too."
         )
         rows = [(mu <= zero, "a prediction at or below 0", why)]
         if power >= 2.0:
@@ -450,3 +539,4 @@ gamma_deviance = TweedieDeviance(
     "gamma_deviance", _unused, False, power=2.0, settable=False
 )
 pinball_loss = PinballLoss("pinball_loss", _unused, False)
+d2_tweedie = TweedieDeviance("d2_tweedie", _unused, True, d2=True)

@@ -1,10 +1,14 @@
 """Tests of the regression metrics against scikit-learn."""
 
+import json
+import math
+
 import numpy as np
 import pandas as pd
 import pytest
 from sklearn.linear_model import Ridge
 from sklearn.metrics import (
+    d2_tweedie_score,
     explained_variance_score,
     max_error,
     mean_absolute_error,
@@ -23,7 +27,7 @@ from sklearn.metrics import (
 
 import sqlearn as sq
 from sqlearn._config import connection
-from sqlearn._errors import SqlearnError
+from sqlearn._errors import SqlearnError, SqlearnWarning
 
 RNG = np.random.default_rng(0)
 
@@ -405,6 +409,131 @@ def test_a_search_by_a_pinball_loss():
         sq.Pipeline([("model", Ridge())]),
         params={"model__alpha": [0.01, 1000.0]},
         metric=sq.metrics.pinball_loss(alpha=0.9),
+        folds=sq.folds.kfold(3),
+    )
+    assert search.train(data, target="y").best_params_ == {"model__alpha": 0.01}
+
+
+@pytest.mark.parametrize(
+    ("power", "expected"),
+    [
+        (-1, 0.413333333333334),
+        (0, 0.55),
+        (1, 0.606956520832571),
+        (1.5, 0.6141248271175761),
+        (2, 0.6103332516433315),
+        (3, 0.5770114942528733),
+    ],
+)
+def test_d2_tweedie_matches_scikit_learn(power, expected):
+    """Each power scores as scikit-learn's D2 Tweedie score."""
+    frame = pd.DataFrame({"y": Y4, "prediction": P4})
+    metric = sq.metrics.d2_tweedie(power=power)
+    got = metric.compute(rel(frame), "y")
+    assert got == pytest.approx(expected, rel=1e-12)
+    assert got == pytest.approx(d2_tweedie_score(Y4, P4, power=power), rel=1e-12)
+
+
+def test_d2_tweedie_of_one_row_is_nan_with_a_warning():
+    """One row has no D2 score: NaN, with a warning that says why and the fix."""
+    frame = pd.DataFrame({"y": [1.0], "prediction": [2.0]})
+    with pytest.warns(SqlearnWarning, match=r"Why: .*Fix: ") as caught:
+        got = sq.metrics.d2_tweedie.compute(rel(frame), "y")
+    assert math.isnan(got)
+    assert caught[0].filename == __file__
+
+
+@pytest.mark.parametrize(
+    ("metric", "y", "p", "expected"),
+    [
+        (sq.metrics.d2_tweedie, [2.0, 2.0], [2.0, 2.0], 1.0),
+        (sq.metrics.d2_tweedie, [2.0, 2.0], [1.0, 3.0], 0.0),
+        (sq.metrics.d2_tweedie, [0.1] * 1000, [0.1] * 1000, 1.0),
+        (sq.metrics.d2_tweedie, [0.1] * 1000, [0.2] * 1000, 0.0),
+        (sq.metrics.d2_tweedie(power=-1), [0.1] * 7, [0.1] * 7, 1.0),
+        (sq.metrics.d2_tweedie(power=1), [0.0] * 3, [1.0] * 3, 0.0),
+        (sq.metrics.d2_tweedie(power=2), [0.1] * 1000, [0.1] * 1000, 1.0),
+    ],
+)
+def test_d2_tweedie_of_a_constant_target_is_one_or_zero(metric, y, p, expected):
+    """A constant target scores 1 when predicted exactly, else 0 (ADR 0054)."""
+    frame = pd.DataFrame({"y": y, "prediction": p})
+    assert metric.compute(rel(frame), "y") == expected
+
+
+def test_d2_tweedie_survives_a_large_offset():
+    """At power 0 it is r2, and keeps its digits on a target far from zero."""
+    y = 1e6 + RNG.normal(size=500)
+    p = y + RNG.normal(scale=0.5, size=500)
+    got = sq.metrics.d2_tweedie.compute(
+        rel(pd.DataFrame({"y": y, "prediction": p})), "y"
+    )
+    assert got == pytest.approx(r2_score(y, p), rel=1e-9)
+
+
+def _scans(node, table):
+    """Count the scans of `table` in a DuckDB JSON profile's operator tree."""
+    nodes = node if isinstance(node, list) else [node]
+    found = 0
+    for n in nodes:
+        if str(n.get("extra_info", {}).get("Table", "")).endswith(f".{table}"):
+            found += 1
+        found += _scans(n.get("children", []), table)
+    return found
+
+
+def test_d2_tweedie_reads_the_source_once(tmp_path):
+    """The mean and the score come from one query with one scan of the source."""
+    con = connection()
+    con.execute(
+        "CREATE OR REPLACE TABLE d2_source AS SELECT i::DOUBLE + 1 AS y, "
+        "i::DOUBLE + 1.5 AS prediction FROM range(1000) r(i)"
+    )
+    profile = tmp_path / "profile.json"
+    try:
+        con.execute("PRAGMA enable_profiling = 'json'")
+        con.execute(f"PRAGMA profiling_output = '{profile}'")
+        got = sq.metrics.d2_tweedie(power=1.5).compute(con.table("d2_source"), "y")
+    finally:
+        con.execute("PRAGMA disable_profiling")
+        con.execute("RESET profiling_output")
+        con.execute("DROP TABLE d2_source")
+    assert got < 1.0
+    tree = json.loads(profile.read_text())
+    assert "favg" in json.dumps(tree["operator"])
+    assert _scans(tree["operator"], "d2_source") == 1
+
+
+def test_d2_tweedie_refuses_tweedie_deviances_ranges():
+    """The rows refused are tweedie_deviance's for the power."""
+    frame = pd.DataFrame({"y": [-1.0, 1.0], "prediction": [1.0, 1.0]})
+    with pytest.raises(SqlearnError, match=r"a negative target.*Fix:"):
+        sq.metrics.d2_tweedie(power=1.5).compute(rel(frame), "y")
+
+
+def test_d2_tweedie_is_higher_better_and_shows_its_power():
+    """D2 is a score, higher is better, and its repr names its power."""
+    assert sq.metrics.d2_tweedie.greater_is_better is True
+    assert repr(sq.metrics.d2_tweedie) == "d2_tweedie"
+    assert repr(sq.metrics.d2_tweedie(power=2)) == "d2_tweedie(power=2.0)"
+    with pytest.raises(SqlearnError, match="Fix:"):
+        sq.metrics.d2_tweedie(power=0.5)
+
+
+def test_a_search_by_d2_tweedie():
+    """Higher D2 wins: a search runs with a power and picks by max."""
+    x = RNG.uniform(1, 3, size=(120, 2))
+    data = pd.DataFrame(
+        {
+            "a": x[:, 0],
+            "b": x[:, 1],
+            "y": 3 * x[:, 0] + 2 * x[:, 1] + RNG.uniform(0.1, 0.5, size=120),
+        }
+    )
+    search = sq.search(
+        sq.Pipeline([("model", Ridge())]),
+        params={"model__alpha": [1000.0, 0.01]},
+        metric=sq.metrics.d2_tweedie(power=1.5),
         folds=sq.folds.kfold(3),
     )
     assert search.train(data, target="y").best_params_ == {"model__alpha": 0.01}
