@@ -125,7 +125,7 @@ EPS = sys.float_info.epsilon
 #   near the target, then the compensated mean. Where every row is near
 #   (the constant datasets, ``zero target``'s exact rows at power -1) the
 #   cancellation is the error, and scikit-learn and numpy land on the same
-#   double as sqlearn: those are WIDE, each at its measurement. At power -1
+#   double as sqlearn: those are WIDE, each for the power measured. At -1
 #   an exact prediction of 2 gives 2 * (8/6 - 4 + 8/3), whose three rounded
 #   terms leave -8.9e-16 where the exact value is 0: a count of doubles from
 #   0 is astronomically large though the error is one rounding of 8/3.
@@ -153,13 +153,18 @@ BOUNDS = {
 WIDE = {
     ("r2", "offset"): 120_000,
     ("explained_variance", "offset"): 120_000,
-    ("tweedie_deviance", "constant"): 16,
-    ("tweedie_deviance", "constant, offset"): 96,
-    ("tweedie_deviance", "zero target"): 40,
-    ("tweedie_deviance", "constant, exact"): 4_382_002_437_431_492_608,
-    ("poisson_deviance", "constant, offset"): 24,
-    ("gamma_deviance", "constant, offset"): 32,
+    ("tweedie_deviance, power=1.5", "constant"): 16,  # measured 12
+    ("tweedie_deviance, power=1.0", "constant, offset"): 24,  # measured 20
+    ("tweedie_deviance, power=1.5", "constant, offset"): 96,  # measured 86
+    ("tweedie_deviance, power=2.0", "constant, offset"): 32,  # measured 23
+    ("tweedie_deviance, power=-1.0", "zero target"): 40,  # measured 36
+    ("tweedie_deviance, power=-1.0", "constant, exact"): 4_382_002_437_431_492_608,
+    ("poisson_deviance", "constant, offset"): 24,  # measured 20
+    ("gamma_deviance", "constant, offset"): 32,  # measured 23
 }
+"""Bounds wider than `BOUNDS` for one formula on one dataset, each at its
+measurement and for the reason above `BOUNDS`. Keyed by formula, so a
+widening for one power leaves every other power at its step's bound."""
 
 OFFSET = frozenset({
     "rmse", "mae", "r2", "mse", "max_error", "median_absolute_error", "mape",
@@ -272,6 +277,10 @@ def _above_minus_one(y: tuple, p: tuple) -> bool:
 
 
 def _tweedie_range(power: float) -> Callable[[tuple, tuple], bool]:
+    if 0 < power < 1:
+        msg = f"no Tweedie deviance has power {power!r}: scikit-learn refuses it"
+        raise ValueError(msg)
+
     def inside(y: tuple, p: tuple) -> bool:
         if power == 0:
             return True
@@ -757,7 +766,7 @@ def cases() -> list[dict]:
                 data=pair.data,
                 type="DOUBLE",
                 exact=exact,
-                bound=WIDE.get((score.step, pair.data.name), BOUNDS[score.step]),
+                bound=WIDE.get((score.formula, pair.data.name), BOUNDS[score.step]),
                 answers=answers,
             )
     return out

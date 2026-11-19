@@ -4001,20 +4001,20 @@
       "value": -0.13846853688320437
     },
     {
-      "abs_error": 8.181316781785458e-17,
+      "abs_error": 2.9209134644661075e-17,
       "bound_ulps": 8,
       "canonical": 0.4989259162844903,
       "dataset": "large",
       "formula": "d2_pinball, alpha=0.5",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 1.6397858910019874e-16,
+      "rel_error": 5.854403167143931e-17,
       "result": "pass",
       "rows": 100000,
       "step": "d2_pinball",
       "type": "DOUBLE",
       "ulps": 1,
-      "value": 0.49892591628449035
+      "value": 0.49892591628449023
     },
     {
       "abs_error": 2.9209134644661075e-17,
@@ -4161,36 +4161,36 @@
       "value": -0.1398346976852436
     },
     {
-      "abs_error": 8.181316781785458e-17,
+      "abs_error": 2.9209134644661075e-17,
       "bound_ulps": 8,
       "canonical": 0.4989259162844903,
       "dataset": "large",
       "formula": "d2_absolute_error",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 1.6397858910019874e-16,
+      "rel_error": 5.854403167143931e-17,
       "result": "pass",
       "rows": 100000,
       "step": "d2_absolute_error",
       "type": "DOUBLE",
       "ulps": 1,
-      "value": 0.49892591628449035
+      "value": 0.49892591628449023
     },
     {
-      "abs_error": 8.181316781785458e-17,
+      "abs_error": 2.9209134644661075e-17,
       "bound_ulps": 8,
       "canonical": 0.4989259162844903,
       "dataset": "large",
       "formula": "d2_absolute_error",
       "note": "",
       "reference": "duckdb",
-      "rel_error": 1.6397858910019874e-16,
+      "rel_error": 5.854403167143931e-17,
       "result": "pass",
       "rows": 100000,
       "step": "d2_absolute_error",
       "type": "DOUBLE",
       "ulps": 1,
-      "value": 0.49892591628449035
+      "value": 0.49892591628449023
     },
     {
       "abs_error": 8.181316781785458e-17,
@@ -12881,20 +12881,20 @@
       "value": 0.11974530331137799
     },
     {
-      "abs_error": 1.1115820870999094e-16,
+      "abs_error": 1.3590624747527852e-19,
       "bound_ulps": 8,
       "canonical": 0.26004058714376266,
       "dataset": "positive, large",
       "formula": "d2_tweedie, power=-1.0",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 4.2746484281908444e-16,
+      "rel_error": 5.2263475085965395e-19,
       "result": "pass",
       "rows": 100000,
       "step": "d2_tweedie",
       "type": "DOUBLE",
-      "ulps": 2,
-      "value": 0.26004058714376277
+      "ulps": 0,
+      "value": 0.26004058714376266
     },
     {
       "abs_error": 1.1115820870999094e-16,
@@ -13441,20 +13441,20 @@
       "value": -1.2569306675993404
     },
     {
-      "abs_error": 5.4571229154201696e-17,
+      "abs_error": 5.645107330831396e-17,
       "bound_ulps": 8,
       "canonical": 0.3548616528400855,
       "dataset": "positive, large",
       "formula": "d2_pinball, alpha=0.5",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 1.537817025802831e-16,
+      "rel_error": 1.5907910267710164e-16,
       "result": "pass",
       "rows": 100000,
       "step": "d2_pinball",
       "type": "DOUBLE",
       "ulps": 1,
-      "value": 0.35486165284008553
+      "value": 0.3548616528400854
     },
     {
       "abs_error": 5.645107330831396e-17,
@@ -24482,7 +24482,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 40,
+      "bound_ulps": 4,
       "canonical": 0.1875,
       "dataset": "zero target",
       "formula": "tweedie_deviance, power=0.0",
@@ -24498,7 +24498,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 40,
+      "bound_ulps": 4,
       "canonical": 0.1875,
       "dataset": "zero target",
       "formula": "tweedie_deviance, power=0.0",
@@ -24514,7 +24514,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 40,
+      "bound_ulps": 4,
       "canonical": 0.1875,
       "dataset": "zero target",
       "formula": "tweedie_deviance, power=0.0",
@@ -24530,7 +24530,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 40,
+      "bound_ulps": 4,
       "canonical": 0.1875,
       "dataset": "zero target",
       "formula": "tweedie_deviance, power=0.0",
@@ -24546,7 +24546,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 40,
+      "bound_ulps": 4,
       "canonical": 0.1875,
       "dataset": "zero target",
       "formula": "tweedie_deviance, power=0.0",
@@ -24562,7 +24562,7 @@
     },
     {
       "abs_error": 1.7416468309961344e-16,
-      "bound_ulps": 40,
+      "bound_ulps": 4,
       "canonical": 0.31116440764271286,
       "dataset": "zero target",
       "formula": "tweedie_deviance, power=1.0",
@@ -24578,7 +24578,7 @@
     },
     {
       "abs_error": 1.7416468309961344e-16,
-      "bound_ulps": 40,
+      "bound_ulps": 4,
       "canonical": 0.31116440764271286,
       "dataset": "zero target",
       "formula": "tweedie_deviance, power=1.0",
@@ -24594,7 +24594,7 @@
     },
     {
       "abs_error": 1.7416468309961344e-16,
-      "bound_ulps": 40,
+      "bound_ulps": 4,
       "canonical": 0.31116440764271286,
       "dataset": "zero target",
       "formula": "tweedie_deviance, power=1.0",
@@ -24610,7 +24610,7 @@
     },
     {
       "abs_error": 1.7416468309961344e-16,
-      "bound_ulps": 40,
+      "bound_ulps": 4,
       "canonical": 0.31116440764271286,
       "dataset": "zero target",
       "formula": "tweedie_deviance, power=1.0",
@@ -24626,7 +24626,7 @@
     },
     {
       "abs_error": 1.7416468309961344e-16,
-      "bound_ulps": 40,
+      "bound_ulps": 4,
       "canonical": 0.31116440764271286,
       "dataset": "zero target",
       "formula": "tweedie_deviance, power=1.0",
@@ -24642,7 +24642,7 @@
     },
     {
       "abs_error": 1.705193635648925e-17,
-      "bound_ulps": 40,
+      "bound_ulps": 4,
       "canonical": 0.7508215007348612,
       "dataset": "zero target",
       "formula": "tweedie_deviance, power=1.5",
@@ -24658,7 +24658,7 @@
     },
     {
       "abs_error": 1.705193635648925e-17,
-      "bound_ulps": 40,
+      "bound_ulps": 4,
       "canonical": 0.7508215007348612,
       "dataset": "zero target",
       "formula": "tweedie_deviance, power=1.5",
@@ -24674,7 +24674,7 @@
     },
     {
       "abs_error": 1.705193635648925e-17,
-      "bound_ulps": 40,
+      "bound_ulps": 4,
       "canonical": 0.7508215007348612,
       "dataset": "zero target",
       "formula": "tweedie_deviance, power=1.5",
@@ -24690,7 +24690,7 @@
     },
     {
       "abs_error": 1.705193635648925e-17,
-      "bound_ulps": 40,
+      "bound_ulps": 4,
       "canonical": 0.7508215007348612,
       "dataset": "zero target",
       "formula": "tweedie_deviance, power=1.5",
@@ -24706,7 +24706,7 @@
     },
     {
       "abs_error": 1.705193635648925e-17,
-      "bound_ulps": 40,
+      "bound_ulps": 4,
       "canonical": 0.7508215007348612,
       "dataset": "zero target",
       "formula": "tweedie_deviance, power=1.5",
@@ -24722,7 +24722,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 40,
+      "bound_ulps": 4,
       "canonical": null,
       "dataset": "zero target",
       "formula": "tweedie_deviance, power=2.0",
@@ -24738,7 +24738,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 40,
+      "bound_ulps": 4,
       "canonical": null,
       "dataset": "zero target",
       "formula": "tweedie_deviance, power=2.0",
@@ -24754,7 +24754,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 40,
+      "bound_ulps": 4,
       "canonical": null,
       "dataset": "zero target",
       "formula": "tweedie_deviance, power=2.0",
@@ -24770,7 +24770,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 40,
+      "bound_ulps": 4,
       "canonical": null,
       "dataset": "zero target",
       "formula": "tweedie_deviance, power=2.0",
@@ -24786,7 +24786,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 40,
+      "bound_ulps": 4,
       "canonical": null,
       "dataset": "zero target",
       "formula": "tweedie_deviance, power=2.0",
@@ -24802,7 +24802,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 40,
+      "bound_ulps": 4,
       "canonical": null,
       "dataset": "zero target",
       "formula": "tweedie_deviance, power=3.0",
@@ -24818,7 +24818,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 40,
+      "bound_ulps": 4,
       "canonical": null,
       "dataset": "zero target",
       "formula": "tweedie_deviance, power=3.0",
@@ -24834,7 +24834,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 40,
+      "bound_ulps": 4,
       "canonical": null,
       "dataset": "zero target",
       "formula": "tweedie_deviance, power=3.0",
@@ -24850,7 +24850,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 40,
+      "bound_ulps": 4,
       "canonical": null,
       "dataset": "zero target",
       "formula": "tweedie_deviance, power=3.0",
@@ -24866,7 +24866,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 40,
+      "bound_ulps": 4,
       "canonical": null,
       "dataset": "zero target",
       "formula": "tweedie_deviance, power=3.0",
@@ -36802,7 +36802,7 @@
     },
     {
       "abs_error": 7.105427357601002e-16,
-      "bound_ulps": 16,
+      "bound_ulps": 4,
       "canonical": 1.2,
       "dataset": "constant",
       "formula": "tweedie_deviance, power=-1.0",
@@ -36818,7 +36818,7 @@
     },
     {
       "abs_error": 7.105427357601002e-16,
-      "bound_ulps": 16,
+      "bound_ulps": 4,
       "canonical": 1.2,
       "dataset": "constant",
       "formula": "tweedie_deviance, power=-1.0",
@@ -36834,7 +36834,7 @@
     },
     {
       "abs_error": 7.105427357601002e-16,
-      "bound_ulps": 16,
+      "bound_ulps": 4,
       "canonical": 1.2,
       "dataset": "constant",
       "formula": "tweedie_deviance, power=-1.0",
@@ -36850,7 +36850,7 @@
     },
     {
       "abs_error": 7.105427357601002e-16,
-      "bound_ulps": 16,
+      "bound_ulps": 4,
       "canonical": 1.2,
       "dataset": "constant",
       "formula": "tweedie_deviance, power=-1.0",
@@ -36866,7 +36866,7 @@
     },
     {
       "abs_error": 7.105427357601002e-16,
-      "bound_ulps": 16,
+      "bound_ulps": 4,
       "canonical": 1.2,
       "dataset": "constant",
       "formula": "tweedie_deviance, power=-1.0",
@@ -36882,7 +36882,7 @@
     },
     {
       "abs_error": 2.2204460492503132e-17,
-      "bound_ulps": 16,
+      "bound_ulps": 4,
       "canonical": 0.6,
       "dataset": "constant",
       "formula": "tweedie_deviance, power=0.0",
@@ -36898,7 +36898,7 @@
     },
     {
       "abs_error": 2.2204460492503132e-17,
-      "bound_ulps": 16,
+      "bound_ulps": 4,
       "canonical": 0.6,
       "dataset": "constant",
       "formula": "tweedie_deviance, power=0.0",
@@ -36914,7 +36914,7 @@
     },
     {
       "abs_error": 2.2204460492503132e-17,
-      "bound_ulps": 16,
+      "bound_ulps": 4,
       "canonical": 0.6,
       "dataset": "constant",
       "formula": "tweedie_deviance, power=0.0",
@@ -36930,7 +36930,7 @@
     },
     {
       "abs_error": 2.2204460492503132e-17,
-      "bound_ulps": 16,
+      "bound_ulps": 4,
       "canonical": 0.6,
       "dataset": "constant",
       "formula": "tweedie_deviance, power=0.0",
@@ -36946,7 +36946,7 @@
     },
     {
       "abs_error": 2.2204460492503132e-17,
-      "bound_ulps": 16,
+      "bound_ulps": 4,
       "canonical": 0.6,
       "dataset": "constant",
       "formula": "tweedie_deviance, power=0.0",
@@ -36962,7 +36962,7 @@
     },
     {
       "abs_error": 3.1285927397310764e-17,
-      "bound_ulps": 16,
+      "bound_ulps": 4,
       "canonical": 0.34521848694213714,
       "dataset": "constant",
       "formula": "tweedie_deviance, power=1.0",
@@ -36978,7 +36978,7 @@
     },
     {
       "abs_error": 3.1285927397310764e-17,
-      "bound_ulps": 16,
+      "bound_ulps": 4,
       "canonical": 0.34521848694213714,
       "dataset": "constant",
       "formula": "tweedie_deviance, power=1.0",
@@ -36994,7 +36994,7 @@
     },
     {
       "abs_error": 3.1285927397310764e-17,
-      "bound_ulps": 16,
+      "bound_ulps": 4,
       "canonical": 0.34521848694213714,
       "dataset": "constant",
       "formula": "tweedie_deviance, power=1.0",
@@ -37010,7 +37010,7 @@
     },
     {
       "abs_error": 3.1285927397310764e-17,
-      "bound_ulps": 16,
+      "bound_ulps": 4,
       "canonical": 0.34521848694213714,
       "dataset": "constant",
       "formula": "tweedie_deviance, power=1.0",
@@ -37026,7 +37026,7 @@
     },
     {
       "abs_error": 3.1285927397310764e-17,
-      "bound_ulps": 16,
+      "bound_ulps": 4,
       "canonical": 0.34521848694213714,
       "dataset": "constant",
       "formula": "tweedie_deviance, power=1.0",
@@ -37122,7 +37122,7 @@
     },
     {
       "abs_error": 1.7663727040099313e-17,
-      "bound_ulps": 16,
+      "bound_ulps": 4,
       "canonical": 0.22739075652893145,
       "dataset": "constant",
       "formula": "tweedie_deviance, power=2.0",
@@ -37138,7 +37138,7 @@
     },
     {
       "abs_error": 1.7663727040099313e-17,
-      "bound_ulps": 16,
+      "bound_ulps": 4,
       "canonical": 0.22739075652893145,
       "dataset": "constant",
       "formula": "tweedie_deviance, power=2.0",
@@ -37154,7 +37154,7 @@
     },
     {
       "abs_error": 1.7663727040099313e-17,
-      "bound_ulps": 16,
+      "bound_ulps": 4,
       "canonical": 0.22739075652893145,
       "dataset": "constant",
       "formula": "tweedie_deviance, power=2.0",
@@ -37170,7 +37170,7 @@
     },
     {
       "abs_error": 1.7663727040099313e-17,
-      "bound_ulps": 16,
+      "bound_ulps": 4,
       "canonical": 0.22739075652893145,
       "dataset": "constant",
       "formula": "tweedie_deviance, power=2.0",
@@ -37186,7 +37186,7 @@
     },
     {
       "abs_error": 1.7663727040099313e-17,
-      "bound_ulps": 16,
+      "bound_ulps": 4,
       "canonical": 0.22739075652893145,
       "dataset": "constant",
       "formula": "tweedie_deviance, power=2.0",
@@ -37202,7 +37202,7 @@
     },
     {
       "abs_error": 1.850371707708594e-17,
-      "bound_ulps": 16,
+      "bound_ulps": 4,
       "canonical": 0.16666666666666666,
       "dataset": "constant",
       "formula": "tweedie_deviance, power=3.0",
@@ -37218,7 +37218,7 @@
     },
     {
       "abs_error": 1.850371707708594e-17,
-      "bound_ulps": 16,
+      "bound_ulps": 4,
       "canonical": 0.16666666666666666,
       "dataset": "constant",
       "formula": "tweedie_deviance, power=3.0",
@@ -37234,7 +37234,7 @@
     },
     {
       "abs_error": 1.850371707708594e-17,
-      "bound_ulps": 16,
+      "bound_ulps": 4,
       "canonical": 0.16666666666666666,
       "dataset": "constant",
       "formula": "tweedie_deviance, power=3.0",
@@ -37250,7 +37250,7 @@
     },
     {
       "abs_error": 1.850371707708594e-17,
-      "bound_ulps": 16,
+      "bound_ulps": 4,
       "canonical": 0.16666666666666666,
       "dataset": "constant",
       "formula": "tweedie_deviance, power=3.0",
@@ -37266,7 +37266,7 @@
     },
     {
       "abs_error": 1.850371707708594e-17,
-      "bound_ulps": 16,
+      "bound_ulps": 4,
       "canonical": 0.16666666666666666,
       "dataset": "constant",
       "formula": "tweedie_deviance, power=3.0",
@@ -39362,7 +39362,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 4382002437431492608,
+      "bound_ulps": 4,
       "canonical": 0.0,
       "dataset": "constant, exact",
       "formula": "tweedie_deviance, power=0.0",
@@ -39378,7 +39378,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 4382002437431492608,
+      "bound_ulps": 4,
       "canonical": 0.0,
       "dataset": "constant, exact",
       "formula": "tweedie_deviance, power=0.0",
@@ -39394,7 +39394,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 4382002437431492608,
+      "bound_ulps": 4,
       "canonical": 0.0,
       "dataset": "constant, exact",
       "formula": "tweedie_deviance, power=0.0",
@@ -39410,7 +39410,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 4382002437431492608,
+      "bound_ulps": 4,
       "canonical": 0.0,
       "dataset": "constant, exact",
       "formula": "tweedie_deviance, power=0.0",
@@ -39426,7 +39426,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 4382002437431492608,
+      "bound_ulps": 4,
       "canonical": 0.0,
       "dataset": "constant, exact",
       "formula": "tweedie_deviance, power=0.0",
@@ -39442,7 +39442,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 4382002437431492608,
+      "bound_ulps": 4,
       "canonical": 0.0,
       "dataset": "constant, exact",
       "formula": "tweedie_deviance, power=1.0",
@@ -39458,7 +39458,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 4382002437431492608,
+      "bound_ulps": 4,
       "canonical": 0.0,
       "dataset": "constant, exact",
       "formula": "tweedie_deviance, power=1.0",
@@ -39474,7 +39474,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 4382002437431492608,
+      "bound_ulps": 4,
       "canonical": 0.0,
       "dataset": "constant, exact",
       "formula": "tweedie_deviance, power=1.0",
@@ -39490,7 +39490,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 4382002437431492608,
+      "bound_ulps": 4,
       "canonical": 0.0,
       "dataset": "constant, exact",
       "formula": "tweedie_deviance, power=1.0",
@@ -39506,7 +39506,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 4382002437431492608,
+      "bound_ulps": 4,
       "canonical": 0.0,
       "dataset": "constant, exact",
       "formula": "tweedie_deviance, power=1.0",
@@ -39522,7 +39522,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 4382002437431492608,
+      "bound_ulps": 4,
       "canonical": 0.0,
       "dataset": "constant, exact",
       "formula": "tweedie_deviance, power=1.5",
@@ -39538,7 +39538,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 4382002437431492608,
+      "bound_ulps": 4,
       "canonical": 0.0,
       "dataset": "constant, exact",
       "formula": "tweedie_deviance, power=1.5",
@@ -39554,7 +39554,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 4382002437431492608,
+      "bound_ulps": 4,
       "canonical": 0.0,
       "dataset": "constant, exact",
       "formula": "tweedie_deviance, power=1.5",
@@ -39570,7 +39570,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 4382002437431492608,
+      "bound_ulps": 4,
       "canonical": 0.0,
       "dataset": "constant, exact",
       "formula": "tweedie_deviance, power=1.5",
@@ -39586,7 +39586,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 4382002437431492608,
+      "bound_ulps": 4,
       "canonical": 0.0,
       "dataset": "constant, exact",
       "formula": "tweedie_deviance, power=1.5",
@@ -39602,7 +39602,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 4382002437431492608,
+      "bound_ulps": 4,
       "canonical": 0.0,
       "dataset": "constant, exact",
       "formula": "tweedie_deviance, power=2.0",
@@ -39618,7 +39618,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 4382002437431492608,
+      "bound_ulps": 4,
       "canonical": 0.0,
       "dataset": "constant, exact",
       "formula": "tweedie_deviance, power=2.0",
@@ -39634,7 +39634,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 4382002437431492608,
+      "bound_ulps": 4,
       "canonical": 0.0,
       "dataset": "constant, exact",
       "formula": "tweedie_deviance, power=2.0",
@@ -39650,7 +39650,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 4382002437431492608,
+      "bound_ulps": 4,
       "canonical": 0.0,
       "dataset": "constant, exact",
       "formula": "tweedie_deviance, power=2.0",
@@ -39666,7 +39666,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 4382002437431492608,
+      "bound_ulps": 4,
       "canonical": 0.0,
       "dataset": "constant, exact",
       "formula": "tweedie_deviance, power=2.0",
@@ -39682,7 +39682,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 4382002437431492608,
+      "bound_ulps": 4,
       "canonical": 0.0,
       "dataset": "constant, exact",
       "formula": "tweedie_deviance, power=3.0",
@@ -39698,7 +39698,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 4382002437431492608,
+      "bound_ulps": 4,
       "canonical": 0.0,
       "dataset": "constant, exact",
       "formula": "tweedie_deviance, power=3.0",
@@ -39714,7 +39714,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 4382002437431492608,
+      "bound_ulps": 4,
       "canonical": 0.0,
       "dataset": "constant, exact",
       "formula": "tweedie_deviance, power=3.0",
@@ -39730,7 +39730,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 4382002437431492608,
+      "bound_ulps": 4,
       "canonical": 0.0,
       "dataset": "constant, exact",
       "formula": "tweedie_deviance, power=3.0",
@@ -39746,7 +39746,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 4382002437431492608,
+      "bound_ulps": 4,
       "canonical": 0.0,
       "dataset": "constant, exact",
       "formula": "tweedie_deviance, power=3.0",
@@ -41762,7 +41762,7 @@
     },
     {
       "abs_error": 1.4802973661668753e-16,
-      "bound_ulps": 96,
+      "bound_ulps": 4,
       "canonical": 0.4166666666666667,
       "dataset": "constant, offset",
       "formula": "tweedie_deviance, power=-1.0",
@@ -41778,7 +41778,7 @@
     },
     {
       "abs_error": 1.4802973661668753e-16,
-      "bound_ulps": 96,
+      "bound_ulps": 4,
       "canonical": 0.4166666666666667,
       "dataset": "constant, offset",
       "formula": "tweedie_deviance, power=-1.0",
@@ -41794,7 +41794,7 @@
     },
     {
       "abs_error": 1.4802973661668753e-16,
-      "bound_ulps": 96,
+      "bound_ulps": 4,
       "canonical": 0.4166666666666667,
       "dataset": "constant, offset",
       "formula": "tweedie_deviance, power=-1.0",
@@ -41810,7 +41810,7 @@
     },
     {
       "abs_error": 1.4802973661668753e-16,
-      "bound_ulps": 96,
+      "bound_ulps": 4,
       "canonical": 0.4166666666666667,
       "dataset": "constant, offset",
       "formula": "tweedie_deviance, power=-1.0",
@@ -41826,7 +41826,7 @@
     },
     {
       "abs_error": 1.4802973661668753e-16,
-      "bound_ulps": 96,
+      "bound_ulps": 4,
       "canonical": 0.4166666666666667,
       "dataset": "constant, offset",
       "formula": "tweedie_deviance, power=-1.0",
@@ -41842,7 +41842,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 96,
+      "bound_ulps": 4,
       "canonical": 0.25,
       "dataset": "constant, offset",
       "formula": "tweedie_deviance, power=0.0",
@@ -41858,7 +41858,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 96,
+      "bound_ulps": 4,
       "canonical": 0.25,
       "dataset": "constant, offset",
       "formula": "tweedie_deviance, power=0.0",
@@ -41874,7 +41874,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 96,
+      "bound_ulps": 4,
       "canonical": 0.25,
       "dataset": "constant, offset",
       "formula": "tweedie_deviance, power=0.0",
@@ -41890,7 +41890,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 96,
+      "bound_ulps": 4,
       "canonical": 0.25,
       "dataset": "constant, offset",
       "formula": "tweedie_deviance, power=0.0",
@@ -41906,7 +41906,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 96,
+      "bound_ulps": 4,
       "canonical": 0.25,
       "dataset": "constant, offset",
       "formula": "tweedie_deviance, power=0.0",
@@ -41922,7 +41922,7 @@
     },
     {
       "abs_error": 5.483756345077651e-16,
-      "bound_ulps": 96,
+      "bound_ulps": 24,
       "canonical": 0.15072828980712372,
       "dataset": "constant, offset",
       "formula": "tweedie_deviance, power=1.0",
@@ -41938,7 +41938,7 @@
     },
     {
       "abs_error": 5.483756345077651e-16,
-      "bound_ulps": 96,
+      "bound_ulps": 24,
       "canonical": 0.15072828980712372,
       "dataset": "constant, offset",
       "formula": "tweedie_deviance, power=1.0",
@@ -41954,7 +41954,7 @@
     },
     {
       "abs_error": 5.483756345077651e-16,
-      "bound_ulps": 96,
+      "bound_ulps": 24,
       "canonical": 0.15072828980712372,
       "dataset": "constant, offset",
       "formula": "tweedie_deviance, power=1.0",
@@ -41970,7 +41970,7 @@
     },
     {
       "abs_error": 5.483756345077651e-16,
-      "bound_ulps": 96,
+      "bound_ulps": 24,
       "canonical": 0.15072828980712372,
       "dataset": "constant, offset",
       "formula": "tweedie_deviance, power=1.0",
@@ -41986,7 +41986,7 @@
     },
     {
       "abs_error": 5.483756345077651e-16,
-      "bound_ulps": 96,
+      "bound_ulps": 24,
       "canonical": 0.15072828980712372,
       "dataset": "constant, offset",
       "formula": "tweedie_deviance, power=1.0",
@@ -42082,7 +42082,7 @@
     },
     {
       "abs_error": 3.1793112921286755e-16,
-      "bound_ulps": 96,
+      "bound_ulps": 32,
       "canonical": 0.09130252176310481,
       "dataset": "constant, offset",
       "formula": "tweedie_deviance, power=2.0",
@@ -42098,7 +42098,7 @@
     },
     {
       "abs_error": 3.1793112921286755e-16,
-      "bound_ulps": 96,
+      "bound_ulps": 32,
       "canonical": 0.09130252176310481,
       "dataset": "constant, offset",
       "formula": "tweedie_deviance, power=2.0",
@@ -42114,7 +42114,7 @@
     },
     {
       "abs_error": 3.1793112921286755e-16,
-      "bound_ulps": 96,
+      "bound_ulps": 32,
       "canonical": 0.09130252176310481,
       "dataset": "constant, offset",
       "formula": "tweedie_deviance, power=2.0",
@@ -42130,7 +42130,7 @@
     },
     {
       "abs_error": 3.1793112921286755e-16,
-      "bound_ulps": 96,
+      "bound_ulps": 32,
       "canonical": 0.09130252176310481,
       "dataset": "constant, offset",
       "formula": "tweedie_deviance, power=2.0",
@@ -42146,7 +42146,7 @@
     },
     {
       "abs_error": 3.1793112921286755e-16,
-      "bound_ulps": 96,
+      "bound_ulps": 32,
       "canonical": 0.09130252176310481,
       "dataset": "constant, offset",
       "formula": "tweedie_deviance, power=2.0",
@@ -42162,7 +42162,7 @@
     },
     {
       "abs_error": 2.4671622769447922e-17,
-      "bound_ulps": 96,
+      "bound_ulps": 4,
       "canonical": 0.05555555555555555,
       "dataset": "constant, offset",
       "formula": "tweedie_deviance, power=3.0",
@@ -42178,7 +42178,7 @@
     },
     {
       "abs_error": 2.4671622769447922e-17,
-      "bound_ulps": 96,
+      "bound_ulps": 4,
       "canonical": 0.05555555555555555,
       "dataset": "constant, offset",
       "formula": "tweedie_deviance, power=3.0",
@@ -42194,7 +42194,7 @@
     },
     {
       "abs_error": 2.4671622769447922e-17,
-      "bound_ulps": 96,
+      "bound_ulps": 4,
       "canonical": 0.05555555555555555,
       "dataset": "constant, offset",
       "formula": "tweedie_deviance, power=3.0",
@@ -42210,7 +42210,7 @@
     },
     {
       "abs_error": 2.4671622769447922e-17,
-      "bound_ulps": 96,
+      "bound_ulps": 4,
       "canonical": 0.05555555555555555,
       "dataset": "constant, offset",
       "formula": "tweedie_deviance, power=3.0",
@@ -42226,7 +42226,7 @@
     },
     {
       "abs_error": 2.4671622769447922e-17,
-      "bound_ulps": 96,
+      "bound_ulps": 4,
       "canonical": 0.05555555555555555,
       "dataset": "constant, offset",
       "formula": "tweedie_deviance, power=3.0",
