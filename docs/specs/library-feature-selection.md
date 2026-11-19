@@ -77,7 +77,10 @@ column whose variance is above `threshold`. Missing values (NULL, NaN) are
 ignored, as scikit-learn's `nanvar` ignores NaN. At `threshold=0.0`
 scikit-learn takes the smaller of the variance and the column's range (peak
 to peak), so a constant column is dropped whatever the rounding of its
-variance: so does sqlearn. A negative threshold is refused at the call, as
+variance: so does sqlearn. A column with a missing value has no range there
+(numpy's `ptp` is NaN, and `nanmin` takes the variance), so its variance
+alone decides: so it does in sqlearn, whose learned `low` and `high` are NULL
+for such a column. A negative threshold is refused at the call, as
 scikit-learn's parameter check refuses it. If no column passes, the step
 raises, as scikit-learn raises, naming the threshold and the largest variance
 learned. It does not read the target.

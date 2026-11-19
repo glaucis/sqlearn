@@ -17,6 +17,7 @@ from sqlearn._pipeline import Pipeline
 from sqlearn._saving.files import load, save
 from sqlearn._selectors import cols
 from sqlearn._step import Learned, Step
+from sqlearn.feature_selection._select import select
 from sqlearn.model_selection.groups import folds, search
 from sqlearn.preprocessing._encode import encode
 from sqlearn.preprocessing.bin import bin
@@ -48,6 +49,7 @@ __all__ = [
     "save",
     "scale",
     "search",
+    "select",
     "set_config",
     "store",
     "transform",

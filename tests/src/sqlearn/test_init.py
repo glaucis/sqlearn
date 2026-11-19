@@ -41,6 +41,7 @@ def test_the_top_level_holds_only_the_builders():
         "agg",
         "search",
         "folds",
+        "select",
     }
     others = {
         "cols",
@@ -56,7 +57,7 @@ def test_the_top_level_holds_only_the_builders():
     allowed = builders | groups | others | kept
     assert set(sq.__all__) == allowed
     # Python also sets each imported subpackage on the package.
-    packages = {"model_selection", "preprocessing"}
+    packages = {"feature_selection", "model_selection", "preprocessing"}
     public = {n for n in dir(sq) if not n.startswith("_")} | {"__version__"}
     assert public == allowed | packages
 
