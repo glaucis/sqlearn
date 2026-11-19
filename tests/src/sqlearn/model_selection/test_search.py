@@ -12,7 +12,7 @@ import pandas as pd
 import pytest
 from search_data_for_tests import customers, slice_pipe
 from sklearn.base import BaseEstimator, ClassifierMixin
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegression, Ridge
 from sklearn.metrics import average_precision_score, roc_auc_score
 from sklearn.preprocessing import TargetEncoder
 from sklearn.svm import LinearSVC
@@ -1139,6 +1139,34 @@ def test_every_setting_nan_names_a_fix_the_metric_has():
     assert "zero_division" not in str(e.value)
     assert "Fix:" in str(e.value)
     assert "adjusted=" in str(e.value)
+
+
+@pytest.mark.parametrize(
+    "metric",
+    [
+        sq.metrics.d2_tweedie,
+        sq.metrics.d2_pinball(alpha=0.9),
+        sq.metrics.d2_absolute_error,
+    ],
+)
+def test_every_setting_nan_by_a_d2_score_names_rows_per_fold(metric):
+    """A D2 score is NaN on folds of one row: the Fix names fewer folds."""
+    rows = pd.DataFrame({"t": [1.0, 2.0, 3.0, 4.0], "y": [1.0, 3.0, 2.0, 5.0]})
+    with (
+        pytest.warns(sq.errors.SqlearnWarning),
+        pytest.raises(sq.errors.SqlearnError, match="every setting scored NaN") as e,
+    ):
+        sq.search(
+            sq.Pipeline([("model", Ridge())]),
+            params={"model__alpha": [0.1, 1.0]},
+            metric=metric,
+            folds=sq.folds.time("t", 3),
+        ).train(rows, target="y")
+    text = str(e.value)
+    assert "one row" in text
+    assert "Fix: use fewer folds" in text
+    assert "adjusted=" not in text
+    assert "zero_division" not in text
 
 
 def test_roc_auc_on_a_one_class_kfold_fold_names_stratified():

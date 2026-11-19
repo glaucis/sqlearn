@@ -14,9 +14,10 @@ Status: accepted (2026-11-19). Issue #63. A departure from scikit-learn, as
 A D² score is one minus the model's deviance over the deviance of a constant
 guess, the target's mean for `d2_tweedie`. On a constant target that guess is
 exact, its deviance is 0, and the ratio is undefined. scikit-learn 1.9.1's
-`d2_pinball_score` and `r2_score` then score 1 when the model predicts the
-target exactly and 0 otherwise; its `d2_tweedie_score` raises
-`ZeroDivisionError`. A search that meets such a fold would stop.
+`d2_pinball_score` and `r2_score` then score 1 when the model's loss is 0
+and 0 otherwise; its `d2_tweedie_score` raises `ZeroDivisionError` (on a
+constant zero target at power 1.5 it returns NaN instead, where sqlearn gives
+0). A search that meets such a fold would stop.
 
 sqlearn takes the mean as a window over the rows. Over many identical values
 that mean can come back one rounding away from the value, leaving the

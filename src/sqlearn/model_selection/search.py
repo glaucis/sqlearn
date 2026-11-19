@@ -554,6 +554,13 @@ class Search:
                     'metric zero_division=0.0 (or "warn"), or use folds where '
                     "every class is predicted."
                 )
+            elif getattr(self.metric, "d2", False):
+                why = (
+                    "Why: a fold of each setting scored NaN; a D2 score is "
+                    "NaN on a fold that holds out one row, which leaves nothing "
+                    "to compare the model with. Fix: use fewer folds, or more "
+                    "rows, so that each fold holds out two rows or more."
+                )
             else:
                 why = (
                     "Why: a fold of each setting scored NaN; "

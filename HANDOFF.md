@@ -4,8 +4,8 @@ Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
 Updated: 2026-11-19 · Branch: `main` · Last commit: the merge of branch
-`balanced-scores`: balanced accuracy, MCC and Brier (#62) · Checks: passing
-(`just verify` on the branch: 2497 passed, 24 skipped)
+`regression-metrics`: the regression metrics (#63) · Checks: passing
+(`just verify` on the branch: 2635 passed, 24 skipped)
 Verify with: `just verify`
 
 ## In progress
@@ -24,6 +24,12 @@ None.
 
 ## Dead ends and traps
 
+- DuckDB 2.0 has no `log1p`: use Kahan's form, `_log1p` in
+  `src/sqlearn/metrics/regression.py`. scikit-learn's D² pinball baseline is
+  `_weighted_percentile(average=True)`, not any DuckDB quantile
+  (`quantile_cont` and `quantile_disc` both differ). The full validation
+  takes about 47 minutes under load; one runner can run alone through
+  `validation.__main__.main([module], ROOT)`. (2026-11-19)
 - `meta_sqlearn` (ADR 0052): one transaction writes one attached database,
   so it is written through a cursor. `con.execute` on the user's connection
   discards their unfinished result, so only bind there. A transaction may
@@ -124,6 +130,14 @@ None.
 
 ## Just finished
 
+- Regression metrics (#63, ADR 0054): `mse`, `msle`, `rmsle`,
+  `median_absolute_error`, `max_error`, `mape`, `explained_variance`, the
+  Poisson, gamma and Tweedie deviances (`power=`), `pinball_loss`
+  (`alpha=`) and the D² scores. `Metric` gained `_outside` (range
+  refusals), `_predict_stages` (window projections) and `_finish`. Spec
+  `docs/specs/library-regression-metrics.md` (section 6 lists the
+  departures), plan `docs/plans/2026-11-19-library-regression-metrics.md`.
+  Deferred minors are on #63. (2026-11-19)
 - Balanced scores (#62): `sq.metrics.balanced_accuracy` (`adjusted=`),
   `mcc` and `brier` (`scale_by_half=` only: scikit-learn's `pos_label=` and
   `labels=` change nothing given every probability column). Spec

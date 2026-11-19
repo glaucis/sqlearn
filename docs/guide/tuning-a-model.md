@@ -144,8 +144,14 @@ default is `sq.metrics.accuracy`.
 | `sq.metrics.roc_auc` | classification, from `predict_proba` | higher |
 | `sq.metrics.average_precision` | classification, from `predict_proba` | higher |
 | `sq.metrics.brier` | classification, from `predict_proba` | lower |
-| `sq.metrics.rmse`, `sq.metrics.mae` | regression | lower |
-| `sq.metrics.r2` | regression | higher |
+| `sq.metrics.mse`, `sq.metrics.rmse`, `sq.metrics.mae` | regression | lower |
+| `sq.metrics.median_absolute_error`, `sq.metrics.max_error`, `sq.metrics.mape` | regression | lower |
+| `sq.metrics.msle`, `sq.metrics.rmsle` | regression | lower |
+| `sq.metrics.poisson_deviance`, `sq.metrics.gamma_deviance` | regression | lower |
+| `sq.metrics.tweedie_deviance(power=1.5)` (`power=` defaults to 0) | regression | lower |
+| `sq.metrics.pinball_loss(alpha=0.9)` (`alpha=` defaults to 0.5) | regression | lower |
+| `sq.metrics.r2`, `sq.metrics.explained_variance` | regression | higher |
+| `sq.metrics.d2_tweedie(power=2)`, `sq.metrics.d2_pinball(alpha=0.9)`, `sq.metrics.d2_absolute_error` | regression | higher |
 
 `log_loss` and `roc_auc` read the model's probabilities, one column per
 class in the order of its `classes_`; with more than two classes `roc_auc`

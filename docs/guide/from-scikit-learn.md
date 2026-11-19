@@ -80,6 +80,20 @@ counterpart.
 | `scoring="neg_root_mean_squared_error"` | `metric=sq.metrics.rmse` |
 | `scoring="neg_mean_absolute_error"` | `metric=sq.metrics.mae` |
 | `scoring="r2"` | `metric=sq.metrics.r2` |
+| `mean_squared_error(y, p)` | `sq.metrics.mse.compute(rel, "y", "p")` |
+| `mean_squared_log_error(y, p)` | `sq.metrics.msle.compute(rel, "y", "p")` |
+| `root_mean_squared_log_error(y, p)` | `sq.metrics.rmsle.compute(rel, "y", "p")` |
+| `median_absolute_error(y, p)` | `sq.metrics.median_absolute_error.compute(rel, "y", "p")` |
+| `max_error(y, p)` | `sq.metrics.max_error.compute(rel, "y", "p")` |
+| `mean_absolute_percentage_error(y, p)` | `sq.metrics.mape.compute(rel, "y", "p")` |
+| `explained_variance_score(y, p)` | `sq.metrics.explained_variance.compute(rel, "y", "p")` |
+| `mean_poisson_deviance(y, p)` | `sq.metrics.poisson_deviance.compute(rel, "y", "p")` |
+| `mean_gamma_deviance(y, p)` | `sq.metrics.gamma_deviance.compute(rel, "y", "p")` |
+| `mean_tweedie_deviance(y, p, power=1.5)` | `sq.metrics.tweedie_deviance(power=1.5).compute(rel, "y", "p")` |
+| `mean_pinball_loss(y, p, alpha=0.9)` | `sq.metrics.pinball_loss(alpha=0.9).compute(rel, "y", "p")` |
+| `d2_tweedie_score(y, p, power=2)` | `sq.metrics.d2_tweedie(power=2).compute(rel, "y", "p")` (a constant target scores 1 or 0 instead of raising, ADR 0054) |
+| `d2_pinball_score(y, p, alpha=0.9)` | `sq.metrics.d2_pinball(alpha=0.9).compute(rel, "y", "p")` |
+| `d2_absolute_error_score(y, p)` | `sq.metrics.d2_absolute_error.compute(rel, "y", "p")` |
 
 For example, scikit-learn's
 

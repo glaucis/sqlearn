@@ -73,6 +73,13 @@ The API of the sqlearn package, generated from its docstrings.
    sqlearn.metrics.rmse
    sqlearn.metrics.mae
    sqlearn.metrics.r2
+   sqlearn.metrics.mse
+   sqlearn.metrics.max_error
+   sqlearn.metrics.median_absolute_error
+   sqlearn.metrics.mape
+   sqlearn.metrics.explained_variance
+   sqlearn.metrics.msle
+   sqlearn.metrics.rmsle
    sqlearn.metrics.log_loss
    sqlearn.metrics.roc_auc
    sqlearn.metrics.average_precision
@@ -83,6 +90,13 @@ The API of the sqlearn package, generated from its docstrings.
    sqlearn.metrics.balanced_accuracy
    sqlearn.metrics.mcc
    sqlearn.metrics.brier
+   sqlearn.metrics.pinball_loss
+   sqlearn.metrics.tweedie_deviance
+   sqlearn.metrics.poisson_deviance
+   sqlearn.metrics.gamma_deviance
+   sqlearn.metrics.d2_tweedie
+   sqlearn.metrics.d2_pinball
+   sqlearn.metrics.d2_absolute_error
    sqlearn.metrics.classification_report
    sqlearn.metrics.confusion_matrix
    sqlearn.metrics.roc_curve
@@ -91,6 +105,8 @@ The API of the sqlearn package, generated from its docstrings.
    sqlearn.metrics.AveragePrecision
    sqlearn.metrics.CountMetric
    sqlearn.metrics.BrierScore
+   sqlearn.metrics.PinballLoss
+   sqlearn.metrics.TweedieDeviance
    sqlearn.metrics.MissingClassError
    sqlearn.save
    sqlearn.load

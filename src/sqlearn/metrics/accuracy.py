@@ -2,9 +2,10 @@
 
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
+from typing import SupportsFloat
 
 import duckdb
-from duckdb import ColumnExpression, Expression
+from duckdb import ColumnExpression, Expression, StarExpression
 
 from sqlearn._errors import SqlearnError
 from sqlearn._expr import const
@@ -118,7 +119,8 @@ class Metric:
         ------
         SqlearnError
             Always: only precision, recall, f1, fbeta, balanced_accuracy,
-            average_precision and brier take settings.
+            average_precision, brier, pinball_loss, tweedie_deviance,
+            d2_tweedie and d2_pinball take settings.
 
         Examples
         --------
@@ -132,7 +134,9 @@ class Metric:
         msg = (
             f"{self.name} takes no settings, and was given {given}. Why: "
             "only the metrics precision, recall, f1, fbeta, balanced_accuracy, "
-            "average_precision and brier have settings. Fix: use "
+            "average_precision, brier, pinball_loss, tweedie_deviance, "
+            "d2_tweedie and d2_pinball have settings. "
+            "Fix: use "
             f"sq.metrics.{self.name} as it is."
         )
         raise SqlearnError(msg)
@@ -154,6 +158,44 @@ class Metric:
         if self.windows is None:
             return None
         return self.windows(values)
+
+    def _predict_stages(
+        self, y: Expression, p: Expression
+    ) -> list[dict[str, Expression]]:
+        """Return the window stages a ``"predict"`` metric computes per row.
+
+        Each dict is one projection over the rows, in order: its keys are
+        column names starting ``__sqlearn_stage_``, its values expressions
+        (windows over the whole relation, say) that may read the target,
+        the prediction and any earlier stage's columns by
+        `ColumnExpression`. The aggregate then receives the last stage's
+        columns after the target and prediction. None here; a metric that
+        needs a constant taken from every row (a D2 score's baseline)
+        overrides it.
+        """
+        return []
+
+    def _finish(self, value: SupportsFloat, total: int) -> float:
+        """Return the score from the aggregate's value over ``total`` rows.
+
+        Called once the rows have passed every refusal. The value as a
+        float here; a metric with no score for some count of rows (a D2
+        score on one row) overrides it.
+        """
+        return float(value)
+
+    def _outside(
+        self, y: Expression, p: Expression
+    ) -> list[tuple[Expression, str, str]]:
+        """Return the row conditions this metric refuses.
+
+        Each triple is a condition on a row, the words for the rows that
+        meet it (``"a target at or below -1"``) and why such a row has no
+        score. A ``"predict"`` metric counts them with the gaps, and
+        refuses a relation with any, in a message with a ``Fix:`` line. None
+        here; a metric with a range overrides it.
+        """
+        return []
 
     def _score_labels(
         self, rel: duckdb.DuckDBPyRelation, target: str, prediction: str
@@ -234,6 +276,7 @@ class Metric:
         y = ColumnExpression(target)
         values = [ColumnExpression(c) for c in columns[1:]]
         ranks = self._stage(y, values, labels) if proba else None
+        stages = [] if proba else self._predict_stages(y, values[0])
         if ranks is not None:
             # Each row's window values first, then the one aggregate.
             staged = [f"{_STAGE}{i}" for i in range(len(ranks))]
@@ -242,6 +285,15 @@ class Metric:
                 *(r.alias(n) for r, n in zip(ranks, staged, strict=True)),
             )
             given = [ColumnExpression(n) for n in staged]
+        elif stages:
+            # Each stage's columns in turn, every row kept, then the one
+            # aggregate: one query, one read of the source. Columns the
+            # aggregate does not read are pruned below the windows.
+            for stage in stages:
+                rel = rel.project(
+                    StarExpression(), *(e.alias(n) for n, e in stage.items())
+                )
+            given = [*values, *(ColumnExpression(n) for n in stages[-1])]
         else:
             given = values
         if proba:
@@ -258,6 +310,7 @@ class Metric:
         else:
             score = self.expression(y, *given)
             known, per_class, outside = [], [], []
+        ranges = [] if proba else self._outside(y, values[0])
         floats = [c for c in columns if types[c] in _FLOATS]
         nans = [
             _count(duckdb.CaseExpression(_isnan(ColumnExpression(c)), const(1)))
@@ -273,6 +326,7 @@ class Metric:
                     *known,
                     *per_class,
                     *outside,
+                    *(_count(duckdb.CaseExpression(c, const(1))) for c, _, _ in ranges),
                 ],
             ).fetchall()[0]
         except _COMPARISON_ERRORS as exc:
@@ -296,6 +350,24 @@ class Metric:
         _refuse_gaps(
             self.name, target, columns, floats, total, seen, nan_counts, proba=proba
         )
+        counted = rest[len(floats) : len(floats) + len(ranges)]
+        for n_out, (_, words, why) in zip(counted, ranges, strict=True):
+            if n_out:
+                # A target is the user's data, so the fix is for data; a
+                # prediction is the model's.
+                other = (
+                    "score with a metric whose range takes them "
+                    "(sq.metrics.mse, or tweedie_deviance(power=0))."
+                    if "target" in words
+                    else "score a model whose predictions stay in the "
+                    "range this metric accepts."
+                )
+                msg = (
+                    f"{self.name} cannot be computed: {n_out} of {total} "
+                    f"rows hold {words}. Why: {why} Fix: drop those rows, "
+                    f"or {other}"
+                )
+                raise SqlearnError(msg)
         if proba:
             n_known, *after = rest[len(floats) :]
             counts, beyond = after[: len(labels)], after[len(labels) :]
@@ -334,7 +406,7 @@ class Metric:
                     "rows that hold every class."
                 )
                 raise MissingClassError(msg, reason)
-        return float(value)
+        return self._finish(value, total)
 
 
 accuracy = Metric(

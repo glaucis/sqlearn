@@ -1,14 +1,35 @@
-"""Tests of rmse, mae and r2 against scikit-learn."""
+"""Tests of the regression metrics against scikit-learn."""
+
+import json
+import math
 
 import numpy as np
 import pandas as pd
 import pytest
 from sklearn.linear_model import Ridge
-from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error
+from sklearn.metrics import (
+    d2_absolute_error_score,
+    d2_pinball_score,
+    d2_tweedie_score,
+    explained_variance_score,
+    max_error,
+    mean_absolute_error,
+    mean_absolute_percentage_error,
+    mean_gamma_deviance,
+    mean_pinball_loss,
+    mean_poisson_deviance,
+    mean_squared_error,
+    mean_squared_log_error,
+    mean_tweedie_deviance,
+    median_absolute_error,
+    r2_score,
+    root_mean_squared_error,
+    root_mean_squared_log_error,
+)
 
 import sqlearn as sq
 from sqlearn._config import connection
-from sqlearn._errors import SqlearnError
+from sqlearn._errors import SqlearnError, SqlearnWarning
 
 RNG = np.random.default_rng(0)
 
@@ -24,11 +45,21 @@ def rel(frame):
         (sq.metrics.rmse, root_mean_squared_error),
         (sq.metrics.mae, mean_absolute_error),
         (sq.metrics.r2, r2_score),
+        (sq.metrics.mse, mean_squared_error),
+        (sq.metrics.max_error, max_error),
+        (sq.metrics.median_absolute_error, median_absolute_error),
+        (sq.metrics.mape, mean_absolute_percentage_error),
+        (sq.metrics.explained_variance, explained_variance_score),
+        (sq.metrics.msle, mean_squared_log_error),
+        (sq.metrics.rmsle, root_mean_squared_log_error),
     ],
 )
 def test_regression_metrics_match_scikit_learn(metric, sk):
     """Each metric matches scikit-learn's to 12 digits."""
-    y, p = RNG.normal(size=500), RNG.normal(size=500)
+    if metric in (sq.metrics.msle, sq.metrics.rmsle):
+        y, p = RNG.uniform(0, 5, size=500), RNG.uniform(0, 5, size=500)
+    else:
+        y, p = RNG.normal(size=500), RNG.normal(size=500)
     frame = pd.DataFrame({"y": y, "prediction": p})
     assert metric.compute(rel(frame), "y") == pytest.approx(sk(y, p), rel=1e-12)
 
@@ -37,7 +68,14 @@ def test_the_direction_of_each_metric():
     """Errors are better lower, r2 higher."""
     assert not sq.metrics.rmse.greater_is_better
     assert not sq.metrics.mae.greater_is_better
+    assert not sq.metrics.mse.greater_is_better
+    assert not sq.metrics.max_error.greater_is_better
+    assert not sq.metrics.median_absolute_error.greater_is_better
+    assert not sq.metrics.mape.greater_is_better
     assert sq.metrics.r2.greater_is_better
+    assert sq.metrics.explained_variance.greater_is_better
+    assert not sq.metrics.msle.greater_is_better
+    assert not sq.metrics.rmsle.greater_is_better
 
 
 def test_r2_of_a_constant_target_follows_scikit_learn():
@@ -58,7 +96,40 @@ def test_r2_survives_a_large_offset():
     assert got == pytest.approx(r2_score(y, p), rel=1e-10)
 
 
-@pytest.mark.parametrize("metric", [sq.metrics.rmse, sq.metrics.mae, sq.metrics.r2])
+@pytest.mark.parametrize(
+    "prediction", [[2.0, 2.0, 2.0], [3.0, 3.0, 3.0], [1.0, 2.0, 3.0]]
+)
+def test_explained_variance_of_a_constant_target_follows_scikit_learn(prediction):
+    """A constant target scores 1 when the error's variance is 0, else 0."""
+    frame = pd.DataFrame({"y": [2.0, 2.0, 2.0], "prediction": prediction})
+    got = sq.metrics.explained_variance.compute(rel(frame), "y")
+    assert got == explained_variance_score(frame["y"], frame["prediction"])
+
+
+def test_explained_variance_survives_a_large_offset():
+    """The target's mean far above its spread does not cost it its digits."""
+    y = 1e6 + RNG.normal(size=500)
+    p = y + RNG.normal(scale=0.5, size=500)
+    frame = pd.DataFrame({"y": y, "prediction": p})
+    got = sq.metrics.explained_variance.compute(rel(frame), "y")
+    assert got == pytest.approx(explained_variance_score(y, p), rel=1e-9)
+
+
+@pytest.mark.parametrize(
+    "metric",
+    [
+        sq.metrics.rmse,
+        sq.metrics.mae,
+        sq.metrics.r2,
+        sq.metrics.mse,
+        sq.metrics.max_error,
+        sq.metrics.median_absolute_error,
+        sq.metrics.mape,
+        sq.metrics.explained_variance,
+        sq.metrics.msle,
+        sq.metrics.rmsle,
+    ],
+)
 def test_regression_metrics_refuse_missing_values_and_no_rows(metric):
     """NULL, NaN and an empty relation have no score."""
     good = pd.DataFrame({"y": [1.0, 2.0], "prediction": [1.0, 2.0]})
@@ -83,6 +154,18 @@ def test_regression_metrics_refuse_missing_values_and_no_rows(metric):
         )
 
 
+def test_mape_of_a_zero_target_is_scikit_learns_large_number():
+    """A zero target divides by machine epsilon, as scikit-learn does."""
+    frame = pd.DataFrame({"y": [0.0, 1.0], "prediction": [1.0, 1.0]})
+    assert sq.metrics.mape.compute(rel(frame), "y") == 2251799813685248.0
+
+
+def test_median_absolute_error_of_an_even_count_is_the_middle_mean():
+    """Four errors have the mean of the middle two as their median."""
+    frame = pd.DataFrame({"y": [1, 2, 3, 4], "prediction": [1.5, 2, 2, 5]})
+    assert sq.metrics.median_absolute_error.compute(rel(frame), "y") == 0.75
+
+
 def test_a_search_minimises_rmse():
     """Lower rmse wins: a search picks the weaker penalty on a linear target."""
     x = RNG.normal(size=(120, 2))
@@ -101,3 +184,538 @@ def test_a_search_minimises_rmse():
         folds=sq.folds.kfold(3),
     )
     assert search.train(data, target="y").best_params_ == {"model__alpha": 0.01}
+
+
+@pytest.mark.parametrize("metric", [sq.metrics.msle, sq.metrics.rmsle])
+def test_msle_refuses_a_value_at_or_below_minus_one(metric):
+    """A target or a prediction at or below -1 has no logarithm of 1 + it."""
+    cases = [
+        ([-1.0, 1.0], [1.0, 1.0], "target"),
+        ([1.0, 1.0], [1.0, -2.0], "prediction"),
+    ]
+    for y, p, word in cases:
+        frame = pd.DataFrame({"y": y, "prediction": p})
+        with pytest.raises(SqlearnError, match="1 of 2 rows") as info:
+            metric.compute(rel(frame), "y")
+        message = str(info.value)
+        assert "Fix:" in message
+        assert metric.name in message
+        assert f"a {word} at or below -1" in message
+    ok = pd.DataFrame({"y": [-0.5, 1.0], "prediction": [1.0, 1.0]})
+    expected = 0.9609060278364028 ** (0.5 if metric is sq.metrics.rmsle else 1)
+    assert metric.compute(rel(ok), "y") == pytest.approx(expected, rel=1e-12)
+
+
+@pytest.mark.parametrize(
+    ("metric", "sk"),
+    [
+        (sq.metrics.msle, mean_squared_log_error),
+        (sq.metrics.rmsle, root_mean_squared_log_error),
+    ],
+)
+def test_msle_keeps_its_digits_for_values_near_zero(metric, sk):
+    """log1p, not ln(1 + x): values near 1e-9 match scikit-learn."""
+    y = [1e-9, 2e-9, 3e-10]
+    p = [2e-9, 1e-9, 5e-10]
+    frame = pd.DataFrame({"y": y, "prediction": p})
+    assert metric.compute(rel(frame), "y") == pytest.approx(sk(y, p), rel=1e-12)
+
+
+def test_msle_takes_an_integer_target():
+    """An INTEGER target is read as a number, as scikit-learn reads it."""
+    p = [1.5, 2.5, 2.0]
+    frame = pd.DataFrame({"y": [1, 2, 3], "prediction": p})
+    got = sq.metrics.msle.compute(rel(frame), "y")
+    assert got == pytest.approx(mean_squared_log_error([1, 2, 3], p), rel=1e-12)
+
+
+def test_a_gap_is_refused_before_a_range():
+    """A NULL is reported, not the range of the row beside it."""
+    frame = pd.DataFrame(
+        {"y": [-3.0, None], "prediction": [1.0, 1.0]},
+    )
+    with pytest.raises(SqlearnError, match="NULL"):
+        sq.metrics.msle.compute(rel(frame), "y")
+
+
+Y4 = [1, 2, 3, 4]
+P4 = [1.5, 2, 2, 5]
+
+
+@pytest.mark.parametrize(
+    ("power", "expected"),
+    [
+        (-1, 1.8333333333333306),
+        (0, 0.5625),
+        (1, 0.20917800547974497),
+        (1.5, 0.13759610261391986),
+        (2, 0.09490510899043825),
+        (3, 0.05111111111111111),
+    ],
+)
+def test_tweedie_deviance_matches_scikit_learn(power, expected):
+    """Each power scores as scikit-learn's mean Tweedie deviance."""
+    frame = pd.DataFrame({"y": Y4, "prediction": P4})
+    metric = sq.metrics.tweedie_deviance(power=power)
+    got = metric.compute(rel(frame), "y")
+    assert got == pytest.approx(expected, rel=1e-12)
+    assert got == pytest.approx(mean_tweedie_deviance(Y4, P4, power=power), rel=1e-12)
+
+
+def test_poisson_and_gamma_match_scikit_learn():
+    """Poisson and gamma score as their scikit-learn functions."""
+    y = RNG.uniform(0.5, 5.0, size=200)
+    p = RNG.uniform(0.5, 5.0, size=200)
+    frame = pd.DataFrame({"y": y, "prediction": p})
+    poisson = sq.metrics.poisson_deviance.compute(rel(frame), "y")
+    gamma = sq.metrics.gamma_deviance.compute(rel(frame), "y")
+    assert poisson == pytest.approx(mean_poisson_deviance(y, p), rel=1e-12)
+    assert gamma == pytest.approx(mean_gamma_deviance(y, p), rel=1e-12)
+    assert not sq.metrics.poisson_deviance.greater_is_better
+
+
+@pytest.mark.parametrize(
+    "power", [0.5, True, "1", float("nan"), float("inf"), -float("inf")]
+)
+def test_tweedie_deviance_refuses_a_power_between_zero_and_one(power):
+    """A power scikit-learn's parameter check refuses is refused at the call."""
+    with pytest.raises(SqlearnError, match="Fix:"):
+        sq.metrics.tweedie_deviance(power=power)
+
+
+def test_tweedie_deviance_repr_shows_a_power():
+    """The default shows its name; a changed power shows in the call form."""
+    assert repr(sq.metrics.tweedie_deviance) == "tweedie_deviance"
+    assert repr(sq.metrics.tweedie_deviance(power=1.5)) == "tweedie_deviance(power=1.5)"
+
+
+@pytest.mark.parametrize(
+    ("metric", "y", "p"),
+    [
+        (sq.metrics.poisson_deviance, [-1.0, 1.0], [1.0, 1.0]),
+        (sq.metrics.poisson_deviance, [1.0, 1.0], [0.0, 1.0]),
+        (sq.metrics.gamma_deviance, [0.0, 1.0], [1.0, 1.0]),
+        (sq.metrics.gamma_deviance, [1.0, 1.0], [0.0, 1.0]),
+        (sq.metrics.tweedie_deviance(power=-1), [1.0, 1.0], [0.0, 1.0]),
+        (sq.metrics.tweedie_deviance(power=1.5), [-1.0, 1.0], [1.0, 1.0]),
+        (sq.metrics.tweedie_deviance(power=3), [0.0, 1.0], [1.0, 1.0]),
+    ],
+)
+def test_each_deviance_refuses_its_range(metric, y, p):
+    """A row outside the power's range is refused, as scikit-learn refuses it."""
+    frame = pd.DataFrame({"y": y, "prediction": p})
+    with pytest.raises(SqlearnError, match="1 of 2 rows") as info:
+        metric.compute(rel(frame), "y")
+    assert "Fix:" in str(info.value)
+
+
+def test_the_deviances_accept_what_scikit_learn_accepts():
+    """Poisson takes a zero target; power 0 and -1 take a negative target."""
+    zero = pd.DataFrame({"y": [0.0, 1.0], "prediction": [1.0, 1.0]})
+    assert sq.metrics.poisson_deviance.compute(rel(zero), "y") == 1.0
+    neg = pd.DataFrame({"y": [-1.0, 1.0], "prediction": [1.0, 1.0]})
+    assert sq.metrics.tweedie_deviance.compute(rel(neg), "y") == 2.0
+    got = sq.metrics.tweedie_deviance(power=-1).compute(rel(neg), "y")
+    assert got == pytest.approx(0.8333333333333333, rel=1e-12)
+    # No range at power 0: a prediction of 0 or less is fine.
+    low = pd.DataFrame({"y": [1.0, 1.0], "prediction": [0.0, -1.0]})
+    assert sq.metrics.tweedie_deviance.compute(rel(low), "y") == 2.5
+
+
+def test_poisson_takes_no_power():
+    """The named deviances are fixed at their power."""
+    with pytest.raises(SqlearnError, match="Fix:"):
+        sq.metrics.poisson_deviance(power=1)
+    with pytest.raises(SqlearnError, match="Fix:"):
+        sq.metrics.gamma_deviance(power=2)
+
+
+def test_tweedie_deviance_takes_no_other_setting():
+    """Only power is a setting."""
+    with pytest.raises(SqlearnError, match="Fix:"):
+        sq.metrics.tweedie_deviance(alpha=0.5)
+
+
+def test_a_search_by_a_deviance_with_a_power():
+    """Lower deviance wins: a search runs with a power and picks by min."""
+    x = RNG.uniform(1, 3, size=(120, 2))
+    data = pd.DataFrame(
+        {
+            "a": x[:, 0],
+            "b": x[:, 1],
+            "y": 3 * x[:, 0] + 2 * x[:, 1] + RNG.uniform(0.1, 0.5, size=120),
+        }
+    )
+    pipe = sq.Pipeline([("model", Ridge())])
+    search = sq.search(
+        pipe,
+        params={"model__alpha": [0.01, 1000.0]},
+        metric=sq.metrics.tweedie_deviance(power=1.5),
+        folds=sq.folds.kfold(3),
+    )
+    assert search.train(data, target="y").best_params_ == {"model__alpha": 0.01}
+
+
+@pytest.mark.parametrize("alpha", [0, 0.1, 0.5, 0.9, 1])
+def test_pinball_loss_matches_scikit_learn(alpha):
+    """Each alpha scores as scikit-learn's mean pinball loss."""
+    y, p = RNG.normal(size=300), RNG.normal(size=300)
+    frame = pd.DataFrame({"y": y, "prediction": p})
+    got = sq.metrics.pinball_loss(alpha=alpha).compute(rel(frame), "y")
+    assert got == pytest.approx(mean_pinball_loss(y, p, alpha=alpha), rel=1e-12)
+
+
+def test_pinball_loss_on_the_probe_data():
+    """Alpha 0.9 on the fixed data gives the probed value."""
+    frame = pd.DataFrame({"y": Y4, "prediction": P4})
+    got = sq.metrics.pinball_loss(alpha=0.9).compute(rel(frame), "y")
+    assert got == pytest.approx(0.26249999999999996, rel=1e-12)
+    assert got == pytest.approx(mean_pinball_loss(Y4, P4, alpha=0.9), rel=1e-12)
+
+
+@pytest.mark.parametrize(
+    "settings",
+    [
+        {"alpha": 1.5},
+        {"alpha": -0.1},
+        {"alpha": True},
+        {"alpha": "0.5"},
+        {"alpha": float("nan")},
+        {"alpha": float("inf")},
+        {"power": 1},
+    ],
+)
+def test_pinball_loss_takes_only_alpha_in_zero_to_one(settings):
+    """A bad alpha, or another setting, is refused at the call."""
+    with pytest.raises(SqlearnError, match="Fix:"):
+        sq.metrics.pinball_loss(**settings)
+
+
+def test_pinball_loss_repr_shows_an_alpha():
+    """The repr names the alpha once it is set."""
+    assert repr(sq.metrics.pinball_loss) == "pinball_loss"
+    assert repr(sq.metrics.pinball_loss(alpha=0.9)) == "pinball_loss(alpha=0.9)"
+
+
+def test_a_search_by_a_pinball_loss():
+    """Lower loss wins: a search runs with an alpha and picks by min."""
+    x = RNG.uniform(1, 3, size=(120, 2))
+    data = pd.DataFrame(
+        {
+            "a": x[:, 0],
+            "b": x[:, 1],
+            "y": 3 * x[:, 0] + 2 * x[:, 1] + RNG.uniform(0.1, 0.5, size=120),
+        }
+    )
+    search = sq.search(
+        sq.Pipeline([("model", Ridge())]),
+        params={"model__alpha": [0.01, 1000.0]},
+        metric=sq.metrics.pinball_loss(alpha=0.9),
+        folds=sq.folds.kfold(3),
+    )
+    assert search.train(data, target="y").best_params_ == {"model__alpha": 0.01}
+
+
+@pytest.mark.parametrize(
+    ("power", "expected"),
+    [
+        (-1, 0.413333333333334),
+        (0, 0.55),
+        (1, 0.606956520832571),
+        (1.5, 0.6141248271175761),
+        (2, 0.6103332516433315),
+        (3, 0.5770114942528733),
+    ],
+)
+def test_d2_tweedie_matches_scikit_learn(power, expected):
+    """Each power scores as scikit-learn's D2 Tweedie score."""
+    frame = pd.DataFrame({"y": Y4, "prediction": P4})
+    metric = sq.metrics.d2_tweedie(power=power)
+    got = metric.compute(rel(frame), "y")
+    assert got == pytest.approx(expected, rel=1e-12)
+    assert got == pytest.approx(d2_tweedie_score(Y4, P4, power=power), rel=1e-12)
+
+
+def test_d2_tweedie_of_one_row_is_nan_with_a_warning():
+    """One row has no D2 score: NaN, with a warning that says why and the fix."""
+    frame = pd.DataFrame({"y": [1.0], "prediction": [2.0]})
+    with pytest.warns(SqlearnWarning, match=r"Why: .*Fix: ") as caught:
+        got = sq.metrics.d2_tweedie.compute(rel(frame), "y")
+    assert math.isnan(got)
+    assert caught[0].filename == __file__
+
+
+@pytest.mark.parametrize(
+    ("metric", "y", "p", "expected"),
+    [
+        (sq.metrics.d2_tweedie, [2.0, 2.0], [2.0, 2.0], 1.0),
+        (sq.metrics.d2_tweedie, [2.0, 2.0], [1.0, 3.0], 0.0),
+        (sq.metrics.d2_tweedie, [0.1] * 1000, [0.1] * 1000, 1.0),
+        (sq.metrics.d2_tweedie, [0.1] * 1000, [0.2] * 1000, 0.0),
+        (sq.metrics.d2_tweedie(power=-1), [0.1] * 7, [0.1] * 7, 1.0),
+        (sq.metrics.d2_tweedie(power=1), [0.0] * 3, [1.0] * 3, 0.0),
+        (sq.metrics.d2_tweedie(power=2), [0.1] * 1000, [0.1] * 1000, 1.0),
+    ],
+)
+def test_d2_tweedie_of_a_constant_target_is_one_or_zero(metric, y, p, expected):
+    """A constant target scores 1 when predicted exactly, else 0 (ADR 0054)."""
+    frame = pd.DataFrame({"y": y, "prediction": p})
+    assert metric.compute(rel(frame), "y") == expected
+
+
+def test_d2_tweedie_survives_a_large_offset():
+    """At power 0 it is r2, and keeps its digits on a target far from zero."""
+    y = 1e6 + RNG.normal(size=500)
+    p = y + RNG.normal(scale=0.5, size=500)
+    got = sq.metrics.d2_tweedie.compute(
+        rel(pd.DataFrame({"y": y, "prediction": p})), "y"
+    )
+    assert got == pytest.approx(r2_score(y, p), rel=1e-9)
+
+
+def _scans(node, table):
+    """Count the scans of `table` in a DuckDB JSON profile's operator tree."""
+    nodes = node if isinstance(node, list) else [node]
+    found = 0
+    for n in nodes:
+        if str(n.get("extra_info", {}).get("Table", "")).endswith(f".{table}"):
+            found += 1
+        found += _scans(n.get("children", []), table)
+    return found
+
+
+def test_d2_tweedie_reads_the_source_once(tmp_path):
+    """The mean and the score come from one query with one scan of the source."""
+    con = connection()
+    con.execute(
+        "CREATE OR REPLACE TABLE d2_source AS SELECT i::DOUBLE + 1 AS y, "
+        "i::DOUBLE + 1.5 AS prediction FROM range(1000) r(i)"
+    )
+    profile = tmp_path / "profile.json"
+    try:
+        con.execute("PRAGMA enable_profiling = 'json'")
+        con.execute(f"PRAGMA profiling_output = '{profile}'")
+        got = sq.metrics.d2_tweedie(power=1.5).compute(con.table("d2_source"), "y")
+    finally:
+        con.execute("PRAGMA disable_profiling")
+        con.execute("RESET profiling_output")
+        con.execute("DROP TABLE d2_source")
+    assert got < 1.0
+    tree = json.loads(profile.read_text())
+    assert "favg" in json.dumps(tree["operator"])
+    assert _scans(tree["operator"], "d2_source") == 1
+
+
+def test_d2_tweedie_refuses_tweedie_deviances_ranges():
+    """The rows refused are tweedie_deviance's for the power."""
+    frame = pd.DataFrame({"y": [-1.0, 1.0], "prediction": [1.0, 1.0]})
+    with pytest.raises(SqlearnError, match=r"a negative target.*Fix:"):
+        sq.metrics.d2_tweedie(power=1.5).compute(rel(frame), "y")
+
+
+def test_d2_tweedie_is_higher_better_and_shows_its_power():
+    """D2 is a score, higher is better, and its repr names its power."""
+    assert sq.metrics.d2_tweedie.greater_is_better is True
+    assert repr(sq.metrics.d2_tweedie) == "d2_tweedie"
+    assert repr(sq.metrics.d2_tweedie(power=2)) == "d2_tweedie(power=2.0)"
+    with pytest.raises(SqlearnError, match="Fix:"):
+        sq.metrics.d2_tweedie(power=0.5)
+
+
+def test_a_search_by_d2_tweedie():
+    """Higher D2 wins: a search runs with a power and picks by max."""
+    x = RNG.uniform(1, 3, size=(120, 2))
+    data = pd.DataFrame(
+        {
+            "a": x[:, 0],
+            "b": x[:, 1],
+            "y": 3 * x[:, 0] + 2 * x[:, 1] + RNG.uniform(0.1, 0.5, size=120),
+        }
+    )
+    search = sq.search(
+        sq.Pipeline([("model", Ridge())]),
+        params={"model__alpha": [1000.0, 0.01]},
+        metric=sq.metrics.d2_tweedie(power=1.5),
+        folds=sq.folds.kfold(3),
+    )
+    assert search.train(data, target="y").best_params_ == {"model__alpha": 0.01}
+
+
+@pytest.mark.parametrize(("alpha", "expected"), [(0.5, 0.375), (0.9, -0.75)])
+def test_d2_pinball_on_the_probe_data(alpha, expected):
+    """The fixed data gives the probed value at each alpha."""
+    frame = pd.DataFrame({"y": Y4, "prediction": P4})
+    got = sq.metrics.d2_pinball(alpha=alpha).compute(rel(frame), "y")
+    assert got == pytest.approx(expected, rel=1e-12)
+
+
+@pytest.mark.parametrize("n", [4, 5, 7, 10])
+@pytest.mark.parametrize("alpha", [0.1, 0.25, 0.3, 0.5, 0.7, 0.9])
+def test_d2_pinball_matches_scikit_learn(n, alpha):
+    """Each alpha and row count scores as scikit-learn's D2 pinball score."""
+    y, p = RNG.normal(size=n), RNG.normal(size=n)
+    frame = pd.DataFrame({"y": y, "prediction": p})
+    got = sq.metrics.d2_pinball(alpha=alpha).compute(rel(frame), "y")
+    assert got == pytest.approx(d2_pinball_score(y, p, alpha=alpha), rel=1e-12)
+
+
+def _distinct_rows(n, seed):
+    """Return `n` distinct whole-number targets and predictions near them."""
+    rng = np.random.default_rng(seed)
+    y = rng.choice(4 * n, size=n, replace=False).astype(float)
+    return y, np.round(y + rng.normal(size=n), 1)
+
+
+@pytest.mark.parametrize(
+    ("alpha", "n", "seed"),
+    [
+        # 100 * alpha / 100 * n is exactly 3 and 7: the mean of rows 3 and 4
+        # (7 and 8), not either alone.
+        (0.3, 10, 47),
+        (0.7, 10, 905),
+        # It is 7.000000000000001 and 28.999999999999996 where n * alpha is
+        # 7 and 29: row 8 (29) alone, not row 7 (30) or the mean of the two.
+        (0.14, 50, 808),
+        (0.58, 50, 2922),
+        # It is 0.9999999999999998 and 1.9999999999999998, within the
+        # double epsilon of 1 and 2: the mean of rows 1 and 2 (2 and 3), not
+        # either alone.
+        (1 / 3, 3, 33),
+        (1 / 17, 34, 393),
+    ],
+)
+def test_d2_pinball_picks_scikit_learns_rows_when_n_alpha_is_nearly_whole(
+    alpha, n, seed
+):
+    """Where n times alpha is nearly whole, the baseline's rows are scikit-learn's.
+
+    Between the two rows the loss is flat, so the rows chosen show only in
+    the last bits: on these rows (seeds found by search) each other choice
+    named gives a different double.
+    """
+    y, p = _distinct_rows(n, seed)
+    frame = pd.DataFrame({"y": y, "prediction": p})
+    got = sq.metrics.d2_pinball(alpha=alpha).compute(rel(frame), "y")
+    assert got == d2_pinball_score(y, p, alpha=alpha)
+
+
+@pytest.mark.parametrize(
+    ("y", "p", "alpha"),
+    [
+        (Y4, [1.0, 2.0, 3.0, 4.0], 0.0),
+        (Y4, [0.0, 2.0, 3.0, 4.0], 0.0),
+        (Y4, [2.0, 2.0, 3.0, 4.0], 0.0),
+        (Y4, [2.0, 2.0, 3.0, 4.0], 1.0),
+        (Y4, [2.0, 2.0, 3.0, 5.0], 1.0),
+        ([2.0, 2.0, 2.0], [1.0, 1.0, 1.0], 0.0),
+    ],
+)
+def test_d2_pinball_at_alpha_zero_or_one_follows_scikit_learn(y, p, alpha):
+    """At alpha 0 or 1 the baseline loses nothing: 1 or 0, as scikit-learn."""
+    frame = pd.DataFrame({"y": y, "prediction": p})
+    got = sq.metrics.d2_pinball(alpha=alpha).compute(rel(frame), "y")
+    assert got == d2_pinball_score(y, p, alpha=alpha)
+
+
+def test_d2_absolute_error_is_d2_pinball_at_a_half():
+    """d2_absolute_error is d2_pinball at alpha 0.5, and takes no settings."""
+    y, p = RNG.normal(size=50), RNG.normal(size=50)
+    frame = pd.DataFrame({"y": y, "prediction": p})
+    got = sq.metrics.d2_absolute_error.compute(rel(frame), "y")
+    assert got == sq.metrics.d2_pinball.compute(rel(frame), "y")
+    assert got == pytest.approx(d2_absolute_error_score(y, p), rel=1e-12)
+    assert sq.metrics.d2_absolute_error.greater_is_better is True
+    assert repr(sq.metrics.d2_absolute_error) == "d2_absolute_error"
+    with pytest.raises(SqlearnError, match=r"takes no settings.*Fix:"):
+        sq.metrics.d2_absolute_error(alpha=0.9)
+
+
+def test_d2_pinball_is_higher_better_and_shows_its_alpha():
+    """D2 pinball is a score, higher is better, and its repr names its alpha."""
+    assert sq.metrics.d2_pinball.greater_is_better is True
+    assert repr(sq.metrics.d2_pinball) == "d2_pinball"
+    assert repr(sq.metrics.d2_pinball(alpha=0.9)) == "d2_pinball(alpha=0.9)"
+    with pytest.raises(SqlearnError, match="Fix:"):
+        sq.metrics.d2_pinball(alpha=1.5)
+
+
+@pytest.mark.parametrize(
+    ("metric", "y", "p", "expected"),
+    [
+        (sq.metrics.d2_pinball, [2.0, 2.0], [2.0, 2.0], 1.0),
+        (sq.metrics.d2_pinball, [2.0, 2.0], [1.0, 3.0], 0.0),
+        (sq.metrics.d2_pinball(alpha=0.9), [0.1] * 1000, [0.1] * 1000, 1.0),
+        (sq.metrics.d2_pinball(alpha=0.9), [0.1] * 1000, [0.2] * 1000, 0.0),
+        (sq.metrics.d2_absolute_error, [0.1] * 7, [0.1] * 7, 1.0),
+        (sq.metrics.d2_absolute_error, [0.1] * 7, [0.3] * 7, 0.0),
+    ],
+)
+def test_d2_pinball_of_a_constant_target_is_one_or_zero(metric, y, p, expected):
+    """A constant target scores 1 when the loss is 0, else 0 (ADR 0054)."""
+    frame = pd.DataFrame({"y": y, "prediction": p})
+    assert metric.compute(rel(frame), "y") == expected
+    assert expected == d2_pinball_score(y, p, alpha=metric.alpha)
+
+
+@pytest.mark.parametrize("metric", ["d2_pinball", "d2_absolute_error"])
+def test_d2_pinball_of_one_row_is_nan_with_a_warning(metric):
+    """One row has no D2 score: NaN, with a warning that says why and the fix."""
+    frame = pd.DataFrame({"y": [1.0], "prediction": [2.0]})
+    with pytest.warns(SqlearnWarning, match=rf"^{metric} .*Why: .*Fix: ") as caught:
+        got = getattr(sq.metrics, metric).compute(rel(frame), "y")
+    assert math.isnan(got)
+    assert caught[0].filename == __file__
+
+
+def test_d2_pinball_reads_the_source_once(tmp_path):
+    """The quantile and the score come from one query with one scan."""
+    con = connection()
+    con.execute(
+        "CREATE OR REPLACE TABLE d2_source AS SELECT i::DOUBLE + 1 AS y, "
+        "i::DOUBLE + 1.5 AS prediction FROM range(1000) r(i)"
+    )
+    profile = tmp_path / "profile.json"
+    try:
+        con.execute("PRAGMA enable_profiling = 'json'")
+        con.execute(f"PRAGMA profiling_output = '{profile}'")
+        got = sq.metrics.d2_pinball(alpha=0.9).compute(con.table("d2_source"), "y")
+    finally:
+        con.execute("PRAGMA disable_profiling")
+        con.execute("RESET profiling_output")
+        con.execute("DROP TABLE d2_source")
+    assert got < 1.0
+    tree = json.loads(profile.read_text())
+    assert _scans(tree["operator"], "d2_source") == 1
+
+
+def test_a_search_by_d2_pinball():
+    """Higher D2 wins: a search runs with an alpha and picks by max."""
+    x = RNG.uniform(1, 3, size=(120, 2))
+    data = pd.DataFrame(
+        {
+            "a": x[:, 0],
+            "b": x[:, 1],
+            "y": 3 * x[:, 0] + 2 * x[:, 1] + RNG.uniform(0.1, 0.5, size=120),
+        }
+    )
+    search = sq.search(
+        sq.Pipeline([("model", Ridge())]),
+        params={"model__alpha": [1000.0, 0.01]},
+        metric=sq.metrics.d2_pinball(alpha=0.9),
+        folds=sq.folds.kfold(3),
+    )
+    assert search.train(data, target="y").best_params_ == {"model__alpha": 0.01}
+
+
+def test_a_range_refusal_names_a_fix_for_what_it_refused():
+    """A refused target gets a fix for targets, a prediction one for models."""
+    targets = pd.DataFrame({"y": [-1.0, 1.0], "prediction": [1.0, 1.0]})
+    with pytest.raises(SqlearnError, match="Fix:") as info:
+        sq.metrics.poisson_deviance.compute(rel(targets), "y")
+    target_fix = str(info.value).split("Fix:")[1]
+    assert "sq.metrics.mse" in target_fix
+    assert "predictions" not in target_fix
+    predictions = pd.DataFrame({"y": [1.0, 1.0], "prediction": [-1.0, 1.0]})
+    with pytest.raises(SqlearnError, match="Fix:") as info:
+        sq.metrics.poisson_deviance.compute(rel(predictions), "y")
+    assert "predictions stay in the range" in str(info.value).split("Fix:")[1]
