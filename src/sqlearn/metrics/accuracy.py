@@ -155,19 +155,18 @@ class Metric:
             return None
         return self.windows(values)
 
-    def _outside(self, y: Expression, p: Expression) -> list[tuple[Expression, str]]:
-        """Return the row conditions this metric refuses, with their words.
+    def _outside(
+        self, y: Expression, p: Expression
+    ) -> list[tuple[Expression, str, str]]:
+        """Return the row conditions this metric refuses.
 
-        Each pair is a condition on a row and the words for the rows that
-        meet it (``"a target at or below -1"``). A ``"predict"`` metric
-        counts them with the gaps, and refuses a relation with any. None
+        Each triple is a condition on a row, the words for the rows that
+        meet it (``"a target at or below -1"``) and why such a row has no
+        score. A ``"predict"`` metric counts them with the gaps, and
+        refuses a relation with any, in a message with a ``Fix:`` line. None
         here; a metric with a range overrides it.
         """
         return []
-
-    def _outside_why(self) -> str:
-        """Return why the rows `_outside` finds have no score, and the fix."""
-        return ""
 
     def _score_labels(
         self, rel: duckdb.DuckDBPyRelation, target: str, prediction: str
@@ -288,7 +287,7 @@ class Metric:
                     *known,
                     *per_class,
                     *outside,
-                    *(_count(duckdb.CaseExpression(c, const(1))) for c, _ in ranges),
+                    *(_count(duckdb.CaseExpression(c, const(1))) for c, _, _ in ranges),
                 ],
             ).fetchall()[0]
         except _COMPARISON_ERRORS as exc:
@@ -312,11 +311,14 @@ class Metric:
         _refuse_gaps(
             self.name, target, columns, floats, total, seen, nan_counts, proba=proba
         )
-        for n_out, (_, words) in zip(rest[len(floats) :], ranges, strict=False):
+        counted = rest[len(floats) : len(floats) + len(ranges)]
+        for n_out, (_, words, why) in zip(counted, ranges, strict=True):
             if n_out:
                 msg = (
                     f"{self.name} cannot be computed: {n_out} of {total} "
-                    f"rows hold {words}. {self._outside_why()}"
+                    f"rows hold {words}. Why: {why} Fix: drop those rows, "
+                    "or score a model whose predictions stay in the range "
+                    "this metric accepts."
                 )
                 raise SqlearnError(msg)
         if proba:

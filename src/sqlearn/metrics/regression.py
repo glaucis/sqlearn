@@ -105,9 +105,19 @@ def _ev(y: Expression, p: Expression) -> Expression:
     ).otherwise(const(1.0) - numerator / denominator)
 
 
+def _log1p(x: Expression) -> Expression:
+    # Kahan's log1p, which DuckDB lacks: ln(1 + x) loses every digit of a
+    # small x, so scale ln(u) by x / (u - 1), where the rounding of u = 1 + x
+    # cancels. NaN or -inf (not an error) at or below -1, where a metric
+    # refuses the row after the aggregate.
+    u = const(1.0) + x
+    return duckdb.CaseExpression(u == const(1.0), x).otherwise(
+        _fn("ln", u) * x / (u - const(1.0))
+    )
+
+
 def _log_error(y: Expression, p: Expression) -> Expression:
-    one = const(1.0)
-    return _fn("ln", one + y.cast("DOUBLE")) - _fn("ln", one + p.cast("DOUBLE"))
+    return _log1p(y.cast("DOUBLE")) - _log1p(p.cast("DOUBLE"))
 
 
 def _msle(y: Expression, p: Expression) -> Expression:
@@ -133,19 +143,17 @@ class LogError(Metric):
     False
     """
 
-    def _outside_why(self) -> str:
-        return (
-            "Why: the logarithm of 1 plus a value is undefined at or below "
-            "-1, and scikit-learn refuses such values too. Fix: score with "
-            "a model whose predictions stay above -1 on a target above -1, "
-            "or drop those rows."
-        )
-
-    def _outside(self, y: Expression, p: Expression) -> list[tuple[Expression, str]]:
+    def _outside(
+        self, y: Expression, p: Expression
+    ) -> list[tuple[Expression, str, str]]:
         limit = const(-1.0)
+        why = (
+            "the logarithm of 1 plus a value is undefined at or below -1, "
+            "and scikit-learn refuses such values too."
+        )
         return [
-            (y.cast("DOUBLE") <= limit, "a target at or below -1"),
-            (p.cast("DOUBLE") <= limit, "a prediction at or below -1"),
+            (y.cast("DOUBLE") <= limit, "a target at or below -1", why),
+            (p.cast("DOUBLE") <= limit, "a prediction at or below -1", why),
         ]
 
 

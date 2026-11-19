@@ -179,15 +179,36 @@ def test_a_search_minimises_rmse():
 @pytest.mark.parametrize("metric", [sq.metrics.msle, sq.metrics.rmsle])
 def test_msle_refuses_a_value_at_or_below_minus_one(metric):
     """A target or a prediction at or below -1 has no logarithm of 1 + it."""
-    for y, p in ([-1.0, 1.0], [1.0, 1.0]), ([1.0, 1.0], [1.0, -2.0]):
+    cases = [
+        ([-1.0, 1.0], [1.0, 1.0], "target"),
+        ([1.0, 1.0], [1.0, -2.0], "prediction"),
+    ]
+    for y, p, word in cases:
         frame = pd.DataFrame({"y": y, "prediction": p})
         with pytest.raises(SqlearnError, match="1 of 2 rows") as info:
             metric.compute(rel(frame), "y")
-        assert "Fix:" in str(info.value)
-        assert metric.name in str(info.value)
+        message = str(info.value)
+        assert "Fix:" in message
+        assert metric.name in message
+        assert f"a {word} at or below -1" in message
     ok = pd.DataFrame({"y": [-0.5, 1.0], "prediction": [1.0, 1.0]})
-    got = sq.metrics.msle.compute(rel(ok), "y")
-    assert got == pytest.approx(0.9609060278364028, rel=1e-12)
+    expected = 0.9609060278364028 ** (0.5 if metric is sq.metrics.rmsle else 1)
+    assert metric.compute(rel(ok), "y") == pytest.approx(expected, rel=1e-12)
+
+
+@pytest.mark.parametrize(
+    ("metric", "sk"),
+    [
+        (sq.metrics.msle, mean_squared_log_error),
+        (sq.metrics.rmsle, root_mean_squared_log_error),
+    ],
+)
+def test_msle_keeps_its_digits_for_values_near_zero(metric, sk):
+    """log1p, not ln(1 + x): values near 1e-9 match scikit-learn."""
+    y = [1e-9, 2e-9, 3e-10]
+    p = [2e-9, 1e-9, 5e-10]
+    frame = pd.DataFrame({"y": y, "prediction": p})
+    assert metric.compute(rel(frame), "y") == pytest.approx(sk(y, p), rel=1e-12)
 
 
 def test_msle_takes_an_integer_target():
