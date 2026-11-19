@@ -78,6 +78,8 @@ The API of the sqlearn package, generated from its docstrings.
    sqlearn.metrics.median_absolute_error
    sqlearn.metrics.mape
    sqlearn.metrics.explained_variance
+   sqlearn.metrics.msle
+   sqlearn.metrics.rmsle
    sqlearn.metrics.log_loss
    sqlearn.metrics.roc_auc
    sqlearn.metrics.average_precision

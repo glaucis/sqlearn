@@ -32,8 +32,10 @@ from sqlearn.metrics.regression import (
     max_error,
     median_absolute_error,
     mse,
+    msle,
     r2,
     rmse,
+    rmsle,
 )
 from sqlearn.metrics.tables import classification_report, confusion_matrix
 
@@ -60,11 +62,13 @@ __all__ = [
     "mcc",
     "median_absolute_error",
     "mse",
+    "msle",
     "precision",
     "precision_recall_curve",
     "r2",
     "recall",
     "rmse",
+    "rmsle",
     "roc_auc",
     "roc_curve",
 ]

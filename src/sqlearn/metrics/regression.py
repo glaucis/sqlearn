@@ -1,8 +1,10 @@
 """Regression metrics, each one aggregate query.
 
 The metrics are rmse, mae, r2, mse, max_error, median_absolute_error,
-mape and explained_variance.
+mape, explained_variance, msle and rmsle.
 """
+
+from dataclasses import dataclass
 
 import duckdb
 from duckdb import Expression
@@ -11,14 +13,17 @@ from sqlearn._expr import const
 from sqlearn.metrics.accuracy import Metric
 
 __all__ = [
+    "LogError",
     "explained_variance",
     "mae",
     "mape",
     "max_error",
     "median_absolute_error",
     "mse",
+    "msle",
     "r2",
     "rmse",
+    "rmsle",
 ]
 
 
@@ -100,6 +105,50 @@ def _ev(y: Expression, p: Expression) -> Expression:
     ).otherwise(const(1.0) - numerator / denominator)
 
 
+def _log_error(y: Expression, p: Expression) -> Expression:
+    one = const(1.0)
+    return _fn("ln", one + y.cast("DOUBLE")) - _fn("ln", one + p.cast("DOUBLE"))
+
+
+def _msle(y: Expression, p: Expression) -> Expression:
+    error = _log_error(y, p)
+    return _fn("favg", error * error)
+
+
+def _rmsle(y: Expression, p: Expression) -> Expression:
+    return _fn("sqrt", _msle(y, p))
+
+
+@dataclass(frozen=True)
+class LogError(Metric):
+    """A metric on the logarithm of 1 plus each value (msle, rmsle).
+
+    It refuses a target or a prediction at or below -1, where that
+    logarithm is undefined, as scikit-learn does.
+
+    Examples
+    --------
+    >>> import sqlearn as sq
+    >>> sq.metrics.rmsle.greater_is_better
+    False
+    """
+
+    def _outside_why(self) -> str:
+        return (
+            "Why: the logarithm of 1 plus a value is undefined at or below "
+            "-1, and scikit-learn refuses such values too. Fix: score with "
+            "a model whose predictions stay above -1 on a target above -1, "
+            "or drop those rows."
+        )
+
+    def _outside(self, y: Expression, p: Expression) -> list[tuple[Expression, str]]:
+        limit = const(-1.0)
+        return [
+            (y.cast("DOUBLE") <= limit, "a target at or below -1"),
+            (p.cast("DOUBLE") <= limit, "a prediction at or below -1"),
+        ]
+
+
 rmse = Metric("rmse", _rmse, False)
 mae = Metric("mae", _mae, False)
 r2 = Metric("r2", _r2, True)
@@ -108,3 +157,5 @@ max_error = Metric("max_error", _max_error, False)
 median_absolute_error = Metric("median_absolute_error", _median_absolute_error, False)
 mape = Metric("mape", _mape, False)
 explained_variance = Metric("explained_variance", _ev, True)
+msle = LogError("msle", _msle, False)
+rmsle = LogError("rmsle", _rmsle, False)

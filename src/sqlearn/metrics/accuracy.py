@@ -155,6 +155,20 @@ class Metric:
             return None
         return self.windows(values)
 
+    def _outside(self, y: Expression, p: Expression) -> list[tuple[Expression, str]]:
+        """Return the row conditions this metric refuses, with their words.
+
+        Each pair is a condition on a row and the words for the rows that
+        meet it (``"a target at or below -1"``). A ``"predict"`` metric
+        counts them with the gaps, and refuses a relation with any. None
+        here; a metric with a range overrides it.
+        """
+        return []
+
+    def _outside_why(self) -> str:
+        """Return why the rows `_outside` finds have no score, and the fix."""
+        return ""
+
     def _score_labels(
         self, rel: duckdb.DuckDBPyRelation, target: str, prediction: str
     ) -> float:
@@ -258,6 +272,7 @@ class Metric:
         else:
             score = self.expression(y, *given)
             known, per_class, outside = [], [], []
+        ranges = [] if proba else self._outside(y, values[0])
         floats = [c for c in columns if types[c] in _FLOATS]
         nans = [
             _count(duckdb.CaseExpression(_isnan(ColumnExpression(c)), const(1)))
@@ -273,6 +288,7 @@ class Metric:
                     *known,
                     *per_class,
                     *outside,
+                    *(_count(duckdb.CaseExpression(c, const(1))) for c, _ in ranges),
                 ],
             ).fetchall()[0]
         except _COMPARISON_ERRORS as exc:
@@ -296,6 +312,13 @@ class Metric:
         _refuse_gaps(
             self.name, target, columns, floats, total, seen, nan_counts, proba=proba
         )
+        for n_out, (_, words) in zip(rest[len(floats) :], ranges, strict=False):
+            if n_out:
+                msg = (
+                    f"{self.name} cannot be computed: {n_out} of {total} "
+                    f"rows hold {words}. {self._outside_why()}"
+                )
+                raise SqlearnError(msg)
         if proba:
             n_known, *after = rest[len(floats) :]
             counts, beyond = after[: len(labels)], after[len(labels) :]

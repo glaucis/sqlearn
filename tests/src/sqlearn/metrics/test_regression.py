@@ -10,9 +10,11 @@ from sklearn.metrics import (
     mean_absolute_error,
     mean_absolute_percentage_error,
     mean_squared_error,
+    mean_squared_log_error,
     median_absolute_error,
     r2_score,
     root_mean_squared_error,
+    root_mean_squared_log_error,
 )
 
 import sqlearn as sq
@@ -38,11 +40,16 @@ def rel(frame):
         (sq.metrics.median_absolute_error, median_absolute_error),
         (sq.metrics.mape, mean_absolute_percentage_error),
         (sq.metrics.explained_variance, explained_variance_score),
+        (sq.metrics.msle, mean_squared_log_error),
+        (sq.metrics.rmsle, root_mean_squared_log_error),
     ],
 )
 def test_regression_metrics_match_scikit_learn(metric, sk):
     """Each metric matches scikit-learn's to 12 digits."""
-    y, p = RNG.normal(size=500), RNG.normal(size=500)
+    if metric in (sq.metrics.msle, sq.metrics.rmsle):
+        y, p = RNG.uniform(0, 5, size=500), RNG.uniform(0, 5, size=500)
+    else:
+        y, p = RNG.normal(size=500), RNG.normal(size=500)
     frame = pd.DataFrame({"y": y, "prediction": p})
     assert metric.compute(rel(frame), "y") == pytest.approx(sk(y, p), rel=1e-12)
 
@@ -57,6 +64,8 @@ def test_the_direction_of_each_metric():
     assert not sq.metrics.mape.greater_is_better
     assert sq.metrics.r2.greater_is_better
     assert sq.metrics.explained_variance.greater_is_better
+    assert not sq.metrics.msle.greater_is_better
+    assert not sq.metrics.rmsle.greater_is_better
 
 
 def test_r2_of_a_constant_target_follows_scikit_learn():
@@ -107,6 +116,8 @@ def test_explained_variance_survives_a_large_offset():
         sq.metrics.median_absolute_error,
         sq.metrics.mape,
         sq.metrics.explained_variance,
+        sq.metrics.msle,
+        sq.metrics.rmsle,
     ],
 )
 def test_regression_metrics_refuse_missing_values_and_no_rows(metric):
@@ -163,3 +174,34 @@ def test_a_search_minimises_rmse():
         folds=sq.folds.kfold(3),
     )
     assert search.train(data, target="y").best_params_ == {"model__alpha": 0.01}
+
+
+@pytest.mark.parametrize("metric", [sq.metrics.msle, sq.metrics.rmsle])
+def test_msle_refuses_a_value_at_or_below_minus_one(metric):
+    """A target or a prediction at or below -1 has no logarithm of 1 + it."""
+    for y, p in ([-1.0, 1.0], [1.0, 1.0]), ([1.0, 1.0], [1.0, -2.0]):
+        frame = pd.DataFrame({"y": y, "prediction": p})
+        with pytest.raises(SqlearnError, match="1 of 2 rows") as info:
+            metric.compute(rel(frame), "y")
+        assert "Fix:" in str(info.value)
+        assert metric.name in str(info.value)
+    ok = pd.DataFrame({"y": [-0.5, 1.0], "prediction": [1.0, 1.0]})
+    got = sq.metrics.msle.compute(rel(ok), "y")
+    assert got == pytest.approx(0.9609060278364028, rel=1e-12)
+
+
+def test_msle_takes_an_integer_target():
+    """An INTEGER target is read as a number, as scikit-learn reads it."""
+    p = [1.5, 2.5, 2.0]
+    frame = pd.DataFrame({"y": [1, 2, 3], "prediction": p})
+    got = sq.metrics.msle.compute(rel(frame), "y")
+    assert got == pytest.approx(mean_squared_log_error([1, 2, 3], p), rel=1e-12)
+
+
+def test_a_gap_is_refused_before_a_range():
+    """A NULL is reported, not the range of the row beside it."""
+    frame = pd.DataFrame(
+        {"y": [-3.0, None], "prediction": [1.0, 1.0]},
+    )
+    with pytest.raises(SqlearnError, match="NULL"):
+        sq.metrics.msle.compute(rel(frame), "y")
