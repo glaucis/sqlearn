@@ -70,10 +70,14 @@ arrive with their parts.
   user reads, found without opening `docs/`, as scikit-learn keeps its
   examples.
 
+- **`devdata/` at the root.** Datasets for developing sqlearn: tests,
+  validation and benchmarks use them. It sits outside `src/`, so neither the
+  wheel nor the sdist holds it, and the package never imports it
+  ([ADR 0053](../adr/0053-sqlearn-ships-no-datasets.md)).
+
 ## What never enters the repository
 
-Datasets (the package bundles a few small ones; anything larger is fetched
-only by an explicit call), outputs (executed notebooks, the gallery's figures,
+Outputs (executed notebooks, the gallery's figures,
 rendered HTML, all made by the build, with lessons stored as text), and the
 built site in the history. `.gitignore` lists what the build writes: the
 package, the site, the generated pages, the matrix environments and the tool

@@ -5,14 +5,15 @@ import pandas as pd
 import pytest
 from sklearn import datasets as sk
 
+import devdata
 import sqlearn as sq
 
 BUNDLED = [
-    ("iris", sq.datasets.iris, sk.load_iris, 150, 4, {0, 1, 2}),
-    ("wine", sq.datasets.wine, sk.load_wine, 178, 13, {0, 1, 2}),
+    ("iris", devdata.iris, sk.load_iris, 150, 4, {0, 1, 2}),
+    ("wine", devdata.wine, sk.load_wine, 178, 13, {0, 1, 2}),
     (
         "breast_cancer",
-        sq.datasets.breast_cancer,
+        devdata.breast_cancer,
         sk.load_breast_cancer,
         569,
         30,
@@ -47,7 +48,7 @@ def test_bundled_datasets_equal_scikit_learns(name, make, load):
 
 
 @pytest.mark.parametrize(
-    "make", [sq.datasets.iris, sq.datasets.blobs], ids=lambda f: f.__name__
+    "make", [devdata.iris, devdata.blobs], ids=lambda f: f.__name__
 )
 def test_a_dataset_lands_on_the_configured_connection_and_calls_are_independent(make):
     """A dataset is built on the set connection; two calls give separate relations."""

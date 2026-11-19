@@ -3,9 +3,8 @@
 import duckdb
 import pytest
 
-import sqlearn as sq
+from devdata._random import normal, random_columns, splitmix64, uniform
 from sqlearn._config import connection
-from sqlearn.datasets._random import normal, random_columns, splitmix64, uniform
 
 GOLDEN = 0x9E3779B97F4A7C15
 
@@ -57,12 +56,6 @@ def test_the_same_seed_gives_the_same_values_on_any_thread_count():
     finally:
         con.close()
     assert one == eight
-
-
-def test_sq_datasets_is_a_group():
-    """sq.datasets is importable and listed in sq.__all__."""
-    assert "datasets" in sq.__all__
-    assert sq.datasets.__name__ == "sqlearn.datasets"
 
 
 def test_no_random_columns_give_the_rows_alone():

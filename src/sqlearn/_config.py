@@ -59,12 +59,9 @@ def set_config(
         The default output kind; None restores the library's default.
     connection : duckdb.DuckDBPyConnection, optional
         The connection to compute in; None restores the shared in-memory one.
-        sqlearn never changes a connection passed here, save two additions,
-        each a private in-memory database that stays attached: the first
-        dataset generator called without ``parallel=False`` attaches
-        ``meta_sqlearn``, which holds its work tickets (a database already
-        of that name is left alone), and the first streamed prediction
-        attaches ``__sqlearn_feed``, which holds the predictions. The
+        sqlearn never changes a connection passed here, save one addition:
+        the first streamed prediction attaches ``__sqlearn_feed``, a private
+        in-memory database that stays attached and holds the predictions. The
         connection's ``memory_limit`` counts as at most half
         the memory budget; when it is above half, a `SqlearnWarning` says
         so, once per process.

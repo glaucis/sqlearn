@@ -3,10 +3,9 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-18 · Branch: `main` · Last commit: `591b2ba Merge branch
-'datasets-many-threads': generators on many threads (#46)` · Checks: passing
-(`just test` on the merge: 2456 passed, 24 skipped; `just verify` on the
-branch: 2466)
+Updated: 2026-11-19 · Branch: `main` · Last commit: the merge of branch
+`remove-datasets`: datasets out of the package (#61) · Checks: passing
+(`just verify` on the branch: 2466 passed, 24 skipped)
 Verify with: `just verify`
 
 ## In progress
@@ -21,8 +20,8 @@ None.
 
 ## Next up
 
-- The next 3.3 area, not chosen yet: a fetcher of real datasets (ADR 0006:
-  an explicit call), or more scores (balanced accuracy, MCC, Brier).
+- The next 3.3 area, not chosen yet: more scores (balanced accuracy, MCC,
+  Brier) is the candidate. No dataset fetcher (ADR 0053).
 
 ## Dead ends and traps
 
@@ -126,6 +125,10 @@ None.
 
 ## Just finished
 
+- Datasets left the package (#61, ADR 0053): `sq.datasets` is gone, and the
+  code, tests and validation moved to `devdata/`, `tests/devdata/` and
+  `validation/devdata/`, for development only. Guide pages and the tuning
+  example build their own tables. (2026-11-18)
 - Nested aggregates (#49), merged in `b1599cf`: any aggregate inside any
   other, at any depth, learned in levels within one query (ADR 0051, spec
   `docs/specs/learn-nested-aggregates.md`). The median absolute deviation

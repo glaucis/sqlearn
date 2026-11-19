@@ -113,7 +113,7 @@ convention = "numpy"
 docstring-code-format = true
 
 [tool.ty.src]
-include = ["src", "tests", "examples", "docs"]
+include = ["src", "devdata", "tests", "examples", "docs"]
 
 [tool.ty.rules]
 # ty's own approximation of a strict mode.

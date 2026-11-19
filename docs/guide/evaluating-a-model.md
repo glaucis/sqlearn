@@ -19,18 +19,23 @@ one mistake for another. All of them are computed in SQL over a relation that
 holds the true label, the model's prediction and, for the probability scores,
 its probabilities.
 
-This page holds out about a fifth of the breast cancer data with
-`sq.folds.holdout` ([tuning a model](tuning-a-model.md)), trains a model on the
-rest, and scores the held-out rows, which the model has not seen: scores on the
-rows it trained on are too optimistic.
+This page uses scikit-learn's breast cancer data. It holds out about a fifth
+with `sq.folds.holdout` ([tuning a model](tuning-a-model.md)), trains a model on
+the rest, and scores the held-out rows, which the model has not seen: scores on
+the rows it trained on are too optimistic.
 
 ```{code-cell} python
 import duckdb
+from sklearn.datasets import load_breast_cancer
 from sklearn.linear_model import LogisticRegression
 
 import sqlearn as sq
 
-data = sq.datasets.breast_cancer()
+con = duckdb.connect()
+sq.set_config(connection=con)  # sqlearn computes on your connection
+
+frame = load_breast_cancer(as_frame=True).frame
+data = con.from_df(frame)
 split = sq.folds.holdout(test=0.2, seed=0)
 train = split.rows(data, held=False)
 held = split.rows(data, held=True).df()
@@ -41,7 +46,7 @@ pipe.train(train, target="target")
 # The held rows' target, then the model's probability of each class.
 scored = pipe.predict_proba(held, out="pandas")
 scored["prediction"] = pipe.predict(held, out="pandas")["prediction"]
-rows = duckdb.from_df(scored)
+rows = con.from_df(scored)
 rows.limit(3)
 ```
 

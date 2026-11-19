@@ -20,9 +20,9 @@ from statistics import NormalDist
 
 import numpy as np
 
-import sqlearn as sq
+import devdata
+from devdata._random import random_columns
 from sqlearn._config import connection
-from sqlearn.datasets._random import random_columns
 from validation import _cases
 
 ROWS = 1_000_000
@@ -146,7 +146,7 @@ def _random_cases() -> list[dict]:
 
 def _blobs_cases() -> list[dict]:
     """Blobs' share, mean and spread per centre, each of a spread of its own."""
-    data = sq.datasets.blobs(
+    data = devdata.blobs(
         rows=ROWS, centers=CENTRES, cluster_std=SPREADS, seed=SEED
     ).fetchnumpy()
     out = []
@@ -205,7 +205,7 @@ def _regression_cases() -> list[dict]:
     """Regression's target is the linear model, and its noise spread `noise`."""
     out = []
     settings = {"rows": ROWS, "n_features": 10, "n_informative": 5, "bias": BIAS}
-    data = sq.datasets.regression(**settings, seed=SEED).fetchnumpy()
+    data = devdata.regression(**settings, seed=SEED).fetchnumpy()
     coef, residual = _fit(data, 10)
     out.append(
         _case(
@@ -221,7 +221,7 @@ def _regression_cases() -> list[dict]:
             ),
         )
     )
-    noisy = sq.datasets.regression(**settings, noise=NOISE, seed=SEED).fetchnumpy()
+    noisy = devdata.regression(**settings, noise=NOISE, seed=SEED).fetchnumpy()
     _, residual = _fit(noisy, 10)
     out.append(
         _case(
@@ -254,9 +254,9 @@ def _classification_cases() -> list[dict]:
         "weights": list(WEIGHTS),
         "seed": SEED,
     }
-    kept = sq.datasets.classification(**settings, flip_y=0.0)
+    kept = devdata.classification(**settings, flip_y=0.0)
     kept = kept.project("target").fetchnumpy()["target"]
-    flipped = sq.datasets.classification(**settings, flip_y=FLIP)
+    flipped = devdata.classification(**settings, flip_y=FLIP)
     flipped = flipped.project("target").fetchnumpy()["target"]
     out = []
     for c, weight in enumerate(WEIGHTS):
@@ -300,7 +300,7 @@ def _customers_cases() -> list[dict]:
         ("plan is pro", "(plan = 'pro')", 0.2),
         *((f"city is {c}", f"(city = '{c}')", 0.25) for c in CITIES),
     )
-    rel = sq.datasets.customers(rows=ROWS, seed=SEED)
+    rel = devdata.customers(rows=ROWS, seed=SEED)
     measured = rel.aggregate(
         ", ".join(f"avg({test}::DOUBLE)" for _, test, _ in shares)
     ).fetchall()[0]
@@ -324,12 +324,12 @@ def _repeat_cases() -> list[dict]:
     before = con.sql("SELECT current_setting('threads')").fetchall()[0][0]
     try:
         con.execute("SET threads = 1")
-        one = sq.datasets.blobs(rows=ROWS, seed=SEED).fetchall()
+        one = devdata.blobs(rows=ROWS, seed=SEED).fetchall()
         con.execute("SET threads = 8")
-        eight = sq.datasets.blobs(rows=ROWS, seed=SEED).fetchall()
+        eight = devdata.blobs(rows=ROWS, seed=SEED).fetchall()
     finally:
         con.execute(f"SET threads = {before}")
-    head = sq.datasets.blobs(rows=1_000, seed=SEED).fetchall()
+    head = devdata.blobs(rows=1_000, seed=SEED).fetchall()
     pairs = (
         ("1 thread against 8", one, eight),
         ("first 1,000 of 1,000,000 against 1,000 rows", one[:1_000], head),

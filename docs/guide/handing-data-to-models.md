@@ -185,12 +185,9 @@ sq.set_config(memory=None)
   half (DuckDB's default, 80% of memory, is), DuckDB and the hand-over
   together may use more than the budget, and a `SqlearnWarning` says so once
   per process; `SET memory_limit` on that connection to half the budget or
-  less to stay within it. sqlearn adds two things to a connection you pass,
-  each a private in-memory database that stays attached: the first dataset
-  generator called without `parallel=False` attaches `meta_sqlearn`, which
-  holds its work tickets (a database already of that name is left alone), and
-  the first streamed prediction attaches `__sqlearn_feed`, which holds the
-  predictions.
+  less to stay within it. sqlearn adds one thing to a connection you pass:
+  the first streamed prediction attaches `__sqlearn_feed`, a private in-memory
+  database that stays attached and holds the predictions.
 - **The estimate errs towards refusing:** each value counts twice, for the
   two copies a fetch holds at its peak; a number is 8 bytes, a text value 64
   bytes plus its column's average length; numpy and the stream add a byte a

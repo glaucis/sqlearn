@@ -11,29 +11,27 @@ built.
 - **The map:** `docs/architecture/overview.md` (the parts and their order).
   **How work runs:** `docs/architecture/workflow.md`. **Decisions:**
   `docs/adr/`. **Done:** the library core (part 3.2): spec
-  `docs/specs/library-core.md`, decisions ADRs 0012–0033, summary and
-  deferred findings in issue #8. The library breadth (part 3.3) goes one spec
-  per area. Its first area, preprocessing, is built: spec
+  `docs/specs/library-core.md`, decisions ADRs 0012–0033, summary and deferred
+  findings in issue #8. The library breadth (part 3.3) goes one spec per area.
+  Its first area, preprocessing, is built: spec
   `docs/specs/library-preprocessing.md`, plan
-  `docs/plans/2026-11-06-library-preprocessing.md`, ADRs 0034–0038, summary
-  in issue #30. Its second, model selection, is built: spec
+  `docs/plans/2026-11-06-library-preprocessing.md`, ADRs 0034–0038, summary in
+  issue #30. Its second, model selection, is built: spec
   `docs/specs/library-model-selection.md`, plan
-  `docs/plans/2026-11-07-library-model-selection.md`, ADRs 0039–0041, summary
-  in issue #33. Its third, metrics (precision, recall, F1), is built: spec
+  `docs/plans/2026-11-07-library-model-selection.md`, ADRs 0039–0041, summary in
+  issue #33. Its third, metrics (precision, recall, F1), is built: spec
   `docs/specs/library-metrics.md`, plan
-  `docs/plans/2026-11-09-library-metrics.md`, ADR 0042, summary in issue
-  #34. Its fourth, datasets (bundled and generated in SQL), is built: spec
-  `docs/specs/library-datasets.md`, plan
-  `docs/plans/2026-11-10-library-datasets.md`, ADR 0045, summary in issue
-  #45. Its fifth, saving a pipeline (`sq.save`, `sq.load`), is built: spec
-  `docs/specs/library-saving.md`, plan
-  `docs/plans/2026-11-11-library-saving.md`, ADR 0047, summary in issue
-  #57. Its sixth, more metrics (`fbeta`, `average_precision`,
-  `confusion_matrix`, `classification_report`, `roc_curve`,
-  `precision_recall_curve`), is built: spec
-  `docs/specs/library-more-metrics.md`, plan
-  `docs/plans/2026-11-13-library-more-metrics.md`, ADR 0049, summary in issue
-  #58. **Next:** the next 3.3 area, not chosen yet.
+  `docs/plans/2026-11-09-library-metrics.md`, ADR 0042, summary in issue #34.
+  Its fourth, datasets, was built and then moved out of the package: sqlearn
+  ships none, and `devdata/` keeps them for development only (ADR 0053,
+  issue #61). Its fifth, saving a pipeline (`sq.save`, `sq.load`), is built:
+  spec `docs/specs/library-saving.md`, plan
+  `docs/plans/2026-11-11-library-saving.md`, ADR 0047, summary in issue #57. Its
+  sixth, more metrics (`fbeta`, `average_precision`, `confusion_matrix`,
+  `classification_report`, `roc_curve`, `precision_recall_curve`), is built:
+  spec `docs/specs/library-more-metrics.md`, plan
+  `docs/plans/2026-11-13-library-more-metrics.md`, ADR 0049, summary in
+  issue #58. **Next:** the next 3.3 area, not chosen yet.
 
 Rules from the ADRs:
 
@@ -49,6 +47,9 @@ Rules from the ADRs:
   machine (0006).
 - Python 3.12 is the floor (0007). Every task runs through `just` (0008).
 - British English in prose, American spelling in identifiers (0010).
+- sqlearn ships, generates and fetches no datasets: the user brings their
+  own. `devdata/` at the root is for developing sqlearn: it never ships,
+  `src/` never imports it, and published docs do not use it (0053).
 - sqlearn never changes on its own what the user asked for: it keeps the
   default, warns with a `Fix:` line, and the user opts in (0046).
 

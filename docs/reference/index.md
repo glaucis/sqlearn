@@ -1,8 +1,8 @@
 ---
 type: note
-tags: [api, reference, autosummary, docstrings, sqlearn]
-summary: "Index page for the sqlearn API reference, listing autosummary entries generated from the package docstrings."
-mdindex: [type=edb465, tags=e01a70, summary=44eb82]
+tags: [api-reference, sqlearn, autosummary, docstrings, index]
+summary: "Index page for the sqlearn package API reference, listing autosummary entries generated from docstrings."
+mdindex: [type=edb465, tags=ec9c2e, summary=d731c7]
 ---
 # Reference
 
@@ -87,14 +87,6 @@ The API of the sqlearn package, generated from its docstrings.
    sqlearn.metrics.ClassificationMetric
    sqlearn.metrics.AveragePrecision
    sqlearn.metrics.MissingClassError
-   sqlearn.datasets
-   sqlearn.datasets.iris
-   sqlearn.datasets.wine
-   sqlearn.datasets.breast_cancer
-   sqlearn.datasets.blobs
-   sqlearn.datasets.regression
-   sqlearn.datasets.classification
-   sqlearn.datasets.customers
    sqlearn.save
    sqlearn.load
    sqlearn.Model
