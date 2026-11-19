@@ -7,7 +7,7 @@ handful of constants, at rows from ``CONSTANT_ROW`` on.
 
 Examples
 --------
->>> from sqlearn.datasets._random import uniform
+>>> from devdata._random import uniform
 >>> uniform(0, 0, 0) == uniform(0, 0, 0)
 True
 >>> 0.0 <= uniform(0, 0, 0) < 1.0

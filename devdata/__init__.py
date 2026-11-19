@@ -6,12 +6,12 @@ column named ``target``, last (ADR 0045).
 Examples
 --------
 >>> import sqlearn as sq
->>> sq.datasets.__name__
-'sqlearn.datasets'
+>>> devdata.__name__
+'devdata'
 """
 
-from sqlearn.datasets.bundled import breast_cancer, iris, wine
-from sqlearn.datasets.generated import blobs, classification, customers, regression
+from devdata.bundled import breast_cancer, iris, wine
+from devdata.generated import blobs, classification, customers, regression
 
 __all__ = [
     "blobs",

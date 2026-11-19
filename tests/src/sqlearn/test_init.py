@@ -2,6 +2,7 @@
 
 from importlib.metadata import version
 from importlib.resources import files
+from pathlib import Path
 
 
 def test_the_package_imports():
@@ -46,7 +47,6 @@ def test_the_top_level_holds_only_the_builders():
         "fn",
         "out",
         "metrics",
-        "datasets",
         "errors",
         "store",
         "save",
@@ -76,3 +76,14 @@ def test_every_fold_class_is_importable_for_annotations():
     for name, scheme in made.items():
         assert name in model_selection.__all__
         assert isinstance(scheme, getattr(model_selection, name))
+
+
+def test_the_package_holds_no_datasets() -> None:
+    """Datasets stay outside the package: no folder, no data file, no import."""
+    import sqlearn as sq
+
+    package = Path(sq.__file__).parent
+    assert not (package / "datasets").exists()
+    assert not list(package.rglob("*.csv"))
+    sources = package.rglob("*.py")
+    assert not [p for p in sources if "devdata" in p.read_text()]

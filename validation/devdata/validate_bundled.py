@@ -10,7 +10,7 @@ distance in ULPs over all features.
 
 from sklearn import datasets as sk
 
-import sqlearn as sq
+import devdata
 from validation import _cases
 
 # Set from the first measurement (ADR 0016); 0, as the values are the same text.
@@ -18,9 +18,9 @@ from validation import _cases
 BOUND = 0
 
 DATASETS = (
-    ("iris", sq.datasets.iris, sk.load_iris),
-    ("wine", sq.datasets.wine, sk.load_wine),
-    ("breast_cancer", sq.datasets.breast_cancer, sk.load_breast_cancer),
+    ("iris", devdata.iris, sk.load_iris),
+    ("wine", devdata.wine, sk.load_wine),
+    ("breast_cancer", devdata.breast_cancer, sk.load_breast_cancer),
 )
 
 

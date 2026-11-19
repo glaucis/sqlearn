@@ -6,7 +6,9 @@ related: [docs/specs/library-datasets.md, docs/adr/0002-sql-on-duckdb-execution-
 ---
 # 0045: Datasets are relations built in SQL
 
-Status: accepted (2026-11-10). Amended 2026-11-18 by
+Status: accepted (2026-11-10); `sq.datasets` is replaced by
+[ADR 0053](0053-sqlearn-ships-no-datasets.md), which moves this code to
+`devdata/`, for development only. Amended 2026-11-18 by
 [ADR 0052](0052-meta-sqlearn.md). Spec:
 [library datasets](../specs/library-datasets.md), sections 3 and 4.
 

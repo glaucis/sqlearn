@@ -12,18 +12,40 @@ is trained on a stream of batches, as it would be on data larger than memory.
 import tempfile
 from pathlib import Path
 
+import duckdb
+import numpy as np
+import pandas as pd
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.linear_model import SGDClassifier
 
 import sqlearn as sq
 
 # %%
-# Take 5,000 customers from ``sq.datasets.customers``, which builds them in
-# SQL from a seed: two numbers with gaps, a city and a plan as text, and
-# ``target``, whether the customer churned. Write them to Parquet.
+# Make 5,000 customers: two numbers with gaps, a city and a plan as text, and
+# ``target``, whether the customer churned. Write them to Parquet. Your own
+# data would start here.
+
+rng = np.random.default_rng(0)
+rows = 5_000
+customers = pd.DataFrame(
+    {
+        "age": rng.normal(40, 12, rows),
+        "income": np.exp(rng.normal(10.5, 0.5, rows)),
+        "city": rng.choice(["Oslo", "Lima", "Kyoto", "Cairo"], rows),
+        "plan": rng.choice(["basic", "plus", "pro"], rows, p=[0.5, 0.3, 0.2]),
+    }
+)
+signal = (
+    0.04 * (customers["age"] - 40)
+    + 0.8 * (customers["income"] < customers["income"].median())
+    + 0.5 * (customers["plan"] == "basic")
+)
+customers["target"] = (rng.random(rows) < 1 / (1 + np.exp(1 - signal))).astype(int)
+customers.loc[rng.random(rows) < 0.1, "age"] = np.nan
+customers.loc[rng.random(rows) < 0.05, "income"] = np.nan
 
 folder = Path(tempfile.mkdtemp())
-sq.datasets.customers(rows=5_000, seed=0).to_parquet(str(folder / "train.parquet"))
+duckdb.from_df(customers).to_parquet(str(folder / "train.parquet"))
 
 # %%
 # The model is scikit-learn's histogram boosting, handed a pandas frame: the

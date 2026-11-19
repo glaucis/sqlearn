@@ -28,10 +28,20 @@ without sqlearn, and you import the packages a file names before you load it
 import tempfile
 from pathlib import Path
 
+import pandas as pd
+
 import sqlearn as sq
 
 folder = Path(tempfile.mkdtemp())  # the examples save here
-data = sq.datasets.customers(rows=200, seed=1)
+data = pd.DataFrame(
+    {
+        "age": [34, None, 51, 29, 46, 38, None, 62],
+        "income": [41e3, 52e3, None, 33e3, 75e3, 48e3, 39e3, 91e3],
+        "city": ["Oslo", "Lima", "Oslo", "Kyoto", "Lima", "Kyoto", "Oslo", "Lima"],
+        "plan": ["basic", "pro", "basic", "plus", "pro", "basic", "plus", "pro"],
+        "target": [0, 1, 0, 0, 1, 0, 1, 1],
+    }
+)
 
 pipe = sq.Pipeline([sq.impute.median(), sq.scale.standard()])
 pipe.learn(data, target="target")

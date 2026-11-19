@@ -50,12 +50,12 @@ from pathlib import Path
 
 import duckdb
 
+from devdata._random import CONSTANT_ROW, MASK, key, random_columns, uniform
+from devdata._tickets import row_source
 from sqlearn._config import connection
 from sqlearn._errors import SqlearnError, SqlearnWarning
-from sqlearn.datasets._random import CONSTANT_ROW, MASK, key, random_columns, uniform
-from sqlearn.datasets._tickets import row_source
 
-_PACKAGE = (str(Path(__file__).parents[1]),)
+_PACKAGE = (str(Path(__file__).parent),)
 
 __all__ = ["blobs", "classification", "customers", "regression"]
 
@@ -122,19 +122,19 @@ def _check_rows(rows: object) -> int:
     count = _whole(rows)
     if count is None:
         msg = (
-            f"sq.datasets got rows={_shown(rows)}. Why: the number of rows is "
+            f"devdata got rows={_shown(rows)}. Why: the number of rows is "
             "a whole number. Fix: pass an int, rows=100, say."
         )
         raise SqlearnError(msg)
     if count < 1:
         msg = (
-            f"sq.datasets got rows={rows!r}. Why: a dataset has at least one "
+            f"devdata got rows={rows!r}. Why: a dataset has at least one "
             "row (scikit-learn refuses no rows too). Fix: pass rows=100, say."
         )
         raise SqlearnError(msg)
     if count >= CONSTANT_ROW:
         msg = (
-            f"sq.datasets got rows={rows!r}. Why: data rows are numbered below "
+            f"devdata got rows={rows!r}. Why: data rows are numbered below "
             "2**63, where the rows of the constants drawn from the seed begin. "
             "Fix: pass rows below 2**63 (9,223,372,036,854,775,808)."
         )
@@ -163,7 +163,7 @@ def _check_seed(seed: object) -> int:
     whole = _whole(seed)
     if whole is None:
         msg = (
-            f"sq.datasets got seed={_shown(seed)}. Why: the seed is mixed into "
+            f"devdata got seed={_shown(seed)}. Why: the seed is mixed into "
             "every random value's key and must be a whole number. Fix: pass "
             "an int, seed=0, say."
         )
@@ -176,13 +176,13 @@ def _check_count(function: str, name: str, value: object, least: int) -> int:
     count = _whole(value)
     if count is None:
         msg = (
-            f"sq.datasets.{function} got {name}={_shown(value)}. Why: {name} "
+            f"devdata.{function} got {name}={_shown(value)}. Why: {name} "
             f"is a whole number. Fix: pass an int, at least {least}."
         )
         raise SqlearnError(msg)
     if count < least:
         msg = (
-            f"sq.datasets.{function} got {name}={value!r}. Why: {name} is at "
+            f"devdata.{function} got {name}={value!r}. Why: {name} is at "
             f"least {least}. Fix: pass {name}={max(least, 2)}, say."
         )
         raise SqlearnError(msg)
@@ -194,13 +194,13 @@ def _check_number(function: str, name: str, value: object, *, least: float) -> f
     number = _finite(value)
     if number is None:
         msg = (
-            f"sq.datasets.{function} got {name}={_shown(value)}. Why: {name} "
+            f"devdata.{function} got {name}={_shown(value)}. Why: {name} "
             "is a finite number. Fix: pass an int or a float, 1.0, say."
         )
         raise SqlearnError(msg)
     if number < least:
         msg = (
-            f"sq.datasets.{function} got {name}={value!r}. Why: {name} is at "
+            f"devdata.{function} got {name}={value!r}. Why: {name} is at "
             f"least {least}. Fix: pass {name}=1.0, say."
         )
         raise SqlearnError(msg)
@@ -216,7 +216,7 @@ def _check_ordered(function: str, ordered: object) -> bool:
     """Return `ordered`, refusing anything but a bool (numpy's too, by name)."""
     if type(ordered).__name__ not in ("bool", "bool_"):
         msg = (
-            f"sq.datasets.{function} got ordered={_shown(ordered)}. Why: "
+            f"devdata.{function} got ordered={_shown(ordered)}. Why: "
             "ordered is True or False. Fix: pass ordered=True to sort the "
             "rows by their number, or leave it out."
         )
@@ -228,7 +228,7 @@ def _check_parallel(function: str, parallel: object) -> bool:
     """Return `parallel`, refusing anything but a bool (numpy's too, by name)."""
     if type(parallel).__name__ not in ("bool", "bool_"):
         msg = (
-            f"sq.datasets.{function} got parallel={_shown(parallel)}. Why: "
+            f"devdata.{function} got parallel={_shown(parallel)}. Why: "
             "parallel is True or False. Fix: pass parallel=False to number "
             "the rows with range on one thread, or leave it out."
         )
@@ -271,7 +271,7 @@ def _blob_centres(
         if points and points[0] and len({len(p) for p in points}) == 1:
             return points
     msg = (
-        f"sq.datasets.blobs got centers={centers!r}. Why: centers is a count "
+        f"devdata.blobs got centers={centers!r}. Why: centers is a count "
         "of at least 1, or a list of points, each a list of finite numbers of "
         "one length. Fix: pass centers=3 or centers=[[0, 0], [5, 5]]."
     )
@@ -284,7 +284,7 @@ def _blob_spreads(cluster_std: object, count: int) -> list[float]:
     if spreads is not None:
         if len(spreads) != count:
             msg = (
-                f"sq.datasets.blobs got cluster_std={cluster_std!r}. Why: a "
+                f"devdata.blobs got cluster_std={cluster_std!r}. Why: a "
                 f"list of spreads has one per centre, {count} here. Fix: pass "
                 f"{count} numbers, or one number for all."
             )
@@ -299,7 +299,7 @@ def _check_box(center_box: object) -> tuple[float, float]:
     low, high = box if len(box) == 2 else (None, None)
     if low is None or high is None or low > high:
         msg = (
-            f"sq.datasets.blobs got center_box={center_box!r}. Why: the box "
+            f"devdata.blobs got center_box={center_box!r}. Why: the box "
             "is two finite numbers, low then high, the range centres are "
             "drawn from. Fix: pass center_box=(-10.0, 10.0)."
         )
@@ -371,7 +371,7 @@ def blobs(
     Examples
     --------
     >>> import sqlearn as sq
-    >>> rel = sq.datasets.blobs(rows=1_000, centers=[[0, 0], [5, 5]], seed=0)
+    >>> rel = devdata.blobs(rows=1_000, centers=[[0, 0], [5, 5]], seed=0)
     >>> rel.columns
     ['x0', 'x1', 'target']
     >>> rel.project("target").distinct().order("target").fetchall()
@@ -473,7 +473,7 @@ def regression(
     Examples
     --------
     >>> import sqlearn as sq
-    >>> rel = sq.datasets.regression(rows=10, n_features=3, n_informative=1)
+    >>> rel = devdata.regression(rows=10, n_features=3, n_informative=1)
     >>> rel.columns
     ['x0', 'x1', 'x2', 'target']
     """
@@ -487,7 +487,7 @@ def regression(
     n_informative = _check_count("regression", "n_informative", n_informative, 0)
     if n_informative > n_features:
         text = (
-            f"sq.datasets.regression got n_informative={n_informative} above "
+            f"devdata.regression got n_informative={n_informative} above "
             f"n_features={n_features}; using {n_features}. Why: the "
             "informative features are some of the features. Fix: pass "
             f"n_informative at most {n_features}, or more features."
@@ -558,14 +558,14 @@ def _class_weights(weights: object, n_classes: int) -> list[float]:
     shares = [w for w in numbers if w is not None and w >= 0]
     if given is None or len(shares) != len(numbers):
         msg = (
-            f"sq.datasets.classification got weights={weights!r}. Why: weights "
+            f"devdata.classification got weights={weights!r}. Why: weights "
             "is a list of finite numbers of at least 0, one per class. Fix: "
             "pass weights=[0.9, 0.1], say, or None for equal classes."
         )
         raise SqlearnError(msg)
     if len(shares) not in (n_classes, n_classes - 1):
         msg = (
-            f"sq.datasets.classification got {len(shares)} weights for "
+            f"devdata.classification got {len(shares)} weights for "
             f"n_classes={n_classes}. Why: weights has one per class, or one "
             "fewer and the last class takes the rest of 1. Fix: pass "
             f"{n_classes} or {n_classes - 1} weights."
@@ -575,7 +575,7 @@ def _class_weights(weights: object, n_classes: int) -> list[float]:
     # Decimal weights summing to 1 can round a little above it.
     if total > 1 + 1e-9:
         msg = (
-            f"sq.datasets.classification got weights={weights!r}, summing to "
+            f"devdata.classification got weights={weights!r}, summing to "
             f"{total!r}. Why: weights are the classes' shares of the rows, so "
             "they sum to at most 1. Fix: pass weights summing to 1."
         )
@@ -606,7 +606,7 @@ def _check_classes(
     )
     if n_informative + n_redundant > n_features:
         msg = (
-            f"sq.datasets.classification got n_informative={n_informative} "
+            f"devdata.classification got n_informative={n_informative} "
             f"and n_redundant={n_redundant} with n_features={n_features}. "
             "Why: the informative and redundant features are some of the "
             "features. Fix: pass n_informative + n_redundant at most n_features."
@@ -615,7 +615,7 @@ def _check_classes(
     clusters = n_classes * n_clusters_per_class
     if (clusters - 1) >> n_informative:
         msg = (
-            f"sq.datasets.classification got n_classes={n_classes} and "
+            f"devdata.classification got n_classes={n_classes} and "
             f"n_clusters_per_class={n_clusters_per_class} with "
             f"n_informative={n_informative}. Why: each of the {clusters} "
             "clusters sits at its own vertex of the informative features' "
@@ -631,7 +631,7 @@ def _check_share(name: str, value: object) -> float:
     share = _check_number("classification", name, value, least=0.0)
     if share > 1:
         msg = (
-            f"sq.datasets.classification got {name}={value!r}. Why: {name} is "
+            f"devdata.classification got {name}={value!r}. Why: {name} is "
             "a share of the rows, from 0 to 1. Fix: pass a number from 0 to 1."
         )
         raise SqlearnError(msg)
@@ -643,7 +643,7 @@ def _check_positive(name: str, value: object) -> float:
     number = _check_number("classification", name, value, least=-math.inf)
     if number <= 0:
         msg = (
-            f"sq.datasets.classification got {name}={value!r}. Why: {name} is "
+            f"devdata.classification got {name}={value!r}. Why: {name} is "
             "above 0. Fix: pass 1.0, say."
         )
         raise SqlearnError(msg)
@@ -764,7 +764,7 @@ def classification(
     Examples
     --------
     >>> import sqlearn as sq
-    >>> rel = sq.datasets.classification(rows=10, n_features=5, seed=0)
+    >>> rel = devdata.classification(rows=10, n_features=5, seed=0)
     >>> rel.columns
     ['x0', 'x1', 'x2', 'x3', 'x4', 'target']
     """
@@ -906,7 +906,7 @@ def customers(
     Examples
     --------
     >>> import sqlearn as sq
-    >>> rel = sq.datasets.customers(rows=10, seed=1)
+    >>> rel = devdata.customers(rows=10, seed=1)
     >>> rel.columns
     ['age', 'income', 'city', 'plan', 'target']
     """

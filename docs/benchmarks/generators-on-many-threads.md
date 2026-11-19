@@ -6,6 +6,11 @@ related: [index, median-reach]
 ---
 # Generators on many threads
 
+**History:** these generators are no longer part of sqlearn. They live in
+`devdata/`, for development only
+([ADR 0053](../adr/0053-sqlearn-ships-no-datasets.md)); read `sq.datasets`
+below as `devdata`.
+
 [Issue #46](https://github.com/glaucis/sqlearn/issues/46) makes the four
 `sq.datasets` generators use every thread DuckDB is given. They number their
 rows from work tickets in `meta_sqlearn`

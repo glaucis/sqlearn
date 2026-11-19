@@ -8,15 +8,16 @@ import duckdb
 import numpy as np
 import pytest
 
+import devdata
 import sqlearn as sq
 from sqlearn._config import connection
 from sqlearn.errors import SqlearnError, SqlearnWarning
 
 GENERATORS = [
-    sq.datasets.blobs,
-    sq.datasets.regression,
-    sq.datasets.classification,
-    sq.datasets.customers,
+    devdata.blobs,
+    devdata.regression,
+    devdata.classification,
+    devdata.customers,
 ]
 
 
@@ -32,7 +33,7 @@ def _refused(make, **settings) -> str:
 
 def test_blobs_gives_rows_features_and_a_target():
     """Blobs has n_features DOUBLE columns x0, x1, ..., then a BIGINT target."""
-    rel = sq.datasets.blobs(rows=500, n_features=3, centers=4, seed=1)
+    rel = devdata.blobs(rows=500, n_features=3, centers=4, seed=1)
     assert rel.columns == ["x0", "x1", "x2", "target"]
     assert [str(t) for t in rel.types] == ["DOUBLE"] * 3 + ["BIGINT"]
     assert rel.count("*").fetchall()[0][0] == 500
@@ -43,7 +44,7 @@ def test_blobs_gives_rows_features_and_a_target():
 def test_blobs_rows_cluster_round_their_centres():
     """With a small spread, every row lies within 1 of its target's centre."""
     centres = [[0.0, 0.0], [5.0, 5.0]]
-    rows = sq.datasets.blobs(
+    rows = devdata.blobs(
         rows=10_000, centers=centres, cluster_std=0.1, seed=3
     ).fetchall()
     assert len(rows) == 10_000
@@ -56,13 +57,13 @@ def test_blobs_rows_cluster_round_their_centres():
 
 def test_blobs_centres_given_as_points_set_the_features():
     """Centres given as points set the number of features, as scikit-learn's do."""
-    rel = sq.datasets.blobs(rows=10, centers=[[0, 0, 0], [1, 1, 1]])
+    rel = devdata.blobs(rows=10, centers=[[0, 0, 0], [1, 1, 1]])
     assert rel.columns == ["x0", "x1", "x2", "target"]
 
 
 def test_blobs_take_one_spread_per_centre():
     """A spread per centre: a centre of spread 0 gives its rows exactly."""
-    rows = sq.datasets.blobs(
+    rows = devdata.blobs(
         rows=200, centers=[[1.0, 2.0], [9.0, 9.0]], cluster_std=[0.0, 1.0], seed=2
     ).fetchall()
     assert all((x0, x1) == (1.0, 2.0) for x0, x1, t in rows if t == 0)
@@ -71,7 +72,7 @@ def test_blobs_take_one_spread_per_centre():
 
 def test_blobs_centres_drawn_lie_in_the_box():
     """Centres drawn by count lie in center_box: with spread 0 so do the rows."""
-    rows = sq.datasets.blobs(
+    rows = devdata.blobs(
         rows=300, centers=5, cluster_std=0.0, center_box=(2.0, 3.0), seed=4
     ).fetchall()
     assert all(2.0 <= v < 3.0 for r in rows for v in r[:2])
@@ -80,7 +81,7 @@ def test_blobs_centres_drawn_lie_in_the_box():
 
 def test_regression_gives_rows_features_and_a_target():
     """Regression has n_features DOUBLE columns, then a DOUBLE target."""
-    rel = sq.datasets.regression(rows=50, n_features=4, n_informative=2)
+    rel = devdata.regression(rows=50, n_features=4, n_informative=2)
     assert rel.columns == ["x0", "x1", "x2", "x3", "target"]
     assert [str(t) for t in rel.types] == ["DOUBLE"] * 5
     assert rel.count("*").fetchall()[0][0] == 50
@@ -88,7 +89,7 @@ def test_regression_gives_rows_features_and_a_target():
 
 def test_regression_target_is_the_linear_model_without_noise():
     """With noise=0, least squares recovers the target and n_informative weights."""
-    data = sq.datasets.regression(
+    data = devdata.regression(
         rows=1_000, n_features=20, n_informative=5, bias=3.0, seed=6
     ).fetchnumpy()
     x = np.column_stack([data[f"x{j}"] for j in range(20)] + [np.ones(1_000)])
@@ -102,7 +103,7 @@ def test_regression_target_is_the_linear_model_without_noise():
 
 def test_regression_informative_defaults_to_the_features_it_has():
     """With few features, n_informative defaults to all of them."""
-    data = sq.datasets.regression(rows=500, n_features=5, seed=2).fetchnumpy()
+    data = devdata.regression(rows=500, n_features=5, seed=2).fetchnumpy()
     x = np.column_stack([data[f"x{j}"] for j in range(5)])
     coef, *_ = np.linalg.lstsq(x, data["target"], rcond=None)
     assert np.count_nonzero(np.abs(coef) > 1e-6) == 5
@@ -110,7 +111,7 @@ def test_regression_informative_defaults_to_the_features_it_has():
 
 def test_regression_noise_spreads_the_target_round_the_model():
     """With noise, the residual of the least-squares fit has spread `noise`."""
-    data = sq.datasets.regression(
+    data = devdata.regression(
         rows=5_000, n_features=3, n_informative=3, noise=2.0, seed=7
     ).fetchnumpy()
     x = np.column_stack([data[f"x{j}"] for j in range(3)] + [np.ones(5_000)])
@@ -142,26 +143,22 @@ def test_a_seed_that_is_not_an_int_is_refused(make, seed):
 
 def test_any_int_seed_is_taken():
     """A negative or huge seed is taken, modulo 2**64."""
-    assert sq.datasets.blobs(rows=2, seed=-1).fetchall() == (
-        sq.datasets.blobs(rows=2, seed=2**64 - 1).fetchall()
+    assert devdata.blobs(rows=2, seed=-1).fetchall() == (
+        devdata.blobs(rows=2, seed=2**64 - 1).fetchall()
     )
 
 
 def test_the_same_seed_gives_the_same_rows_and_another_seed_others():
     """A seed fixes the rows; another seed gives other rows."""
-    first = sq.datasets.regression(
+    first = devdata.regression(
         rows=20, n_features=3, n_informative=2, seed=5
     ).fetchall()
     assert (
-        sq.datasets.regression(
-            rows=20, n_features=3, n_informative=2, seed=5
-        ).fetchall()
+        devdata.regression(rows=20, n_features=3, n_informative=2, seed=5).fetchall()
         == first
     )
     assert (
-        sq.datasets.regression(
-            rows=20, n_features=3, n_informative=2, seed=6
-        ).fetchall()
+        devdata.regression(rows=20, n_features=3, n_informative=2, seed=6).fetchall()
         != first
     )
 
@@ -191,7 +188,7 @@ def test_the_same_seed_gives_the_same_rows_and_another_seed_others():
 def test_bad_blobs_settings_are_refused(settings):
     """Each bad blobs setting is refused in the house form, naming the setting."""
     name = next(iter(settings))
-    assert name in _refused(sq.datasets.blobs, **settings)
+    assert name in _refused(devdata.blobs, **settings)
 
 
 @pytest.mark.parametrize(
@@ -211,20 +208,20 @@ def test_bad_blobs_settings_are_refused(settings):
 def test_bad_regression_settings_are_refused(settings):
     """Each bad regression setting is refused in the house form, naming it."""
     name = list(settings)[-1]
-    assert name in _refused(sq.datasets.regression, **settings)
+    assert name in _refused(devdata.regression, **settings)
 
 
 def test_regression_clips_an_explicit_n_informative_with_a_warning():
     """An n_informative above n_features is clipped, with a warning to fix it."""
     with pytest.warns(SqlearnWarning) as caught:
-        clipped = sq.datasets.regression(rows=50, n_features=5, n_informative=8, seed=0)
+        clipped = devdata.regression(rows=50, n_features=5, n_informative=8, seed=0)
     assert len(caught) == 1
     message = str(caught[0].message)
     assert "n_informative=8" in message
     assert "using 5" in message
     assert "Fix:" in message
     assert caught[0].filename == __file__
-    exact = sq.datasets.regression(rows=50, n_features=5, n_informative=5, seed=0)
+    exact = devdata.regression(rows=50, n_features=5, n_informative=5, seed=0)
     assert clipped.fetchall() == exact.fetchall()
 
 
@@ -232,19 +229,19 @@ def test_regression_with_default_n_informative_does_not_warn():
     """The default n_informative is never warned about, even with few features."""
     with warnings.catch_warnings():
         warnings.simplefilter("error")
-        sq.datasets.regression(n_features=5)
+        devdata.regression(n_features=5)
 
 
 def test_regression_with_n_informative_equal_to_n_features_does_not_warn():
     """n_informative equal to n_features is possible, so not warned about."""
     with warnings.catch_warnings():
         warnings.simplefilter("error")
-        sq.datasets.regression(n_features=5, n_informative=5)
+        devdata.regression(n_features=5, n_informative=5)
 
 
 def test_classification_gives_its_columns_in_order():
     """x0 to x19 (DOUBLE), then a BIGINT target holding the classes 0 to 2."""
-    rel = sq.datasets.classification(rows=2_000, n_classes=3, n_informative=3, seed=1)
+    rel = devdata.classification(rows=2_000, n_classes=3, n_informative=3, seed=1)
     assert rel.columns == [f"x{j}" for j in range(20)] + ["target"]
     assert [str(t) for t in rel.types] == ["DOUBLE"] * 20 + ["BIGINT"]
     assert rel.count("*").fetchall()[0][0] == 2_000
@@ -254,9 +251,7 @@ def test_classification_gives_its_columns_in_order():
 
 def test_classification_classes_follow_their_weights():
     """With flip_y=0, each class's share of the rows is its weight."""
-    rel = sq.datasets.classification(
-        rows=100_000, weights=[0.8, 0.2], flip_y=0.0, seed=2
-    )
+    rel = devdata.classification(rows=100_000, weights=[0.8, 0.2], flip_y=0.0, seed=2)
     counts = dict(rel.aggregate("target, count(*)").fetchall())
     # A share's standard error is sqrt(0.8 * 0.2 / 100,000) = 0.0013: 0.01 is 8.
     assert counts[0] / 100_000 == pytest.approx(0.8, abs=0.01)
@@ -265,7 +260,7 @@ def test_classification_classes_follow_their_weights():
 
 def test_classification_takes_one_weight_fewer_than_classes():
     """With n_classes - 1 weights, the last class takes what they leave."""
-    rel = sq.datasets.classification(
+    rel = devdata.classification(
         rows=100_000,
         n_classes=3,
         n_informative=3,
@@ -283,9 +278,7 @@ def test_classification_shares_the_rest_of_the_weights_equally():
     scikit-learn deals the rows the weights leave round-robin over every
     cluster: [0.3, 0.1] leaves 0.6, half of it to each class.
     """
-    rel = sq.datasets.classification(
-        rows=100_000, weights=[0.3, 0.1], flip_y=0.0, seed=3
-    )
+    rel = devdata.classification(rows=100_000, weights=[0.3, 0.1], flip_y=0.0, seed=3)
     counts = dict(rel.aggregate("target, count(*)").fetchall())
     assert counts[0] / 100_000 == pytest.approx(0.6, abs=0.01)
     assert counts[1] / 100_000 == pytest.approx(0.4, abs=0.01)
@@ -293,9 +286,7 @@ def test_classification_shares_the_rest_of_the_weights_equally():
 
 def test_classification_weights_of_zero_give_equal_classes():
     """Weights all 0 leave the whole to share, so the classes come out equal."""
-    rel = sq.datasets.classification(
-        rows=100_000, weights=[0.0, 0.0], flip_y=0.0, seed=3
-    )
+    rel = devdata.classification(rows=100_000, weights=[0.0, 0.0], flip_y=0.0, seed=3)
     counts = dict(rel.aggregate("target, count(*)").fetchall())
     assert counts[0] / 100_000 == pytest.approx(0.5, abs=0.01)
 
@@ -303,7 +294,7 @@ def test_classification_weights_of_zero_give_equal_classes():
 def test_redundant_features_are_combinations_of_the_informative_ones():
     """Least squares on the informative features gives each redundant one."""
     n_informative, n_redundant = 3, 4
-    data = sq.datasets.classification(
+    data = devdata.classification(
         rows=2_000,
         n_features=9,
         n_informative=n_informative,
@@ -329,7 +320,7 @@ def test_informative_features_sit_round_hypercube_vertices():
     Each class has n_clusters_per_class vertices, each vertex one cluster.
     """
     sep, n_classes, per_class = 20.0, 4, 2
-    data = sq.datasets.classification(
+    data = devdata.classification(
         rows=5_000,
         n_features=3,
         n_informative=3,
@@ -355,7 +346,7 @@ def test_informative_features_sit_round_hypercube_vertices():
 def test_flip_y_flips_that_share():
     """flip_y=0.5 redraws half the labels; half of those land on the other class."""
     kept, flipped = (
-        sq.datasets.classification(
+        devdata.classification(
             rows=100_000, n_features=4, flip_y=flip_y, seed=6
         ).fetchnumpy()
         for flip_y in (0.0, 0.5)
@@ -369,7 +360,7 @@ def test_flip_y_flips_that_share():
 
 def test_classification_with_one_class_gives_class_zero():
     """n_classes=1 is taken, as scikit-learn takes it: every target is 0."""
-    rel = sq.datasets.classification(rows=50, n_classes=1, flip_y=0.5)
+    rel = devdata.classification(rows=50, n_classes=1, flip_y=0.5)
     assert rel.project("target").distinct().fetchall() == [(0,)]
 
 
@@ -405,17 +396,17 @@ def test_classification_with_one_class_gives_class_zero():
 def test_bad_classification_settings_are_refused(settings):
     """Each bad classification setting is refused in the house form, naming it."""
     name = list(settings)[-1]
-    assert name in _refused(sq.datasets.classification, **settings)
+    assert name in _refused(devdata.classification, **settings)
 
 
 def test_classification_takes_numpy_weights():
     """Weights may be a numpy array, as a list may."""
-    with_array = sq.datasets.classification(
+    with_array = devdata.classification(
         rows=50,
         weights=np.array([0.3, 0.7]),  # ty: ignore[invalid-argument-type]
         seed=7,
     )
-    with_list = sq.datasets.classification(rows=50, weights=[0.3, 0.7], seed=7)
+    with_list = devdata.classification(rows=50, weights=[0.3, 0.7], seed=7)
     assert with_array.fetchall() == with_list.fetchall()
 
 
@@ -432,9 +423,9 @@ def test_the_same_seed_gives_the_same_rows_on_any_thread_count():
     before = con.sql("SELECT current_setting('threads')").fetchall()[0][0]
     try:
         con.execute("SET threads = 1")
-        one = sq.datasets.blobs(rows=100_000, seed=8).fetchall()
+        one = devdata.blobs(rows=100_000, seed=8).fetchall()
         con.execute("SET threads = 8")
-        eight = sq.datasets.blobs(rows=100_000, seed=8).fetchall()
+        eight = devdata.blobs(rows=100_000, seed=8).fetchall()
     finally:
         con.execute(f"SET threads = {before}")
     assert one == eight
@@ -452,7 +443,7 @@ def test_a_trillion_rows_are_created_at_once():
     plans: list[str] = []
 
     def build_and_fetch() -> None:
-        rel = sq.datasets.blobs(rows=10**12, seed=2)
+        rel = devdata.blobs(rows=10**12, seed=2)
         plans.append(rel.explain().upper())
         got.extend(rel.limit(3).fetchall())
 
@@ -465,15 +456,15 @@ def test_a_trillion_rows_are_created_at_once():
         pytest.fail("a trillion rows were built or scanned, not taken lazily")
     assert "ORDER" not in plans[0]
     assert "AGGREGATE" not in plans[0]
-    assert got == sq.datasets.blobs(rows=3, seed=2).fetchall()
+    assert got == devdata.blobs(rows=3, seed=2).fetchall()
 
 
 def test_rows_reaching_the_constants_rows_are_refused():
     """rows=2**63 is refused: data rows stay below the constants' rows."""
-    message = _refused(sq.datasets.blobs, rows=2**63)
+    message = _refused(devdata.blobs, rows=2**63)
     assert "2**63" in message
     assert (
-        sq.datasets.regression(rows=2**63 - 1, n_features=1, n_informative=1)
+        devdata.regression(rows=2**63 - 1, n_features=1, n_informative=1)
         .limit(1)
         .fetchall()
     )
@@ -482,7 +473,7 @@ def test_rows_reaching_the_constants_rows_are_refused():
 def test_numpy_whole_numbers_are_taken_as_rows_and_seed():
     """numpy's integers are whole numbers: rows, seed and counts take them."""
     # The annotations say int, as scikit-learn's do; numpy's are taken at run time.
-    rel = sq.datasets.blobs(
+    rel = devdata.blobs(
         rows=np.int64(5),  # ty: ignore[invalid-argument-type]
         n_features=np.int32(3),  # ty: ignore[invalid-argument-type]
         centers=np.int64(2),  # ty: ignore[invalid-argument-type]
@@ -490,21 +481,21 @@ def test_numpy_whole_numbers_are_taken_as_rows_and_seed():
     )
     assert (
         rel.fetchall()
-        == sq.datasets.blobs(rows=5, n_features=3, centers=2, seed=4).fetchall()
+        == devdata.blobs(rows=5, n_features=3, centers=2, seed=4).fetchall()
     )
 
 
 def test_numpy_arrays_are_taken_as_centres_spreads_and_box():
     """Centres, spreads and the box may be numpy arrays, as lists are."""
     centres = [[0.0, 1.0], [5.0, 6.0]]
-    with_arrays = sq.datasets.blobs(
+    with_arrays = devdata.blobs(
         rows=50,
         centers=np.array(centres),  # ty: ignore[invalid-argument-type]
         cluster_std=np.array([0.5, 1.0]),  # ty: ignore[invalid-argument-type]
         center_box=np.array([-1.0, 1.0]),  # ty: ignore[invalid-argument-type]
         seed=3,
     )
-    with_lists = sq.datasets.blobs(
+    with_lists = devdata.blobs(
         rows=50, centers=centres, cluster_std=[0.5, 1.0], center_box=(-1.0, 1.0), seed=3
     )
     assert with_arrays.fetchall() == with_lists.fetchall()
@@ -512,13 +503,13 @@ def test_numpy_arrays_are_taken_as_centres_spreads_and_box():
 
 def test_a_setting_of_the_wrong_type_is_refused_naming_its_type():
     """A refusal for the type names the type given, not only the value."""
-    message = _refused(sq.datasets.regression, n_features="2")
+    message = _refused(devdata.regression, n_features="2")
     assert "n_features='2' (a str)" in message
 
 
 def test_customers_has_its_columns_and_types():
     """Five columns, `target` last and the only one of that name."""
-    rel = sq.datasets.customers(rows=500, seed=1)
+    rel = devdata.customers(rows=500, seed=1)
     assert rel.columns == ["age", "income", "city", "plan", "target"]
     assert [str(t) for t in rel.types] == [
         "DOUBLE",
@@ -534,7 +525,7 @@ def test_customers_has_its_columns_and_types():
 def test_customers_have_the_promised_gaps_and_shares():
     """A tenth of age and a twentieth of income are NULL; the shares hold."""
     n = 100_000
-    rel = sq.datasets.customers(rows=n, seed=3)
+    rel = devdata.customers(rows=n, seed=3)
     row = rel.aggregate(
         "avg((age IS NULL)::DOUBLE), avg((income IS NULL)::DOUBLE),"
         " avg((plan = 'basic')::DOUBLE), avg((plan = 'plus')::DOUBLE),"
@@ -554,7 +545,7 @@ def test_customers_have_the_promised_gaps_and_shares():
 
 def test_customers_age_and_income_follow_their_distributions():
     """Age is normal (40, 12); the log of income is normal (10.5, 0.5)."""
-    rel = sq.datasets.customers(rows=100_000, seed=4)
+    rel = devdata.customers(rows=100_000, seed=4)
     mean, sd, lmean, lsd = rel.aggregate(
         "avg(age), stddev_samp(age), avg(ln(income)), stddev_samp(ln(income))"
     ).fetchall()[0]
@@ -566,7 +557,7 @@ def test_customers_age_and_income_follow_their_distributions():
 
 def test_customers_target_follows_plan_city_and_income():
     """Basic plans churn more, high incomes less: the example's signal."""
-    rel = sq.datasets.customers(rows=100_000, seed=5)
+    rel = devdata.customers(rows=100_000, seed=5)
     by_plan = dict(rel.aggregate("plan, avg(target)").fetchall())
     assert by_plan["basic"] > by_plan["pro"] + 0.1
     high, low = (
@@ -580,7 +571,7 @@ def test_a_pipeline_learns_customers_end_to_end():
     """Impute, one-hot, scale, then a logistic regression beats the majority."""
     from sklearn.linear_model import LogisticRegression
 
-    train = sq.datasets.customers(rows=2_000, seed=0)
+    train = devdata.customers(rows=2_000, seed=0)
     pipe = sq.Pipeline(
         [
             sq.impute.median(),
@@ -591,7 +582,7 @@ def test_a_pipeline_learns_customers_end_to_end():
     )
     pipe.train(train, target="target")
     # Others: rows 2,000 to 3,000 of the same seed's stream.
-    others = sq.datasets.customers(rows=3_000, seed=0).limit(1_000, offset=2_000)
+    others = devdata.customers(rows=3_000, seed=0).limit(1_000, offset=2_000)
     predicted = pipe.predict(others, out="pandas")
     truth = others.project("target").fetchnumpy()["target"]
     guessed = np.asarray(predicted).ravel()
@@ -614,7 +605,7 @@ def test_a_pipeline_learns_ten_million_rows_under_64_mb():
     con.execute("SET threads = 1")
     limit = con.sql("SELECT current_setting('memory_limit')").fetchall()[0][0]
     assert limit.startswith("61.0 MiB")  # 64 MB
-    big = sq.datasets.customers(rows=10**7)
+    big = devdata.customers(rows=10**7)
     pipe = sq.Pipeline([sq.impute.median(), sq.scale.standard()]).learn(big)
     assert pipe["standard"].center_ is not None
 
@@ -690,14 +681,14 @@ def test_work_tickets_share_the_work_between_threads(parallel, shared):
         return x
 
     con.create_function("note", note, ["DOUBLE"], "DOUBLE", side_effects=True)
-    rel = sq.datasets.blobs(rows=1_000_000, n_features=1, parallel=parallel)
+    rel = devdata.blobs(rows=1_000_000, n_features=1, parallel=parallel)
     rel.aggregate("sum(note(x0))").fetchall()
     assert (len(seen) > 1) is shared
 
 
 def test_parallel_false_needs_no_meta_sqlearn():
     """parallel=False names no ``meta_sqlearn`` and attaches none."""
-    rel = sq.datasets.blobs(rows=10, parallel=False)
+    rel = devdata.blobs(rows=10, parallel=False)
     assert "meta_sqlearn" not in rel.sql_query()
     names = connection().sql("SELECT database_name FROM duckdb_databases()")
     assert ("meta_sqlearn",) not in names.fetchall()
@@ -708,7 +699,7 @@ def test_a_view_over_parallel_false_survives_reopening(tmp_path):
     path = tmp_path / "work.duckdb"
     con = duckdb.connect(path)
     sq.set_config(connection=con)
-    sq.datasets.blobs(rows=10, parallel=False).create_view("kept")
+    devdata.blobs(rows=10, parallel=False).create_view("kept")
     con.close()
     assert duckdb.connect(path).sql("SELECT count(*) FROM kept").fetchall() == [(10,)]
 
@@ -721,11 +712,11 @@ def test_parallel_must_be_a_bool(make):
 
 def test_limit_and_ordered_keep_their_meaning():
     """``limit`` and ``ordered=True`` give the same rows either way."""
-    rel = sq.datasets.blobs(rows=10_000, seed=1)
-    plain = sq.datasets.blobs(rows=10_000, seed=1, parallel=False)
+    rel = devdata.blobs(rows=10_000, seed=1)
+    plain = devdata.blobs(rows=10_000, seed=1, parallel=False)
     assert rel.limit(5).fetchall() == plain.limit(5).fetchall()
-    assert sq.datasets.blobs(rows=10_000, seed=1, ordered=True).fetchall() == (
-        sq.datasets.blobs(rows=10_000, seed=1, ordered=True, parallel=False).fetchall()
+    assert devdata.blobs(rows=10_000, seed=1, ordered=True).fetchall() == (
+        devdata.blobs(rows=10_000, seed=1, ordered=True, parallel=False).fetchall()
     )
 
 
@@ -733,15 +724,15 @@ def test_without_insertion_order_the_rows_are_the_same_set():
     """With insertion order off the rows are the same set, in any order."""
     con = connection()
     con.execute("SET preserve_insertion_order = false")
-    got = sq.datasets.blobs(rows=10_000, seed=1).fetchall()
+    got = devdata.blobs(rows=10_000, seed=1).fetchall()
     assert sorted(got) == sorted(
-        sq.datasets.blobs(rows=10_000, seed=1, parallel=False).fetchall()
+        devdata.blobs(rows=10_000, seed=1, parallel=False).fetchall()
     )
 
 
 def test_a_pipeline_learned_from_tickets_saves_loads_and_applies(tmp_path):
     """A pipeline learned from tickets saves, loads and applies again."""
-    rel = sq.datasets.blobs(rows=1_000, seed=2)
+    rel = devdata.blobs(rows=1_000, seed=2)
     pipe = sq.Pipeline([sq.scale.standard()]).learn(rel)
     sq.save(pipe, tmp_path / "pipe.json")
     again = sq.load(tmp_path / "pipe.json")
@@ -753,7 +744,7 @@ def test_an_ordered_export_under_a_memory_limit(tmp_path, parallel, folder):
     """Tickets may overflow to the temporary folder; ``range`` needs none."""
     con = duckdb.connect()
     sq.set_config(connection=con)
-    rel = sq.datasets.blobs(rows=4_000_000, n_features=1, parallel=parallel)
+    rel = devdata.blobs(rows=4_000_000, n_features=1, parallel=parallel)
     place = tmp_path / "spill" if folder else ""
     con.execute(f"SET threads = 4; SET temp_directory = '{place}'")
     con.execute("SET memory_limit = '60MB'")
@@ -764,7 +755,7 @@ def test_an_ordered_export_under_a_memory_limit(tmp_path, parallel, folder):
 
 def test_the_largest_row_count_is_created_at_once():
     """At ``2**63 - 1`` rows the relation is created and limited at once."""
-    rel = sq.datasets.blobs(rows=2**63 - 1, n_features=1)
+    rel = devdata.blobs(rows=2**63 - 1, n_features=1)
     assert rel.limit(3).count("*").fetchall() == [(3,)]
 
 
@@ -787,5 +778,5 @@ def test_a_model_streams_from_a_generated_relation():
 
     estimator = Count()
     pipe = sq.Pipeline([sq.Model(estimator, feed="stream", rows=500)])
-    pipe.train(sq.datasets.blobs(rows=2_000), target="target")
+    pipe.train(devdata.blobs(rows=2_000), target="target")
     assert estimator.seen == 2_000

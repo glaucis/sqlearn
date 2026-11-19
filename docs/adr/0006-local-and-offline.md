@@ -7,7 +7,8 @@ related: [docs/architecture/overview.md]
 ---
 # 0006: Local and offline
 
-Status: accepted (2026-11-03, from the earlier attempt's blueprint)
+Status: accepted (2026-11-03, from the earlier attempt's blueprint). Its line on
+example datasets is replaced by [ADR 0053](0053-sqlearn-ships-no-datasets.md).
 
 ## Context
 

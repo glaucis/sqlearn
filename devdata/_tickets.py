@@ -37,7 +37,7 @@ FAN_OUT = 4_096
 """The most children one ticket widens into per step, so no list is large."""
 _LOCK = threading.Lock()
 _TABLE = re.compile(r"tickets_([1-9][0-9]*)")
-_PACKAGE = (str(Path(__file__).parents[1]),)
+_PACKAGE = (str(Path(__file__).parent),)
 _THERE = f"WHERE database_name = '{DATABASE}'"
 _OTHER_OBJECTS = (
     "SELECT 'view', schema_name || '.' || view_name "

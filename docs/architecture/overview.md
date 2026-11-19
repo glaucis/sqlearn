@@ -160,7 +160,7 @@ is documented.
 
 **What:** the areas, each its own spec: preprocessing, model selection (a search
 over hyperparameters and folds, with sqlearn's folds or an outside optimiser
-such as Optuna), metrics, datasets, saving a pipeline to a JSON file (`sq.save`,
+such as Optuna), metrics, saving a pipeline to a JSON file (`sq.save`,
 `sq.load`; [ADR 0047](../adr/0047-a-pipeline-saves-as-json.md)), where the user
 saves the trained model and `sq.load` imports nothing
 ([ADR 0048](../adr/0048-the-user-saves-the-model-and-imports-its-packages.md)),

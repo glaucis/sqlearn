@@ -188,7 +188,7 @@ check-mirror:
             missing=1
         fi
         case "$dir" in
-            agg|agg/*|preprocessing|preprocessing/*|metrics|metrics/*|datasets|datasets/*)
+            agg|agg/*|preprocessing|preprocessing/*|metrics|metrics/*)
                 case "$name" in _*) continue ;; esac
                 val="validation/sqlearn/${sub}validate_${name}.py"
                 if [ ! -f "$val" ]; then

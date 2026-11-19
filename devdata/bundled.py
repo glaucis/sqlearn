@@ -17,7 +17,7 @@ __all__ = ["breast_cancer", "iris", "wine"]
 
 def _read(name: str) -> duckdb.DuckDBPyRelation:
     """Return the bundled CSV `name` as a relation: DOUBLE features, BIGINT target."""
-    path = resources.files("sqlearn.datasets") / "data" / f"{name}.csv"
+    path = resources.files("devdata") / "data" / f"{name}.csv"
     with path.open(encoding="utf-8") as f:
         header = next(csv.reader(f))
     columns = dict.fromkeys(header[:-1], "DOUBLE") | {header[-1]: "BIGINT"}
@@ -41,7 +41,7 @@ def iris() -> duckdb.DuckDBPyRelation:
     Examples
     --------
     >>> import sqlearn as sq
-    >>> rel = sq.datasets.iris()
+    >>> rel = devdata.iris()
     >>> rel.columns[-1], rel.count("*").fetchall()[0][0]
     ('target', 150)
     """
@@ -65,7 +65,7 @@ def wine() -> duckdb.DuckDBPyRelation:
     Examples
     --------
     >>> import sqlearn as sq
-    >>> rel = sq.datasets.wine()
+    >>> rel = devdata.wine()
     >>> rel.columns[0], rel.count("*").fetchall()[0][0]
     ('alcohol', 178)
     """
@@ -89,7 +89,7 @@ def breast_cancer() -> duckdb.DuckDBPyRelation:
     Examples
     --------
     >>> import sqlearn as sq
-    >>> rel = sq.datasets.breast_cancer()
+    >>> rel = devdata.breast_cancer()
     >>> rel.columns[0], rel.count("*").fetchall()[0][0]
     ('mean radius', 569)
     """

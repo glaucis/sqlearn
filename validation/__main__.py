@@ -31,11 +31,11 @@ RUNNERS = (
     "validation.sqlearn.metrics.validate_classification",
     "validation.sqlearn.metrics.validate_tables",
     "validation.sqlearn.metrics.validate_curves",
-    "validation.sqlearn.datasets.validate_bundled",
-    "validation.sqlearn.datasets.validate_generated",
     "validation.pipelines.validate_slice",
     "validation.pipelines.validate_preprocessing",
     "validation.pipelines.validate_model_selection",
+    "validation.devdata.validate_bundled",
+    "validation.devdata.validate_generated",
 )
 
 
