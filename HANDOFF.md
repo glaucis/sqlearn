@@ -3,14 +3,15 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-19 · Branch: `main` · Last commit: the merge of branch
-`balanced-scores`: balanced accuracy, MCC and Brier (#62) · Checks: passing
-(`just verify` on the branch: 2497 passed, 24 skipped)
+Updated: 2026-11-19 · Branch: `regression-metrics` · Last commit: `ff379d2`
+test: bound each Tweedie power on its own (#63), before the docs commit ·
+Checks: passing (`just verify` on the branch: 2635 passed, 24 skipped)
 Verify with: `just verify`
 
 ## In progress
 
-None.
+- The regression metrics (#63, ADR 0054) on branch `regression-metrics`:
+  built and validated, docs written; awaiting the final review and merge.
 
 ## Waiting on the user
 
@@ -24,6 +25,12 @@ None.
 
 ## Dead ends and traps
 
+- DuckDB 2.0 has no `log1p`: use Kahan's form, `_log1p` in
+  `src/sqlearn/metrics/regression.py`. scikit-learn's D² pinball baseline is
+  `_weighted_percentile(average=True)`, not any DuckDB quantile
+  (`quantile_cont` and `quantile_disc` both differ). The full validation
+  takes about 47 minutes under load; one runner can run alone through
+  `validation.__main__.main([module], ROOT)`. (2026-11-19)
 - `meta_sqlearn` (ADR 0052): one transaction writes one attached database,
   so it is written through a cursor. `con.execute` on the user's connection
   discards their unfinished result, so only bind there. A transaction may

@@ -140,6 +140,21 @@ Notes on each, from probing scikit-learn 1.9.1:
   aggregate: the window's mean over identical values can be one rounding off,
   which would leave the baseline's deviance tiny but not 0. The same test
   serves `d2_pinball`, `d2_absolute_error` and `explained_variance`.
+  **Corrected after the build (2026-11-19):** `d2_pinball` and
+  `d2_absolute_error` score 1 when the model's loss is 0 and 0 otherwise,
+  not "when predicted exactly". This is scikit-learn's `force_finite` rule,
+  and it holds on a constant target and whenever the baseline loses nothing,
+  as at alpha 0 or 1.
+- **`explained_variance` on a constant target whose offset is not a double**
+  (target all 0.3, prediction all 0.1): sqlearn gives the exact 1;
+  scikit-learn gives 0.75 (0 on 100 rows) from numpy's rounding of the mean.
+  **Corrected after the build (2026-11-19):** sqlearn keeps the exact answer.
+- **`tweedie_deviance` at power -1 on exact predictions** returns about
+  -8.9e-16, not 0, as scikit-learn does. **Corrected after the build
+  (2026-11-19):** sqlearn matches it.
+- **`d2_tweedie` below power 0** scores a negative target mean, as
+  scikit-learn does. **Corrected after the build (2026-11-19):** the first
+  text did not say so.
 
 ## 7. How it is built
 

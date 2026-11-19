@@ -5,9 +5,9 @@ kernelspec:
   display_name: Python 3
   language: python
 type: guide
-tags: [metrics, fbeta, average-precision, balanced-accuracy, mcc, brier, confusion-matrix, classification-report, roc-curve, precision-recall-curve, evaluation]
-summary: "Scoring a trained classifier beyond accuracy: fbeta, average_precision, balanced accuracy, MCC and Brier for imbalanced classes, the confusion matrix and classification report as relations, and the ROC and precision-recall curves as relations you plot with your own library."
-related: [docs/specs/library-more-metrics.md, docs/specs/library-balanced-scores.md, docs/adr/0049-table-metrics-are-relations.md, docs/guide/tuning-a-model.md, docs/guide/from-scikit-learn.md]
+tags: [metrics, regression, pinball-loss, tweedie, d2-score, fbeta, average-precision, balanced-accuracy, mcc, brier, confusion-matrix, classification-report, roc-curve, precision-recall-curve, evaluation]
+summary: "Scoring a trained model beyond accuracy: choosing a regression score (deviances, pinball loss, D² scores), and for classifiers fbeta, average_precision, balanced accuracy, MCC and Brier for imbalanced classes, the confusion matrix and classification report as relations, and the ROC and precision-recall curves as relations you plot with your own library."
+related: [docs/specs/library-regression-metrics.md, docs/adr/0054-d2-tweedie-on-a-constant-target.md, docs/specs/library-more-metrics.md, docs/specs/library-balanced-scores.md, docs/adr/0049-table-metrics-are-relations.md, docs/guide/tuning-a-model.md, docs/guide/from-scikit-learn.md]
 ---
 
 # Evaluating a model
@@ -160,4 +160,90 @@ up. `precision_recall_curve` has the columns `precision`, `recall` and
 
 ```{code-cell} python
 sq.metrics.precision_recall_curve(rows, "target", "__sqlearn_proba_1").limit(3)
+```
+
+## Choosing a regression score
+
+A regression model predicts a number, and each score below weighs its
+mistakes differently. They read the same two columns, the target and the
+`prediction`, and `compute` them in SQL as the classification scores do.
+
+| Score | Better | Fits when |
+|---|---|---|
+| `mse` | lower | large errors matter far more than small ones |
+| `median_absolute_error` | lower | a few wild rows should not set the score |
+| `max_error` | lower | the single worst miss is what counts |
+| `mape` | lower | errors are judged as a share of the target |
+| `msle`, `rmsle` | lower | the target grows by multiples, so a miss of 10 on 1000 is small |
+| `explained_variance` | higher | bias is not the worry, only the spread of the errors |
+| `poisson_deviance`, `gamma_deviance`, `tweedie_deviance(power=)` | lower | counts, positive amounts and mixes of both |
+| `pinball_loss(alpha=)` | lower | the model predicts a quantile, not a mean |
+| `d2_tweedie(power=)`, `d2_pinball(alpha=)`, `d2_absolute_error` | higher | you want a deviance as a share of what a constant guess loses, as `r2` does for the squared error |
+
+Here are some of them, scored on a small table built in the page:
+
+```{code-cell} python
+import numpy as np
+import pandas as pd
+
+rng = np.random.default_rng(0)
+truth = rng.gamma(2.0, 50.0, 200)
+guess = truth * rng.lognormal(0.0, 0.3, 200)
+pairs = con.from_df(pd.DataFrame({"y": truth, "prediction": guess}))
+{
+    name: round(getattr(sq.metrics, name).compute(pairs, "y"), 3)
+    for name in (
+        "mse",
+        "median_absolute_error",
+        "max_error",
+        "mape",
+        "rmsle",
+        "explained_variance",
+        "gamma_deviance",
+        "d2_absolute_error",
+    )
+}
+```
+
+The scores with a setting take it at the call:
+`sq.metrics.tweedie_deviance(power=1.5)`, `sq.metrics.d2_tweedie(power=2)` and
+`sq.metrics.pinball_loss(alpha=0.9)`.
+
+```{code-cell} python
+sq.metrics.pinball_loss(alpha=0.9).compute(pairs, "y")
+```
+
+Each refuses what its formula cannot take: `msle` and `rmsle` a value at or
+below -1, `poisson_deviance` a negative target or a prediction at or below 0,
+`gamma_deviance` either at or below 0. The refusal names the rows and has a
+`Fix:` line.
+
+The D² scores are 1 for a perfect model and 0 for no better than a constant
+guess (the mean for `d2_tweedie`, the quantile for `d2_pinball`, the median for
+`d2_absolute_error`). On a constant target the guess is exact and scikit-learn's
+`d2_tweedie` raises `ZeroDivisionError`; sqlearn scores 1 when the model's loss
+is 0 and 0 otherwise, as `r2` does
+([ADR 0054](../adr/0054-d2-tweedie-on-a-constant-target.md)). On a single row
+the D² scores are NaN, with a warning.
+
+### Searching by a quantile
+
+To tune a model that predicts the 90th percentile, score the search by
+`pinball_loss(alpha=0.9)`: lower is better, and the search keeps the lowest.
+
+```{code-cell} python
+from sklearn.ensemble import GradientBoostingRegressor
+
+x = rng.uniform(0, 10, 400)
+table = pd.DataFrame({"x": x, "y": 2 * x + rng.normal(0, 1 + x / 3)})
+quantile = sq.Pipeline(
+    [GradientBoostingRegressor(loss="quantile", alpha=0.9, n_estimators=30)]
+)
+search = sq.search(
+    quantile,
+    params={"model__max_depth": [1, 2, 3]},
+    metric=sq.metrics.pinball_loss(alpha=0.9),
+)
+search.train(table, target="y")
+search.best_params_
 ```

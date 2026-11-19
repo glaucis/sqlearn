@@ -651,7 +651,7 @@ def test_d2_pinball_is_higher_better_and_shows_its_alpha():
     ],
 )
 def test_d2_pinball_of_a_constant_target_is_one_or_zero(metric, y, p, expected):
-    """A constant target scores 1 when predicted exactly, else 0 (ADR 0054)."""
+    """A constant target scores 1 when the loss is 0, else 0 (ADR 0054)."""
     frame = pd.DataFrame({"y": y, "prediction": p})
     assert metric.compute(rel(frame), "y") == expected
     assert expected == d2_pinball_score(y, p, alpha=metric.alpha)
