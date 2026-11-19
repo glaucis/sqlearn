@@ -1053,6 +1053,18 @@ def test_a_search_scores_by_log_loss():
     assert search.train(SEPARABLE, target="y").best_params_ == {"model__C": 10.0}
 
 
+def test_a_search_by_brier_picks_the_lowest():
+    """Lower Brier wins: a weak penalty beats a crushing one on separable data."""
+    search = sq.search(
+        PIPE_WITH_SCALE,
+        params={"model__C": [0.001, 10.0]},
+        metric=sq.metrics.brier,
+        folds=sq.folds.stratified(3),
+    )
+    assert search.train(SEPARABLE, target="y").best_params_ == {"model__C": 10.0}
+    assert search.best_score_ == min(mean_scores(search).values())
+
+
 def test_a_search_scores_by_roc_auc_as_scikit_learn_on_each_fold():
     """Each fold's score is roc_auc_score of the fold's model on its held rows."""
     folds = sq.folds.stratified(3)

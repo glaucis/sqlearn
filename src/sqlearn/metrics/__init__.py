@@ -19,7 +19,9 @@ from sqlearn.metrics.classification import (
 from sqlearn.metrics.curves import precision_recall_curve, roc_curve
 from sqlearn.metrics.probability import (
     AveragePrecision,
+    Brier,
     average_precision,
+    brier,
     log_loss,
     roc_auc,
 )
@@ -28,6 +30,7 @@ from sqlearn.metrics.tables import classification_report, confusion_matrix
 
 __all__ = [
     "AveragePrecision",
+    "Brier",
     "ClassificationMetric",
     "CountMetric",
     "Metric",
@@ -35,6 +38,7 @@ __all__ = [
     "accuracy",
     "average_precision",
     "balanced_accuracy",
+    "brier",
     "classification_report",
     "confusion_matrix",
     "f1",

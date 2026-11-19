@@ -117,8 +117,8 @@ class Metric:
         Raises
         ------
         SqlearnError
-            Always: only precision, recall, f1, fbeta, balanced_accuracy and
-            average_precision take settings.
+            Always: only precision, recall, f1, fbeta, balanced_accuracy,
+            average_precision and brier take settings.
 
         Examples
         --------
@@ -131,8 +131,8 @@ class Metric:
         given = ", ".join(f"{k}=" for k in settings) or "a call"
         msg = (
             f"{self.name} takes no settings, and was given {given}. Why: "
-            "only the metrics precision, recall, f1, fbeta, balanced_accuracy "
-            "and average_precision have settings. Fix: use "
+            "only the metrics precision, recall, f1, fbeta, balanced_accuracy, "
+            "average_precision and brier have settings. Fix: use "
             f"sq.metrics.{self.name} as it is."
         )
         raise SqlearnError(msg)
