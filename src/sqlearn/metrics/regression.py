@@ -641,3 +641,88 @@ d2_pinball = PinballLoss("d2_pinball", _unused, True, d2=True)
 d2_absolute_error = PinballLoss(
     "d2_absolute_error", _unused, True, d2=True, settable=False
 )
+
+
+_EXAMPLE = (
+    "    >>> import duckdb\n"
+    "    >>> import sqlearn as sq\n"
+    "    >>> rel = duckdb.sql(\n"
+    '    ...     "SELECT * FROM (VALUES (3, 2.5), (-0.5, 0), (2, 2), (7, 8)) "\n'
+    '    ...     "t(y, prediction)"\n'
+    "    ... )\n"
+)
+
+
+def _document(metric: Metric, summary: str, edge: str, value: str) -> None:
+    # Give one plain metric its own docstring, so that its reference page
+    # says what it scores rather than repeating the Metric class's.
+    text = (
+        f"{summary}\n\n{edge}\n\nExamples\n--------\n{_EXAMPLE}"
+        f'    >>> sq.metrics.{metric.name}.compute(rel, "y")\n    {value}\n'
+    )
+    object.__setattr__(metric, "__doc__", text)
+
+
+_document(
+    rmse,
+    "The root mean squared error, as scikit-learn's ``root_mean_squared_error``. "
+    "Lower is better.",
+    "It is the square root of ``mse``, in the target's own units.",
+    "0.6123724356957945",
+)
+_document(
+    mae,
+    "The mean absolute error, as scikit-learn's ``mean_absolute_error``. "
+    "Lower is better.",
+    "Each row counts by its distance, so one far row moves it less than it "
+    "moves ``mse``.",
+    "0.5",
+)
+_document(
+    r2,
+    "The coefficient of determination, as scikit-learn's ``r2_score``. Higher "
+    "is better; 1 is perfect and 0 is no better than the target's mean.",
+    "On a constant target it scores 1 when every prediction equals the target "
+    "and 0 otherwise, as scikit-learn does.",
+    "0.9486081370449679",
+)
+_document(
+    mse,
+    "The mean squared error, as scikit-learn's ``mean_squared_error``. Lower "
+    "is better.",
+    "The squares are summed with compensation, so a large column keeps its digits.",
+    "0.375",
+)
+_document(
+    max_error,
+    "The largest absolute error, as scikit-learn's ``max_error``. Lower is better.",
+    "It reads only the worst row.",
+    "1.0",
+)
+_document(
+    median_absolute_error,
+    "The median absolute error, as scikit-learn's ``median_absolute_error``. "
+    "Lower is better.",
+    "It is not moved by a few far rows.",
+    "0.5",
+)
+_document(
+    mape,
+    "The mean absolute percentage error, as scikit-learn's "
+    "``mean_absolute_percentage_error``. Lower is better; it is a fraction, "
+    "0.5 meaning 50%.",
+    "A row's error is divided by the larger of the absolute target and the "
+    "double epsilon (2.22e-16), as scikit-learn does, so a zero target gives a "
+    "huge number (about 2.25e15 for an error of 0.5), not an error.",
+    "0.3273809523809524",
+)
+_document(
+    explained_variance,
+    "The explained variance, as scikit-learn's ``explained_variance_score``. "
+    "Higher is better; 1 is perfect. Unlike ``r2`` it ignores a constant "
+    "offset in the errors.",
+    "On a constant target it scores 1 when the errors have no variance and 0 "
+    "otherwise. A target all 0.3 with predictions all 0.1 scores the exact 1 "
+    "here, where scikit-learn gives 0.75 from numpy's rounding of the mean.",
+    "0.9571734475374732",
+)

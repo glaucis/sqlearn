@@ -3,15 +3,15 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-19 · Branch: `regression-metrics` · Last commit: `ff379d2`
-test: bound each Tweedie power on its own (#63), before the docs commit ·
+Updated: 2026-11-19 · Branch: `regression-metrics` · Last commit: the
+final-review fix commit on the branch (#63) ·
 Checks: passing (`just verify` on the branch: 2635 passed, 24 skipped)
 Verify with: `just verify`
 
 ## In progress
 
 - The regression metrics (#63, ADR 0054) on branch `regression-metrics`:
-  built and validated, docs written; awaiting the final review and merge.
+  reviewed, awaiting merge.
 
 ## Waiting on the user
 

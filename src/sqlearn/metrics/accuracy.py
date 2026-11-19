@@ -353,11 +353,19 @@ class Metric:
         counted = rest[len(floats) : len(floats) + len(ranges)]
         for n_out, (_, words, why) in zip(counted, ranges, strict=True):
             if n_out:
+                # A target is the user's data, so the fix is for data; a
+                # prediction is the model's.
+                other = (
+                    "score with a metric whose range takes them "
+                    "(sq.metrics.mse, or tweedie_deviance(power=0))."
+                    if "target" in words
+                    else "score a model whose predictions stay in the "
+                    "range this metric accepts."
+                )
                 msg = (
                     f"{self.name} cannot be computed: {n_out} of {total} "
                     f"rows hold {words}. Why: {why} Fix: drop those rows, "
-                    "or score a model whose predictions stay in the range "
-                    "this metric accepts."
+                    f"or {other}"
                 )
                 raise SqlearnError(msg)
         if proba:

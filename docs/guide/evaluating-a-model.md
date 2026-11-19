@@ -221,8 +221,9 @@ below -1, `poisson_deviance` a negative target or a prediction at or below 0,
 The D² scores are 1 for a perfect model and 0 for no better than a constant
 guess (the mean for `d2_tweedie`, the quantile for `d2_pinball`, the median for
 `d2_absolute_error`). On a constant target the guess is exact and scikit-learn's
-`d2_tweedie` raises `ZeroDivisionError`; sqlearn scores 1 when the model's loss
-is 0 and 0 otherwise, as `r2` does
+`d2_tweedie` raises `ZeroDivisionError`; sqlearn scores 1 when every
+prediction equals the target and 0 otherwise (for the pinball scores, 1 when
+the model's loss is 0), as `r2` does
 ([ADR 0054](../adr/0054-d2-tweedie-on-a-constant-target.md)). On a single row
 the D² scores are NaN, with a warning.
 

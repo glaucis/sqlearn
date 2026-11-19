@@ -705,3 +705,17 @@ def test_a_search_by_d2_pinball():
         folds=sq.folds.kfold(3),
     )
     assert search.train(data, target="y").best_params_ == {"model__alpha": 0.01}
+
+
+def test_a_range_refusal_names_a_fix_for_what_it_refused():
+    """A refused target gets a fix for targets, a prediction one for models."""
+    targets = pd.DataFrame({"y": [-1.0, 1.0], "prediction": [1.0, 1.0]})
+    with pytest.raises(SqlearnError, match="Fix:") as info:
+        sq.metrics.poisson_deviance.compute(rel(targets), "y")
+    target_fix = str(info.value).split("Fix:")[1]
+    assert "sq.metrics.mse" in target_fix
+    assert "predictions" not in target_fix
+    predictions = pd.DataFrame({"y": [1.0, 1.0], "prediction": [-1.0, 1.0]})
+    with pytest.raises(SqlearnError, match="Fix:") as info:
+        sq.metrics.poisson_deviance.compute(rel(predictions), "y")
+    assert "predictions stay in the range" in str(info.value).split("Fix:")[1]

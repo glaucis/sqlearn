@@ -155,6 +155,9 @@ Notes on each, from probing scikit-learn 1.9.1:
 - **`d2_tweedie` below power 0** scores a negative target mean, as
   scikit-learn does. **Corrected after the build (2026-11-19):** the first
   text did not say so.
+- **`power=True` and `alpha=True` are refused,** although scikit-learn takes
+  True as 1. **Corrected after the build (2026-11-19):** no sqlearn setting
+  takes a bool for a number.
 
 ## 7. How it is built
 
