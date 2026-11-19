@@ -359,14 +359,25 @@ def _check_step(
 
 
 def _check_columns_out(
-    columns_out: list[str], entry: Entry, created: dict[str, list[str]], where: str
+    columns_out: list[str],
+    step: Step,
+    entry: Entry,
+    created: dict[str, list[str]],
+    where: str,
 ) -> None:
-    """Refuse columns out that the last step cannot have given."""
+    """Refuse columns out that the last step cannot have given.
+
+    A column the step learned from and created nothing from passed through
+    under its own name, except for a whole-row step without ``keep``: its
+    created names are every column it gives, so it gave nothing from that
+    column (a feature selector drops it).
+    """
     if len(set(columns_out)) != len(columns_out):
         raise _damaged(where, "the columns out name a column twice")
     out = set(columns_out)
+    dropped = step.rowwise and not step.keep
     for column in entry.columns:
-        made = created.get(column, [column])
+        made = created.get(column, [] if dropped else [column])
         missing = [c for c in made if c not in out]
         if missing:
             raise _damaged(
@@ -465,7 +476,7 @@ def restore_learned(
     ):
         _check_step(step, position, entry, t, c, d, n)
     if entries:
-        _check_columns_out(columns_out, entries[-1], created[-1], where)
+        _check_columns_out(columns_out, steps[-1][1], entries[-1], created[-1], where)
     source = _learned_from(record.get("data"), where)
     pipe._restore(entries, types, created, columns_out, target, depends_on, source)
 

@@ -86,6 +86,36 @@ def test_a_loaded_pipeline_applies_without_learning(tmp_path: Path) -> None:
     assert got == want
 
 
+# best warns that "flat" is constant, at learn and again at load.
+@pytest.mark.filterwarnings("ignore::sqlearn._errors.SqlearnWarning")
+@pytest.mark.parametrize(
+    "step",
+    [sq.select.variance(), sq.select.best(k=1)],
+    ids=repr,
+)
+def test_a_last_step_dropping_columns_loads(tmp_path: Path, step: sq.Step) -> None:
+    """A last step giving nothing for a column it learned from still loads.
+
+    A feature selector drops a column it scored: the columns out lack it,
+    as the step gives them.
+    """
+    df = pd.DataFrame(
+        {
+            "a": [1.0, 2.0, 5.0, 6.0],
+            "flat": [3.0, 3.0, 3.0, 3.0],
+            "y": [0, 0, 1, 1],
+        }
+    )
+    pipe = sq.Pipeline([step]).learn(df, target="y")
+    assert pipe.columns_out_ == ["a"]
+    sq.save(pipe, tmp_path / "p.json")
+    sq.store.clear()
+    loaded = sq.load(tmp_path / "p.json")
+    assert loaded.columns_out_ == ["a"]
+    assert _rows(loaded.apply(df)) == _rows(pipe.apply(df))
+    assert not STORE.learns
+
+
 def test_learned_values_read_as_attributes_after_load(tmp_path: Path) -> None:
     """A step's learned values read as attributes after load."""
     pipe = _learned(_frame())
