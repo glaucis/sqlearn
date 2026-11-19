@@ -90,6 +90,9 @@ The API of the sqlearn package, generated from its docstrings.
    sqlearn.metrics.balanced_accuracy
    sqlearn.metrics.mcc
    sqlearn.metrics.brier
+   sqlearn.metrics.tweedie_deviance
+   sqlearn.metrics.poisson_deviance
+   sqlearn.metrics.gamma_deviance
    sqlearn.metrics.classification_report
    sqlearn.metrics.confusion_matrix
    sqlearn.metrics.roc_curve
@@ -98,6 +101,7 @@ The API of the sqlearn package, generated from its docstrings.
    sqlearn.metrics.AveragePrecision
    sqlearn.metrics.CountMetric
    sqlearn.metrics.BrierScore
+   sqlearn.metrics.TweedieDeviance
    sqlearn.metrics.MissingClassError
    sqlearn.save
    sqlearn.load

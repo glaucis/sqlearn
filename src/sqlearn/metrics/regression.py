@@ -1,29 +1,37 @@
 """Regression metrics, each one aggregate query.
 
 The metrics are rmse, mae, r2, mse, max_error, median_absolute_error,
-mape, explained_variance, msle and rmsle.
+mape, explained_variance, msle, rmsle, and the deviances tweedie_deviance,
+poisson_deviance and gamma_deviance.
 """
 
-from dataclasses import dataclass
+import math
+from dataclasses import dataclass, replace
+from numbers import Real
 
 import duckdb
 from duckdb import Expression
 
+from sqlearn._errors import SqlearnError
 from sqlearn._expr import const
 from sqlearn.metrics.accuracy import Metric
 
 __all__ = [
     "LogError",
+    "TweedieDeviance",
     "explained_variance",
+    "gamma_deviance",
     "mae",
     "mape",
     "max_error",
     "median_absolute_error",
     "mse",
     "msle",
+    "poisson_deviance",
     "r2",
     "rmse",
     "rmsle",
+    "tweedie_deviance",
 ]
 
 
@@ -157,6 +165,167 @@ class LogError(Metric):
         ]
 
 
+def _unused(*_: Expression) -> Expression:
+    # The aggregate of a metric that builds its own in __post_init__.
+    raise NotImplementedError
+
+
+def _positive(x: Expression) -> Expression:
+    # x where it is above 0, else 1: a pow or ln of it cannot raise. A row
+    # where it did not hold is refused after the aggregate.
+    return duckdb.CaseExpression(x > const(0.0), x).otherwise(const(1.0))
+
+
+@dataclass(frozen=True)
+class TweedieDeviance(Metric):
+    """The mean Tweedie deviance, as scikit-learn's ``mean_tweedie_deviance``.
+
+    Power 0 is the squared error, 1 the Poisson deviance, 2 the gamma
+    deviance. The rows refused follow scikit-learn: for a power below 0 a
+    prediction at or below 0; for 0 none; for 1 up to 2 a negative target or
+    a prediction at or below 0; for 2 and above a target or a prediction at
+    or below 0.
+
+    Attributes
+    ----------
+    power : float, default 0.0
+        The power: at most 0 or at least 1.
+    d2 : bool, default False
+        Reserved for the D2 score; not a setting here.
+    settable : bool, default True
+        Whether the power can be set by a call.
+
+    Examples
+    --------
+    >>> import sqlearn as sq
+    >>> sq.metrics.tweedie_deviance(power=1.5)
+    tweedie_deviance(power=1.5)
+    >>> sq.metrics.poisson_deviance.greater_is_better
+    False
+    """
+
+    power: float = 0.0
+    d2: bool = False
+    settable: bool = True
+
+    def __post_init__(self) -> None:
+        """Set the aggregate, which reads this metric's power."""
+        object.__setattr__(self, "expression", self._expression)
+
+    def __call__(self, **settings: object) -> "TweedieDeviance":
+        """Return a copy with the given power.
+
+        Parameters
+        ----------
+        **settings : object
+            ``power``: at most 0 or at least 1.
+
+        Returns
+        -------
+        TweedieDeviance
+            The configured copy.
+
+        Raises
+        ------
+        SqlearnError
+            If this deviance has a fixed power, a setting is not ``power``,
+            or the power is not a finite number at most 0 or at least 1.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> sq.metrics.tweedie_deviance(power=2)
+        tweedie_deviance(power=2.0)
+        """
+        if not self.settable:
+            super().__call__(**settings)  # always raises: no settings here
+            raise AssertionError("unreachable")  # pragma: no cover
+        unknown = [k for k in settings if k != "power"]
+        if unknown:
+            msg = (
+                f"{self.name} has no setting {unknown[0]}=. Why: its only "
+                "setting is power. Fix: use power=, or "
+                f"sq.metrics.{self.name} as it is."
+            )
+            raise SqlearnError(msg)
+        power = settings.get("power", self.power)
+        if (
+            isinstance(power, bool)
+            or not isinstance(power, Real)
+            or not math.isfinite(float(power))
+            or 0 < float(power) < 1
+        ):
+            msg = (
+                f"{self.name} was given power={power!r}. Why: it takes a "
+                "finite number at most 0 or at least 1, as scikit-learn's "
+                "mean_tweedie_deviance. Fix: use such a power, for example "
+                "power=1.5."
+            )
+            raise SqlearnError(msg)
+        return replace(self, power=float(power))
+
+    def __repr__(self) -> str:
+        """Return the name, with the power when it is set."""
+        if self.settable and self.power != 0.0:
+            return f"{self.name}(power={self.power!r})"
+        return self.name
+
+    def _expression(self, y: Expression, p: Expression) -> Expression:
+        # scikit-learn's per-row deviance, then the compensated mean (favg,
+        # ADR 0033). A pow or ln is guarded so that a row outside the range
+        # gives a number and the refusal comes after the aggregate.
+        power = self.power
+        target, mu = y.cast("DOUBLE"), p.cast("DOUBLE")
+        if power == 0.0:
+            error = target - mu
+            return _fn("favg", error * error)
+        mu = _positive(mu)
+        if power == 1.0:
+            # xlogy(y, y / mu): 0 where y is 0.
+            ratio = _fn("ln", _positive(target / mu))
+            xlogy = duckdb.CaseExpression(target == const(0.0), const(0.0)).otherwise(
+                target * ratio
+            )
+            row = const(2.0) * (xlogy - target + mu)
+        elif power == 2.0:
+            positive = _positive(target)
+            row = const(2.0) * (_fn("ln", mu / positive) + positive / mu - const(1.0))
+        else:
+            row = self._general(target, mu, power)
+        return _fn("favg", row)
+
+    @staticmethod
+    def _general(target: Expression, mu: Expression, power: float) -> Expression:
+        # 2 * (max(y, 0)^(2-p) / ((1-p)(2-p)) - y mu^(1-p) / (1-p)
+        #      + mu^(2-p) / (2-p))
+        base = _positive(target) if power > 2.0 else _fn("greatest", target, const(0.0))
+        first = _fn("pow", base, const(2.0 - power)) / const(
+            (1.0 - power) * (2.0 - power)
+        )
+        second = target * _fn("pow", mu, const(1.0 - power)) / const(1.0 - power)
+        third = _fn("pow", mu, const(2.0 - power)) / const(2.0 - power)
+        return const(2.0) * (first - second + third)
+
+    def _outside(
+        self, y: Expression, p: Expression
+    ) -> list[tuple[Expression, str, str]]:
+        power = self.power
+        if power == 0.0:
+            return []
+        target, mu = y.cast("DOUBLE"), p.cast("DOUBLE")
+        zero = const(0.0)
+        why = (
+            f"the Tweedie deviance of power {power!r} is not defined there, "
+            "and scikit-learn's mean_tweedie_deviance refuses such values too."
+        )
+        rows = [(mu <= zero, "a prediction at or below 0", why)]
+        if power >= 2.0:
+            rows.insert(0, (target <= zero, "a target at or below 0", why))
+        elif power >= 1.0:
+            rows.insert(0, (target < zero, "a negative target", why))
+        return rows
+
+
 rmse = Metric("rmse", _rmse, False)
 mae = Metric("mae", _mae, False)
 r2 = Metric("r2", _r2, True)
@@ -167,3 +336,10 @@ mape = Metric("mape", _mape, False)
 explained_variance = Metric("explained_variance", _ev, True)
 msle = LogError("msle", _msle, False)
 rmsle = LogError("rmsle", _rmsle, False)
+tweedie_deviance = TweedieDeviance("tweedie_deviance", _unused, False)
+poisson_deviance = TweedieDeviance(
+    "poisson_deviance", _unused, False, power=1.0, settable=False
+)
+gamma_deviance = TweedieDeviance(
+    "gamma_deviance", _unused, False, power=2.0, settable=False
+)

@@ -26,16 +26,20 @@ from sqlearn.metrics.probability import (
     roc_auc,
 )
 from sqlearn.metrics.regression import (
+    TweedieDeviance,
     explained_variance,
+    gamma_deviance,
     mae,
     mape,
     max_error,
     median_absolute_error,
     mse,
     msle,
+    poisson_deviance,
     r2,
     rmse,
     rmsle,
+    tweedie_deviance,
 )
 from sqlearn.metrics.tables import classification_report, confusion_matrix
 
@@ -46,6 +50,7 @@ __all__ = [
     "CountMetric",
     "Metric",
     "MissingClassError",
+    "TweedieDeviance",
     "accuracy",
     "average_precision",
     "balanced_accuracy",
@@ -55,6 +60,7 @@ __all__ = [
     "explained_variance",
     "f1",
     "fbeta",
+    "gamma_deviance",
     "log_loss",
     "mae",
     "mape",
@@ -63,6 +69,7 @@ __all__ = [
     "median_absolute_error",
     "mse",
     "msle",
+    "poisson_deviance",
     "precision",
     "precision_recall_curve",
     "r2",
@@ -71,4 +78,5 @@ __all__ = [
     "rmsle",
     "roc_auc",
     "roc_curve",
+    "tweedie_deviance",
 ]

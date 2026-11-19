@@ -9,8 +9,11 @@ from sklearn.metrics import (
     max_error,
     mean_absolute_error,
     mean_absolute_percentage_error,
+    mean_gamma_deviance,
+    mean_poisson_deviance,
     mean_squared_error,
     mean_squared_log_error,
+    mean_tweedie_deviance,
     median_absolute_error,
     r2_score,
     root_mean_squared_error,
@@ -226,3 +229,121 @@ def test_a_gap_is_refused_before_a_range():
     )
     with pytest.raises(SqlearnError, match="NULL"):
         sq.metrics.msle.compute(rel(frame), "y")
+
+
+Y4 = [1, 2, 3, 4]
+P4 = [1.5, 2, 2, 5]
+
+
+@pytest.mark.parametrize(
+    ("power", "expected"),
+    [
+        (-1, 1.8333333333333306),
+        (0, 0.5625),
+        (1, 0.20917800547974497),
+        (1.5, 0.13759610261391986),
+        (2, 0.09490510899043825),
+        (3, 0.05111111111111111),
+    ],
+)
+def test_tweedie_deviance_matches_scikit_learn(power, expected):
+    """Each power scores as scikit-learn's mean Tweedie deviance."""
+    frame = pd.DataFrame({"y": Y4, "prediction": P4})
+    metric = sq.metrics.tweedie_deviance(power=power)
+    got = metric.compute(rel(frame), "y")
+    assert got == pytest.approx(expected, rel=1e-12)
+    assert got == pytest.approx(mean_tweedie_deviance(Y4, P4, power=power), rel=1e-12)
+
+
+def test_poisson_and_gamma_match_scikit_learn():
+    """Poisson and gamma score as their scikit-learn functions."""
+    y = RNG.uniform(0.5, 5.0, size=200)
+    p = RNG.uniform(0.5, 5.0, size=200)
+    frame = pd.DataFrame({"y": y, "prediction": p})
+    poisson = sq.metrics.poisson_deviance.compute(rel(frame), "y")
+    gamma = sq.metrics.gamma_deviance.compute(rel(frame), "y")
+    assert poisson == pytest.approx(mean_poisson_deviance(y, p), rel=1e-12)
+    assert gamma == pytest.approx(mean_gamma_deviance(y, p), rel=1e-12)
+    assert not sq.metrics.poisson_deviance.greater_is_better
+
+
+@pytest.mark.parametrize(
+    "power", [0.5, True, "1", float("nan"), float("inf"), -float("inf")]
+)
+def test_tweedie_deviance_refuses_a_power_between_zero_and_one(power):
+    """A power scikit-learn's parameter check refuses is refused at the call."""
+    with pytest.raises(SqlearnError, match="Fix:"):
+        sq.metrics.tweedie_deviance(power=power)
+
+
+def test_tweedie_deviance_repr_shows_a_power():
+    """The default shows its name; a changed power shows in the call form."""
+    assert repr(sq.metrics.tweedie_deviance) == "tweedie_deviance"
+    assert repr(sq.metrics.tweedie_deviance(power=1.5)) == "tweedie_deviance(power=1.5)"
+
+
+@pytest.mark.parametrize(
+    ("metric", "y", "p"),
+    [
+        (sq.metrics.poisson_deviance, [-1.0, 1.0], [1.0, 1.0]),
+        (sq.metrics.poisson_deviance, [1.0, 1.0], [0.0, 1.0]),
+        (sq.metrics.gamma_deviance, [0.0, 1.0], [1.0, 1.0]),
+        (sq.metrics.gamma_deviance, [1.0, 1.0], [0.0, 1.0]),
+        (sq.metrics.tweedie_deviance(power=-1), [1.0, 1.0], [0.0, 1.0]),
+        (sq.metrics.tweedie_deviance(power=1.5), [-1.0, 1.0], [1.0, 1.0]),
+        (sq.metrics.tweedie_deviance(power=3), [0.0, 1.0], [1.0, 1.0]),
+    ],
+)
+def test_each_deviance_refuses_its_range(metric, y, p):
+    """A row outside the power's range is refused, as scikit-learn refuses it."""
+    frame = pd.DataFrame({"y": y, "prediction": p})
+    with pytest.raises(SqlearnError, match="1 of 2 rows") as info:
+        metric.compute(rel(frame), "y")
+    assert "Fix:" in str(info.value)
+
+
+def test_the_deviances_accept_what_scikit_learn_accepts():
+    """Poisson takes a zero target; power 0 and -1 take a negative target."""
+    zero = pd.DataFrame({"y": [0.0, 1.0], "prediction": [1.0, 1.0]})
+    assert sq.metrics.poisson_deviance.compute(rel(zero), "y") == 1.0
+    neg = pd.DataFrame({"y": [-1.0, 1.0], "prediction": [1.0, 1.0]})
+    assert sq.metrics.tweedie_deviance.compute(rel(neg), "y") == 2.0
+    got = sq.metrics.tweedie_deviance(power=-1).compute(rel(neg), "y")
+    assert got == pytest.approx(0.8333333333333333, rel=1e-12)
+    # No range at power 0: a prediction of 0 or less is fine.
+    low = pd.DataFrame({"y": [1.0, 1.0], "prediction": [0.0, -1.0]})
+    assert sq.metrics.tweedie_deviance.compute(rel(low), "y") == 2.5
+
+
+def test_poisson_takes_no_power():
+    """The named deviances are fixed at their power."""
+    with pytest.raises(SqlearnError, match="Fix:"):
+        sq.metrics.poisson_deviance(power=1)
+    with pytest.raises(SqlearnError, match="Fix:"):
+        sq.metrics.gamma_deviance(power=2)
+
+
+def test_tweedie_deviance_takes_no_other_setting():
+    """Only power is a setting."""
+    with pytest.raises(SqlearnError, match="Fix:"):
+        sq.metrics.tweedie_deviance(alpha=0.5)
+
+
+def test_a_search_by_a_deviance_with_a_power():
+    """Lower deviance wins: a search runs with a power and picks by min."""
+    x = RNG.uniform(1, 3, size=(120, 2))
+    data = pd.DataFrame(
+        {
+            "a": x[:, 0],
+            "b": x[:, 1],
+            "y": 3 * x[:, 0] + 2 * x[:, 1] + RNG.uniform(0.1, 0.5, size=120),
+        }
+    )
+    pipe = sq.Pipeline([("model", Ridge())])
+    search = sq.search(
+        pipe,
+        params={"model__alpha": [0.01, 1000.0]},
+        metric=sq.metrics.tweedie_deviance(power=1.5),
+        folds=sq.folds.kfold(3),
+    )
+    assert search.train(data, target="y").best_params_ == {"model__alpha": 0.01}
