@@ -6,7 +6,7 @@ from fractions import Fraction
 
 import pandas as pd
 import pytest
-from sklearn.metrics import balanced_accuracy_score
+from sklearn.metrics import balanced_accuracy_score, matthews_corrcoef
 
 import sqlearn as sq
 from sqlearn._config import connection
@@ -101,3 +101,44 @@ def test_counts_scores_refuse_no_rows_and_missing_values():
     )
     with pytest.raises(SqlearnError, match="prediction"):
         sq.metrics.balanced_accuracy.compute(connection().from_df(frame), "y")
+
+
+@pytest.mark.parametrize(
+    ("y", "prediction"),
+    [
+        RARE,
+        ([0, 1], [0, 1]),
+        ([0, 1, 2, 2, 1], [0, 2, 2, 1, 1]),
+        (["no", "yes", "yes", "no", "yes"], ["no", "yes", "no", "no", "no"]),
+        ([0, 1, 1, 0, 1, 0, 1, 1], [1, 1, 0, 0, 1, 1, 0, 1]),
+    ],
+)
+def test_mcc_matches_scikit_learn(y, prediction):
+    """The Matthews correlation of two classes or more, within two doubles."""
+    got = sq.metrics.mcc.compute(rel(y, prediction), "y")
+    expected = matthews_corrcoef(y, prediction)
+    assert abs(got - expected) <= 2 * math.ulp(expected)
+
+
+def test_mcc_of_one_label_is_zero():
+    """One label everywhere has no correlation: 0.0, and no warning."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        assert sq.metrics.mcc.compute(rel([1, 1], [1, 1]), "y") == 0.0
+
+
+def test_mcc_counts_an_integer_and_a_double_one_as_one_class():
+    """An INTEGER target and a DOUBLE prediction agree where 1 meets 1.0."""
+    frame = pd.DataFrame({"y": [0, 1, 1, 0], "prediction": [0.0, 1.0, 1.0, 0.0]})
+    assert sq.metrics.mcc.compute(connection().from_df(frame), "y") == 1.0
+
+
+def test_mcc_takes_no_settings():
+    """The MCC has no settings to set; it reads predict, higher is better."""
+    with pytest.raises(SqlearnError, match="takes no settings"):
+        sq.metrics.mcc(adjusted=True)
+    assert (sq.metrics.mcc.needs, sq.metrics.mcc.greater_is_better) == (
+        "predict",
+        True,
+    )
+    assert repr(sq.metrics.mcc) == "mcc"

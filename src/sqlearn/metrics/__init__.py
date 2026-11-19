@@ -8,7 +8,7 @@ Examples
 """
 
 from sqlearn.metrics.accuracy import Metric, MissingClassError, accuracy
-from sqlearn.metrics.balanced import CountMetric, balanced_accuracy
+from sqlearn.metrics.balanced import CountMetric, balanced_accuracy, mcc
 from sqlearn.metrics.classification import (
     ClassificationMetric,
     f1,
@@ -41,6 +41,7 @@ __all__ = [
     "fbeta",
     "log_loss",
     "mae",
+    "mcc",
     "precision",
     "precision_recall_curve",
     "r2",

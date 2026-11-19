@@ -21,7 +21,7 @@ from sqlearn.metrics._labels import check_labels
 from sqlearn.metrics.accuracy import Metric
 from sqlearn.metrics.classification import Counts, _counts, _not_an_expression, _some
 
-__all__ = ["CountMetric", "balanced_accuracy"]
+__all__ = ["CountMetric", "balanced_accuracy", "mcc"]
 
 
 @dataclass(frozen=True)
@@ -45,6 +45,8 @@ class CountMetric(Metric):
     ... )
     >>> sq.metrics.balanced_accuracy.compute(rel, "y")
     0.5
+    >>> sq.metrics.mcc.compute(rel, "y")
+    0.0
     """
 
     score: Literal["balanced_accuracy", "mcc"] = "balanced_accuracy"
@@ -149,7 +151,10 @@ class CountMetric(Metric):
         0.75
         """
         check_labels(self.name, rel, target, prediction)
-        return self._balanced(_counts(rel, target, prediction))
+        counts = _counts(rel, target, prediction)
+        if self.score == "mcc":
+            return _mcc(counts)
+        return self._balanced(counts)
 
     def _balanced(self, counts: Counts) -> float:
         """Return the balanced accuracy of each class's counts.
@@ -190,6 +195,28 @@ class CountMetric(Metric):
         return float((score - chance) / (1 - chance))
 
 
+def _mcc(counts: Counts) -> float:
+    """Return the Matthews correlation of each class's counts.
+
+    As scikit-learn's multiclass formula: with ``c`` rows correct of ``s``,
+    and ``t_k``, ``p_k`` each class's rows in the target and the prediction,
+    ``(c s - sum t_k p_k) / sqrt((s^2 - sum p_k^2) (s^2 - sum t_k^2))``; 0.0
+    when the denominator is 0. All in whole numbers, then the square root of
+    the exact ``numerator^2 / denominator^2`` rounded once, so the answer is
+    within a double of the exact one (ADR 0016).
+    """
+    s = sum(t for _, t, _, _ in counts)
+    c = sum(both for _, _, _, both in counts)
+    numerator = c * s - sum(t * p for _, t, p, _ in counts)
+    under = (s * s - sum(p * p for _, _, p, _ in counts)) * (
+        s * s - sum(t * t for _, t, _, _ in counts)
+    )
+    if under == 0:
+        return 0.0
+    return math.copysign(math.sqrt(Fraction(numerator * numerator, under)), numerator)
+
+
 balanced_accuracy = CountMetric(
     "balanced_accuracy", _not_an_expression, True, score="balanced_accuracy"
 )
+mcc = CountMetric("mcc", _not_an_expression, True, score="mcc")

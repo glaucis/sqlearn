@@ -1,19 +1,23 @@
-"""Validate balanced accuracy against exact arithmetic and scikit-learn.
+"""Validate balanced accuracy and the MCC against exact arithmetic and scikit-learn.
 
 The canonical value is computed in pure Python as a `Fraction` (ADR 0016):
 each class's recall a ratio of whole numbers over the classes the target
 holds, their exact mean, and, adjusted, ``(mean - 1/k) / (1 - 1/k)`` for the
 ``k`` classes. Beside sqlearn: scikit-learn's ``balanced_accuracy_score``,
 which averages and rescales in doubles. A target of one class adjusted has no
-finite answer (minus infinity in both) and is left out. Labels with NULL, and
-no rows, have no right answer: sqlearn must refuse them.
+finite answer (minus infinity in both) and is left out. The MCC's canonical
+value is its whole-number numerator over the square root of its whole-number
+denominator, in `mpmath` at `_cases.DIGITS`; 0 when the denominator is 0. Beside it:
+scikit-learn's ``matthews_corrcoef``. Labels with NULL, and no rows, have no
+right answer: sqlearn must refuse them.
 
 The datasets are those of the classification runner.
 """
 
 from fractions import Fraction
 
-from sklearn.metrics import balanced_accuracy_score
+import mpmath
+from sklearn.metrics import balanced_accuracy_score, matthews_corrcoef
 
 import sqlearn as sq
 from validation import _cases
@@ -24,6 +28,9 @@ from validation.sqlearn.metrics.validate_classification import _datasets
 # averages in doubles and rescales the rounded mean, so it can be off by more.
 # Loosening it needs a written reason here, never a quiet edit.
 BOUND = 0
+# The MCC: 1, as sqlearn rounds the exact numerator^2 / denominator once and
+# takes one correctly rounded square root, so two roundings.
+MCC_BOUND = 1
 
 
 def exact_balanced(y: tuple, p: tuple, adjusted: bool) -> Fraction:
@@ -43,9 +50,48 @@ def exact_balanced(y: tuple, p: tuple, adjusted: bool) -> Fraction:
     return (score - chance) / (1 - chance)
 
 
-def cases() -> list[dict]:
-    """Return the cases of balanced accuracy: each dataset, adjusted or not."""
+def exact_mcc(y: tuple, p: tuple) -> mpmath.mpf:
+    """Return the Matthews correlation of `p` against `y`, at `_cases.DIGITS`."""
+    classes = set(y) | set(p)
+    s = len(y)
+    c = sum(1 for a, b in zip(y, p, strict=True) if a == b)
+    t = {k: sum(1 for a in y if a == k) for k in classes}
+    q = {k: sum(1 for b in p if b == k) for k in classes}
+    numerator = c * s - sum(t[k] * q[k] for k in classes)
+    under = (s * s - sum(v * v for v in q.values())) * (
+        s * s - sum(v * v for v in t.values())
+    )
+    with mpmath.workdps(_cases.DIGITS):
+        return mpmath.mpf(0) if under == 0 else numerator / mpmath.sqrt(under)
+
+
+def _mcc_cases() -> list[dict]:
     out = []
+    for data, y_col, y, p_col, p, kind, _ in _datasets():
+        answerable = bool(y) and not any(_cases.is_missing(v) for v in (*y, *p))
+
+        def ours(y=y, p=p, kind=kind, y_col=y_col, p_col=p_col) -> float:
+            rel = _cases.sqlearn_table({y_col: y, p_col: p}, kind)
+            return sq.metrics.mcc.compute(rel, y_col, p_col)
+
+        def theirs(y=y, p=p) -> float:
+            return matthews_corrcoef(list(y), list(p))
+
+        out += _cases.measure_all(
+            step="mcc",
+            formula="mcc",
+            data=data,
+            type=kind,
+            exact=exact_mcc(y, p) if answerable else None,
+            bound=MCC_BOUND,
+            answers={"sqlearn": ours, "scikit-learn": theirs},
+        )
+    return out
+
+
+def cases() -> list[dict]:
+    """Return the cases of balanced accuracy, adjusted or not, and of the MCC."""
+    out = _mcc_cases()
     for data, y_col, y, p_col, p, kind, _ in _datasets():
         answerable = bool(y) and not any(_cases.is_missing(v) for v in (*y, *p))
         for adjusted in (False, True):
