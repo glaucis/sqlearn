@@ -3,10 +3,10 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-19 · Branch: `tidy-regression-metrics` · Last commit on
-`main`: `c8466e1` docs: update the handoff · Checks: passing (`just verify`
-on the branch: 2649 passed, 24 skipped; regression validation 2,359 pass,
-138 anomaly, 0 fail)
+Updated: 2026-11-19 · Branch: `main` · Last commit: `62eecbd` Merge branch
+'tidy-regression-metrics': #63's deferred minors · Checks: passing (`just
+verify` on the branch: 2649 passed, 24 skipped; regression validation 2,359
+pass, 138 anomaly, 0 fail) · Not pushed
 Verify with: `just verify`
 
 ## In progress
@@ -139,7 +139,7 @@ None.
 
 ## Just finished
 
-- #63's deferred minors, on branch `tidy-regression-metrics`. Found on the
+- #63's deferred minors, merged in `62eecbd` (not pushed). Found on the
   way: a scored column named `__sqlearn_stage_...` silently replaced a D² or
   ranking score's own (now refused). The deviances keep 4 or 5 digits far
   from zero, not the 6 #63 said. `msle` and the deviances now run on
