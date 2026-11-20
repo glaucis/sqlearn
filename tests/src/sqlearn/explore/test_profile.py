@@ -138,8 +138,8 @@ def test_numeric_statistics_follow_pandas():
 
 def test_zeros_and_negatives_are_counted():
     """Zeros and negatives are counted."""
-    row = _row("(0::DOUBLE), (-1::DOUBLE), (-2::DOUBLE), (3::DOUBLE), (0::DOUBLE)")
-    assert (row["zeros"], row["negative"]) == (2, 2)
+    row = _row("(0::DOUBLE), (-1::DOUBLE), (3::DOUBLE), (0::DOUBLE), (0::DOUBLE)")
+    assert (row["zeros"], row["negative"]) == (3, 1)
 
 
 def test_infinite_values_are_counted_and_left_out():
@@ -150,6 +150,7 @@ def test_infinite_values_are_counted_and_left_out():
     assert row["mean"] == 2.0
     assert row["max"] == 3.0
     assert row["min"] == 1.0
+    assert row["negative"] == 0
 
 
 def test_integers_and_decimals_are_numbers():
