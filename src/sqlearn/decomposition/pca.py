@@ -163,9 +163,10 @@ class PCA(Step):
     batch.
 
     Applying is one SQL expression per output, ``pca0`` to ``pca{k-1}``,
-    replacing the input columns: the centred values times the weights, as
-    constants. A missing or infinite value at apply is refused when its row
-    is fetched.
+    replacing the input columns and placed after the last of them, as every
+    whole-row step places the columns it creates: the centred values times
+    the weights, as constants. A missing or infinite value at apply is
+    refused when its row is fetched.
 
     Parameters
     ----------
@@ -437,8 +438,9 @@ class PCA(Step):
         if variances and sum(variances) == 0:
             text = (
                 "sq.decompose.pca: every column it decomposes is constant, so "
-                "the total variance is 0 and each explained variance ratio is "
-                "NaN, as scikit-learn's PCA warns of the division by zero. "
+                "each explained variance ratio is NaN. Why: each ratio is a "
+                "component's variance over the total variance, and the total "
+                "is 0, as scikit-learn's PCA warns of the division by zero. "
                 "Fix: drop constant columns first with sq.select.variance(), "
                 "or choose columns that vary with cols=."
             )

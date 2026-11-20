@@ -184,14 +184,14 @@ def test_pca_applies_as_scikit_learn_transforms(n_components):
     out = pipe.apply(frame.assign(id="x"), out="pandas")
     want = sk(frame, n_components)
     names = [f"pca{i}" for i in range(want.n_components_)]
-    assert pipe.columns_out_ == [*names, "id"]  # in the inputs' place
+    assert pipe.columns_out_ == [*names, "id"]  # after the last input column
     got = out[names].to_numpy()
     assert got.shape == (200, want.n_components_)
     assert got == pytest.approx(want.transform(frame.to_numpy()), rel=1e-9)
 
 
 def test_pca_names_its_outputs_as_scikit_learn():
-    """pca0, pca1, ... in the first input's place; a clash is numbered."""
+    """pca0, pca1, ... after the last input column; a clash is numbered."""
     frame = correlated(50)[["a", "b", "c"]].assign(id=1.5)[["id", "a", "b", "c"]]
     pca = sq.decompose.pca(n_components=2, cols=["a", "b", "c"])
     pipe = sq.Pipeline([("pca", pca)]).learn(frame)
@@ -207,6 +207,9 @@ def test_pca_names_its_outputs_as_scikit_learn():
     assert out[["pca0_2", "pca1"]].to_numpy() == pytest.approx(
         want.transform(frame[["a", "b", "c"]].to_numpy()), rel=1e-9
     )
+    apart = frame[["a", "b"]].assign(id="x")[["a", "id", "b"]]
+    pipe = sq.Pipeline([sq.decompose.pca()]).learn(apart)
+    assert pipe.columns_out_ == ["id", "pca0", "pca1"]
 
 
 def test_pca_of_constant_columns_as_scikit_learn():
@@ -222,7 +225,7 @@ def test_pca_of_constant_columns_as_scikit_learn():
     for n_components in [None, 0.5, 2]:
         with pytest.warns(RuntimeWarning, match="invalid value"):
             want = sk(flat, n_components)
-        with pytest.warns(SqlearnWarning, match=r"variance.*Fix:"):
+        with pytest.warns(SqlearnWarning, match=r"variance.*Why:.*Fix:"):
             pipe, got = applied(flat, n_components=n_components)
         pca = pipe["pca"]
         assert pca.n_components_ == want.n_components_
