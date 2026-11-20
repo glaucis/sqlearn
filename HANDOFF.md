@@ -3,11 +3,11 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-20 · Branch: `feature-selection` · Last commit: `da74b2c`
-fix: take a numpy threshold and correct the docs it touches (#65), then
-this one · Checks: passing (`just verify` after the final review's fixes:
-2813 passed, 24 skipped; feature-selection validation 1,197 pass, 127
-anomaly, 0 fail; docs build) · Not merged, not pushed
+Updated: 2026-11-20 · Branch: `main` · Last commit: `717a286` Merge branch
+'feature-selection': feature selection (#65) · Checks: passing (`just test`
+on the merged `main`: 2802 passed, 24 skipped; `just verify` on the branch
+after the final review's fixes: 2813 passed, 24 skipped, no validation fail)
+· Not pushed
 Verify with: `just verify`
 
 ## In progress
@@ -27,7 +27,8 @@ None.
 ## Dead ends and traps
 
 - A step's first positional argument is its columns: `sq.select.percentile(50)`
-  fails (50 is read as `cols`), write `percentile=50`. The errors are in
+  is refused with a `Fix:` (write `percentile=50`), but other groups still
+  read a positional number as `cols` and fail later. The errors are in
   `sq.errors` (`sq.errors.StepError`), not `sq`. BSD `sed -i` needs an
   extension argument, so use Edit for in-place changes. (2026-11-20)
 - DuckDB 2.0 has no `log1p`: use Kahan's form, `_log1p` in
@@ -144,8 +145,9 @@ None.
   saved pipeline ending in a feature selector that drops a column (fixed: a
   whole-row step's columns are now checked against its values at load);
   sqlearn gives the exact score where scikit-learn's rounding departs (spec
-  4.4); `k=True` is refused (spec 4.2). On branch `feature-selection`, not
-  merged. (2026-11-20)
+  4.4); `k=True` is refused (spec 4.2); a 12-byte crafted value could hang
+  `sq.load` (learned values must now be plain numbers). Merged in `717a286`,
+  not pushed; minor follow-ups are on #65. (2026-11-20)
 - #63's deferred minors, merged in `62eecbd` (not pushed). Found on the
   way: a scored column named `__sqlearn_stage_...` silently replaced a D² or
   ranking score's own (now refused). The deviances keep 4 or 5 digits far
