@@ -3,10 +3,9 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-20 · Branch: `decomposition` (not merged) · Checks: `just
-verify` passing on the branch at `e786d49` (3005 passed, 24 skipped on each
-Python version; every validation runner without a sqlearn failure; docs
-built) · Not pushed
+Updated: 2026-11-20 · Branch: `main` · Last commit: the handoff after merge
+`cdb2aec` · Checks: `just test` on the merged `main` (2993 passed, 24
+skipped); `just verify` on the branch at `e786d49` · Not pushed
 Verify with: `just verify`
 
 ## In progress
@@ -118,7 +117,7 @@ None.
   `validation/sqlearn/decomposition/validate_pca.py`, benchmarks
   `gram-batches.md` and `gram-streaming.md`. On branch
   `decomposition` from `1c88839`; whole-branch review and `just verify`
-  passed, awaiting the merge. It also hardened `sq.load` for every step
+  passed; merged in `cdb2aec`. It also hardened `sq.load` for every step
   (learned values for columns a step did not learn, non-text column keys).
   Follow-ups #67–#72. (2026-11-20)
 - Feature selection (#65, ADRs 0055 and 0056): `sq.select.variance`, `best`,
