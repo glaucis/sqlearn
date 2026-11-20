@@ -49,8 +49,8 @@ Rules from the ADRs:
 - The API follows scikit-learn conventions; any departure needs its own ADR
   (0003). The verbs are sqlearn's own: `learn`/`apply` for steps,
   `train`/`predict` for models (0013).
-- The only runtime dependency is `duckdb`; any other needs a written reason and
-  a permissive licence (0004, 0005).
+- The runtime dependencies are `duckdb` and `numpy`; any other needs a written
+  reason and a permissive licence (0004, 0005, 0057).
 - Nothing needs the network: no telemetry, no cloud, data never leaves the
   machine (0006).
 - Python 3.12 is the floor (0007). Every task runs through `just` (0008).
