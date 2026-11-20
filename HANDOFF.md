@@ -3,8 +3,9 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-20 · Branch: `main` · Checks: passing (`just verify` on
-the #65 follow-up before its commit: 3023 passed, 24 skipped)
+Updated: 2026-11-20 · Branch: `main` · Last commit: `d37b08d` feat: take a
+column selector by position in sq.select (#65) · Checks: passing (`just
+verify` on it: 3023 passed, 24 skipped)
 Verify with: `just verify`
 
 ## In progress
@@ -17,6 +18,10 @@ None.
   on a quiet machine (load average about 4 to about 35) and can be rerun on
   request; so can `docs/benchmarks/gram-batches.md`, whose `file_row_number`
   cut lost at 500 columns on one loaded run. (since 2026-11-18)
+- #4, #6: where the site is hosted (`docs/questions/site-hosting.md`), so
+  the README and `switcher.json` get a URL: make the repository public, or
+  push the built site to an orphan branch or a public repository. Both fixes
+  are a few lines once it is chosen. (since 2026-11-05)
 
 ## Next up
 
@@ -24,9 +29,7 @@ None.
   the Gram step with Xᵀy (ADR 0058 opens it to users' steps after that; its
   contract is written in `docs/guide/writing-a-step.md`). No dataset
   fetcher (ADR 0053).
-- #65's other minor follow-ups (listed in its last comments).
-- #4, #6: wait on the site-hosting decision (`docs/questions/site-hosting.md`),
-  as triaged on 2026-11-05: the repository is private, so there is no URL.
+- #65's other minor follow-ups (listed in its comments; #65 is closed).
 
 ## Dead ends and traps
 
@@ -37,8 +40,8 @@ None.
   `np.float64(...)` in SQL: write `float(x)!r`. A script outside the repo
   importing `validation` needs `PYTHONPATH` set to the repo. A test
   learning twice must `STORE.clear()` between, or the second reuses the
-  first. macOS has no
-  `timeout` (nor `gtimeout`): a capped run needs another way. A
+  first. macOS has no `timeout` (nor `gtimeout`): a capped run needs
+  another way. A
   cross-fitted step's `learn` needs the target, so `sq.load` takes its
   names from `Step._derives`. (2026-11-20)
 - A wait loop such as `until grep -q "^EXIT=" log` never ends when the
@@ -117,8 +120,9 @@ None.
 
 ## Just finished
 
-- #65's first follow-up: a column selector by position passes
-  `refuse_positionals` (`sq.select`, `sq.decompose`). (2026-11-20)
+- #65's first follow-up, pushed: a column selector by position passes
+  `refuse_positionals` (`sq.select`, `sq.decompose`), `d37b08d`.
+  (2026-11-20)
 - #70, #71, #72, #73, pushed and closed: the Gram contract tidied and
   documented in `docs/guide/writing-a-step.md`; `validate_pca` sturdier
   (neighbour cut 1e-14 λ₁); small tidies; PCA's weights written once as a
