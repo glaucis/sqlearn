@@ -5,7 +5,7 @@ kernelspec:
   display_name: Python 3
   language: python
 type: guide
-tags: [steps, custom-steps, learn, apply, apply_row, rowwise, uses_target, cross-fitting, static, dynamic, errors]
+tags: [steps, custom-steps, learn, apply, apply_row, rowwise, uses_target, cross-fitting, gram, static, dynamic, errors]
 summary: "How to write your own sqlearn step: the learn/apply contract, what a step declares, placeholders, static or dynamic, and the messages a failing step gets."
 related: [docs/specs/library-core.md, docs/adr/0012-static-and-dynamic-steps.md, docs/adr/0019-custom-steps-and-failure-feedback.md]
 ---
@@ -314,6 +314,56 @@ It stays out of the key of what the step learns, so a search over `k` learns
 each fold once; the step's output, and every later step reading it, still
 follow it. Name a setting there only when what `learn` returns does not depend
 on it: otherwise the step reuses values it should not.
+
+## Steps that learn from XᵀX
+
+This is internal for now: sqlearn's own PCA uses it, and a step of yours that
+sets it is unsupported until linear regression has used it too
+([ADR 0058](../adr/0058-a-gram-step-builds-xtx-in-numpy.md)). It is written
+down here so the contract is fixed before it opens.
+
+A **Gram step** learns from XᵀX of its input columns, each centred on its
+mean, which SQL alone cannot build past a few hundred columns. It sets
+`gram = True`, and its `learn` returns at least `mean` and `count` for each
+column. sqlearn then:
+
+1. learns those in the ordinary learn statement;
+2. calls `before_gram(learned)` (learned name, then column, to value), which
+   may raise a `StepError` before any row is streamed, as PCA refuses a
+   missing value;
+3. checks the matrix fits the memory budget, streams the centred rows from
+   DuckDB in batches, and adds up each batch's `bᵀb` in numpy;
+4. calls `learned_from_gram(gram, learned, columns)`: `gram` is the p-by-p
+   matrix, its rows and columns in the order of `columns`, the step's input
+   columns. It returns more learned values, learned name then column to a
+   plain `int`, `float` or list of `float`, under names `learn` does not use.
+
+The step never sees a row, and what it returns is learned values like any
+other: the store, saving and validation treat it as any step. It learns in a
+run after the steps it reads and applies in the run after, as a dynamic step
+does. This one learns each column's sample variance from the diagonal:
+
+```{code-cell} python
+class Spread(sq.Step):
+    gram = True
+
+    def __init__(self, cols=sq.cols.numeric(), keep=False, suffix=None):
+        super().__init__(cols, keep, suffix)
+
+    def learn(self, x):
+        return {"mean": sq.agg.mean(x), "count": sq.agg.count(x)}
+
+    def learned_from_gram(self, gram, learned, columns):
+        rows = learned["count"][columns[0]]
+        return {"spread": {c: float(gram[j, j]) / (rows - 1)
+                           for j, c in enumerate(columns)}}
+
+    def apply(self, x, learned):
+        return (x - learned.mean) / learned.spread
+
+
+sq.Pipeline([Spread()]).learn(parts)["step"].spread_
+```
 
 ## Placeholders
 

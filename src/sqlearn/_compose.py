@@ -71,6 +71,7 @@ __all__ = [
     "number_rows",
     "stage_name",
     "step_stage",
+    "with_values",
 ]
 
 SOURCE = "source"
@@ -1814,6 +1815,44 @@ def describe(
     return list(zip(rel.columns, rel.types, strict=True))
 
 
+def with_values(stages: list[Stage], values: Mapping[str, Values]) -> list[Stage]:
+    """Remake each learning stage with its learned values, as constants.
+
+    Parameters
+    ----------
+    stages : list of Stage
+        The stages, in pipeline order.
+    values : mapping of str to Values
+        Per learning stage, keyed by its data stage's name, what it learned
+        (as `execute` returns).
+
+    Returns
+    -------
+    list of Stage
+        The stages, each learning one remade with its values; the others
+        as they were.
+
+    Examples
+    --------
+    >>> import sqlearn as sq
+    >>> from duckdb.sqltypes import DOUBLE
+    >>> from sqlearn._compose import SOURCE, step_stage, with_values
+    >>> class Centre(sq.Step):
+    ...     def learn(self, x):
+    ...         return {"mean": sq.agg.mean(x)}
+    ...
+    ...     def apply(self, x, learned):
+    ...         return x - learned.mean
+    >>> stage = step_stage(1, "centre", Centre(), [("a", DOUBLE)], SOURCE)
+    >>> [s.learn for s in with_values([stage], {"s01_centre": {"mean": {"a": 2.0}}})]
+    [None]
+    """
+    return [
+        s.remake(values[s.name]) if s.learn and s.remake is not None else s
+        for s in stages
+    ]
+
+
 def execute(
     con: duckdb.DuckDBPyConnection,
     source_sql: str,
@@ -1916,10 +1955,6 @@ def execute(
             values[s.name] = mine
     if not produce:
         return values, None, run
-    final = [
-        s.remake(values[s.name]) if s.learn and s.remake is not None else s
-        for s in stages
-    ]
-    sql = build(source_sql, final)
+    sql = build(source_sql, with_values(stages, values))
     run.statements.append(sql)
     return values, con.sql(sql), run

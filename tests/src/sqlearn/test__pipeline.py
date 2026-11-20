@@ -1528,7 +1528,7 @@ def test_a_gram_value_named_as_a_sql_value_is_a_bug(gappy):
     """A Gram step may not learn a name its SQL learn already returned."""
 
     class Clashing(GramCovariance):
-        def learned_from_gram(self, gram, learned):
+        def learned_from_gram(self, gram, learned, columns):
             return {"mean": dict(learned["mean"])}
 
     with pytest.raises(sq.errors.InternalError, match="'mean'"):

@@ -15530,6 +15530,18 @@
     },
     {
       "area": "sqlearn/_gram",
+      "name": "tests/src/sqlearn/test__gram.py::test_a_gram_step_is_handed_its_input_columns_in_order",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_gram",
+      "name": "tests/src/sqlearn/test__gram.py::test_a_gram_sum_over_batches_with_a_remainder_agrees_on_one_and_many_threads",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_gram",
       "name": "tests/src/sqlearn/test__gram.py::test_batch_rows_fits_the_batch_to_the_allowance",
       "outcome": "passed",
       "tier": "fast"

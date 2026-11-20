@@ -3,9 +3,8 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-20 · Branch: `main` · Last commit: `53d2dd2` fix: write
-PCA's weights once, as a matrix (#73) · Checks: passing (`just verify` on
-it: 3019 passed, 24 skipped)
+Updated: 2026-11-20 · Branch: `main` · Checks: passing (`just verify` on
+the #70 change before its commit: 3021 passed, 24 skipped)
 Verify with: `just verify`
 
 ## In progress
@@ -22,10 +21,9 @@ None.
 ## Next up
 
 - The next 3.3 area, not chosen yet. Linear or ridge regression would reuse
-  the Gram step with Xᵀy (ADR 0058 opens it to users' steps after that). No
-  dataset fetcher (ADR 0053).
-- #70: tidy the Gram contract, first, as it comes before the Gram step
-  opens to users' steps (linear regression would open it).
+  the Gram step with Xᵀy (ADR 0058 opens it to users' steps after that; its
+  contract is written in `docs/guide/writing-a-step.md`). No dataset
+  fetcher (ADR 0053).
 - #71, #72: validation and small tidies from the PCA build.
 - #65's minor follow-ups (listed in its last comments); the first worth
   doing: let `sq.select` shortcuts take a column selector by position, as
@@ -38,7 +36,9 @@ None.
   outside them. `ru_maxrss` peaks depend on whether DuckDB has handed
   memory back yet: probe twice. `repr(np.float64(x))` is
   `np.float64(...)` in SQL: write `float(x)!r`. A script outside the repo
-  importing `validation` needs `PYTHONPATH` set to the repo. macOS has no
+  importing `validation` needs `PYTHONPATH` set to the repo. A test
+  learning twice must `STORE.clear()` between, or the second reuses the
+  first. macOS has no
   `timeout` (nor `gtimeout`): a capped run needs another way. A
   cross-fitted step's `learn` needs the target, so `sq.load` takes its
   names from `Step._derives`. (2026-11-20)
@@ -118,6 +118,11 @@ None.
 
 ## Just finished
 
+- #70: `learned_from_gram(gram, learned, columns)` is handed its inputs;
+  `with_values` (`_compose.py`) remakes stages for `execute` and
+  `_learn_gram`, whose parameters after the data are keyword-only; fast
+  tests of batches with a short last one, on one and many threads; the
+  contract in `docs/guide/writing-a-step.md`. (2026-11-20)
 - #73, pushed and closed: PCA's apply SQL holds the centred row as one list and
   the kept weights once as a `DOUBLE[][]` literal, each output a
   `list_dot_product`. The learn's peak at 200 columns fell from 1.11 to 0.36 GB

@@ -92,7 +92,7 @@ Anomalies expected of the references, by design rather than defect:
 import functools
 import math
 import warnings
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from fractions import Fraction
 
@@ -333,11 +333,14 @@ class _Recorded(PCA):
     """PCA that records the Gram matrix it learns from, in `GRAMS`."""
 
     def learned_from_gram(
-        self, gram: np.ndarray, learned: Mapping[str, Mapping[str, object]]
+        self,
+        gram: np.ndarray,
+        learned: Mapping[str, Mapping[str, object]],
+        columns: Sequence[str],
     ) -> Mapping[str, Mapping[str, object]]:
         """Record `gram`, then learn as PCA does."""
         GRAMS.append(np.array(gram, dtype=float))
-        return super().learned_from_gram(gram, learned)
+        return super().learned_from_gram(gram, learned, columns)
 
 
 GRAMS: list[np.ndarray] = []

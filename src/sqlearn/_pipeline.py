@@ -27,6 +27,7 @@ from sqlearn._compose import (
     number_rows,
     stage_name,
     step_stage,
+    with_values,
 )
 from sqlearn._config import connection, get_config
 from sqlearn._diagnose import applying_out_of_memory, diagnose
@@ -262,48 +263,41 @@ def _by_column(values: dict[str, dict[str, object]]) -> dict[str, dict[str, obje
 
 def _learn_gram(
     con: duckdb.DuckDBPyConnection,
-    source_sql: str,
-    before: list[Stage],
-    values: Mapping[str, dict[str, dict[str, object]]],
-    steps: list[tuple[str, Step]],
-    i: int,
-    matched: list[str],
+    data_sql: str,
     learned: dict[str, dict[str, object]],
+    *,
+    step: tuple[str, Step],
+    position: int,
+    columns: list[str],
     run: Run,
 ) -> dict[str, dict[str, object]]:
     """Learn a Gram step from XᵀX of its centred inputs (ADR 0058).
 
-    `before` holds the stages before it in this run's statement; each
-    learning one is remade with its values, so the data reaching the step
-    holds constants only. The step's SQL values (`learned`, learned name
-    then column to value) give the means; it may refuse them first
-    (`Step.before_gram`), then the memory is checked, the matrix built, and
-    what the step learns from it joins its SQL values; a refusal of the
-    step's own (`before_gram`, `learned_from_gram`) is placed on it. The
-    streaming statement is added to `run`.
+    `data_sql` is the data reaching the step, the stages before it holding
+    their learned values as constants (`with_values`). The step's SQL
+    values (`learned`, learned name then column to value) give the means
+    of its `columns`; it may refuse them first (`Step.before_gram`), then
+    the memory is checked, the matrix built, and what the step learns from
+    it joins its SQL values; a refusal of the step's own (`before_gram`,
+    `learned_from_gram`) is placed on it, the step named and at `position`.
+    The streaming statement is added to `run`.
     """
-    name, step = steps[i]
-    stages = [
-        s.remake(values[s.name]) if s.learn and s.remake is not None else s
-        for s in before
-    ]
+    name, gram_step = step
     try:
-        step.before_gram(learned)
-        check_fits(con, len(matched))
-        means = {c: cast("float", learned["mean"][c]) for c in matched}
-        gram = gram_matrix(
-            con, build(source_sql, stages), matched, means, statements=run.statements
-        )
-        more = step.learned_from_gram(gram, learned)
+        gram_step.before_gram(learned)
+        check_fits(con, len(columns))
+        means = {c: cast("float", learned["mean"][c]) for c in columns}
+        gram = gram_matrix(con, data_sql, columns, means, statements=run.statements)
+        more = gram_step.learned_from_gram(gram, learned, columns)
     except StepError as exc:
-        placed = _placed(exc, name, i + 1)
+        placed = _placed(exc, name, position)
         if placed is exc:
             raise
         raise placed from exc
     clash = sorted(set(more) & set(learned))
     if clash:
         msg = (
-            f"{name} (step {i + 1}) learned {', '.join(map(repr, clash))} both "
+            f"{name} (step {position}) learned {', '.join(map(repr, clash))} both "
             "from SQL and from its Gram matrix; a learned name must come from "
             "one. This is a bug in sqlearn: please report it."
         )
@@ -951,10 +945,10 @@ class Pipeline:
             if cross_fitted(step):
                 learned, folds = _derive(steps, i + 1, learned, matched)
             if step.gram:
-                before_it = stages[: upto[i] - 1]
+                data_sql = build(source_sql, with_values(stages[: upto[i] - 1], values))
                 learned = _learn_gram(
-                    con, source_sql, before_it, values, steps, i, matched,
-                    learned, done,
+                    con, data_sql, learned,
+                    step=steps[i], position=i + 1, columns=matched, run=done,
                 )  # fmt: skip
             applied = _make_stage(steps, i + 1, before, prev, learned, columns=matched)
             entry = Entry(learned, matched, apply_sql(applied), folds)

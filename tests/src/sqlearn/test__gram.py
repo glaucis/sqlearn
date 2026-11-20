@@ -13,6 +13,8 @@ from sqlearn._config import connection
 from sqlearn._errors import SqlearnError
 from sqlearn._gram import batch_rows, check_fits, gram_matrix
 from sqlearn._memory import allowance
+from sqlearn._store import STORE
+from sqlearn.decomposition.pca import PCA
 
 
 def test_gram_matrix_matches_numpy_on_centred_rows():
@@ -135,3 +137,59 @@ def test_a_gram_matrix_over_the_budget_is_refused_before_any_batch(monkeypatch):
     sq.set_config(memory="2GB")
     sq.Pipeline([sq.decompose.pca()]).learn(wide)
     assert batches == ["streamed"]
+
+
+SEEN: list[list[str]] = []
+"""The columns each `_Columns` Gram learn was handed, the latest last."""
+
+
+class _Columns(PCA):
+    """PCA that records the columns its Gram learn is handed, in `SEEN`."""
+
+    def learned_from_gram(self, gram, learned, columns):
+        """Record `columns`, then learn as PCA does."""
+        SEEN.append(list(columns))
+        return super().learned_from_gram(gram, learned, columns)
+
+
+def test_a_gram_step_is_handed_its_input_columns_in_order():
+    """`learned_from_gram` gets the inputs in their order, as the matrix's."""
+    rng = np.random.default_rng(2)
+    frame = pd.DataFrame(rng.normal(size=(30, 4)), columns=["d", "b", "a", "c"])
+    SEEN.clear()
+    sq.Pipeline([_Columns(cols=["c", "d", "a"])]).learn(frame)
+    assert SEEN == [["d", "a", "c"]]
+
+
+def test_a_gram_sum_over_batches_with_a_remainder_agrees_on_one_and_many_threads():
+    """Batches of a small budget, the last one short, learn one batch's PCA.
+
+    Under a 40 MB budget five columns stream in batches of some 170,000 rows,
+    so two full batches and a short one; one thread and many agree with the
+    one batch of an ample budget within ADR 0043's bound for a sum.
+    """
+    rng = np.random.default_rng(3)
+    con = connection()
+    sq.set_config(memory="40MB")
+    size = batch_rows(5, con)
+    rows = 2 * size + 123
+    assert rows % size  # the last batch is short
+    data = rng.normal(size=(rows, 5)) @ rng.normal(size=(5, 5)) + 7.0
+    frame = pd.DataFrame(data, columns=list("vwxyz"))
+    default = con.execute("SELECT current_setting('threads')").fetchall()[0][0]
+
+    def learned():
+        STORE.clear()  # else a later learn finds the first one's values
+        return sq.Pipeline([sq.decompose.pca()]).learn(frame)["pca"].components_
+
+    try:
+        con.execute("SET threads = 1")
+        one = learned()
+        con.execute(f"SET threads = {default}")
+        many = learned()
+    finally:
+        con.execute(f"SET threads = {default}")
+    sq.set_config(memory="2GB")
+    whole = learned()
+    assert np.array(one) == pytest.approx(np.array(whole), rel=1e-9, abs=1e-12)
+    assert np.array(many) == pytest.approx(np.array(whole), rel=1e-9, abs=1e-12)

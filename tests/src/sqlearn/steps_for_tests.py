@@ -83,9 +83,8 @@ class GramCovariance(sq.Step):
         """Learn the mean and count the core centres the rows with."""
         return {"mean": sq.agg.mean(x), "count": sq.agg.count(x)}
 
-    def learned_from_gram(self, gram, learned):
+    def learned_from_gram(self, gram, learned, columns):
         """Return the sample covariance of every input with every other."""
-        columns = list(learned["count"])
         rows = learned["count"][columns[0]]
         return {
             "covariance": {

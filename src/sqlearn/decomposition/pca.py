@@ -446,16 +446,22 @@ class PCA(Step):
         _refuse_too_many(n_components, rows, len(counts))
 
     def learned_from_gram(
-        self, gram: np.ndarray, learned: Mapping[str, Mapping[str, object]]
+        self,
+        gram: np.ndarray,
+        learned: Mapping[str, Mapping[str, object]],
+        columns: Sequence[str],
     ) -> Mapping[str, Mapping[str, object]]:
         """Learn every component and its variance from XᵀX of the centred rows.
 
         Parameters
         ----------
         gram : numpy.ndarray
-            The p-by-p sum of ``xᵀx`` over the centred rows, in input order.
+            The p-by-p sum of ``xᵀx`` over the centred rows, in the order
+            of `columns`.
         learned : mapping of str to mapping of str to object
             What `learn` returned: learned name, then column, to value.
+        columns : sequence of str
+            The input columns, in the order of the matrix.
 
         Returns
         -------
@@ -477,12 +483,12 @@ class PCA(Step):
         >>> import sqlearn as sq
         >>> gram = np.array([[2.0, 0.0], [0.0, 8.0]])
         >>> got = sq.decompose.pca().learned_from_gram(
-        ...     gram, {"count": {"a": 3, "b": 3}}
+        ...     gram, {"count": {"a": 3, "b": 3}}, ["a", "b"]
         ... )
         >>> got["variance"], got["weights"]
         ({'a': 4.0, 'b': 1.0}, {'a': [0.0, 1.0], 'b': [1.0, 0.0]})
         """
-        columns = list(learned["count"])
+        columns = list(columns)
         rows = cast("int", learned["count"][columns[0]])
         try:
             if not np.isfinite(gram).all():

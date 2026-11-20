@@ -496,7 +496,10 @@ class Step:
         """
 
     def learned_from_gram(
-        self, gram: np.ndarray, learned: Mapping[str, Mapping[str, object]]
+        self,
+        gram: np.ndarray,
+        learned: Mapping[str, Mapping[str, object]],
+        columns: Sequence[str],
     ) -> Mapping[str, Mapping[str, object]]:
         """Learn a Gram step's values from XᵀX of its centred inputs.
 
@@ -507,10 +510,13 @@ class Step:
         ----------
         gram : numpy.ndarray
             The p-by-p sum of ``xᵀx`` over the rows, each input centred on
-            its ``mean``; rows and columns in the order of the inputs.
+            its ``mean``; rows and columns in the order of `columns`.
         learned : mapping of str to mapping of str to object
             What its `learn` aggregates returned: learned name, then column,
             to value.
+        columns : sequence of str
+            The input columns, in the order of the matrix's rows and
+            columns.
 
         Returns
         -------
@@ -528,7 +534,7 @@ class Step:
         --------
         >>> import numpy as np
         >>> import sqlearn as sq
-        >>> sq.Step().learned_from_gram(np.zeros((1, 1)), {})
+        >>> sq.Step().learned_from_gram(np.zeros((1, 1)), {}, ["a"])
         Traceback (most recent call last):
         ...
         NotImplementedError: Step declares gram but has no learned_from_gram

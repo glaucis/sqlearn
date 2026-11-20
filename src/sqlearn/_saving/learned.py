@@ -341,7 +341,7 @@ def _holds(step: Step, learns: list[str] | None, entry: Entry) -> list[str] | No
         try:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                more = step.learned_from_gram(np.zeros((1, 1)), one)
+                more = step.learned_from_gram(np.zeros((1, 1)), one, [first])
         except Exception:  # noqa: BLE001  (a step that cannot say is not checked)
             return None
         return [*learns, *(n for n in more if n not in learns)]
