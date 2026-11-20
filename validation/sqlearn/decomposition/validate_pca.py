@@ -25,6 +25,20 @@ the covariance carries a rounding of the size of its largest eigenvalue
   is subtracted, by ``½`` ULP of each of its values: 7e-9 at 1e8, beside
   rows of length 1), the worst row the case.
 
+Two more checks do not depend on the learn's conditioning:
+
+- the covariance a decomposition holds, ``Σ λₖ wₖ wₖᵀ`` over its kept
+  components, against the exact covariance, each entry in ULPs of ``λ₁``,
+  the worst entry the case. A decomposition holds its covariance only as
+  closely as its eigenvalues, so normwise: measured in ULPs of
+  ``sqrt(Cᵢᵢ Cⱼⱼ)`` instead, every library is about 1e5 ULPs off on wine and
+  5e5 on breast cancer, where λ₁ is 1e5 and 4e5 beside small variances;
+- each output against the exact ``Σ (xⱼ - mⱼ) wⱼ`` from the mean ``m`` and
+  the component ``w`` the reference learned itself, in plain ULPs of
+  ``Σ |(xⱼ - mⱼ) wⱼ|``, the worst row the case: it measures the applying
+  alone, so a wrong sign, weight or order in one output fails it however
+  ill-defined that component is.
+
 ``ulps`` holds that distance (a float) and ``ulps_of`` the scale it is
 counted at; ``abs_error`` and ``rel_error`` are against the exact value
 itself. A plain ULP distance would call a tiny eigenvalue (the nearly
@@ -56,7 +70,12 @@ Anomalies expected of the references, by design rather than defect:
   difference of terms near 2e18 and keeps no correct digit (5e16 ULPs of
   the largest eigenvalue; its components and outputs as far off), and on
   iris (means near 5 beside spreads near 1) its largest eigenvalue is 36
-  ULPs off and its first component 17.
+  ULPs off and its first component 17 (its covariance 30, just within 4
+  times the bound).
+- scikit-learn's ``transform`` applies uncentred too, ``X wᵀ - m wᵀ``: its
+  outputs against its own mean and components are 18 ULPs off on iris,
+  240 on wine, 190 on breast cancer, 8e8 on ``far from zero`` and 9e15 on
+  ``constant`` (an output that is exactly 0 left as a rounding).
 - numpy's ``cov`` centres by its own mean, a pairwise sum 3 ULPs off on
   ``far from zero``, and does not centre again: its covariance carries
   the mean's error squared times n / (n - 1), 2e-15, and its components
@@ -92,10 +111,16 @@ from validation import _cases
 # - output [1.93, breast cancer's pca0]: the row less the learned mean
 #   (compensated, ``sqlearn.agg.mean``), times the weights, summed in
 #   DuckDB.
+# - covariance [6.92, breast cancer]: as the eigenvalue's, the learned
+#   eigenvalues and components multiplied back in mpmath.
+# - applied [3.32, breast cancer's pca1]: the row less the learned mean,
+#   times the learned weights, each product and the sum rounded in DuckDB.
 BOUNDS = {
     "eigenvalue": 8.3,
     "component": 2.0,
     "output": 2.2,
+    "covariance": 7.6,
+    "applied": 3.7,
 }
 
 NEIGHBOUR = 1e-8
@@ -195,25 +220,30 @@ def _mpf(value: Fraction) -> mpmath.mpf:
 class Exact:
     """The exact decomposition: eigenvalues largest first, signed eigenvectors.
 
-    ``centred`` holds each row less the exact mean, at `_cases.DIGITS`, and
-    ``mean_length`` the length of the exact mean.
+    ``covariance`` holds the exact covariance, ``rows`` each row's values
+    and ``centred`` each row less the exact mean, at `_cases.DIGITS`;
+    ``mean_length`` is the length of the exact mean.
     """
 
     values: list[mpmath.mpf]
     vectors: list[list[mpmath.mpf]]
+    covariance: list[list[mpmath.mpf]]
+    rows: list[list[mpmath.mpf]]
     centred: list[list[mpmath.mpf]]
     mean_length: mpmath.mpf
 
     def output(self, row: int, k: int) -> mpmath.mpf:
         """Return the exact output of component `k` for `row`."""
-        return mpmath.fsum(
-            d * w for d, w in zip(self.centred[row], self.vectors[k], strict=True)
-        )
+        with mpmath.workdps(_cases.DIGITS):
+            return mpmath.fsum(
+                d * w for d, w in zip(self.centred[row], self.vectors[k], strict=True)
+            )
 
     def scale(self, row: int, kappa: float) -> float:
         """Return the scale an output of `row` is measured at: κ‖x - m‖ + ‖m‖."""
-        length = mpmath.sqrt(mpmath.fsum(d * d for d in self.centred[row]))
-        return float(kappa * length + self.mean_length)
+        with mpmath.workdps(_cases.DIGITS):
+            length = mpmath.sqrt(mpmath.fsum(d * d for d in self.centred[row]))
+            return float(kappa * length + self.mean_length)
 
 
 @functools.cache
@@ -240,9 +270,11 @@ def _exact(name: str) -> Exact:
             v = [vectors[j, k] for j in range(p)]
             largest = max(range(p), key=lambda j: abs(v[j]))
             signed.append([-w for w in v] if v[largest] < 0 else v)
-        rows = [[_mpf(centred[j][r]) for j in range(p)] for r in range(n)]
+        rows = [[_mpf(columns[j][r]) for j in range(p)] for r in range(n)]
+        less = [[_mpf(centred[j][r]) for j in range(p)] for r in range(n)]
         length = mpmath.sqrt(mpmath.fsum(_mpf(m) ** 2 for m in means))
-        return Exact([values[k] for k in order], signed, rows, length)
+        exact = [[covariance[i, j] for j in range(p)] for i in range(p)]
+        return Exact([values[k] for k in order], signed, exact, rows, less, length)
 
 
 def _groups(values: list[mpmath.mpf]) -> list[list[int]]:
@@ -272,11 +304,15 @@ def _kappa(values: list[mpmath.mpf], group: list[int]) -> float:
 
 @dataclass(frozen=True)
 class Answer:
-    """One library's decomposition: kept eigenvalues, components and outputs."""
+    """One library's decomposition: kept eigenvalues, components and outputs.
+
+    ``mean`` is the mean it learned and subtracts before applying.
+    """
 
     values: list[float]
     vectors: list[list[float]]
     outputs: np.ndarray
+    mean: list[float]
 
 
 @functools.cache
@@ -298,6 +334,7 @@ def _sqlearn(name: str) -> Answer:
         list(pca.explained_variance_),
         pca.components_,
         np.array(got, dtype=float).reshape(problem.rows, k),
+        list(pca.mean_),
     )
 
 
@@ -308,7 +345,10 @@ def _sklearn(name: str) -> Answer:
         pca = skd.PCA(svd_solver="covariance_eigh").fit(x)
         outputs = pca.transform(x)
     return Answer(
-        [float(v) for v in pca.explained_variance_], pca.components_.tolist(), outputs
+        [float(v) for v in pca.explained_variance_],
+        pca.components_.tolist(),
+        outputs,
+        pca.mean_.tolist(),
     )
 
 
@@ -319,8 +359,9 @@ def _numpy(name: str) -> Answer:
     values, vectors = values[::-1], vectors[:, ::-1].T
     largest = np.abs(vectors).argmax(axis=1)
     vectors = vectors * np.sign(vectors[np.arange(len(vectors)), largest])[:, None]
-    outputs = (x - x.mean(axis=0)) @ vectors[:k].T
-    return Answer(values[:k].tolist(), vectors[:k].tolist(), outputs)
+    mean = x.mean(axis=0)
+    outputs = (x - mean) @ vectors[:k].T
+    return Answer(values[:k].tolist(), vectors[:k].tolist(), outputs, mean.tolist())
 
 
 ANSWERS: dict[str, Callable[[str], Answer]] = {
@@ -435,6 +476,63 @@ def _group_cases(
     return out
 
 
+def _covariance_case(
+    problem: Problem, exact: Exact, answer: Answer, reference: str
+) -> dict:
+    """Return the case of the covariance a decomposition holds, against the exact.
+
+    The covariance is ``Σ λₖ wₖ wₖᵀ`` over the kept components, at
+    `_cases.DIGITS` from the learned doubles: every component left out has
+    an exact eigenvalue of 0 (it is kept only below the rank). Each entry is
+    measured in ULPs of the largest eigenvalue, the worst entry the case.
+    """
+    p = len(exact.covariance)
+    with mpmath.workdps(_cases.DIGITS):
+        weights = [[mpmath.mpf(w) for w in vector] for vector in answer.vectors]
+        values = [mpmath.mpf(v) for v in answer.values]
+        held = [
+            mpmath.fsum(
+                lam * w[i] * w[j] for lam, w in zip(values, weights, strict=True)
+            )
+            for i in range(p)
+            for j in range(p)
+        ]
+    want = [exact.covariance[i][j] for i in range(p) for j in range(p)]
+    largest = float(exact.values[0])
+    head = _head(problem, "Σ λₖ wₖ wₖᵀ: the covariance", "covariance")
+    return _worst(
+        head, reference, [float(v) for v in held], want, [largest] * p * p, "entry"
+    )
+
+
+def _applied_cases(
+    problem: Problem, exact: Exact, answer: Answer, reference: str
+) -> list[dict]:
+    """Return each output against the reference's own mean and component.
+
+    The exact output of row x is ``Σ (xⱼ - mⱼ) wⱼ`` at `_cases.DIGITS`, from
+    the mean ``m`` and the component ``w`` the reference learned (sqlearn's
+    ``mean_`` and ``components_``), so the learn's conditioning plays no
+    part: it measures the applying alone, in plain ULPs of ``Σ |(xⱼ - mⱼ)
+    wⱼ|``, the size of what the sum rounds.
+    """
+    out = []
+    with mpmath.workdps(_cases.DIGITS):
+        mean = [mpmath.mpf(m) for m in answer.mean]
+        less = [[x - m for x, m in zip(row, mean, strict=True)] for row in exact.rows]
+        for k, vector in enumerate(answer.vectors):
+            w = [mpmath.mpf(v) for v in vector]
+            terms = [[d * c for d, c in zip(row, w, strict=True)] for row in less]
+            want = [mpmath.fsum(t) for t in terms]
+            scales = [float(mpmath.fsum(abs(x) for x in t)) for t in terms]
+            head = _head(
+                problem, f"pca{k} from its own mean_ and components_", "applied"
+            )
+            got = answer.outputs[:, k].tolist()
+            out.append(_worst(head, reference, got, want, scales, "row"))
+    return out
+
+
 def _problem_cases(problem: Problem) -> list[dict]:
     """Return every case of one dataset, for each reference."""
     exact = _exact(problem.name)
@@ -456,6 +554,8 @@ def _problem_cases(problem: Problem) -> list[dict]:
             )
             continue
         kept = len(answer.values)
+        out.append(_covariance_case(problem, exact, answer, reference))
+        out += _applied_cases(problem, exact, answer, reference)
         for k in range(kept):
             head = _head(problem, f"explained_variance_[{k}]", "eigenvalue")
             out.append(
