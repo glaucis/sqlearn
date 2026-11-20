@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 import duckdb
+import numpy as np
 import pandas as pd
 import pytest
 from duckdb import ConstantExpression, Expression
@@ -505,3 +506,52 @@ def test_every_public_step_loads_learned_and_applies_the_same(
     sq.save(pipe, tmp_path / "p.json")
     loaded = sq.load(tmp_path / "p.json")
     assert _rows(loaded.apply(df)) == _rows(pipe.apply(df))
+
+
+# Each damage as the JSON text written in place of a learned value: the
+# huge text and number are 12 bytes, a hundred million digits if read
+# exactly; the big int is too large for a float.
+_DAMAGE = {
+    "text": '"0.5"',
+    "nested list": "[0.5]",
+    "huge text": '"1e100000000"',
+    "huge number": "1e100000000",
+    "bool": "true",
+    "big int": "1" + "0" * 400,
+}
+
+
+@pytest.mark.parametrize("damage", list(_DAMAGE))
+@pytest.mark.parametrize(
+    "slot",
+    ["mean", "count", "missing", "infinite", "weights", "weight", "variance"],
+)
+@pytest.mark.parametrize(
+    "settings", [{}, {"n_components": 0.9, "whiten": True}], ids=["all", "share"]
+)
+def test_a_pca_value_damaged_at_load_is_refused(
+    tmp_path: Path, settings: dict[str, Any], slot: str, damage: str
+) -> None:
+    """Each value PCA learned, in SQL or from XᵀX, is checked at load.
+
+    ``weight`` is one entry of a column's ``weights`` list; ``weights`` is
+    the whole list. Every damage is refused with the damaged-file message
+    (HANDOFF: probe every learned slot end to end).
+    """
+    rng = np.random.default_rng(0)
+    df = pd.DataFrame(rng.normal(size=(20, 3)), columns=["a", "b", "c"])
+    pipe = sq.Pipeline([sq.decompose.pca(**settings)]).learn(df)
+    path = tmp_path / "p.json"
+    sq.save(pipe, path)
+    record = json.loads(path.read_text())
+    values = record["learned"]["steps"][0]["values"]["items"]
+    name = "weights" if slot == "weight" else slot
+    per_column = next(v for n, v in values if n == name)["items"][1]
+    if slot == "weight":
+        per_column[1][0] = "__damage__"
+    else:
+        per_column[1] = "__damage__"
+    path.write_text(json.dumps(record).replace('"__damage__"', _DAMAGE[damage]))
+    STORE.clear()
+    with pytest.raises(SqlearnError, match=r"(?s)damaged.*Fix:"):
+        sq.load(path)

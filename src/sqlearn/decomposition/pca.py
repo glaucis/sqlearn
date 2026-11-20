@@ -121,6 +121,70 @@ def _kept_components(
     return int(np.searchsorted(ratios, n_components, side="right")) + 1
 
 
+def _number(value: object, what: str) -> float:
+    """Return a learned value as a float, refusing what is not a finite number.
+
+    What is learned is a number from DuckDB or numpy, but a saved file's
+    values are read back from JSON: anything else there (text, a flag, a
+    list, an int too large for a float, an infinity) is refused, so loading
+    reports the file as damaged.
+    """
+    if type(value) is not int and type(value) is not float:
+        msg = f"a learned {what} is {type(value).__name__}, not a number"
+        raise TypeError(msg)
+    number = float(value)  # an int too large for a float raises OverflowError
+    if not math.isfinite(number):
+        msg = f"a learned {what} is {number}, not a finite number"
+        raise ValueError(msg)
+    return number
+
+
+def _whole_number(value: object, what: str) -> int:
+    """Return a learned count, refusing what is not a whole number."""
+    if type(value) is not int:
+        msg = f"a learned {what} is {type(value).__name__}, not a whole number"
+        raise TypeError(msg)
+    _number(value, what)
+    return value
+
+
+def _checked(
+    learned: Mapping[str, Learned], columns: Sequence[str]
+) -> tuple[int, list[list[float]], list[float]]:
+    """Return the rows, each column's weights and each variance, all checked.
+
+    Every value PCA learned is read: each column's ``mean``, ``count``
+    (the same in every column), ``missing`` and ``infinite`` (0, as learning
+    refuses any other), its ``weights`` (one finite number per column) and
+    its ``variance`` (a finite number from 0 up). A saved file holding
+    anything else is refused as damaged at load.
+    """
+    rows = _whole_number(learned[columns[0]].raw("count"), "count")
+    weights: list[list[float]] = []
+    variances: list[float] = []
+    for c in columns:
+        values = learned[c]
+        _number(values.raw("mean"), "mean")
+        if _whole_number(values.raw("count"), "count") != rows:
+            msg = "the learned counts differ between columns"
+            raise ValueError(msg)
+        for name in ("missing", "infinite"):
+            if _whole_number(values.raw(name), name) != 0:
+                msg = f"a learned {name} count is not 0, as learning requires"
+                raise ValueError(msg)
+        found = values.raw("weights")
+        if type(found) is not list or len(found) != len(columns):
+            msg = f"the learned weights are not a list of {len(columns)} numbers"
+            raise TypeError(msg)
+        weights.append([_number(w, "weight") for w in found])
+        variance = _number(values.raw("variance"), "variance")
+        if variance < 0:
+            msg = "a learned variance is negative"
+            raise ValueError(msg)
+        variances.append(variance)
+    return rows, weights, variances
+
+
 def _ratios(variances: Sequence[float]) -> np.ndarray:
     """Return each variance over their sum: all NaN when the sum is 0."""
     values = np.asarray(variances, dtype=np.float64)
@@ -481,7 +545,7 @@ class PCA(Step):
         centred: dict[str, Expression] = {}
         for name, x in xs.items():
             v = x.cast(DOUBLE)
-            mean = const(float(cast("float", learned[name].raw("mean"))))
+            mean = const(_number(learned[name].raw("mean"), "mean"))
             centred[name] = (
                 duckdb.CaseExpression(is_missing(x), _refusal(name, *_MISSING))
                 .when(duckdb.FunctionExpression("isinf", v), _refusal(name, *_INFINITE))
@@ -521,6 +585,9 @@ class PCA(Step):
         StepError
             If `n_components` is a whole number above the smaller of the rows
             and the columns, values found in the store included.
+        TypeError, ValueError, OverflowError
+            If a learned value is not one PCA learns, as in a damaged saved
+            file: loading reports the file as damaged.
 
         Examples
         --------
@@ -543,13 +610,13 @@ class PCA(Step):
         outputs: dict[str, Expression] = {}
         if not columns:
             return outputs
-        rows = cast("int", learned[columns[0]].raw("count"))
-        variances = [cast("float", learned[c].raw("variance")) for c in columns]
+        rows, weights, variances = _checked(learned, columns)
         kept = _kept_components(self.n_components, rows, variances)
         centred = values or self.row_values(xs, learned)
-        weights = {c: cast("list[float]", learned[c].raw("weights")) for c in columns}
         for k in range(kept):
-            terms = [centred[c] * const(float(weights[c][k])) for c in columns]
+            terms = [
+                centred[c] * const(w[k]) for c, w in zip(columns, weights, strict=True)
+            ]
             total = duckdb.FunctionExpression(
                 "list_sum", duckdb.FunctionExpression("list_value", *terms)
             )
