@@ -119,10 +119,32 @@ def _ratio(a: Fraction, b: Fraction) -> float:
     return float(a / b)
 
 
+def _exact(value: object) -> Fraction:
+    """Return a learned number exactly, refusing what is not a finite number.
+
+    What is learned is a number from DuckDB, but a saved file's values are
+    read back from JSON: text there (``"1e100000000"``, which `Fraction`
+    would read as a number of a hundred million digits) is refused, so
+    loading reports the file as damaged rather than hanging.
+    """
+    if type(value) is not int and type(value) is not float:
+        msg = f"a learned value is {type(value).__name__}, not a number"
+        raise TypeError(msg)
+    return Fraction(value)  # NaN and infinity raise ValueError, OverflowError
+
+
+def _count_of(value: object) -> int:
+    """Return a learned count, refusing what is not a whole number."""
+    if type(value) is not int:
+        msg = f"a learned count is {type(value).__name__}, not a whole number"
+        raise TypeError(msg)
+    return value
+
+
 def _classes(values: Mapping[str, object]) -> list[tuple[int, Fraction, Fraction]]:
     """Return each class's count, sum and sum of squares, exactly."""
     stats = cast("Stats", values["stats"])
-    return [(int(n), Fraction(s), Fraction(ss)) for _, _, n, s, ss in stats]
+    return [(_count_of(n), _exact(s), _exact(ss)) for _, _, n, s, ss in stats]
 
 
 def _f_classif(values: Mapping[str, object]) -> float:
@@ -156,7 +178,7 @@ def _chi2(values: Mapping[str, object]) -> float:
     classes = _classes(values)
     if len(classes) == 1:
         return math.nan
-    low = Fraction(cast("float", values["low"]))
+    low = _exact(values["low"])
     n = sum(c for c, _, _ in classes)
     observed = [s + c * low for c, s, _ in classes]
     total = sum(observed, Fraction(0))
@@ -180,11 +202,11 @@ def _f_regression(values: Mapping[str, object]) -> float:
     F is infinite, scores the largest double (0 at two rows, where scikit-
     learn's ``inf · 0`` is NaN and then 0).
     """
-    dof = int(cast("int", values["count"])) - 2
+    dof = _count_of(values["count"]) - 2
 
     def exact(name: str) -> Fraction:
         value = values[name]
-        return Fraction(0) if value is None else Fraction(cast("float", value))
+        return Fraction(0) if value is None else _exact(value)
 
     spread = exact("variance") * exact("target_variance")
     if spread == 0:

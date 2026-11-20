@@ -216,6 +216,76 @@ def test_a_damaged_whole_row_step_gives_only_the_files_fix(tmp_path: Path) -> No
     assert str(caught.value).count("Fix:") == 1
 
 
+@pytest.mark.parametrize("text", ["2.5", "1e100000000"], ids=["number", "huge"])
+@pytest.mark.parametrize(
+    ("score", "name", "index"),
+    [
+        ("f_classif", "stats", 2),
+        ("f_classif", "stats", 3),
+        ("f_classif", "stats", 4),
+        ("chi2", "low", None),
+        ("f_regression", "count", None),
+        ("f_regression", "covariance", None),
+        ("f_regression", "variance", None),
+        ("f_regression", "target_variance", None),
+    ],
+    ids=[
+        "stats count",
+        "stats sum",
+        "stats square sum",
+        "low",
+        "count",
+        "covariance",
+        "variance",
+        "target variance",
+    ],
+)
+def test_a_score_learned_as_text_is_refused_at_load(
+    tmp_path: Path, score: str, name: str, index: int | None, text: str
+) -> None:
+    """A learned number given as text is damage, refused at once.
+
+    The scores are taken exactly (`fractions.Fraction`), which reads text
+    too: a few bytes ("1e100000000") would build a number of a hundred
+    million digits, and loading would hang.
+    """
+    pipe = sq.Pipeline([sq.select.best(k=2, score=score)])
+    pipe.learn(_selector_frame(), target="y")
+    path = tmp_path / "p.json"
+    sq.save(pipe, path)
+    record = json.loads(path.read_text())
+    values = record["learned"]["steps"][0]["values"]["items"]
+    per_column = next(v for n, v in values if n == name)["items"][0]
+    if index is None:
+        per_column[1] = text
+    else:
+        per_column[1][0]["items"][index] = text
+    path.write_text(json.dumps(record))
+    STORE.clear()
+    with pytest.raises(SqlearnError, match="damaged"):
+        sq.load(path)
+
+
+@pytest.mark.parametrize("name", ["variance", "low", "high"])
+def test_a_variance_learned_as_text_is_refused_at_load(
+    tmp_path: Path, name: str
+) -> None:
+    """sq.select.variance's learned numbers given as text are damage.
+
+    At threshold=0 it reads all three: the variance and the range.
+    """
+    pipe = sq.Pipeline([sq.select.variance()]).learn(_selector_frame())
+    path = tmp_path / "p.json"
+    sq.save(pipe, path)
+    record = json.loads(path.read_text())
+    values = record["learned"]["steps"][0]["values"]["items"]
+    next(v for n, v in values if n == name)["items"][0][1] = "2.5"
+    path.write_text(json.dumps(record))
+    STORE.clear()
+    with pytest.raises(SqlearnError, match="damaged"):
+        sq.load(path)
+
+
 def test_learned_values_read_as_attributes_after_load(tmp_path: Path) -> None:
     """A step's learned values read as attributes after load."""
     pipe = _learned(_frame())

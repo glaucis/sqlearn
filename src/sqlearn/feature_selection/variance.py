@@ -44,8 +44,17 @@ def _whole(x: Expression, extreme: str) -> Expression:
 
 
 def _number(value: object) -> float:
-    """Return a learned value as a float, NaN for None (nothing learned)."""
-    return math.nan if value is None else float(cast("float", value))
+    """Return a learned value as a float, NaN for None (nothing learned).
+
+    A saved file's values are read back from JSON: anything but a number
+    there (text, a flag) is refused, so loading reports the file as damaged.
+    """
+    if value is None:
+        return math.nan
+    if type(value) is not int and type(value) is not float:
+        msg = f"a learned value is {type(value).__name__}, not a number"
+        raise TypeError(msg)
+    return float(value)
 
 
 class VarianceThreshold(Step):
