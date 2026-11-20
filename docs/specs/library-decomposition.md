@@ -73,9 +73,10 @@ group; the settings are keyword-only. By default it takes the numeric columns.
   count), a whole number from 0 up to that, or a fraction strictly between 0
   and 1 (the fewest components whose cumulative explained variance ratio is
   above it, scikit-learn's `searchsorted(..., side="right") + 1`). Anything
-  else is refused when the step is built, with a `Fix:`; a whole number above
-  the smaller of the row count and the column count is refused at learn, as
-  scikit-learn refuses it at fit.
+  else is refused when the step is built, with a `Fix:`, and again at learn
+  and apply when set on the step afterwards (a numpy whole number counts as
+  an `int`); a whole number above the smaller of the row count and the
+  column count is refused at learn, as scikit-learn refuses it at fit.
 - `whiten`: divide each output by the square root of its explained variance,
   as scikit-learn does, including its floor of machine epsilon on that square
   root.
@@ -116,7 +117,8 @@ when read, and the apply SQL is written from the cut. So a change of
 
 Refused at learn, each with a `Fix:`: a missing value (NULL or NaN) in an
 input (scikit-learn refuses NaN; impute first), an infinite value, fewer than
-two rows, a non-numeric column chosen by name.
+two rows, a non-numeric column chosen by name, and finite values whose
+products overflow doubles, so the matrix is not finite (scale first).
 
 ### 4.4 Applying
 
@@ -127,7 +129,9 @@ pca1`), named by ADR 0035 when they clash. Each is one SQL expression,
 `w₀·(x₀ − mean₀) + … + wₚ·(xₚ − meanₚ)`, divided by the whitening scale when
 `whiten`. The weights and means are constants in the SQL, so applying is one
 query, in parallel, on data of any size. A missing value in a row at apply is
-refused as in §4.3.
+refused as in §4.3, with `n_components=0` too: the outputs then read none of
+the row's values, so the data stage filters on a condition always true that
+reads them all.
 
 ## 5. The contract: a learn that builds XᵀX
 

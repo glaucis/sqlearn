@@ -188,6 +188,11 @@ def _checked(
     return rows, weights, variances
 
 
+def _values(count: int, kind: str) -> str:
+    """Return ``1 missing value`` or ``2 missing values``, for a message."""
+    return f"{count} {kind} value{'' if count == 1 else 's'}"
+
+
 def _ratios(variances: Sequence[float]) -> np.ndarray:
     """Return each variance over their sum: all NaN when the sum is 0."""
     values = np.asarray(variances, dtype=np.float64)
@@ -227,13 +232,15 @@ class PCA(Step):
     decomposition, whatever `n_components`, so a change of `n_components`
     or `whiten` never learns again. A missing value (NULL or NaN), an
     infinite value and fewer than two rows are refused at learn, before any
-    batch.
+    batch; values whose products overflow doubles, after it.
 
     Applying is one SQL expression per output, ``pca0`` to ``pca{k-1}``,
     replacing the input columns and placed after the last of them, as every
     whole-row step places the columns it creates: the centred values times
     the weights, as constants. A missing or infinite value at apply is
-    refused when its row is fetched.
+    refused when its row is fetched, even when no component is kept.
+    `n_components` set on the step after it is built is checked again where
+    it is read.
 
     Parameters
     ----------
@@ -349,7 +356,7 @@ class PCA(Step):
         ['a']
         """
         return _numeric_inputs(
-            self.cols, schema, "decompose", "PCA takes the covariance of numbers"
+            self.cols, schema, "decompose", "PCA takes the covariance of its columns"
         )
 
     def learn(self, x: Expression) -> Mapping[str, Expression]:
@@ -394,8 +401,9 @@ class PCA(Step):
         ------
         StepError
             If a column has a missing (NULL or NaN) or an infinite value,
-            there are fewer than two rows, or `n_components` is a whole
-            number above the smaller of the rows and the columns.
+            there are fewer than two rows, or `n_components` is not a setting
+            (it may be set after the step is built) or a whole number above
+            the smaller of the rows and the columns.
 
         Examples
         --------
@@ -404,23 +412,26 @@ class PCA(Step):
         >>> sq.decompose.pca().before_gram(values) is None
         True
         """
+        n_components = self._setting()
         for column, missing in learned["missing"].items():
             if cast("int", missing):
                 msg = (
                     f"cannot decompose column {column!r}, which has "
-                    f"{missing} missing values (NULL or NaN). Why: PCA "
-                    "takes every row's value, and scikit-learn's PCA "
-                    "refuses a missing one. Fix: fill them first with "
-                    "sq.impute, or leave those rows out."
+                    f"{_values(cast('int', missing), 'missing')} (NULL or "
+                    "NaN). Why: PCA takes every row's value, and "
+                    "scikit-learn's PCA refuses a missing one. Fix: fill the "
+                    "missing values first with sq.impute, or leave those "
+                    "rows out."
                 )
                 raise StepError(msg, step="", position=0)
         for column, infinite in learned["infinite"].items():
             if cast("int", infinite):
                 msg = (
                     f"cannot decompose column {column!r}, which has "
-                    f"{infinite} infinite values. Why: PCA takes every row's "
-                    "value, and scikit-learn's PCA refuses an infinite one. "
-                    "Fix: clip or replace them first, or leave those rows out."
+                    f"{_values(cast('int', infinite), 'infinite')}. Why: PCA "
+                    "takes every row's value, and scikit-learn's PCA refuses "
+                    "an infinite one. Fix: clip or replace the infinite "
+                    "values first, or leave those rows out."
                 )
                 raise StepError(msg, step="", position=0)
         counts = learned["count"]
@@ -432,7 +443,7 @@ class PCA(Step):
                 "two rows at least. Fix: learn on more rows."
             )
             raise StepError(msg, step="", position=0)
-        _refuse_too_many(self.n_components, rows, len(counts))
+        _refuse_too_many(n_components, rows, len(counts))
 
     def learned_from_gram(
         self, gram: np.ndarray, learned: Mapping[str, Mapping[str, object]]
@@ -454,6 +465,12 @@ class PCA(Step):
             ``variance``, the j-th largest eigenvalue of the covariance
             (negative ones set to 0). The whole decomposition, never cut.
 
+        Raises
+        ------
+        StepError
+            If `gram` holds a value that is not finite, or numpy cannot
+            decompose it: finite values whose products overflow doubles.
+
         Examples
         --------
         >>> import numpy as np
@@ -467,7 +484,19 @@ class PCA(Step):
         """
         columns = list(learned["count"])
         rows = cast("int", learned["count"][columns[0]])
-        values, vectors = np.linalg.eigh(gram / (rows - 1))
+        try:
+            if not np.isfinite(gram).all():
+                raise np.linalg.LinAlgError
+            values, vectors = np.linalg.eigh(gram / (rows - 1))
+        except np.linalg.LinAlgError:
+            msg = (
+                f"cannot decompose the columns {', '.join(map(repr, columns))}: "
+                "their covariance is not a finite number. Why: PCA sums the "
+                "products of every pair of centred values, and values this "
+                "large give products that overflow 8-byte numbers. Fix: scale "
+                "the columns first, such as with sq.scale() before this step."
+            )
+            raise StepError(msg, step="", position=0) from None
         values, vectors = values[::-1].clip(min=0.0), vectors[:, ::-1]
         components = vectors.T.copy()  # rows are components
         p = len(columns)
@@ -586,8 +615,9 @@ class PCA(Step):
         Raises
         ------
         StepError
-            If `n_components` is a whole number above the smaller of the rows
-            and the columns, values found in the store included.
+            If `n_components` is not a setting (it may be set after
+            learning), or a whole number above the smaller of the rows and
+            the columns, values found in the store included.
         TypeError, ValueError, OverflowError
             If a learned value is not one PCA learns, as in a damaged saved
             file: loading reports the file as damaged.
@@ -622,7 +652,7 @@ class PCA(Step):
         if not columns:
             return outputs
         rows, weights, variances = _checked(learned, columns)
-        kept = _kept_components(self.n_components, rows, variances)
+        kept = _kept_components(self._setting(), rows, variances)
         centred = values or self.row_values(xs, learned)
         for k in range(kept):
             terms = [
@@ -653,9 +683,21 @@ class PCA(Step):
         variances = [cast("float", v["variance"]) for v in values]
         return values, rows, variances
 
+    def _setting(self) -> int | float | None:
+        """Return `n_components` checked again, refusing it on the step.
+
+        It may be set after the step is built (``pipe["pca"].n_components =
+        ...``), so it is checked where it is read, as the constructor
+        checks it: a numpy whole number counts as an int.
+        """
+        try:
+            return _n_components(self.n_components)
+        except SqlearnError as exc:
+            raise StepError(str(exc), step="", position=0) from None
+
     def _kept(self) -> int:
         _, rows, variances = self._whole()
-        return _kept_components(self.n_components, rows, variances)
+        return _kept_components(_n_components(self.n_components), rows, variances)
 
     @property
     def n_components_(self) -> int:

@@ -142,8 +142,10 @@ Each message has a `Why:` and a `Fix:`.
 | when | what it refuses | the fix |
 |---|---|---|
 | building | `n_components` that is negative, 1 or more as a fraction, or `"mle"` | a whole number, a fraction between 0 and 1, or `None` |
+| `learn` and `apply` | such an `n_components` set on the step afterwards | the same |
 | `learn` | `n_components` above the smaller of rows and columns | that number or fewer, or `None` |
-| `learn` and `apply` | a missing value (NULL or NaN), or an infinite one | `sq.impute()` first, or leave the rows out |
+| `learn` and `apply` | a missing value (NULL or NaN), or an infinite one, even with `n_components=0` | `sq.impute()` first, or leave the rows out |
+| `learn` | values so large their products overflow 8-byte numbers | `sq.scale()` first |
 | `learn` | fewer than two rows | more data |
 | `learn` | a column chosen by name that is not numeric | `cols=` with numeric columns, or encode it first |
 

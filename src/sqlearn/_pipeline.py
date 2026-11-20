@@ -278,8 +278,9 @@ def _learn_gram(
     holds constants only. The step's SQL values (`learned`, learned name
     then column to value) give the means; it may refuse them first
     (`Step.before_gram`), then the memory is checked, the matrix built, and
-    what the step learns from it joins its SQL values. The streaming
-    statement is added to `run`.
+    what the step learns from it joins its SQL values; a refusal of the
+    step's own (`before_gram`, `learned_from_gram`) is placed on it. The
+    streaming statement is added to `run`.
     """
     name, step = steps[i]
     stages = [
@@ -288,17 +289,17 @@ def _learn_gram(
     ]
     try:
         step.before_gram(learned)
+        check_fits(con, len(matched))
+        means = {c: cast("float", learned["mean"][c]) for c in matched}
+        gram = gram_matrix(
+            con, build(source_sql, stages), matched, means, statements=run.statements
+        )
+        more = step.learned_from_gram(gram, learned)
     except StepError as exc:
         placed = _placed(exc, name, i + 1)
         if placed is exc:
             raise
         raise placed from exc
-    check_fits(con, len(matched))
-    means = {c: cast("float", learned["mean"][c]) for c in matched}
-    gram = gram_matrix(
-        con, build(source_sql, stages), matched, means, statements=run.statements
-    )
-    more = step.learned_from_gram(gram, learned)
     clash = sorted(set(more) & set(learned))
     if clash:
         msg = (

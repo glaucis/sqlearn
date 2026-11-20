@@ -342,3 +342,84 @@ def nan_table_of(columns):
     value = {c: "'nan'" if c == "a" else "1.0" for c in columns}
     values = ", ".join(f'{value[c]}::DOUBLE AS "{c}"' for c in columns)
     return con.sql(f"SELECT {values}")
+
+
+def test_pca_refuses_columns_whose_products_overflow():
+    """Finite values whose squares overflow doubles are refused, with sq.scale."""
+    frame = pd.DataFrame({"a": [1e200, -1e200, 3e200], "b": [1.0, 2.0, 4.0]})
+    with pytest.raises(StepError, match=r"Why: .*overflow.*Fix: .*sq\.scale") as caught:
+        learned(frame)
+    assert caught.value.step == "pca"
+    assert caught.value.position == 1
+
+
+def test_pca_takes_n_components_set_after_learning_as_built():
+    """A numpy whole number set after learning counts as that number."""
+    frame = correlated(20)
+    pipe = sq.Pipeline([("pca", sq.decompose.pca())]).learn(frame)
+    pipe["pca"].n_components = np.int64(1)
+    assert pipe["pca"].n_components_ == 1
+    assert len(pipe["pca"].components_) == 1
+    assert pipe.learn(frame).apply(frame).columns == ["pca0"]
+
+
+def test_pca_refuses_n_components_set_after_learning_as_built():
+    """A value the step refuses when built is refused when set later too."""
+    frame = correlated(20)
+    pipe = sq.Pipeline([("pca", sq.decompose.pca())]).learn(frame)
+    pipe["pca"].n_components = 1.0
+    with pytest.raises(StepError, match=r"n_components=1\.0.*Fix:") as caught:
+        pipe.apply(frame)
+    assert (caught.value.step, caught.value.position) == ("pca", 1)
+    assert str(caught.value).startswith("pca (step 1) ")
+    with pytest.raises(sq.errors.SqlearnError, match=r"n_components=1\.0.*Fix:"):
+        _ = pipe["pca"].components_
+    step = sq.decompose.pca()
+    step.n_components = 1.0
+    with pytest.raises(StepError, match=r"pca \(step 1\) .*n_components=1\.0.*Fix:"):
+        sq.Pipeline([step]).learn(correlated(30, seed=3))
+
+
+@pytest.mark.parametrize(
+    ("value", "found"),
+    [
+        (np.nan, "1 missing value (NULL or NaN)"),
+        (np.inf, "1 infinite value."),
+    ],
+)
+def test_pca_counts_one_refused_value_in_the_singular(value, found):
+    """One missing or infinite value is counted as one, not as values."""
+    frame = correlated(20)
+    frame.iloc[4, 1] = value
+    with pytest.raises(StepError, match="Fix:") as caught:
+        learned(frame)
+    assert f"has {found}" in str(caught.value)
+    frame.iloc[5, 1] = value
+    with pytest.raises(StepError, match="Fix:") as caught:
+        learned(frame)
+    assert f"has {found.replace('1 ', '2 ').replace('value', 'values')}" in str(
+        caught.value
+    )
+
+
+def test_pca_refusal_of_a_text_column_says_why_once():
+    """The refusal of a text column gives a reason, not numbers taking numbers."""
+    frame = correlated(20).assign(t="x")
+    with pytest.raises(StepError, match="Why: PCA takes the covariance") as caught:
+        sq.Pipeline([sq.decompose.pca("a", "t")]).learn(frame)
+    assert "numbers, which takes numbers" not in str(caught.value)
+
+
+def test_pca_keeping_no_component_refuses_a_missing_value_at_apply():
+    """With n_components=0 a NULL or an infinity is still refused when fetched."""
+    frame = correlated(20)
+    pipe = sq.Pipeline([sq.decompose.pca("a", "b", n_components=0)]).learn(frame)
+    assert pipe.apply(frame).columns == ["e", "d", "c"]
+    gappy = frame.copy()
+    gappy.iloc[3, 1] = np.nan  # NULL in column b
+    with pytest.raises(duckdb.InvalidInputException, match=r"missing.*'b'.*Fix:"):
+        pipe.apply(gappy).fetchall()
+    endless = frame.copy()
+    endless.iloc[5, 3] = np.inf  # column a
+    with pytest.raises(duckdb.InvalidInputException, match=r"infinite.*'a'.*Fix:"):
+        pipe.apply(endless).fetchall()
