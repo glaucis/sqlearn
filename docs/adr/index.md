@@ -18,6 +18,7 @@ How sqlearn is built, licensed and checked.
 - [0001: uv for Python packaging](0001-uv-for-python-packaging.md)
 - [0004: Apache-2.0 licence](0004-apache-2-licence.md)
 - [0005: One runtime dependency, each one justified](0005-runtime-dependencies.md)
+- [0057: numpy is a runtime dependency](0057-numpy-is-a-runtime-dependency.md)
 - [0006: Local and offline](0006-local-and-offline.md)
 - [0007: Python 3.12 as the floor](0007-python-3-12-floor.md)
 - [0008: just as the task runner](0008-just-task-runner.md)
@@ -37,6 +38,7 @@ Computation as SQL, and how a pipeline becomes runs.
 - [0012: Static and dynamic steps decide how learning runs](0012-static-and-dynamic-steps.md)
 - [0015: DuckDB's expression objects, no sqlglot](0015-duckdb-expressions-no-sqlglot.md)
 - [0018: Runs follow the chains between steps](0018-runs-follow-the-chains-between-steps.md)
+- [0058: A Gram step builds XᵀX in numpy](0058-a-gram-step-builds-xtx-in-numpy.md)
 - [0023: Lazy results, `out=` and `feed=`](0023-lazy-results-out-and-feed.md)
 - [0052: sqlearn's own tables live in `meta_sqlearn`](0052-meta-sqlearn.md)
 

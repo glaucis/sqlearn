@@ -208,3 +208,5 @@ fpr = "fpr"
 mape = "mape"
 # Family-wise error, as in scikit-learn's SelectFwe feature selector.
 Fwe = "Fwe"
+# numpy.arange, the range of numbers as an array.
+arange = "arange"

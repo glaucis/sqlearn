@@ -7,7 +7,9 @@ mdindex: [type=0fc814, tags=1c2c56, summary=176b39, related=40db02]
 ---
 # 0005: One runtime dependency, each one justified
 
-Status: accepted (2026-11-03, from the earlier attempt's blueprint)
+Status: accepted (2026-11-03, from the earlier attempt's blueprint); amended by
+[ADR 0057](0057-numpy-is-a-runtime-dependency.md) (2026-11-20): numpy is a
+runtime dependency too.
 
 ## Context
 
