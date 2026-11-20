@@ -82,18 +82,55 @@ plus 3 copies of a batch (`_COPIES`, `_BATCH_COPIES` of `sqlearn._gram`). At
 200 columns the matrices are 1.3 MB and a batch is 100 MB, so the model adds
 about 0.3 GB to DuckDB's 2 GB and the baseline: about 2.35 GB.
 
-- The measured peak of the learn, 2.99 GB, is about 0.64 GB (27%) over that:
-  **the model under-counts the learn by about 0.64 GB at 200 columns, and the
-  cause is unknown.** It is followed up in
-  [issue #67](https://github.com/glaucis/sqlearn/issues/67).
+- The measured peak of the learn, 2.99 GB, is about 0.64 GB (27%) over that.
+  **The excess is not the Gram step's**
+  ([issue #67](https://github.com/glaucis/sqlearn/issues/67)): it is DuckDB
+  binding PCA's apply SQL, which the learn builds once the matrix is known (to
+  name its output columns). That SQL holds p² constants (each component a sum
+  of p weighted inputs), and DuckDB's parser and binder hold memory for it
+  outside its `memory_limit`. See below.
 - The `gram` probe, 2.23 GB, is under the model. That does not confirm the
   3-copy factor: the `covar` probe peaked at only 2.00 GB, so DuckDB did not
   necessarily reach its limit in the `gram` run, and the probe does not
   isolate the batch copies from DuckDB's share.
 - The learn peaked 0.76 GB above the `gram` probe, and both run on the
-  default 8 threads. This run does not say why; it is recorded, not
-  explained.
+  default 8 threads: the `gram` probe binds no apply SQL (see below).
 - `covar` alone peaks at 2.00 GB.
+
+## Where the excess comes from
+
+Measured for [issue #67](https://github.com/glaucis/sqlearn/issues/67) on a
+smaller file of the same shape: 3,000,000 rows of 200 columns (4.8 GB of
+Parquet, 20,000-row groups), the same 2 GB limit and 8 threads. A probe
+recorded the peak at the start and end of `gram_matrix`, and every 0.2 to 0.5
+seconds the process's resident memory, DuckDB's own count of its memory
+(`duckdb_memory()`) and the line the learn was running. The machine was
+heavily loaded (load averages about 30 to 55); each run ran once.
+
+| run | peak at the matrix's start GB | at its end GB | at the learn's end GB |
+|---|---|---|---|
+| learn, first | 1.50 | 2.52 | 3.51 |
+| learn, second | 1.44 | 2.27 | 2.27 |
+| `gram` probe | 1.13 | 1.49 | 1.49 |
+
+- While the matrix streams, DuckDB's count stays at its 2 GB limit and
+  resident memory is between 0.8 and 2.4 GB: the stream is within the model.
+- After it, DuckDB's count reads 0, and resident memory rose by about 1.1 GB
+  while the learn built PCA's apply expressions and DuckDB parsed and bound
+  them (`prepare_script_parsed`, `bind`). In the first run this came on top of
+  memory not yet handed back from the stream, so the peak rose to 3.51 GB; in
+  the second resident memory had fallen to 0.86 GB first, and the peak did not
+  rise. Where the peak lands is timing; that the learn holds the bound SQL is
+  not.
+- On 500 rows, where the stream holds almost nothing, the learn's peak above
+  the 0.11 GB baseline after the imports is 0.12, 0.34, 1.17 and 2.03 GB at
+  50, 100, 200 and 300 columns: it grows about as p², as the SQL's constants
+  do.
+
+`check_fits` models the Gram stream, which the measurement bears out, so it
+does not count this. What binding PCA's apply costs at many columns, and how a
+cheaper form of the SQL reduces it (about 7 times less at 200 columns, in plain
+DuckDB), is [issue #73](https://github.com/glaucis/sqlearn/issues/73).
 
 ## Two things found on the way
 
@@ -115,8 +152,9 @@ about 0.3 GB to DuckDB's 2 GB and the baseline: about 2.35 GB.
 - A learn of 20 GB of doubles finished within a 2 GB DuckDB limit, on a
   machine with less RAM than the data, in about 2.4 minutes under load.
 - Its peak was 2.99 GB, against 3.0 GB measured for the spec, but 0.64 GB over
-  what `check_fits`' model gives (2.35 GB); the model under-counts the learn
-  and the cause is unknown (issue #67).
+  what `check_fits`' model gives (2.35 GB). The stream keeps within the model;
+  the excess is DuckDB binding PCA's apply SQL after it, outside its
+  `memory_limit`, and grows about as p² (issue #67; the remedy is #73).
 - It learns within the limit only if one row group of every column, for each
   thread, fits in it. With DuckDB's default Parquet row groups the learn
   raised an out-of-memory error at 8 threads (200 columns at 2 GB; 50 columns
