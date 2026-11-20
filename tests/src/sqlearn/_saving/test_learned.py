@@ -555,3 +555,62 @@ def test_a_pca_value_damaged_at_load_is_refused(
     STORE.clear()
     with pytest.raises(SqlearnError, match=r"(?s)damaged.*Fix:"):
         sq.load(path)
+
+
+@pytest.mark.parametrize("slot", ["center", "scale", "infinite"])
+def test_a_learned_value_for_a_column_not_learned_is_refused(
+    tmp_path: Path, slot: str
+) -> None:
+    """A learned value for a column the step did not learn from is damage."""
+    path = _saved_standard(tmp_path)
+    document = json.loads(path.read_text())
+    values = document["learned"]["steps"][0]["values"]["items"]
+    next(v for n, v in values if n == slot)["items"].append(["zzz", "evil"])
+    path.write_text(json.dumps(document))
+    with pytest.raises(SqlearnError, match=r"(?s)'zzz'.*damaged.*Fix:"):
+        sq.load(path)
+
+
+def test_a_learned_fold_value_for_a_column_not_learned_is_refused(
+    tmp_path: Path,
+) -> None:
+    """Fold values are checked as the values learned on all rows are."""
+    path = _saved_standard(tmp_path)
+    document = json.loads(path.read_text())
+    step = document["learned"]["steps"][0]
+    fold = json.loads(json.dumps(step["values"]))  # a copy, as a fold holds
+    next(v for n, v in fold["items"] if n == "center")["items"].append(["zzz", 2.0])
+    step["folds"] = {"$": "dict", "items": [["0", fold]]}
+    path.write_text(json.dumps(document))
+    with pytest.raises(SqlearnError, match=r"(?s)'zzz'.*damaged.*Fix:"):
+        sq.load(path)
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        {"mean": "evil"},
+        {"variance": "1e100000000"},
+        {
+            "mean": 1.0, "count": 20, "missing": 0, "infinite": 0,
+            "weights": [1.0, 0.0, 0.0], "variance": 99.0,
+        },
+    ],
+    ids=["text mean only", "huge text variance only", "valid in every slot"],
+)  # fmt: skip
+def test_a_pca_value_for_a_column_not_learned_is_refused(
+    tmp_path: Path, extra: dict[str, object]
+) -> None:
+    """PCA's values for a column it did not decompose are refused at load."""
+    rng = np.random.default_rng(0)
+    df = pd.DataFrame(rng.normal(size=(20, 3)), columns=["a", "b", "c"])
+    path = tmp_path / "p.json"
+    sq.save(sq.Pipeline([sq.decompose.pca()]).learn(df), path)
+    record = json.loads(path.read_text())
+    values = record["learned"]["steps"][0]["values"]["items"]
+    for name, value in extra.items():
+        next(v for n, v in values if n == name)["items"].append(["zzz", value])
+    path.write_text(json.dumps(record))
+    STORE.clear()
+    with pytest.raises(SqlearnError, match=r"(?s)'zzz'.*damaged.*Fix:"):
+        sq.load(path)

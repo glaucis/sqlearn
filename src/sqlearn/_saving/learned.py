@@ -316,10 +316,25 @@ def _learns(step: Step) -> list[str] | None:
 def _check_values(
     values: Mapping[str, Mapping[str, object]],
     columns: list[str],
-    learns: list[str],
+    learns: list[str] | None,
     where: str,
 ) -> None:
-    for name in learns:
+    """Refuse values for a column not learned from, or missing for one.
+
+    Every learned name, the ones a step learns from XᵀX or derives
+    included, holds values for its columns only; the names `learn` gives
+    (`learns`, None when the step cannot say) hold one for each.
+    """
+    known = set(columns)
+    for name, per_column in values.items():
+        stray = sorted(set(per_column) - known)
+        if stray:
+            raise _damaged(
+                where,
+                f"the learned value {name!r} has a value for column "
+                f"{stray[0]!r}, which it did not learn from",
+            )
+    for name in learns or []:
         have = values.get(name, {})
         for column in columns:
             if column not in have:
@@ -353,10 +368,9 @@ def _check_step(
             where, f"depends on step {late[0] + 1}, which is not a step before it"
         )
     learns = _learns(step)
-    if learns is not None:
-        _check_values(entry.values, entry.columns, learns, where)
-        for fold_values in entry.folds.values():
-            _check_values(fold_values, entry.columns, learns, where)
+    _check_values(entry.values, entry.columns, learns, where)
+    for fold_values in entry.folds.values():
+        _check_values(fold_values, entry.columns, learns, where)
 
 
 def _check_created(
