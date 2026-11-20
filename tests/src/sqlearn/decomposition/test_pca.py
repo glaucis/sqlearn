@@ -150,6 +150,7 @@ def test_pca_refuses_more_components_than_it_can_learn():
     with pytest.raises(StepError, match="Fix:") as caught:
         learned(correlated(), n_components=6)
     assert caught.value.step == "pca"
+    assert caught.value.position == 1
     assert "n_components=6" in str(caught.value)
 
 
@@ -158,4 +159,6 @@ def test_pca_refuses_a_text_column_by_name():
     frame = correlated(20).assign(t="x")
     with pytest.raises(StepError, match="Fix:") as caught:
         sq.Pipeline([("pca", sq.decompose.pca("a", "t"))]).learn(frame)
+    assert caught.value.step == "pca"
+    assert caught.value.position == 1
     assert "'t'" in str(caught.value)
