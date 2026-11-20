@@ -3,9 +3,9 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-20 · Branch: `main` · Last commit: the handoff after merge
-`cdb2aec` · Checks: `just test` on the merged `main` (2993 passed, 24
-skipped); `just verify` on the branch at `e786d49` · Not pushed
+Updated: 2026-11-20 · Branch: `main` · Last commit: `ac4d167` docs: update
+the handoff · Checks: passing (`just test` on the merged `main`: 2993
+passed, 24 skipped; `just verify` on the branch at `e786d49`) · Pushed
 Verify with: `just verify`
 
 ## In progress
@@ -16,7 +16,8 @@ None.
 
 - The #46 benchmark (`docs/benchmarks/generators-on-many-threads.md`) was not
   on a quiet machine (load average about 4 to about 35) and can be rerun on
-  request. (since 2026-11-18)
+  request; so can `docs/benchmarks/gram-batches.md`, whose `file_row_number`
+  cut lost at 500 columns on one loaded run. (since 2026-11-18)
 
 ## Next up
 
@@ -26,6 +27,9 @@ None.
 - #67: a Gram learn peaks about 0.64 GB above `check_fits`' model.
 - #68: wide Parquet with default row groups runs DuckDB out of memory at
   many threads.
+- #69: `sq.load` still loads extra learned names, short folds and repeated
+  columns for every step (pre-existing); #70–#72 are tidies from the PCA
+  build.
 - #65's minor follow-ups (listed in its last comments); the first worth
   doing: let `sq.select` shortcuts take a column selector by position, as
   the other groups do.
@@ -117,12 +121,6 @@ None.
   `validation/sqlearn/decomposition/validate_pca.py`, benchmarks
   `gram-batches.md` and `gram-streaming.md`. On branch
   `decomposition` from `1c88839`; whole-branch review and `just verify`
-  passed; merged in `cdb2aec`. It also hardened `sq.load` for every step
-  (learned values for columns a step did not learn, non-text column keys).
-  Follow-ups #67–#72. (2026-11-20)
-- Feature selection (#65, ADRs 0055 and 0056): `sq.select.variance`, `best`,
-  `percentile` and `sq.select(..., method=)`, scoring by `f_classif`,
-  `f_regression`, `chi2`. Spec `docs/specs/library-feature-selection.md`,
-  plan `docs/plans/2026-11-19-library-feature-selection.md`. Merged in
-  `717a286` and pushed; follow-ups on #65; cross-fitted variants kept as the
-  idea #64. (2026-11-20)
+  passed; merged in `cdb2aec` and pushed, #66 closed. It also hardened
+  `sq.load` for every step (learned values for columns a step did not learn,
+  non-text column keys). Follow-ups #67–#72. (2026-11-20)
