@@ -154,12 +154,15 @@ def _checked(
     """Return the rows, each column's weights and each variance, all checked.
 
     Every value PCA learned is read: each column's ``mean``, ``count``
-    (the same in every column), ``missing`` and ``infinite`` (0, as learning
+    (the same in every column, 2 at least), ``missing`` and ``infinite`` (0, as learning
     refuses any other), its ``weights`` (one finite number per column) and
     its ``variance`` (a finite number from 0 up). A saved file holding
     anything else is refused as damaged at load.
     """
     rows = _whole_number(learned[columns[0]].raw("count"), "count")
+    if rows < 2:  # as `before_gram` refuses
+        msg = f"a learned count is {rows}, below the two rows learning requires"
+        raise ValueError(msg)
     weights: list[list[float]] = []
     variances: list[float] = []
     for c in columns:

@@ -614,3 +614,25 @@ def test_a_pca_value_for_a_column_not_learned_is_refused(
     STORE.clear()
     with pytest.raises(SqlearnError, match=r"(?s)'zzz'.*damaged.*Fix:"):
         sq.load(path)
+
+
+@pytest.mark.parametrize("count", [0, 1, -5])
+@pytest.mark.parametrize(
+    "settings", [{}, {"n_components": 0.9, "whiten": True}], ids=["all", "share"]
+)
+def test_a_pca_count_below_two_rows_is_refused_at_load(
+    tmp_path: Path, settings: dict[str, Any], count: int
+) -> None:
+    """PCA learns from two rows at least: a file saying fewer is damage."""
+    rng = np.random.default_rng(0)
+    df = pd.DataFrame(rng.normal(size=(20, 3)), columns=["a", "b", "c"])
+    path = tmp_path / "p.json"
+    sq.save(sq.Pipeline([sq.decompose.pca(**settings)]).learn(df), path)
+    record = json.loads(path.read_text())
+    values = record["learned"]["steps"][0]["values"]["items"]
+    for pair in next(v for n, v in values if n == "count")["items"]:
+        pair[1] = count
+    path.write_text(json.dumps(record))
+    STORE.clear()
+    with pytest.raises(SqlearnError, match=r"(?s)damaged.*Fix:"):
+        sq.load(path)
