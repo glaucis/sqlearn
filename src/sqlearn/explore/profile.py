@@ -1,12 +1,15 @@
 """`profile`: one row per column, with the counts and statistics of each."""
 
+import math
 from typing import Any
+
+from duckdb.sqltypes import DuckDBPyType
 
 from sqlearn._config import get_config
 from sqlearn._expr import quote
 from sqlearn._inputs import read
 from sqlearn._output import Output, to_output
-from sqlearn._selectors import Selector
+from sqlearn._selectors import Selector, _is_numeric, is_text
 from sqlearn.explore._common import answer, columns, missing_sql
 
 __all__ = ["profile"]
@@ -37,8 +40,64 @@ _RESULT = [
     ("last", "VARCHAR"),
 ]
 """The result's columns up to `exact`, with their types; `notes` follows."""
-_FILLED = 7
-"""How many leading columns are filled from the counts."""
+_FILLED = len(_RESULT)
+"""How many leading columns are filled from the scan."""
+_QUARTILES = "[0.25, 0.5, 0.75]"
+
+
+def _is_date(dtype: DuckDBPyType) -> bool:
+    """Say whether a type is a date, a time or a timestamp."""
+    return str(dtype).startswith(("DATE", "TIME"))
+
+
+def _kind(dtype: DuckDBPyType) -> str:
+    """Return how a column is described: number, boolean, text, date or other."""
+    if str(dtype) == "BOOLEAN":
+        return "boolean"
+    if _is_numeric(dtype):
+        return "number"
+    if is_text(dtype):
+        return "text"
+    return "date" if _is_date(dtype) else "other"
+
+
+def _statistics(kind: str, name: str, missing: str, exact: bool) -> list[str]:
+    """Return the aggregates that describe a column of this kind, in order."""
+    column = quote(name)
+    if kind == "boolean":
+        return [f"avg(CAST({column} AS DOUBLE))"]
+    if kind == "number":
+        number = f"CAST({column} AS DOUBLE)"
+        finite = f"FILTER (WHERE isfinite({number}))"
+        quantile = "quantile_cont" if exact else "approx_quantile"
+        return [
+            f"avg({number}) {finite}",
+            f"stddev_samp({number}) {finite}",
+            f"min({number}) {finite}",
+            f"{quantile}({number}, {_QUARTILES}) {finite}",
+            f"max({number}) {finite}",
+            f"count(*) FILTER (WHERE {number} = 0)",
+            f"count(*) FILTER (WHERE {number} < 0)",
+            f"count(*) FILTER (WHERE isinf({number}))",
+            f"skewness({number}) {finite}",
+            f"kurtosis({number}) {finite}",
+        ]
+    if kind == "text":
+        present = f"FILTER (WHERE NOT {missing})"
+        return [f"min(length({column})) {present}", f"max(length({column})) {present}"]
+    if kind == "date":
+        return [f"min({column})::VARCHAR", f"max({column})::VARCHAR"]
+    return []
+
+
+_POSITIONS = {
+    "boolean": [7],
+    "number": [7, 8, 9, None, 13, 14, 15, 16, 17, 18],
+    "text": [19, 20],
+    "date": [21, 22],
+    "other": [],
+}
+"""Where each aggregate lands in a row of `_RESULT` (None: the quartiles)."""
 
 
 def _literal(value: str | float | None) -> str:
@@ -48,6 +107,10 @@ def _literal(value: str | float | None) -> str:
     if isinstance(value, str):
         return "'" + value.replace("'", "''") + "'"
     if isinstance(value, float):
+        if math.isnan(value):
+            return "'NaN'::DOUBLE"
+        if math.isinf(value):
+            return "'inf'::DOUBLE" if value > 0 else "'-inf'::DOUBLE"
         return repr(float(value))
     return repr(int(value))
 
@@ -111,7 +174,9 @@ def profile(
     source = read(data)
     names = columns(source, cols, function="profile")
     types = dict(source.schema)
+    exact = bool(exact)
     aggregates = ["count(*)"]
+    kinds = {name: _kind(types[name]) for name in names}
     for name in names:
         column = quote(name)
         missing = missing_sql(name, types[name])
@@ -121,18 +186,33 @@ def profile(
             else f"approx_count_distinct({column}) FILTER (WHERE NOT {missing})"
         )
         aggregates += [f"count(*) FILTER (WHERE {missing})", distinct]
+        aggregates += _statistics(kinds[name], name, missing, exact)
     counts = source.relation.aggregate(", ".join(aggregates)).fetchall()[0]
     rows = counts[0]
     values = []
-    for position, name in enumerate(names):
-        missing, distinct = counts[1 + 2 * position : 3 + 2 * position]
+    cursor = 1
+    for name in names:
+        missing, distinct = counts[cursor : cursor + 2]
+        cursor += 2
         present = rows - missing
-        share = [
+        row: list[str | float | None] = [None] * _FILLED
+        row[:7] = [
+            name,
+            str(types[name]),
+            rows,
+            missing,
             None if rows == 0 else missing / rows,
             distinct,
-            None if present == 0 else distinct / present,
+            None if present == 0 else min(distinct / present, 1.0),
         ]
-        row = [name, str(types[name]), rows, missing, share[0], *share[1:]]
+        for target, value in zip(
+            _POSITIONS[kinds[name]], counts[cursor:], strict=False
+        ):
+            if target is None:
+                row[10:13] = value if value is not None else [None] * 3
+            else:
+                row[target] = value
+        cursor += len(_POSITIONS[kinds[name]])
         values.append(f"({', '.join(_literal(v) for v in row)})")
     labels = [f"v{i}" for i in range(_FILLED)]
     if values:
@@ -143,9 +223,6 @@ def profile(
     select = [
         f"CAST(v.{alias} AS {kind}) AS {quote(label)}"
         for alias, (label, kind) in zip(labels, _RESULT, strict=False)
-    ]
-    select += [
-        f"CAST(NULL AS {kind}) AS {quote(label)}" for label, kind in _RESULT[_FILLED:]
     ]
     select += [f'{exact!r}::BOOLEAN AS "exact"', '[]::VARCHAR[] AS "notes"']
     sql = f"SELECT {', '.join(select)} FROM {body}"

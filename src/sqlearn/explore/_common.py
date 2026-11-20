@@ -67,7 +67,8 @@ def columns(
                     listed += ", …"
                 raise SqlearnError(
                     f"`{function}` was given cols={name!r}, which is not a "
-                    f"column. Fix: pass one of {listed}."
+                    f"column. Why: a name in cols= must be a column of the data, so a "
+                    f"typo is not passed over silently. Fix: pass one of {listed}."
                 )
     return to_selector(cols).resolve(source.schema)
 

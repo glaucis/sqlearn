@@ -34,7 +34,9 @@ def test_a_selector_choosing_nothing_is_empty():
 
 def test_an_absent_name_is_refused_with_the_columns_listed():
     """An absent name is refused with the columns listed."""
-    with pytest.raises(SqlearnError, match=r"cols='z'.*Fix: pass one of 'a', 'b'"):
+    with pytest.raises(
+        SqlearnError, match=r"cols='z'.*Why: .*Fix: pass one of 'a', 'b'"
+    ):
         columns(source(), "z", function="profile")
 
 
