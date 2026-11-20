@@ -27,12 +27,17 @@ the covariance carries a rounding of the size of its largest eigenvalue
 
 Two more checks do not depend on the learn's conditioning:
 
-- the covariance a decomposition holds, ``Σ λₖ wₖ wₖᵀ`` over its kept
-  components, against the exact covariance, each entry in ULPs of ``λ₁``,
-  the worst entry the case. A decomposition holds its covariance only as
-  closely as its eigenvalues, so normwise: measured in ULPs of
-  ``sqrt(Cᵢᵢ Cⱼⱼ)`` instead, every library is about 1e5 ULPs off on wine and
-  5e5 on breast cancer, where λ₁ is 1e5 and 4e5 beside small variances;
+- the covariance each reference computes, against the exact one, entry by
+  entry in ULPs of ``sqrt(Cᵢᵢ Cⱼⱼ)``, the worst entry the case; an entry of
+  a constant column (a scale of 0) must be exactly 0. sqlearn's is its
+  Gram matrix over the rows less one, recorded where
+  ``PCA.learned_from_gram`` receives it (the part of the learn sqlearn
+  computes itself; the eigendecomposition is numpy's); numpy's is
+  ``numpy.cov``; scikit-learn's is not exposed, so recorded as skipped;
+- whether the eigenvalues and components agree with that covariance:
+  ``Σ λₖ wₖ wₖᵀ`` over the kept components against the exact covariance,
+  in ULPs of ``λ₁``, as a decomposition holds its covariance only
+  normwise (in ULPs of ``sqrt(Cᵢᵢ Cⱼⱼ)`` every library is 1e5 off on wine);
 - each output against the exact ``Σ (xⱼ - mⱼ) wⱼ`` from the mean ``m`` and
   the component ``w`` the reference learned itself, in plain ULPs of
   ``Σ |(xⱼ - mⱼ) wⱼ|``, the worst row the case: it measures the applying
@@ -87,7 +92,7 @@ Anomalies expected of the references, by design rather than defect:
 import functools
 import math
 import warnings
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from fractions import Fraction
 
@@ -97,6 +102,7 @@ from sklearn import decomposition as skd
 
 import devdata
 import sqlearn as sq
+from sqlearn.decomposition import PCA
 from validation import _cases
 
 # Set from the first measurement (ADR 0016), in ULPs of each measure's scale
@@ -111,7 +117,12 @@ from validation import _cases
 # - output [1.93, breast cancer's pca0]: the row less the learned mean
 #   (compensated, ``sqlearn.agg.mean``), times the weights, summed in
 #   DuckDB.
-# - covariance [6.92, breast cancer]: as the eigenvalue's, the learned
+# - covariance [11.52, a diagonal entry of wine's]: the Gram matrix of the
+#   centred rows, which numpy sums from the batches DuckDB streams, over the
+#   rows less one in doubles; the diagonal's 11 ULPs reflect DuckDB's and
+#   numpy's summation order (ADR 0043): numpy's own ``cov`` measures 6 on
+#   wine and 11.8 on breast cancer.
+# - decomposition [6.92, breast cancer]: as the eigenvalue's, the learned
 #   eigenvalues and components multiplied back in mpmath.
 # - applied [3.32, breast cancer's pca1]: the row less the learned mean,
 #   times the learned weights, each product and the sum rounded in DuckDB.
@@ -119,7 +130,8 @@ BOUNDS = {
     "eigenvalue": 8.3,
     "component": 2.0,
     "output": 2.2,
-    "covariance": 7.6,
+    "covariance": 12.7,
+    "decomposition": 7.6,
     "applied": 3.7,
 }
 
@@ -306,13 +318,30 @@ def _kappa(values: list[mpmath.mpf], group: list[int]) -> float:
 class Answer:
     """One library's decomposition: kept eigenvalues, components and outputs.
 
-    ``mean`` is the mean it learned and subtracts before applying.
+    ``mean`` is the mean it learned and subtracts before applying, and
+    ``covariance`` the covariance it decomposed (None where not exposed).
     """
 
     values: list[float]
     vectors: list[list[float]]
     outputs: np.ndarray
     mean: list[float]
+    covariance: np.ndarray | None
+
+
+class _Recorded(PCA):
+    """PCA that records the Gram matrix it learns from, in `GRAMS`."""
+
+    def learned_from_gram(
+        self, gram: np.ndarray, learned: Mapping[str, Mapping[str, object]]
+    ) -> Mapping[str, Mapping[str, object]]:
+        """Record `gram`, then learn as PCA does."""
+        GRAMS.append(np.array(gram, dtype=float))
+        return super().learned_from_gram(gram, learned)
+
+
+GRAMS: list[np.ndarray] = []
+"""The Gram matrices `_Recorded` received, the latest last."""
 
 
 @functools.cache
@@ -325,7 +354,8 @@ def _sqlearn(name: str) -> Answer:
     )
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        pipe = sq.Pipeline([sq.decompose.pca(cols=names)]).learn(rel)
+        pipe = sq.Pipeline([("pca", _Recorded(cols=names))]).learn(rel)
+        gram = GRAMS[-1]
         pca = pipe["pca"]
         k = pca.n_components_
         outputs = [f'"pca{i}"' for i in range(k)]
@@ -335,6 +365,7 @@ def _sqlearn(name: str) -> Answer:
         pca.components_,
         np.array(got, dtype=float).reshape(problem.rows, k),
         list(pca.mean_),
+        gram / (problem.rows - 1),
     )
 
 
@@ -349,19 +380,23 @@ def _sklearn(name: str) -> Answer:
         pca.components_.tolist(),
         outputs,
         pca.mean_.tolist(),
+        None,
     )
 
 
 def _numpy(name: str) -> Answer:
     x = PROBLEMS[name].matrix()
     k = min(x.shape)
-    values, vectors = np.linalg.eigh(np.cov(x, rowvar=False))
+    covariance = np.cov(x, rowvar=False)
+    values, vectors = np.linalg.eigh(covariance)
     values, vectors = values[::-1], vectors[:, ::-1].T
     largest = np.abs(vectors).argmax(axis=1)
     vectors = vectors * np.sign(vectors[np.arange(len(vectors)), largest])[:, None]
     mean = x.mean(axis=0)
     outputs = (x - mean) @ vectors[:k].T
-    return Answer(values[:k].tolist(), vectors[:k].tolist(), outputs, mean.tolist())
+    return Answer(
+        values[:k].tolist(), vectors[:k].tolist(), outputs, mean.tolist(), covariance
+    )
 
 
 ANSWERS: dict[str, Callable[[str], Answer]] = {
@@ -476,10 +511,33 @@ def _group_cases(
     return out
 
 
-def _covariance_case(
+def _gram_case(problem: Problem, exact: Exact, answer: Answer, reference: str) -> dict:
+    """Return the case of the reference's covariance, entry by entry.
+
+    Each entry in ULPs of ``sqrt(Cᵢᵢ Cⱼⱼ)``, the worst entry the case; at a
+    scale of 0 (a constant column) the ULP is the smallest double, so any
+    entry but exactly 0 fails.
+    """
+    head = _head(problem, "the covariance it decomposes", "covariance")
+    if answer.covariance is None:
+        return _cases.skipped(
+            reference=reference, note="its covariance is not exposed", **head
+        )
+    p = len(exact.covariance)
+    c = exact.covariance
+    with mpmath.workdps(_cases.DIGITS):
+        scales = [
+            float(mpmath.sqrt(c[i][i] * c[j][j])) for i in range(p) for j in range(p)
+        ]
+    want = [c[i][j] for i in range(p) for j in range(p)]
+    got = [float(v) for v in answer.covariance.ravel()]
+    return _worst(head, reference, got, want, scales, "entry")
+
+
+def _decomposition_case(
     problem: Problem, exact: Exact, answer: Answer, reference: str
 ) -> dict:
-    """Return the case of the covariance a decomposition holds, against the exact.
+    """Return whether the eigenvalues and components agree with the covariance.
 
     The covariance is ``Σ λₖ wₖ wₖᵀ`` over the kept components, at
     `_cases.DIGITS` from the learned doubles: every component left out has
@@ -499,7 +557,7 @@ def _covariance_case(
         ]
     want = [exact.covariance[i][j] for i in range(p) for j in range(p)]
     largest = float(exact.values[0])
-    head = _head(problem, "Σ λₖ wₖ wₖᵀ: the covariance", "covariance")
+    head = _head(problem, "Σ λₖ wₖ wₖᵀ against the covariance", "decomposition")
     return _worst(
         head, reference, [float(v) for v in held], want, [largest] * p * p, "entry"
     )
@@ -554,7 +612,8 @@ def _problem_cases(problem: Problem) -> list[dict]:
             )
             continue
         kept = len(answer.values)
-        out.append(_covariance_case(problem, exact, answer, reference))
+        out.append(_gram_case(problem, exact, answer, reference))
+        out.append(_decomposition_case(problem, exact, answer, reference))
         out += _applied_cases(problem, exact, answer, reference)
         for k in range(kept):
             head = _head(problem, f"explained_variance_[{k}]", "eigenvalue")
