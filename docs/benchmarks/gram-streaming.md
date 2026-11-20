@@ -129,8 +129,32 @@ heavily loaded (load averages about 30 to 55); each run ran once.
 
 `check_fits` models the Gram stream, which the measurement bears out, so it
 does not count this. What binding PCA's apply costs at many columns, and how a
-cheaper form of the SQL reduces it (about 7 times less at 200 columns, in plain
-DuckDB), is [issue #73](https://github.com/glaucis/sqlearn/issues/73).
+cheaper form of the SQL reduces it, is
+[issue #73](https://github.com/glaucis/sqlearn/issues/73), below.
+
+## The matrix form (#73)
+
+Since #73 the apply SQL holds the centred row as one list and the kept weights
+once, as one `DOUBLE[][]` literal; each output is `list_dot_product` of the
+list with its row of the matrix. The same probe before and after: a 500-row
+table (1,500 rows at 1,000 columns, so every component is kept), all
+components, 8 threads, resident memory above the baseline after the imports,
+load average about 3:
+
+| columns | form | learn's peak, GB | after `apply` too, GB | learn, s | apply, s |
+|---|---|---|---|---|---|
+| 200 | sums of products (before) | 1.11 | 1.98 | 2.1 | 4.5 |
+| 200 | matrix | 0.36 | 0.37 | 1.0 | 1.0 |
+| 300 | sums of products (before) | 2.14 | 3.46 | 4.4 | 9.9 |
+| 300 | matrix | 0.71 | 0.74 | 2.1 | 2.2 |
+| 1,000 | matrix | 4.6 | 4.7 to 5.0 | 22 | 26 |
+
+The 200- and 300-column rows were each run twice, and agree within 0.01 GB.
+The old form at 1,000 columns was not run: growing as p² from 300 columns, it
+would need about 24 GB, over this machine's memory. The matrix form still
+grows as p², since every weight is in the SQL; at 1,000 columns it binds 4.6
+GB outside `memory_limit`, against 2.75 GB for the same query in plain DuckDB
+(#73), the rest being sqlearn building and holding the expression.
 
 ## Two things found on the way
 
@@ -154,7 +178,8 @@ DuckDB), is [issue #73](https://github.com/glaucis/sqlearn/issues/73).
 - Its peak was 2.99 GB, against 3.0 GB measured for the spec, but 0.64 GB over
   what `check_fits`' model gives (2.35 GB). The stream keeps within the model;
   the excess is DuckDB binding PCA's apply SQL after it, outside its
-  `memory_limit`, and grows about as p² (issue #67; the remedy is #73).
+  `memory_limit`, and grows about as p² (issue #67); the matrix form of #73
+  makes it about a third, measured on 500 rows above.
 - It learns within the limit only if one row group of every column, for each
   thread, fits in it. With DuckDB's default Parquet row groups the learn
   raised an out-of-memory error at 8 threads (200 columns at 2 GB; 50 columns

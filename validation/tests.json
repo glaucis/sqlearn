@@ -5558,6 +5558,18 @@
     },
     {
       "area": "sqlearn/decomposition/pca",
+      "name": "tests/src/sqlearn/decomposition/test_pca.py::test_pca_applies_with_the_weights_written_once_as_a_matrix[False]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/decomposition/pca",
+      "name": "tests/src/sqlearn/decomposition/test_pca.py::test_pca_applies_with_the_weights_written_once_as_a_matrix[True]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/decomposition/pca",
       "name": "tests/src/sqlearn/decomposition/test_pca.py::test_pca_casts_integer_and_decimal_columns",
       "outcome": "passed",
       "tier": "fast"

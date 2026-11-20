@@ -127,7 +127,10 @@ The output replaces the input columns: `pca0`, …, `pca{k-1}` (scikit-learn's
 step places the columns it creates (columns `a, id, b` give `id, pca0,
 pca1`), named by ADR 0035 when they clash. Each is one SQL expression,
 `w₀·(x₀ − mean₀) + … + wₚ·(xₚ − meanₚ)`, divided by the whitening scale when
-`whiten`. The weights and means are constants in the SQL, so applying is one
+`whiten`. The weights and means are constants in the SQL: the centred row is
+one list and the kept weights one `DOUBLE[][]` matrix, both computed once per
+row, and each output is `list_dot_product` of the list with its row of the
+matrix (issue #73), so applying is one
 query, in parallel, on data of any size. A missing value in a row at apply is
 refused as in §4.3, with `n_components=0` too: the outputs then read none of
 the row's values, so the data stage filters on a condition always true that

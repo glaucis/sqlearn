@@ -423,3 +423,22 @@ def test_pca_keeping_no_component_refuses_a_missing_value_at_apply():
     endless.iloc[5, 3] = np.inf  # column a
     with pytest.raises(duckdb.InvalidInputException, match=r"infinite.*'a'.*Fix:"):
         pipe.apply(endless).fetchall()
+
+
+@pytest.mark.parametrize("whiten", [False, True])
+def test_pca_applies_with_the_weights_written_once_as_a_matrix(whiten):
+    """The apply SQL holds the centred row as one list and the weights once (#73).
+
+    Each output is the dot product of that list with its row of the matrix,
+    so the SQL has no product per column and component: the learn binds it
+    in about a third of the memory p sums of p products took at 200 columns.
+    """
+    frame = correlated()
+    pipe = sq.Pipeline([sq.decompose.pca(n_components=3, whiten=whiten)])
+    sql = pipe.learn(frame).apply(frame).sql_query()
+    assert sql.count("list_dot_product") == 3
+    assert " * " not in sql.replace("SELECT * ", "")  # no product per weight
+    assert sql.count(repr(pipe["pca"].components_[2][4])) == 1
+    got = pipe.apply(frame, out="pandas")[["pca0", "pca1", "pca2"]].to_numpy()
+    want = sk(frame, 3, whiten=whiten).transform(frame.to_numpy())
+    assert got == pytest.approx(want, rel=1e-9)

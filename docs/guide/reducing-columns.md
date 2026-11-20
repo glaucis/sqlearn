@@ -128,18 +128,18 @@ step**: it learns from XᵀX of its centred columns.
    scikit-learn's steps follow: largest first, a sign chosen for each
    component, the ratios, the cut.
 
-Applying is SQL only: each output is one expression, the weights and means
+Applying is SQL only: each output is one expression, the dot product of the
+row's centred values with that component's weights, the weights and means
 constants in the query, so it runs in parallel on data of any size and as part
 of the one query of the pipeline. numpy is a runtime dependency for this
 ([ADR 0057](../adr/0057-numpy-is-a-runtime-dependency.md)). The learn needs
 room for four p-by-p matrices; when they cannot fit, it is refused before any
 row is read, and a small memory budget makes small batches, not a failure.
 
-The query holds p² constants (each component a sum of p weighted columns), and
-DuckDB needs memory to read it, outside its `memory_limit`: about 1.2 GB at
-200 columns and 2 GB at 300 when the learn and `apply` build it, growing about
-as p² ([PCA on data larger than memory](../benchmarks/gram-streaming.md)). A
-cheaper form is [issue #73](https://github.com/glaucis/sqlearn/issues/73).
+The query holds the p² weights, written once as one matrix, and DuckDB needs
+memory to read it, outside its `memory_limit`: about 0.4 GB at 200 columns,
+0.7 GB at 300 and 4.6 GB at 1,000, growing about as p²
+([PCA on data larger than memory](../benchmarks/gram-streaming.md)).
 
 ## Refusals
 

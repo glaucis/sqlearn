@@ -547,21 +547,33 @@ class PCA(Step):
         xs: Mapping[str, Expression],
         learned: Mapping[str, Learned],
     ) -> Mapping[str, Expression]:
-        """Centre each value once per row, refusing a missing or infinite one.
+        """Centre the row as one list, and write the kept weights once.
+
+        The weights are one matrix in one projection, not a product per
+        column and component in each output: binding p outputs of p products
+        holds about 2 GB at 200 columns outside DuckDB's memory limit, the
+        matrix about 0.4 GB (#73).
 
         Parameters
         ----------
         xs : mapping of str to duckdb.Expression
             The input columns, by name, in input order.
         learned : mapping of str to Learned
-            The values learned for each column: its ``mean`` is read.
+            The values learned for each column.
 
         Returns
         -------
         mapping of str to duckdb.Expression
-            Each column, under its own name: ``x::DOUBLE - mean``, or an
-            error raised when the row is fetched if the value is missing
-            (NULL or NaN) or infinite.
+            ``x``, the list of the centred values in input order: each
+            ``x::DOUBLE - mean``, or an error raised when the row is fetched
+            if the value is missing (NULL or NaN) or infinite. ``w``, the
+            kept components as a ``DOUBLE[][]`` constant, one list of weights
+            per component; left out when no component is kept.
+
+        Raises
+        ------
+        StepError, TypeError, ValueError, OverflowError
+            As `apply_row`.
 
         Examples
         --------
@@ -569,21 +581,38 @@ class PCA(Step):
         >>> import sqlearn as sq
         >>> from sqlearn._step import Learned
         >>> xs = {"a": duckdb.ColumnExpression("a")}
-        >>> list(
-        ...     sq.decompose.pca().row_values(xs, {"a": Learned.values({"mean": 1.0})})
-        ... )
-        ['a']
+        >>> one = {"mean": 1.0, "count": 3, "missing": 0, "infinite": 0}
+        >>> learned = {"a": Learned.values({**one, "weights": [1.0], "variance": 2.0})}
+        >>> {k: str(e) for k, e in sq.decompose.pca().row_values(xs, learned).items()}[
+        ...     "w"
+        ... ]
+        '[[1.0]]::DOUBLE[][]'
         """
-        centred: dict[str, Expression] = {}
+        columns = list(xs)
+        values: dict[str, Expression] = {}
+        if not columns:
+            return values
+        rows, weights, variances = _checked(learned, columns)
+        kept = _kept_components(self._setting(), rows, variances)
+        centred: list[Expression] = []
         for name, x in xs.items():
             v = x.cast(DOUBLE)
             mean = const(_number(learned[name].raw("mean"), "mean"))
-            centred[name] = (
+            centred.append(
                 duckdb.CaseExpression(is_missing(x), _refusal(name, *_MISSING))
                 .when(duckdb.FunctionExpression("isinf", v), _refusal(name, *_INFINITE))
                 .otherwise(v - mean)
             )
-        return centred
+        values["x"] = duckdb.FunctionExpression("list_value", *centred)
+        if kept:
+            # One literal, as a learned value is a finite float: no cast per
+            # weight for DuckDB to bind.
+            matrix = ", ".join(
+                "[" + ", ".join(f"{float(w[k])!r}" for w in weights) + "]"
+                for k in range(kept)
+            )
+            values["w"] = duckdb.SQLExpression(f"[{matrix}]::DOUBLE[][]")
+        return values
 
     def apply_row(
         self,
@@ -600,17 +629,17 @@ class PCA(Step):
         learned : mapping of str to Learned
             The values learned for each column.
         values : mapping of str to duckdb.Expression
-            The reference to each centred value (`row_values`); when it is
-            empty, the centred values are written into each output.
+            The references to the centred row ``x`` and the weights ``w``
+            (`row_values`); when it is empty, both are written into each
+            output.
 
         Returns
         -------
         mapping of str to duckdb.Expression
-            ``pca0`` to ``pca{k-1}``, k being `n_components_`: each the sum
-            of every centred value times its weight in that component,
+            ``pca0`` to ``pca{k-1}``, k being `n_components_`: each the dot
+            product of the centred row with that component's weights,
             divided by the component's deviation (floored at the machine
-            epsilon, as scikit-learn's) when `whiten`. The weights and means
-            are constants in the SQL.
+            epsilon, as scikit-learn's) when `whiten`.
 
         Raises
         ------
@@ -651,15 +680,14 @@ class PCA(Step):
         outputs: dict[str, Expression] = {}
         if not columns:
             return outputs
-        rows, weights, variances = _checked(learned, columns)
+        rows, _, variances = _checked(learned, columns)
         kept = _kept_components(self._setting(), rows, variances)
-        centred = values or self.row_values(xs, learned)
+        row = values or self.row_values(xs, learned)
         for k in range(kept):
-            terms = [
-                centred[c] * const(w[k]) for c, w in zip(columns, weights, strict=True)
-            ]
             total = duckdb.FunctionExpression(
-                "list_sum", duckdb.FunctionExpression("list_value", *terms)
+                "list_dot_product",
+                row["x"],
+                duckdb.FunctionExpression("list_extract", row["w"], const(k + 1)),
             )
             if self.whiten:
                 # As scikit-learn: the deviation, floored at the machine epsilon.

@@ -3,9 +3,8 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-20 · Branch: `main` · Last commit: `1b5aaab` docs:
-update the handoff · Checks: passing (`just verify` at `8dba18c`: 3017
-passed, 24 skipped; `main` since changes only `HANDOFF.md`)
+Updated: 2026-11-20 · Branch: `main` · Checks: passing (`just verify` on
+the #73 change before its commit: 3019 passed, 24 skipped)
 Verify with: `just verify`
 
 ## In progress
@@ -14,11 +13,6 @@ None.
 
 ## Waiting on the user
 
-- #73: how PCA's apply SQL is written. Today p outputs of p terms, 1.95 GB
-  to bind at 200 columns outside `memory_limit`. Options: the input list
-  and a weight matrix written once (0.26 GB, measured in plain DuckDB), a
-  weights table joined (not measured), or a note only. Recommended: the
-  matrix form. (since 2026-11-20)
 - The #46 benchmark (`docs/benchmarks/generators-on-many-threads.md`) was not
   on a quiet machine (load average about 4 to about 35) and can be rerun on
   request; so can `docs/benchmarks/gram-batches.md`, whose `file_row_number`
@@ -42,7 +36,8 @@ None.
   outside them. `ru_maxrss` peaks depend on whether DuckDB has handed
   memory back yet: probe twice. `repr(np.float64(x))` is
   `np.float64(...)` in SQL: write `float(x)!r`. A script outside the repo
-  importing `validation` needs `PYTHONPATH` set to the repo. A
+  importing `validation` needs `PYTHONPATH` set to the repo. macOS has no
+  `timeout` (nor `gtimeout`): a capped run needs another way. A
   cross-fitted step's `learn` needs the target, so `sq.load` takes its
   names from `Step._derives`. (2026-11-20)
 - A wait loop such as `until grep -q "^EXIT=" log` never ends when the
@@ -121,6 +116,11 @@ None.
 
 ## Just finished
 
+- #73: PCA's apply SQL holds the centred row as one list and the kept
+  weights once as a `DOUBLE[][]` literal, each output a
+  `list_dot_product`. The learn's peak at 200 columns fell from 1.11 to
+  0.36 GB (with `apply`, 1.98 to 0.37); 4.6 GB at 1,000, still growing as
+  p². Measured in `docs/benchmarks/gram-streaming.md`. (2026-11-20)
 - #69, #68, #67, merged in `b1d1cc4` and pushed, closed: `sq.load` refuses
   learned names a step never learns, folds unlike the values on all rows,
   columns listed twice and columns out from nowhere (`987347e`); an
