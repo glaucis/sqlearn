@@ -1,6 +1,7 @@
 """VarianceThreshold: keep the numeric columns whose variance is above a bound."""
 
 import math
+import numbers
 from collections.abc import Mapping
 from typing import ClassVar, cast
 
@@ -20,9 +21,18 @@ __all__ = ["VarianceThreshold"]
 
 
 def _threshold(value: object) -> float:
-    """Return `value` when it is a number from 0 up, else refuse it."""
-    number = isinstance(value, int | float) and not isinstance(value, bool)
-    if not number or math.isnan(cast("float", value)) or cast("float", value) < 0:
+    """Return `value` as a float when it is a number from 0 up, else refuse it.
+
+    Any real number (a numpy one too, as scikit-learn's ``Real`` check takes)
+    is kept as a plain ``float``; a bool, and an integer too large for a
+    float, are refused.
+    """
+    number = isinstance(value, numbers.Real) and not isinstance(value, bool)
+    try:
+        threshold = float(cast("float", value)) if number else math.nan
+    except OverflowError:
+        threshold = math.nan
+    if not threshold >= 0:  # False for NaN
         msg = (
             f"sq.select.variance got threshold={value!r}. Why: a variance is "
             "never below 0, so the threshold is a number from 0 up, as "
@@ -30,7 +40,7 @@ def _threshold(value: object) -> float:
             "number, such as threshold=0.0 to drop constant columns."
         )
         raise SqlearnError(msg)
-    return cast("float", value)
+    return threshold
 
 
 def _whole(x: Expression, extreme: str) -> Expression:

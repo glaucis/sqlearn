@@ -6,7 +6,7 @@ kernelspec:
   language: python
 type: guide
 tags: [scikit-learn, migration, equivalents, pipeline, preprocessing, search, folds]
-summary: "A table of every scikit-learn name sqlearn's preprocessing and model selection implement and its sqlearn counterpart, with the differences that matter."
+summary: "A table of every scikit-learn name sqlearn's preprocessing, model selection, metrics and feature selection implement and its sqlearn counterpart, with the differences that matter."
 related: [docs/specs/library-preprocessing.md, docs/adr/0003-scikit-learn-style-api.md, docs/adr/0034-a-grouped-api.md]
 ---
 

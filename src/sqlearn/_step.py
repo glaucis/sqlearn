@@ -427,12 +427,13 @@ class Step:
     ) -> dict[str, dict[str, object]]:
         """Turn what a target step fetched for one column into its learned values.
 
-        Called once per column after the learn statement, for a step with
-        `uses_target`: `values` holds what its `learn` aggregates returned
-        (learned name to value). The step returns its learned values for all
-        rows, under ``"all"``, and for each inner fold's complement, under
-        ``"0"`` to ``str(k - 1)``: `apply` is given the first for new data,
-        and each training row the values of its own fold.
+        Called once per column after the learn statement, for a cross-fitted
+        step (`uses_target` and `cross_fits`): `values` holds what its
+        `learn` aggregates returned (learned name to value). The step returns
+        its learned values for all rows, under ``"all"``, and for each inner
+        fold's complement, under ``"0"`` to ``str(k - 1)``: `apply` is given
+        the first for new data, and each training row the values of its own
+        fold.
 
         Parameters
         ----------

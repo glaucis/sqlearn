@@ -629,9 +629,11 @@ class Pipeline:
             A file path or glob, a table name, a relation or a pandas frame.
         target : str, optional
             The target column, needed only by a step that learns from it
-            (``sq.encode.target``). It is set aside as in `train`: no other
-            step and no selector sees it. Such a step is cross-fitted for
-            the steps after it, as in `train`; `apply` then uses what it
+            (``sq.encode.target``, the feature selectors ``sq.select.best``
+            and ``sq.select.percentile``). It is set aside as in `train`: no
+            other step and no selector sees it. A step that cross-fits
+            (``sq.encode.target``; not the feature selectors) is cross-fitted
+            for the steps after it, as in `train`; `apply` then uses what it
             learned on all rows.
 
         Returns

@@ -126,6 +126,27 @@ def test_variance_refuses_a_negative_threshold():
         sq.select.variance(threshold=-0.1)
 
 
+@pytest.mark.parametrize(
+    ("value", "kept"),
+    [(np.int64(0), 0.0), (np.float32(0.5), 0.5)],
+    ids=["numpy int", "numpy float"],
+)
+def test_variance_takes_a_numpy_threshold_as_a_float(value, kept):
+    """Any real number, as scikit-learn's Real check takes, stored as a float."""
+    step = sq.select.variance(threshold=value)
+    assert type(step.threshold) is float
+    assert step.threshold == kept
+
+
+@pytest.mark.parametrize(
+    "bad", [True, 10**400, float("nan"), "0.5"], ids=["flag", "huge", "nan", "text"]
+)
+def test_variance_refuses_a_threshold_that_is_no_finite_number(bad):
+    """A flag, an integer too large for a float, NaN or text is refused."""
+    with pytest.raises(SqlearnError, match="Fix:"):
+        sq.select.variance(threshold=bad)
+
+
 def test_variance_refuses_a_text_column():
     """A chosen text column is refused, naming it; the default skips text."""
     frame = data().assign(city="x")
