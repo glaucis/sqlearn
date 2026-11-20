@@ -11,6 +11,7 @@ import warnings
 from collections.abc import Mapping
 
 import duckdb
+import numpy as np
 from duckdb.sqltypes import BOOLEAN, DuckDBPyType
 
 from sqlearn._compose import step_stage
@@ -18,7 +19,7 @@ from sqlearn._errors import PACKAGE_FILES, InternalError, SqlearnError, SqlearnW
 from sqlearn._inputs import DataKey
 from sqlearn._pipeline import LearnedFrom, Pipeline
 from sqlearn._saving.codec import decode, encode, no_class
-from sqlearn._step import Step
+from sqlearn._step import Step, cross_fitted
 from sqlearn._store import STORE, Entry, step_key
 
 __all__ = ["learned_record", "offer_saved", "restore_learned"]
@@ -291,6 +292,9 @@ def _entry(record: object, where: str) -> Entry:
         raise _damaged(where, "the learned record is not an object")
     # DuckDB returns no objects: a class named here is refused, not built.
     columns = _texts(record.get("columns"), where, "columns")
+    twice = next((c for i, c in enumerate(columns) if c in columns[:i]), None)
+    if twice is not None:
+        raise _damaged(where, f"the columns name {twice!r} twice")
     values = decode(record.get("values"), f"{where}, learned values", no_class)
     folds = decode(record.get("folds"), f"{where}, learned folds", no_class)
     return Entry(
@@ -317,17 +321,45 @@ def _learns(step: Step) -> list[str] | None:
         return None
 
 
+def _holds(step: Step, learns: list[str] | None, entry: Entry) -> list[str] | None:
+    """Return every learned name a step holds once learned, or None.
+
+    The names `learn` gives, those a Gram step learns from XᵀX (asked of
+    `learned_from_gram` on one column's values and a zero matrix: the names
+    do not depend on the numbers), or those an overridden `derive` gives
+    (`Step._derives`). None when the step cannot say: it is not checked.
+    """
+    if cross_fitted(step) and type(step).derive is not Step.derive:
+        return None if step._derives is None else sorted(step._derives)
+    if learns is None:
+        return None
+    if step.gram:
+        if not entry.columns:
+            return None
+        first = entry.columns[0]
+        one = {n: {first: entry.values[n][first]} for n in learns}
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                more = step.learned_from_gram(np.zeros((1, 1)), one)
+        except Exception:  # noqa: BLE001  (a step that cannot say is not checked)
+            return None
+        return [*learns, *(n for n in more if n not in learns)]
+    return learns
+
+
 def _check_values(
     values: Mapping[str, Mapping[str, object]],
     columns: list[str],
-    learns: list[str] | None,
+    holds: list[str] | None,
     where: str,
 ) -> None:
     """Refuse values for a column not learned from, or missing for one.
 
     Every learned name, the ones a step learns from XᵀX or derives
-    included, holds values for its columns only; the names `learn` gives
-    (`learns`, None when the step cannot say) hold one for each.
+    included, holds values for its columns only; the names the step holds
+    (`holds`, None when it cannot say) hold one for each, and no other name
+    is there.
     """
     known = set(columns)
     for name, per_column in values.items():
@@ -338,7 +370,13 @@ def _check_values(
                 f"the learned value {name!r} has a value for column "
                 f"{stray[0]!r}, which it did not learn from",
             )
-    for name in learns or []:
+    if holds is not None:
+        other = sorted(set(values) - set(holds))
+        if other:
+            raise _damaged(
+                where, f"the learned value {other[0]!r} is not one the step learns"
+            )
+    for name in holds or []:
         have = values.get(name, {})
         for column in columns:
             if column not in have:
@@ -371,10 +409,42 @@ def _check_step(
         raise _damaged(
             where, f"depends on step {late[0] + 1}, which is not a step before it"
         )
-    learns = _learns(step)
-    _check_values(entry.values, entry.columns, learns, where)
-    for fold_values in entry.folds.values():
-        _check_values(fold_values, entry.columns, learns, where)
+    holds = _holds(step, _learns(step), entry)
+    _check_values(entry.values, entry.columns, holds, where)
+    for fold, fold_values in entry.folds.items():
+        _check_values(fold_values, entry.columns, holds, f"{where}, fold {fold!r}")
+    _check_folds(step, entry, where)
+
+
+def _check_folds(step: Step, entry: Entry, where: str) -> None:
+    """Refuse folds other than a cross-fitted step's, or unlike its values.
+
+    A cross-fitted step holds one fold per inner fold, ``"0"`` to its
+    ``cv`` less one, and every other step none; each fold holds the names
+    and, under each, the columns the values on all rows hold.
+    """
+    cv = getattr(step, "cv", None) if cross_fitted(step) else 0
+    if type(cv) is int:
+        want = {str(i) for i in range(cv)}
+        if set(entry.folds) != want:
+            raise _damaged(
+                where,
+                f"the folds are {sorted(entry.folds)}, not one per inner fold "
+                f"({sorted(want)})",
+            )
+    for fold, fold_values in entry.folds.items():
+        if set(fold_values) != set(entry.values):
+            raise _damaged(
+                where,
+                f"fold {fold!r} holds other learned values than all rows hold",
+            )
+        for name, per_column in entry.values.items():
+            if set(fold_values[name]) != set(per_column):
+                raise _damaged(
+                    where,
+                    f"fold {fold!r} holds {name!r} for other columns than all "
+                    "rows hold",
+                )
 
 
 def _check_created(
@@ -556,6 +626,17 @@ def restore_learned(
     if entries:
         _check_columns_out(columns_out, steps[-1][1], entries[-1], created[-1], where)
     source = _learned_from(record.get("data"), where)
+    if source is not None:
+        given = {c for c, _ in source[2]} | {
+            n for names in created for made in names.values() for n in made
+        }
+        unknown = [c for c in columns_out if c not in given]
+        if unknown:
+            raise _damaged(
+                where,
+                f"the columns out name {unknown[0]!r}, which neither the data "
+                "nor any step gives",
+            )
     pipe._restore(entries, types, created, columns_out, target, depends_on, source)
 
 

@@ -693,3 +693,90 @@ def test_a_learned_column_key_that_is_not_text_is_refused(
     path.write_text(json.dumps(document))
     with pytest.raises(SqlearnError, match=r"(?s)damaged.*Fix:"):
         sq.load(path)
+
+
+def _saved_learned(tmp_path: Path, step: sq.Step, target: str | None = None) -> Path:
+    """Save a pipeline of `step` learned on a small frame, for editing."""
+    rng = np.random.default_rng(0)
+    df = pd.DataFrame(rng.normal(size=(12, 2)), columns=["a", "b"])
+    df["c"] = ["p", "q", "r"] * 4
+    df["y"] = [0, 1] * 6
+    path = tmp_path / "p.json"
+    sq.save(sq.Pipeline([step]).learn(df, target), path)
+    STORE.clear()
+    return path
+
+
+def _items(record: dict[str, Any]) -> list[list[Any]]:
+    """Return a codec ``dict`` record's ``[key, value]`` pairs, to edit in place."""
+    return record["items"]
+
+
+_STEPS = {
+    "standard": (sq.scale.standard(cols=["a", "b"]), None),
+    "pca": (sq.decompose.pca(cols=["a", "b"]), None),
+    "target": (sq.encode.target(cols=["c"], cv=2), "y"),
+}
+
+
+@pytest.mark.parametrize("kind", list(_STEPS))
+def test_a_learned_name_the_step_does_not_learn_is_refused(
+    tmp_path: Path, kind: str
+) -> None:
+    """A saved learned part holding a name its step never learns is damage."""
+    step, target = _STEPS[kind]
+    path = _saved_learned(tmp_path, step, target)
+    document = json.loads(path.read_text())
+    learned = document["learned"]["steps"][0]
+    bogus = {"$": "dict", "items": [[c, 1.0] for c in learned["columns"]]}
+    _items(learned["values"]).append(["bogus", bogus])
+    path.write_text(json.dumps(document))
+    with pytest.raises(SqlearnError, match=r"(?s)'bogus'.*damaged.*Fix:"):
+        sq.load(path)
+
+
+@pytest.mark.parametrize(
+    "damage", ["lacks a name", "lacks a column", "lacks a fold", "extra fold"]
+)
+def test_a_fold_unlike_the_values_learned_on_all_rows_is_refused(
+    tmp_path: Path, damage: str
+) -> None:
+    """Each fold holds the names and columns the values on all rows hold."""
+    step, target = _STEPS["target"]
+    path = _saved_learned(tmp_path, step, target)
+    document = json.loads(path.read_text())
+    folds = _items(document["learned"]["steps"][0]["folds"])
+    first = _items(folds[0][1])
+    if damage == "lacks a name":
+        first[:] = [p for p in first if p[0] != "encodings"]
+    elif damage == "lacks a column":
+        next(v for n, v in first if n == "encodings")["items"] = []
+    elif damage == "lacks a fold":
+        del folds[1]
+    else:
+        folds.append(["7", json.loads(json.dumps(folds[0][1]))])
+    path.write_text(json.dumps(document))
+    with pytest.raises(SqlearnError, match=r"(?s)fold.*damaged.*Fix:"):
+        sq.load(path)
+
+
+def test_a_learned_column_listed_twice_is_refused(tmp_path: Path) -> None:
+    """A step learns from each column once: a column listed twice is damage."""
+    path = _saved_standard(tmp_path)
+    document = json.loads(path.read_text())
+    document["learned"]["steps"][0]["columns"] = ["a", "a"]
+    path.write_text(json.dumps(document))
+    with pytest.raises(SqlearnError, match=r"(?s)twice.*damaged.*Fix:"):
+        sq.load(path)
+
+
+def test_columns_out_naming_a_column_no_step_or_data_has_is_refused(
+    tmp_path: Path,
+) -> None:
+    """A column out comes from the data or a step: any other is damage."""
+    path = _saved_learned(tmp_path, sq.scale.standard(cols=["a", "b"]))
+    document = json.loads(path.read_text())
+    document["learned"]["columns_out"].append("zzz")
+    path.write_text(json.dumps(document))
+    with pytest.raises(SqlearnError, match=r"(?s)'zzz'.*damaged.*Fix:"):
+        sq.load(path)

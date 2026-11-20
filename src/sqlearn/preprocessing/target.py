@@ -253,6 +253,9 @@ class TargetEncoder(Step):
     static = True
     uses_target = True
     cross_fits = True
+    _derives = frozenset(
+        {"categories", "encodings", "null", "target_mean", "target_type"}
+    )
 
     def __init__(
         self,

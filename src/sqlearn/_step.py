@@ -283,6 +283,9 @@ class Step:
     output_settings: ClassVar[frozenset[str]] = frozenset()
     gram: ClassVar[bool] = False
     state_version: ClassVar[int] = 1
+    # Internal: the learned names an overridden `derive` gives, so `sq.load`
+    # refuses any other; None when the step does not say (not checked).
+    _derives: ClassVar[frozenset[str] | None] = None
 
     def __init__(
         self,
