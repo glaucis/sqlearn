@@ -188,9 +188,18 @@ check-mirror:
             missing=1
         fi
         case "$dir" in
-            agg|agg/*|preprocessing|preprocessing/*|metrics|metrics/*)
+            agg|agg/*|preprocessing|preprocessing/*|metrics|metrics/*|decomposition|decomposition/*)
                 case "$name" in _*) continue ;; esac
                 val="validation/sqlearn/${sub}validate_${name}.py"
+                if [ ! -f "$val" ]; then
+                    echo "missing: $val (for $f)"
+                    missing=1
+                fi
+                ;;
+            feature_selection|feature_selection/*)
+                # One runner validates every selector of sq.select.
+                case "$name" in _*) continue ;; esac
+                val="validation/sqlearn/feature_selection/validate_select.py"
                 if [ ! -f "$val" ]; then
                     echo "missing: $val (for $f)"
                     missing=1

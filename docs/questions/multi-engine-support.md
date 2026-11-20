@@ -85,7 +85,7 @@ What stands in the way:
 - **Persistence.** The learning store, kept preparations in a `.duckdb` file
   and the table-edit detection by storage block ids (#50) rely on DuckDB
   being a database; Polars has no equivalent.
-- **The decisions rest on DuckDB:** ADR 0002 (SQL on DuckDB) and ADR 0004
+- **The decisions rest on DuckDB:** ADR 0002 (SQL on DuckDB) and ADR 0005
   (`duckdb`, and `numpy` since ADR 0057, the runtime dependencies), the
   compositor, the validation suite and every benchmark. A second engine is a
   second renderer plus a parity test per step, and the earlier attempts found

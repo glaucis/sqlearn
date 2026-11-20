@@ -32,8 +32,9 @@ None.
 
 ## Dead ends and traps
 
-- A wait loop `until grep "^done" log` on a benchmark log never ends when the
-  last line has no newline: wait on the PID. DuckDB's numpy fetch has no
+- A wait loop such as `until grep -q "^EXIT=" log` never ends when the
+  log's last line has no newline: wait on the PID. Subagents can leave such
+  loops behind; check with `pgrep -fl`. DuckDB's numpy fetch has no
   streaming form without pandas or pyarrow, so a Gram learn takes its batches
   from a numbered temporary table by row range. Capture a Gram step's matrix
   in validation at its `learned_from_gram`. `just test` skips the Sphinx
@@ -41,9 +42,6 @@ None.
   `build-docs`. `sq.load` now refuses learned values for columns a step did
   not learn, and column keys that are not text (`_saving/learned.py`).
   (2026-11-20)
-- A wait loop `until grep -q "^EXIT=" log` never ends when `EXIT=` is written
-  onto the log's last line without a newline: wait on the PID instead.
-  Subagents can leave such loops behind; check with `pgrep -fl`. (2026-11-20)
 - A step's first positional argument is its columns: `sq.select` refuses a
   number there with a `Fix:`, other groups read it as `cols` and fail later.
   The errors are in `sq.errors`, not `sq`. BSD `sed -i` needs an extension
