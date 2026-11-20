@@ -11,10 +11,10 @@ import warnings
 from collections.abc import Mapping
 
 import duckdb
-from duckdb.sqltypes import DuckDBPyType
+from duckdb.sqltypes import BOOLEAN, DuckDBPyType
 
 from sqlearn._compose import step_stage
-from sqlearn._errors import PACKAGE_FILES, SqlearnError, SqlearnWarning
+from sqlearn._errors import PACKAGE_FILES, InternalError, SqlearnError, SqlearnWarning
 from sqlearn._inputs import DataKey
 from sqlearn._pipeline import LearnedFrom, Pipeline
 from sqlearn._saving.codec import decode, encode, no_class
@@ -378,7 +378,15 @@ def _check_created(
     """
     if not step.rowwise:
         return
-    schema = [(c, types[c]) for c in entry.columns]
+    # A column passing beside the step's own, as one may when it applies: a
+    # selector keeping none of its columns is not refused as leaving none.
+    beside = "_sqlearn_beside"
+    taken = {c.casefold() for c in entry.columns} | {
+        n.casefold() for names in created.values() for n in names
+    }
+    while beside.casefold() in taken:
+        beside += "_"
+    schema = [(c, types[c]) for c in entry.columns] + [(beside, BOOLEAN)]
     try:
         stage = step_stage(
             position,
@@ -390,10 +398,15 @@ def _check_created(
             columns=entry.columns,
             names=created,
         )
-    except Exception as exc:
-        what = f"what it learned does not give its columns ({exc})"
+    except InternalError:
+        raise  # a bug in sqlearn, not damage
+    except (SqlearnError, KeyError, TypeError, ValueError, ArithmeticError) as exc:
+        # The step's own Fix line is not the fix for a damaged file.
+        reason = str(exc).split(" Why: ")[0].split(" Fix: ")[0].rstrip(".")
+        what = f"what it learned does not give its columns ({reason})"
         raise _damaged(where, what) from exc
-    if not step.keep and set(stage.columns) != {n for v in created.values() for n in v}:
+    given = set(stage.columns) - {beside}
+    if not step.keep and given != {n for v in created.values() for n in v}:
         raise _damaged(where, "the created names are not the columns it gives")
 
 

@@ -161,6 +161,61 @@ def test_a_whole_row_step_damaged_at_load_is_refused(
         sq.load(path)
 
 
+def _selector_frame() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "a": [1.0, 2.0, 5.0, 6.0],
+            "b": [1.0, 0.0, 2.0, 9.0],
+            "c": [3.0, 1.0, 4.0, 1.0],
+            "y": [0, 0, 1, 1],
+        }
+    )
+
+
+@pytest.mark.filterwarnings("ignore::sqlearn.errors.SqlearnWarning")
+@pytest.mark.parametrize(
+    "steps",
+    [
+        [sq.select.best(k=0, cols=["a", "b"])],
+        [sq.select.percentile(percentile=0, cols=["a", "b"])],
+        [sq.select.best(k=0, cols=["a", "b"]), sq.scale.standard()],
+    ],
+    ids=["best k=0", "percentile 0", "best k=0 mid-pipeline"],
+)
+def test_a_feature_selector_keeping_none_of_its_columns_loads(
+    tmp_path: Path, steps: list[sq.Step]
+) -> None:
+    """A selector keeping none of its columns, with c passing beside them.
+
+    At load its stage is rebuilt from its own columns only: that must not be
+    refused as leaving no column, since c passes beside them when applied.
+    """
+    df = _selector_frame()
+    pipe = sq.Pipeline(steps).learn(df, target="y")
+    assert pipe.columns_out_ == ["c"]
+    expected = pipe.apply(df, out="pandas")
+    path = tmp_path / "p.json"
+    sq.save(pipe, path)
+    STORE.clear()
+    loaded = sq.load(path)
+    assert loaded.columns_out_ == ["c"]
+    pd.testing.assert_frame_equal(loaded.apply(df, out="pandas"), expected)
+    assert not STORE.learns
+
+
+def test_a_damaged_whole_row_step_gives_only_the_files_fix(tmp_path: Path) -> None:
+    """The damage message carries one Fix line: the file's, not the step's."""
+    pipe = sq.Pipeline([sq.select.best(k=2)]).learn(_selector_frame(), target="y")
+    path = tmp_path / "p.json"
+    sq.save(pipe, path)
+    record = json.loads(path.read_text())
+    record["learned"]["names"] = [{"b": ["b"]}]
+    path.write_text(json.dumps(record))
+    with pytest.raises(SqlearnError, match="damaged") as caught:
+        sq.load(path)
+    assert str(caught.value).count("Fix:") == 1
+
+
 def test_learned_values_read_as_attributes_after_load(tmp_path: Path) -> None:
     """A step's learned values read as attributes after load."""
     pipe = _learned(_frame())
