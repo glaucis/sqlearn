@@ -3,10 +3,9 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-20 · Branch: `main` · Last commit: `b1d1cc4` Merge
-branch 'load-and-gram-fixes' · Checks: passing (`just verify` on the
-branch at `8dba18c`: 3017 passed, 24 skipped; the merged tree is the
-same) · Pushed
+Updated: 2026-11-20 · Branch: `main` · Last commit: `1b5aaab` docs:
+update the handoff · Checks: passing (`just verify` at `8dba18c`: 3017
+passed, 24 skipped; `main` since changes only `HANDOFF.md`)
 Verify with: `just verify`
 
 ## In progress
@@ -15,6 +14,11 @@ None.
 
 ## Waiting on the user
 
+- #73: how PCA's apply SQL is written. Today p outputs of p terms, 1.95 GB
+  to bind at 200 columns outside `memory_limit`. Options: the input list
+  and a weight matrix written once (0.26 GB, measured in plain DuckDB), a
+  weights table joined (not measured), or a note only. Recommended: the
+  matrix form. (since 2026-11-20)
 - The #46 benchmark (`docs/benchmarks/generators-on-many-threads.md`) was not
   on a quiet machine (load average about 4 to about 35) and can be rerun on
   request; so can `docs/benchmarks/gram-batches.md`, whose `file_row_number`
@@ -25,10 +29,8 @@ None.
 - The next 3.3 area, not chosen yet. Linear or ridge regression would reuse
   the Gram step with Xᵀy (ADR 0058 opens it to users' steps after that). No
   dataset fetcher (ADR 0053).
-- #73: PCA's apply SQL takes about p² memory to bind (1.95 GB at 200
-  columns in plain DuckDB), outside DuckDB's `memory_limit`; the options
-  (a weight matrix written once, a weights table, or a note) are Tomas's
-  to choose. #70–#72 are tidies from the PCA build.
+- #70–#72: tidies from the PCA build; #70 comes before the Gram step
+  opens to users' steps.
 - #65's minor follow-ups (listed in its last comments); the first worth
   doing: let `sq.select` shortcuts take a column selector by position, as
   the other groups do.
@@ -50,9 +52,7 @@ None.
   from a numbered temporary table by row range. Capture a Gram step's matrix
   in validation at its `learned_from_gram`. `just test` skips the Sphinx
   doctests: a changed docstring example fails only in `just verify` or
-  `build-docs`. `sq.load` now refuses learned values for columns a step did
-  not learn, and column keys that are not text (`_saving/learned.py`).
-  (2026-11-20)
+  `build-docs`. (2026-11-20)
 - A step's first positional argument is its columns: `sq.select` refuses a
   number there with a `Fix:`, other groups read it as `cols` and fail later.
   The errors are in `sq.errors`, not `sq`. BSD `sed -i` needs an extension
@@ -128,13 +128,3 @@ None.
   `ROW_GROUP_SIZE` (`fcf9db3`); the Gram learn's peak above `check_fits` is
   DuckDB binding PCA's apply SQL, measured and written into `gram-streaming.md`
   (`8dba18c`), its remedy #73. (2026-11-20)
-- Decomposition (#66, ADRs 0057 and 0058): `sq.decompose.pca` and
-  `sq.decompose(method="pca")`, a Gram step in the core (`_gram.py`), numpy
-  as a runtime dependency. Spec `docs/specs/library-decomposition.md`, plan
-  `docs/plans/2026-11-20-library-decomposition.md`, runner
-  `validation/sqlearn/decomposition/validate_pca.py`, benchmarks
-  `gram-batches.md` and `gram-streaming.md`. On branch
-  `decomposition` from `1c88839`; whole-branch review and `just verify`
-  passed; merged in `cdb2aec` and pushed, #66 closed. It also hardened
-  `sq.load` for every step (learned values for columns a step did not learn,
-  non-text column keys). Follow-ups #67–#72. (2026-11-20)
