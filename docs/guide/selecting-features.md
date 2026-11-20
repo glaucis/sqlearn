@@ -165,7 +165,8 @@ search.best_params_
   `False`, which scikit-learn reads as 1 and 0.
 - **Missing values.** A missing (NULL or NaN) or infinite value in a column
   scored by `best` or `percentile` is refused, as is a missing target value;
-  impute first with `sq.impute`. `variance` ignores missing values.
+  impute first with `sq.impute`. `variance` ignores missing values but refuses
+  an infinite one, as scikit-learn's `VarianceThreshold` does.
 
 ```{code-cell} python
 holes = numbers.assign(signal=numbers["signal"].where(numbers.index != 3))

@@ -6,6 +6,7 @@ from typing import ClassVar, cast
 
 import duckdb
 from duckdb import Expression
+from duckdb.sqltypes import DOUBLE
 
 from sqlearn._errors import SqlearnError, StepError
 from sqlearn._expr import const, is_missing
@@ -57,6 +58,21 @@ def _number(value: object) -> float:
     return float(value)
 
 
+def _refuse_infinite(column: str, infinite: object) -> None:
+    """Refuse a column with an infinite value, as the scores refuse one."""
+    if type(infinite) is not int:
+        msg = f"a learned count is {type(infinite).__name__}, not a whole number"
+        raise TypeError(msg)
+    if infinite:
+        msg = (
+            f"cannot take the variance of column {column!r}, which has "
+            "infinite values. Why: the variance takes every present value, "
+            "and scikit-learn's VarianceThreshold refuses an infinite one. "
+            "Fix: clip or replace them first, or leave those rows out."
+        )
+        raise StepError(msg, step="", position=0)
+
+
 class VarianceThreshold(Step):
     """Keep the numeric columns whose variance is above `threshold`.
 
@@ -69,7 +85,8 @@ class VarianceThreshold(Step):
     the column's range (largest less least value), so a constant column is
     dropped whatever the rounding of its variance; a column with a missing
     value has no range (numpy's ``ptp`` is NaN), and its variance alone
-    decides, as in scikit-learn. It does not read the target.
+    decides, as in scikit-learn. An infinite value is refused at learn, as
+    scikit-learn refuses it and as the scores do. It does not read the target.
 
     Parameters
     ----------
@@ -191,19 +208,23 @@ class VarianceThreshold(Step):
         mapping of str to duckdb.Expression
             ``variance``: the population variance of the present values
             (`sqlearn.agg.var`); ``low`` and ``high``: the least and the
-            greatest value, as DOUBLE, NULL when a value is missing.
+            greatest value, as DOUBLE, NULL when a value is missing;
+            ``infinite``: the rows where the value is infinite, which
+            `apply_row` refuses.
 
         Examples
         --------
         >>> import duckdb
         >>> import sqlearn as sq
         >>> list(sq.select.variance().learn(duckdb.ColumnExpression("a")))
-        ['variance', 'low', 'high']
+        ['variance', 'low', 'high', 'infinite']
         """
+        infinite = duckdb.FunctionExpression("isinf", x.cast(DOUBLE))
         return {
             "variance": agg.var(x),
             "low": _whole(x, "min"),
             "high": _whole(x, "max"),
+            "infinite": duckdb.FunctionExpression("count_if", infinite),
         }
 
     def _compared(self, learned: Mapping[str, object]) -> float:
@@ -268,8 +289,9 @@ class VarianceThreshold(Step):
         Raises
         ------
         StepError
-            If no column's variance is above the threshold, as
-            scikit-learn's ``VarianceThreshold`` raises.
+            If a column has an infinite value, or no column's variance is
+            above the threshold, as scikit-learn's ``VarianceThreshold``
+            raises.
 
         Examples
         --------
@@ -278,12 +300,18 @@ class VarianceThreshold(Step):
         >>> from sqlearn._step import Learned
         >>> xs = {"a": duckdb.ColumnExpression("a"), "b": duckdb.ColumnExpression("b")}
         >>> learned = {
-        ...     "a": Learned.values({"variance": 0.0, "low": 1.0, "high": 1.0}),
-        ...     "b": Learned.values({"variance": 2.0, "low": 0.0, "high": 4.0}),
+        ...     "a": Learned.values(
+        ...         {"variance": 0.0, "low": 1.0, "high": 1.0, "infinite": 0}
+        ...     ),
+        ...     "b": Learned.values(
+        ...         {"variance": 2.0, "low": 0.0, "high": 4.0, "infinite": 0}
+        ...     ),
         ... }
         >>> list(sq.select.variance().apply_row(xs, learned, {}))
         ['b']
         """
+        for c in xs:
+            _refuse_infinite(c, learned[c].raw("infinite"))
         compared = {
             c: self._compared(
                 {k: learned[c].raw(k) for k in ("variance", "low", "high")}

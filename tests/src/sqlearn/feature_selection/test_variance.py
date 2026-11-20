@@ -95,6 +95,31 @@ def test_variance_raises_when_no_column_passes():
     assert "Fix:" in str(e.value)
 
 
+@pytest.mark.parametrize("threshold", [0.0, 0.5])
+@pytest.mark.parametrize("value", ["inf", "-inf"])
+def test_variance_refuses_an_infinite_value(threshold, value):
+    """An infinite value is refused at learn, naming the column, as the scores.
+
+    scikit-learn's VarianceThreshold refuses it (its input check); without
+    the refusal the variance would be infinite or NaN, keeping the column
+    at one threshold and dropping it at another.
+    """
+    array = np.array([[1.0, 1.0], [float(value), 2.0], [3.0, 5.0]])
+    with pytest.raises(ValueError, match="infinity"):
+        VarianceThreshold(threshold=threshold).fit(array)
+    con = connection()
+    con.execute(
+        "CREATE OR REPLACE TABLE endless AS SELECT * FROM (VALUES "
+        f"(1.0::DOUBLE, 1.0::DOUBLE), ('{value}'::DOUBLE, 2.0), (3.0, 5.0)) t(a, b)"
+    )
+    step = sq.select.variance(threshold=threshold)
+    with pytest.raises(StepError, match="infinite") as e:
+        sq.Pipeline([step]).learn("endless")
+    assert "'a'" in str(e.value)
+    assert "Why:" in str(e.value)
+    assert "Fix:" in str(e.value)
+
+
 def test_variance_refuses_a_negative_threshold():
     """As scikit-learn's parameter check: at the call, not at learn."""
     with pytest.raises(SqlearnError, match="Fix:"):
