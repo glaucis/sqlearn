@@ -36,3 +36,23 @@ def test_check_fits_refuses_a_matrix_over_the_allowance():
     sq.set_config(memory="10MB")
     with pytest.raises(SqlearnError, match="Fix:"):
         check_fits(connection(), 2_000)
+
+
+def test_check_fits_counts_every_copy_of_a_batch():
+    """Three copies of a 100 MB batch do not fit in a 200 MB allowance."""
+    sq.set_config(memory="400MB")
+    with pytest.raises(SqlearnError, match="Fix:"):
+        check_fits(connection(), 10)
+
+
+def test_check_fits_counts_the_copies_of_the_matrix():
+    """6,000 columns' four matrices (1.15 GB) do not fit in a 1 GB allowance."""
+    sq.set_config(memory="2GB")
+    with pytest.raises(SqlearnError, match="6,000-by-6,000"):
+        check_fits(connection(), 6_000)
+
+
+def test_check_fits_accepts_what_fits():
+    """100 columns and three batches (300 MB) fit in a 1 GB allowance."""
+    sq.set_config(memory="2GB")
+    assert check_fits(connection(), 100) is None

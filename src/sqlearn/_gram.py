@@ -26,6 +26,9 @@ _TABLE = "__sqlearn_gram_"
 _COPIES = 4
 """The copies of the p-by-p matrix a learn may hold: the sum, a batch's
 product, and the step's decomposition of it."""
+_BATCH_COPIES = 3
+"""The copies of one batch a learn holds at its peak: DuckDB's materialised
+result, the column arrays ``fetchnumpy`` returns, and their stacked copy."""
 _tables = itertools.count()
 
 
@@ -58,9 +61,10 @@ def batch_rows(columns: int) -> int:
 def check_fits(con: duckdb.DuckDBPyConnection, columns: int) -> None:
     """Refuse a Gram learn whose matrix and batch would not fit in memory.
 
-    It holds one batch (`batch_rows`) and up to 4 copies of the p-by-p
-    matrix, all float64; together they must fit in the allowance
-    (`sqlearn._memory.allowance`).
+    It holds 3 copies of one batch (`batch_rows`: DuckDB's result, the
+    arrays ``fetchnumpy`` returns, and their stacked copy) and up to 4
+    copies of the p-by-p matrix, all float64; together they must fit in
+    the allowance (`sqlearn._memory.allowance`).
 
     Parameters
     ----------
@@ -80,7 +84,7 @@ def check_fits(con: duckdb.DuckDBPyConnection, columns: int) -> None:
     >>> from sqlearn._gram import check_fits
     >>> check_fits(connection(), 3)
     """
-    size = 8 * columns * (_COPIES * columns + batch_rows(columns))
+    size = 8 * columns * (_COPIES * columns + _BATCH_COPIES * batch_rows(columns))
     room = allowance(con)
     if size <= room:
         return
@@ -89,7 +93,8 @@ def check_fits(con: duckdb.DuckDBPyConnection, columns: int) -> None:
         f"{_megabytes(size)}, and the memory it may use is "
         f"{_megabytes(max(room, 0))}; it would swap, which sqlearn never does. "
         f"Why: it holds {_COPIES} copies of the {columns:,}-by-{columns:,} "
-        "matrix and one batch of rows, all as 8-byte numbers. Fix: fewer "
+        f"matrix and {_BATCH_COPIES} copies of one batch of rows, all as "
+        "8-byte numbers. Fix: fewer "
         "columns, or a larger budget with sq.set_config(memory=...) (now "
         f"{_megabytes(budget())})."
     )
