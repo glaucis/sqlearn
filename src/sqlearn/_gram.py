@@ -32,17 +32,23 @@ result, the column arrays ``fetchnumpy`` returns, and their stacked copy."""
 _tables = itertools.count()
 
 
-def batch_rows(columns: int) -> int:
+def batch_rows(columns: int, con: duckdb.DuckDBPyConnection | None = None) -> int:
     """Return how many rows each batch of a Gram learn holds.
 
     About `sqlearn._feed.MEGABYTES` of float64 values, as the streamed
     training batches are sized: ``MEGABYTES * 1_000_000 // (8 * columns)``
-    rows, at least one.
+    rows. Given a connection, no more rows than let the matrix's copies and
+    the batch's copies together fit in the allowance
+    (`sqlearn._memory.allowance`), so a small budget makes small batches
+    rather than a refusal. Always at least one row.
 
     Parameters
     ----------
     columns : int
         The number of columns in a batch.
+    con : duckdb.DuckDBPyConnection, optional
+        The connection the data is computed in; when given, its allowance
+        caps the batch.
 
     Returns
     -------
@@ -55,16 +61,22 @@ def batch_rows(columns: int) -> int:
     >>> batch_rows(100)
     125000
     """
-    return max(1, MEGABYTES * 1_000_000 // (8 * max(1, columns)))
+    width = 8 * max(1, columns)
+    rows = max(1, MEGABYTES * 1_000_000 // width)
+    if con is None:
+        return rows
+    spare = allowance(con) - _COPIES * width * columns
+    return max(1, min(rows, spare // (_BATCH_COPIES * width)))
 
 
 def check_fits(con: duckdb.DuckDBPyConnection, columns: int) -> None:
-    """Refuse a Gram learn whose matrix and batch would not fit in memory.
+    """Refuse a Gram learn whose matrix would not fit in memory.
 
-    It holds 3 copies of one batch (`batch_rows`: DuckDB's result, the
-    arrays ``fetchnumpy`` returns, and their stacked copy) and up to 4
-    copies of the p-by-p matrix, all float64; together they must fit in
-    the allowance (`sqlearn._memory.allowance`).
+    It holds up to 4 copies of the p-by-p matrix, all float64, and they
+    must fit in the allowance (`sqlearn._memory.allowance`). The batches
+    are cut to the room that is left (`batch_rows`), 3 copies of one batch
+    (DuckDB's result, the arrays ``fetchnumpy`` returns, and their stacked
+    copy), so only the matrix can make a learn refuse.
 
     Parameters
     ----------
@@ -84,7 +96,7 @@ def check_fits(con: duckdb.DuckDBPyConnection, columns: int) -> None:
     >>> from sqlearn._gram import check_fits
     >>> check_fits(connection(), 3)
     """
-    size = 8 * columns * (_COPIES * columns + _BATCH_COPIES * batch_rows(columns))
+    size = 8 * columns * (_COPIES * columns + _BATCH_COPIES)
     room = allowance(con)
     if size <= room:
         return
@@ -93,7 +105,7 @@ def check_fits(con: duckdb.DuckDBPyConnection, columns: int) -> None:
         f"{_megabytes(size)}, and the memory it may use is "
         f"{_megabytes(max(room, 0))}; it would swap, which sqlearn never does. "
         f"Why: it holds {_COPIES} copies of the {columns:,}-by-{columns:,} "
-        f"matrix and {_BATCH_COPIES} copies of one batch of rows, all as "
+        f"matrix and {_BATCH_COPIES} copies of at least one row, all as "
         "8-byte numbers. Fix: fewer "
         "columns, or a larger budget with sq.set_config(memory=...) (now "
         f"{_megabytes(budget())})."
@@ -114,9 +126,11 @@ def gram_matrix(
     DuckDB casts each column to DOUBLE and subtracts its mean, numbering the
     centred rows into a temporary table (DuckDB spills it to disk when it is
     large). The rows are then fetched by row range, in batches of
-    `batch_rows` with ``fetchnumpy``, and each batch's ``bᵀb`` is added in
-    order. The table is dropped after, whatever happens. Columns are read
-    by position, so two whose names differ only by case stay two.
+    `batch_rows` with ``fetchnumpy``, and each batch's ``bᵀb`` is added.
+    Which rows share a batch is not fixed (the numbering has no order), so
+    two runs agree within ADR 0043's bound for a sum, not bit for bit. The
+    table is dropped after, whatever happens. Columns are read by
+    position, so two whose names differ only by case stay two.
 
     Parameters
     ----------
@@ -167,7 +181,7 @@ def gram_matrix(
         f"{quote('__sqlearn_gram')}({aliases})"
     )
     picks = ", ".join(quote(f"__sqlearn_x{j}") for j in range(len(columns)))
-    size = batch_rows(len(columns))
+    size = batch_rows(len(columns), con)
     gram = np.zeros((len(columns), len(columns)))
     try:
         con.execute(numbered)

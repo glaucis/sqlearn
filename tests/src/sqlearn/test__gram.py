@@ -7,7 +7,8 @@ import pytest
 import sqlearn as sq
 from sqlearn._config import connection
 from sqlearn._errors import SqlearnError
-from sqlearn._gram import check_fits, gram_matrix
+from sqlearn._gram import batch_rows, check_fits, gram_matrix
+from sqlearn._memory import allowance
 
 
 def test_gram_matrix_matches_numpy_on_centred_rows():
@@ -38,11 +39,31 @@ def test_check_fits_refuses_a_matrix_over_the_allowance():
         check_fits(connection(), 2_000)
 
 
-def test_check_fits_counts_every_copy_of_a_batch():
-    """Three copies of a 100 MB batch do not fit in a 200 MB allowance."""
+def test_batch_rows_fits_the_batch_to_the_allowance():
+    """Three copies of a batch and the matrix's four fit in a small allowance."""
     sq.set_config(memory="400MB")
-    with pytest.raises(SqlearnError, match="Fix:"):
-        check_fits(connection(), 10)
+    con = connection()
+    rows = batch_rows(10, con)
+    assert 1 <= rows < batch_rows(10)
+    assert 8 * 10 * (4 * 10 + 3 * rows) <= allowance(con)
+    assert check_fits(con, 10) is None
+
+
+def test_batch_rows_is_the_default_size_when_the_allowance_is_ample():
+    """With room to spare a batch is the usual 100 MB of values."""
+    sq.set_config(memory="8GB")
+    assert batch_rows(10, connection()) == batch_rows(10)
+
+
+def test_gram_matrix_learns_under_a_small_budget():
+    """A 10 MB budget learns a one-column Gram, in batches of a few rows."""
+    sq.set_config(memory="10MB")
+    con = connection()
+    check_fits(con, 1)
+    sql = "SELECT range::DOUBLE AS a FROM range(10000)"
+    got = gram_matrix(con, sql, ["a"], {"a": 4999.5})
+    want = ((np.arange(10000) - 4999.5) ** 2).sum()
+    assert got == pytest.approx(np.array([[want]]), rel=1e-12)
 
 
 def test_check_fits_counts_the_copies_of_the_matrix():
@@ -56,3 +77,28 @@ def test_check_fits_accepts_what_fits():
     """100 columns and three batches (300 MB) fit in a 1 GB allowance."""
     sq.set_config(memory="2GB")
     assert check_fits(connection(), 100) is None
+
+
+def test_gram_matrix_agrees_on_one_and_many_threads():
+    """The sum agrees within ADR 0043's bound on one thread and on many."""
+    rng = np.random.default_rng(1)
+    data = rng.normal(size=(50_000, 4)) * [1.0, 10.0, 0.1, 1e3] + [
+        5.0,
+        -3.0,
+        100.0,
+        0.0,
+    ]
+    frame = pd.DataFrame(data, columns=list("wxyz"))  # noqa: F841  (read by DuckDB)
+    con = connection()
+    con.execute("CREATE OR REPLACE TEMP TABLE gram_threads AS SELECT * FROM frame")
+    means = dict(zip("wxyz", data.mean(axis=0).tolist(), strict=True))
+    sql = "SELECT * FROM gram_threads"
+    default = con.execute("SELECT current_setting('threads')").fetchall()[0][0]
+    try:
+        con.execute("SET threads = 1")
+        one = gram_matrix(con, sql, list("wxyz"), means)
+        con.execute(f"SET threads = {default}")
+        many = gram_matrix(con, sql, list("wxyz"), means)
+    finally:
+        con.execute(f"SET threads = {default}")
+    assert one == pytest.approx(many, rel=1e-10)
