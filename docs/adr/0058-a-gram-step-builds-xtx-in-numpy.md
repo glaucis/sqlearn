@@ -43,7 +43,9 @@ small matrix, or the step receives the batches and computes what it likes.
   and validation treat it as any step.
 - **The rule of ADR 0002 holds for everything else:** data passes through
   Python only in a Gram learn, one batch at a time, and applying stays SQL.
-- **The Gram step is internal for now**: sqlearn's own steps use it. It is
+- **The Gram step is internal for now**: declared on `sq.Step` (`gram`,
+  `before_gram`, `learned_from_gram`), documented as internal; a user's
+  step that sets it is unsupported. sqlearn's own steps use it, and it is
   opened to users' steps once linear regression has used it.
 
 ## Consequences

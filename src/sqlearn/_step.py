@@ -238,8 +238,10 @@ class Step:
         over them learns each fold once. Its output, and every later step
         reading it, still follow them. Empty by default.
     gram : bool
-        True for a Gram step (internal for now: sqlearn's own steps only,
-        not a user's step yet; ADR 0058). Its `learn` returns ``mean`` and
+        True for a Gram step. Internal and unsupported for a user's step:
+        it is declared here for sqlearn's own steps (PCA), and a user's
+        step that sets it is unsupported until linear regression has used
+        it (ADR 0058). Its `learn` returns ``mean`` and
         ``count``; the core then streams its centred input rows and builds
         XᵀX in numpy, and the step learns the rest from that matrix in
         `learned_from_gram`, after `before_gram`. It never sees a row. It
@@ -472,7 +474,8 @@ class Step:
     def before_gram(self, learned: Mapping[str, Mapping[str, object]]) -> None:
         """Refuse, before any batch, what a Gram step cannot learn from.
 
-        Internal for now, as `gram` is. Called once its SQL values are known
+        Internal and unsupported for a user's step, as `gram` is (ADR
+        0058). Called once its SQL values are known
         and before its rows are streamed, so a refusal costs no pass over
         the data. The default refuses nothing.
 
@@ -494,7 +497,8 @@ class Step:
     ) -> Mapping[str, Mapping[str, object]]:
         """Learn a Gram step's values from XᵀX of its centred inputs.
 
-        Internal for now, as `gram` is.
+        Internal and unsupported for a user's step, as `gram` is (ADR
+        0058): sqlearn's own Gram steps define it.
 
         Parameters
         ----------

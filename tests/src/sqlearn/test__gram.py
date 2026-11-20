@@ -1,10 +1,14 @@
 """Tests of the Gram learn: XᵀX of the centred rows, built in numpy."""
 
+from typing import Any
+
+import duckdb
 import numpy as np
 import pandas as pd
 import pytest
 
 import sqlearn as sq
+import sqlearn._pipeline
 from sqlearn._config import connection
 from sqlearn._errors import SqlearnError
 from sqlearn._gram import batch_rows, check_fits, gram_matrix
@@ -102,3 +106,32 @@ def test_gram_matrix_agrees_on_one_and_many_threads():
     finally:
         con.execute(f"SET threads = {default}")
     assert one == pytest.approx(many, rel=1e-10)
+
+
+@pytest.mark.filterwarnings("ignore:the DuckDB connection passed to sqlearn")
+def test_a_gram_matrix_over_the_budget_is_refused_before_any_batch(monkeypatch):
+    """Learning a Gram step whose matrix cannot fit is refused, nothing streamed.
+
+    The connection is the test's own, so DuckDB keeps its own limit (above
+    its share, as the ignored warning says) and only the hand-over's
+    allowance, half the 4 MB budget, is small: 300 columns' matrices
+    (2.9 MB) do not fit in it.
+    """
+    batches: list[str] = []
+    real = sqlearn._pipeline.gram_matrix
+
+    def counted(*args: Any, **kwargs: Any) -> np.ndarray:
+        batches.append("streamed")
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(sqlearn._pipeline, "gram_matrix", counted)
+    rng = np.random.default_rng(0)
+    names = [f"x{i}" for i in range(300)]
+    wide = pd.DataFrame(rng.normal(size=(3, 300)), columns=names)
+    sq.set_config(connection=duckdb.connect(), memory="4MB")
+    with pytest.raises(SqlearnError, match=r"300-by-300.*Fix: .*sq\.set_config"):
+        sq.Pipeline([sq.decompose.pca()]).learn(wide)
+    assert batches == []
+    sq.set_config(memory="2GB")
+    sq.Pipeline([sq.decompose.pca()]).learn(wide)
+    assert batches == ["streamed"]
