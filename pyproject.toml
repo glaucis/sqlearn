@@ -21,8 +21,11 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    # The engine every computation runs in, and the one runtime dependency.
+    # The engine every computation runs in.
     "duckdb>=2.0.0",
+    # The small matrix a Gram step learns from: DuckDB has no eigen or solve
+    # function (ADR 0057).
+    "numpy>=2.5.4",
 ]
 
 [dependency-groups]
@@ -208,3 +211,5 @@ fpr = "fpr"
 mape = "mape"
 # Family-wise error, as in scikit-learn's SelectFwe feature selector.
 Fwe = "Fwe"
+# numpy.arange, the range of numbers as an array.
+arange = "arange"

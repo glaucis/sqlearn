@@ -39,18 +39,23 @@ built.
   in issue #63. Its ninth, feature selection (`sq.select.variance`, `best`,
   `percentile`), is built: spec `docs/specs/library-feature-selection.md`, plan
   `docs/plans/2026-11-19-library-feature-selection.md`, ADRs 0055–0056, summary
-  in issue #65. **Next:** the next 3.3 area, not chosen yet.
+  in issue #65. Its tenth, decomposition (PCA, `sq.decompose.pca`), is built:
+  spec `docs/specs/library-decomposition.md`, plan
+  `docs/plans/2026-11-20-library-decomposition.md`, ADRs 0057–0058, summary in
+  issue #66. **Next:** the next 3.3 area, not chosen yet.
 
 Rules from the ADRs:
 
 - Python packaging uses **uv**: `uv add`, `uv run`. Never use pip or a bare
   `python` (0001).
-- Computation is SQL executed by DuckDB; Python is the glue (0002).
+- Computation is SQL executed by DuckDB; Python is the glue (0002). The one
+  exception: a Gram step's learn, where numpy sums XᵀX from batches DuckDB
+  streams (0058).
 - The API follows scikit-learn conventions; any departure needs its own ADR
   (0003). The verbs are sqlearn's own: `learn`/`apply` for steps,
   `train`/`predict` for models (0013).
-- The only runtime dependency is `duckdb`; any other needs a written reason and
-  a permissive licence (0004, 0005).
+- The runtime dependencies are `duckdb` and `numpy`; any other needs a written
+  reason and a permissive licence (0004, 0005, 0057).
 - Nothing needs the network: no telemetry, no cloud, data never leaves the
   machine (0006).
 - Python 3.12 is the floor (0007). Every task runs through `just` (0008).

@@ -209,7 +209,7 @@ def plan(steps: Sequence[tuple[str, Step]], schema: Schema) -> Plan:
             raise StepError(msg, step=step_name, position=i + 1)
         if cross_fitted(step):
             _check_target_step(step, step_name, i + 1)
-        dynamic = classify(step, _known(columns)) == "dynamic"
+        dynamic = step.gram or classify(step, _known(columns)) == "dynamic"
         read = _read(step, columns)
         learn = max((c.ready for c in [*read, rows]), default=0)
         names = {name for name, _ in _known(columns)}
@@ -217,6 +217,11 @@ def plan(steps: Sequence[tuple[str, Step]], schema: Schema) -> Plan:
         deps = frozenset().union(*(c.deps for c in [*read, rows, *absent]))
         if _reads_every_column(step):
             deps = frozenset(range(i))
+        if step.gram:
+            # Its rows reach the stream with constants: every step it reads
+            # that learns has learned in an earlier run.
+            after = (result.learn_run[d] + 1 for d in deps if _learns(steps[d][1]))
+            learn = max(learn, *after, 0)
         ready = learn + 1 if dynamic or cross_fitted(step) else learn
         mine = deps | {i}
         result.learn_run.append(learn)
@@ -245,6 +250,11 @@ def plan(steps: Sequence[tuple[str, Step]], schema: Schema) -> Plan:
             rows = _Column(None, None, ready, mine)
     result.feed_run = max((c.ready for c in [*columns, rows]), default=0)
     return result
+
+
+def _learns(step: Step) -> bool:
+    """Whether a step learns: it has a `learn` of its own (a method or a callable)."""
+    return type(step).learn is not Step.learn or "learn" in step.__dict__
 
 
 def _at(position: int, _: str) -> int:

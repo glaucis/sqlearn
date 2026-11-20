@@ -207,6 +207,11 @@ class Stage:
         Internal name to a value a whole-row step computes once per row
         (`Step.row_values`), in a projection named `row_name` before the
         data stage, which reads it under the name of the stage before.
+    guard : duckdb.Expression or None
+        A condition true on every row that reads every row value, as the
+        data stage's ``WHERE``: set when the step's outputs read none of
+        them (PCA keeping no component), so DuckDB still computes them and
+        the refusals they hold (a missing value, say) are raised.
 
     Examples
     --------
@@ -231,6 +236,7 @@ class Stage:
     position: int = 0
     created: dict[str, list[str]] = field(default_factory=dict)
     row: dict[str, Expression] = field(default_factory=dict)
+    guard: Expression | None = None
 
     @property
     def row_name(self) -> str:
@@ -478,6 +484,14 @@ def step_stage(
         raise StepError(msg, step=step_name, position=position)
     outputs.update({a: duckdb.ColumnExpression(previous, a) for a in aside})
 
+    guard = None
+    if row and not rows:
+        # No output reads the row values: a filter that is always true
+        # reads them all, so DuckDB computes them and raises their refusals.
+        every = duckdb.FunctionExpression(
+            "list_value", *(duckdb.ColumnExpression(previous, r) for r in row)
+        )
+        guard = duckdb.FunctionExpression("list_count", every) >= const(0)
     remake = partial(step_stage, position, step_name, step, schema, previous)
     return Stage(
         name=name,
@@ -494,6 +508,7 @@ def step_stage(
         position=position,
         created=created,
         row=row,
+        guard=guard,
     )
 
 
@@ -681,8 +696,16 @@ def apply_sql(stage: Stage) -> str:
     'SELECT ("a" * 2) AS "a"'
     """
     if stage.row:
-        return f"SELECT {_items(stage.columns)} FROM (SELECT *, {_items(stage.row)})"
+        return (
+            f"SELECT {_items(stage.columns)} FROM (SELECT *, {_items(stage.row)})"
+            f"{_where(stage)}"
+        )
     return f"SELECT {_items(stage.columns)}"
+
+
+def _where(stage: Stage) -> str:
+    """Return the data stage's ``WHERE`` clause: its guard, if it has one."""
+    return "" if stage.guard is None else f" WHERE {stage.guard}"
 
 
 def _check(stage: Stage) -> None:
@@ -1545,7 +1568,7 @@ def _chain(source_sql: str, stages: list[Stage], every_learn: bool) -> list[str]
             reads = f"{quote(stage.row_name)} AS {quote(previous)}"
         ctes.append(
             f"{quote(stage.name)} AS "
-            f"(SELECT {_items(stage.columns)} FROM {reads}{joins})",
+            f"(SELECT {_items(stage.columns)} FROM {reads}{joins}{_where(stage)})",
         )
         previous = stage.name
     return ctes

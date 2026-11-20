@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 import duckdb
+import numpy as np
 import pandas as pd
 import pytest
 from duckdb import ConstantExpression, Expression
@@ -505,3 +506,190 @@ def test_every_public_step_loads_learned_and_applies_the_same(
     sq.save(pipe, tmp_path / "p.json")
     loaded = sq.load(tmp_path / "p.json")
     assert _rows(loaded.apply(df)) == _rows(pipe.apply(df))
+
+
+# Each damage as the JSON text written in place of a learned value: the
+# huge text and number are 12 bytes, a hundred million digits if read
+# exactly; the big int is too large for a float.
+_DAMAGE = {
+    "text": '"0.5"',
+    "nested list": "[0.5]",
+    "huge text": '"1e100000000"',
+    "huge number": "1e100000000",
+    "bool": "true",
+    "big int": "1" + "0" * 400,
+    "null": "null",
+}
+
+
+@pytest.mark.parametrize("damage", list(_DAMAGE))
+@pytest.mark.parametrize(
+    "slot",
+    ["mean", "count", "missing", "infinite", "weights", "weight", "variance"],
+)
+@pytest.mark.parametrize(
+    "settings", [{}, {"n_components": 0.9, "whiten": True}], ids=["all", "share"]
+)
+def test_a_pca_value_damaged_at_load_is_refused(
+    tmp_path: Path, settings: dict[str, Any], slot: str, damage: str
+) -> None:
+    """Each value PCA learned, in SQL or from XᵀX, is checked at load.
+
+    ``weight`` is one entry of a column's ``weights`` list; ``weights`` is
+    the whole list. Every damage is refused with the damaged-file message
+    (HANDOFF: probe every learned slot end to end).
+    """
+    rng = np.random.default_rng(0)
+    df = pd.DataFrame(rng.normal(size=(20, 3)), columns=["a", "b", "c"])
+    pipe = sq.Pipeline([sq.decompose.pca(**settings)]).learn(df)
+    path = tmp_path / "p.json"
+    sq.save(pipe, path)
+    record = json.loads(path.read_text())
+    values = record["learned"]["steps"][0]["values"]["items"]
+    name = "weights" if slot == "weight" else slot
+    per_column = next(v for n, v in values if n == name)["items"][1]
+    if slot == "weight":
+        per_column[1][0] = "__damage__"
+    else:
+        per_column[1] = "__damage__"
+    path.write_text(json.dumps(record).replace('"__damage__"', _DAMAGE[damage]))
+    STORE.clear()
+    with pytest.raises(SqlearnError, match=r"(?s)damaged.*Fix:"):
+        sq.load(path)
+
+
+# Each value a file may hold that is a number but not one PCA learns: a
+# missing or infinite count other than 0 (learning refuses those rows), a
+# negative variance, and a count differing from the first column's.
+_PCA_OUT_OF_RANGE = {
+    "missing": ("missing", 1),
+    "infinite": ("infinite", 2),
+    "negative variance": ("variance", -0.5),
+    "counts differ": ("count", 19),
+}
+
+
+@pytest.mark.parametrize("damage", list(_PCA_OUT_OF_RANGE))
+@pytest.mark.parametrize(
+    "settings", [{}, {"n_components": 0.9, "whiten": True}], ids=["all", "share"]
+)
+def test_a_pca_value_out_of_its_range_is_refused_at_load(
+    tmp_path: Path, settings: dict[str, Any], damage: str
+) -> None:
+    """A learned number PCA could never have learned is damage at load.
+
+    The second column's value is changed, so a count differing from the
+    first column's is caught as well as a value out of range.
+    """
+    rng = np.random.default_rng(0)
+    df = pd.DataFrame(rng.normal(size=(20, 3)), columns=["a", "b", "c"])
+    path = tmp_path / "p.json"
+    sq.save(sq.Pipeline([sq.decompose.pca(**settings)]).learn(df), path)
+    record = json.loads(path.read_text())
+    values = record["learned"]["steps"][0]["values"]["items"]
+    slot, value = _PCA_OUT_OF_RANGE[damage]
+    next(v for n, v in values if n == slot)["items"][1][1] = value
+    path.write_text(json.dumps(record))
+    STORE.clear()
+    with pytest.raises(SqlearnError, match=r"(?s)damaged.*Fix:"):
+        sq.load(path)
+
+
+@pytest.mark.parametrize("slot", ["center", "scale", "infinite"])
+def test_a_learned_value_for_a_column_not_learned_is_refused(
+    tmp_path: Path, slot: str
+) -> None:
+    """A learned value for a column the step did not learn from is damage."""
+    path = _saved_standard(tmp_path)
+    document = json.loads(path.read_text())
+    values = document["learned"]["steps"][0]["values"]["items"]
+    next(v for n, v in values if n == slot)["items"].append(["zzz", "evil"])
+    path.write_text(json.dumps(document))
+    with pytest.raises(SqlearnError, match=r"(?s)'zzz'.*damaged.*Fix:"):
+        sq.load(path)
+
+
+def test_a_learned_fold_value_for_a_column_not_learned_is_refused(
+    tmp_path: Path,
+) -> None:
+    """Fold values are checked as the values learned on all rows are."""
+    path = _saved_standard(tmp_path)
+    document = json.loads(path.read_text())
+    step = document["learned"]["steps"][0]
+    fold = json.loads(json.dumps(step["values"]))  # a copy, as a fold holds
+    next(v for n, v in fold["items"] if n == "center")["items"].append(["zzz", 2.0])
+    step["folds"] = {"$": "dict", "items": [["0", fold]]}
+    path.write_text(json.dumps(document))
+    with pytest.raises(SqlearnError, match=r"(?s)'zzz'.*damaged.*Fix:"):
+        sq.load(path)
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        {"mean": "evil"},
+        {"variance": "1e100000000"},
+        {
+            "mean": 1.0, "count": 20, "missing": 0, "infinite": 0,
+            "weights": [1.0, 0.0, 0.0], "variance": 99.0,
+        },
+    ],
+    ids=["text mean only", "huge text variance only", "valid in every slot"],
+)  # fmt: skip
+def test_a_pca_value_for_a_column_not_learned_is_refused(
+    tmp_path: Path, extra: dict[str, object]
+) -> None:
+    """PCA's values for a column it did not decompose are refused at load."""
+    rng = np.random.default_rng(0)
+    df = pd.DataFrame(rng.normal(size=(20, 3)), columns=["a", "b", "c"])
+    path = tmp_path / "p.json"
+    sq.save(sq.Pipeline([sq.decompose.pca()]).learn(df), path)
+    record = json.loads(path.read_text())
+    values = record["learned"]["steps"][0]["values"]["items"]
+    for name, value in extra.items():
+        next(v for n, v in values if n == name)["items"].append(["zzz", value])
+    path.write_text(json.dumps(record))
+    STORE.clear()
+    with pytest.raises(SqlearnError, match=r"(?s)'zzz'.*damaged.*Fix:"):
+        sq.load(path)
+
+
+@pytest.mark.parametrize("count", [0, 1, -5])
+@pytest.mark.parametrize(
+    "settings", [{}, {"n_components": 0.9, "whiten": True}], ids=["all", "share"]
+)
+def test_a_pca_count_below_two_rows_is_refused_at_load(
+    tmp_path: Path, settings: dict[str, Any], count: int
+) -> None:
+    """PCA learns from two rows at least: a file saying fewer is damage."""
+    rng = np.random.default_rng(0)
+    df = pd.DataFrame(rng.normal(size=(20, 3)), columns=["a", "b", "c"])
+    path = tmp_path / "p.json"
+    sq.save(sq.Pipeline([sq.decompose.pca(**settings)]).learn(df), path)
+    record = json.loads(path.read_text())
+    values = record["learned"]["steps"][0]["values"]["items"]
+    for pair in next(v for n, v in values if n == "count")["items"]:
+        pair[1] = count
+    path.write_text(json.dumps(record))
+    STORE.clear()
+    with pytest.raises(SqlearnError, match=r"(?s)damaged.*Fix:"):
+        sq.load(path)
+
+
+@pytest.mark.parametrize(
+    "keys",
+    [[1, "zzz"], [1], [{"$": "tuple", "items": ["a"]}]],
+    ids=["number and text", "number", "tuple"],
+)
+def test_a_learned_column_key_that_is_not_text_is_refused(
+    tmp_path: Path, keys: list[object]
+) -> None:
+    """A learned value's column is text: any other key is damage."""
+    path = _saved_standard(tmp_path)
+    document = json.loads(path.read_text())
+    values = document["learned"]["steps"][0]["values"]["items"]
+    center = next(v for n, v in values if n == "center")["items"]
+    center.extend([key, "x"] for key in keys)
+    path.write_text(json.dumps(document))
+    with pytest.raises(SqlearnError, match=r"(?s)damaged.*Fix:"):
+        sq.load(path)

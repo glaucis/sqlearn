@@ -39,3 +39,7 @@ Terms of sqlearn's domain, in the sense the code and the docs use them.
   (`meta_sqlearn.main.tickets_<groups>`). Written only through a cursor, gone
   when the connection closes, and never trusted unless it holds only these
   tables. Not part of the sqlearn package.
+- **Gram step:** a step that learns from the matrix XᵀX of its centred input
+  columns, which the core builds in numpy from batches DuckDB streams (ADR
+  0058). `sq.decompose.pca` is one. Internal for now; it learns in a run of
+  its own, and applying it is SQL as for any step.

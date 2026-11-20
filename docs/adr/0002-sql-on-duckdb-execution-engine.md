@@ -7,7 +7,9 @@ mdindex: [type=0fc814, tags=4a07c3, summary=eae77c, related=03f576]
 ---
 # 0002: SQL on DuckDB as the execution engine
 
-Status: accepted (2026-11-03)
+Status: accepted (2026-11-03); amended by
+[ADR 0058](0058-a-gram-step-builds-xtx-in-numpy.md) (2026-11-20): a Gram step
+builds XᵀX in numpy from streamed batches.
 
 ## Context
 

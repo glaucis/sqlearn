@@ -40,6 +40,8 @@ nitpick_ignore_regex = [
     ("py:class", r"_duckdb\..*"),
     # Optuna is optional and has no inventory here.
     ("py:class", r"BaseSampler"),
+    # numpy has no inventory here either (a Gram step's matrix, ADR 0058).
+    ("py:class", r"numpy\.ndarray"),
 ]
 # In docs/ but not on the site: specs, plans, open questions and the agents'
 # configuration; the folders' one-line READMEs; the build output; and

@@ -21,7 +21,8 @@ never from the library itself.
 - Money, if it comes, comes from a product on top: the applications, a
   professional edition of them, support. Anything paid is a separate package
   from the start, since what is released free stays free.
-- Every runtime dependency is permissively licensed: MIT, BSD, Apache, PSF.
+- Every runtime dependency is permissively licensed: MIT, BSD, Apache, PSF
+  (`duckdb` and `numpy`, [ADR 0057](0057-numpy-is-a-runtime-dependency.md)).
   Copyleft is allowed in development tools only.
 - The name is protected by a trademark, registered when there is something to
   protect.

@@ -3,10 +3,10 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-20 · Branch: `main` · Last commit: `5778830` docs: update
-the handoff · Checks: passing (`just test` on the merged `main`: 2802
-passed, 24 skipped; `just verify` on the branch before the merge: 2813
-passed, no validation fail) · Pushed
+Updated: 2026-11-20 · Branch: `decomposition` (not merged) · Checks: `just
+verify` passing on the branch at `e786d49` (3005 passed, 24 skipped on each
+Python version; every validation runner without a sqlearn failure; docs
+built) · Not pushed
 Verify with: `just verify`
 
 ## In progress
@@ -21,16 +21,28 @@ None.
 
 ## Next up
 
-- The next 3.3 area, not chosen yet. No dataset fetcher (ADR 0053).
-- Or #65's minor follow-ups (listed in its last comments); the first worth
+- The next 3.3 area, not chosen yet. Linear or ridge regression would reuse
+  the Gram step with Xᵀy (ADR 0058 opens it to users' steps after that). No
+  dataset fetcher (ADR 0053).
+- #67: a Gram learn peaks about 0.64 GB above `check_fits`' model.
+- #68: wide Parquet with default row groups runs DuckDB out of memory at
+  many threads.
+- #65's minor follow-ups (listed in its last comments); the first worth
   doing: let `sq.select` shortcuts take a column selector by position, as
   the other groups do.
 
 ## Dead ends and traps
 
-- A wait loop `until grep -q "^EXIT=" log` never ends when `EXIT=` is written
-  onto the log's last line without a newline: wait on the PID instead.
-  Subagents can leave such loops behind; check with `pgrep -fl`. (2026-11-20)
+- A wait loop such as `until grep -q "^EXIT=" log` never ends when the
+  log's last line has no newline: wait on the PID. Subagents can leave such
+  loops behind; check with `pgrep -fl`. DuckDB's numpy fetch has no
+  streaming form without pandas or pyarrow, so a Gram learn takes its batches
+  from a numbered temporary table by row range. Capture a Gram step's matrix
+  in validation at its `learned_from_gram`. `just test` skips the Sphinx
+  doctests: a changed docstring example fails only in `just verify` or
+  `build-docs`. `sq.load` now refuses learned values for columns a step did
+  not learn, and column keys that are not text (`_saving/learned.py`).
+  (2026-11-20)
 - A step's first positional argument is its columns: `sq.select` refuses a
   number there with a `Fix:`, other groups read it as `cols` and fail later.
   The errors are in `sq.errors`, not `sq`. BSD `sed -i` needs an extension
@@ -99,6 +111,16 @@ None.
 
 ## Just finished
 
+- Decomposition (#66, ADRs 0057 and 0058): `sq.decompose.pca` and
+  `sq.decompose(method="pca")`, a Gram step in the core (`_gram.py`), numpy
+  as a runtime dependency. Spec `docs/specs/library-decomposition.md`, plan
+  `docs/plans/2026-11-20-library-decomposition.md`, runner
+  `validation/sqlearn/decomposition/validate_pca.py`, benchmarks
+  `gram-batches.md` and `gram-streaming.md`. On branch
+  `decomposition` from `1c88839`; whole-branch review and `just verify`
+  passed, awaiting the merge. It also hardened `sq.load` for every step
+  (learned values for columns a step did not learn, non-text column keys).
+  Follow-ups #67–#72. (2026-11-20)
 - Feature selection (#65, ADRs 0055 and 0056): `sq.select.variance`, `best`,
   `percentile` and `sq.select(..., method=)`, scoring by `f_classif`,
   `f_regression`, `chi2`. Spec `docs/specs/library-feature-selection.md`,

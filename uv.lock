@@ -2957,6 +2957,7 @@ source = { editable = "." }
 default-groups = ["docs", "lint", "test"]
 dependencies = [
     { name = "duckdb" },
+    { name = "numpy" },
 ]
 
 [package.dev-dependencies]
@@ -2996,7 +2997,10 @@ test = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "duckdb", specifier = ">=2.0.0" }]
+requires-dist = [
+    { name = "duckdb", specifier = ">=2.0.0" },
+    { name = "numpy", specifier = ">=2.5.4" },
+]
 
 [package.metadata.requires-dev]
 docs = [

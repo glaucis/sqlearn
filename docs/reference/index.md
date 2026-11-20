@@ -64,6 +64,9 @@ The API of the sqlearn package, generated from its docstrings.
    sqlearn.feature_selection.SelectKBest
    sqlearn.select.percentile
    sqlearn.feature_selection.SelectPercentile
+   sqlearn.decompose
+   sqlearn.decompose.pca
+   sqlearn.decomposition.PCA
    sqlearn.search
    sqlearn.search.grid
    sqlearn.search.optuna

@@ -17,4 +17,6 @@ category-lookup
 standard-deviation
 median-reach
 generators-on-many-threads
+gram-batches
+gram-streaming
 ```

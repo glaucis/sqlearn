@@ -66,3 +66,33 @@ def dynamic_step(cols, creates=INTEGER, keep=False):
     """Return a step declared dynamic that creates columns of type `creates`."""
     kind = type("Dynamic", (sq.Step,), {"static": False, "creates": creates})
     return kind(cols=cols, keep=keep)
+
+
+class GramCovariance(sq.Step):
+    """Learn the covariance of its inputs from their Gram matrix (a Gram step)."""
+
+    gram = True
+    dynamic = True
+    rowwise = True
+
+    def __init__(self, cols=sq.cols.numeric()):  # noqa: B008
+        """Set the settings."""
+        self.cols, self.keep, self.suffix = cols, False, None
+
+    def learn(self, x):
+        """Learn the mean and count the core centres the rows with."""
+        return {"mean": sq.agg.mean(x), "count": sq.agg.count(x)}
+
+    def learned_from_gram(self, gram, learned):
+        """Return the sample covariance of every input with every other."""
+        columns = list(learned["count"])
+        rows = learned["count"][columns[0]]
+        return {
+            "covariance": {
+                c: (gram[j] / (rows - 1)).tolist() for j, c in enumerate(columns)
+            }
+        }
+
+    def apply_row(self, xs, learned, values):
+        """Write each input's covariance with the first input."""
+        return {c: sq.fn.const(learned[c].covariance[0]) for c in xs}

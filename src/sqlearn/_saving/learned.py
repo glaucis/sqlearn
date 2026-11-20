@@ -191,10 +191,14 @@ def _names(value: object, where: str) -> dict[str, list[str]]:
 
 
 def _mapping(value: object, where: str, what: str) -> dict[str, dict[str, object]]:
+    """Return learned name, then column, to value: every key plain text."""
     if not isinstance(value, dict) or any(
-        not isinstance(k, str) or not isinstance(v, dict) for k, v in value.items()
+        type(k) is not str
+        or not isinstance(v, dict)
+        or any(type(c) is not str for c in v)
+        for k, v in value.items()
     ):
-        raise _damaged(where, f"the {what} are not an object of objects")
+        raise _damaged(where, f"the {what} are not an object of objects of text")
     return {k: dict(v) for k, v in value.items()}
 
 
@@ -316,10 +320,25 @@ def _learns(step: Step) -> list[str] | None:
 def _check_values(
     values: Mapping[str, Mapping[str, object]],
     columns: list[str],
-    learns: list[str],
+    learns: list[str] | None,
     where: str,
 ) -> None:
-    for name in learns:
+    """Refuse values for a column not learned from, or missing for one.
+
+    Every learned name, the ones a step learns from XᵀX or derives
+    included, holds values for its columns only; the names `learn` gives
+    (`learns`, None when the step cannot say) hold one for each.
+    """
+    known = set(columns)
+    for name, per_column in values.items():
+        stray = sorted(set(per_column) - known)
+        if stray:
+            raise _damaged(
+                where,
+                f"the learned value {name!r} has a value for column "
+                f"{stray[0]!r}, which it did not learn from",
+            )
+    for name in learns or []:
         have = values.get(name, {})
         for column in columns:
             if column not in have:
@@ -353,10 +372,9 @@ def _check_step(
             where, f"depends on step {late[0] + 1}, which is not a step before it"
         )
     learns = _learns(step)
-    if learns is not None:
-        _check_values(entry.values, entry.columns, learns, where)
-        for fold_values in entry.folds.values():
-            _check_values(fold_values, entry.columns, learns, where)
+    _check_values(entry.values, entry.columns, learns, where)
+    for fold_values in entry.folds.values():
+        _check_values(fold_values, entry.columns, learns, where)
 
 
 def _check_created(

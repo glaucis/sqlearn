@@ -5,7 +5,7 @@ import weakref
 from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import replace
-from typing import Any, NamedTuple
+from typing import Any, NamedTuple, cast
 
 import duckdb
 from duckdb import Expression
@@ -30,9 +30,10 @@ from sqlearn._compose import (
 )
 from sqlearn._config import connection, get_config
 from sqlearn._diagnose import diagnose
-from sqlearn._errors import SqlearnError, StepError
+from sqlearn._errors import InternalError, SqlearnError, StepError
 from sqlearn._expr import quote
 from sqlearn._feed import PROBA, ROW, fetch, predict_streamed, stream_trainer
+from sqlearn._gram import check_fits, gram_matrix
 from sqlearn._inputs import (
     DataKey,
     Source,
@@ -257,6 +258,57 @@ def _by_column(values: dict[str, dict[str, object]]) -> dict[str, dict[str, obje
         for column, value in per_column.items():
             out.setdefault(column, {})[key] = value
     return out
+
+
+def _learn_gram(
+    con: duckdb.DuckDBPyConnection,
+    source_sql: str,
+    before: list[Stage],
+    values: Mapping[str, dict[str, dict[str, object]]],
+    steps: list[tuple[str, Step]],
+    i: int,
+    matched: list[str],
+    learned: dict[str, dict[str, object]],
+    run: Run,
+) -> dict[str, dict[str, object]]:
+    """Learn a Gram step from XᵀX of its centred inputs (ADR 0058).
+
+    `before` holds the stages before it in this run's statement; each
+    learning one is remade with its values, so the data reaching the step
+    holds constants only. The step's SQL values (`learned`, learned name
+    then column to value) give the means; it may refuse them first
+    (`Step.before_gram`), then the memory is checked, the matrix built, and
+    what the step learns from it joins its SQL values; a refusal of the
+    step's own (`before_gram`, `learned_from_gram`) is placed on it. The
+    streaming statement is added to `run`.
+    """
+    name, step = steps[i]
+    stages = [
+        s.remake(values[s.name]) if s.learn and s.remake is not None else s
+        for s in before
+    ]
+    try:
+        step.before_gram(learned)
+        check_fits(con, len(matched))
+        means = {c: cast("float", learned["mean"][c]) for c in matched}
+        gram = gram_matrix(
+            con, build(source_sql, stages), matched, means, statements=run.statements
+        )
+        more = step.learned_from_gram(gram, learned)
+    except StepError as exc:
+        placed = _placed(exc, name, i + 1)
+        if placed is exc:
+            raise
+        raise placed from exc
+    clash = sorted(set(more) & set(learned))
+    if clash:
+        msg = (
+            f"{name} (step {i + 1}) learned {', '.join(map(repr, clash))} both "
+            "from SQL and from its Gram matrix; a learned name must come from "
+            "one. This is a bug in sqlearn: please report it."
+        )
+        raise InternalError(msg)
+    return {**learned, **{k: dict(v) for k, v in more.items()}}
 
 
 def _check_numbering(con: duckdb.DuckDBPyConnection, schema: Schema) -> None:
@@ -795,7 +847,9 @@ class Pipeline:
         """Find the steps of one run in the store; learn and store the rest.
 
         Each step learning in this run is keyed with the columns its selector
-        matches in the data reaching it, then looked up.
+        matches in the data reaching it, then looked up. A Gram step then
+        learns from XᵀX of its centred inputs (`_learn_gram`), its
+        streaming statement following the run's learn statement.
         """
         source_sql = source.relation.sql_query()
         aside = _aside_of(source)
@@ -896,6 +950,12 @@ class Pipeline:
             folds: dict[str, dict[str, dict[str, object]]] = {}
             if cross_fitted(step):
                 learned, folds = _derive(steps, i + 1, learned, matched)
+            if step.gram:
+                before_it = stages[: upto[i] - 1]
+                learned = _learn_gram(
+                    con, source_sql, before_it, values, steps, i, matched,
+                    learned, done,
+                )  # fmt: skip
             applied = _make_stage(steps, i + 1, before, prev, learned, columns=matched)
             entry = Entry(learned, matched, apply_sql(applied), folds)
             STORE.put(keys[i], entry)
