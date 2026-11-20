@@ -5462,6 +5462,12 @@
     },
     {
       "area": "sqlearn/decomposition/_decompose",
+      "name": "tests/src/sqlearn/decomposition/test__decompose.py::test_a_column_selector_by_position_is_taken_as_cols",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/decomposition/_decompose",
       "name": "tests/src/sqlearn/decomposition/test__decompose.py::test_a_number_positional_is_shown_as_its_setting",
       "outcome": "passed",
       "tier": "fast"
@@ -5841,6 +5847,12 @@
     {
       "area": "sqlearn/feature_selection/_scores",
       "name": "tests/src/sqlearn/feature_selection/test__scores.py::test_scores_of_text_classes_match_scikit_learn[f_classif]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/_select",
+      "name": "tests/src/sqlearn/feature_selection/test__select.py::test_a_column_selector_by_position_is_taken_as_cols",
       "outcome": "passed",
       "tier": "fast"
     },

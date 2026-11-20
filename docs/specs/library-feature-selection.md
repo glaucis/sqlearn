@@ -64,7 +64,8 @@ sq.search(pipe, params={"best__k": [5, 10, 20]}, metric=sq.metrics.f1)
 A step group (ADR 0034) with three shortcuts, and callable for its general form:
 `sq.select(*names, method="variance", ...)` builds the same step each shortcut
 builds, and refuses a setting that does not belong to `method`. A positional is
-a column name, or one list of names: anything else (`sq.select.percentile(20)`)
+a column name, one list of names or a column selector (`sq.cols.numeric()`,
+as the other groups take; #65): anything else (`sq.select.percentile(20)`)
 is refused at the call, with a `Fix:` line naming the setting
 (`percentile=20`), rather than taken as a column. Each selector is
 a dynamic step: the columns it outputs depend on what it learned. A column kept

@@ -4,7 +4,7 @@ Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
 Updated: 2026-11-20 · Branch: `main` · Checks: passing (`just verify` on
-the #71 and #72 changes before their commit: 3021 passed, 24 skipped)
+the #65 follow-up before its commit: 3023 passed, 24 skipped)
 Verify with: `just verify`
 
 ## In progress
@@ -24,9 +24,9 @@ None.
   the Gram step with Xᵀy (ADR 0058 opens it to users' steps after that; its
   contract is written in `docs/guide/writing-a-step.md`). No dataset
   fetcher (ADR 0053).
-- #65's minor follow-ups (listed in its last comments); the first worth
-  doing: let `sq.select` shortcuts take a column selector by position, as
-  the other groups do.
+- #65's other minor follow-ups (listed in its last comments).
+- #4, #6: wait on the site-hosting decision (`docs/questions/site-hosting.md`),
+  as triaged on 2026-11-05: the repository is private, so there is no URL.
 
 ## Dead ends and traps
 
@@ -117,22 +117,10 @@ None.
 
 ## Just finished
 
-- #72: `refuse_positionals` shared in `_group.py`; PCA checks its mean
-  once (`_checked` returns it); the `check_fits` text reworded.
+- #65's first follow-up: a column selector by position passes
+  `refuse_positionals` (`sq.select`, `sq.decompose`). (2026-11-20)
+- #70, #71, #72, #73, pushed and closed: the Gram contract tidied and
+  documented in `docs/guide/writing-a-step.md`; `validate_pca` sturdier
+  (neighbour cut 1e-14 λ₁); small tidies; PCA's weights written once as a
+  matrix (learn peak at 200 columns 1.11 to 0.36 GB). Details on each issue.
   (2026-11-20)
-- #71: `validate_pca`'s neighbour cut is 1e-14 λ₁ (1e-8 λ₁ grouped breast
-  cancer's distinct eigenvalues, 57 cases skipped); `GRAMS` is cleared and
-  checked, the store cleared; the Gram case divides by the learned count;
-  `Exact.rows` dropped; kept components answered in the docstring.
-  Results unchanged: 738 pass, 10 skipped. (2026-11-20)
-- #70: `learned_from_gram(gram, learned, columns)` is handed its inputs;
-  `with_values` (`_compose.py`) remakes stages for `execute` and
-  `_learn_gram`, whose parameters after the data are keyword-only; fast
-  tests of batches with a short last one, on one and many threads; the
-  contract in `docs/guide/writing-a-step.md`. (2026-11-20)
-- #73, pushed and closed: PCA's apply SQL holds the centred row as one list and
-  the kept weights once as a `DOUBLE[][]` literal, each output a
-  `list_dot_product`. The learn's peak at 200 columns fell from 1.11 to 0.36 GB
-  (with `apply`, 1.98 to 0.37); 4.6 GB at 1,000, still growing as p²; the
-  weights-in-a-table option would remove that, not built. Measured in
-  `docs/benchmarks/gram-streaming.md`. (2026-11-20)

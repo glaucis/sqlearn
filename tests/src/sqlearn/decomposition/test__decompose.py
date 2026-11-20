@@ -71,3 +71,11 @@ def test_a_number_positional_is_shown_as_its_setting():
     """A number given by position is refused, naming n_components."""
     with pytest.raises(SqlearnError, match=r"n_components=3"):
         sq.decompose.pca(3)
+
+
+def test_a_column_selector_by_position_is_taken_as_cols():
+    """`sq.decompose.pca(sq.cols.numeric())` is the step `cols=` builds."""
+    picked = sq.cols.numeric() - sq.cols("id")
+    assert repr(sq.decompose.pca(picked, n_components=2)) == repr(
+        sq.decompose.pca(cols=picked, n_components=2)
+    )

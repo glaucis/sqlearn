@@ -123,6 +123,17 @@ def test_positional_names_and_one_list_of_names_are_taken():
     assert sq.select.best(["a", "b"]).cols == sq.select.best(("a", "b")).cols
 
 
+def test_a_column_selector_by_position_is_taken_as_cols():
+    """`sq.select.best(sq.cols.numeric(), k=2)` is the step `cols=` builds (#65)."""
+    picked = sq.cols.numeric() - sq.cols("id")
+    for method, setting in (("variance", {}), ("best", {"k": 2}), ("percentile", {})):
+        shortcut = getattr(sq.select, method)
+        assert repr(shortcut(picked, **setting)) == repr(
+            shortcut(cols=picked, **setting)
+        )
+    assert sq.select(picked, method="best").cols == picked
+
+
 def churn(seed=3, rows=240):
     """Return 14 numeric columns, 2 with holes and 1 constant, and a class.
 

@@ -3,6 +3,7 @@
 from collections.abc import Sequence
 
 from sqlearn._errors import SqlearnError
+from sqlearn._selectors import Selector
 
 __all__ = [
     "Group",
@@ -97,11 +98,13 @@ def _is_names(value: object) -> bool:
 
 
 def refuse_positionals(names: tuple[object, ...], call: str, setting: str) -> None:
-    """Refuse a positional that is not a column name or a list of names.
+    """Refuse a positional that is not a column name, a list of names or a selector.
 
     A setting given by position (``sq.select.percentile(20)``) would be
     taken as a column, and fail only at learn; it is refused at the call.
-    A dict passes, for `columns_arg` to refuse in its own words.
+    A column selector (``sq.cols.numeric()``) passes, as the other groups
+    take one by position; a dict passes, for `columns_arg` to refuse in its
+    own words.
 
     Parameters
     ----------
@@ -115,25 +118,29 @@ def refuse_positionals(names: tuple[object, ...], call: str, setting: str) -> No
     Raises
     ------
     SqlearnError
-        If a positional is not a column name, a list of names or a dict.
+        If a positional is not a column name, a list of names, a selector
+        or a dict.
 
     Examples
     --------
     >>> from sqlearn._group import refuse_positionals
+    >>> import sqlearn as sq
     >>> refuse_positionals(("a", ["b", "c"]), "sq.decompose.pca", "n_components")
+    >>> refuse_positionals((sq.cols.numeric(),), "sq.decompose.pca", "n_components")
     >>> refuse_positionals((3,), "sq.decompose.pca", "n_components")
     Traceback (most recent call last):
     ...
     sqlearn.errors.SqlearnError: sq.decompose.pca got 3 as a positional. ...
     """
     for value in names:
-        if isinstance(value, dict) or _is_names(value):
+        if isinstance(value, dict | Selector) or _is_names(value):
             continue
         number = isinstance(value, int | float) and not isinstance(value, bool)
         shown = repr(value) if number else "..."
         msg = (
             f"{call} got {value!r} as a positional. Why: a positional is a "
-            "column name, or one list of names, so a setting there is not a "
+            "column name, one list of names or a column selector, so a "
+            "setting there is not a "
             f"setting. Fix: give a setting by name, as {setting}={shown}, and "
             "each column by its name."
         )
