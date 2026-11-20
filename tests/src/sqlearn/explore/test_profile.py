@@ -224,3 +224,107 @@ def test_the_distinct_share_never_exceeds_one():
     values = ", ".join(f"({i})" for i in range(50))
     row = _row(values, exact=False)
     assert row["distinct_share"] <= 1.0
+
+
+def _notes(sql: str, **settings) -> list[list[str]]:
+    """Return each column's notes for a table built by `sql`."""
+    con = connection()
+    con.execute("DROP TABLE IF EXISTS n")
+    con.execute(f"CREATE TABLE n AS {sql}")
+    return [row[-1] for row in sq.explore.profile("n", **settings).fetchall()]
+
+
+def test_a_constant_column_is_noted():
+    """A constant column is noted."""
+    assert _notes("SELECT 1 AS a FROM range(3)") == [["constant"]]
+    assert _notes("SELECT 1 AS a FROM range(2) UNION ALL SELECT NULL") == [["constant"]]
+    assert _notes("SELECT i % 2 AS a FROM range(4) t(i)") == [[]]
+
+
+def test_all_missing_is_noted_not_constant():
+    """All missing is noted, not constant."""
+    assert _notes("SELECT NULL::INTEGER AS a FROM range(3)") == [["all-missing"]]
+    assert _notes("SELECT 'NaN'::DOUBLE AS a FROM range(3)") == [["all-missing"]]
+
+
+def test_no_rows_gets_no_notes():
+    """No rows gets no notes."""
+    assert _notes("SELECT 1 AS a WHERE false") == [[]]
+
+
+def test_an_integer_key_is_id_like():
+    """An integer key is id-like."""
+    assert _notes("SELECT i AS a FROM range(20) t(i)") == [["id-like"]]
+
+
+def test_nineteen_rows_are_not_id_like():
+    """Nineteen rows are not id-like."""
+    assert _notes("SELECT i AS a FROM range(19) t(i)") == [[]]
+
+
+def test_id_rows_counts_non_missing_rows():
+    """`id_rows` counts non-missing rows."""
+    sql = "SELECT i AS a FROM range(19) t(i) UNION ALL SELECT NULL"
+    assert _notes(sql) == [[]]
+
+
+def test_a_float_column_is_never_id_like():
+    """A float column is never id-like."""
+    assert _notes("SELECT i * 0.5::DOUBLE AS a FROM range(20) t(i)") == [[]]
+    assert _notes("SELECT i::DECIMAL(9, 2) AS a FROM range(20) t(i)") == [[]]
+
+
+def test_repeats_are_not_id_like():
+    """Repeats are not id-like."""
+    assert _notes("SELECT i // 2 AS a FROM range(40) t(i)") == [[]]
+
+
+def test_many_distinct_texts_are_high_cardinality():
+    """Many distinct texts are high-cardinality."""
+    sql = "SELECT 't' || (i % 51) AS a FROM range(100) t(i)"
+    assert _notes(sql) == [["high-cardinality"]]
+
+
+def test_fifty_distinct_texts_are_not():
+    """Fifty distinct texts are not high-cardinality."""
+    assert _notes("SELECT 't' || (i % 50) AS a FROM range(100) t(i)") == [[]]
+
+
+def test_texts_mostly_repeated_are_not_high_cardinality():
+    """Texts with at most half the rows distinct are not high-cardinality."""
+    assert _notes("SELECT 't' || (i % 51) AS a FROM range(200) t(i)") == [[]]
+
+
+def test_a_text_key_is_id_like_not_high_cardinality():
+    """A text key is id-like, not high-cardinality."""
+    assert _notes("SELECT 't' || i AS a FROM range(100) t(i)") == [["id-like"]]
+
+
+def test_an_integer_is_never_high_cardinality():
+    """An integer is never high-cardinality."""
+    assert _notes("SELECT i % 51 AS a FROM range(100) t(i)") == [[]]
+
+
+def test_the_thresholds_are_settings():
+    """The thresholds are settings."""
+    ids = "SELECT i AS a FROM range({}) t(i)"
+    assert _notes(ids.format(5), id_rows=5) == [["id-like"]]
+    assert _notes(ids.format(4), id_rows=5) == [[]]
+    texts = "SELECT 't' || (i % {}) AS a FROM range(6) t(i)"
+    assert _notes(texts.format(4), high_cardinality=3) == [["high-cardinality"]]
+    assert _notes(texts.format(3), high_cardinality=3) == [[]]
+
+
+@pytest.mark.parametrize("setting", ["id_rows", "high_cardinality"])
+@pytest.mark.parametrize("value", [-1, 2.5, "5", True, None])
+def test_a_bad_threshold_is_refused(setting, value):
+    """A threshold that is not a non-negative integer is refused."""
+    with pytest.raises(SqlearnError, match=r"Why:.*Fix:"):
+        sq.explore.profile(pd.DataFrame({"a": [1]}), **{setting: value})
+
+
+def test_notes_are_listed_in_one_order():
+    """Notes are listed in one order."""
+    assert _notes("SELECT 'k' AS a FROM range(1)", id_rows=1) == [
+        ["constant", "id-like"]
+    ]

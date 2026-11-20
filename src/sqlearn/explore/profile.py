@@ -6,6 +6,7 @@ from typing import Any
 from duckdb.sqltypes import DuckDBPyType
 
 from sqlearn._config import get_config
+from sqlearn._errors import SqlearnError
 from sqlearn._expr import quote
 from sqlearn._inputs import read
 from sqlearn._output import Output, to_output
@@ -43,6 +44,36 @@ _RESULT = [
 _FILLED = len(_RESULT)
 """How many leading columns are filled from the scan."""
 _QUARTILES = "[0.25, 0.5, 0.75]"
+_INTEGERS = {
+    "tinyint", "smallint", "integer", "bigint", "hugeint",
+    "utinyint", "usmallint", "uinteger", "ubigint", "uhugeint",
+}  # fmt: skip
+"""The integer types, the only numbers a key can be."""
+_NOTES = """list_filter([
+    CASE WHEN v.v2 > 0 AND v.v3 = v.v2 THEN 'all-missing' END,
+    CASE WHEN v.v5 = 1 THEN 'constant' END,
+    CASE WHEN v.v23 AND v.v2 - v.v3 >= {id_rows} AND v.v5 = v.v2 - v.v3
+        THEN 'id-like' END,
+    CASE WHEN v.v24 AND v.v5 > {high_cardinality}
+        AND v.v5 * 2 > v.v2 - v.v3
+        AND NOT (v.v2 - v.v3 >= {id_rows} AND v.v5 = v.v2 - v.v3)
+        THEN 'high-cardinality' END
+], lambda x: x IS NOT NULL)"""
+"""The notes, in their one order, from the counted row (`v2` rows, `v3`
+missing, `v5` distinct; `v23` is a key's type, `v24` a text type)."""
+
+
+def _count(name: str, value: object) -> int:
+    """Return a setting that must be a non-negative integer, or refuse it."""
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        default = 20 if name == "id_rows" else 50
+        raise SqlearnError(
+            f"`profile` was given {name}={value!r}, which is not a "
+            f"non-negative integer. Why: it counts rows or distinct values, "
+            f"so it is a whole number from 0. Fix: pass an integer such as "
+            f"{name}={default}."
+        )
+    return value
 
 
 def _is_date(dtype: DuckDBPyType) -> bool:
@@ -100,10 +131,12 @@ _POSITIONS = {
 """Where each aggregate lands in a row of `_RESULT` (None: the quartiles)."""
 
 
-def _literal(value: str | float | None) -> str:
+def _literal(value: str | float | bool | None) -> str:
     """Write a fetched value as a SQL literal."""
     if value is None:
         return "NULL"
+    if isinstance(value, bool):
+        return "true" if value else "false"
     if isinstance(value, str):
         return "'" + value.replace("'", "''") + "'"
     if isinstance(value, float):
@@ -139,10 +172,14 @@ def profile(
         Count distinct values exactly; False estimates them (faster on
         very large data).
     id_rows : int, default 20
-        The fewest rows for a column to be flagged ``id-like``.
+        The fewest non-missing values for an integer or text column to be
+        flagged ``id-like``, when all of them are distinct. With
+        ``exact=False`` the distinct count is approximate, so ``id-like``
+        may not fire.
     high_cardinality : int, default 50
         The most distinct values a text column has before it is flagged
-        ``high-cardinality``.
+        ``high-cardinality``, which also needs more than half its
+        non-missing values distinct, and never goes with ``id-like``.
     out : {"pandas", "polars", "numpy", "arrow"} or Output, optional
         What to hand back; by default ``sq.get_config().out``, and when that
         is None a DuckDB relation.
@@ -152,13 +189,16 @@ def profile(
     duckdb.DuckDBPyRelation or object
         One row per column: ``column``, ``type``, ``rows``, ``missing``,
         ``missing_share``, ``distinct``, ``distinct_share``, the numeric,
-        text and date statistics, ``exact`` and ``notes``. The result is
-        computed now and kept, so it outlives `data`.
+        text and date statistics, ``exact`` and ``notes``: a list of flags
+        among ``all-missing``, ``constant``, ``id-like`` and
+        ``high-cardinality``, in that order. The result is computed now
+        and kept, so it outlives `data`.
 
     Raises
     ------
     SqlearnError
-        If a name in `cols` is not a column.
+        If a name in `cols` is not a column, or `id_rows` or
+        `high_cardinality` is not a non-negative integer.
 
     Examples
     --------
@@ -170,7 +210,8 @@ def profile(
     0      a        0         2
     1      b        1         2
     """
-    del id_rows, high_cardinality  # used by the notes
+    id_rows = _count("id_rows", id_rows)
+    high_cardinality = _count("high_cardinality", high_cardinality)
     source = read(data)
     names = columns(source, cols, function="profile")
     types = dict(source.schema)
@@ -195,7 +236,7 @@ def profile(
         missing, distinct = counts[cursor : cursor + 2]
         cursor += 2
         present = rows - missing
-        row: list[str | float | None] = [None] * _FILLED
+        row: list[str | float | bool | None] = [None] * _FILLED
         row[:7] = [
             name,
             str(types[name]),
@@ -213,8 +254,10 @@ def profile(
             else:
                 row[target] = value
         cursor += len(_POSITIONS[kinds[name]])
+        is_text = kinds[name] == "text"
+        row += [types[name].id in _INTEGERS or is_text, is_text]
         values.append(f"({', '.join(_literal(v) for v in row)})")
-    labels = [f"v{i}" for i in range(_FILLED)]
+    labels = [f"v{i}" for i in range(_FILLED + 2)]
     if values:
         body = f"(VALUES {', '.join(values)}) AS v({', '.join(labels)})"
     else:
@@ -224,7 +267,8 @@ def profile(
         f"CAST(v.{alias} AS {kind}) AS {quote(label)}"
         for alias, (label, kind) in zip(labels, _RESULT, strict=False)
     ]
-    select += [f'{exact!r}::BOOLEAN AS "exact"', '[]::VARCHAR[] AS "notes"']
+    notes = _NOTES.format(id_rows=id_rows, high_cardinality=high_cardinality)
+    select += [f'{exact!r}::BOOLEAN AS "exact"', f'{notes}::VARCHAR[] AS "notes"']
     sql = f"SELECT {', '.join(select)} FROM {body}"
     rel = answer(sql)
     return to_output(rel, out if out is not None else get_config().out)
