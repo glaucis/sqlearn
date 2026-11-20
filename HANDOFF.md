@@ -3,9 +3,10 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-20 · Branch: `main` · Last commit: `ac4d167` docs: update
-the handoff · Checks: passing (`just test` on the merged `main`: 2993
-passed, 24 skipped; `just verify` on the branch at `e786d49`) · Pushed
+Updated: 2026-11-20 · Branch: `load-and-gram-fixes` · Last commit:
+`8dba18c` docs: explain the Gram learn's peak above check_fits · Checks:
+passing (`just verify` on the branch at `8dba18c`: 3017 passed, 24
+skipped) · Not merged or pushed
 Verify with: `just verify`
 
 ## In progress
@@ -24,18 +25,24 @@ None.
 - The next 3.3 area, not chosen yet. Linear or ridge regression would reuse
   the Gram step with Xᵀy (ADR 0058 opens it to users' steps after that). No
   dataset fetcher (ADR 0053).
-- #67: a Gram learn peaks about 0.64 GB above `check_fits`' model.
-- #68: wide Parquet with default row groups runs DuckDB out of memory at
-  many threads.
-- #69: `sq.load` still loads extra learned names, short folds and repeated
-  columns for every step (pre-existing); #70–#72 are tidies from the PCA
-  build.
+- #73: PCA's apply SQL takes about p² memory to bind (1.95 GB at 200
+  columns in plain DuckDB), outside DuckDB's `memory_limit`; the options
+  (a weight matrix written once, a weights table, or a note) are Tomas's
+  to choose. #70–#72 are tidies from the PCA build.
 - #65's minor follow-ups (listed in its last comments); the first worth
   doing: let `sq.select` shortcuts take a column selector by position, as
   the other groups do.
 
 ## Dead ends and traps
 
+- DuckDB's `memory_limit` and `duckdb_memory()` do not count parsing and
+  binding a statement: a query of many constants (PCA's apply) holds GBs
+  outside them. `ru_maxrss` peaks depend on whether DuckDB has handed
+  memory back yet: probe twice. `repr(np.float64(x))` is
+  `np.float64(...)` in SQL: write `float(x)!r`. A script outside the repo
+  importing `validation` needs `PYTHONPATH` set to the repo. A
+  cross-fitted step's `learn` needs the target, so `sq.load` takes its
+  names from `Step._derives`. (2026-11-20)
 - A wait loop such as `until grep -q "^EXIT=" log` never ends when the
   log's last line has no newline: wait on the PID. Subagents can leave such
   loops behind; check with `pgrep -fl`. DuckDB's numpy fetch has no
@@ -114,6 +121,13 @@ None.
 
 ## Just finished
 
+- #69, #68, #67 on branch `load-and-gram-fixes`: `sq.load` refuses learned
+  names a step never learns, folds unlike the values on all rows, columns
+  listed twice and columns out from nowhere (`987347e`); an out-of-memory
+  error on a Parquet file names its row groups and a `ROW_GROUP_SIZE`
+  (`fcf9db3`); the Gram learn's peak above `check_fits` is DuckDB binding
+  PCA's apply SQL, measured and written into `gram-streaming.md`
+  (`8dba18c`), its remedy #73. (2026-11-20)
 - Decomposition (#66, ADRs 0057 and 0058): `sq.decompose.pca` and
   `sq.decompose(method="pca")`, a Gram step in the core (`_gram.py`), numpy
   as a runtime dependency. Spec `docs/specs/library-decomposition.md`, plan

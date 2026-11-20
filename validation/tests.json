@@ -2240,6 +2240,30 @@
     },
     {
       "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_fold_unlike_the_values_learned_on_all_rows_is_refused[extra fold]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_fold_unlike_the_values_learned_on_all_rows_is_refused[lacks a column]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_fold_unlike_the_values_learned_on_all_rows_is_refused[lacks a fold]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_fold_unlike_the_values_learned_on_all_rows_is_refused[lacks a name]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
       "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_last_step_dropping_columns_loads[sq.select.best(k=1)]",
       "outcome": "passed",
       "tier": "fast"
@@ -2270,7 +2294,31 @@
     },
     {
       "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_learned_column_listed_twice_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
       "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_learned_fold_value_for_a_column_not_learned_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_learned_name_the_step_does_not_learn_is_refused[pca]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_learned_name_the_step_does_not_learn_is_refused[standard]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_learned_name_the_step_does_not_learn_is_refused[target]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -3147,6 +3195,12 @@
     {
       "area": "sqlearn/_saving/learned",
       "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_whole_row_step_damaged_at_load_is_refused[kept column unnamed]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_columns_out_naming_a_column_no_step_or_data_has_is_refused",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -14948,6 +15002,12 @@
     },
     {
       "area": "sqlearn/_diagnose",
+      "name": "tests/src/sqlearn/test__diagnose.py::test_running_out_of_memory_applying_to_a_parquet_file_names_the_fixes",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_diagnose",
       "name": "tests/src/sqlearn/test__diagnose.py::test_running_out_of_memory_in_a_longer_pipeline_names_the_median_step",
       "outcome": "passed",
       "tier": "slow"
@@ -14957,6 +15017,18 @@
       "name": "tests/src/sqlearn/test__diagnose.py::test_running_out_of_memory_names_the_fixes",
       "outcome": "passed",
       "tier": "slow"
+    },
+    {
+      "area": "sqlearn/_diagnose",
+      "name": "tests/src/sqlearn/test__diagnose.py::test_running_out_of_memory_on_a_parquet_file_names_its_row_groups[1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_diagnose",
+      "name": "tests/src/sqlearn/test__diagnose.py::test_running_out_of_memory_on_a_parquet_file_names_its_row_groups[2]",
+      "outcome": "passed",
+      "tier": "fast"
     },
     {
       "area": "sqlearn/_diagnose",
