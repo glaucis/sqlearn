@@ -3,11 +3,11 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-20 · Branch: `feature-selection` · Last commit: `318185a`
-test: give f_regression's wide bound its spec reason (#65), then this one ·
-Checks: passing (`just verify` on the branch: 2769 passed, 24 skipped;
-feature-selection validation 1,197 pass, 127 anomaly, 0 fail; docs build
-without warnings) · Not merged, not pushed
+Updated: 2026-11-20 · Branch: `feature-selection` · Last commit: `da74b2c`
+fix: take a numpy threshold and correct the docs it touches (#65), then
+this one · Checks: passing (`just verify` after the final review's fixes:
+2813 passed, 24 skipped; feature-selection validation 1,197 pass, 127
+anomaly, 0 fail; docs build) · Not merged, not pushed
 Verify with: `just verify`
 
 ## In progress

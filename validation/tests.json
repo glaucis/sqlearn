@@ -2216,6 +2216,30 @@
     },
     {
       "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_damaged_whole_row_step_gives_only_the_files_fix",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_feature_selector_keeping_none_of_its_columns_loads[best k=0 mid-pipeline]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_feature_selector_keeping_none_of_its_columns_loads[best k=0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_feature_selector_keeping_none_of_its_columns_loads[percentile 0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
       "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_last_step_dropping_columns_loads[sq.select.best(k=1)]",
       "outcome": "passed",
       "tier": "fast"
@@ -2259,6 +2283,120 @@
     {
       "area": "sqlearn/_saving/learned",
       "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_restore_that_does_not_fit_changes_nothing",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_score_learned_as_text_is_refused_at_load[count-huge]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_score_learned_as_text_is_refused_at_load[count-number]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_score_learned_as_text_is_refused_at_load[covariance-huge]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_score_learned_as_text_is_refused_at_load[covariance-number]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_score_learned_as_text_is_refused_at_load[low-huge]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_score_learned_as_text_is_refused_at_load[low-number]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_score_learned_as_text_is_refused_at_load[stats count-huge]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_score_learned_as_text_is_refused_at_load[stats count-number]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_score_learned_as_text_is_refused_at_load[stats square sum-huge]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_score_learned_as_text_is_refused_at_load[stats square sum-number]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_score_learned_as_text_is_refused_at_load[stats sum-huge]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_score_learned_as_text_is_refused_at_load[stats sum-number]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_score_learned_as_text_is_refused_at_load[target variance-huge]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_score_learned_as_text_is_refused_at_load[target variance-number]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_score_learned_as_text_is_refused_at_load[variance-huge]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_score_learned_as_text_is_refused_at_load[variance-number]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_variance_learned_as_text_is_refused_at_load[high]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_variance_learned_as_text_is_refused_at_load[low]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_variance_learned_as_text_is_refused_at_load[variance]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -4616,6 +4754,48 @@
     },
     {
       "area": "sqlearn/feature_selection/_select",
+      "name": "tests/src/sqlearn/feature_selection/test__select.py::test_a_positional_that_is_no_column_name_is_refused_at_the_call[after a name]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/_select",
+      "name": "tests/src/sqlearn/feature_selection/test__select.py::test_a_positional_that_is_no_column_name_is_refused_at_the_call[best]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/_select",
+      "name": "tests/src/sqlearn/feature_selection/test__select.py::test_a_positional_that_is_no_column_name_is_refused_at_the_call[general]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/_select",
+      "name": "tests/src/sqlearn/feature_selection/test__select.py::test_a_positional_that_is_no_column_name_is_refused_at_the_call[in a list]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/_select",
+      "name": "tests/src/sqlearn/feature_selection/test__select.py::test_a_positional_that_is_no_column_name_is_refused_at_the_call[percentile]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/_select",
+      "name": "tests/src/sqlearn/feature_selection/test__select.py::test_a_positional_that_is_no_column_name_is_refused_at_the_call[set]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/_select",
+      "name": "tests/src/sqlearn/feature_selection/test__select.py::test_a_positional_that_is_no_column_name_is_refused_at_the_call[variance]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/_select",
       "name": "tests/src/sqlearn/feature_selection/test__select.py::test_a_search_learns_per_fold_for_percentile_and_per_setting_for_score[params0-6]",
       "outcome": "passed",
       "tier": "fast"
@@ -4634,6 +4814,24 @@
     },
     {
       "area": "sqlearn/feature_selection/_select",
+      "name": "tests/src/sqlearn/feature_selection/test__select.py::test_a_setting_leaving_no_column_fails_the_search_naming_it_and_the_fold[best]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/_select",
+      "name": "tests/src/sqlearn/feature_selection/test__select.py::test_a_setting_leaving_no_column_fails_the_search_naming_it_and_the_fold[percentile]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/_select",
+      "name": "tests/src/sqlearn/feature_selection/test__select.py::test_a_setting_leaving_no_column_fails_the_search_naming_it_and_the_fold[variance]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/_select",
       "name": "tests/src/sqlearn/feature_selection/test__select.py::test_each_feature_selector_saves_and_loads[sq.select.best(k=4, score='chi2')]",
       "outcome": "passed",
       "tier": "fast"
@@ -4647,6 +4845,12 @@
     {
       "area": "sqlearn/feature_selection/_select",
       "name": "tests/src/sqlearn/feature_selection/test__select.py::test_each_feature_selector_saves_and_loads[sq.select.variance(threshold=0.3)]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/_select",
+      "name": "tests/src/sqlearn/feature_selection/test__select.py::test_positional_names_and_one_list_of_names_are_taken",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -5127,6 +5331,66 @@
     {
       "area": "sqlearn/feature_selection/variance",
       "name": "tests/src/sqlearn/feature_selection/test_variance.py::test_variance_refuses_a_text_column",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/variance",
+      "name": "tests/src/sqlearn/feature_selection/test_variance.py::test_variance_refuses_a_threshold_that_is_no_finite_number[flag]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/variance",
+      "name": "tests/src/sqlearn/feature_selection/test_variance.py::test_variance_refuses_a_threshold_that_is_no_finite_number[huge]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/variance",
+      "name": "tests/src/sqlearn/feature_selection/test_variance.py::test_variance_refuses_a_threshold_that_is_no_finite_number[nan]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/variance",
+      "name": "tests/src/sqlearn/feature_selection/test_variance.py::test_variance_refuses_a_threshold_that_is_no_finite_number[text]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/variance",
+      "name": "tests/src/sqlearn/feature_selection/test_variance.py::test_variance_refuses_an_infinite_value[-inf-0.0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/variance",
+      "name": "tests/src/sqlearn/feature_selection/test_variance.py::test_variance_refuses_an_infinite_value[-inf-0.5]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/variance",
+      "name": "tests/src/sqlearn/feature_selection/test_variance.py::test_variance_refuses_an_infinite_value[inf-0.0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/variance",
+      "name": "tests/src/sqlearn/feature_selection/test_variance.py::test_variance_refuses_an_infinite_value[inf-0.5]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/variance",
+      "name": "tests/src/sqlearn/feature_selection/test_variance.py::test_variance_takes_a_numpy_threshold_as_a_float[numpy float]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/variance",
+      "name": "tests/src/sqlearn/feature_selection/test_variance.py::test_variance_takes_a_numpy_threshold_as_a_float[numpy int]",
       "outcome": "passed",
       "tier": "fast"
     },
