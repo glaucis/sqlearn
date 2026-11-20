@@ -7,6 +7,7 @@ Examples
 'profile'
 """
 
+from sqlearn.explore.histogram import histogram
 from sqlearn.explore.profile import profile
 
-__all__ = ["profile"]
+__all__ = ["histogram", "profile"]
