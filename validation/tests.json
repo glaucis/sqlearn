@@ -2384,6 +2384,12 @@
     },
     {
       "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_pca_value_damaged_at_load_is_refused[all-count-null]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
       "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_pca_value_damaged_at_load_is_refused[all-count-text]",
       "outcome": "passed",
       "tier": "fast"
@@ -2415,6 +2421,12 @@
     {
       "area": "sqlearn/_saving/learned",
       "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_pca_value_damaged_at_load_is_refused[all-infinite-nested list]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_pca_value_damaged_at_load_is_refused[all-infinite-null]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -2456,6 +2468,12 @@
     },
     {
       "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_pca_value_damaged_at_load_is_refused[all-mean-null]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
       "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_pca_value_damaged_at_load_is_refused[all-mean-text]",
       "outcome": "passed",
       "tier": "fast"
@@ -2487,6 +2505,12 @@
     {
       "area": "sqlearn/_saving/learned",
       "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_pca_value_damaged_at_load_is_refused[all-missing-nested list]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_pca_value_damaged_at_load_is_refused[all-missing-null]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -2528,6 +2552,12 @@
     },
     {
       "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_pca_value_damaged_at_load_is_refused[all-variance-null]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
       "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_pca_value_damaged_at_load_is_refused[all-variance-text]",
       "outcome": "passed",
       "tier": "fast"
@@ -2559,6 +2589,12 @@
     {
       "area": "sqlearn/_saving/learned",
       "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_pca_value_damaged_at_load_is_refused[all-weight-nested list]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_pca_value_damaged_at_load_is_refused[all-weight-null]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -2600,6 +2636,12 @@
     },
     {
       "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_pca_value_damaged_at_load_is_refused[all-weights-null]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
       "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_pca_value_damaged_at_load_is_refused[all-weights-text]",
       "outcome": "passed",
       "tier": "fast"
@@ -2631,6 +2673,12 @@
     {
       "area": "sqlearn/_saving/learned",
       "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_pca_value_damaged_at_load_is_refused[share-count-nested list]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_pca_value_damaged_at_load_is_refused[share-count-null]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -2672,6 +2720,12 @@
     },
     {
       "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_pca_value_damaged_at_load_is_refused[share-infinite-null]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
       "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_pca_value_damaged_at_load_is_refused[share-infinite-text]",
       "outcome": "passed",
       "tier": "fast"
@@ -2703,6 +2757,12 @@
     {
       "area": "sqlearn/_saving/learned",
       "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_pca_value_damaged_at_load_is_refused[share-mean-nested list]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_pca_value_damaged_at_load_is_refused[share-mean-null]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -2744,6 +2804,12 @@
     },
     {
       "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_pca_value_damaged_at_load_is_refused[share-missing-null]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
       "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_pca_value_damaged_at_load_is_refused[share-missing-text]",
       "outcome": "passed",
       "tier": "fast"
@@ -2775,6 +2841,12 @@
     {
       "area": "sqlearn/_saving/learned",
       "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_pca_value_damaged_at_load_is_refused[share-variance-nested list]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_pca_value_damaged_at_load_is_refused[share-variance-null]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -2816,6 +2888,12 @@
     },
     {
       "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_pca_value_damaged_at_load_is_refused[share-weight-null]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
       "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_pca_value_damaged_at_load_is_refused[share-weight-text]",
       "outcome": "passed",
       "tier": "fast"
@@ -2852,6 +2930,12 @@
     },
     {
       "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_pca_value_damaged_at_load_is_refused[share-weights-null]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
       "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_pca_value_damaged_at_load_is_refused[share-weights-text]",
       "outcome": "passed",
       "tier": "fast"
@@ -2871,6 +2955,54 @@
     {
       "area": "sqlearn/_saving/learned",
       "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_pca_value_for_a_column_not_learned_is_refused[valid in every slot]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_pca_value_out_of_its_range_is_refused_at_load[all-counts differ]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_pca_value_out_of_its_range_is_refused_at_load[all-infinite]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_pca_value_out_of_its_range_is_refused_at_load[all-missing]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_pca_value_out_of_its_range_is_refused_at_load[all-negative variance]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_pca_value_out_of_its_range_is_refused_at_load[share-counts differ]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_pca_value_out_of_its_range_is_refused_at_load[share-infinite]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_pca_value_out_of_its_range_is_refused_at_load[share-missing]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_pca_value_out_of_its_range_is_refused_at_load[share-negative variance]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -5378,6 +5510,24 @@
     },
     {
       "area": "sqlearn/decomposition/pca",
+      "name": "tests/src/sqlearn/decomposition/test_pca.py::test_pca_counts_one_refused_value_in_the_singular[inf-1 infinite value.]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/decomposition/pca",
+      "name": "tests/src/sqlearn/decomposition/test_pca.py::test_pca_counts_one_refused_value_in_the_singular[nan-1 missing value (NULL or NaN)]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/decomposition/pca",
+      "name": "tests/src/sqlearn/decomposition/test_pca.py::test_pca_keeping_no_component_refuses_a_missing_value_at_apply",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/decomposition/pca",
       "name": "tests/src/sqlearn/decomposition/test_pca.py::test_pca_keeps_the_whole_decomposition",
       "outcome": "passed",
       "tier": "fast"
@@ -5432,6 +5582,12 @@
     },
     {
       "area": "sqlearn/decomposition/pca",
+      "name": "tests/src/sqlearn/decomposition/test_pca.py::test_pca_refusal_of_a_text_column_says_why_once",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/decomposition/pca",
       "name": "tests/src/sqlearn/decomposition/test_pca.py::test_pca_refuses_a_missing_value",
       "outcome": "passed",
       "tier": "fast"
@@ -5456,6 +5612,12 @@
     },
     {
       "area": "sqlearn/decomposition/pca",
+      "name": "tests/src/sqlearn/decomposition/test_pca.py::test_pca_refuses_columns_whose_products_overflow",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/decomposition/pca",
       "name": "tests/src/sqlearn/decomposition/test_pca.py::test_pca_refuses_more_components_than_it_can_learn",
       "outcome": "passed",
       "tier": "fast"
@@ -5463,6 +5625,12 @@
     {
       "area": "sqlearn/decomposition/pca",
       "name": "tests/src/sqlearn/decomposition/test_pca.py::test_pca_refuses_more_components_than_rows_or_columns",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/decomposition/pca",
+      "name": "tests/src/sqlearn/decomposition/test_pca.py::test_pca_refuses_n_components_set_after_learning_as_built",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -5486,6 +5654,12 @@
     },
     {
       "area": "sqlearn/decomposition/pca",
+      "name": "tests/src/sqlearn/decomposition/test_pca.py::test_pca_takes_n_components_set_after_learning_as_built",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/decomposition/pca",
       "name": "tests/src/sqlearn/decomposition/test_pca.py::test_pca_whitens_as_scikit_learn",
       "outcome": "passed",
       "tier": "fast"
@@ -5495,6 +5669,12 @@
       "name": "tests/src/sqlearn/decomposition/test_pca.py::test_pca_with_more_columns_than_rows",
       "outcome": "passed",
       "tier": "fast"
+    },
+    {
+      "area": "sqlearn/decomposition/pca_large",
+      "name": "tests/src/sqlearn/decomposition/test_pca_large.py::test_pca_learns_data_larger_than_the_memory_limit",
+      "outcome": "passed",
+      "tier": "slow"
     },
     {
       "area": "sqlearn/decomposition/pca_pipelines",
@@ -15255,6 +15435,12 @@
     {
       "area": "sqlearn/_feed",
       "name": "tests/src/sqlearn/test__feed.py::test_without_pyarrow_one_fetch_gives_the_same_predictions",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_gram",
+      "name": "tests/src/sqlearn/test__gram.py::test_a_gram_matrix_over_the_budget_is_refused_before_any_batch",
       "outcome": "passed",
       "tier": "fast"
     },

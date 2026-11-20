@@ -4,8 +4,9 @@ Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
 Updated: 2026-11-20 · Branch: `decomposition` (not merged) · Checks: `just
-check` and `just test` passing on the branch; `just verify` run by the
-controller after the final review · Not pushed
+verify` passing on the branch at `e786d49` (3005 passed, 24 skipped on each
+Python version; every validation runner without a sqlearn failure; docs
+built) · Not pushed
 Verify with: `just verify`
 
 ## In progress
@@ -116,8 +117,10 @@ None.
   `docs/plans/2026-11-20-library-decomposition.md`, runner
   `validation/sqlearn/decomposition/validate_pca.py`, benchmarks
   `gram-batches.md` and `gram-streaming.md`. On branch
-  `decomposition` from `1c88839` to the docs commit, awaiting the final
-  review, `just verify` and the merge; follow-ups #67 and #68. (2026-11-20)
+  `decomposition` from `1c88839`; whole-branch review and `just verify`
+  passed, awaiting the merge. It also hardened `sq.load` for every step
+  (learned values for columns a step did not learn, non-text column keys).
+  Follow-ups #67–#72. (2026-11-20)
 - Feature selection (#65, ADRs 0055 and 0056): `sq.select.variance`, `best`,
   `percentile` and `sq.select(..., method=)`, scoring by `f_classif`,
   `f_regression`, `chi2`. Spec `docs/specs/library-feature-selection.md`,
