@@ -29,7 +29,7 @@ from sqlearn._compose import (
     step_stage,
 )
 from sqlearn._config import connection, get_config
-from sqlearn._diagnose import diagnose
+from sqlearn._diagnose import applying_out_of_memory, diagnose
 from sqlearn._errors import InternalError, SqlearnError, StepError
 from sqlearn._expr import quote
 from sqlearn._feed import PROBA, ROW, fetch, predict_streamed, stream_trainer
@@ -1082,7 +1082,10 @@ class Pipeline:
         # source, and so the view, alive for as long as the relation is.
         weakref.finalize(rel, _hold, source)
         self.runs_ = [Run([sql])]
-        return to_output(rel, out if out is not None else get_config().out)
+        try:
+            return to_output(rel, out if out is not None else get_config().out)
+        except duckdb.OutOfMemoryException as exc:
+            raise applying_out_of_memory(exc, sql) from exc
 
     def train(self, data: object, target: str, feed: str | None = None) -> "Pipeline":
         """Learn the steps, then train the model on the prepared data.

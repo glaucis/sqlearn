@@ -294,3 +294,10 @@ the meaning of what `learn` returns, raise the class attribute
 as a recipe, with a warning naming the step, and the next `learn` learns
 everything again, rather than `apply` reading values that mean something
 else. See [writing a step](writing-a-step.md).
+
+At load, each step's learned part is checked against the step: it holds the
+names `learn` returns and no others, each for every column it learned from
+and each column once; a cross-fitted step holds one fold per inner fold, each
+with the names and columns of the values learned on all rows. Anything else
+is refused as a damaged file. A step whose `learn` cannot run on a
+placeholder column, or that overrides `derive`, is not checked for its names.

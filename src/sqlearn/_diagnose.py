@@ -12,15 +12,21 @@ from types import TracebackType
 import duckdb
 
 from sqlearn._compose import stage_name
-from sqlearn._config import get_config
+from sqlearn._config import connection, get_config
 from sqlearn._errors import InternalError, SqlearnError, StepError
 from sqlearn._expr import quote
+from sqlearn._memory import _megabytes, duckdb_limit
 from sqlearn._step import Learned, Step, apply_rows
 
-__all__ = ["diagnose"]
+__all__ = ["applying_out_of_memory", "diagnose"]
 
 _MISSING_COLUMN = re.compile(r'column "([^"]+)" not found', re.IGNORECASE)
 _REPORT = "https://github.com/glaucis/sqlearn/issues"
+_PARQUET = re.compile(r"read_parquet\(\s*(\[[^\]]*\]|'(?:[^']|'')*')")
+_QUOTED = re.compile(r"'((?:[^']|'')*)'")
+_ROW_GROUP_ROWS = 20_000
+"""The largest row group suggested: what the Gram benchmark wrote at 200
+columns (docs/benchmarks/gram-streaming.md)."""
 
 
 def _first_line(exc: BaseException) -> str:
@@ -174,6 +180,122 @@ def _sorts(
     )
 
 
+def _row_groups(sql: str | None) -> tuple[str, str, int] | None:
+    """Say a Parquet file's row groups are too wide for the threads and limit.
+
+    DuckDB reads a Parquet file one row group at a time on each thread,
+    holding every column it reads (issue #68). Returns the why, the fix and
+    the threads when the failed statement reads Parquet files whose largest row group,
+    uncompressed, times the threads is over half the ``memory_limit``; else
+    None, as when the files' metadata cannot be read.
+    """
+    if sql is None:
+        return None
+    files = [
+        p.replace("''", "'")
+        for found in _PARQUET.findall(sql)
+        for p in _QUOTED.findall(found)
+    ]
+    if not files:
+        return None
+    con = connection()
+    listed = ", ".join("'" + f.replace("'", "''") + "'" for f in files)
+    try:
+        widest, rows = con.execute(
+            "SELECT max(size), arg_max(rows, size) FROM (SELECT "
+            "sum(total_uncompressed_size) AS size, any_value(row_group_num_rows) "
+            f"AS rows FROM parquet_metadata([{listed}]) "
+            "GROUP BY file_name, row_group_id)"
+        ).fetchall()[0]
+        threads = int(con.execute("SELECT current_setting('threads')").fetchall()[0][0])
+        limit = duckdb_limit(con)
+    except duckdb.Error:
+        return None
+    if widest is None or widest * threads * 2 <= limit:
+        return None
+    # Rows a group so that each thread's group fits in a quarter of the limit.
+    fit = int(rows * limit / (4 * widest * threads)) // 1000 * 1000
+    suggest = max(1000, min(_ROW_GROUP_ROWS, fit))
+    each = "one thread reads" if threads == 1 else f"each of {threads} threads reads"
+    why = (
+        "DuckDB reads a Parquet file one row group at a time on each thread, "
+        "holding every column it reads, and the file's largest row group is "
+        f"{_megabytes(widest)} uncompressed ({rows:,} rows): {each} one within "
+        f"a memory_limit of {_megabytes(limit)}."
+    )
+    fix = (
+        "write the file with smaller row groups, such as COPY (FROM "
+        "'data.parquet') TO 'smaller.parquet' (FORMAT parquet, "
+        f"ROW_GROUP_SIZE {suggest})"
+    )
+    return why, fix, threads
+
+
+def _memory_fixes(wide: tuple[str, str, int] | None) -> list[str]:
+    """Return the fixes for memory, threads and row groups, for the connection.
+
+    Fewer threads is left out when DuckDB runs on one already.
+    """
+    if get_config().connection is None:
+        fixes = [
+            "give DuckDB more memory with sq.set_config(memory=...), whose half "
+            "is the memory_limit of sqlearn's own connection",
+            "run it on fewer threads by passing a connection with "
+            "SET threads = 1 to sq.set_config(connection=...)",
+        ]
+    else:
+        fixes = [
+            "give DuckDB more memory with SET memory_limit = '...' on the "
+            "connection passed to sq.set_config(connection=...)",
+            "run it on fewer threads with SET threads = 1 on that connection",
+        ]
+    if wide is not None:
+        if wide[2] == 1:
+            del fixes[1]
+        fixes.append(wide[1])
+    return fixes
+
+
+def _joined(fixes: Sequence[str]) -> str:
+    return f"{', '.join(fixes[:-1])}, or {fixes[-1]}"
+
+
+def applying_out_of_memory(exc: BaseException, sql: str) -> SqlearnError:
+    """Explain DuckDB running out of memory while sqlearn fetches an apply.
+
+    Parameters
+    ----------
+    exc : BaseException
+        DuckDB's out-of-memory error.
+    sql : str
+        The statement that failed.
+
+    Returns
+    -------
+    SqlearnError
+        The why and the fixes: more memory, fewer threads, and smaller row
+        groups when it reads a Parquet file whose row groups are too wide.
+
+    Examples
+    --------
+    >>> import duckdb
+    >>> from sqlearn._diagnose import applying_out_of_memory
+    >>> err = applying_out_of_memory(duckdb.OutOfMemoryException("no"), "SELECT 1")
+    >>> str(err).split(" Why:")[0]
+    'DuckDB ran out of memory while applying the pipeline.'
+    """
+    wide = _row_groups(sql)
+    fixes = _memory_fixes(wide)
+    why = "DuckDB's memory_limit is too small for the data and its steps."
+    if wide is not None:
+        why = f"{why} {wide[0]}"
+    msg = (
+        f"DuckDB ran out of memory while applying the pipeline. Why: {why} "
+        f"Fix: {_joined(fixes)}. DuckDB says: {_first_line(exc)}"
+    )
+    return SqlearnError(msg)
+
+
 def _out_of_memory(
     exc: BaseException,
     steps: Sequence[tuple[str, Step]],
@@ -209,25 +331,15 @@ def _out_of_memory(
     else:
         learns = "the steps learn" if len(named) > 1 else "the step learns"
         why = f"DuckDB's memory_limit is too small for what {learns}."
-    if get_config().connection is None:
-        fixes = [
-            "give DuckDB more memory with sq.set_config(memory=...), whose half "
-            "is the memory_limit of sqlearn's own connection",
-            "run it on fewer threads by passing a connection with "
-            "SET threads = 1 to sq.set_config(connection=...)",
-        ]
-    else:
-        fixes = [
-            "give DuckDB more memory with SET memory_limit = '...' on the "
-            "connection passed to sq.set_config(connection=...)",
-            "run it on fewer threads with SET threads = 1 on that connection",
-        ]
+    wide = _row_groups(sql)
+    fixes = _memory_fixes(wide)
     if median:
         fixes.append("pass approx=True to the median, which is close but not exact")
+    if wide is not None:
+        why = f"{why} {wide[0]}"
     msg = (
         f"DuckDB ran out of memory while learning {where}. Why: {why} "
-        f"Fix: {', '.join(fixes[:-1])}, or {fixes[-1]}. "
-        f"DuckDB says: {_first_line(exc)}"
+        f"Fix: {_joined(fixes)}. DuckDB says: {_first_line(exc)}"
     )
     return SqlearnError(msg)
 

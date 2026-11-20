@@ -135,6 +135,12 @@ of the one query of the pipeline. numpy is a runtime dependency for this
 room for four p-by-p matrices; when they cannot fit, it is refused before any
 row is read, and a small memory budget makes small batches, not a failure.
 
+The query holds p² constants (each component a sum of p weighted columns), and
+DuckDB needs memory to read it, outside its `memory_limit`: about 1.2 GB at
+200 columns and 2 GB at 300 when the learn and `apply` build it, growing about
+as p² ([PCA on data larger than memory](../benchmarks/gram-streaming.md)). A
+cheaper form is [issue #73](https://github.com/glaucis/sqlearn/issues/73).
+
 ## Refusals
 
 Each message has a `Why:` and a `Fix:`.
