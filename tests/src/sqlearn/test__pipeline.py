@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from duckdb.sqltypes import INTEGER
-from steps_for_tests import MyEncoder, MyScale, dynamic_step
+from steps_for_tests import GramCovariance, MyEncoder, MyScale, dynamic_step
 
 import sqlearn as sq
 from sqlearn._config import connection
@@ -1473,3 +1473,69 @@ def test_use_model_refuses_an_sq_model_and_asks_for_the_estimator_itself():
         sq.errors.SqlearnError, match=r"Fix: pass the estimator itself, not sq\.Model"
     ):
         pipe.use_model(sq.Model(LogisticRegression()))
+
+
+@pytest.fixture
+def gappy():
+    """Return a relation of 50 rows of three numbers, some of them missing."""
+    rng = np.random.default_rng(1)
+    data = rng.normal(size=(50, 3)) * [1.0, 4.0, 0.5] + [2.0, -1.0, 7.0]
+    data[[3, 17, 40], [0, 1, 2]] = np.nan
+    frame = pd.DataFrame(data, columns=["a", "b", "c"])  # noqa: F841  (read by DuckDB)
+    con = connection()
+    con.execute("CREATE OR REPLACE TEMP TABLE gappy AS SELECT * FROM frame")
+    return con.table("gappy")
+
+
+def gram_pipe():
+    """Return impute, scale and a Gram step learning the covariance."""
+    return sq.Pipeline(
+        [("impute", sq.impute()), ("scale", sq.scale()), ("gram", GramCovariance())]
+    )
+
+
+def test_a_gram_step_learns_from_the_prepared_rows(gappy):
+    """A Gram step learns from the rows the steps before it prepared."""
+    from sklearn.preprocessing import StandardScaler
+
+    pipe = gram_pipe().learn(gappy)
+    frame = gappy.df()
+    scaled = StandardScaler().fit_transform(frame.fillna(frame.median()))
+    want = np.cov(scaled, rowvar=False)
+    learned = pipe.named_steps["gram"].covariance_
+    got = np.array([learned[c] for c in ["a", "b", "c"]])
+    assert got == pytest.approx(want, rel=1e-12)
+    statements = pipe.runs_[-1].statements
+    assert len(statements) == 2
+    assert "row_number()" in statements[1]
+
+
+def test_a_gram_step_refuses_an_empty_input(gappy):
+    """A Gram step given no rows is refused before any batch."""
+    empty = gappy.filter("false")
+    with pytest.raises(sq.errors.StepError, match="learned from no rows"):
+        sq.Pipeline([("gram", GramCovariance())]).learn(empty)
+
+
+def test_a_gram_step_is_found_in_the_store(gappy):
+    """A second learn on the same data finds the Gram step in the store."""
+    gram_pipe().learn(gappy)
+    again = gram_pipe().learn(gappy)
+    assert again.runs_ == []
+
+
+def test_a_gram_value_named_as_a_sql_value_is_a_bug(gappy):
+    """A Gram step may not learn a name its SQL learn already returned."""
+
+    class Clashing(GramCovariance):
+        def learned_from_gram(self, gram, learned):
+            return {"mean": dict(learned["mean"])}
+
+    with pytest.raises(sq.errors.InternalError, match="'mean'"):
+        sq.Pipeline([("impute", sq.impute()), ("gram", Clashing())]).learn(gappy)
+
+
+def test_a_gram_step_reached_by_a_missing_value_is_a_bug(gappy):
+    """A missing value reaching the stream is the Gram step's bug."""
+    with pytest.raises(sq.errors.InternalError, match="before_gram"):
+        sq.Pipeline([("gram", GramCovariance())]).learn(gappy)

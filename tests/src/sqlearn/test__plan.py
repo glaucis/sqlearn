@@ -2,7 +2,14 @@
 
 import pytest
 from duckdb.sqltypes import DOUBLE, INTEGER, VARCHAR
-from steps_for_tests import MyEncoder, MyScale, Prefix, dynamic_step, static_step
+from steps_for_tests import (
+    GramCovariance,
+    MyEncoder,
+    MyScale,
+    Prefix,
+    dynamic_step,
+    static_step,
+)
 
 import sqlearn as sq
 from sqlearn._plan import plan
@@ -454,3 +461,10 @@ def test_the_indicator_keeps_its_inputs():
     """``sq.impute.indicator`` keeps its inputs, so a later onehot waits for it."""
     p = runs(sq.impute.indicator("age", "city"), sq.encode.onehot())
     assert (p.learn_run, p.depends_on[1]) == ([0, 1], frozenset({0}))
+
+
+def test_a_gram_step_learns_after_the_steps_it_reads():
+    """A Gram step learns a run after the steps it reads, and applies after."""
+    p = runs(sq.impute(), sq.scale(), GramCovariance())
+    assert p.learn_run == [0, 0, 1]
+    assert p.apply_run[2] == 2

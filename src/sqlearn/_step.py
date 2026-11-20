@@ -7,6 +7,7 @@ from collections.abc import Callable, Mapping, Sequence
 from typing import ClassVar, Literal
 
 import duckdb
+import numpy as np
 from duckdb import Expression
 from duckdb.sqltypes import DuckDBPyType
 
@@ -236,6 +237,14 @@ class Step:
         (ADR 0056): they stay out of the key of what it learns, so a search
         over them learns each fold once. Its output, and every later step
         reading it, still follow them. Empty by default.
+    gram : bool
+        True for a Gram step (internal for now: sqlearn's own steps only,
+        not a user's step yet; ADR 0058). Its `learn` returns ``mean`` and
+        ``count``; the core then streams its centred input rows and builds
+        XᵀX in numpy, and the step learns the rest from that matrix in
+        `learned_from_gram`, after `before_gram`. It never sees a row. It
+        learns in a run after the steps it reads and applies in the run
+        after it learns, as a dynamic step does. False by default.
     state_version : int
         The version of what `learn` returns, written with a saved pipeline:
         raise it when the names or meaning of what `learn` returns change; a
@@ -270,6 +279,7 @@ class Step:
     uses_target: ClassVar[bool] = False
     cross_fits: ClassVar[bool] = True
     output_settings: ClassVar[frozenset[str]] = frozenset()
+    gram: ClassVar[bool] = False
     state_version: ClassVar[int] = 1
 
     def __init__(
@@ -458,6 +468,66 @@ class Step:
         """
         keys = ["all", *(str(i) for i in range(k))]
         return {key: dict(values) for key in keys}
+
+    def before_gram(self, learned: Mapping[str, Mapping[str, object]]) -> None:
+        """Refuse, before any batch, what a Gram step cannot learn from.
+
+        Internal for now, as `gram` is. Called once its SQL values are known
+        and before its rows are streamed, so a refusal costs no pass over
+        the data. The default refuses nothing.
+
+        Parameters
+        ----------
+        learned : mapping of str to mapping of str to object
+            What its `learn` aggregates returned: learned name, then column,
+            to value (``mean`` and ``count`` at least).
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> sq.Step().before_gram({"count": {"a": 3}}) is None
+        True
+        """
+
+    def learned_from_gram(
+        self, gram: np.ndarray, learned: Mapping[str, Mapping[str, object]]
+    ) -> Mapping[str, Mapping[str, object]]:
+        """Learn a Gram step's values from XᵀX of its centred inputs.
+
+        Internal for now, as `gram` is.
+
+        Parameters
+        ----------
+        gram : numpy.ndarray
+            The p-by-p sum of ``xᵀx`` over the rows, each input centred on
+            its ``mean``; rows and columns in the order of the inputs.
+        learned : mapping of str to mapping of str to object
+            What its `learn` aggregates returned: learned name, then column,
+            to value.
+
+        Returns
+        -------
+        mapping of str to mapping of str to object
+            Learned name, then column, to value: plain ``int``, ``float`` or
+            lists of ``float``. They join `learned` as the step's learned
+            values; a name already in `learned` is a bug.
+
+        Raises
+        ------
+        NotImplementedError
+            Always, by default: a step declaring `gram` defines it.
+
+        Examples
+        --------
+        >>> import numpy as np
+        >>> import sqlearn as sq
+        >>> sq.Step().learned_from_gram(np.zeros((1, 1)), {})
+        Traceback (most recent call last):
+        ...
+        NotImplementedError: Step declares gram but has no learned_from_gram
+        """
+        msg = f"{type(self).__name__} declares gram but has no learned_from_gram"
+        raise NotImplementedError(msg)
 
     def default_name(self) -> str:
         """Return the name this step gets in a pipeline built from a plain list.
