@@ -17,6 +17,7 @@ from sqlearn._pipeline import Pipeline
 from sqlearn._saving.files import load, save
 from sqlearn._selectors import cols
 from sqlearn._step import Learned, Step
+from sqlearn.decomposition._decompose import decompose
 from sqlearn.feature_selection._select import select
 from sqlearn.model_selection.groups import folds, search
 from sqlearn.preprocessing._encode import encode
@@ -36,6 +37,7 @@ __all__ = [
     "agg",
     "bin",
     "cols",
+    "decompose",
     "encode",
     "errors",
     "features",
