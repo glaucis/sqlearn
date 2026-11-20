@@ -3,8 +3,9 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-20 · Branch: `main` · Checks: passing (`just verify` on
-the #73 change before its commit: 3019 passed, 24 skipped)
+Updated: 2026-11-20 · Branch: `main` · Last commit: `53d2dd2` fix: write
+PCA's weights once, as a matrix (#73) · Checks: passing (`just verify` on
+it: 3019 passed, 24 skipped)
 Verify with: `just verify`
 
 ## In progress
@@ -23,8 +24,9 @@ None.
 - The next 3.3 area, not chosen yet. Linear or ridge regression would reuse
   the Gram step with Xᵀy (ADR 0058 opens it to users' steps after that). No
   dataset fetcher (ADR 0053).
-- #70–#72: tidies from the PCA build; #70 comes before the Gram step
-  opens to users' steps.
+- #70: tidy the Gram contract, first, as it comes before the Gram step
+  opens to users' steps (linear regression would open it).
+- #71, #72: validation and small tidies from the PCA build.
 - #65's minor follow-ups (listed in its last comments); the first worth
   doing: let `sq.select` shortcuts take a column selector by position, as
   the other groups do.
@@ -116,15 +118,9 @@ None.
 
 ## Just finished
 
-- #73: PCA's apply SQL holds the centred row as one list and the kept
-  weights once as a `DOUBLE[][]` literal, each output a
-  `list_dot_product`. The learn's peak at 200 columns fell from 1.11 to
-  0.36 GB (with `apply`, 1.98 to 0.37); 4.6 GB at 1,000, still growing as
-  p². Measured in `docs/benchmarks/gram-streaming.md`. (2026-11-20)
-- #69, #68, #67, merged in `b1d1cc4` and pushed, closed: `sq.load` refuses
-  learned names a step never learns, folds unlike the values on all rows,
-  columns listed twice and columns out from nowhere (`987347e`); an
-  out-of-memory error on a Parquet file names its row groups and a
-  `ROW_GROUP_SIZE` (`fcf9db3`); the Gram learn's peak above `check_fits` is
-  DuckDB binding PCA's apply SQL, measured and written into `gram-streaming.md`
-  (`8dba18c`), its remedy #73. (2026-11-20)
+- #73, pushed and closed: PCA's apply SQL holds the centred row as one list and
+  the kept weights once as a `DOUBLE[][]` literal, each output a
+  `list_dot_product`. The learn's peak at 200 columns fell from 1.11 to 0.36 GB
+  (with `apply`, 1.98 to 0.37); 4.6 GB at 1,000, still growing as p²; the
+  weights-in-a-table option would remove that, not built. Measured in
+  `docs/benchmarks/gram-streaming.md`. (2026-11-20)
