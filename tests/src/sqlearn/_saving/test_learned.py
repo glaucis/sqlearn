@@ -518,6 +518,7 @@ _DAMAGE = {
     "huge number": "1e100000000",
     "bool": "true",
     "big int": "1" + "0" * 400,
+    "null": "null",
 }
 
 
@@ -552,6 +553,43 @@ def test_a_pca_value_damaged_at_load_is_refused(
     else:
         per_column[1] = "__damage__"
     path.write_text(json.dumps(record).replace('"__damage__"', _DAMAGE[damage]))
+    STORE.clear()
+    with pytest.raises(SqlearnError, match=r"(?s)damaged.*Fix:"):
+        sq.load(path)
+
+
+# Each value a file may hold that is a number but not one PCA learns: a
+# missing or infinite count other than 0 (learning refuses those rows), a
+# negative variance, and a count differing from the first column's.
+_PCA_OUT_OF_RANGE = {
+    "missing": ("missing", 1),
+    "infinite": ("infinite", 2),
+    "negative variance": ("variance", -0.5),
+    "counts differ": ("count", 19),
+}
+
+
+@pytest.mark.parametrize("damage", list(_PCA_OUT_OF_RANGE))
+@pytest.mark.parametrize(
+    "settings", [{}, {"n_components": 0.9, "whiten": True}], ids=["all", "share"]
+)
+def test_a_pca_value_out_of_its_range_is_refused_at_load(
+    tmp_path: Path, settings: dict[str, Any], damage: str
+) -> None:
+    """A learned number PCA could never have learned is damage at load.
+
+    The second column's value is changed, so a count differing from the
+    first column's is caught as well as a value out of range.
+    """
+    rng = np.random.default_rng(0)
+    df = pd.DataFrame(rng.normal(size=(20, 3)), columns=["a", "b", "c"])
+    path = tmp_path / "p.json"
+    sq.save(sq.Pipeline([sq.decompose.pca(**settings)]).learn(df), path)
+    record = json.loads(path.read_text())
+    values = record["learned"]["steps"][0]["values"]["items"]
+    slot, value = _PCA_OUT_OF_RANGE[damage]
+    next(v for n, v in values if n == slot)["items"][1][1] = value
+    path.write_text(json.dumps(record))
     STORE.clear()
     with pytest.raises(SqlearnError, match=r"(?s)damaged.*Fix:"):
         sq.load(path)
