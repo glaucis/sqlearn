@@ -3,10 +3,10 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-20 · Branch: `load-and-gram-fixes` · Last commit:
-`8dba18c` docs: explain the Gram learn's peak above check_fits · Checks:
-passing (`just verify` on the branch at `8dba18c`: 3017 passed, 24
-skipped) · Not merged or pushed
+Updated: 2026-11-20 · Branch: `main` · Last commit: `b1d1cc4` Merge
+branch 'load-and-gram-fixes' · Checks: passing (`just verify` on the
+branch at `8dba18c`: 3017 passed, 24 skipped; the merged tree is the
+same) · Pushed
 Verify with: `just verify`
 
 ## In progress
@@ -121,12 +121,12 @@ None.
 
 ## Just finished
 
-- #69, #68, #67 on branch `load-and-gram-fixes`: `sq.load` refuses learned
-  names a step never learns, folds unlike the values on all rows, columns
-  listed twice and columns out from nowhere (`987347e`); an out-of-memory
-  error on a Parquet file names its row groups and a `ROW_GROUP_SIZE`
-  (`fcf9db3`); the Gram learn's peak above `check_fits` is DuckDB binding
-  PCA's apply SQL, measured and written into `gram-streaming.md`
+- #69, #68, #67, merged in `b1d1cc4` and pushed, closed: `sq.load` refuses
+  learned names a step never learns, folds unlike the values on all rows,
+  columns listed twice and columns out from nowhere (`987347e`); an
+  out-of-memory error on a Parquet file names its row groups and a
+  `ROW_GROUP_SIZE` (`fcf9db3`); the Gram learn's peak above `check_fits` is
+  DuckDB binding PCA's apply SQL, measured and written into `gram-streaming.md`
   (`8dba18c`), its remedy #73. (2026-11-20)
 - Decomposition (#66, ADRs 0057 and 0058): `sq.decompose.pca` and
   `sq.decompose(method="pca")`, a Gram step in the core (`_gram.py`), numpy
