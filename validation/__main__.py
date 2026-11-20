@@ -33,6 +33,7 @@ RUNNERS = (
     "validation.sqlearn.metrics.validate_tables",
     "validation.sqlearn.metrics.validate_curves",
     "validation.sqlearn.feature_selection.validate_select",
+    "validation.sqlearn.decomposition.validate_pca",
     "validation.pipelines.validate_slice",
     "validation.pipelines.validate_preprocessing",
     "validation.pipelines.validate_model_selection",
