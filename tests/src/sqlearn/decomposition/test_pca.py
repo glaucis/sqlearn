@@ -1,5 +1,6 @@
 """Tests of PCA's learning: its learned values against scikit-learn's (spec §4)."""
 
+import duckdb
 import numpy as np
 import pandas as pd
 import pytest
@@ -7,7 +8,8 @@ from sklearn import decomposition
 
 import sqlearn as sq
 from sqlearn._config import connection
-from sqlearn.errors import StepError
+from sqlearn._store import STORE
+from sqlearn.errors import SqlearnWarning, StepError
 
 COLUMNS = ["e", "b", "d", "a", "c"]  # not in order, so position is not name
 
@@ -26,11 +28,19 @@ def learned(data, **settings):
     return pipe["pca"]
 
 
-def sk(frame, n_components=None):
+def sk(frame, n_components=None, whiten=False):
     """Return scikit-learn's PCA fitted on `frame` by the same solver."""
     return decomposition.PCA(
-        n_components=n_components, svd_solver="covariance_eigh"
+        n_components=n_components, svd_solver="covariance_eigh", whiten=whiten
     ).fit(frame.to_numpy())
+
+
+def applied(frame, **settings):
+    """Return the outputs of PCA learned and applied on `frame`, as an array."""
+    pipe = sq.Pipeline([("pca", sq.decompose.pca(**settings))]).learn(frame)
+    out = pipe.apply(frame, out="pandas")
+    names = [c for c in pipe.columns_out_ if c.startswith("pca")]
+    return pipe, out[names].to_numpy()
 
 
 @pytest.mark.parametrize("n_components", [None, 3])
@@ -68,6 +78,7 @@ def test_pca_keeps_the_whole_decomposition():
     """What is learned does not depend on n_components: all p components."""
     frame = correlated()
     cut = learned(frame, n_components=2)
+    STORE.clear()  # else the second learn finds the first's values
     whole = learned(frame)
     assert cut.weights_ == whole.weights_
     assert cut.variance_ == whole.variance_
@@ -162,3 +173,169 @@ def test_pca_refuses_a_text_column_by_name():
     assert caught.value.step == "pca"
     assert caught.value.position == 1
     assert "'t'" in str(caught.value)
+
+
+@pytest.mark.parametrize("n_components", [None, 2, 0])
+def test_pca_applies_as_scikit_learn_transforms(n_components):
+    """Each output row is scikit-learn's transform of that row."""
+    frame = correlated()
+    pipe = sq.Pipeline([("pca", sq.decompose.pca(n_components=n_components))])
+    pipe.learn(frame.assign(id="x"))
+    out = pipe.apply(frame.assign(id="x"), out="pandas")
+    want = sk(frame, n_components)
+    names = [f"pca{i}" for i in range(want.n_components_)]
+    assert pipe.columns_out_ == [*names, "id"]  # in the inputs' place
+    got = out[names].to_numpy()
+    assert got.shape == (200, want.n_components_)
+    assert got == pytest.approx(want.transform(frame.to_numpy()), rel=1e-9)
+
+
+def test_pca_names_its_outputs_as_scikit_learn():
+    """pca0, pca1, ... in the first input's place; a clash is numbered."""
+    frame = correlated(50)[["a", "b", "c"]].assign(id=1.5)[["id", "a", "b", "c"]]
+    pca = sq.decompose.pca(n_components=2, cols=["a", "b", "c"])
+    pipe = sq.Pipeline([("pca", pca)]).learn(frame)
+    want = sk(frame[["a", "b", "c"]], 2)
+    assert pipe.columns_out_ == ["id", *want.get_feature_names_out()]
+    assert pipe.columns_out_ == ["id", "pca0", "pca1"]
+    clash = frame.rename(columns={"id": "pca0"})
+    pca = sq.decompose.pca(n_components=2, cols=["a", "b", "c"])
+    pipe = sq.Pipeline([("pca", pca)]).learn(clash)
+    assert pipe.columns_out_ == ["pca0", "pca0_2", "pca1"]
+    out = pipe.apply(clash, out="pandas")
+    assert out["pca0"].tolist() == [1.5] * 50
+    assert out[["pca0_2", "pca1"]].to_numpy() == pytest.approx(
+        want.transform(frame[["a", "b", "c"]].to_numpy()), rel=1e-9
+    )
+
+
+def test_pca_of_constant_columns_as_scikit_learn():
+    """A constant column gives a zero component; all constant, NaN ratios."""
+    frame = correlated(50).assign(b=2.5)
+    pipe, got = applied(frame)
+    want = sk(frame)
+    assert pipe["pca"].explained_variance_ratio_ == pytest.approx(
+        want.explained_variance_ratio_.tolist(), rel=1e-9, abs=1e-15
+    )
+    assert got == pytest.approx(want.transform(frame.to_numpy()), rel=1e-9)
+    flat = pd.DataFrame({"a": [2.5] * 6, "b": [-1.0] * 6, "c": [0.0] * 6})
+    for n_components in [None, 0.5, 2]:
+        with pytest.warns(RuntimeWarning, match="invalid value"):
+            want = sk(flat, n_components)
+        with pytest.warns(SqlearnWarning, match=r"variance.*Fix:"):
+            pipe, got = applied(flat, n_components=n_components)
+        pca = pipe["pca"]
+        assert pca.n_components_ == want.n_components_
+        assert np.isnan(pca.explained_variance_ratio_).all()
+        assert len(pca.explained_variance_ratio_) == want.n_components_
+        assert got == pytest.approx(want.transform(flat.to_numpy()))
+
+
+def test_pca_on_two_rows_as_scikit_learn():
+    """Two rows give one component of variance and one of none."""
+    frame = pd.DataFrame({"a": [1.0, 4.0], "b": [2.0, -1.0], "c": [0.5, 3.0]})
+    pipe, got = applied(frame)
+    want = sk(frame)
+    assert pipe["pca"].n_components_ == want.n_components_ == 2
+    assert got == pytest.approx(want.transform(frame.to_numpy()), rel=1e-9)
+
+
+def test_pca_whitens_as_scikit_learn():
+    """Each output is divided by its component's deviation, floored at eps."""
+    frame = correlated()
+    for n_components in [None, 3]:
+        _, got = applied(frame, n_components=n_components, whiten=True)
+        want = sk(frame, n_components, whiten=True)
+        assert got == pytest.approx(want.transform(frame.to_numpy()), rel=1e-9)
+    assert got.std(axis=0, ddof=1) == pytest.approx([1.0] * 3, rel=1e-9)
+    flat = frame.assign(b=0.0)
+    _, got = applied(flat, whiten=True)
+    want = sk(flat, whiten=True).transform(flat.to_numpy())
+    assert np.isfinite(got).all()
+    assert got[:, :4] == pytest.approx(want[:, :4], rel=1e-9)
+    # The last component has no variance: both outputs are rounding divided
+    # by the machine epsilon, so they agree only in being near 0.
+    assert np.abs(got[:, 4]).max() < 1e-6
+    assert np.abs(want[:, 4]).max() < 1e-6
+
+
+def test_pca_takes_a_fraction_of_the_variance():
+    """A fraction met exactly by a cumulative ratio keeps one more component."""
+    frame = pd.DataFrame({"a": [1.0, -1.0, 0.0, 0.0], "b": [0.0, 0.0, 1.0, -1.0]})
+    pipe, got = applied(frame, n_components=0.5)
+    want = sk(frame, 0.5)
+    assert want.explained_variance_ratio_.tolist() == [0.5, 0.5]
+    assert pipe["pca"].n_components_ == want.n_components_ == 2
+    assert got == pytest.approx(want.transform(frame.to_numpy()), rel=1e-9)
+    frame = correlated()
+    pipe, got = applied(frame, n_components=0.9)
+    want = sk(frame, 0.9)
+    assert pipe["pca"].n_components_ == want.n_components_
+    assert got == pytest.approx(want.transform(frame.to_numpy()), rel=1e-9)
+
+
+def test_pca_with_more_columns_than_rows():
+    """10 rows of 20 columns keep 10 components, as scikit-learn's."""
+    rng = np.random.default_rng(7)
+    frame = pd.DataFrame(
+        rng.normal(size=(10, 20)), columns=[f"x{i}" for i in range(20)]
+    )
+    pipe, got = applied(frame)
+    want = sk(frame)
+    assert pipe["pca"].n_components_ == want.n_components_ == 10
+    # The 10th component has no variance (10 centred rows span 9): its
+    # outputs are rounding, compared within an absolute bound.
+    assert got == pytest.approx(want.transform(frame.to_numpy()), rel=1e-9, abs=1e-12)
+
+
+def test_pca_refuses_more_components_than_rows_or_columns():
+    """Above the rows (or the columns) is refused at learn, on the step."""
+    rng = np.random.default_rng(7)
+    wide = pd.DataFrame(rng.normal(size=(10, 20)), columns=[f"x{i}" for i in range(20)])
+    with pytest.raises(ValueError, match="n_components=11"):
+        sk(wide, 11)
+    for frame, n_components in [(wide, 11), (correlated(), 6)]:
+        pipe = sq.Pipeline(
+            [sq.scale(), ("reduce", sq.decompose.pca(n_components=n_components))]
+        )
+        with pytest.raises(StepError, match="Fix:") as caught:
+            pipe.learn(frame)
+        assert caught.value.step == "reduce"
+        assert caught.value.position == 2
+        assert f"n_components={n_components}" in str(caught.value)
+
+
+def test_pca_refuses_too_many_components_found_in_the_store():
+    """Learned values found in the store are still checked against n_components."""
+    frame = correlated()
+    learned(frame)
+    with pytest.raises(StepError, match=r"n_components=6.*Fix:") as caught:
+        learned(frame, n_components=6)
+    assert caught.value.step == "pca"
+    assert caught.value.position == 1
+
+
+def test_pca_refuses_a_missing_value_at_apply():
+    """Learned on clean rows, a NULL, a NaN or an infinity is refused when fetched."""
+    frame = correlated(20)
+    pipe = sq.Pipeline([sq.decompose.pca(n_components=2)]).learn(frame)
+    gappy = frame.copy()
+    gappy.iloc[3, 1] = np.nan  # NULL in DuckDB
+    with pytest.raises(
+        duckdb.InvalidInputException, match=r"missing.*'b'.*Fix: .*sq\.impute"
+    ):
+        pipe.apply(gappy).fetchall()
+    with pytest.raises(duckdb.InvalidInputException, match=r"missing.*'a'"):
+        pipe.apply(nan_table_of(COLUMNS)).fetchall()
+    endless = frame.copy()
+    endless.iloc[5, 2] = np.inf
+    with pytest.raises(duckdb.InvalidInputException, match=r"infinite.*'d'.*Fix:"):
+        pipe.apply(endless).fetchall()
+
+
+def nan_table_of(columns):
+    """Return a DuckDB table of one row of `columns`, a NaN in column `a`."""
+    con = connection()
+    value = {c: "'nan'" if c == "a" else "1.0" for c in columns}
+    values = ", ".join(f'{value[c]}::DOUBLE AS "{c}"' for c in columns)
+    return con.sql(f"SELECT {values}")

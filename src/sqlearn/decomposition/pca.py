@@ -2,6 +2,7 @@
 
 import math
 import numbers
+import warnings
 from collections.abc import Mapping, Sequence
 from typing import ClassVar, cast
 
@@ -10,15 +11,15 @@ import numpy as np
 from duckdb import Expression
 from duckdb.sqltypes import DOUBLE
 
-from sqlearn._errors import SqlearnError, StepError
-from sqlearn._expr import is_missing
+from sqlearn._errors import PACKAGE_FILES, SqlearnError, SqlearnWarning, StepError
+from sqlearn._expr import const, is_missing
 from sqlearn._group import call_repr
 from sqlearn._selectors import Schema, Selector, _numeric
-from sqlearn._step import Step
+from sqlearn._step import Learned, Step
 from sqlearn.agg import aggregates as agg
-from sqlearn.preprocessing.scale import _numeric_inputs
+from sqlearn.preprocessing.scale import EPS, _numeric_inputs
 
-__all__ = ["PCA", "kept_components"]
+__all__ = ["PCA"]
 
 
 def _n_components(value: object) -> int | float | None:
@@ -72,7 +73,7 @@ def _refuse_too_many(n_components: object, rows: int, columns: int) -> None:
         raise StepError(msg, step="", position=0)
 
 
-def kept_components(
+def _kept_components(
     n_components: float | None, rows: int, variances: Sequence[float]
 ) -> int:
     """Return how many components to keep: scikit-learn's ``n_components_``.
@@ -102,12 +103,12 @@ def kept_components(
 
     Examples
     --------
-    >>> from sqlearn.decomposition.pca import kept_components
-    >>> kept_components(None, 10, [3.0, 1.0, 0.0])
+    >>> from sqlearn.decomposition.pca import _kept_components
+    >>> _kept_components(None, 10, [3.0, 1.0, 0.0])
     3
-    >>> kept_components(0.7, 10, [3.0, 1.0, 0.0])
+    >>> _kept_components(0.7, 10, [3.0, 1.0, 0.0])
     1
-    >>> kept_components(0.75, 10, [3.0, 1.0, 0.0])
+    >>> _kept_components(0.75, 10, [3.0, 1.0, 0.0])
     2
     """
     columns = len(variances)
@@ -116,9 +117,35 @@ def kept_components(
     if isinstance(n_components, int):
         _refuse_too_many(n_components, rows, columns)
         return n_components
-    values = np.asarray(variances, dtype=np.float64)
-    ratios = np.cumsum(values / values.sum())
+    ratios = np.cumsum(_ratios(variances))
     return int(np.searchsorted(ratios, n_components, side="right")) + 1
+
+
+def _ratios(variances: Sequence[float]) -> np.ndarray:
+    """Return each variance over their sum: all NaN when the sum is 0."""
+    values = np.asarray(variances, dtype=np.float64)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        return values / values.sum()
+
+
+def _refusal(name: str, found: str, fix: str) -> Expression:
+    """Return ``error(...)``: a refusal DuckDB raises when the row is fetched."""
+    msg = (
+        f"sq.decompose.pca found {found} in column {name!r}. Why: each "
+        "output is a sum over every value of the row, and scikit-learn's PCA "
+        f"refuses it too. Fix: {fix}"
+    )
+    return duckdb.FunctionExpression("error", const(msg))
+
+
+_MISSING = (
+    "a missing value (NULL or NaN)",
+    "impute the column first, such as with sq.impute() before this step.",
+)
+_INFINITE = (
+    "an infinite value",
+    "replace or drop the infinite values before this step.",
+)
 
 
 class PCA(Step):
@@ -134,6 +161,11 @@ class PCA(Step):
     or `whiten` never learns again. A missing value (NULL or NaN), an
     infinite value and fewer than two rows are refused at learn, before any
     batch.
+
+    Applying is one SQL expression per output, ``pca0`` to ``pca{k-1}``,
+    replacing the input columns: the centred values times the weights, as
+    constants. A missing or infinite value at apply is refused when its row
+    is fetched.
 
     Parameters
     ----------
@@ -381,6 +413,150 @@ class PCA(Step):
             "variance": {c: float(values[j]) for j, c in enumerate(columns)},
         }
 
+    def learned(self, values: Mapping[str, Mapping[str, object]]) -> None:
+        """Warn when every input column is constant: the ratios are NaN.
+
+        Parameters
+        ----------
+        values : mapping of str to mapping of str to object
+            Column, then learned name, to value.
+
+        Warns
+        -----
+        SqlearnWarning
+            If the total variance is 0, as scikit-learn's PCA warns of the
+            division by it.
+
+        Examples
+        --------
+        >>> import sqlearn as sq
+        >>> sq.decompose.pca().learned({"a": {"variance": 1.0}}) is None
+        True
+        """
+        variances = [cast("float", v["variance"]) for v in values.values()]
+        if variances and sum(variances) == 0:
+            text = (
+                "sq.decompose.pca: every column it decomposes is constant, so "
+                "the total variance is 0 and each explained variance ratio is "
+                "NaN, as scikit-learn's PCA warns of the division by zero. "
+                "Fix: drop constant columns first with sq.select.variance(), "
+                "or choose columns that vary with cols=."
+            )
+            warnings.warn(text, SqlearnWarning, skip_file_prefixes=PACKAGE_FILES)
+
+    def row_values(
+        self,
+        xs: Mapping[str, Expression],
+        learned: Mapping[str, Learned],
+    ) -> Mapping[str, Expression]:
+        """Centre each value once per row, refusing a missing or infinite one.
+
+        Parameters
+        ----------
+        xs : mapping of str to duckdb.Expression
+            The input columns, by name, in input order.
+        learned : mapping of str to Learned
+            The values learned for each column: its ``mean`` is read.
+
+        Returns
+        -------
+        mapping of str to duckdb.Expression
+            Each column, under its own name: ``x::DOUBLE - mean``, or an
+            error raised when the row is fetched if the value is missing
+            (NULL or NaN) or infinite.
+
+        Examples
+        --------
+        >>> import duckdb
+        >>> import sqlearn as sq
+        >>> from sqlearn._step import Learned
+        >>> xs = {"a": duckdb.ColumnExpression("a")}
+        >>> list(
+        ...     sq.decompose.pca().row_values(xs, {"a": Learned.values({"mean": 1.0})})
+        ... )
+        ['a']
+        """
+        centred: dict[str, Expression] = {}
+        for name, x in xs.items():
+            v = x.cast(DOUBLE)
+            mean = const(float(cast("float", learned[name].raw("mean"))))
+            centred[name] = (
+                duckdb.CaseExpression(is_missing(x), _refusal(name, *_MISSING))
+                .when(duckdb.FunctionExpression("isinf", v), _refusal(name, *_INFINITE))
+                .otherwise(v - mean)
+            )
+        return centred
+
+    def apply_row(
+        self,
+        xs: Mapping[str, Expression],
+        learned: Mapping[str, Learned],
+        values: Mapping[str, Expression],
+    ) -> Mapping[str, Expression]:
+        """Project the centred row on each kept component.
+
+        Parameters
+        ----------
+        xs : mapping of str to duckdb.Expression
+            The input columns, by name, in input order.
+        learned : mapping of str to Learned
+            The values learned for each column.
+        values : mapping of str to duckdb.Expression
+            The reference to each centred value (`row_values`); when it is
+            empty, the centred values are written into each output.
+
+        Returns
+        -------
+        mapping of str to duckdb.Expression
+            ``pca0`` to ``pca{k-1}``, k being `n_components_`: each the sum
+            of every centred value times its weight in that component,
+            divided by the component's deviation (floored at the machine
+            epsilon, as scikit-learn's) when `whiten`. The weights and means
+            are constants in the SQL.
+
+        Raises
+        ------
+        StepError
+            If `n_components` is a whole number above the smaller of the rows
+            and the columns, values found in the store included.
+
+        Examples
+        --------
+        >>> import duckdb
+        >>> import sqlearn as sq
+        >>> from sqlearn._step import Learned
+        >>> xs = {c: duckdb.ColumnExpression(c) for c in "ab"}
+        >>> learned = {
+        ...     "a": Learned.values(
+        ...         {"mean": 1.0, "count": 3, "weights": [1.0, 0.0], "variance": 4.0}
+        ...     ),
+        ...     "b": Learned.values(
+        ...         {"mean": 2.0, "count": 3, "weights": [0.0, 1.0], "variance": 1.0}
+        ...     ),
+        ... }
+        >>> list(sq.decompose.pca(n_components=1).apply_row(xs, learned, {}))
+        ['pca0']
+        """
+        columns = list(xs)
+        outputs: dict[str, Expression] = {}
+        if not columns:
+            return outputs
+        rows = cast("int", learned[columns[0]].raw("count"))
+        variances = [cast("float", learned[c].raw("variance")) for c in columns]
+        kept = _kept_components(self.n_components, rows, variances)
+        centred = values or self.row_values(xs, learned)
+        weights = {c: cast("list[float]", learned[c].raw("weights")) for c in columns}
+        for k in range(kept):
+            terms = [centred[c] * const(float(weights[c][k])) for c in columns]
+            total = duckdb.FunctionExpression(
+                "list_sum", duckdb.FunctionExpression("list_value", *terms)
+            )
+            if self.whiten:
+                # As scikit-learn: the deviation, floored at the machine epsilon.
+                total = total / const(max(math.sqrt(variances[k]), EPS))
+            outputs[f"pca{k}"] = total
+        return outputs
+
     def _whole(self) -> tuple[list[dict[str, object]], int, list[float]]:
         """Return each column's learned values, the rows and every variance.
 
@@ -399,7 +575,7 @@ class PCA(Step):
 
     def _kept(self) -> int:
         _, rows, variances = self._whole()
-        return kept_components(self.n_components, rows, variances)
+        return _kept_components(self.n_components, rows, variances)
 
     @property
     def n_components_(self) -> int:
@@ -485,9 +661,7 @@ class PCA(Step):
         [1.0, 0.0]
         """
         _, _, variances = self._whole()
-        values = np.asarray(variances, dtype=np.float64)
-        ratios = values / values.sum()
-        return [float(r) for r in ratios[: self._kept()]]
+        return [float(r) for r in _ratios(variances)[: self._kept()]]
 
     @property
     def singular_values_(self) -> list[float]:
