@@ -17,6 +17,36 @@ _OWN = {
     "k": "best",
     "percentile": "percentile",
 }
+_SETTING = {method: setting for setting, method in _OWN.items()}
+
+
+def _is_names(value: object) -> bool:
+    """Return whether `value` is a column name, or a list or tuple of names."""
+    if isinstance(value, list | tuple):
+        return all(isinstance(v, str) for v in value)
+    return isinstance(value, str)
+
+
+def _refuse_positionals(names: tuple[object, ...], method: str) -> None:
+    """Refuse a positional that is not a column name or a list of names.
+
+    A setting given by position (``sq.select.percentile(20)``) would be
+    taken as a column, and fail only at learn; it is refused at the call.
+    A dict passes, for `columns_arg` to refuse in its own words.
+    """
+    for value in names:
+        if isinstance(value, dict) or _is_names(value):
+            continue
+        setting = _SETTING[method]
+        number = isinstance(value, int | float) and not isinstance(value, bool)
+        shown = repr(value) if number else "..."
+        msg = (
+            f"sq.select.{method} got {value!r} as a positional. Why: a "
+            "positional is a column name, or one list of names, so a setting "
+            f"there is not a setting. Fix: give a setting by name, as "
+            f"{setting}={shown}, and each column by its name."
+        )
+        raise SqlearnError(msg)
 
 
 class SelectGroup(Group):
@@ -79,7 +109,8 @@ class SelectGroup(Group):
         Raises
         ------
         SqlearnError
-            If names and `cols` are both given, a dict is given, `method` is
+            If names and `cols` are both given, a dict is given, a
+            positional is not a column name or a list of names, `method` is
             not a method, or a setting is given that does not belong to it.
 
         Examples
@@ -110,6 +141,7 @@ class SelectGroup(Group):
                     f"leave it out, or use method={owners[0]!r}."
                 )
                 raise SqlearnError(msg)
+        _refuse_positionals(names, method)
         chosen = columns_arg(names, cols, allow_dict=False)
         columns = cast("str | list[str] | Selector | None", chosen)
         picked = _numeric() if columns is None else columns
@@ -154,8 +186,9 @@ class SelectGroup(Group):
         Raises
         ------
         SqlearnError
-            If names and `cols` are both given, a dict is given, or
-            `threshold` is negative or not a number.
+            If names and `cols` are both given, a dict is given, a
+            positional is not a column name, or `threshold` is negative or
+            not a number.
 
         Examples
         --------
@@ -200,8 +233,9 @@ class SelectGroup(Group):
         Raises
         ------
         SqlearnError
-            If names and `cols` are both given, a dict is given, `k` is not
-            a whole number from 0 up or ``"all"``, or `score` is unknown.
+            If names and `cols` are both given, a dict is given, a
+            positional is not a column name, `k` is not a whole number from
+            0 up or ``"all"``, or `score` is unknown.
 
         Examples
         --------
@@ -247,9 +281,9 @@ class SelectGroup(Group):
         Raises
         ------
         SqlearnError
-            If names and `cols` are both given, a dict is given,
-            `percentile` is not a number from 0 to 100, or `score` is
-            unknown.
+            If names and `cols` are both given, a dict is given, a
+            positional is not a column name, `percentile` is not a number
+            from 0 to 100, or `score` is unknown.
 
         Examples
         --------

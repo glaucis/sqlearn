@@ -38,7 +38,7 @@ pipe = sq.Pipeline(
 pipe.train("data/train/*.parquet", target="churned")
 pipe.predict("data/new.parquet")
 
-sq.select.percentile(20, score="f_regression")  # the best 20% for a number
+sq.select.percentile(percentile=20, score="f_regression")  # the best 20%
 sq.select.best(k=5, score="chi2")  # counts, frequencies
 
 sq.search(pipe, params={"best__k": [5, 10, 20]}, metric=sq.metrics.f1)
@@ -63,7 +63,10 @@ sq.search(pipe, params={"best__k": [5, 10, 20]}, metric=sq.metrics.f1)
 
 A step group (ADR 0034) with three shortcuts, and callable for its general form:
 `sq.select(*names, method="variance", ...)` builds the same step each shortcut
-builds, and refuses a setting that does not belong to `method`. Each selector is
+builds, and refuses a setting that does not belong to `method`. A positional is
+a column name, or one list of names: anything else (`sq.select.percentile(20)`)
+is refused at the call, with a `Fix:` line naming the setting
+(`percentile=20`), rather than taken as a column. Each selector is
 a dynamic step: the columns it outputs depend on what it learned. A column kept
 passes through unchanged (its name, type and values); a column dropped is gone.
 Its `cols` default to the numeric columns, and it refuses a chosen column that

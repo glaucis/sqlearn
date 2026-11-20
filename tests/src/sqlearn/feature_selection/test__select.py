@@ -89,6 +89,40 @@ def test_the_general_form_refuses_a_setting_of_another_method(call):
         call()
 
 
+@pytest.mark.parametrize(
+    ("call", "fix"),
+    [
+        (lambda: sq.select.percentile(20, score="f_regression"), "percentile=20"),
+        (lambda: sq.select.best(5), "k=5"),
+        (lambda: sq.select.variance(0.5), "threshold=0.5"),
+        (lambda: sq.select(5, method="best"), "k=5"),
+        (lambda: sq.select.best("a", 5), "k=5"),
+        (lambda: sq.select.best(["a", 5]), "k="),
+        (lambda: sq.select.best({"a"}), "k="),
+    ],
+    ids=[
+        "percentile",
+        "best",
+        "variance",
+        "general",
+        "after a name",
+        "in a list",
+        "set",
+    ],
+)
+def test_a_positional_that_is_no_column_name_is_refused_at_the_call(call, fix):
+    """A positional is a column name: a setting given there is refused at once."""
+    with pytest.raises(SqlearnError, match=r"positional.*Why:.*Fix:") as e:
+        call()
+    assert fix in str(e.value).split("Fix:")[1]
+
+
+def test_positional_names_and_one_list_of_names_are_taken():
+    """Names, or one list or tuple of them, are the columns."""
+    assert sq.select.best("a", "b").cols == ["a", "b"]
+    assert sq.select.best(["a", "b"]).cols == sq.select.best(("a", "b")).cols
+
+
 def churn(seed=3, rows=240):
     """Return 14 numeric columns, 2 with holes and 1 constant, and a class.
 
