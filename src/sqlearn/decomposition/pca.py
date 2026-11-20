@@ -599,12 +599,20 @@ class PCA(Step):
         >>> from sqlearn._step import Learned
         >>> xs = {c: duckdb.ColumnExpression(c) for c in "ab"}
         >>> learned = {
-        ...     "a": Learned.values(
-        ...         {"mean": 1.0, "count": 3, "weights": [1.0, 0.0], "variance": 4.0}
-        ...     ),
-        ...     "b": Learned.values(
-        ...         {"mean": 2.0, "count": 3, "weights": [0.0, 1.0], "variance": 1.0}
-        ...     ),
+        ...     c: Learned.values(
+        ...         {
+        ...             "mean": m,
+        ...             "count": 3,
+        ...             "missing": 0,
+        ...             "infinite": 0,
+        ...             "weights": w,
+        ...             "variance": v,
+        ...         }
+        ...     )
+        ...     for c, m, w, v in (
+        ...         ("a", 1.0, [1.0, 0.0], 4.0),
+        ...         ("b", 2.0, [0.0, 1.0], 1.0),
+        ...     )
         ... }
         >>> list(sq.decompose.pca(n_components=1).apply_row(xs, learned, {}))
         ['pca0']
