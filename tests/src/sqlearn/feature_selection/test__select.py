@@ -23,7 +23,7 @@ from sklearn.pipeline import make_pipeline
 import sqlearn as sq
 from sqlearn._config import connection
 from sqlearn._store import STORE, step_key
-from sqlearn.errors import SqlearnError
+from sqlearn.errors import SqlearnError, StepError
 from sqlearn.feature_selection import SelectKBest, SelectPercentile, VarianceThreshold
 
 DATA = ("table", "t", 1)
@@ -197,6 +197,41 @@ def test_the_spec_script_predicts_as_scikit_learn():
     predicted = pipe.predict(frame, out="pandas")["prediction"].to_numpy()
     np.testing.assert_array_equal(predicted, sk.predict(frame))
     assert list(pipe["best"].scores_) == [c for c in frame.columns if c != "flat"]
+
+
+@pytest.mark.filterwarnings("ignore::sqlearn.errors.SqlearnWarning")
+@pytest.mark.parametrize(
+    ("step", "params", "setting"),
+    [
+        (sq.select.best(), {"best__k": [1, 0]}, '"best__k": 0'),
+        (
+            sq.select.percentile(),
+            {"percentile__percentile": [50, 0]},
+            '"percentile__percentile": 0',
+        ),
+        (
+            sq.select.variance(),
+            {"variance__threshold": [0.0, 100.0]},
+            '"variance__threshold": 100.0',
+        ),
+    ],
+    ids=["best", "percentile", "variance"],
+)
+def test_a_setting_leaving_no_column_fails_the_search_naming_it_and_the_fold(
+    step, params, setting
+):
+    """As a model failing to fit: the setting and the fold are named."""
+    rng = np.random.default_rng(0)
+    frame = pd.DataFrame({f"x{i}": rng.normal(size=120) for i in range(4)})
+    frame["y"] = (frame.x0 > 0).astype(int)
+    pipe = sq.Pipeline([step, ("model", LogisticRegression())])
+    search = sq.search(pipe, params=params, folds=sq.folds.kfold(2))
+    with pytest.raises(StepError, match="no column") as e:
+        search.train(frame, target="y")
+    text = str(e.value)
+    assert setting in text
+    assert "fold 0 of KFold(n=2" in text
+    assert "Fix:" in text
 
 
 def test_a_search_over_k_picks_scikit_learns_setting():
