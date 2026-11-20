@@ -1,6 +1,7 @@
 """Tests of failure feedback: each broken step gets the message written for it."""
 
 import platform
+from pathlib import Path
 
 import duckdb
 import pytest
@@ -330,5 +331,63 @@ def test_running_out_of_memory_without_a_median_does_not_blame_the_median():
         assert "SET threads = 1" in text
         for part in ("median", "quantile", "approx=True"):
             assert part not in text
+    finally:
+        sq.set_config(connection=previous)
+
+
+def _wide_parquet(path: Path) -> duckdb.DuckDBPyConnection:
+    """Write 250,000 rows of 60 columns as Parquet, DuckDB's default row groups.
+
+    A row group then holds about 59 MB as doubles: under a 64 MB limit,
+    DuckDB cannot read one per thread. Returns a connection at that limit.
+    """
+    con = duckdb.connect()
+    cols = ", ".join(f"random() AS c{i}" for i in range(60))
+    con.execute(f"COPY (SELECT {cols} FROM range(250000)) TO '{path}' (FORMAT parquet)")
+    return con
+
+
+@pytest.mark.parametrize("threads", [1, 2])
+def test_running_out_of_memory_on_a_parquet_file_names_its_row_groups(
+    tmp_path: Path, threads: int
+) -> None:
+    """A learn reading wide row groups out of memory says so and names the fix.
+
+    Fewer threads is offered only when DuckDB runs on more than one.
+    """
+    path = tmp_path / "wide.parquet"
+    con = _wide_parquet(path)
+    con.execute(f"SET memory_limit = '64MB'; SET threads = {threads}")
+    previous = connection()
+    sq.set_config(connection=con)
+    try:
+        with pytest.raises(sq.errors.SqlearnError) as err:
+            sq.Pipeline([sq.scale()]).learn(str(path))
+        text = str(err.value)
+        assert isinstance(err.value.__cause__, duckdb.OutOfMemoryException)
+        for part in ("row group", "ROW_GROUP_SIZE"):
+            assert part in text
+        assert ("SET threads = 1" in text) is (threads > 1)
+    finally:
+        sq.set_config(connection=previous)
+
+
+def test_running_out_of_memory_applying_to_a_parquet_file_names_the_fixes(
+    tmp_path: Path,
+) -> None:
+    """An apply that sqlearn fetches, out of memory, is explained as a learn is."""
+    path = tmp_path / "wide.parquet"
+    con = _wide_parquet(path)
+    previous = connection()
+    sq.set_config(connection=con)
+    try:
+        pipe = sq.Pipeline([sq.scale()]).learn(str(path))
+        con.execute("SET memory_limit = '64MB'; SET threads = 2")
+        with pytest.raises(sq.errors.SqlearnError) as err:
+            pipe.apply(str(path), out="numpy")
+        text = str(err.value)
+        assert isinstance(err.value.__cause__, duckdb.OutOfMemoryException)
+        for part in ("applying", "row group", "ROW_GROUP_SIZE", "SET threads = 1"):
+            assert part in text
     finally:
         sq.set_config(connection=previous)

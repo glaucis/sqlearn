@@ -86,6 +86,27 @@ The steps that learn from the data ([imputing](imputing.md),
 spline in [making features](making-features.md)) use the store like any other:
 learning again on unchanged data learns nothing.
 
+## A wide Parquet file and DuckDB's memory limit
+
+DuckDB reads a Parquet file one row group at a time on each thread, holding
+every column it reads. A row group of DuckDB's default 122,880 rows holds about
+200 MB at 200 columns of doubles, so on 8 threads under a 2 GB `memory_limit`
+the reading alone runs out of memory, whatever the steps
+([PCA on data larger than memory](../benchmarks/gram-streaming.md)). sqlearn
+does not lower the threads for you
+([ADR 0046](../adr/0046-sqlearn-warns-the-user-chooses.md)). When a learn, or an
+`apply` with `out=` that sqlearn fetches, runs out of memory on such a file, the
+error says how large the largest row group is and names the fixes: more memory,
+fewer threads, or the file written with smaller row groups:
+
+```sql
+COPY (FROM 'data.parquet') TO 'smaller.parquet'
+    (FORMAT parquet, ROW_GROUP_SIZE 20000)
+```
+
+An `apply` that returns a relation is fetched by you, so its out-of-memory
+error is DuckDB's own.
+
 ## Learned values kept across sessions: `sq.save`
 
 The store lives only while the program runs: a restart empties it. The learned

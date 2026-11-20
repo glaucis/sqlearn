@@ -121,6 +121,7 @@ about 0.3 GB to DuckDB's 2 GB and the baseline: about 2.35 GB.
   thread, fits in it. With DuckDB's default Parquet row groups the learn
   raised an out-of-memory error at 8 threads (200 columns at 2 GB; 50 columns
   at 256 MB); this benchmark avoids it with 20,000-row groups at the default 8
-  threads, and the slow test with one thread. Followed up in
-  [issue #68](https://github.com/glaucis/sqlearn/issues/68).
+  threads, and the slow test with one thread. Since
+  [issue #68](https://github.com/glaucis/sqlearn/issues/68) the error names
+  the row group and the fix of smaller ones.
 - The Gram matrix agrees with DuckDB's `covar_pop` to 3e-14.
