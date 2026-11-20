@@ -48,8 +48,9 @@ it frees after.
 
 The machine was not quiet: the load was about 7 to 22 when the run began and
 rose to about 60 by its end, from other work. The times are estimates and
-could be much shorter on a quiet machine; the peaks and the agreement do not
-depend on the load.
+could be much shorter on a quiet machine. The agreement does not depend on the
+load; the peaks may, a little, since thread timing changes what is resident at
+once. Each probe ran once.
 
 ## Results
 
@@ -81,17 +82,18 @@ plus 3 copies of a batch (`_COPIES`, `_BATCH_COPIES` of `sqlearn._gram`). At
 200 columns the matrices are 1.3 MB and a batch is 100 MB, so the model adds
 about 0.3 GB to DuckDB's 2 GB and the baseline: about 2.35 GB.
 
-- The measured peak of the learn, 2.99 GB, is about 0.64 GB over that. The
-  `gram` probe alone, 2.23 GB, is about 0.12 GB under it. So the numpy side of
-  the Gram (the 3 batch copies) fits the model, and the 3-copy factor holds.
-- What the model does not count is in the learn but not in `gram_matrix`
-  alone: the extra 0.76 GB of the learn over the `gram` probe. The probe
-  counts and averages in two statements, where the learn runs one learn
-  statement over the file on 8 threads, and DuckDB's `memory_limit` does not
-  cover everything that process holds (Parquet buffers, the thread stacks).
-  This run does not say which; it is recorded, not explained.
-- `covar` alone peaks at 2.00 GB: DuckDB stayed at its limit when it ran
-  alone.
+- The measured peak of the learn, 2.99 GB, is about 0.64 GB (27%) over that:
+  **the model under-counts the learn by about 0.64 GB at 200 columns, and the
+  cause is unknown.** It is followed up in
+  [issue #67](https://github.com/glaucis/sqlearn/issues/67).
+- The `gram` probe, 2.23 GB, is under the model. That does not confirm the
+  3-copy factor: the `covar` probe peaked at only 2.00 GB, so DuckDB did not
+  necessarily reach its limit in the `gram` run, and the probe does not
+  isolate the batch copies from DuckDB's share.
+- The learn peaked 0.76 GB above the `gram` probe, and both run on the
+  default 8 threads. This run does not say why; it is recorded, not
+  explained.
+- `covar` alone peaks at 2.00 GB.
 
 ## Two things found on the way
 
@@ -112,5 +114,13 @@ about 0.3 GB to DuckDB's 2 GB and the baseline: about 2.35 GB.
 
 - A learn of 20 GB of doubles finished within a 2 GB DuckDB limit, on a
   machine with less RAM than the data, in about 2.4 minutes under load.
-- Its peak was 3.0 GB, in line with the 3.0 GB of spec §6.
+- Its peak was 2.99 GB, against 3.0 GB measured for the spec, but 0.64 GB over
+  what `check_fits`' model gives (2.35 GB); the model under-counts the learn
+  and the cause is unknown (issue #67).
+- It learns within the limit only if one row group of every column, for each
+  thread, fits in it. With DuckDB's default Parquet row groups the learn
+  raised an out-of-memory error at 8 threads (200 columns at 2 GB; 50 columns
+  at 256 MB); this benchmark and the slow test avoid it with 20,000-row
+  groups and one thread. Followed up in
+  [issue #68](https://github.com/glaucis/sqlearn/issues/68).
 - The Gram matrix agrees with DuckDB's `covar_pop` to 3e-14.
