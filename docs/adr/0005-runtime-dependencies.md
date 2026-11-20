@@ -1,11 +1,11 @@
 ---
 type: adr
 tags: [dependencies, runtime, packaging, duckdb, licensing]
-summary: "Decision record limiting sqlearn to one runtime dependency (duckdb), with each dependency justified and permissively licensed."
+summary: "Decision record on runtime dependencies (`duckdb`, and `numpy` since ADR 0057), each justified in writing and permissively licensed; originally limited to duckdb alone."
 related: [docs/adr/0002-sql-on-duckdb-execution-engine.md, docs/adr/0004-apache-2-licence.md]
 mdindex: [type=0fc814, tags=1c2c56, summary=176b39, related=40db02]
 ---
-# 0005: One runtime dependency, each one justified
+# 0005: Runtime dependencies, each one justified
 
 Status: accepted (2026-11-03, from the earlier attempt's blueprint); amended by
 [ADR 0057](0057-numpy-is-a-runtime-dependency.md) (2026-11-20): numpy is a

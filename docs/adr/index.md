@@ -17,7 +17,7 @@ How sqlearn is built, licensed and checked.
 
 - [0001: uv for Python packaging](0001-uv-for-python-packaging.md)
 - [0004: Apache-2.0 licence](0004-apache-2-licence.md)
-- [0005: One runtime dependency, each one justified](0005-runtime-dependencies.md)
+- [0005: Runtime dependencies, each one justified](0005-runtime-dependencies.md)
 - [0057: numpy is a runtime dependency](0057-numpy-is-a-runtime-dependency.md)
 - [0006: Local and offline](0006-local-and-offline.md)
 - [0007: Python 3.12 as the floor](0007-python-3-12-floor.md)
