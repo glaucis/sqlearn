@@ -3,10 +3,11 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-19 · Branch: `main` · Last commit: `62eecbd` Merge branch
-'tidy-regression-metrics': #63's deferred minors · Checks: passing (`just
-verify` on the branch: 2649 passed, 24 skipped; regression validation 2,359
-pass, 138 anomaly, 0 fail) · Not pushed
+Updated: 2026-11-20 · Branch: `feature-selection` · Last commit: `318185a`
+test: give f_regression's wide bound its spec reason (#65), then this one ·
+Checks: passing (`just verify` on the branch: 2769 passed, 24 skipped;
+feature-selection validation 1,197 pass, 127 anomaly, 0 fail; docs build
+without warnings) · Not merged, not pushed
 Verify with: `just verify`
 
 ## In progress
@@ -15,26 +16,20 @@ None.
 
 ## Waiting on the user
 
-- Feature selection is the chosen next 3.3 area (2026-11-19): drop
-  near-constant columns, keep the k best (or a percentage) by ANOVA F,
-  correlation F or chi². Waiting on one decision: a step that learns from the
-  target without cross-fitting (A: split "learns from the target" from
-  "cross-fits", an ADR; B: selectors cross-fit too; C: target scores later).
-  Recommended A. Out: mutual information, selection by a model, by p-value.
 - The #46 benchmark (`docs/benchmarks/generators-on-many-threads.md`) was not
   on a quiet machine (load average about 4 to about 35) and can be rerun on
   request. (since 2026-11-18)
 
 ## Next up
 
-- Feature selection: after the decision above, the spec
-  (`docs/specs/library-feature-selection.md`), then the plan. Today
-  `uses_target` means cross-fitted (`cv`, `seed`, one DOUBLE out, ends its
-  run); a rowwise dynamic step's `apply_row` sees every column's learned
-  values, which the k-best ranking needs.
+- The next 3.3 area, not chosen yet. No dataset fetcher (ADR 0053).
 
 ## Dead ends and traps
 
+- A step's first positional argument is its columns: `sq.select.percentile(50)`
+  fails (50 is read as `cols`), write `percentile=50`. The errors are in
+  `sq.errors` (`sq.errors.StepError`), not `sq`. BSD `sed -i` needs an
+  extension argument, so use Edit for in-place changes. (2026-11-20)
 - DuckDB 2.0 has no `log1p`: use Kahan's form, `_log1p` in
   `src/sqlearn/metrics/regression.py`. scikit-learn's D² pinball baseline is
   `_weighted_percentile(average=True)`, not any DuckDB quantile
@@ -139,6 +134,18 @@ None.
 
 ## Just finished
 
+- Feature selection (#65, ADRs 0055 and 0056): `sq.select.variance`, `best`
+  and `percentile` (and `sq.select(..., method=)`) with the `f_classif`,
+  `f_regression` and `chi2` scores; a target step that does not cross-fit
+  (0055); a search over `k`, `percentile` or `threshold` learns each fold once
+  (0056). Spec `docs/specs/library-feature-selection.md`, plan
+  `docs/plans/2026-11-19-library-feature-selection.md`, guide page
+  `docs/guide/selecting-features.md`. Found on the way: `sq.load` refused a
+  saved pipeline ending in a feature selector that drops a column (fixed: a
+  whole-row step's columns are now checked against its values at load);
+  sqlearn gives the exact score where scikit-learn's rounding departs (spec
+  4.4); `k=True` is refused (spec 4.2). On branch `feature-selection`, not
+  merged. (2026-11-20)
 - #63's deferred minors, merged in `62eecbd` (not pushed). Found on the
   way: a scored column named `__sqlearn_stage_...` silently replaced a D² or
   ranking score's own (now refused). The deviances keep 4 or 5 digits far

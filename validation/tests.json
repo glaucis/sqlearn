@@ -2216,6 +2216,18 @@
     },
     {
       "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_last_step_dropping_columns_loads[sq.select.best(k=1)]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_last_step_dropping_columns_loads[sq.select.variance()]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
       "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_learned_timestamp_with_a_zone_round_trips",
       "outcome": "passed",
       "tier": "fast"
@@ -2247,6 +2259,24 @@
     {
       "area": "sqlearn/_saving/learned",
       "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_restore_that_does_not_fit_changes_nothing",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_whole_row_step_damaged_at_load_is_refused[dropped column out]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_whole_row_step_damaged_at_load_is_refused[kept column claimed dropped]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_a_whole_row_step_damaged_at_load_is_refused[kept column unnamed]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -2499,6 +2529,24 @@
     {
       "area": "sqlearn/_saving/learned",
       "name": "tests/src/sqlearn/_saving/test_learned.py::test_every_public_step_loads_learned_and_applies_the_same[scale.standard]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_every_public_step_loads_learned_and_applies_the_same[select.best]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_every_public_step_loads_learned_and_applies_the_same[select.percentile]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/learned",
+      "name": "tests/src/sqlearn/_saving/test_learned.py::test_every_public_step_loads_learned_and_applies_the_same[select.variance]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -3213,6 +3261,24 @@
     {
       "area": "sqlearn/_saving/recipe",
       "name": "tests/src/sqlearn/_saving/test_recipe.py::test_every_public_step_round_trips_as_a_record[scale.standard]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/recipe",
+      "name": "tests/src/sqlearn/_saving/test_recipe.py::test_every_public_step_round_trips_as_a_record[select.best]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/recipe",
+      "name": "tests/src/sqlearn/_saving/test_recipe.py::test_every_public_step_round_trips_as_a_record[select.percentile]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_saving/recipe",
+      "name": "tests/src/sqlearn/_saving/test_recipe.py::test_every_public_step_round_trips_as_a_record[select.variance]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -4467,6 +4533,612 @@
     {
       "area": "sqlearn/agg/aggregates",
       "name": "tests/src/sqlearn/agg/test_aggregates.py::test_var_of_a_constant_column_is_exactly_zero[1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/_scores",
+      "name": "tests/src/sqlearn/feature_selection/test__scores.py::test_a_column_far_from_zero_scores_its_exact_value",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/_scores",
+      "name": "tests/src/sqlearn/feature_selection/test__scores.py::test_an_exactly_linear_column_scores_far_above_the_others",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/_scores",
+      "name": "tests/src/sqlearn/feature_selection/test__scores.py::test_columns_differing_only_by_case_are_scored_apart",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/_scores",
+      "name": "tests/src/sqlearn/feature_selection/test__scores.py::test_each_score_matches_scikit_learn[chi2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/_scores",
+      "name": "tests/src/sqlearn/feature_selection/test__scores.py::test_each_score_matches_scikit_learn[f_classif]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/_scores",
+      "name": "tests/src/sqlearn/feature_selection/test__scores.py::test_each_score_matches_scikit_learn[f_regression]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/_scores",
+      "name": "tests/src/sqlearn/feature_selection/test__scores.py::test_f_regression_forces_a_finite_score",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/_scores",
+      "name": "tests/src/sqlearn/feature_selection/test__scores.py::test_scores_of_text_classes_match_scikit_learn[chi2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/_scores",
+      "name": "tests/src/sqlearn/feature_selection/test__scores.py::test_scores_of_text_classes_match_scikit_learn[f_classif]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/_select",
+      "name": "tests/src/sqlearn/feature_selection/test__select.py::test_a_later_step_sees_only_the_kept_columns",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/_select",
+      "name": "tests/src/sqlearn/feature_selection/test__select.py::test_a_learned_feature_selector_is_found_in_the_store[sq.select.best(k=4)]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/_select",
+      "name": "tests/src/sqlearn/feature_selection/test__select.py::test_a_learned_feature_selector_is_found_in_the_store[sq.select.percentile(percentile=40)]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/_select",
+      "name": "tests/src/sqlearn/feature_selection/test__select.py::test_a_learned_feature_selector_is_found_in_the_store[sq.select.variance(threshold=1.0)]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/_select",
+      "name": "tests/src/sqlearn/feature_selection/test__select.py::test_a_search_learns_per_fold_for_percentile_and_per_setting_for_score[params0-6]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/_select",
+      "name": "tests/src/sqlearn/feature_selection/test__select.py::test_a_search_learns_per_fold_for_percentile_and_per_setting_for_score[params1-11]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/_select",
+      "name": "tests/src/sqlearn/feature_selection/test__select.py::test_a_search_over_k_picks_scikit_learns_setting",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/_select",
+      "name": "tests/src/sqlearn/feature_selection/test__select.py::test_each_feature_selector_saves_and_loads[sq.select.best(k=4, score='chi2')]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/_select",
+      "name": "tests/src/sqlearn/feature_selection/test__select.py::test_each_feature_selector_saves_and_loads[sq.select.percentile(percentile=40, score='f_regression')]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/_select",
+      "name": "tests/src/sqlearn/feature_selection/test__select.py::test_each_feature_selector_saves_and_loads[sq.select.variance(threshold=0.3)]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/_select",
+      "name": "tests/src/sqlearn/feature_selection/test__select.py::test_the_feature_selectors_learn_larger_than_memory",
+      "outcome": "passed",
+      "tier": "slow"
+    },
+    {
+      "area": "sqlearn/feature_selection/_select",
+      "name": "tests/src/sqlearn/feature_selection/test__select.py::test_the_general_form_defaults_to_variance",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/_select",
+      "name": "tests/src/sqlearn/feature_selection/test__select.py::test_the_general_form_refuses_a_setting_of_another_method[<lambda>0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/_select",
+      "name": "tests/src/sqlearn/feature_selection/test__select.py::test_the_general_form_refuses_a_setting_of_another_method[<lambda>1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/_select",
+      "name": "tests/src/sqlearn/feature_selection/test__select.py::test_the_general_form_refuses_a_setting_of_another_method[<lambda>2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/_select",
+      "name": "tests/src/sqlearn/feature_selection/test__select.py::test_the_general_form_refuses_a_setting_of_another_method[<lambda>3]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/_select",
+      "name": "tests/src/sqlearn/feature_selection/test__select.py::test_the_general_form_refuses_a_setting_of_another_method[<lambda>4]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/_select",
+      "name": "tests/src/sqlearn/feature_selection/test__select.py::test_the_general_form_refuses_a_setting_of_another_method[<lambda>5]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/_select",
+      "name": "tests/src/sqlearn/feature_selection/test__select.py::test_the_general_form_refuses_a_setting_of_another_method[<lambda>6]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/_select",
+      "name": "tests/src/sqlearn/feature_selection/test__select.py::test_the_shortcut_is_the_general_form",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/_select",
+      "name": "tests/src/sqlearn/feature_selection/test__select.py::test_the_spec_script_predicts_as_scikit_learn",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_a_constant_column_ranks_last_and_is_warned_about",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_a_missing_target_is_refused[chi2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_a_missing_target_is_refused[f_classif]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_a_missing_target_is_refused[f_regression]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_best_keeps_the_columns_scikit_learn_keeps[1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_best_keeps_the_columns_scikit_learn_keeps[3]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_best_keeps_the_columns_scikit_learn_keeps[6]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_best_keeps_the_columns_scikit_learn_keeps[all]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_best_refuses_a_bad_k_or_score[bad0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_best_refuses_a_bad_k_or_score[bad1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_best_refuses_a_bad_k_or_score[bad2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_best_refuses_a_bad_k_or_score[bad3]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_best_refuses_a_numpy_value_scikit_learn_refuses[2.0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_best_refuses_a_numpy_value_scikit_learn_refuses[bad1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_best_refuses_a_numpy_value_scikit_learn_refuses[bad2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_chi2_refuses_a_negative_value",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_k_above_the_column_count_keeps_all_and_warns",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_k_zero_keeps_none_and_warns",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_learn_raises_when_no_column_would_remain",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_numpy_numbers_are_taken_as_scikit_learn_takes_them[best-value0-k]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_numpy_numbers_are_taken_as_scikit_learn_takes_them[percentile-12.5-percentile]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_numpy_numbers_are_taken_as_scikit_learn_takes_them[percentile-value1-percentile]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_percentile_is_an_output_setting_and_shares_the_scores",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_percentile_keeps_the_columns_scikit_learn_keeps[100]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_percentile_keeps_the_columns_scikit_learn_keeps[10]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_percentile_keeps_the_columns_scikit_learn_keeps[50]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_percentile_keeps_the_columns_scikit_learn_keeps[5]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_percentile_keeps_the_columns_scikit_learn_keeps[99]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_percentile_of_one_or_two_columns_keeps_scikit_learns[1-columns0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_percentile_of_one_or_two_columns_keeps_scikit_learns[1-columns1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_percentile_of_one_or_two_columns_keeps_scikit_learns[100-columns0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_percentile_of_one_or_two_columns_keeps_scikit_learns[100-columns1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_percentile_of_one_or_two_columns_keeps_scikit_learns[49-columns0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_percentile_of_one_or_two_columns_keeps_scikit_learns[49-columns1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_percentile_of_one_or_two_columns_keeps_scikit_learns[50-columns0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_percentile_of_one_or_two_columns_keeps_scikit_learns[50-columns1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_percentile_of_one_or_two_columns_keeps_scikit_learns[51-columns0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_percentile_of_one_or_two_columns_keeps_scikit_learns[51-columns1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_percentile_of_one_or_two_columns_keeps_scikit_learns[99-columns0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_percentile_of_one_or_two_columns_keeps_scikit_learns[99-columns1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_percentile_ranks_a_nan_score_lowest_as_scikit_learn[10]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_percentile_ranks_a_nan_score_lowest_as_scikit_learn[30]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_percentile_ranks_a_nan_score_lowest_as_scikit_learn[50]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_percentile_ranks_a_nan_score_lowest_as_scikit_learn[80]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_percentile_ranks_a_nan_score_lowest_as_scikit_learn[95]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_percentile_refuses_a_numpy_value_outside_0_to_100[bad0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_percentile_refuses_a_numpy_value_outside_0_to_100[bad2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_percentile_refuses_a_numpy_value_outside_0_to_100[nan]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_percentile_refuses_a_value_outside_0_to_100[-1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_percentile_refuses_a_value_outside_0_to_100[100.5]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_percentile_refuses_a_value_outside_0_to_100[10]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_percentile_refuses_a_value_outside_0_to_100[True]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_percentile_refuses_a_value_outside_0_to_100[nan]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_percentile_ties_keep_the_earlier_columns",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_percentile_zero_keeps_none_and_warns",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_percentile_zero_with_no_other_column_raises",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_several_constant_columns_are_named_in_one_warning",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_the_scores_refuse_a_missing_value[chi2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_the_scores_refuse_a_missing_value[f_classif]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_the_scores_refuse_a_missing_value[f_regression]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/univariate",
+      "name": "tests/src/sqlearn/feature_selection/test_univariate.py::test_ties_keep_the_later_column",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/variance",
+      "name": "tests/src/sqlearn/feature_selection/test_variance.py::test_a_constant_column_is_dropped_whatever_its_rounding",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/variance",
+      "name": "tests/src/sqlearn/feature_selection/test_variance.py::test_a_search_over_the_threshold_learns_each_fold_once",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/variance",
+      "name": "tests/src/sqlearn/feature_selection/test_variance.py::test_variance_ignores_nan_and_null",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/variance",
+      "name": "tests/src/sqlearn/feature_selection/test_variance.py::test_variance_keeps_the_columns_scikit_learn_keeps[0.0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/variance",
+      "name": "tests/src/sqlearn/feature_selection/test_variance.py::test_variance_keeps_the_columns_scikit_learn_keeps[0.5]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/variance",
+      "name": "tests/src/sqlearn/feature_selection/test_variance.py::test_variance_raises_when_no_column_passes",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/variance",
+      "name": "tests/src/sqlearn/feature_selection/test_variance.py::test_variance_refuses_a_negative_threshold",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/variance",
+      "name": "tests/src/sqlearn/feature_selection/test_variance.py::test_variance_refuses_a_text_column",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/variance",
+      "name": "tests/src/sqlearn/feature_selection/test_variance.py::test_variances_match_scikit_learn[0.0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/feature_selection/variance",
+      "name": "tests/src/sqlearn/feature_selection/test_variance.py::test_variances_match_scikit_learn[0.5]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -9260,6 +9932,18 @@
     },
     {
       "area": "sqlearn/model_selection/search",
+      "name": "tests/src/sqlearn/model_selection/test_search.py::test_a_search_over_a_learning_setting_learns_per_setting",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/search",
+      "name": "tests/src/sqlearn/model_selection/test_search.py::test_a_search_over_an_output_setting_learns_each_fold_once",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/search",
       "name": "tests/src/sqlearn/model_selection/test_search.py::test_a_search_over_stratified_folds_passes_its_target_to_the_scheme",
       "outcome": "passed",
       "tier": "fast"
@@ -9357,6 +10041,12 @@
     {
       "area": "sqlearn/model_selection/search",
       "name": "tests/src/sqlearn/model_selection/test_search.py::test_an_empty_held_out_fold_is_worded_for_any_scheme",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/model_selection/search",
+      "name": "tests/src/sqlearn/model_selection/test_search.py::test_an_output_setting_applies_its_own_value_on_shared_learned_values",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -14348,6 +15038,18 @@
     },
     {
       "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_a_target_step_that_does_not_cross_fit_learns_once_on_all_rows",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_a_target_step_that_does_not_cross_fit_needs_no_cv_or_seed",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
       "name": "tests/src/sqlearn/test__pipeline.py::test_a_target_steps_failures_name_it",
       "outcome": "passed",
       "tier": "fast"
@@ -14493,6 +15195,12 @@
     {
       "area": "sqlearn/_pipeline",
       "name": "tests/src/sqlearn/test__pipeline.py::test_learn_then_apply_matches_hand_computed_values",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_pipeline",
+      "name": "tests/src/sqlearn/test__pipeline.py::test_learn_without_target_refuses_a_step_that_does_not_cross_fit",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -15002,6 +15710,12 @@
     },
     {
       "area": "sqlearn/_plan",
+      "name": "tests/src/sqlearn/test__plan.py::test_a_target_step_that_does_not_cross_fit_plans_as_any_step",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_plan",
       "name": "tests/src/sqlearn/test__plan.py::test_a_target_step_without_folds_is_refused",
       "outcome": "passed",
       "tier": "fast"
@@ -15339,6 +16053,12 @@
     {
       "area": "sqlearn/_store",
       "name": "tests/src/sqlearn/test__store.py::test_a_miss_finds_an_entry_put_under_the_stable_key",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_store",
+      "name": "tests/src/sqlearn/test__store.py::test_a_setting_that_only_chooses_the_output_is_not_in_the_learn_key",
       "outcome": "passed",
       "tier": "fast"
     },

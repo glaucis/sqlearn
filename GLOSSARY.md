@@ -9,6 +9,11 @@ mdindex: [type=edb465, tags=f09dae]
 
 Terms of sqlearn's domain, in the sense the code and the docs use them.
 
+- **Feature selector:** a step of `sq.select` (`variance`, `best`,
+  `percentile`): it learns a score per column and keeps some columns, passing
+  them through unchanged. `best` and `percentile` learn from the target but do
+  not cross-fit.
+  _Avoid_: selector (that means a column selector, `sq.cols`).
 - **Recipe:** the part of a saved pipeline that says what to build: each
   step's class and settings, in order, and the model by its class and
   parameters. It holds no data and no learned value, and can be shared

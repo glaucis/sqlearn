@@ -31,12 +31,15 @@ built.
   `classification_report`, `roc_curve`, `precision_recall_curve`), is built:
   spec `docs/specs/library-more-metrics.md`, plan
   `docs/plans/2026-11-13-library-more-metrics.md`, ADR 0049, summary in
-  issue #58. Its seventh, balanced scores (`balanced_accuracy`, `mcc`,
-  `brier`), is built: spec `docs/specs/library-balanced-scores.md`, plan
+  issue #58. Its seventh, balanced scores (`balanced_accuracy`, `mcc`, `brier`),
+  is built: spec `docs/specs/library-balanced-scores.md`, plan
   `docs/plans/2026-11-19-library-balanced-scores.md`, issue #62. Its eighth,
   regression metrics, is built: spec `docs/specs/library-regression-metrics.md`,
-  plan `docs/plans/2026-11-19-library-regression-metrics.md`, ADR 0054,
-  summary in issue #63. **Next:** the next 3.3 area, not chosen yet.
+  plan `docs/plans/2026-11-19-library-regression-metrics.md`, ADR 0054, summary
+  in issue #63. Its ninth, feature selection (`sq.select.variance`, `best`,
+  `percentile`), is built: spec `docs/specs/library-feature-selection.md`, plan
+  `docs/plans/2026-11-19-library-feature-selection.md`, ADRs 0055–0056, summary
+  in issue #65. **Next:** the next 3.3 area, not chosen yet.
 
 Rules from the ADRs:
 

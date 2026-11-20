@@ -45,6 +45,9 @@ counterpart.
 | `FunctionTransformer(np.clip, kw_args={"a_min": 0, "a_max": 1})` | `sq.transform.clip(lower=0, upper=1)` |
 | `PolynomialFeatures(degree=2)` | `sq.features.polynomial(degree=2)` |
 | `SplineTransformer(n_knots=5, degree=3)` | `sq.features.spline(n_knots=5, degree=3)` |
+| `VarianceThreshold(threshold=0.0)` | `sq.select.variance(threshold=0.0)` |
+| `SelectKBest(f_classif, k=10)` | `sq.select.best(k=10, score="f_classif")` (also `"f_regression"`, `"chi2"`; the target goes to `learn` or `train`; no `pvalues_`) |
+| `SelectPercentile(chi2, percentile=20)` | `sq.select.percentile(percentile=20, score="chi2")` |
 | `GridSearchCV(pipe, grid)` | `sq.search(pipe, params=grid)` |
 | `RandomizedSearchCV(pipe, distributions, n_iter=50)` | `sq.search(pipe, params=..., method=sq.search.random(trials=50))` |
 | `scipy.stats.loguniform(0.01, 10)` | `sq.search.range(0.01, 10, log=True)` |
