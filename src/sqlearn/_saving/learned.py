@@ -191,10 +191,14 @@ def _names(value: object, where: str) -> dict[str, list[str]]:
 
 
 def _mapping(value: object, where: str, what: str) -> dict[str, dict[str, object]]:
+    """Return learned name, then column, to value: every key plain text."""
     if not isinstance(value, dict) or any(
-        not isinstance(k, str) or not isinstance(v, dict) for k, v in value.items()
+        type(k) is not str
+        or not isinstance(v, dict)
+        or any(type(c) is not str for c in v)
+        for k, v in value.items()
     ):
-        raise _damaged(where, f"the {what} are not an object of objects")
+        raise _damaged(where, f"the {what} are not an object of objects of text")
     return {k: dict(v) for k, v in value.items()}
 
 

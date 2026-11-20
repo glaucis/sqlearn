@@ -636,3 +636,22 @@ def test_a_pca_count_below_two_rows_is_refused_at_load(
     STORE.clear()
     with pytest.raises(SqlearnError, match=r"(?s)damaged.*Fix:"):
         sq.load(path)
+
+
+@pytest.mark.parametrize(
+    "keys",
+    [[1, "zzz"], [1], [{"$": "tuple", "items": ["a"]}]],
+    ids=["number and text", "number", "tuple"],
+)
+def test_a_learned_column_key_that_is_not_text_is_refused(
+    tmp_path: Path, keys: list[object]
+) -> None:
+    """A learned value's column is text: any other key is damage."""
+    path = _saved_standard(tmp_path)
+    document = json.loads(path.read_text())
+    values = document["learned"]["steps"][0]["values"]["items"]
+    center = next(v for n, v in values if n == "center")["items"]
+    center.extend([key, "x"] for key in keys)
+    path.write_text(json.dumps(document))
+    with pytest.raises(SqlearnError, match=r"(?s)damaged.*Fix:"):
+        sq.load(path)
