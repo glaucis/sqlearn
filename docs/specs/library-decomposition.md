@@ -121,8 +121,9 @@ two rows, a non-numeric column chosen by name.
 ### 4.4 Applying
 
 The output replaces the input columns: `pca0`, …, `pca{k-1}` (scikit-learn's
-`get_feature_names_out`), in the place of the first input column, named by ADR
-0035 when they clash. Each is one SQL expression,
+`get_feature_names_out`), after the last input column, as every whole-row
+step places the columns it creates (columns `a, id, b` give `id, pca0,
+pca1`), named by ADR 0035 when they clash. Each is one SQL expression,
 `w₀·(x₀ − mean₀) + … + wₚ·(xₚ − meanₚ)`, divided by the whitening scale when
 `whiten`. The weights and means are constants in the SQL, so applying is one
 query, in parallel, on data of any size. A missing value in a row at apply is
