@@ -9,6 +9,7 @@ import sqlearn as sq
 ROWS = 2_000_000
 COLUMNS = 50
 LATENT = 7
+CONDITIONING_SLACK = 16
 
 
 def _column(j):
@@ -60,7 +61,16 @@ def test_pca_learns_data_larger_than_the_memory_limit(tmp_path):
     got = np.array(pca.components_)
     assert got.shape == want.shape
     signs = np.sign(np.einsum("ij,ij->i", got, want))
-    assert got * signs[:, None] == pytest.approx(want, rel=1e-9, abs=1e-12)
+    # A component's entries move by up to eps * lambda_1 / gap (Davis-Kahan)
+    # when the matrix does, and the reference is itself built from DuckDB sums
+    # that depend on thread order (ADR 0043): bound each row by its own gap to
+    # its neighbours. CONDITIONING_SLACK covers the sums' own error and the
+    # two sides' errors adding up; 1e-12 is the floor for well-separated rows.
+    spacing = np.abs(gaps)
+    nearest = np.minimum(np.r_[np.inf, spacing], np.r_[spacing, np.inf])
+    bound = CONDITIONING_SLACK * np.finfo(float).eps * values.max() / nearest
+    error = np.abs(got * signs[:, None] - want)
+    assert (error <= np.maximum(bound, 1e-12)[:, None]).all()
     assert pca.explained_variance_ == pytest.approx(
         values[::-1] * ROWS / (ROWS - 1), rel=1e-9
     )
