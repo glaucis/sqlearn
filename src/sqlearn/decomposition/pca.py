@@ -150,8 +150,8 @@ def _whole_number(value: object, what: str) -> int:
 
 def _checked(
     learned: Mapping[str, Learned], columns: Sequence[str]
-) -> tuple[int, list[list[float]], list[float]]:
-    """Return the rows, each column's weights and each variance, all checked.
+) -> tuple[int, list[float], list[list[float]], list[float]]:
+    """Return the rows, each column's mean, weights and variance, all checked.
 
     Every value PCA learned is read: each column's ``mean``, ``count``
     (the same in every column, 2 at least), ``missing`` and ``infinite`` (0, as learning
@@ -163,11 +163,12 @@ def _checked(
     if rows < 2:  # as `before_gram` refuses
         msg = f"a learned count is {rows}, below the two rows learning requires"
         raise ValueError(msg)
+    means: list[float] = []
     weights: list[list[float]] = []
     variances: list[float] = []
     for c in columns:
         values = learned[c]
-        _number(values.raw("mean"), "mean")
+        means.append(_number(values.raw("mean"), "mean"))
         if _whole_number(values.raw("count"), "count") != rows:
             msg = "the learned counts differ between columns"
             raise ValueError(msg)
@@ -185,7 +186,7 @@ def _checked(
             msg = "a learned variance is negative"
             raise ValueError(msg)
         variances.append(variance)
-    return rows, weights, variances
+    return rows, means, weights, variances
 
 
 def _values(count: int, kind: str) -> str:
@@ -598,12 +599,12 @@ class PCA(Step):
         values: dict[str, Expression] = {}
         if not columns:
             return values
-        rows, weights, variances = _checked(learned, columns)
+        rows, means, weights, variances = _checked(learned, columns)
         kept = _kept_components(self._setting(), rows, variances)
         centred: list[Expression] = []
-        for name, x in xs.items():
+        for (name, x), m in zip(xs.items(), means, strict=True):
             v = x.cast(DOUBLE)
-            mean = const(_number(learned[name].raw("mean"), "mean"))
+            mean = const(m)
             centred.append(
                 duckdb.CaseExpression(is_missing(x), _refusal(name, *_MISSING))
                 .when(duckdb.FunctionExpression("isinf", v), _refusal(name, *_INFINITE))
@@ -686,7 +687,7 @@ class PCA(Step):
         outputs: dict[str, Expression] = {}
         if not columns:
             return outputs
-        rows, _, variances = _checked(learned, columns)
+        rows, _, _, variances = _checked(learned, columns)
         kept = _kept_components(self._setting(), rows, variances)
         row = values or self.row_values(xs, learned)
         for k in range(kept):

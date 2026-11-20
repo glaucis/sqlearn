@@ -4,41 +4,13 @@ from collections.abc import Sequence
 from typing import cast
 
 from sqlearn._errors import SqlearnError
-from sqlearn._group import Group, columns_arg
+from sqlearn._group import Group, columns_arg, refuse_positionals
 from sqlearn._selectors import Selector, _numeric
 from sqlearn.decomposition.pca import PCA
 
 __all__ = ["DecomposeGroup", "decompose"]
 
 _METHODS = ("pca",)
-
-
-def _is_names(value: object) -> bool:
-    """Return whether `value` is a column name, or a list or tuple of names."""
-    if isinstance(value, list | tuple):
-        return all(isinstance(v, str) for v in value)
-    return isinstance(value, str)
-
-
-def _refuse_positionals(names: tuple[object, ...], method: str) -> None:
-    """Refuse a positional that is not a column name or a list of names.
-
-    A setting given by position (``sq.decompose.pca(3)``) would be taken as
-    a column, and fail only at learn; it is refused at the call. A dict
-    passes, for `columns_arg` to refuse in its own words.
-    """
-    for value in names:
-        if isinstance(value, dict) or _is_names(value):
-            continue
-        number = isinstance(value, int | float) and not isinstance(value, bool)
-        shown = repr(value) if number else "..."
-        msg = (
-            f"sq.decompose.{method} got {value!r} as a positional. Why: a "
-            "positional is a column name, or one list of names, so a setting "
-            "there is not a setting. Fix: give a setting by name, as "
-            f"n_components={shown}, and each column by its name."
-        )
-        raise SqlearnError(msg)
 
 
 class DecomposeGroup(Group):
@@ -110,7 +82,7 @@ class DecomposeGroup(Group):
                 "shortcut sq.decompose.pca()."
             )
             raise SqlearnError(msg)
-        _refuse_positionals(names, method)
+        refuse_positionals(names, f"sq.decompose.{method}", "n_components")
         chosen = columns_arg(names, cols, allow_dict=False)
         columns = cast("str | list[str] | Selector | None", chosen)
         picked = _numeric() if columns is None else columns

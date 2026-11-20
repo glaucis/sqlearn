@@ -4,7 +4,14 @@ from collections.abc import Sequence
 
 from sqlearn._errors import SqlearnError
 
-__all__ = ["Group", "Unset", "call_repr", "column_names", "columns_arg"]
+__all__ = [
+    "Group",
+    "Unset",
+    "call_repr",
+    "column_names",
+    "columns_arg",
+    "refuse_positionals",
+]
 
 
 class Unset(str):
@@ -80,6 +87,57 @@ def columns_arg(names: tuple[object, ...], cols: object, *, allow_dict: bool) ->
     if isinstance(one, (list, tuple)):
         return list(one)
     return one
+
+
+def _is_names(value: object) -> bool:
+    """Return whether `value` is a column name, or a list or tuple of names."""
+    if isinstance(value, list | tuple):
+        return all(isinstance(v, str) for v in value)
+    return isinstance(value, str)
+
+
+def refuse_positionals(names: tuple[object, ...], call: str, setting: str) -> None:
+    """Refuse a positional that is not a column name or a list of names.
+
+    A setting given by position (``sq.select.percentile(20)``) would be
+    taken as a column, and fail only at learn; it is refused at the call.
+    A dict passes, for `columns_arg` to refuse in its own words.
+
+    Parameters
+    ----------
+    names : tuple of object
+        The positionals the group method was given.
+    call : str
+        The method as the user wrote it, such as ``"sq.select.percentile"``.
+    setting : str
+        The setting the `Fix:` names, such as ``"percentile"``.
+
+    Raises
+    ------
+    SqlearnError
+        If a positional is not a column name, a list of names or a dict.
+
+    Examples
+    --------
+    >>> from sqlearn._group import refuse_positionals
+    >>> refuse_positionals(("a", ["b", "c"]), "sq.decompose.pca", "n_components")
+    >>> refuse_positionals((3,), "sq.decompose.pca", "n_components")
+    Traceback (most recent call last):
+    ...
+    sqlearn.errors.SqlearnError: sq.decompose.pca got 3 as a positional. ...
+    """
+    for value in names:
+        if isinstance(value, dict) or _is_names(value):
+            continue
+        number = isinstance(value, int | float) and not isinstance(value, bool)
+        shown = repr(value) if number else "..."
+        msg = (
+            f"{call} got {value!r} as a positional. Why: a positional is a "
+            "column name, or one list of names, so a setting there is not a "
+            f"setting. Fix: give a setting by name, as {setting}={shown}, and "
+            "each column by its name."
+        )
+        raise SqlearnError(msg)
 
 
 def column_names(cols: object) -> list[str] | None:

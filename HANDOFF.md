@@ -4,7 +4,7 @@ Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
 Updated: 2026-11-20 · Branch: `main` · Checks: passing (`just verify` on
-the #70 change before its commit: 3021 passed, 24 skipped)
+the #71 and #72 changes before their commit: 3021 passed, 24 skipped)
 Verify with: `just verify`
 
 ## In progress
@@ -24,7 +24,6 @@ None.
   the Gram step with Xᵀy (ADR 0058 opens it to users' steps after that; its
   contract is written in `docs/guide/writing-a-step.md`). No dataset
   fetcher (ADR 0053).
-- #71, #72: validation and small tidies from the PCA build.
 - #65's minor follow-ups (listed in its last comments); the first worth
   doing: let `sq.select` shortcuts take a column selector by position, as
   the other groups do.
@@ -118,6 +117,14 @@ None.
 
 ## Just finished
 
+- #72: `refuse_positionals` shared in `_group.py`; PCA checks its mean
+  once (`_checked` returns it); the `check_fits` text reworded.
+  (2026-11-20)
+- #71: `validate_pca`'s neighbour cut is 1e-14 λ₁ (1e-8 λ₁ grouped breast
+  cancer's distinct eigenvalues, 57 cases skipped); `GRAMS` is cleared and
+  checked, the store cleared; the Gram case divides by the learned count;
+  `Exact.rows` dropped; kept components answered in the docstring.
+  Results unchanged: 738 pass, 10 skipped. (2026-11-20)
 - #70: `learned_from_gram(gram, learned, columns)` is handed its inputs;
   `with_values` (`_compose.py`) remakes stages for `execute` and
   `_learn_gram`, whose parameters after the data are keyword-only; fast

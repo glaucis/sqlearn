@@ -100,15 +100,15 @@ def check_fits(con: duckdb.DuckDBPyConnection, columns: int) -> None:
     room = allowance(con)
     if size <= room:
         return
+    matrix = f"{columns:,}-by-{columns:,}"
     msg = (
         f"learning from the Gram matrix of {columns:,} columns needs about "
         f"{_megabytes(size)}, and the memory it may use is "
         f"{_megabytes(max(room, 0))}; it would swap, which sqlearn never does. "
-        f"Why: it holds {_COPIES} copies of the {columns:,}-by-{columns:,} "
-        f"matrix and {_BATCH_COPIES} copies of at least one row, all as "
-        "8-byte numbers. Fix: fewer "
-        "columns, or a larger budget with sq.set_config(memory=...) (now "
-        f"{_megabytes(budget())})."
+        f"Why: it holds {_COPIES} copies of the {matrix} matrix and "
+        f"{_BATCH_COPIES} copies of at least one row, all as 8-byte numbers. "
+        "Fix: learn from fewer columns, or give a larger budget with "
+        f"sq.set_config(memory=...) (now {_megabytes(budget())})."
     )
     raise SqlearnError(msg)
 

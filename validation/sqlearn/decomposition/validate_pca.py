@@ -35,7 +35,9 @@ Two more checks do not depend on the learn's conditioning:
   computes itself; the eigendecomposition is numpy's); numpy's is
   ``numpy.cov``; scikit-learn's is not exposed, so recorded as skipped;
 - whether the eigenvalues and components agree with that covariance:
-  ``Σ λₖ wₖ wₖᵀ`` over the kept components against the exact covariance,
+  ``Σ λₖ wₖ wₖᵀ`` over the kept components against the exact covariance
+  (every component is kept but beyond the rank, where more columns than
+  rows leave eigenvalues exactly 0, so the left-out terms are exactly 0),
   in ULPs of ``λ₁``, as a decomposition holds its covariance only
   normwise (in ULPs of ``sqrt(Cᵢᵢ Cⱼⱼ)`` every library is 1e5 off on wine);
 - each output against the exact ``Σ (xⱼ - mⱼ) wⱼ`` from the mean ``m`` and
@@ -50,11 +52,12 @@ itself. A plain ULP distance would call a tiny eigenvalue (the nearly
 collinear columns' 5e-13) or a tiny output wrong that no computation in
 doubles gets closer to.
 
-A component whose eigenvalue lies within 1e-8 (an absolute distance) of a
-neighbour's (spec §7: the more columns than rows' zero eigenvalues) is
-ill-defined alone: its eigenvector is recorded as skipped, and the outputs
-of its group of neighbours are measured together, as the length of each
-row's projection on the group, which no choice of basis inside the group
+A component whose eigenvalue lies within 1e-14 λ₁ of a neighbour's (spec §7:
+the more columns than rows' zero eigenvalues; relative to the largest
+eigenvalue, so a dataset's scale does not move the cut) is ill-defined
+alone: its eigenvector is recorded as skipped, and the outputs of its
+group of neighbours are measured together, as the length of each row's
+projection on the group, which no choice of basis inside the group
 changes (measured at ``κ`` of the group's gap to the other eigenvalues).
 Where ``n_components`` keeps only part of a group, the exact length of the
 kept part lies between 0 and the whole group's: the distance is measured
@@ -102,6 +105,7 @@ from sklearn import decomposition as skd
 
 import devdata
 import sqlearn as sq
+from sqlearn._store import STORE
 from sqlearn.decomposition import PCA
 from validation import _cases
 
@@ -135,9 +139,15 @@ BOUNDS = {
     "applied": 3.7,
 }
 
-NEIGHBOUR = 1e-8
-"""Eigenvalues this close are one group: their components are measured
-through their outputs only (spec §7)."""
+NEIGHBOUR = 1e-14
+"""Eigenvalues closer than this times the largest are one group: their
+components are measured through their outputs only (spec §7).
+
+An eigenvector turns by up to ε λ₁ / gap in doubles (Davis and Kahan), more
+than 2 % below this gap, so no digit of it is defined. Breast cancer's two
+smallest eigenvalues, 1.1e-10 λ₁ apart, stay apart and are measured (at
+``κ`` near 1e10); the more columns than rows' zero eigenvalues are one
+group. (An absolute 1e-8 until #71: the cut moved with a dataset's scale.)"""
 
 
 @dataclass(frozen=True)
@@ -232,15 +242,15 @@ def _mpf(value: Fraction) -> mpmath.mpf:
 class Exact:
     """The exact decomposition: eigenvalues largest first, signed eigenvectors.
 
-    ``covariance`` holds the exact covariance, ``rows`` each row's values
-    and ``centred`` each row less the exact mean, at `_cases.DIGITS`;
+    ``covariance`` holds the exact covariance and ``centred`` each row less
+    the exact mean, at `_cases.DIGITS` (each row's values are the dataset's
+    doubles, which convert exactly, so they are not held again);
     ``mean_length`` is the length of the exact mean.
     """
 
     values: list[mpmath.mpf]
     vectors: list[list[mpmath.mpf]]
     covariance: list[list[mpmath.mpf]]
-    rows: list[list[mpmath.mpf]]
     centred: list[list[mpmath.mpf]]
     mean_length: mpmath.mpf
 
@@ -282,19 +292,19 @@ def _exact(name: str) -> Exact:
             v = [vectors[j, k] for j in range(p)]
             largest = max(range(p), key=lambda j: abs(v[j]))
             signed.append([-w for w in v] if v[largest] < 0 else v)
-        rows = [[_mpf(columns[j][r]) for j in range(p)] for r in range(n)]
         less = [[_mpf(centred[j][r]) for j in range(p)] for r in range(n)]
         length = mpmath.sqrt(mpmath.fsum(_mpf(m) ** 2 for m in means))
         exact = [[covariance[i, j] for j in range(p)] for i in range(p)]
-        return Exact([values[k] for k in order], signed, exact, rows, less, length)
+        return Exact([values[k] for k in order], signed, exact, less, length)
 
 
 def _groups(values: list[mpmath.mpf]) -> list[list[int]]:
-    """Return the eigenvalues in groups: each within `NEIGHBOUR` of the next."""
+    """Return the eigenvalues in groups: each within `NEIGHBOUR` λ₁ of the next."""
     out = [[0]]
     with mpmath.workdps(_cases.DIGITS):
+        cut = NEIGHBOUR * values[0]
         for k in range(1, len(values)):
-            if values[k - 1] - values[k] <= NEIGHBOUR:
+            if values[k - 1] - values[k] <= cut:
                 out[-1].append(k)
             else:
                 out.append([k])
@@ -344,7 +354,7 @@ class _Recorded(PCA):
 
 
 GRAMS: list[np.ndarray] = []
-"""The Gram matrices `_Recorded` received, the latest last."""
+"""The Gram matrices `_Recorded` received since `_sqlearn` cleared it."""
 
 
 @functools.cache
@@ -355,10 +365,15 @@ def _sqlearn(name: str) -> Answer:
         problem.columns | {"row": tuple(range(problem.rows))},
         dict.fromkeys(names, "DOUBLE") | {"row": "BIGINT"},
     )
+    GRAMS.clear()
+    STORE.clear()  # else the learn is found there and records no matrix
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         pipe = sq.Pipeline([("pca", _Recorded(cols=names))]).learn(rel)
-        gram = GRAMS[-1]
+        if len(GRAMS) != 1:
+            msg = f"the learn recorded {len(GRAMS)} Gram matrices, not one"
+            raise RuntimeError(msg)
+        gram = GRAMS[0]
         pca = pipe["pca"]
         k = pca.n_components_
         outputs = [f'"pca{i}"' for i in range(k)]
@@ -368,7 +383,7 @@ def _sqlearn(name: str) -> Answer:
         pca.components_,
         np.array(got, dtype=float).reshape(problem.rows, k),
         list(pca.mean_),
-        gram / (problem.rows - 1),
+        gram / (pca.n_samples_ - 1),  # the count the step learned
     )
 
 
@@ -482,7 +497,7 @@ def _group_cases(
     kappa = _kappa(exact.values, group)
     for k in members:
         note = (
-            f"eigenvalue within {NEIGHBOUR:g} of a neighbour's: ill-defined "
+            f"eigenvalue within {NEIGHBOUR:g} λ₁ of a neighbour's: ill-defined "
             f"alone, measured through the outputs of pca{group[0]} to "
             f"pca{group[-1]} together"
         )
@@ -580,7 +595,10 @@ def _applied_cases(
     out = []
     with mpmath.workdps(_cases.DIGITS):
         mean = [mpmath.mpf(m) for m in answer.mean]
-        less = [[x - m for x, m in zip(row, mean, strict=True)] for row in exact.rows]
+        less = [
+            [mpmath.mpf(x) - m for x, m in zip(row, mean, strict=True)]
+            for row in problem.matrix().tolist()
+        ]
         for k, vector in enumerate(answer.vectors):
             w = [mpmath.mpf(v) for v in vector]
             terms = [[d * c for d, c in zip(row, w, strict=True)] for row in less]
