@@ -19,8 +19,10 @@ user lives with. The point of sqlearn is to work without the NumPy-based stack
 
 ## Decision
 
-- The installed package depends on `duckdb` and nothing NumPy-shaped, and on
-  as little else as possible.
+- The installed package depends on `duckdb` and, since
+  [ADR 0057](0057-numpy-is-a-runtime-dependency.md), `numpy`, and on as
+  little else as possible. Nothing else NumPy-shaped (pandas, pyarrow) is a
+  dependency.
 - Every runtime dependency is justified in writing, as a comment beside it in
   `pyproject.toml`, and is permissively licensed
   ([ADR 0004](0004-apache-2-licence.md)).

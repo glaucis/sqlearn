@@ -48,6 +48,7 @@ counterpart.
 | `VarianceThreshold(threshold=0.0)` | `sq.select.variance(threshold=0.0)` |
 | `SelectKBest(f_classif, k=10)` | `sq.select.best(k=10, score="f_classif")` (also `"f_regression"`, `"chi2"`; the target goes to `learn` or `train`; no `pvalues_`) |
 | `SelectPercentile(chi2, percentile=20)` | `sq.select.percentile(percentile=20, score="chi2")` |
+| `PCA(n_components=3)` | `sq.decompose.pca(n_components=3)` (the covariance method, `svd_solver="covariance_eigh"`; also a fraction and `whiten=True`; no `"mle"`; missing values refused, as scikit-learn refuses them)  |
 | `GridSearchCV(pipe, grid)` | `sq.search(pipe, params=grid)` |
 | `RandomizedSearchCV(pipe, distributions, n_iter=50)` | `sq.search(pipe, params=..., method=sq.search.random(trials=50))` |
 | `scipy.stats.loguniform(0.01, 10)` | `sq.search.range(0.01, 10, log=True)` |

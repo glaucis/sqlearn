@@ -164,15 +164,18 @@ run.
 
 - Batches come from DuckDB as numpy arrays (`fetchnumpy`), with no pandas or
   pyarrow: the runtime dependencies are `duckdb` and `numpy`.
-- A batch's size comes from the memory budget, as the streamed training
-  batches' (`MEGABYTES` in `_feed.py`) and counts against it.
+- A batch holds at most `MEGABYTES` (`_feed.py`) of values, as the streamed
+  training batches do, and at least one row: its size is cut to the memory
+  allowance left after the matrix copies, and three copies of it (DuckDB's
+  result, the arrays and their stack) count against the allowance.
 - The matrix on 1 thread and on many agrees within the bounds of ADR 0043,
   not to the bit: the means come from a SQL sum, which DuckDB adds in the
   order its threads finish.
-- The p × p matrix and its decomposition count against the memory budget
-  with the batch. When they would not fit (about 10,000 columns needs 800 MB
-  per copy of the matrix), the learn is refused before any batch, with a
-  `Fix:` (fewer columns, a larger budget).
+- The p × p matrix and its decomposition count against the memory budget.
+  Only when the copies of the matrix cannot fit (about 10,000 columns needs
+  800 MB per copy of the matrix) is the learn refused, before any batch, with
+  a `Fix:` (fewer columns, a larger budget); a small budget makes small
+  batches, never a refusal.
 - How the rows are cut into batches is the builder's (§10). The spike that led
   to this spec numbered the rows into a temporary table (DuckDB spills it to
   disk) and fetched them by row range: correct, but it writes and reads the
@@ -218,7 +221,7 @@ spec; approving the spec accepts them, and the plan writes them first.
   more columns than rows; two rows; `whiten` with a zero variance.
 - **Against the mathematics:** the covariance against exact fractions, and the
   eigenvalues and eigenvectors against `mpmath`'s at high precision, in a
-  validation runner `validate_decompose` (ADR 0016). Components of nearly
+  validation runner `validate_pca` (ADR 0016). Components of nearly
   equal eigenvalues are ill-defined one by one; they are compared through the
   outputs they produce, or left out of the per-component bounds with a note.
 - **The contract (§5):** a Gram step learns in its own run; the run counts of

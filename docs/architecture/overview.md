@@ -70,10 +70,14 @@ the building.
 ## 2. Constraints (agreed)
 
 - **Python and DuckDB.** Computation is pushed into DuckDB; Python is the glue
-  ([ADR 0002](../adr/0002-sql-on-duckdb-execution-engine.md)).
-- **One runtime dependency.** The installed package depends on `duckdb`,
-  nothing NumPy-shaped, and as little else as possible; every runtime
-  dependency is justified in writing
+  ([ADR 0002](../adr/0002-sql-on-duckdb-execution-engine.md)), amended by
+  [ADR 0058](../adr/0058-a-gram-step-builds-xtx-in-numpy.md): a Gram step
+  (PCA) learns from XᵀX, which numpy sums from batches DuckDB streams, and
+  data passes through Python in no other learn.
+- **Two runtime dependencies.** The installed package depends on `duckdb` and
+  `numpy` (the small matrices some steps learn from: [ADR
+  0057](../adr/0057-numpy-is-a-runtime-dependency.md)), and as little else as
+  possible; every runtime dependency is justified in writing
   ([ADR 0005](../adr/0005-runtime-dependencies.md)). Tools used to build,
   test, validate and document the project are free to use anything.
 - **Licence.** Apache-2.0, free for any use; anything paid is a separate
@@ -138,7 +142,13 @@ a step needs columns a dynamic step has not yet learned
 ([ADR 0012](../adr/0012-static-and-dynamic-steps.md),
 [ADR 0018](../adr/0018-runs-follow-the-chains-between-steps.md)), and learned
 values are kept in a store while the program runs, so nothing is learned twice
-([ADR 0014](../adr/0014-learning-store.md)). See also
+([ADR 0014](../adr/0014-learning-store.md)). One kind of step learns
+differently: a **Gram step** learns from the matrix XᵀX of its centred
+columns. SQL finds the means in the ordinary learn; the core then streams the
+step's centred rows from DuckDB in batches, numpy sums their XᵀX, and the step
+finishes from that small matrix ([ADR
+0058](../adr/0058-a-gram-step-builds-xtx-in-numpy.md)). It learns in a run of
+its own, after the steps it reads; applying is SQL as for any step. See also
 [questions/scikit-learn-api-survey.md](../questions/scikit-learn-api-survey.md).
 
 Proven by one vertical slice: a few preparation steps, enough to show static
@@ -164,7 +174,8 @@ such as Optuna), metrics, saving a pipeline to a JSON file (`sq.save`,
 `sq.load`; [ADR 0047](../adr/0047-a-pipeline-saves-as-json.md)), where the user
 saves the trained model and `sq.load` imports nothing
 ([ADR 0048](../adr/0048-the-user-saves-the-model-and-imports-its-packages.md)),
-and whatever the core's contract makes possible. Models come from other
+decomposition (PCA, `sq.decompose`), and whatever the core's contract makes
+possible. Models come from other
 libraries the user installs, for now; models in SQL are a later idea
 ([ADR 0017](../adr/0017-models-from-other-libraries.md)).
 

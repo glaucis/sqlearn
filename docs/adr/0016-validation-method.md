@@ -58,7 +58,14 @@ upstream.
 ## Consequences
 
 - The reference libraries are development dependencies only; at run time
-  sqlearn still needs only `duckdb`.
+  sqlearn still needs only `duckdb` and `numpy` (ADR 0057).
+- Where a value is no better defined than its input, the measure is in ULPs
+  of that value's perturbation scale, not of the value: the PCA runner
+  (`validate_pca.py`) measures eigenvalues in ULPs of the largest, each
+  eigenvector entry and output at the scale its gap sets, each entry of the
+  covariance at `sqrt(CᵢᵢCⱼⱼ)`, and its outputs against its own learned
+  values. The runner's docstring gives each scale; the bounds are still set
+  from measurement.
 - Known, deliberate differences from a library are recorded with their reason
   and asserted as such, not hidden by a looser bound.
 - Left for later: the rule for models fitted by iteration, which have no exact

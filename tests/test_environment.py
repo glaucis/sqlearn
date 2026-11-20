@@ -11,7 +11,7 @@ import pytest
 
 
 def test_duckdb_answers_a_query():
-    """The one runtime dependency imports and computes in this environment."""
+    """The engine imports and computes in this environment."""
     assert duckdb.execute("select sum(range) from range(1000)").fetchone() == (499500,)
 
 
