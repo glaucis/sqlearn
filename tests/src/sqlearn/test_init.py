@@ -50,6 +50,7 @@ def test_the_top_level_holds_only_the_builders():
         "out",
         "metrics",
         "errors",
+        "explore",
         "store",
         "save",
         "load",
