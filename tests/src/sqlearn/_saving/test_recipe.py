@@ -34,6 +34,7 @@ GROUPS = {
     "bin": sq.bin,
     "features": sq.features,
     "transform": sq.transform,
+    "select": sq.select,
 }
 
 # Shortcuts that need an argument before they build.

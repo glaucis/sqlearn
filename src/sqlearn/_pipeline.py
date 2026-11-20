@@ -45,7 +45,7 @@ from sqlearn._model import Model, as_model, check_feed, is_model, is_trained
 from sqlearn._output import Output, to_output
 from sqlearn._plan import Plan, plan
 from sqlearn._selectors import Schema, _Cols, _is_numeric, to_selector
-from sqlearn._step import Step
+from sqlearn._step import Step, cross_fitted
 from sqlearn._store import STORE, Entry, FoldKey, StepKey, step_key
 
 __all__ = ["Pipeline"]
@@ -369,13 +369,13 @@ def _after_unapplied(
     """Return the columns later steps of a run see past a step not applied.
 
     A dynamic step's inputs are gone once it applies, so the steps learning
-    now must not see them, unless it keeps them (``keeps_inputs``); a step
-    learning from the target turns its inputs into numbers, so they must not
+    now must not see them, unless it keeps them (``keeps_inputs``); a
+    cross-fitted step turns its inputs into numbers, so they must not
     be seen as they were (text) either.
     """
     if step.keep or (dynamic and step.keeps_inputs):
         return schema
-    if step.uses_target:
+    if cross_fitted(step):
         return [(c, DOUBLE if c in inputs else t) for c, t in schema]
     if dynamic:
         return [c for c in schema if c[0] not in inputs]
@@ -629,9 +629,11 @@ class Pipeline:
             A file path or glob, a table name, a relation or a pandas frame.
         target : str, optional
             The target column, needed only by a step that learns from it
-            (``sq.encode.target``). It is set aside as in `train`: no other
-            step and no selector sees it. Such a step is cross-fitted for
-            the steps after it, as in `train`; `apply` then uses what it
+            (``sq.encode.target``, the feature selectors ``sq.select.best``
+            and ``sq.select.percentile``). It is set aside as in `train`: no
+            other step and no selector sees it. A step that cross-fits
+            (``sq.encode.target``; not the feature selectors) is cross-fitted
+            for the steps after it, as in `train`; `apply` then uses what it
             learned on all rows.
 
         Returns
@@ -892,7 +894,7 @@ class Pipeline:
             before, prev, matched = built[i]
             learned = values.get(stage_name(i + 1, name), {})
             folds: dict[str, dict[str, dict[str, object]]] = {}
-            if step.uses_target:
+            if cross_fitted(step):
                 learned, folds = _derive(steps, i + 1, learned, matched)
             applied = _make_stage(steps, i + 1, before, prev, learned, columns=matched)
             entry = Entry(learned, matched, apply_sql(applied), folds)
@@ -1127,7 +1129,7 @@ class Pipeline:
         folds = dict.fromkeys(
             (getattr(s, "cv"), getattr(s, "seed"))  # noqa: B009
             for _, s in steps
-            if s.uses_target
+            if cross_fitted(s)
         )
         rel = source.relation
         if folds and POSITION not in rel.columns:

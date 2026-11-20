@@ -63,12 +63,14 @@ The verbs and conventions users write against.
 - [0027: A user's step may declare itself dynamic](0027-a-user-step-may-declare-itself-dynamic.md)
 - [0028: A step returning a mapping counts as dynamic](0028-a-step-returning-a-mapping-counts-as-dynamic.md)
 - [0037: Four additions to the step contract](0037-four-additions-to-the-step-contract.md)
+- [0055: A target step need not cross-fit](0055-a-target-step-need-not-cross-fit.md)
 
 ## Inputs and the learning store
 
 - [0014: Learned values live in a store while the program runs](0014-learning-store.md)
 - [0021: Inputs, and how the store recognises them](0021-inputs-and-how-the-store-knows-them.md)
 - [0024: Store keys follow what a step reads](0024-store-keys-follow-what-a-step-reads.md)
+- [0056: Settings that only choose the output stay out of the learn key](0056-settings-that-only-choose-the-output-stay-out-of-the-learn-key.md)
 - [0029: Relations from another connection are refused](0029-relations-from-another-connection-are-refused.md)
 
 ## Models and search

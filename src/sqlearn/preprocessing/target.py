@@ -252,6 +252,7 @@ class TargetEncoder(Step):
 
     static = True
     uses_target = True
+    cross_fits = True
 
     def __init__(
         self,

@@ -11,9 +11,10 @@ import warnings
 from collections.abc import Mapping
 
 import duckdb
-from duckdb.sqltypes import DuckDBPyType
+from duckdb.sqltypes import BOOLEAN, DuckDBPyType
 
-from sqlearn._errors import PACKAGE_FILES, SqlearnError, SqlearnWarning
+from sqlearn._compose import step_stage
+from sqlearn._errors import PACKAGE_FILES, InternalError, SqlearnError, SqlearnWarning
 from sqlearn._inputs import DataKey
 from sqlearn._pipeline import LearnedFrom, Pipeline
 from sqlearn._saving.codec import decode, encode, no_class
@@ -358,20 +359,89 @@ def _check_step(
             _check_values(fold_values, entry.columns, learns, where)
 
 
-def _check_columns_out(
-    columns_out: list[str], entry: Entry, created: dict[str, list[str]], where: str
+def _check_created(
+    name: str,
+    step: Step,
+    position: int,
+    entry: Entry,
+    types: dict[str, DuckDBPyType],
+    created: dict[str, list[str]],
+    where: str,
 ) -> None:
-    """Refuse columns out that the last step cannot have given."""
+    """Refuse created names a whole-row step does not give from its values.
+
+    A whole-row step's outputs depend on all it learned (a feature selector
+    keeps some columns): its stage is built from the restored values, as
+    `apply` builds it, with the file's names, so a file claiming other
+    columns is refused here rather than at apply. A step without ``keep``
+    gives exactly its created names.
+    """
+    if not step.rowwise:
+        return
+    # A column passing beside the step's own, as one may when it applies: a
+    # selector keeping none of its columns is not refused as leaving none.
+    beside = "_sqlearn_beside"
+    taken = {c.casefold() for c in entry.columns} | {
+        n.casefold() for names in created.values() for n in names
+    }
+    while beside.casefold() in taken:
+        beside += "_"
+    schema = [(c, types[c]) for c in entry.columns] + [(beside, BOOLEAN)]
+    try:
+        stage = step_stage(
+            position,
+            name,
+            step,
+            schema,
+            "_sqlearn_load",
+            entry.values,
+            columns=entry.columns,
+            names=created,
+        )
+    except InternalError:
+        raise  # a bug in sqlearn, not damage
+    except (SqlearnError, KeyError, TypeError, ValueError, ArithmeticError) as exc:
+        # The step's own Fix line is not the fix for a damaged file.
+        reason = str(exc).split(" Why: ")[0].split(" Fix: ")[0].rstrip(".")
+        what = f"what it learned does not give its columns ({reason})"
+        raise _damaged(where, what) from exc
+    given = set(stage.columns) - {beside}
+    if not step.keep and given != {n for v in created.values() for n in v}:
+        raise _damaged(where, "the created names are not the columns it gives")
+
+
+def _check_columns_out(
+    columns_out: list[str],
+    step: Step,
+    entry: Entry,
+    created: dict[str, list[str]],
+    where: str,
+) -> None:
+    """Refuse columns out that the last step cannot have given.
+
+    A column the step learned from and created nothing from passed through
+    under its own name, except for a whole-row step without ``keep``: its
+    created names are every column it gives (checked against its learned
+    values by `_check_created`), so it gave nothing from that column (a
+    feature selector drops it), and the column is not out.
+    """
     if len(set(columns_out)) != len(columns_out):
         raise _damaged(where, "the columns out name a column twice")
     out = set(columns_out)
+    dropped = step.rowwise and not step.keep
+    given = {n for names in created.values() for n in names}
     for column in entry.columns:
-        made = created.get(column, [column])
+        made = created.get(column, [] if dropped else [column])
         missing = [c for c in made if c not in out]
         if missing:
             raise _damaged(
                 where,
                 f"the columns out lack {missing[0]!r}, which the last step gives",
+            )
+        if dropped and column in out and column not in given:
+            raise _damaged(
+                where,
+                f"the columns out name {column!r}, which the last step drops",
             )
 
 
@@ -464,8 +534,9 @@ def restore_learned(
         start=1,
     ):
         _check_step(step, position, entry, t, c, d, n)
+        _check_created(steps[position - 1][0], step, position, entry, t, c, n)
     if entries:
-        _check_columns_out(columns_out, entries[-1], created[-1], where)
+        _check_columns_out(columns_out, steps[-1][1], entries[-1], created[-1], where)
     source = _learned_from(record.get("data"), where)
     pipe._restore(entries, types, created, columns_out, target, depends_on, source)
 

@@ -22,13 +22,14 @@ import duckdb
 
 from sqlearn._compose import POSITION, TARGET
 from sqlearn._config import connection
-from sqlearn._errors import DefaultsUsedWarning, SqlearnError
+from sqlearn._errors import DefaultsUsedWarning, SqlearnError, StepError
 from sqlearn._expr import quote
 from sqlearn._feed import WrongShapeError, fetch, stream_into, stream_trainer
 from sqlearn._inputs import Source, _release_later, read
 from sqlearn._model import Model, _numpy, missing_target
 from sqlearn._output import Output
 from sqlearn._pipeline import _ROW, Pipeline, _FoldTable, _positioned, _source_sql
+from sqlearn._step import cross_fitted
 from sqlearn._store import FoldKey
 from sqlearn.metrics import Metric, MissingClassError, accuracy
 from sqlearn.model_selection.defaults import default_space, hint
@@ -133,6 +134,21 @@ def _fold_error(
         "training rows hold every class."
     )
     return SqlearnError(msg)
+
+
+def _unprepared(exc: StepError, setting: str, k: int, folds: Folds) -> StepError:
+    """Give a step's failure on one fold's training rows the setting and fold.
+
+    As a model failing to fit (`_fold_error`): a feature selector's setting
+    that leaves no column (``best__k=0`` with no column beside it) fails the
+    search, naming the setting (its steps' part, which the fold's
+    preparation is learned with) and the fold. The step's own Fix stays.
+    """
+    msg = (
+        f"the setting {setting} failed on fold {k} of {folds!r}, preparing "
+        f"its training rows: {exc}"
+    )
+    return StepError(msg, step=exc.step, position=exc.position)
 
 
 def _unstable() -> SqlearnError:
@@ -426,7 +442,9 @@ class Search:
             be opened (locked by another process, or not a DuckDB
             database).
         StepError
-            As for `Pipeline.train`.
+            As for `Pipeline.train`; a step failing on a fold's training
+            rows (a feature selector's setting that leaves no column) names
+            the setting and the fold.
 
         Notes
         -----
@@ -641,7 +659,7 @@ class Search:
         for i, params in enumerate(settings):
             groups.setdefault(_preparation(params, model_name), []).append(i)
         numbered = folds.numbered(source.relation, FOLD, target)
-        if any(s.uses_target for _, s in self.pipe._split()[0]):
+        if any(cross_fitted(s) for _, s in self.pipe._split()[0]):
             # Every row numbered once, before the folds split them, so a
             # fold's training rows keep the positions their inner folds
             # are dealt by in the fold's query too.
@@ -658,10 +676,13 @@ class Search:
                 prepared = trial(self.pipe, settings[members[0]])
                 prepared_fold = self._fold_tables.get((preparation, fold))
                 if prepared_fold is None:
-                    prepared_fold = self._prepared_fold(
-                        prepared, Source(rows, source.key, source.schema),
-                        (fold, numbered, target, helpers, folds),
-                    )  # fmt: skip
+                    try:
+                        prepared_fold = self._prepared_fold(
+                            prepared, Source(rows, source.key, source.schema),
+                            (fold, numbered, target, helpers, folds),
+                        )  # fmt: skip
+                    except StepError as exc:
+                        raise _unprepared(exc, preparation, k, folds) from exc
                     self._fold_tables[preparation, fold] = prepared_fold
                 table = con.table(prepared_fold.name)
                 features = prepared_fold.features

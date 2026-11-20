@@ -206,3 +206,5 @@ TPE = "TPE"
 fpr = "fpr"
 # Mean absolute percentage error, a regression metric (scikit-learn's short name).
 mape = "mape"
+# Family-wise error, as in scikit-learn's SelectFwe feature selector.
+Fwe = "Fwe"

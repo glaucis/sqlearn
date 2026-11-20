@@ -1041,6 +1041,56 @@ def test_a_column_named_as_the_target_aside_is_refused():
         sq.Pipeline([_TargetStep(), Echo()]).train(frame, target="y")
 
 
+class _Correlated(sq.Step):
+    """A target step that does not cross-fit, keeping columns the target rises with."""
+
+    uses_target = True
+    cross_fits = False
+    dynamic = True
+
+    def learn(self, x, y=None):
+        return {"r": duckdb.FunctionExpression("corr", x, y)}
+
+    def apply(self, x, learned):
+        return {"": x} if learned.raw("r") > 0 else {}
+
+
+def correlated_frame():
+    """Return twelve rows: `a` rises with the 0/1 target, `b` falls with it."""
+    y = np.array([0, 1, 1, 0, 1, 0, 0, 1, 1, 1, 0, 0], dtype=float)
+    a = y * 3.0 + np.arange(12.0) % 5
+    b = -y * 2.0 + np.arange(12.0) % 3
+    return pd.DataFrame({"a": a, "b": b, "y": y.astype(int)})
+
+
+def test_a_target_step_that_does_not_cross_fit_learns_once_on_all_rows():
+    """It learns on every row, as scikit-learn's SelectKBest.fit does."""
+    frame = correlated_frame()
+    pipe = sq.Pipeline([("pick", _Correlated(["a", "b"])), ("model", Echo())])
+    pipe.train(frame, target="y")
+    for c in ("a", "b"):
+        want = np.corrcoef(frame[c], frame["y"])[0, 1]
+        assert pipe["pick"].r_[c] == pytest.approx(want, rel=1e-12)
+    assert pipe["model"].shape_ == (12, 1)
+    np.testing.assert_array_equal(
+        pipe.predict(frame, out="numpy")["prediction"], frame["a"]
+    )
+
+
+def test_a_target_step_that_does_not_cross_fit_needs_no_cv_or_seed():
+    """Without cv or seed it plans and trains: it has no inner folds."""
+    pipe = sq.Pipeline([("pick", _Correlated(["a", "b"])), Echo()])
+    pipe.train(correlated_frame(), target="y")
+    assert not hasattr(pipe["pick"], "cv")
+
+
+def test_learn_without_target_refuses_a_step_that_does_not_cross_fit():
+    """It still learns from the target, so learn without one is refused."""
+    pipe = sq.Pipeline([("pick", _Correlated(["a", "b"]))])
+    with pytest.raises(sq.errors.StepError, match="learns from the target"):
+        pipe.learn(correlated_frame())
+
+
 def test_each_step_hears_what_it_learned_once_per_learn(people):
     """`Step.learned` is called once per learn, a store hit too, never on apply."""
     heard = []

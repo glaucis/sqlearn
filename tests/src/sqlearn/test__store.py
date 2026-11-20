@@ -102,6 +102,30 @@ def test_true_and_one_get_different_keys():
     assert len(keys) == 3
 
 
+class _Pick(sq.Step):
+    """A step whose `k` chooses only its output (ADR 0056)."""
+
+    output_settings = frozenset({"k"})
+
+    def __init__(self, k, cols=("a",)):
+        """Set the settings."""
+        self.k, self.cols = k, cols
+
+
+def test_a_setting_that_only_chooses_the_output_is_not_in_the_learn_key():
+    """`k` leaves the step's own key; a step reading its output keeps it."""
+
+    def keys(k):
+        steps = [("pick", _Pick(k)), ("after", _V(1))]
+        own = step_key(DATA, None, steps, 0, frozenset())
+        later = step_key(DATA, None, steps, 1, frozenset({0}))
+        return own, later
+
+    (one, one_later), (two, two_later) = keys(1), keys(2)
+    assert one == two
+    assert one_later != two_later
+
+
 def test_a_change_two_hops_up_reaches_the_last_key():
     """A to B to C: a change in A changes C's key (transitive depends_on)."""
 
