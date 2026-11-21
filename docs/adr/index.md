@@ -54,6 +54,7 @@ sqlearn's computation in C++, inside its own DuckDB build.
 - [0065: Safety rules for the C++](0065-safety-rules-for-the-cpp.md)
 - [0066: Permissive licences, never copyleft](0066-permissive-licences-never-copyleft.md)
 - [0067: How computation moves to the engine](0067-how-computation-moves-to-the-engine.md)
+- [0068: sqlearn's own models, in the engine](0068-sqlearns-own-models.md)
 
 ## The API
 

@@ -45,9 +45,9 @@ built.
   issue #66. Part 3.6's first piece, the exploration module (`sq.explore`:
   `profile`, `histogram`, `top`, `missing`, `correlations`), is built: spec
   `docs/specs/library-exploration.md`, plan
-  `docs/plans/2026-11-20-library-exploration.md`, ADR 0059, issue #74.
-  Models stay with outside libraries (ADR 0017). **Next:** chosen from
-  `HANDOFF.md`'s "Next up".
+  `docs/plans/2026-11-20-library-exploration.md`, ADR 0059, issue #74. sqlearn's
+  own models are a goal, built in the engine; outside models stay supported (ADR
+  0017, 0068). **Next:** chosen from `HANDOFF.md`'s "Next up".
 
 Rules from the ADRs:
 

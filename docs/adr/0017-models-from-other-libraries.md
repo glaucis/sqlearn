@@ -6,7 +6,9 @@ related: [docs/architecture/overview.md, docs/adr/0013-learn-apply-train-predict
 ---
 # 0017: Models come from other libraries, for now
 
-Status: accepted (2026-11-04)
+Status: accepted (2026-11-04). Amended by
+[ADR 0068](0068-sqlearns-own-models.md) (2026-11-21): sqlearn's own models
+become a goal; outside models stay supported.
 
 ## Context
 
