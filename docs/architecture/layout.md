@@ -38,9 +38,9 @@ sqlearn/
                          installed
   benchmarks/            the benchmark suite and its committed results;
                          mirrors src/sqlearn/
-  engine/                the native engine (C++) and sqlearn's DuckDB
-                         build, from the engine's Phase 1 (ADR 0060,
-                         0061)
+  engine/                sqlearn's C++ library, its kernels and its
+                         bindings (ADR 0060), and sqlearn's DuckDB
+                         build (ADR 0061), from the engine's Phase 1
   src/sqlearn/           the package
   tests/                 mirrors the root, dot folders without their dot
   pyproject.toml         the package, and every tool's configuration
@@ -114,6 +114,7 @@ folder when its first example lands. Today there is the root header,
   pages with 3.8. `benchmarks/` with 3.9, mirrored the same way.
 - `CHANGELOG.md`, `NOTICE` and `CITATION.cff` with the first release.
 - `.github/`: the CI workflows, with the native engine's Phase 1.
-- `engine/`: with the native engine's Phase 1.
+- `engine/`: sqlearn's C++ library, its kernels and its bindings (ADR 0060),
+  and sqlearn's DuckDB build (ADR 0061), with the native engine's Phase 1.
 - Guide chapters, lessons, validation pages and benchmarks: the foundation
   creates no content beyond the placeholder example.

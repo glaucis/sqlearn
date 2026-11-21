@@ -10,7 +10,9 @@ Status: accepted (2026-11-21). Decided by Tomas on 2026-11-21 with the
 [native engine spec](../specs/native-engine.md) (§3.2). Amends
 [ADR 0005](0005-runtime-dependencies.md),
 [ADR 0006](0006-local-and-offline.md) and
-[ADR 0057](0057-numpy-is-a-runtime-dependency.md).
+[ADR 0057](0057-numpy-is-a-runtime-dependency.md). Revised before merging
+(2026-11-21), with the spec's revision: one DuckDB in the process, shared
+with the C++ library.
 
 ## Context
 
@@ -19,9 +21,9 @@ DuckDB. Bundling sqlearn's own build avoids signing and version matching,
 and gives full control over what is compiled in.
 
 A drop-in keeps users' code and sqlearn's tests unchanged: they keep
-`import duckdb`. Two packages, one for sqlearn and one for the build, let a
-Python-only fix ship without rebuilding DuckDB. Python changes never set off
-the C++ build. The speed is the same as in one package.
+`import duckdb`. Two packages, one for sqlearn and one for the build, are the
+default: a change to sqlearn then ships without rebuilding DuckDB. The speed
+is the same as in one package.
 
 Three other ways were weighed:
 
@@ -50,7 +52,18 @@ Three other ways were weighed:
   needs it (checked with `uv tree --invert`).
 - **It ships as a second package,** installed by the same `uv add sqlearn`.
   Its name is chosen in Phase 1; `sqlearn-duckdb` is a placeholder. sqlearn
-  requires its exact version.
+  requires its exact version. A change to sqlearn then ships without
+  rebuilding DuckDB. Two packages are the default, which Phase 1 may make
+  one (the next bullet).
+- **One DuckDB in the process.** The `duckdb` module and sqlearn's C++
+  library must run in the same DuckDB, so that a user's connection
+  (`sq.set_config(connection=con)`) and the data frames they hand in reach
+  the C++ as they are, and the C++ is handed the C++ connection behind the
+  Python one. Two copies of DuckDB linked into two binaries would be two
+  databases that cannot see each other's data. Phase 1 decides how: both
+  packages linking one shared DuckDB library, or the C++ library compiled
+  into the DuckDB build's package. If the second, the two packages become
+  one, and the reason above for two lapses.
 - **At start, sqlearn checks that `duckdb` is its build** (the engine
   answers). If another package has replaced it with the official one,
   sqlearn refuses with its `Why:` and `Fix:` lines.

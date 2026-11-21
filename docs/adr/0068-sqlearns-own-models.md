@@ -8,7 +8,8 @@ related: [docs/adr/0017-models-from-other-libraries.md, docs/adr/0060-a-native-e
 
 Status: accepted (2026-11-21). Decided by Tomas on 2026-11-21 with the
 [native engine spec](../specs/native-engine.md) (§3.9).
-Amends [ADR 0017](0017-models-from-other-libraries.md).
+Amends [ADR 0017](0017-models-from-other-libraries.md). Revised before
+merging (2026-11-21), with the spec's revision: the models' phase is now 5.
 
 ## Context
 
@@ -39,7 +40,7 @@ into memory, so training is limited to what the chosen library can hold.
 
 ## Consequences
 
-- Each model is its own spec, in Phase 4 of the native engine.
+- Each model is its own spec, in Phase 5 of the native engine.
 - Each model is validated and benchmarked against scikit-learn before it
   counts as done.
 - Outside models and the hand-over stay supported, so a user's choice of

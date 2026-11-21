@@ -7,7 +7,8 @@ related: [docs/adr/0016-validation-method.md, docs/adr/0043-repeatable-within-ro
 # 0065: Safety rules for the C++
 
 Status: accepted (2026-11-21). Decided by Tomas on 2026-11-21 with the
-[native engine spec](../specs/native-engine.md) (§3.6).
+[native engine spec](../specs/native-engine.md) (§3.6). Revised before merging
+(2026-11-21), with the spec's revision: the C++ library's own tests.
 
 ## Context
 
@@ -40,6 +41,11 @@ The rules bind from the first commit.
   call).
 - **Fuzzing:** libFuzzer on each function's pure core (random, NaN, ±inf,
   empty and huge inputs), in CI.
+- **C++ tests** of the C++ library's internals, beside the Python tests that
+  check its behaviour
+  ([ADR 0067](0067-how-computation-moves-to-the-engine.md)); the framework
+  is Phase 1's choice (a permissive one,
+  [ADR 0066](0066-permissive-licences-never-copyleft.md)).
 - **SQL-level tests:** DuckDB sqllogictest files for every function.
 - **Numerics:** the [ADR 0016](0016-validation-method.md) method (exact
   values from mpmath or `Fraction`, bounds in ULPs per

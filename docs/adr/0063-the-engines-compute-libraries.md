@@ -7,7 +7,8 @@ related: [docs/adr/0060-a-native-engine-in-cpp-inside-duckdb.md, docs/adr/0061-s
 # 0063: The engine's compute libraries: Accelerate, OpenBLAS and Metal
 
 Status: accepted (2026-11-21). Decided by Tomas on 2026-11-21 with the
-[native engine spec](../specs/native-engine.md) (§3.4).
+[native engine spec](../specs/native-engine.md) (§3.4). Revised before merging
+(2026-11-21), with the spec's revision: Mojo tried beside Metal.
 
 ## Context
 
@@ -56,6 +57,31 @@ Weighed and left out:
   compiles at start. Kernels use only what every Apple GPU has, from the
   M1; per-chip variants or tuning are chosen at run time, each where a
   measurement shows it pays.
+- **Mojo is tried beside Metal** when the GPU kernels are benchmarked
+  (Phase 6, #77; Tomas, 2026-11-21). Mojo 1.0 (August 2026) is open source
+  under Apache-2.0 with LLVM exceptions, compiler included, and compiles GPU
+  functions for Apple silicon to the same intermediate form as Metal (AIR).
+  It also compiles the same kernel for NVIDIA and AMD GPUs, so one source
+  could serve every GPU sqlearn supports later, with no second and third
+  version to maintain (Tomas, 2026-11-21); NVIDIA's GPUs have float64, which
+  Apple's lack. **If Mojo matches Metal on Apple silicon, Mojo becomes the
+  language of sqlearn's GPU kernels,** and Metal stays only where Mojo falls
+  short. Phase 6 decides it, by testing, against these conditions, all
+  measured:
+  - as fast as the Metal version on Apple silicon, within the run-to-run
+    spread;
+  - answers bit for bit the CPU's
+    ([ADR 0064](0064-the-gpu-runs-by-itself-only-when-the-answer-is-the-same.md)),
+    on each GPU it runs on;
+  - compiled ahead of time, with nothing compiled at start and no runtime
+    added beyond what the kernels need;
+  - callable from the C++ library through a plain C interface;
+  - everything that ships under it permissive
+    ([ADR 0066](0066-permissive-licences-never-copyleft.md)).
+
+  Otherwise C++ and Metal stay the native languages. Either way the GPU
+  stays Apple's only until another vendor's can be tested
+  ([ADR 0062](0062-apple-silicon-first.md)).
 - **No `-ffast-math`** anywhere, since it swaps in less accurate routines.
   Metal kernels compile in safe math mode (Metal's default is fast).
 

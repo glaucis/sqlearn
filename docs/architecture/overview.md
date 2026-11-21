@@ -69,11 +69,11 @@ the building.
 
 ## 2. Constraints (agreed)
 
-- **Python, C++ and DuckDB.** Computation runs inside DuckDB, as SQL and as the
-  native engine's C++ functions
-  ([ADR 0060](../adr/0060-a-native-engine-in-cpp-inside-duckdb.md)); Python is
-  the API and the glue
-  ([ADR 0002](../adr/0002-sql-on-duckdb-execution-engine.md)). One exception,
+- **Python, C++ and DuckDB.** Computation runs inside DuckDB, as SQL the
+  library builds and as its `sqlearn_*` C++ functions. The library is C++,
+  and Python is its bindings
+  ([ADR 0060](../adr/0060-a-native-engine-in-cpp-inside-duckdb.md),
+  [ADR 0002](../adr/0002-sql-on-duckdb-execution-engine.md)). One exception,
   until the engine's Phase 2
   ([ADR 0058](../adr/0058-a-gram-step-builds-xtx-in-numpy.md)): a Gram step
   (PCA) learns from XᵀX, which numpy sums from batches DuckDB streams, and data
@@ -193,7 +193,7 @@ decomposition (PCA, `sq.decompose`), and whatever the core's contract makes
 possible. Models come from other
 libraries the user installs, for now
 ([ADR 0017](../adr/0017-models-from-other-libraries.md)); sqlearn's own models
-come with the native engine (3.10, Phase 4; [ADR
+come with the native engine (3.10, Phase 5; [ADR
 0068](../adr/0068-sqlearns-own-models.md)).
 
 **Done when:** never; it grows. Each area is done when its spec says so.
@@ -311,14 +311,16 @@ sqlearn stands and at what size the others stop.
 
 ### 3.10 Native engine
 
-**What:** sqlearn's computation in a C++ engine compiled into its own DuckDB
-build, Apple silicon first, in seven phases
-([spec](../specs/native-engine.md) §4; ADRs 0060 to 0068; milestone "Native
-engine", #78 to #84). Phase 0 decides and takes the inventory of every
-module.
+**What:** sqlearn becomes a C++ library embedding DuckDB, with Python as its
+bindings, ported piece by piece
+([ADR 0067](../adr/0067-how-computation-moves-to-the-engine.md)), Apple
+silicon first, in seven phases ([spec](../specs/native-engine.md) §4; ADRs
+0060 to 0068; milestone "Native engine", #78 to #84). Phase 0 decides and takes
+the inventory of every module.
 
-**Done when:** sqlearn's current state runs on the engine (Phases 1 to 3);
-each later phase is done when its spec says so.
+**Done when:** every test passes unchanged against the C++ and no logic is
+left in Python (Phases 1 to 4); each later phase is done when its spec says
+so.
 
 **Depends on:** 3.2 and 3.3 for what moves, 3.8 for the validation every move
 passes, 3.9 for the benchmarks.
@@ -344,9 +346,9 @@ to other engines would plug into its compositor:
    after it.
 7. Workflow editor (3.7), last, when the library is more or less done.
 
-Now (2026-11-21): the native engine (3.10). Its migration of sqlearn's
-current state, Phases 1 to 3, comes before any new area of 3.3 or 3.6, after
-HANDOFF's three small fixes ([spec](../specs/native-engine.md) §4).
+Now (2026-11-21): the native engine (3.10), Phase 0, revised. Porting sqlearn's
+current state to C++, Phases 1 to 4, comes before any new area of 3.3 or 3.6,
+after HANDOFF's three small fixes ([spec](../specs/native-engine.md) §4).
 
 How the work runs, and where each kind of document goes:
 [workflow.md](workflow.md).

@@ -66,9 +66,10 @@ Rules from the ADRs:
   (0003). The verbs are sqlearn's own: `learn`/`apply` for steps,
   `train`/`predict` for models (0013).
 - From the engine's Phase 1, sqlearn runs on its own DuckDB build: the `duckdb`
-  module, built from DuckDB's source at a pinned release with the engine
-  compiled in, shipped as a second package beside sqlearn. With numpy it is the
-  whole runtime; anything else needs a written reason (0005, 0057, 0061).
+  module, built from DuckDB's source at a pinned release, the same DuckDB the
+  C++ library runs in, shipped by default as a second package beside sqlearn.
+  With numpy it is the whole runtime; anything else needs a written reason
+  (0005, 0057, 0060, 0061).
 - Runtime code carries only permissive licences approved by the OSI (MIT,
   BSD, Apache-2.0, PSF, Boost, zlib, Unicode, ISC), never copyleft, each
   listed in the third-party file (0004, 0066).
