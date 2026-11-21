@@ -91,3 +91,30 @@ def test_a_failure_names_the_error_not_the_profile_json():
 def test_a_probe_killed_by_a_signal_is_named():
     """A negative return code is a signal, reported with its number."""
     assert _failure(-9, "") == "killed by signal 9"
+
+
+def test_an_unprofiled_probe_reports_its_time(tmp_path: Path):
+    """A timing run, with no profiling, finishes and reports its seconds."""
+    path = tmp_path / "d.parquet"
+    _write(path, 1000, 3)
+    result = run("scale", path, profiled=False)
+    assert result["s"] > 0
+    assert result["peak_gb"] > 0
+
+
+def test_a_failure_skips_nanobinds_leak_report_after_the_traceback():
+    """DuckDB's leak lines come after the traceback; the exception is named."""
+    stderr = (
+        "Traceback (most recent call last):\n"
+        "ValueError: boom\n"
+        "nanobind: leaked 27 instances!\n"
+        'nanobind: leaked 1 types!\n - leaked type "T"\n'
+        ' - leaked function "__init__"\n'
+        "nanobind: this is likely caused by a reference counting issue.\n"
+        "See https://nanobind.readthedocs.io/en/latest/refleaks.html"
+    )
+    assert _failure(1, stderr) == "ValueError: boom"
+    glued = (
+        "ValueError: boom\nSee https://nanobind.readthedocs.io/en/latest/refleaks.html"
+    )
+    assert _failure(1, glued) == "ValueError: boom"

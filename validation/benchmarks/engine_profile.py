@@ -20,6 +20,7 @@ printed before and after: on a loaded machine the times are estimates.
 import cProfile
 import json
 import pstats
+import re
 import subprocess
 import sys
 import tempfile
@@ -122,8 +123,11 @@ def probe(call: str, path: str, result: str, profiled: bool) -> None:
     con = duckdb.connect()
     sq.set_config(connection=con)
     # Read before profiling starts, so these queries are not profiled.
-    threads = con.execute("SELECT current_setting('threads')").fetchone()[0]
-    memory_limit = con.execute("SELECT current_setting('memory_limit')").fetchone()[0]
+    # fetchall() ends each result: an unfinished one would block the call.
+    threads = con.execute("SELECT current_setting('threads')").fetchall()[0][0]
+    memory_limit = con.execute("SELECT current_setting('memory_limit')").fetchall()[0][
+        0
+    ]
     if profiled:
         con.execute("SET enable_profiling = 'json'")
     profiler = cProfile.Profile() if profiled else None
@@ -176,7 +180,14 @@ def _failure(returncode: int, stderr: str) -> str:
         kept.append(stderr[at:start])
         at = end
     kept.append(stderr[at:])
-    lines = [line.strip() for line in "".join(kept).splitlines() if line.strip()]
+    # DuckDB's leak report, printed at exit after any traceback, is noise; its
+    # last line may be glued to the text before it.
+    text = re.sub(r"See https://nanobind\S*", "", "".join(kept))
+    lines = [
+        line.strip()
+        for line in text.splitlines()
+        if line.strip() and not line.lstrip().startswith(("nanobind:", "- leaked"))
+    ]
     return (lines[-1] if lines else "no error")[:80]
 
 
