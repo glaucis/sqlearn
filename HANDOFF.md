@@ -3,18 +3,31 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-21 · Branch: `main` · Last commit: `d314eac` docs: note in
-the handoff that main is pushed · Checks: passing (`just verify` on the
-branch head: 3190 passed, every validation runner 0 fails; `just test` on the
-merge `b779980`: 3178 passed)
+Updated: 2026-11-21 · Branch: `main` · Last commit: `e0f1a7d` docs: specify
+the native engine and its Phase 0 (#78) · Checks: passing (`just check`, and
+`just test`: 3178 passed, before `e0f1a7d`; `just verify` not run this
+session)
 Verify with: `just verify`
 
 ## In progress
 
-None.
+- [verified] Phase 0 of the native engine (#78). The spec
+  `docs/specs/native-engine.md` is approved and committed. Its two plans are
+  written but **uncommitted**:
+  `docs/plans/2026-11-21-native-engine-phase-0a-decisions.md` (ADRs 0060–0068,
+  12 tasks) and `docs/plans/2026-11-21-native-engine-phase-0b-inventory.md`
+  (profiling and the inventory, 4 tasks). Next: once Tomas approves them, commit
+  both on `main`, make the worktree `.worktrees/engine-phase-0` on branch
+  `engine-phase-0`, and run plan 0a from Task 0.
 
 ## Waiting on the user
 
+- Review the two Phase 0 plans and choose how to run them: subagent-driven
+  (recommended: a fresh reviewer per ADR catches one deciding more than the
+  spec) or native. (since 2026-11-21)
+- Pushing: `main` is ahead of `origin`. The backup branch `main_python` and
+  the annotated tag `python-final` (both at `ca2b720`, the last pure-Python
+  state) are local only, and are pushed when Tomas says. (since 2026-11-21)
 - Benchmarks run on a loaded machine, to rerun on a quiet one if wanted:
   `generators-on-many-threads.md` (#46), `gram-batches.md`, and both
   `explore-*.md` pages (load up to 145, a Rust build and a VM running).
@@ -22,25 +35,44 @@ None.
 
 ## Next up
 
-- One line, first: `profile`'s skewness and kurtosis multiply before
-  dividing (`profile.py` `_shape`), so `[0, 0, 0, 6e102]` gives inf where
-  NULL is promised; divide first. `_SCAN_COLUMNS`' docstring says "under 2
-  GB" where the benchmark says 1,986 MB.
-- #75: Spearman's first scan reads every chosen column; number it in column
-  groups, as Pearson's blocks are bounded.
-- #76: `read` gives a raw `ResourceInUseException` on a busy user
-  connection; reword the `meta_sqlearn` trap below with it.
-- #4, #6: the site goes on GitHub Pages from the now public repository,
-  deployed with the CI the native engine's first phase sets up; then the
-  README and `switcher.json` get its URL.
-- The rest of 3.6 (spec §8: target panel, outliers, normality, Kendall,
-  sampling, time series), then the application. Models stay outside (ADR
-  0017; Tomas, 2026-11-20). 3.3 candidates: text features, more
-  preprocessing, truncated SVD, `cross_validate`.
+- Phase 0 (#78), as above. The migration comes before any new library area
+  (Tomas, 2026-11-21; spec §4).
+- Then the three small fixes, before Phase 1:
+  - The one-line `profile` fix: its skewness and kurtosis multiply before
+    dividing (`profile.py` `_shape`), so `[0, 0, 0, 6e102]` gives inf where
+    NULL is promised; divide first. `_SCAN_COLUMNS`' docstring says "under 2
+    GB" where the benchmark says 1,986 MB.
+  - #75: Spearman's first scan reads every chosen column; number it in
+    column groups, as Pearson's blocks are bounded.
+  - #76: `read` gives a raw `ResourceInUseException` on a busy user
+    connection; reword the `meta_sqlearn` trap below with it.
+- Phase 1's spec (#79), brainstormed with Tomas: sqlearn's DuckDB build, the
+  safety stack in CI, the ready-made builds. Then #4 and #6: the site on
+  GitHub Pages from the public repository, deployed with Phase 1's CI; then
+  the README and `switcher.json` get its URL.
+- After the migration (Phases 1–3): the rest of 3.6 (spec §8: target panel,
+  outliers, normality, Kendall, sampling, time series), then the
+  application; 3.3 candidates: text features, more preprocessing, truncated
+  SVD, `cross_validate`; sqlearn's own models are Phase 4 (spec §3.9).
 - #65's other minor follow-ups (in its comments; #65 is closed).
 
 ## Dead ends and traps
 
+- MLX (weighed for the engine, then left out): float64 runs on its CPU only,
+  and there `exp` and `erf` are computed in float32 (`exp(1.0)` 1.86e8 ULPs
+  off, `exp(100)` inf); `mx.array` of a float64 numpy array gives float32
+  unless `dtype=mx.float64`; float64 on the GPU raises. Research:
+  `docs/questions/engine-compute-libraries.md`. (2026-11-21)
+- DuckDB 2.0's profiling: `profiling_output` keeps only the last statement;
+  with no output file set, `SET enable_profiling = 'json'` prints one JSON
+  profile per statement to stdout, so a subprocess can capture them all.
+  `duckdb_logs`' timestamps need pytz too: fetch them as text. (2026-11-21)
+- `gh issue create --project sqlearn` left #77 to #84 off the board without
+  an error: add with `gh project item-add 6 --owner glaucis --url <issue
+  url>`, then `gh-board status`. The docs tagger once wrote a `related:` path
+  that does not exist, and a stray "we still" once appeared atop `CLAUDE.md`:
+  read a new file's frontmatter and `git diff CLAUDE.md` before committing.
+  (2026-11-21)
 - `FILTER (WHERE ...)` copies a statement's inputs per filtered aggregate,
   outside `memory_limit` (the OS killed `profile`): write `agg(CASE ...)`.
   `memory=X` gives DuckDB X/2. No statement over 200 columns fits 1–2 GB
@@ -55,9 +87,8 @@ None.
   importing `validation` needs `PYTHONPATH` set to the repo. A test
   learning twice must `STORE.clear()` between, or the second reuses the
   first. macOS has no `timeout` (nor `gtimeout`): a capped run needs
-  another way. A
-  cross-fitted step's `learn` needs the target, so `sq.load` takes its
-  names from `Step._derives`. (2026-11-20)
+  another way. A cross-fitted step's `learn` needs the target, so `sq.load`
+  takes its names from `Step._derives`. (2026-11-20)
 - A wait loop such as `until grep -q "^EXIT=" log` never ends when the
   log's last line has no newline: wait on the PID. Subagents can leave such
   loops behind; check with `pgrep -fl`. DuckDB's numpy fetch has no
@@ -132,11 +163,15 @@ None.
 
 ## Just finished
 
-- The repository is public (Tomas, 2026-11-21). The history was searched
-  for keys and tokens first and is clean; the README says sqlearn is not
-  ready for use and that contributions wait for the CLA (ADR 0004).
-- #74 merged in `b779980`, pushed, closed: `sq.explore` (`profile`,
-  `histogram`, `top`, `missing`, `correlations`), ADR 0059, validation 809
-  pass; profile and Pearson run on 20 GB at a 1–2 GB DuckDB limit, Spearman
-  refuses with a `Fix:` (#75). Rulings in the spec's "ruled during the
-  build" notes. (2026-11-21)
+- The native engine's spec, approved by Tomas and committed with its
+  research page (`e0f1a7d`): C++ inside sqlearn's own DuckDB build (the
+  `duckdb` module, a second package), Apple silicon first, nine decisions
+  for ADRs 0060–0068, seven phases. (2026-11-21)
+- GitHub: milestone "Native engine"; #77 (CPU against GPU benchmarks, under
+  #84) and #78 to #84 (Phases 0 to 6, each blocked by the one before), on the
+  board; the hosting decision commented on #4 and #6. (2026-11-21)
+- The backup `main_python` and `python-final` at `ca2b720`, local.
+  (2026-11-21)
+- The repository is public (Tomas, 2026-11-21), the history searched for
+  keys and tokens first (clean), secret scanning and push protection on; the
+  README says sqlearn is not ready for use (`ca2b720`). (2026-11-21)
