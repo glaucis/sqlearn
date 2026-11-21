@@ -7,16 +7,19 @@ Updated: 2026-11-21 · Branch: `read-busy-connection` (worktree
 `../sqlearn-76`, on `main`'s `b135f1b`) · Last commit: `7d44141` docs: tests
 rerun only when what they depend on changed · Checks: on the branch `just
 check` and `just test` passing (3193 passed); `just verify` on `main` at
-`b135f1b` passed every step up to the validation, then stopped by Tomas's
-reboot
+`b135f1b` passed every step up to the validation, then stopped by the agent
+before a reboot
 Verify with: `just verify`
 
 ## In progress
 
-- [verified] `just verify` on `main` (`b135f1b`, the `profile` fix) was cut
-  off by a reboot during `python -m validation`. Rerun it in the main
-  checkout; then commit `validation/tests.json` (tests were added) and leave
-  the docs tagger's frontmatter edits (about 20 docs) out of the commit.
+- [verified] `just verify` on `main` (`b135f1b`, the `profile` fix) was
+  stopped by the agent, at Tomas's request before a reboot, during `python
+  -m validation`. No result file was half-written; only
+  `validation/tests.json` changed, from the finished test step (left
+  uncommitted). Rerun `just verify` in the main checkout; then commit
+  `tests.json` (tests were added) and leave the docs tagger's frontmatter
+  edits (about 20 docs) out of the commit.
 - [verified] The branch `read-busy-connection` holds #76's fix (`52e17d3`),
   #75's deferral (`1ec69e4`), spec §4's change (`7d44141`) and the Phase 1
   spec draft. Next: `just verify` on it, fast-forward `main` to it, close
