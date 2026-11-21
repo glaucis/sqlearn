@@ -7,9 +7,10 @@ Examples
 'profile'
 """
 
+from sqlearn.explore.correlations import correlations
 from sqlearn.explore.histogram import histogram
 from sqlearn.explore.missing import missing
 from sqlearn.explore.profile import profile
 from sqlearn.explore.top import top
 
-__all__ = ["histogram", "missing", "profile", "top"]
+__all__ = ["correlations", "histogram", "missing", "profile", "top"]
