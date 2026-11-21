@@ -37,22 +37,11 @@ Verify with: `just verify`
 
 - Approve the Phase 1 spec, or say what to change. Check the calls marked
   "(the agent's call)" in it. (since 2026-11-21)
-- The C++ standard: recommended C++23 now (`std::expected`, `std::mdspan`),
-  C++26 by ADR when all three compilers have the features wanted
-  (reflection, contracts, `std::linalg`). A probe of the feature macros
-  (`__cpp_impl_reflection`, `__cpp_contracts`, `__cpp_lib_linalg`, ...)
-  under `-std=c++26` on Apple clang 21 (SDK 27.0) found only saturation
-  arithmetic; rerun it after any Xcode update. Then add to the spec: the
-  standard, clangd as the agent's language server (step 2), CodeGraph
-  indexing `engine/` only, not DuckDB (indexing is Tomas's decision).
-  (since 2026-11-21)
+- CodeGraph indexing `engine/` only, never the DuckDB submodules (spec
+  §3.8, the agent's proposal): indexing is Tomas's decision. (since
+  2026-11-21)
 - The CLion MCP stays (its debugger, for step 2 on); no other tool or skill
   needed. Told Tomas; nothing to do.
-- macOS: the Mac is on 26.6.1 and offered nothing since 2026-08-07, though
-  Apple lists 27.2.1 and 26.7.3 for its board (J615); not managed, no
-  deferral, servers reachable, disk fine; `softwareupdate --list` hung.
-  Tomas is upgrading; if Software Update stays empty, `sudo killall
-  softwareupdated` or a restart. (since 2026-11-21)
 - Benchmarks run on a loaded machine, to rerun on a quiet one if wanted:
   `generators-on-many-threads.md` (#46), `gram-batches.md`, both
   `explore-*.md` pages (load up to 145) and `engine-profile.md` (load 10 to
@@ -78,6 +67,12 @@ Verify with: `just verify`
 - Medium refuses the web-fetch agent (403): ask Tomas to paste the text.
   On Apple clang, `-std=c++26` is accepted with almost no C++26 inside:
   test a feature by its `__cpp_*` macro, never by the flag. (2026-11-21)
+- Apple clang has no libFuzzer runtime (`libclang_rt.fuzzer_osx.a` not
+  found) and refuses `detect_leaks` on Apple silicon: Homebrew LLVM
+  (`/opt/homebrew/opt/llvm`) has both; build with `-isysroot $(xcrun
+  --show-sdk-path)`. LLVM 23 lists `-freflection` but the driver ignores
+  it. In zsh, `$flags` holding several flags is one word: use `eval` or an
+  array. (2026-11-21)
 
 - Subagents writing ADRs invent reasons and attribute them to Tomas unless
   told "no reason the spec does not give"; they leave `pgrep -f` wait loops
@@ -199,6 +194,13 @@ Verify with: `just verify`
   (2026-11-06)
 
 ## Just finished
+
+- The C++ standard and compilers: C++23 for now (Tomas), C++26 by ADR once
+  Apple clang has reflection and contracts; each compiler's job; LeakSanitizer
+  and libFuzzer from Homebrew LLVM; written into the Phase 1 spec, §3.8. The
+  probe on macOS 27.2.1: Apple clang 21 and LLVM 23.1.6 have neither
+  reflection nor contracts, GCC 16.2 has both, experimental; none has
+  `std::linalg`. (2026-11-21)
 
 - The `profile` fix (`b135f1b`, on `main`, not pushed): skewness and
   kurtosis divide each sum by its power of the variance first, so `[0, 0,

@@ -119,10 +119,10 @@ verify` run in CI on every push" (changed there on 2026-11-21).
 | Compiler | `-Wall -Wextra -Wconversion -Wshadow -Wold-style-cast -Wnon-virtual-dtor -Wdocumentation -Werror`, and MSVC's equivalents |
 | Static analysis | clang-tidy (`bugprone-*`, `cppcoreguidelines-*`, `performance-*`, more each with its reason), the Clang static analyser, CodeQL, include-what-you-use |
 | Memory and undefined behaviour | AddressSanitizer with UndefinedBehaviorSanitizer; ThreadSanitizer as a separate run |
-| Leaks | LeakSanitizer on Linux; `leaks --atExit` on macOS, where LeakSanitizer does not run on Apple silicon (to be confirmed); the MSVC debug heap's leak report on Windows; nanobind's leak report clean for sqlearn's own types |
+| Leaks | LeakSanitizer on Linux and on macOS with Homebrew LLVM (Apple clang's refuses `detect_leaks` on Apple silicon; LLVM 23's found a test leak, 2026-11-21); `leaks --atExit` on macOS for the Apple clang build; the MSVC debug heap's leak report on Windows; nanobind's leak report clean for sqlearn's own types |
 | Logical leaks (memory still referenced that should not be: the store, the queued registrations) | a steady-memory test: learn and apply many times in a loop, memory must level off |
 | Hardening | the hardened standard library (ADR 0065); the release flags of the OpenSSF compiler hardening guide (`_FORTIFY_SOURCE=3`, `-fstack-protector-strong` and the like), each benchmarked |
-| Fuzzing | libFuzzer on each function's pure core, its corpus kept in the repository so found cases stay tested |
+| Fuzzing | libFuzzer on each function's pure core, its corpus kept in the repository so found cases stay tested; built with Homebrew LLVM, since Apple clang ships no fuzzer runtime (§3.8) |
 | Tests | Catch2 (BSL-1.0; DuckDB's own tests use Catch) under CTest; RapidCheck (BSD) for property tests; DuckDB's sqllogictest for SQL |
 | Do the tests bite | coverage with llvm-cov, with a gate; Mull (Apache-2.0) mutation testing, in the release tier |
 | Format | clang-format; gersemi for the CMake files |
@@ -213,7 +213,8 @@ One spec, four steps, each with its own plan and merge:
 
 1. **The checks** on today's Python (§3.1, the Python tools of §3.2).
 2. **The build:** `engine/`, the one package, the skeleton and bindings
-   (§3.3), the C++ tools of §3.2 on the skeleton, the third-party file and
+   (§3.3), the standard, compilers and editor tools (§3.8), the C++ tools
+   of §3.2 on the skeleton, the third-party file and
    `NOTICE` (ADR 0066), no automatic downloads (ADR 0061), DuckDB's official
    extensions tested to load.
 3. **The workflows and the site:** the release tier's workflows, started by
@@ -226,6 +227,48 @@ One spec, four steps, each with its own plan and merge:
 
 Considered: the build first (its many test runs under today's slow
 checks); everything on one branch (nothing usable until the end).
+
+### 3.8 The C++ standard and the compilers (Tomas, 2026-11-21)
+
+- **C++23**, on every compiler: `std::expected`, `std::mdspan`, `std::print`,
+  `flat_map`, deducing `this`. Tomas: "23 for now".
+- **C++26 waits.** Its mode is unfinished on every compiler (`__cplusplus` is
+  `202400`), and the features worth moving for are missing from the compiler
+  that builds the macOS release. A probe of the feature macros on 2026-11-21
+  (macOS 27.2.1):
+
+  | | Apple clang 21.0.0 | LLVM 23.1.6 | GCC 16.2.0 |
+  |---|---|---|---|
+  | Reflection | no | no (`-Xclang -freflection` parses `^^int`, cannot evaluate it) | yes, experimental (`-freflection`) |
+  | Contracts | no | no | yes, experimental (`-fcontracts`) |
+  | `std::linalg` | no | no | no |
+
+  An ADR moves to C++26 once Apple clang has reflection and contracts;
+  `std::linalg` is not needed, since the engine calls BLAS (ADR 0063). The probe
+  is kept as a `just` recipe, rerun after each Xcode update (the agent's call).
+- **Moving later stays cheap.** C++26 keeps C++23 code working; the flag
+  changes in one place, and warnings as errors point to what it deprecates.
+  Two habits keep adopting its features small: preconditions go through one
+  engine macro (`SQ_EXPECTS` or similar), which later becomes `pre(...)`;
+  and a struct's field list, where code needs one (saving, bindings,
+  validation output), is written in one place, which reflection later
+  generates (the agent's call).
+- **Each compiler has its job:**
+
+  | Compiler | Job |
+  |---|---|
+  | Apple clang | the macOS release build and the everyday build on this Mac (ADR 0062: Accelerate, Metal) |
+  | Homebrew LLVM | clang-tidy, the static analyser, clangd, clang-format, the sanitizer and fuzzing builds on macOS (Apple clang has no fuzzer runtime and no LeakSanitizer on Apple silicon) |
+  | GCC | the Linux release build, in the hand-started workflow (manylinux builds with it) |
+  | MSVC | the Windows release build, in the hand-started workflow (Python on Windows is built with it) |
+
+  So the C++ compiles on three compilers, which catches code only one accepts.
+  GCC 16 stays installed on this Mac for reproducing a GCC error locally;
+  nothing requires it there.
+- **The agent's editor tools:** clangd as the agent's language server, from
+  the `compile_commands.json` that CMake writes (the agent's call).
+  CodeGraph indexing `engine/` only, never the DuckDB submodules (the
+  agent's proposal; indexing is Tomas's decision).
 
 ## 4. What changes elsewhere
 
@@ -257,7 +300,8 @@ checks); everything on one branch (nothing usable until the end).
 - Step 2: `sq.version()` answers from C++ on this Mac; one DuckDB in the
   process; the start-up check refuses the official `duckdb`; every existing
   test passes unchanged on our build; every C++ tool of §3.2 runs on the
-  skeleton and passes.
+  skeleton and passes; the skeleton builds as C++23 with Apple clang and
+  Homebrew LLVM, and the C++26 probe runs (§3.8).
 - Step 3: the hand-started workflow passes on every platform of ADR 0062
   and produces each platform's wheel; the site is live on GitHub Pages.
 - Step 4: the review is recorded, the benchmarks published, and Tomas has
