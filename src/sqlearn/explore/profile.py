@@ -1,6 +1,5 @@
 """`profile`: one row per column, with the counts and statistics of each."""
 
-import math
 from typing import Any
 
 from duckdb.sqltypes import DuckDBPyType
@@ -11,7 +10,7 @@ from sqlearn._expr import quote
 from sqlearn._inputs import read
 from sqlearn._output import Output, to_output
 from sqlearn._selectors import Selector, _is_numeric, is_text
-from sqlearn.explore._common import answer, columns, missing_sql
+from sqlearn.explore._common import answer, columns, literal, missing_sql
 
 __all__ = ["profile"]
 
@@ -131,23 +130,6 @@ _POSITIONS = {
 """Where each aggregate lands in a row of `_RESULT` (None: the quartiles)."""
 
 
-def _literal(value: str | float | bool | None) -> str:
-    """Write a fetched value as a SQL literal."""
-    if value is None:
-        return "NULL"
-    if isinstance(value, bool):
-        return "true" if value else "false"
-    if isinstance(value, str):
-        return "'" + value.replace("'", "''") + "'"
-    if isinstance(value, float):
-        if math.isnan(value):
-            return "'NaN'::DOUBLE"
-        if math.isinf(value):
-            return "'inf'::DOUBLE" if value > 0 else "'-inf'::DOUBLE"
-        return repr(float(value))
-    return repr(int(value))
-
-
 def profile(
     data: object,
     cols: Selector | str | list[str] | None = None,
@@ -256,7 +238,7 @@ def profile(
         cursor += len(_POSITIONS[kinds[name]])
         is_text = kinds[name] == "text"
         row += [types[name].id in _INTEGERS or is_text, is_text]
-        values.append(f"({', '.join(_literal(v) for v in row)})")
+        values.append(f"({', '.join(literal(v) for v in row)})")
     labels = [f"v{i}" for i in range(_FILLED + 2)]
     if values:
         body = f"(VALUES {', '.join(values)}) AS v({', '.join(labels)})"

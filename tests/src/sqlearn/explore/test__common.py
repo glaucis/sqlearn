@@ -1,12 +1,14 @@
 """Tests of the helpers the exploration functions share."""
 
+import math
+
 import pytest
 
 import sqlearn as sq
 from sqlearn._config import connection
 from sqlearn._inputs import read
 from sqlearn.errors import SqlearnError
-from sqlearn.explore._common import answer, columns, missing_sql
+from sqlearn.explore._common import answer, columns, literal, missing_sql
 
 
 def source(sql="SELECT 1 AS a, 'x' AS b, 2.5 AS c"):
@@ -69,3 +71,13 @@ def test_missing_sql_counts_nan_only_for_floats():
     assert con.sql(f"SELECT {missing_sql('i', types['i'])} FROM m").fetchall() == [
         (False,)
     ]
+
+
+def test_literal_reads_back_as_the_value():
+    """Literal reads back as the value, including NaN, infinity and quotes."""
+    values = ["it's", None, True, 7, 2.5, float("nan"), float("inf"), float("-inf")]
+    sql = "SELECT " + ", ".join(literal(v) for v in values)
+    row = connection().sql(sql).fetchall()[0]
+    assert row[:5] == ("it's", None, True, 7, 2.5)
+    assert math.isnan(row[5])
+    assert row[6:] == (float("inf"), float("-inf"))

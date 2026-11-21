@@ -1,6 +1,7 @@
 """What the exploration functions share: choosing columns, answering, missing."""
 
 import itertools
+import math
 from collections.abc import Sequence
 
 import duckdb
@@ -12,7 +13,7 @@ from sqlearn._expr import quote
 from sqlearn._inputs import Source
 from sqlearn._selectors import Selector, to_selector
 
-__all__ = ["answer", "columns", "missing_sql"]
+__all__ = ["answer", "columns", "literal", "missing_sql"]
 
 _tables = itertools.count()
 _LISTED = 10
@@ -125,3 +126,40 @@ def missing_sql(name: str, dtype: DuckDBPyType) -> str:
     if dtype.id in {"float", "double"}:
         return f"({column} IS NULL OR isnan({column}))"
     return f"({column} IS NULL)"
+
+
+def literal(value: str | float | bool | None) -> str:
+    """Write a fetched value as a SQL literal.
+
+    Parameters
+    ----------
+    value : str or float or bool or None
+        The value.
+
+    Returns
+    -------
+    str
+        SQL that reads back as the value; NaN and infinities are cast from
+        text.
+
+    Examples
+    --------
+    >>> from sqlearn.explore._common import literal
+    >>> literal("it's")
+    "'it''s'"
+    >>> literal(float("nan"))
+    "'NaN'::DOUBLE"
+    """
+    if value is None:
+        return "NULL"
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, str):
+        return "'" + value.replace("'", "''") + "'"
+    if isinstance(value, float):
+        if math.isnan(value):
+            return "'NaN'::DOUBLE"
+        if math.isinf(value):
+            return "'inf'::DOUBLE" if value > 0 else "'-inf'::DOUBLE"
+        return repr(float(value))
+    return repr(int(value))

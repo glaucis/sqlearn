@@ -8,8 +8,7 @@ from sqlearn._expr import quote
 from sqlearn._inputs import read
 from sqlearn._output import Output, to_output
 from sqlearn._selectors import Selector, _is_numeric
-from sqlearn.explore._common import answer, columns
-from sqlearn.explore.profile import _literal
+from sqlearn.explore._common import answer, columns, literal
 
 __all__ = ["histogram"]
 
@@ -141,7 +140,7 @@ def histogram(
         x = f"CAST({quote(name)} AS DOUBLE)"
         index = "0" if n == 1 else _bin_of(name, low, width, n)
         queries.append(
-            f"SELECT {_literal(name)} AS c, {index} AS b, count(*) AS n "
+            f"SELECT {literal(name)} AS c, {index} AS b, count(*) AS n "
             f"FROM {quote(_VIEW)} WHERE isfinite({x}) GROUP BY ALL"
         )
     tally: dict[tuple[str, int], int] = {}
@@ -155,7 +154,7 @@ def histogram(
             upper = high if k == n - 1 else low + (k + 1) * width
             first = float(low + k * width)
             values.append(
-                f"({_literal(name)}, {k}, {first!r}::DOUBLE, "
+                f"({literal(name)}, {k}, {first!r}::DOUBLE, "
                 f"{float(upper)!r}::DOUBLE, {tally.get((name, k), 0)})"
             )
     labels = ["c", "b", "l", "h", "n"]

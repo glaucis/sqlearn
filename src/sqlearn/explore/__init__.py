@@ -9,5 +9,6 @@ Examples
 
 from sqlearn.explore.histogram import histogram
 from sqlearn.explore.profile import profile
+from sqlearn.explore.top import top
 
-__all__ = ["histogram", "profile"]
+__all__ = ["histogram", "profile", "top"]
