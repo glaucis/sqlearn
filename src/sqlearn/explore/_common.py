@@ -158,10 +158,10 @@ def literal(value: str | float | bool | None) -> str:
         return "true" if value else "false"
     if isinstance(value, str):
         return "'" + value.replace("'", "''") + "'"
-    if isinstance(value, float):
-        if math.isnan(value):
-            return "'NaN'::DOUBLE"
-        if math.isinf(value):
-            return "'inf'::DOUBLE" if value > 0 else "'-inf'::DOUBLE"
-        return repr(float(value))
-    return repr(int(value))
+    if isinstance(value, int):
+        return repr(int(value))
+    if math.isnan(value):
+        return "'NaN'::DOUBLE"
+    if math.isinf(value):
+        return "'inf'::DOUBLE" if value > 0 else "'-inf'::DOUBLE"
+    return repr(float(value))

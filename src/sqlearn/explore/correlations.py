@@ -118,7 +118,7 @@ def _number(source: Source, chosen: list[str], made: list[str]) -> str:
 
 def _complete(numbered: str, count: int) -> set[int]:
     """Return the positions of the columns with no missing value."""
-    found = set()
+    found: set[int] = set()
     for start in range(0, count, _BLOCK_COLUMNS):
         block = range(start, min(start + _BLOCK_COLUMNS, count))
         counts = ", ".join(f"count({_column(k)})" for k in block)
@@ -206,6 +206,7 @@ def _run(sql: str, table: str, source: Source | None = None) -> None:
     With `source`, the statement reads the data as `_VIEW`; without, it reads
     sqlearn's own tables.
     """
+    found: duckdb.DuckDBPyRelation | None
     if source is None:
         found = connection().sql(sql)
     else:
