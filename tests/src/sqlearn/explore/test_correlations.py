@@ -1,4 +1,4 @@
-"""Tests of `sq.explore.correlations`: pairwise Pearson, as pandas gives it."""
+"""Tests of `sq.explore.correlations`: pairwise Pearson and Spearman, as pandas."""
 
 import importlib
 import math
@@ -125,7 +125,10 @@ def test_a_boolean_column_named_is_refused():
 
 def test_method_must_be_known():
     """An unknown method is refused with a Fix: naming the methods."""
-    with pytest.raises(SqlearnError, match=r"(?s)Why:.*Fix:.*'pearson'"):
+    with pytest.raises(
+        SqlearnError,
+        match=r"(?s)Why:.*Fix: pass method='pearson' or method='spearman'\.",
+    ):
         sq.explore.correlations(_frame(), method="kendall")
 
 
@@ -173,9 +176,9 @@ def test_a_tile_reads_only_its_two_blocks_of_columns(monkeypatch):
     seen = []
     original = module._pairs_query
 
-    def spy(pairs, select):
+    def spy(pairs, select, ranks=None):
         seen.append(select.count("END AS"))
-        return original(pairs, select)
+        return original(pairs, select, ranks)
 
     monkeypatch.setattr(module, "_pairs_query", spy)
     monkeypatch.setattr(module, "_BLOCK_COLUMNS", 2)
@@ -202,8 +205,144 @@ def test_running_out_of_memory_is_refused_with_a_fix(monkeypatch):
     assert "failed" in str(info.value)
 
 
+def _staging_tables() -> set[str]:
+    rows = connection().execute(
+        "SELECT table_name FROM duckdb_tables() "
+        "WHERE table_name LIKE '__sqlearn_explore_%'"
+    )
+    return {name for (name,) in rows.fetchall()}
+
+
+@pytest.mark.parametrize("method", ["pearson", "spearman"])
+def test_a_refused_run_leaves_no_staging_table(monkeypatch, method):
+    """The table the tiles are gathered in is dropped when a tile fails."""
+    before = _staging_tables()
+
+    def fail(*_args):
+        raise duckdb.OutOfMemoryException("Out of Memory Error: failed")
+
+    monkeypatch.setattr(module, "_run", fail)
+    with pytest.raises(SqlearnError):
+        sq.explore.correlations(_wide(), method=method)
+    assert _staging_tables() == before
+
+
 def test_out_is_honoured():
     """out= hands the result back in that form."""
     result = sq.explore.correlations(_frame(), out="pandas")
     assert isinstance(result, pd.DataFrame)
     assert len(result) == 6
+
+
+def _ties() -> pd.DataFrame:
+    rng = np.random.default_rng(3)
+    return pd.DataFrame(rng.integers(0, 4, size=(50, 4)), columns=list("abcd"))
+
+
+def _assert_spearman_matches_pandas(rows, frame):
+    expected = frame.corr(method="spearman")
+    names = list(frame.columns)
+    assert [(r[0], r[1]) for r in rows] == [
+        (a, b) for i, a in enumerate(names) for b in names[i + 1 :]
+    ]
+    for a, b, correlation, count in rows:
+        assert math.isclose(correlation, expected.loc[a, b], rel_tol=1e-12)
+        assert count == int(frame[[a, b]].dropna().shape[0])
+
+
+def test_spearman_matches_pandas_with_ties():
+    """Ties share the mean of their ranks, as pandas' average ranks."""
+    frame = _ties()
+    rows = sq.explore.correlations(frame, method="spearman").fetchall()
+    assert len(rows) == 6
+    _assert_spearman_matches_pandas(rows, frame)
+
+
+def test_spearman_ranks_a_pair_on_its_complete_rows():
+    """A pair's ranks are taken over that pair's complete rows only."""
+    frame = _ties().astype(float)
+    frame.loc[0:9, "a"] = np.nan
+    frame.loc[5:14, "b"] = np.nan
+    frame.loc[30:33, "d"] = np.nan
+    rows = sq.explore.correlations(frame, method="spearman").fetchall()
+    _assert_spearman_matches_pandas(rows, frame)
+
+
+def test_spearman_leaves_nan_and_infinity_out_of_a_pair():
+    """NaN and infinity are missing for ranking, as NULL is."""
+    connection().execute(
+        "CREATE TEMP TABLE nan_s AS SELECT * FROM (VALUES "
+        "(1.0::DOUBLE, 2.0::DOUBLE, 1.0::DOUBLE), (2.0, 2.0, 'NaN'::DOUBLE), "
+        "(3.0, 5.0, 3.0), (4.0, 1.0, 2.0), ('NaN'::DOUBLE, 1.0, 5.0), "
+        "(5.0, 'inf'::DOUBLE, 4.0), ('-inf'::DOUBLE, 3.0, 4.0), "
+        "(6.0, NULL, 6.0), (7.0, 0.5, 7.0)) AS v(a, b, c)"
+    )
+    rows = sq.explore.correlations("nan_s", method="spearman").fetchall()
+    frame = connection().table("nan_s").df()
+    frame = frame.where(np.isfinite(frame))
+    _assert_spearman_matches_pandas(rows, frame)
+
+
+def test_spearman_a_constant_or_short_pair_gives_null():
+    """Constant over the pair's rows, or under two rows, gives NULL."""
+    frame = pd.DataFrame(
+        {
+            "a": [1.0, 1.0, 9.0, None],
+            "b": [1.0, 2.0, None, None],
+            "c": [None, None, 3.0, 4.0],
+        }
+    )
+    rows = sq.explore.correlations(frame, method="spearman").fetchall()
+    assert rows == [("a", "b", None, 2), ("a", "c", None, 1), ("b", "c", None, 0)]
+
+
+def test_spearman_tiles_give_the_same_pairs_as_one_statement(monkeypatch):
+    """Blocks of 2 over complete and sparse columns match one block, and pandas."""
+    frame = _wide()
+    monkeypatch.setattr(module, "_RANKED_BLOCK_COLUMNS", 100)
+    whole = sq.explore.correlations(frame, method="spearman").fetchall()
+    monkeypatch.setattr(module, "_RANKED_BLOCK_COLUMNS", 2)
+    tiled = sq.explore.correlations(frame, method="spearman").fetchall()
+    assert [(r[0], r[1], r[3]) for r in tiled] == [(r[0], r[1], r[3]) for r in whole]
+    _assert_spearman_matches_pandas(tiled, frame)
+
+
+def test_spearman_ranks_complete_columns_once_and_sparse_pairs_alone(monkeypatch):
+    """Complete columns share a statement; a sparse pair reads only its two."""
+    seen = []
+    original = module._pairs_query
+
+    def spy(pairs, select, ranks=None):
+        seen.append(([(p[2], p[3]) for p in pairs], select.count("END AS")))
+        return original(pairs, select, ranks)
+
+    monkeypatch.setattr(module, "_pairs_query", spy)
+    monkeypatch.setattr(module, "_RANKED_BLOCK_COLUMNS", 100)
+    sq.explore.correlations(_wide(), method="spearman")  # b and e are sparse
+    assert seen[0] == ([("a", "c"), ("a", "d"), ("c", "d")], 3)
+    assert sorted(pairs[0] for pairs, _ in seen[1:]) == [
+        ("a", "b"),
+        ("a", "e"),
+        ("b", "c"),
+        ("b", "d"),
+        ("b", "e"),
+        ("c", "e"),
+        ("d", "e"),
+    ]
+    assert all(len(pairs) == 1 and read == 2 for pairs, read in seen[1:])
+
+
+def test_spearman_tiles_by_its_own_smaller_block(monkeypatch):
+    """Spearman cuts the columns into blocks of `_RANKED_BLOCK_COLUMNS`."""
+    seen = []
+    original = module._pairs_query
+
+    def spy(pairs, select, ranks=None):
+        seen.append(select.count("END AS"))
+        return original(pairs, select, ranks)
+
+    monkeypatch.setattr(module, "_pairs_query", spy)
+    monkeypatch.setattr(module, "_RANKED_BLOCK_COLUMNS", 1)
+    rows = sq.explore.correlations(_ties(), method="spearman").fetchall()
+    assert seen == [2] * 6
+    _assert_spearman_matches_pandas(rows, _ties())
