@@ -18,7 +18,7 @@ from sqlearn._expr import quote
 from sqlearn._memory import _megabytes, duckdb_limit
 from sqlearn._step import Learned, Step, apply_rows
 
-__all__ = ["applying_out_of_memory", "diagnose"]
+__all__ = ["applying_out_of_memory", "diagnose", "exploring_out_of_memory"]
 
 _MISSING_COLUMN = re.compile(r'column "([^"]+)" not found', re.IGNORECASE)
 _REPORT = "https://github.com/glaucis/sqlearn/issues"
@@ -180,14 +180,17 @@ def _sorts(
     )
 
 
-def _row_groups(sql: str | None) -> tuple[str, str, int] | None:
+def _row_groups(
+    sql: str | None, columns: Sequence[str] | None = None
+) -> tuple[str, str, int] | None:
     """Say a Parquet file's row groups are too wide for the threads and limit.
 
     DuckDB reads a Parquet file one row group at a time on each thread,
     holding every column it reads (issue #68). Returns the why, the fix and
     the threads when the failed statement reads Parquet files whose largest row group,
     uncompressed, times the threads is over half the ``memory_limit``; else
-    None, as when the files' metadata cannot be read.
+    None, as when the files' metadata cannot be read. With `columns`, the
+    names the failed statement reads, a row group weighs those columns only.
     """
     if sql is None:
         return None
@@ -200,11 +203,15 @@ def _row_groups(sql: str | None) -> tuple[str, str, int] | None:
         return None
     con = connection()
     listed = ", ".join("'" + f.replace("'", "''") + "'" for f in files)
+    within = ""
+    if columns is not None:
+        names = ", ".join("'" + c.replace("'", "''") + "'" for c in columns)
+        within = f"WHERE path_in_schema IN ({names or 'NULL'}) "
     try:
         widest, rows = con.execute(
             "SELECT max(size), arg_max(rows, size) FROM (SELECT "
             "sum(total_uncompressed_size) AS size, any_value(row_group_num_rows) "
-            f"AS rows FROM parquet_metadata([{listed}]) "
+            f"AS rows FROM parquet_metadata([{listed}]) {within}"
             "GROUP BY file_name, row_group_id)"
         ).fetchall()[0]
         threads = int(con.execute("SELECT current_setting('threads')").fetchall()[0][0])
@@ -217,11 +224,15 @@ def _row_groups(sql: str | None) -> tuple[str, str, int] | None:
     fit = int(rows * limit / (4 * widest * threads)) // 1000 * 1000
     suggest = max(1000, min(_ROW_GROUP_ROWS, fit))
     each = "one thread reads" if threads == 1 else f"each of {threads} threads reads"
+    read = ""
+    if columns is not None:
+        plural = "column" if len(columns) == 1 else "columns"
+        read = f" of the {len(columns)} {plural} it reads"
     why = (
         "DuckDB reads a Parquet file one row group at a time on each thread, "
         "holding every column it reads, and the file's largest row group is "
-        f"{_megabytes(widest)} uncompressed ({rows:,} rows): {each} one within "
-        f"a memory_limit of {_megabytes(limit)}."
+        f"{_megabytes(widest)} uncompressed{read} ({rows:,} rows): {each} one "
+        f"within a memory_limit of {_megabytes(limit)}."
     )
     fix = (
         "write the file with smaller row groups, such as COPY (FROM "
@@ -294,6 +305,100 @@ def applying_out_of_memory(exc: BaseException, sql: str) -> SqlearnError:
         f"Fix: {_joined(fixes)}. DuckDB says: {_first_line(exc)}"
     )
     return SqlearnError(msg)
+
+
+def exploring_out_of_memory(
+    exc: BaseException,
+    sql: str,
+    function: str,
+    *,
+    sorts: bool = False,
+    estimates: bool = False,
+    counts: str | None = None,
+    columns: Sequence[str] | None = None,
+) -> SqlearnError:
+    """Explain DuckDB running out of memory while an exploration function reads.
+
+    Parameters
+    ----------
+    exc : BaseException
+        DuckDB's out-of-memory error.
+    sql : str
+        The statement that failed, or the one that reads the data.
+    function : str
+        The function's name, for the message.
+    sorts : bool, default False
+        Whether the function also sorts the rows (ranks them), which a
+        smaller memory_limit cannot hold either and fewer columns do not
+        shrink; the why then says so, and more memory and fewer threads
+        lead the fixes.
+    estimates : bool, default False
+        Whether the function counts distinct values and quartiles exactly
+        and could estimate them with ``exact=False`` (`profile`); the why
+        then says the exact ones keep every value, and ``exact=False``
+        leads the fixes, before more memory, fewer threads and fewer
+        columns.
+    counts : str, optional
+        What the function counts by group, every one of which DuckDB holds
+        until the counting ends (`top`'s distinct values, `missing`'s
+        patterns); the why then names it. Fewer columns hold fewer of
+        them; a smaller `k` or `patterns` does not, since the commonest are
+        kept only once all are counted, so it is not a fix.
+    columns : sequence of str, optional
+        The columns the failed statement reads; a Parquet row group then
+        weighs only those, and the why says how many. By default every
+        column of the data.
+
+    Returns
+    -------
+    SqlearnError
+        The why and the fixes: fewer columns, more memory, fewer threads, and
+        smaller row groups when the data is a Parquet file whose row groups
+        are too wide.
+
+    Examples
+    --------
+    >>> import duckdb
+    >>> from sqlearn._diagnose import exploring_out_of_memory
+    >>> err = exploring_out_of_memory(
+    ...     duckdb.OutOfMemoryException("no"), "SELECT 1", "top"
+    ... )
+    >>> str(err).split(" Why:")[0]
+    'DuckDB ran out of memory while `top` read the data.'
+    """
+    wide = _row_groups(sql, columns)
+    if estimates:
+        # The exact counts and quartiles keep every value; exact=False keeps
+        # a small state instead, so it leads, and the memory follows.
+        fixes = [
+            "pass exact=False to estimate the distinct counts and quartiles",
+            *_memory_fixes(wide),
+        ]
+        fixes.insert(len(fixes) - (wide is not None), "pass fewer columns with cols=")
+    elif sorts:
+        # A sort is helped by memory or threads first; fewer columns does not
+        # shrink it, so it comes after them (before the row groups' fix).
+        fixes = _memory_fixes(wide)
+        fixes.insert(len(fixes) - (wide is not None), "pass fewer columns with cols=")
+    else:
+        fixes = ["pass fewer columns with cols=", *_memory_fixes(wide)]
+    why = "DuckDB's memory_limit is too small for the columns it reads at once"
+    if sorts:
+        why = f"{why}, or for the rows a rank sorts, which fewer columns do not shrink"
+    if estimates:
+        why = (
+            f"{why}, or for the values an exact distinct count hashes and exact "
+            "quartiles sort, which are every value of a column"
+        )
+    if counts is not None:
+        why = f"{why}, or for the {counts} it counts, all held until counted"
+    why = f"{why}."
+    if wide is not None:
+        why = f"{why} {wide[0]}"
+    return SqlearnError(
+        f"DuckDB ran out of memory while `{function}` read the data. Why: {why} "
+        f"Fix: {_joined(fixes)}. DuckDB says: {_first_line(exc)}"
+    )
 
 
 def _out_of_memory(

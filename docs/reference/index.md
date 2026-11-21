@@ -67,6 +67,12 @@ The API of the sqlearn package, generated from its docstrings.
    sqlearn.decompose
    sqlearn.decompose.pca
    sqlearn.decomposition.PCA
+   sqlearn.explore
+   sqlearn.explore.profile
+   sqlearn.explore.histogram
+   sqlearn.explore.top
+   sqlearn.explore.missing
+   sqlearn.explore.correlations
    sqlearn.search
    sqlearn.search.grid
    sqlearn.search.optuna

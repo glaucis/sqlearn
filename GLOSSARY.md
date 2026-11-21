@@ -43,3 +43,14 @@ Terms of sqlearn's domain, in the sense the code and the docs use them.
   columns, which the core builds in numpy from batches DuckDB streams (ADR
   0058). `sq.decompose.pca` is one. Internal for now; it learns in a run of
   its own, and applying it is SQL as for any step.
+- **Profile:** the answer of `sq.explore.profile`: a relation with one row per
+  column holding its type, counts, statistics and notes, computed now inside
+  DuckDB. Not a step: nothing is learned for later.
+  _Avoid_: summary, describe.
+- **Note:** a flag in a profile's `notes` list, one of `all-missing`,
+  `constant`, `id-like` and `high-cardinality`, each with a rule that can be
+  checked and a step that answers it.
+  _Avoid_: warning (a warning is sqlearn's, with a `Fix:`).
+- **Missing pattern:** the set of chosen columns that are missing together in
+  a row (NULL, and NaN in a float column); `sq.explore.missing` lists the
+  commonest, the empty set (nothing missing) among them.

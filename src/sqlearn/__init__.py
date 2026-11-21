@@ -9,7 +9,7 @@ True
 
 from importlib import metadata as _metadata
 
-from sqlearn import agg, errors, fn, metrics, out, store
+from sqlearn import agg, errors, explore, fn, metrics, out, store
 from sqlearn._config import get_config, set_config
 from sqlearn._model import Model
 from sqlearn._output import Output
@@ -40,6 +40,7 @@ __all__ = [
     "decompose",
     "encode",
     "errors",
+    "explore",
     "features",
     "fn",
     "folds",

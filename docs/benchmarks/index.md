@@ -19,4 +19,6 @@ median-reach
 generators-on-many-threads
 gram-batches
 gram-streaming
+explore-correlations
+explore-larger-than-memory
 ```

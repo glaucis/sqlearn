@@ -42,7 +42,12 @@ built.
   in issue #65. Its tenth, decomposition (PCA, `sq.decompose.pca`), is built:
   spec `docs/specs/library-decomposition.md`, plan
   `docs/plans/2026-11-20-library-decomposition.md`, ADRs 0057–0058, summary in
-  issue #66. **Next:** the next 3.3 area, not chosen yet.
+  issue #66. Part 3.6's first piece, the exploration module (`sq.explore`:
+  `profile`, `histogram`, `top`, `missing`, `correlations`), is built: spec
+  `docs/specs/library-exploration.md`, plan
+  `docs/plans/2026-11-20-library-exploration.md`, ADR 0059, issue #74.
+  Models stay with outside libraries (ADR 0017). **Next:** chosen from
+  `HANDOFF.md`'s "Next up".
 
 Rules from the ADRs:
 

@@ -57,6 +57,7 @@ The verbs and conventions users write against.
 - [0053: sqlearn ships no datasets](0053-sqlearn-ships-no-datasets.md)
 - [0047: A pipeline saves as JSON](0047-a-pipeline-saves-as-json.md)
 - [0048: The user saves the model and imports its packages](0048-the-user-saves-the-model-and-imports-its-packages.md)
+- [0059: Exploration functions run now and return relations](0059-exploration-functions-run-now-and-return-relations.md)
 
 ## Steps users write
 
