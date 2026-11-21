@@ -42,6 +42,12 @@ Computation as SQL, and how a pipeline becomes runs.
 - [0023: Lazy results, `out=` and `feed=`](0023-lazy-results-out-and-feed.md)
 - [0052: sqlearn's own tables live in `meta_sqlearn`](0052-meta-sqlearn.md)
 
+## The native engine
+
+sqlearn's computation in C++, inside its own DuckDB build.
+
+- [0060: A native engine in C++, inside DuckDB](0060-a-native-engine-in-cpp-inside-duckdb.md)
+
 ## The API
 
 The verbs and conventions users write against.

@@ -98,3 +98,12 @@ Polars already sits at the edges: frames can be passed in, and
 median), scale and one-hot on Parquet larger than RAM, in Polars' streaming
 engine — measuring whether it completes, how fast, and whether its values
 match sqlearn's.
+
+## Tomas's intent, 2026-11-21
+
+A later option such as `engine="postgresql"`, chosen when training, through
+a translator (sqlglot or another). Nothing is written for other engines
+now. [ADR 0060](../adr/0060-a-native-engine-in-cpp-inside-duckdb.md) keeps
+the option open: the compositor stays the one renderer, and every engine
+function used in apply keeps a plain-SQL twin where one exists. Learning on
+another engine would run without the native engine's functions.
