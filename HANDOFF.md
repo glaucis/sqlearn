@@ -3,22 +3,17 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-21 · Branch: `main` · Last commit: `eb62ff6` chore: share
-CLion's project settings · Checks: passing (`just check`, and `just test`:
+Updated: 2026-11-21 · Branch: `engine-phase-0` · Last commit: `eb62ff6` chore:
+share CLion's project settings · Checks: passing (`just check`, and `just test`:
 3178 passed, on `eb62ff6`; `just verify` not run this session)
+
 Verify with: `just verify`
 
 ## In progress
 
-- [verified] Phase 0 of the native engine (#78). The spec
-  `docs/specs/native-engine.md` and its two plans, approved by Tomas on
-  2026-11-21, are committed:
-  `docs/plans/2026-11-21-native-engine-phase-0a-decisions.md` (ADRs 0060–0068,
-  12 tasks) and `docs/plans/2026-11-21-native-engine-phase-0b-inventory.md`
-  (profiling and the inventory, 4 tasks). Next: run plan 0a from Task 0
-  (which makes the worktree `.worktrees/engine-phase-0` on branch
-  `engine-phase-0`), then plan 0b, both with
-  superpowers:subagent-driven-development (Tomas's choice).
+- Phase 0 of the native engine (#78), branch `engine-phase-0`: plan 0a (the
+  decisions) running, then plan 0b (the inventory). Spec
+  `docs/specs/native-engine.md`.
 
 ## Waiting on the user
 
