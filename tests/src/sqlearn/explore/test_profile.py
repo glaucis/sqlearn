@@ -355,6 +355,24 @@ def test_moments_far_from_zero_keep_their_precision(exact):
     assert math.isclose(row["kurtosis"], finite.kurt(), rel_tol=1e-12)
 
 
+@pytest.mark.parametrize("source", ["table", "frame"])
+def test_a_mean_that_overflows_leaves_the_shape_null(source):
+    """Finite doubles whose mean overflows: the mean is favg's, no shape."""
+    if source == "frame":
+        data = pd.DataFrame({"x": [1e308, 1e308, -1e308]})
+    else:
+        data = connection().sql(
+            "SELECT * FROM (VALUES (1e308::DOUBLE), (1e308::DOUBLE), "
+            "(-1e308::DOUBLE)) t(x)"
+        )
+    row = sq.explore.profile(data, out="pandas").iloc[0]
+    assert not math.isfinite(row["mean"])
+    assert row["min"] == -1e308
+    assert row["max"] == 1e308
+    for name in ("std", "skewness", "kurtosis"):
+        assert pd.isna(row[name])
+
+
 def _mixed() -> pd.DataFrame:
     """Five columns of four kinds, with repeats, missing and infinite values."""
     return pd.DataFrame(

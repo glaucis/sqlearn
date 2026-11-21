@@ -83,7 +83,9 @@ Measured on 12.5 million rows of 200 random doubles, 8 threads, a 2 GB
 ``memory_limit`` (2026-11-21): groups of 2 and 4 columns profiled all 200
 and a group of 6 ran out (so 27 to 40 bytes a value of the limit); the
 process's peak grew by about 20 bytes a value for the count and 11 for
-the quartiles. A group holds as many
+the quartiles. These are doubles: long text values in a distinct count
+may take more, and a group of them can still run out, when the error's
+fix leads with ``exact=False``. A group holds as many
 columns as ``memory_limit`` holds rows of this size, at least one and at
 most `_EXACT_COLUMNS`."""
 
@@ -141,7 +143,7 @@ def _moments(name: str, mean: float) -> list[str]:
     cancellation when the values are far from 0. The first power is the
     rounding of that mean, which `_shape` takes back out.
     """
-    deviation = f"({_finite(name)} - {float(mean)!r}::DOUBLE)"
+    deviation = f"({_finite(name)} - CAST({literal(float(mean))} AS DOUBLE))"
     square = f"({deviation} * {deviation})"
     return [
         f"fsum({deviation})",
@@ -260,7 +262,9 @@ def profile(
     compensated ``favg``), 20 columns a statement, since DuckDB holds a
     Parquet row group of every column a statement reads on each thread. The
     standard deviation, skewness and kurtosis come from compensated sums
-    (``fsum``) of the deviations about that mean, a second pass. The exact
+    (``fsum``) of the deviations about that mean, a second pass; where the
+    mean overflows (finite values whose sum passes the largest double),
+    ``mean`` shows what ``favg`` gave and the three are NULL. The exact
     distinct counts and quartiles keep every value (a hash and a sort, held
     in memory), so they follow in groups of columns, with the deviations, a
     statement each that reads only its group's columns. A group holds as
@@ -410,7 +414,9 @@ def _gather(
         _run(source, block, found)
     for k, name in enumerate(names):
         mean = found[k].get(7) if kinds[name] == "number" else None
-        if mean is not None:
+        # A mean that overflowed (finite values summing past the largest
+        # double) has no deviations to sum: the shape stays NULL.
+        if mean is not None and math.isfinite(mean):
             held[k] += [
                 (k, slot, a)
                 for slot, a in zip(
