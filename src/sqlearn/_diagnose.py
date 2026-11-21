@@ -297,7 +297,12 @@ def applying_out_of_memory(exc: BaseException, sql: str) -> SqlearnError:
 
 
 def exploring_out_of_memory(
-    exc: BaseException, sql: str, function: str, *, sorts: bool = False
+    exc: BaseException,
+    sql: str,
+    function: str,
+    *,
+    sorts: bool = False,
+    estimates: bool = False,
 ) -> SqlearnError:
     """Explain DuckDB running out of memory while an exploration function reads.
 
@@ -314,6 +319,12 @@ def exploring_out_of_memory(
         smaller memory_limit cannot hold either and fewer columns do not
         shrink; the why then says so, and more memory and fewer threads
         lead the fixes.
+    estimates : bool, default False
+        Whether the function counts distinct values and quartiles exactly
+        and could estimate them with ``exact=False`` (`profile`); the why
+        then says the exact ones keep every value, and ``exact=False``
+        leads the fixes, before more memory, fewer threads and fewer
+        columns.
 
     Returns
     -------
@@ -339,9 +350,22 @@ def exploring_out_of_memory(
         # shrink it, so it comes after them (before the row groups' fix).
         fixes = _memory_fixes(wide)
         fixes.insert(len(fixes) - (wide is not None), "pass fewer columns with cols=")
+    if estimates:
+        # The exact counts and quartiles keep every value; exact=False keeps
+        # a small state instead, so it leads, and the memory follows.
+        fixes = [
+            "pass exact=False to estimate the distinct counts and quartiles",
+            *_memory_fixes(wide),
+        ]
+        fixes.insert(len(fixes) - (wide is not None), "pass fewer columns with cols=")
     why = "DuckDB's memory_limit is too small for the columns it reads at once"
     if sorts:
         why = f"{why}, or for the rows a rank sorts, which fewer columns do not shrink"
+    if estimates:
+        why = (
+            f"{why}, or for the values an exact distinct count hashes and exact "
+            "quartiles sort, which are every value of a column"
+        )
     why = f"{why}."
     if wide is not None:
         why = f"{why} {wide[0]}"

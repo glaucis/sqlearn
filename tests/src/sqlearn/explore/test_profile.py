@@ -1,13 +1,19 @@
 """Tests of `sq.explore.profile`: the counts every column gets."""
 
+import importlib
 import math
 
+import duckdb
 import pandas as pd
 import pytest
 
 import sqlearn as sq
 from sqlearn._config import connection
+from sqlearn._memory import duckdb_limit
 from sqlearn.errors import SqlearnError
+
+# `sqlearn.explore.profile` the attribute is the function; this is the module.
+module = importlib.import_module("sqlearn.explore.profile")
 
 COLUMNS = [
     "column", "type", "rows", "missing", "missing_share", "distinct",
@@ -328,3 +334,171 @@ def test_notes_are_listed_in_one_order():
     assert _notes("SELECT 'k' AS a FROM range(1)", id_rows=1) == [
         ["constant", "id-like"]
     ]
+
+
+def _mixed() -> pd.DataFrame:
+    """Five columns of four kinds, with repeats, missing and infinite values."""
+    return pd.DataFrame(
+        {
+            "n": [1.5, 2.0, float("nan"), 2.0, -3.0, float("inf")],
+            "k": [1, 2, 3, 4, 5, 6],
+            "t": ["a", "b", None, "b", "cc", "a"],
+            "f": [True, False, True, None, True, False],
+            "d": pd.to_datetime(
+                ["2020-01-01", "2021-06-01", None, "2020-01-01", "2019-03-04", None]
+            ),
+        }
+    )
+
+
+def test_groups_give_the_same_profile_as_one_group(monkeypatch):
+    """Groups of 2 over 5 columns (the last group partial) match one group."""
+    monkeypatch.setattr(module, "_EXACT_COLUMNS", 100)
+    whole = sq.explore.profile(_mixed()).fetchall()
+    monkeypatch.setattr(module, "_EXACT_COLUMNS", 2)
+    grouped = sq.explore.profile(_mixed()).fetchall()
+    assert len(whole) == 5
+    assert grouped == whole
+
+
+def test_an_exact_statement_reads_one_group_of_columns(monkeypatch):
+    """No statement holds the exact aggregates of more than a group's columns."""
+    seen = []
+    original = module._fetch
+
+    def spy(source, aggregates):
+        joined = ", ".join(aggregates)
+        seen.append(joined.count("quantile_cont(") + joined.count("count(DISTINCT"))
+        return original(source, aggregates)
+
+    monkeypatch.setattr(module, "_fetch", spy)
+    monkeypatch.setattr(module, "_EXACT_COLUMNS", 2)
+    sq.explore.profile(_mixed())
+    # The scan holds none; three groups hold the 5 distinct counts and the
+    # quartiles of the two numbers ("n" and "k" share the first group).
+    assert seen == [0, 4, 2, 1]
+
+
+@pytest.mark.parametrize("exact", [True, False])
+def test_scan_blocks_give_the_same_profile_as_one_scan(monkeypatch, exact):
+    """Scan blocks of 2 over 5 columns read 2 columns each, and match one."""
+    monkeypatch.setattr(module, "_SCAN_COLUMNS", 100)
+    whole = sq.explore.profile(_mixed(), exact=exact).fetchall()
+    seen = []
+    original = module._fetch
+
+    def spy(source, aggregates):
+        seen.append(aggregates)
+        return original(source, aggregates)
+
+    monkeypatch.setattr(module, "_fetch", spy)
+    monkeypatch.setattr(module, "_SCAN_COLUMNS", 2)
+    blocked = sq.explore.profile(_mixed(), exact=exact).fetchall()
+    assert blocked == whole
+    scans = [s for s in seen if "count(DISTINCT" not in ", ".join(s)]
+    read = [{n for n in "nktfd" if f'"{n}"' in ", ".join(s)} for s in scans]
+    assert read == [{"n", "k"}, {"t", "f"}, {"d"}]
+
+
+def test_a_group_holds_the_columns_the_memory_limit_holds(monkeypatch):
+    """A group's columns times rows times bytes a value fit the limit."""
+    seen = []
+    original = module._fetch
+
+    def spy(source, aggregates):
+        joined = ", ".join(aggregates)
+        seen.append(joined.count("count(DISTINCT"))
+        return original(source, aggregates)
+
+    monkeypatch.setattr(module, "_fetch", spy)
+    monkeypatch.setattr(module, "_EXACT_COLUMNS", 100)
+    # Six rows of a value this size: the limit holds two columns, not three.
+    limit = duckdb_limit(connection())
+    monkeypatch.setattr(module, "_VALUE_BYTES", limit // 12)
+    sq.explore.profile(_mixed())
+    assert seen == [0, 2, 2, 1]
+    monkeypatch.setattr(module, "_VALUE_BYTES", limit)
+    seen.clear()
+    sq.explore.profile(_mixed())
+    assert seen == [0, 1, 1, 1, 1, 1]  # at least one column a group
+
+
+@pytest.mark.parametrize("exact", [True, False])
+def test_no_statement_filters_an_aggregate(monkeypatch, exact):
+    """Aggregates leave values out by CASE, not FILTER.
+
+    DuckDB gives each filtered aggregate of a statement its own copy of the
+    statement's inputs, so a statement's memory, outside memory_limit,
+    grows with the square of its columns.
+    """
+    seen = []
+    original = module._fetch
+
+    def spy(source, aggregates):
+        seen.extend(aggregates)
+        return original(source, aggregates)
+
+    monkeypatch.setattr(module, "_fetch", spy)
+    sq.explore.profile(_mixed(), exact=exact)
+    assert seen
+    assert not [a for a in seen if "FILTER" in a]
+
+
+def test_an_approximate_profile_is_one_statement(monkeypatch):
+    """With exact=False the estimates keep a small state: one scan holds all."""
+    seen = []
+    original = module._fetch
+
+    def spy(source, aggregates):
+        seen.append(aggregates)
+        return original(source, aggregates)
+
+    monkeypatch.setattr(module, "_fetch", spy)
+    monkeypatch.setattr(module, "_EXACT_COLUMNS", 2)
+    approximate = sq.explore.profile(_mixed(), exact=False).fetchall()
+    assert len(seen) == 1
+    exact = sq.explore.profile(_mixed()).fetchall()
+    # Five columns this small are counted exactly either way; the estimated
+    # quartiles (10:13) interpolate otherwise.
+    assert [r[:10] + r[13:-2] for r in approximate] == [
+        r[:10] + r[13:-2] for r in exact
+    ]
+
+
+@pytest.mark.parametrize("failing", [0, 1, 2])
+def test_running_out_of_memory_is_refused_with_a_fix(monkeypatch, failing):
+    """An out-of-memory error in any statement has a Why and a Fix.
+
+    The error is forced by monkeypatching the statement runner to raise
+    DuckDB's out-of-memory error at the scan (0) or at a group (1, 2): a
+    real one depends on the machine's memory.
+    """
+    calls = []
+    original = module._fetch
+
+    def fail(source, aggregates):
+        calls.append(None)
+        if len(calls) > failing:
+            raise duckdb.OutOfMemoryException("Out of Memory Error: failed")
+        return original(source, aggregates)
+
+    monkeypatch.setattr(module, "_fetch", fail)
+    monkeypatch.setattr(module, "_EXACT_COLUMNS", 2)
+    with pytest.raises(
+        SqlearnError, match=r"(?s)Why:.*Fix:.*exact=False.*memory=.*threads.*cols="
+    ) as info:
+        sq.explore.profile(_mixed())
+    assert "failed" in str(info.value)
+    assert "`profile`" in str(info.value)
+
+
+def test_an_approximate_profile_out_of_memory_does_not_name_exact(monkeypatch):
+    """With exact=False already, the fixes do not name it again."""
+
+    def fail(*_args):
+        raise duckdb.OutOfMemoryException("Out of Memory Error: failed")
+
+    monkeypatch.setattr(module, "_fetch", fail)
+    with pytest.raises(SqlearnError, match=r"(?s)Why:.*Fix:.*cols=") as info:
+        sq.explore.profile(_mixed(), exact=False)
+    assert "exact=False" not in str(info.value)
