@@ -70,7 +70,7 @@ confirms is its §5.3.
 | `preprocessing/target.py` | 4 | G6: the target encoder | Its name and docstrings | `_compose.py`, `_errors.py`, `_expr.py`, `_group.py`, `_selectors.py`, `_step.py`, `preprocessing/_lookup.py` | Not profiled |
 | `preprocessing/_encode.py` | 4 | G6: none beyond the group's argument rules | The `sq.encode` group's names and docstrings | `_errors.py`, `_group.py`, `_selectors.py`, `preprocessing/onehot.py`, `preprocessing/ordinal.py`, `preprocessing/target.py` | Not profiled |
 | `preprocessing/__init__.py` | 4 | G6: none, it re-exports | All of it: the steps' names | `preprocessing/bin.py`, `preprocessing/features.py`, `preprocessing/impute.py`, `preprocessing/onehot.py`, `preprocessing/ordinal.py`, `preprocessing/scale.py`, `preprocessing/target.py`, `preprocessing/transform.py` | Not profiled |
-| `feature_selection/_scores.py` | 4 | G7: the scores' SQL and their finishing, with the p-values Phase 3's distribution functions bring | Nothing | `_expr.py` | Not profiled |
+| `feature_selection/_scores.py` | 4 | G7: the scores' SQL and their finishing. It has no p-values today; Phase 3's distribution functions make them possible, and the p-value selectors are a 3.3 area of their own after the port (spec §4), not decided here | Nothing | `_expr.py` | Not profiled |
 | `feature_selection/variance.py` | 4 | G7: the variance selector | Its name and docstrings | `_errors.py`, `_expr.py`, `_group.py`, `_selectors.py`, `_step.py`, `agg/aggregates.py`, `preprocessing/scale.py` | [Widest steps](../benchmarks/engine-profile.md), `variance`: about 6.5 s at 200 columns, 15 to 26 s at 500, one statement, Python's share 17% and 10% |
 | `feature_selection/univariate.py` | 4 | G7: the univariate selectors | Their names and docstrings | `_errors.py`, `_group.py`, `_selectors.py`, `_step.py`, `feature_selection/_scores.py`, `preprocessing/scale.py`, `preprocessing/target.py` | Not profiled |
 | `feature_selection/_select.py` | 4 | G7: none beyond the group's argument rules | The `sq.select` group's names and docstrings | `_errors.py`, `_group.py`, `_selectors.py`, `feature_selection/univariate.py`, `feature_selection/variance.py` | Not profiled |
@@ -79,7 +79,7 @@ confirms is its §5.3.
 | `decomposition/_decompose.py` | 4 | G7: none beyond the group's argument rules | The `sq.decompose` group's names and docstrings | `_errors.py`, `_group.py`, `_selectors.py`, `decomposition/pca.py` | Not profiled |
 | `decomposition/__init__.py` | 4 | G7: none, it re-exports | All of it | `decomposition/pca.py` | Not profiled |
 | `explore/_common.py` | 4 | G8: choosing columns and answering | Nothing | `_config.py`, `_errors.py`, `_expr.py`, `_inputs.py`, `_selectors.py` | Not profiled |
-| `explore/correlations.py` | 4 | G8: the correlations, in tiles of columns | Its name and docstrings | `_config.py`, `_diagnose.py`, `_errors.py`, `_expr.py`, `_inputs.py`, `_output.py`, `_selectors.py`, `explore/_common.py` | [Spearman](../benchmarks/engine-profile.md), before #75: about 11 s and 126 s at 50 and 200 columns, Python's share 3%; summed UNGROUPED_AGGREGATE 40.45 s and 645.66 s, WINDOW 8.12 s and 23.22 s |
+| `explore/correlations.py` | 4 | G8: the correlations, in tiles of columns. Phase 3 may bring average ranks for Spearman, if profiling still shows them a cost (spec §4; see "What the numbers change") | Its name and docstrings | `_config.py`, `_diagnose.py`, `_errors.py`, `_expr.py`, `_inputs.py`, `_output.py`, `_selectors.py`, `explore/_common.py` | [Spearman](../benchmarks/engine-profile.md), before #75: about 11 s and 126 s at 50 and 200 columns, Python's share 3%; summed UNGROUPED_AGGREGATE 40.45 s and 645.66 s, WINDOW 8.12 s and 23.22 s |
 | `explore/profile.py` | 4 | G8: the profile | Its name and docstrings | `_config.py`, `_diagnose.py`, `_errors.py`, `_expr.py`, `_inputs.py`, `_memory.py`, `_output.py`, `_selectors.py`, `explore/_common.py` | [Widest steps](../benchmarks/engine-profile.md), `profile`: about 11.6 s at 200 columns, 32 to 51 s at 500, Python's share 8% and 9%, no operator standing out |
 | `explore/histogram.py` | 4 | G8: the histogram | Its name and docstrings | `_config.py`, `_diagnose.py`, `_errors.py`, `_expr.py`, `_inputs.py`, `_output.py`, `_selectors.py`, `explore/_common.py` | Not profiled |
 | `explore/missing.py` | 4 | G8: the patterns of missing values | Its name and docstrings | `_config.py`, `_diagnose.py`, `_errors.py`, `_expr.py`, `_inputs.py`, `_output.py`, `_selectors.py`, `explore/_common.py` | Not profiled |
@@ -112,7 +112,10 @@ confirms is its §5.3.
 
 No module's Python is deleted in Phase 3. Phase 3 brings numeric functions that
 two modules use before their Phase 4 groups: PCA's `eigh`, and the
-distributions that give `feature_selection/_scores.py` its p-values.
+distributions that would give `feature_selection/_scores.py` p-values. Its
+conditional item, average ranks for Spearman "if profiling still shows them a
+cost" (spec §4), touches `explore/correlations.py`; the numbers below do not
+show that cost yet.
 
 ## Phase 2 first
 
@@ -133,11 +136,11 @@ the budget in. No binding beyond Phase 1's is needed for it.
 
 ## The groups of Phase 4
 
-A piece of the port is one group (ADR 0067). The groups go in this order. Each
-is ported after the groups it imports from, so each group's C++ calls only C++
-already merged, except where the seam to Python steps carries the call (spec
-§3.1). Phase 4's specs may split the groups into numbered phases; that is
-theirs to decide.
+A piece of the port is one group (ADR 0067; the agent's call, spec §3.8). The
+groups go in this order. Each is ported after the groups it imports from, so
+each group's C++ calls only C++ already merged, except where the seam to Python
+steps carries the call (the agent's call, spec §3.1). Phase 4's specs may split
+the groups into numbered phases; that is theirs to decide.
 
 1. **G1, expressions and names:** `_errors.py`, `errors.py`, `_expr.py`,
    `_names.py`, `_selectors.py`, `_group.py`, `fn.py`, `agg/aggregates.py`,
@@ -151,9 +154,9 @@ theirs to decide.
 3. **G3, the step contract, the compositor and the planner:** `_step.py`,
    `_compose.py`, `_plan.py`, `_diagnose.py`, `_output.py`, `out.py`. They
    import only G1, G2 and each other; `_diagnose.py` reads `__version__` from
-   the package, which the bindings answer. **This group relies on the seam:**
-   every built-in step is still Python when the compositor becomes C++, and
-   reaches it as a user's own step does.
+   the package, which the bindings answer. **This group relies on the seam**
+   (the agent's call, spec §3.1): every built-in step is still Python when the
+   compositor becomes C++, and reaches it as a user's own step does.
 4. **G4, the hand-overs:** `_model.py`, `_feed.py`. They import only G1 to G3.
    The outside model's side stays in the bindings.
 5. **G5, the pipeline and the store:** `_pipeline.py`, `_store.py`. They import
@@ -186,11 +189,11 @@ theirs to decide.
     has no C++; when every name it gives comes from the C++, it is the
     bindings' module and Phase 4 is done.
 
-**Tests of internals** move with their group (spec §3.8). Counting the test
-files under `tests/` that name each private module, `sqlearn._config` is named
-by 49, `_store` by 18, `_errors` by 12, `_step` by 10 and `_saving` by 6: G2,
-G1, G3, G5 and G11 carry most of the rewriting. These are counts of files, by
-`grep`, not a measurement of work.
+**Tests of internals** move with their group (the agent's call, spec §3.8).
+Counting the test files under `tests/` that name each private module,
+`sqlearn._config` is named by 49, `_store` by 18, `_errors` by 12, `_step` by 10
+and `_saving` by 6: G2, G1, G3, G5 and G11 carry most of the rewriting. These
+are counts of files, by `grep`, not a measurement of work.
 
 ## The heavy paths, measured
 
@@ -225,12 +228,15 @@ Against the spec's draft order (§5.3), area by area.
   `preprocessing/target.py`.
 - **The core:** kept first, split into G1 to G5 by its imports, as the spec's
   §4 names its parts (the expression and naming layer, the compositor and
-  planner, the step framework, the store). Two changes, both from imports, not
+  planner, the step framework, the store). Three changes, all from imports, not
   numbers:
   - **The hand-overs move up**, from the draft's place after model selection to
     G4, before the pipeline: `_pipeline.py` imports `fetch`,
     `predict_streamed` and `stream_trainer` from `_feed.py`, and `Model`,
     `as_model`, `check_feed`, `is_model` and `is_trained` from `_model.py`.
+  - **`_memory.py` moves from the hand-overs into the core** (G2): it and
+    `_config.py` import each other, and `_gram.py`, `_diagnose.py`, `_feed.py`
+    and `explore/profile.py` import it, so it goes before them all.
   - **`store.py` moves out of the core**, to G10 with model selection:
     it imports `model_selection/kept.py`, whose `prepared` and `clear` it
     calls. `_store.py`, the store itself, stays in the core (G5).
