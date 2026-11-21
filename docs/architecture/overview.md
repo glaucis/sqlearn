@@ -69,19 +69,27 @@ the building.
 
 ## 2. Constraints (agreed)
 
-- **Python and DuckDB.** Computation is pushed into DuckDB; Python is the glue
-  ([ADR 0002](../adr/0002-sql-on-duckdb-execution-engine.md)), amended by
-  [ADR 0058](../adr/0058-a-gram-step-builds-xtx-in-numpy.md): a Gram step
-  (PCA) learns from XᵀX, which numpy sums from batches DuckDB streams, and
-  data passes through Python in no other learn.
-- **Two runtime dependencies.** The installed package depends on `duckdb` and
-  `numpy` (the small matrices some steps learn from: [ADR
+- **Python, C++ and DuckDB.** Computation runs inside DuckDB, as SQL and as
+  the native engine's C++ functions ([ADR
+  0060](../adr/0060-a-native-engine-in-cpp-inside-duckdb.md)); Python is the
+  API and the glue ([ADR
+  0002](../adr/0002-sql-on-duckdb-execution-engine.md)). One exception stands
+  until Phase 2, amended by [ADR
+  0058](../adr/0058-a-gram-step-builds-xtx-in-numpy.md): a Gram step (PCA)
+  learns from XᵀX, which numpy sums from batches DuckDB streams, and data
+  passes through Python in no other learn.
+- **Two runtime dependencies.** The installed package depends on sqlearn's own
+  DuckDB build ([ADR
+  0061](../adr/0061-sqlearn-ships-its-own-duckdb-build.md)) and `numpy` (the
+  small matrices some steps learn from: [ADR
   0057](../adr/0057-numpy-is-a-runtime-dependency.md)), and as little else as
   possible; every runtime dependency is justified in writing
   ([ADR 0005](../adr/0005-runtime-dependencies.md)). Tools used to build,
   test, validate and document the project are free to use anything.
 - **Licence.** Apache-2.0, free for any use; anything paid is a separate
-  package ([ADR 0004](../adr/0004-apache-2-licence.md)).
+  package ([ADR 0004](../adr/0004-apache-2-licence.md)). Runtime code is under
+  permissive licences only, never copyleft ([ADR
+  0066](../adr/0066-permissive-licences-never-copyleft.md)).
 - **Local and offline.** No cloud service, no cluster, no telemetry, no
   network access needed; data never leaves the machine
   ([ADR 0006](../adr/0006-local-and-offline.md)).
@@ -99,7 +107,11 @@ the building.
   Python 3.12 as the floor ([ADR 0007](../adr/0007-python-3-12-floor.md)),
   `just` as the task runner ([ADR 0008](../adr/0008-just-task-runner.md)),
   British prose with American identifiers
-  ([ADR 0010](../adr/0010-british-prose-american-identifiers.md)).
+  ([ADR 0010](../adr/0010-british-prose-american-identifiers.md)). The
+  native engine adds CMake and a C++ toolchain, and Xcode's Metal toolchain
+  on the Macs that build its GPU kernels ([ADR
+  0060](../adr/0060-a-native-engine-in-cpp-inside-duckdb.md), [ADR
+  0063](../adr/0063-the-engines-compute-libraries.md)).
 
 ## 3. The parts
 
@@ -293,6 +305,20 @@ sqlearn stands and at what size the others stop.
 **Depends on:** 3.3. Open points:
 [questions/benchmarks-scope.md](../questions/benchmarks-scope.md).
 
+### 3.10 Native engine
+
+**What:** sqlearn's computation in a C++ engine compiled into its own DuckDB
+build, Apple silicon first, in seven phases
+([spec](../specs/native-engine.md) §4; ADRs 0060 to 0068; milestone "Native
+engine", #78 to #84). Phase 0 decides and takes the inventory of every
+module.
+
+**Done when:** sqlearn's current state runs on the engine (Phases 1 to 3);
+each later phase is done when its spec says so.
+
+**Depends on:** 3.2 and 3.3 for what moves, 3.8 for the validation every move
+passes, 3.9 for the benchmarks.
+
 ### Later: other database engines
 
 Not one of the parts yet, and planned only if users ask for it. sqlearn
@@ -313,6 +339,10 @@ to other engines would plug into its compositor:
 6. Exploratory data analysis (3.6): the module alongside 3.3, the application
    after it.
 7. Workflow editor (3.7), last, when the library is more or less done.
+
+Now (2026-11-21): the native engine (3.10). Its migration of sqlearn's
+current state, Phases 1 to 3, comes before any new area of 3.3 or 3.6, after
+HANDOFF's three small fixes ([spec](../specs/native-engine.md) §4).
 
 How the work runs, and where each kind of document goes:
 [workflow.md](workflow.md).
