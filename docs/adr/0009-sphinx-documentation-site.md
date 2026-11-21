@@ -2,13 +2,15 @@
 type: adr
 tags: [sphinx, documentation, gallery, github-pages, docs-site]
 summary: "ADR 0009 decides to build sqlearn's documentation and learning site with Sphinx, served on GitHub Pages, using specific extensions."
-related: [docs/questions/site-hosting.md]
+related: [docs/adr/0062-apple-silicon-first.md]
 mdindex: [type=0fc814, tags=812b07, summary=dd3f5e, related=0bc3d0]
 ---
 # 0009: One Sphinx site for documentation and learning
 
 Status: accepted (decided 2026-09-30 in the earlier attempt; carried over
-2026-11-03)
+2026-11-03). Amended by
+[ADR 0062](0062-apple-silicon-first.md) (2026-11-21): the repository is
+public, and the site is served by GitHub Pages from it.
 
 ## Context
 
@@ -39,5 +41,5 @@ One static site, built with Sphinx from `docs/`, served on GitHub Pages:
   examples, and a written rule for where Markdown ends and reStructuredText
   begins.
 - The site is English only.
-- Hosting while the repository is private is open:
-  [questions/site-hosting.md](../questions/site-hosting.md).
+- Hosting while the repository was private was open; [ADR
+  0062](0062-apple-silicon-first.md) settles it: the repository is public.

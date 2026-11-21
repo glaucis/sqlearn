@@ -70,6 +70,9 @@ Rules from the ADRs:
 - Nothing needs the network: no telemetry, no cloud, data never leaves the
   machine. sqlearn's DuckDB never downloads an extension by itself; one the
   user installs works (0006, 0061).
+- Apple silicon first: macOS 15 or later gets the tuned build (CPU,
+  matrix units, GPU); Linux and Windows get the safe CPU build; no Intel
+  Macs, and no musl for now (0062).
 - Python 3.12 is the floor (0007). Every task runs through `just` (0008).
 - British English in prose, American spelling in identifiers (0010).
 - sqlearn ships, generates and fetches no datasets: the user brings their

@@ -92,8 +92,9 @@ the building.
 - **Professional throughout:** code, tests, documentation, process.
 - **One static site** for the documentation and the learning path, on GitHub
   Pages ([ADR 0009](../adr/0009-sphinx-documentation-site.md)). The repository
-  is private, and GitHub Pages serves a private repository only on a paid
-  plan. Open: [questions/site-hosting.md](../questions/site-hosting.md).
+  is public (2026-11-21), and Pages serves the site from it, deployed with the
+  CI the native engine's Phase 1 sets up ([ADR
+  0062](../adr/0062-apple-silicon-first.md); #4, #6).
 - **Tooling:** uv ([ADR 0001](../adr/0001-uv-for-python-packaging.md)),
   Python 3.12 as the floor ([ADR 0007](../adr/0007-python-3-12-floor.md)),
   `just` as the task runner ([ADR 0008](../adr/0008-just-task-runner.md)),
