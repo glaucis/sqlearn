@@ -380,6 +380,10 @@ def test_a_mean_that_overflows_leaves_the_shape_null(source):
         ([-1e308, 1e308, 0.0], {"std", "skewness", "kurtosis"}),
         # The fourth powers overflow, the cubes do not (pandas: NaN).
         ([1e100, 2e100, -1e100, 5e99], {"kurtosis"}),
+        # The cubes are finite, a cube times the sample factor is not.
+        ([0.0, 0.0, 0.0, 6e102], {"kurtosis"}),
+        # The fourth powers are finite, times the sample factor they are not.
+        ([0.0, 0.0, 0.0, 0.0, 1e77], set()),
     ],
 )
 def test_deviations_that_overflow_leave_their_statistics_null(values, nulls):
@@ -394,7 +398,11 @@ def test_deviations_that_overflow_leave_their_statistics_null(values, nulls):
         assert (row[name] is None) is (name in nulls), name
         assert row[name] is None or math.isfinite(row[name]), name
     series = pd.Series(values)
-    for name, pandas in (("std", series.std), ("skewness", series.skew)):
+    for name, pandas in (
+        ("std", series.std),
+        ("skewness", series.skew),
+        ("kurtosis", series.kurt),
+    ):
         if name not in nulls:
             assert math.isclose(row[name], pandas(), rel_tol=1e-12), name
 

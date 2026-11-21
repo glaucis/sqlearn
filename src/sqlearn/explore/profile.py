@@ -73,7 +73,7 @@ DuckDB reads a Parquet file a row group at a time on each thread, holding
 every column the statement reads (issue #68). On 12.5 million rows of 200
 doubles in 122,880-row groups, 8 threads (2026-11-21): under a 1 GB
 ``memory_limit`` 20 columns peaked at 0.66 GB and 40 at 1.09 GB, 80 ran out;
-under 2 GB, 80 fit and 200 ran out."""
+under 1,986 MB (``memory="4GB"``), 80 fit and 200 ran out."""
 _EXACT_COLUMNS = 20
 """The most columns a group of exact distinct counts and quartiles holds."""
 _VALUE_BYTES = 32
@@ -182,14 +182,17 @@ def _shape(
     std = math.sqrt(s2 / (n - 1))
     if n < 3 or s2 == 0:
         return std, None, None
+    # Each sum is divided by its power of `s2` before the sample factor
+    # multiplies it: the ratio is at most about sqrt(n) or n, the sum alone
+    # can be near the largest double.
     spread = s2 * math.sqrt(s2)
     skewness = None
     if math.isfinite(s3) and math.isfinite(spread):
-        skewness = n * math.sqrt(n - 1) / (n - 2) * s3 / spread
+        skewness = n * math.sqrt(n - 1) / (n - 2) * (s3 / spread)
     if n < 4 or not (math.isfinite(s4) and math.isfinite(s2 * s2)):
         return std, skewness, None
     adjust = (n + 1) * (n - 1) / ((n - 2) * (n - 3))
-    kurtosis = adjust * n * s4 / (s2 * s2) - 3 * (n - 1) ** 2 / ((n - 2) * (n - 3))
+    kurtosis = adjust * n * (s4 / (s2 * s2)) - 3 * (n - 1) ** 2 / ((n - 2) * (n - 3))
     return std, skewness, kurtosis
 
 

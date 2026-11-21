@@ -14,9 +14,6 @@ None.
 
 ## Waiting on the user
 
-- The remote branch `engine-phase-0` (at `f2f9668`, behind `main`) is merged
-  and can be deleted: `git push origin --delete engine-phase-0`. (since
-  2026-11-21)
 - Benchmarks run on a loaded machine, to rerun on a quiet one if wanted:
   `generators-on-many-threads.md` (#46), `gram-batches.md`, both
   `explore-*.md` pages (load up to 145) and `engine-profile.md` (load 10 to
@@ -24,12 +21,8 @@ None.
 
 ## Next up
 
-- The three small fixes, before Phase 1 (the migration comes before any new
-  library area: Tomas, 2026-11-21; spec §4):
-  - The one-line `profile` fix: its skewness and kurtosis multiply before
-    dividing (`profile.py` `_shape`), so `[0, 0, 0, 6e102]` gives inf where
-    NULL is promised; divide first. `_SCAN_COLUMNS`' docstring says "under 2
-    GB" where the benchmark says 1,986 MB.
+- The two small fixes left, before Phase 1 (the migration comes before any
+  new library area: Tomas, 2026-11-21; spec §4):
   - #75: Spearman's first scan reads every chosen column; number it in
     column groups, as Pearson's blocks are bounded.
   - #76: `read` gives a raw `ResourceInUseException` on a busy user
@@ -166,6 +159,12 @@ None.
   (2026-11-06)
 
 ## Just finished
+
+- `profile`'s skewness and kurtosis divide each sum by its power of the
+  variance before the sample factor, so `[0, 0, 0, 6e102]` gives 2.0, not
+  inf (and `[0, 0, 0, 0, 1e77]` a kurtosis of 5.0); `_SCAN_COLUMNS`'
+  docstring says 1,986 MB. The remote branch `engine-phase-0` is deleted.
+  (2026-11-21)
 
 - Phase 0 of the native engine (#78, closed): merged as `dc2bfa3` and pushed.
   Plan 0a, ADRs 0060–0068 (`876d95f`..`41e64cf`, fix wave `ccc73ee`); the
