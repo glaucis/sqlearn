@@ -1,7 +1,7 @@
 ---
 type: note
 tags: [native-engine, benchmarks, profiling, duckdb, inventory]
-summary: "Implementation plan for Phase 0b of the native engine: a DuckDB profiling script, its published benchmark page, and the module inventory (moves, stays, later)."
+summary: "Implementation plan for Phase 0b of the native engine: a DuckDB profiling script, its published benchmark page, and the inventory that gives every module its phase in the port."
 related: [docs/specs/native-engine.md, docs/plans/2026-11-21-native-engine-phase-0a-decisions.md, docs/benchmarks/gram-batches.md, docs/benchmarks/index.md, docs/architecture/engine-inventory.md, docs/architecture/index.md, docs/architecture/overview.md, validation/benchmarks/engine_profile.py]
 mdindex: [type=edb465, tags=88654e, summary=75ed57, related=4de4ff]
 ---
@@ -13,9 +13,8 @@ mdindex: [type=edb465, tags=88654e, summary=75ed57, related=4de4ff]
 > checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** measure where sqlearn's heavy paths spend their time and memory
-today, publish the numbers as a benchmark page, write the inventory that puts
-every module of `src/sqlearn` in one of three groups (moves to C++, stays
-Python, later), and close Phase 0.
+today, publish the numbers as a benchmark page, write the inventory that gives
+every module of `src/sqlearn` its phase in the port, and close Phase 0.
 
 **Architecture:** one benchmark script under `validation/benchmarks/`, in the
 manner of `gram_batches.py`. DuckDB writes the data as Parquet from a fixed
@@ -55,9 +54,9 @@ the same branch, `engine-phase-0`; this plan continues in its worktree.
   prints what they were.
 - The probes call sqlearn's public API only. Nothing under `src/` changes in
   this plan.
-- The script measures and decides nothing. The inventory's groups start from
-  spec §5.3's draft and change only where a number says so; each change
-  names its number.
+- The script measures and decides nothing. The inventory's phases start from
+  spec §5.3's draft order and change only where a number says so; each
+  change names its number.
 - TDD for the script's pure parts and for the inventory's completeness: watch
   each test fail for the right reason first.
 
@@ -73,7 +72,8 @@ the same branch, `engine-phase-0`; this plan continues in its worktree.
 3. **`ru_maxrss` units:** bytes on macOS, kilobytes on Linux. Use
    `validation.benchmarks.gram_reach._peak`, which converts.
 4. **A module missing from the inventory, or a stale row.** A test compares
-   the inventory's rows with `src/sqlearn/**/*.py` both ways (Task 3).
+   the inventory's rows with `src/sqlearn/**/*.py` both ways, and checks
+   every row's phase (Task 3).
 5. **Python's share measured wrongly.** It comes from the profiled run only: its
    wall time less the sum of DuckDB's statement times. The timing runs carry
    no profiling and no `cProfile`.
@@ -221,27 +221,31 @@ the same branch, `engine-phase-0`; this plan continues in its worktree.
 - Test: `tests/docs/test_engine_inventory.py`
 
 **Interfaces:**
-- Produces: the inventory's table. Each row starts `| ` and then a module
-  path in backticks, relative to `src/sqlearn/` (`` `_compose.py` ``,
-  `` `explore/profile.py` ``, `` `_saving/__init__.py` ``). Its second
-  column is exactly one of `moves`, `stays`, `later`.
+- Produces: the inventory's table (spec §5.3). Each row starts `| `, then
+  a module path in backticks, relative to `src/sqlearn/` (`` `_compose.py` ``,
+  `` `explore/profile.py` ``, `` `_saving/__init__.py` ``), then a phase
+  column that is exactly one of `2`, `3`, `4`. The further columns, in this
+  order: the C++ that replaces it (a kernel, a numeric function, or a part
+  of the C++ library); what stays in the bindings; what it depends on among
+  the other modules; the evidence, linked to the profiling page's rows where
+  there is a number.
 
 - [ ] **Step 1: Write the failing test**
-  `test_the_inventory_lists_every_module_once`. The set of module paths in
-  the table equals the set of `src/sqlearn/**/*.py` paths relative to
-  `src/sqlearn/`, with no path listed twice, and every row's group is one of
-  `moves`, `stays`, `later`. Run it; expected FAIL with
+  `test_the_inventory_gives_every_module_its_phase`. The set of module paths
+  in the table equals the set of `src/sqlearn/**/*.py` paths relative to
+  `src/sqlearn/`, compared both ways; no path is listed twice; every row's
+  phase is one of `2`, `3`, `4`. Run it; expected FAIL with
   `FileNotFoundError`.
 - [ ] **Step 2: Write the page.**
-  - Its purpose: the migration's map (ADR 0067).
-  - The three groups, defined as in spec §5.3.
-  - The table, one row per module: module; group; for `moves`, the phase and
-    the function; for `stays`, why; for `later`, what would trigger it; and
-    the evidence, linked to the profiling page's rows where there is a
-    number.
+  - Its purpose: the port's map (ADR 0067).
+  - The table, one row per module, with the columns above.
+  - **The groups of Phase 4:** each named, with its modules and its place in
+    the order, the order argued from the dependencies (a module is ported
+    after what it calls, or the bindings carry the seam) and from the
+    profiling page.
   - **The heavy paths, measured:** the numbers from Task 2's page, linked.
-  - **What the numbers change:** spec §5.3's draft kept, or changed with the
-    number that changes it.
+  - **What the numbers change:** compared with spec §5.3's draft order,
+    kept, or changed with the number that changes it.
 - [ ] **Step 3: Link it.** In `docs/architecture/index.md`'s toctree, put
   `engine-inventory` after `overview`. In the overview's 3.10, turn "the
   inventory of every module" into a link to
@@ -254,34 +258,58 @@ the same branch, `engine-phase-0`; this plan continues in its worktree.
 
 **Files:**
 - Modify: `CLAUDE.md` (the opening paragraph's state), `HANDOFF.md`,
-  `validation/results/tests.json` (rewritten by `just verify`)
+  `validation/results/tests.json` (rewritten by `just verify`), and the
+  leftovers of plan 0a named in Step 3
 
 - [ ] **Step 1: `CLAUDE.md`.** In the opening paragraph, after the sentence
-  ending "ADR 0059, issue #74.", add: "The native engine (part 3.10, a C++
-  engine inside sqlearn's own DuckDB build): spec
-  `docs/specs/native-engine.md`, ADRs 0060–0068, the module inventory
+  ending "ADR 0059, issue #74.", add: "The native engine (part 3.10:
+  sqlearn as a C++ library embedding DuckDB, Python its bindings): spec
+  `docs/specs/native-engine.md`, ADRs 0060–0068, the port's inventory
   `docs/architecture/engine-inventory.md`, milestone "Native engine" (#78 to
-  #84). Phase 0 is done; the migration comes before any new area."
+  #84). Phase 0 is done; the port comes before any new area."
 - [ ] **Step 2: `HANDOFF.md`.**
   - "In progress": None.
   - "Just finished": Phase 0 of the native engine (#78), with its commits:
-    ADRs 0060 to 0068, the profiling page, the inventory, the phase issues
-    #79 to #84, and the local backup `main_python` and `python-final`.
+    ADRs 0060 to 0068, the profiling page, the inventory, the revised spec,
+    the phase issues #79 to #84. The backup branch and tag are already
+    pushed (listed there).
   - "Next up", first: the one-line `profile` fix, #75 and #76, then Phase
-    1's spec (#79), brainstormed with Tomas.
-  - "Waiting on the user": pushing the backup branch and tag (local since
-    2026-11-21) and `main`, when Tomas says.
+    1's spec (#79), brainstormed with Tomas. Its topics, from spec §4: the
+    checks redesigned for two languages and for speed, the review of the
+    libraries sqlearn and its tooling use, and how the C++ is documented.
+  - "Waiting on the user": keeps the benchmarks item; drops the backup push
+    (done, pushed with `main`).
+  - The DuckDB-profiling trap (under "Dead ends and traps") says profiles
+    go to stdout; Task 1 found DuckDB 2.0 prints them to stderr. Correct
+    the line.
   - Update the "Updated:" line.
-- [ ] **Step 3: `just verify`.** The full validation took about 47 minutes
+- [ ] **Step 3: The three cosmetic leftovers of plan 0a.**
+  - ADR 0062's Context names Tomas twice in one line ("Three points from
+    Tomas (Tomas, 2026-11-21)."): name him once.
+  - Spec §3.3's "Why Apple silicon leads" bullet repeats the first bullet
+    above it: cut the repetition, keeping what only it says (the priority,
+    exactness, no `-ffast-math`).
+  - The overview's §2 has one line over 80 columns (about line 79: "passes
+    through Python in no other learn."): rewrap it. If `just fmt` has
+    already wrapped it, drop this item.
+- [ ] **Step 4: The docs tagger's frontmatter** for the files this branch
+  created: ADRs 0060 to 0068, `docs/benchmarks/engine-profile.md`, plans 0a,
+  0b and 0c, and `docs/architecture/engine-inventory.md`. Several (0060,
+  0061, 0067) carry a stale `summary` or `tags` after the spec's revision:
+  commit the tagger's refresh for these files. Files that existed on `main`
+  before the branch keep the rule: their tagger edits stay out. Read each
+  new file's frontmatter first (a `related:` path that does not exist is a
+  known fault).
+- [ ] **Step 5: `just verify`.** The full validation took about 47 minutes
   under load. Name every failure, fix, rerun. Discard ULP-only changes to
   `*.results.json`; keep `tests.json`, since tests were added (ADR 0043,
   HANDOFF).
-- [ ] **Step 4:** Commit `docs: close Phase 0 of the native engine (#78)`,
+- [ ] **Step 6:** Commit `docs: close Phase 0 of the native engine (#78)`,
   with `tests.json`.
-- [ ] **Step 5: Review the whole branch** with
-  subagent-driven-development's final reviewer, against the spec and both
+- [ ] **Step 7: Review the whole branch** with
+  subagent-driven-development's final reviewer, against the spec and the
   plans. Fix what it finds, with `just verify` again after any fix.
-- [ ] **Step 6: Hand the branch to Tomas** with
+- [ ] **Step 8: Hand the branch to Tomas** with
   superpowers:finishing-a-development-branch, and merge on his approval.
   - Before merging on `main`, deal with the docs tagger's uncommitted
     frontmatter edits in `main`'s working tree, which block a merge: save
