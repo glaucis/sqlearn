@@ -141,7 +141,11 @@ Equal-width bins between each numeric column's minimum and maximum, as
 (0-based), `low`, `high`, `count`; the last bin includes its upper edge. A
 constant column has one bin. Missing and infinite values are left out (their
 counts are in `profile`). A non-numeric column in `cols` is refused; by
-default only numeric columns are taken *(call)*.
+default only numeric columns are taken *(call)*. *Ruled during the build: a
+range that cannot be cut into finite, increasing edges (numpy's "Too many bins
+for data range", as from -1e308 to 1e308) gives the column one bin from its
+minimum to its maximum; the extremes and the counts are read 20 columns a
+statement, as `profile`'s scan.*
 
 ### 4.3 `top(data, cols=None, *, k=10, out=None)`
 

@@ -1,5 +1,8 @@
 """Tests of `sq.explore.histogram`: equal-width bins, as numpy makes them."""
 
+import importlib
+
+import duckdb
 import numpy as np
 import pandas as pd
 import pytest
@@ -7,6 +10,9 @@ import pytest
 import sqlearn as sq
 from sqlearn._config import connection
 from sqlearn.errors import SqlearnError
+
+# `sqlearn.explore.histogram` the attribute is the function; this is the module.
+module = importlib.import_module("sqlearn.explore.histogram")
 
 COLUMNS = ["column", "bin", "low", "high", "count"]
 
@@ -120,3 +126,102 @@ def test_a_name_with_a_quote_is_binned():
         """CREATE TABLE q AS SELECT * FROM (VALUES (1), (2)) v("it's")"""
     )
     assert sq.explore.histogram("q", bins=1).fetchall() == [("it's", 0, 1.0, 2.0, 2)]
+
+
+def _wide() -> pd.DataFrame:
+    """Five numeric columns of different ranges, with a missing value."""
+    return pd.DataFrame(
+        {
+            "a": [0.0, 1.0, 2.0, 3.0],
+            "b": [10, 20, 30, 40],
+            "c": [-1.0, float("nan"), 1.0, 0.5],
+            "d": [5.0, 5.0, 5.0, 5.0],
+            "e": [1e6, 2e6, 3e6, 1.5e6],
+        }
+    )
+
+
+def test_blocks_of_columns_give_the_same_bins_as_one_block(monkeypatch):
+    """Blocks of 2 over 5 columns read 2 columns a statement, and match one."""
+    monkeypatch.setattr(module, "_BLOCK_COLUMNS", 100)
+    whole = sq.explore.histogram(_wide(), bins=3).fetchall()
+    seen = []
+    original = module._fetch
+
+    def spy(source, sql):
+        seen.append(sql)
+        return original(source, sql)
+
+    monkeypatch.setattr(module, "_fetch", spy)
+    monkeypatch.setattr(module, "_BLOCK_COLUMNS", 2)
+    blocked = sq.explore.histogram(_wide(), bins=3).fetchall()
+    assert blocked == whole
+    read = [{n for n in "abcde" if f'"{n}"' in sql} for sql in seen]
+    # The extremes, then the counts, each in blocks of two columns.
+    assert read == [{"a", "b"}, {"c", "d"}, {"e"}] * 2
+
+
+def test_no_statement_filters_an_aggregate(monkeypatch):
+    """Values are left out by CASE, not FILTER (see profile's test)."""
+    seen = []
+    original = module._fetch
+
+    def spy(source, sql):
+        seen.append(sql)
+        return original(source, sql)
+
+    monkeypatch.setattr(module, "_fetch", spy)
+    sq.explore.histogram(_wide())
+    assert seen
+    assert not [sql for sql in seen if "FILTER" in sql]
+
+
+@pytest.mark.parametrize("failing", [0, 1])
+def test_running_out_of_memory_is_refused_with_a_fix(monkeypatch, failing):
+    """An out-of-memory error at the extremes (0) or the counts (1) is refused.
+
+    The error is forced by monkeypatching the statement runner to raise
+    DuckDB's out-of-memory error: a real one depends on the machine.
+    """
+    calls = []
+    original = module._fetch
+
+    def fail(source, sql):
+        calls.append(None)
+        if len(calls) > failing:
+            raise duckdb.OutOfMemoryException("Out of Memory Error: failed")
+        return original(source, sql)
+
+    monkeypatch.setattr(module, "_fetch", fail)
+    with pytest.raises(
+        SqlearnError, match=r"(?s)Why:.*Fix:.*cols=.*memory=.*threads"
+    ) as info:
+        sq.explore.histogram(_wide())
+    assert "failed" in str(info.value)
+    assert "`histogram`" in str(info.value)
+
+
+@pytest.mark.parametrize(
+    ("low", "high"),
+    [(-1e308, 1e308), (-1.7e308, 1.7e308), (0.0, 5e-324), (0.0, 1e-323)],
+)
+def test_a_range_too_wide_or_narrow_for_its_bins_has_one_bin(low, high):
+    """A range whose bins' width overflows or underflows gets one bin.
+
+    numpy refuses it ("Too many bins for data range"); here the column gets
+    one bin from its minimum to its maximum, holding every finite value.
+    """
+    connection().execute(
+        f"CREATE TABLE r AS SELECT * FROM (VALUES ({low!r}::DOUBLE), "
+        f"({high!r}::DOUBLE), (NULL)) v(x)"
+    )
+    assert sq.explore.histogram("r", bins=10).fetchall() == [("x", 0, low, high, 2)]
+
+
+def test_a_subnormal_width_is_binned_as_numpy_bins_it():
+    """A width that is small but not zero is binned as numpy bins it."""
+    values = [0.0, 1e-310, 3e-311]
+    rows = sq.explore.histogram(pd.DataFrame({"x": values}), bins=10).fetchall()
+    counts, edges = np.histogram(values, bins=10)
+    assert [r[4] for r in rows] == counts.tolist()
+    assert [r[2] for r in rows] == edges[:-1].tolist()
