@@ -336,6 +336,25 @@ def test_notes_are_listed_in_one_order():
     ]
 
 
+@pytest.mark.parametrize("exact", [True, False])
+def test_moments_far_from_zero_keep_their_precision(exact):
+    """The shape of values far from 0 is that of the same values near 0.
+
+    Moments from deviations about the mean do not cancel as one-pass power
+    sums do (DuckDB's own drift by about 4e-9 at an offset of 1e9).
+    """
+    near = pd.Series([0.0, 1.0, 2.0, 3.0, 10.0, 4.0, float("nan"), float("inf")])
+    far = near + 1e9
+    row = sq.explore.profile(pd.DataFrame({"x": far}), exact=exact, out="pandas").iloc[
+        0
+    ]
+    finite = near[near.abs() < math.inf]
+    assert math.isclose(row["mean"], finite.mean() + 1e9, rel_tol=1e-15)
+    assert math.isclose(row["std"], finite.std(), rel_tol=1e-12)
+    assert math.isclose(row["skewness"], finite.skew(), rel_tol=1e-12)
+    assert math.isclose(row["kurtosis"], finite.kurt(), rel_tol=1e-12)
+
+
 def _mixed() -> pd.DataFrame:
     """Five columns of four kinds, with repeats, missing and infinite values."""
     return pd.DataFrame(
@@ -395,7 +414,9 @@ def test_scan_blocks_give_the_same_profile_as_one_scan(monkeypatch, exact):
     monkeypatch.setattr(module, "_SCAN_COLUMNS", 2)
     blocked = sq.explore.profile(_mixed(), exact=exact).fetchall()
     assert blocked == whole
+    # The scan's statements: neither exact groups nor the deviations' pass.
     scans = [s for s in seen if "count(DISTINCT" not in ", ".join(s)]
+    scans = [s for s in scans if "fsum(" not in ", ".join(s)]
     read = [{n for n in "nktfd" if f'"{n}"' in ", ".join(s)} for s in scans]
     assert read == [{"n", "k"}, {"t", "f"}, {"d"}]
 
@@ -444,8 +465,11 @@ def test_no_statement_filters_an_aggregate(monkeypatch, exact):
     assert not [a for a in seen if "FILTER" in a]
 
 
-def test_an_approximate_profile_is_one_statement(monkeypatch):
-    """With exact=False the estimates keep a small state: one scan holds all."""
+def test_an_approximate_profile_is_a_scan_and_its_deviations(monkeypatch):
+    """With exact=False the estimates keep a small state: the scan holds them.
+
+    The one statement after the scan sums the numbers' deviations.
+    """
     seen = []
     original = module._fetch
 
@@ -456,7 +480,9 @@ def test_an_approximate_profile_is_one_statement(monkeypatch):
     monkeypatch.setattr(module, "_fetch", spy)
     monkeypatch.setattr(module, "_EXACT_COLUMNS", 2)
     approximate = sq.explore.profile(_mixed(), exact=False).fetchall()
-    assert len(seen) == 1
+    assert len(seen) == 2
+    assert "approx_count_distinct(" in ", ".join(seen[0])
+    assert all(a.startswith("fsum(") for a in seen[1])
     exact = sq.explore.profile(_mixed()).fetchall()
     # Five columns this small are counted exactly either way; the estimated
     # quartiles (10:13) interpolate otherwise.
@@ -490,6 +516,40 @@ def test_running_out_of_memory_is_refused_with_a_fix(monkeypatch, failing):
         sq.explore.profile(_mixed())
     assert "failed" in str(info.value)
     assert "`profile`" in str(info.value)
+
+
+@pytest.mark.parametrize(("cols", "named"), [(["c0"], False), (None, True)])
+def test_the_row_groups_named_are_those_of_the_columns_read(
+    monkeypatch, tmp_path, cols, named
+):
+    """The row groups' fix weighs only the columns the failed statement reads.
+
+    A 60-column file's row groups (about 59 MB) are too wide for a 64 MB
+    limit on 2 threads; one column's (1 MB) are not, so a statement reading
+    only that column does not blame them. The error is forced as above.
+    """
+    path = tmp_path / "wide.parquet"
+    con = duckdb.connect()
+    picked = ", ".join(f"random() AS c{i}" for i in range(60))
+    con.execute(
+        f"COPY (SELECT {picked} FROM range(250000)) TO '{path}' (FORMAT parquet)"
+    )
+    con.execute("SET memory_limit = '64MB'; SET threads = 2")
+
+    def fail(*_args):
+        raise duckdb.OutOfMemoryException("Out of Memory Error: failed")
+
+    monkeypatch.setattr(module, "_fetch", fail)
+    previous = connection()
+    sq.set_config(connection=con)
+    try:
+        with pytest.raises(SqlearnError) as info:
+            sq.explore.profile(str(path), cols)
+    finally:
+        sq.set_config(connection=previous)
+    assert ("ROW_GROUP_SIZE" in str(info.value)) is named
+    if named:
+        assert "of the 20 columns it reads" in str(info.value)
 
 
 def test_an_approximate_profile_out_of_memory_does_not_name_exact(monkeypatch):

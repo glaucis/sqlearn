@@ -180,14 +180,17 @@ def _sorts(
     )
 
 
-def _row_groups(sql: str | None) -> tuple[str, str, int] | None:
+def _row_groups(
+    sql: str | None, columns: Sequence[str] | None = None
+) -> tuple[str, str, int] | None:
     """Say a Parquet file's row groups are too wide for the threads and limit.
 
     DuckDB reads a Parquet file one row group at a time on each thread,
     holding every column it reads (issue #68). Returns the why, the fix and
     the threads when the failed statement reads Parquet files whose largest row group,
     uncompressed, times the threads is over half the ``memory_limit``; else
-    None, as when the files' metadata cannot be read.
+    None, as when the files' metadata cannot be read. With `columns`, the
+    names the failed statement reads, a row group weighs those columns only.
     """
     if sql is None:
         return None
@@ -200,11 +203,15 @@ def _row_groups(sql: str | None) -> tuple[str, str, int] | None:
         return None
     con = connection()
     listed = ", ".join("'" + f.replace("'", "''") + "'" for f in files)
+    within = ""
+    if columns is not None:
+        names = ", ".join("'" + c.replace("'", "''") + "'" for c in columns)
+        within = f"WHERE path_in_schema IN ({names or 'NULL'}) "
     try:
         widest, rows = con.execute(
             "SELECT max(size), arg_max(rows, size) FROM (SELECT "
             "sum(total_uncompressed_size) AS size, any_value(row_group_num_rows) "
-            f"AS rows FROM parquet_metadata([{listed}]) "
+            f"AS rows FROM parquet_metadata([{listed}]) {within}"
             "GROUP BY file_name, row_group_id)"
         ).fetchall()[0]
         threads = int(con.execute("SELECT current_setting('threads')").fetchall()[0][0])
@@ -217,11 +224,15 @@ def _row_groups(sql: str | None) -> tuple[str, str, int] | None:
     fit = int(rows * limit / (4 * widest * threads)) // 1000 * 1000
     suggest = max(1000, min(_ROW_GROUP_ROWS, fit))
     each = "one thread reads" if threads == 1 else f"each of {threads} threads reads"
+    read = ""
+    if columns is not None:
+        plural = "column" if len(columns) == 1 else "columns"
+        read = f" of the {len(columns)} {plural} it reads"
     why = (
         "DuckDB reads a Parquet file one row group at a time on each thread, "
         "holding every column it reads, and the file's largest row group is "
-        f"{_megabytes(widest)} uncompressed ({rows:,} rows): {each} one within "
-        f"a memory_limit of {_megabytes(limit)}."
+        f"{_megabytes(widest)} uncompressed{read} ({rows:,} rows): {each} one "
+        f"within a memory_limit of {_megabytes(limit)}."
     )
     fix = (
         "write the file with smaller row groups, such as COPY (FROM "
@@ -303,6 +314,7 @@ def exploring_out_of_memory(
     *,
     sorts: bool = False,
     estimates: bool = False,
+    columns: Sequence[str] | None = None,
 ) -> SqlearnError:
     """Explain DuckDB running out of memory while an exploration function reads.
 
@@ -325,6 +337,10 @@ def exploring_out_of_memory(
         then says the exact ones keep every value, and ``exact=False``
         leads the fixes, before more memory, fewer threads and fewer
         columns.
+    columns : sequence of str, optional
+        The columns the failed statement reads; a Parquet row group then
+        weighs only those, and the why says how many. By default every
+        column of the data.
 
     Returns
     -------
@@ -343,7 +359,7 @@ def exploring_out_of_memory(
     >>> str(err).split(" Why:")[0]
     'DuckDB ran out of memory while `top` read the data.'
     """
-    wide = _row_groups(sql)
+    wide = _row_groups(sql, columns)
     fixes = ["pass fewer columns with cols=", *_memory_fixes(wide)]
     if sorts:
         # A sort is helped by memory or threads first; fewer columns does not

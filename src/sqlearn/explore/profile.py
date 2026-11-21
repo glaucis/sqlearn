@@ -1,5 +1,6 @@
 """`profile`: one row per column, with the counts and statistics of each."""
 
+import math
 from typing import Any
 
 import duckdb
@@ -126,11 +127,67 @@ def _counted(condition: str) -> str:
     return f"count(CASE WHEN {condition} THEN 1 END)"
 
 
+def _finite(name: str) -> str:
+    """Return a column as a double, NULL where it is not finite."""
+    number = f"CAST({quote(name)} AS DOUBLE)"
+    return f"CASE WHEN isfinite({number}) THEN {number} END"
+
+
+def _moments(name: str, mean: float) -> list[str]:
+    """Return the compensated sums of a number's deviations to powers 1 to 4.
+
+    The second pass over a number (issue #28, ADR 0033): ``fsum`` of the
+    deviations about the scan's ``favg``, which one-pass power sums lose to
+    cancellation when the values are far from 0. The first power is the
+    rounding of that mean, which `_shape` takes back out.
+    """
+    deviation = f"({_finite(name)} - {float(mean)!r}::DOUBLE)"
+    square = f"({deviation} * {deviation})"
+    return [
+        f"fsum({deviation})",
+        f"fsum({square})",
+        f"fsum({square} * {deviation})",
+        f"fsum({square} * {square})",
+    ]
+
+
+def _shape(
+    n: int, sums: list[float | None]
+) -> tuple[float | None, float | None, float | None]:
+    """Return pandas' std (ddof 1), skewness and excess kurtosis from sums.
+
+    `sums` are the sums of the deviations about the rounded mean to powers
+    1 to 4, over `n` finite values; they are moved to the mean itself (the
+    first sum over `n` is how far the rounded mean is from it) by the
+    binomial shift. Each statistic is None where pandas' is undefined:
+    below 2, 3 and 4 values, and the shape where the values do not vary.
+    """
+    known = [float(s) for s in sums if s is not None]
+    if n < 2 or len(known) < len(sums):
+        return None, None, None
+    s1, r2, r3, r4 = known
+    e = s1 / n
+    s2 = r2 - n * e * e
+    s3 = r3 - 3 * e * r2 + 2 * n * e**3
+    s4 = r4 - 4 * e * r3 + 6 * e * e * r2 - 3 * n * e**4
+    std = math.sqrt(s2 / (n - 1))
+    if n < 3 or s2 == 0:
+        return std, None, None
+    skewness = n * math.sqrt(n - 1) / (n - 2) * s3 / (s2 * math.sqrt(s2))
+    if n < 4:
+        return std, skewness, None
+    adjust = (n + 1) * (n - 1) / ((n - 2) * (n - 3))
+    kurtosis = adjust * n * s4 / (s2 * s2) - 3 * (n - 1) ** 2 / ((n - 2) * (n - 3))
+    return std, skewness, kurtosis
+
+
 def _statistics(kind: str, name: str, missing: str) -> list[str]:
     """Return the scan's aggregates that describe a column's kind, in order.
 
-    These keep a small state each (counts, sums, extremes, moments), so a
-    scan statement holds them for its whole block. Values are left out by
+    These keep a small state each (counts, sums, extremes), so a scan
+    statement holds them for its whole block; a number's mean is ``favg``,
+    summed with compensation, and its finite values are counted for the
+    shape the second pass gives (`_moments`). Values are left out by
     ``CASE`` (an aggregate passes over NULL; see `_counted`), never by
     ``FILTER``: DuckDB gives each filtered aggregate its own copy of the
     statement's inputs, so filtered aggregates over many columns hold
@@ -142,17 +199,15 @@ def _statistics(kind: str, name: str, missing: str) -> list[str]:
         return [f"avg(CAST({column} AS DOUBLE))"]
     if kind == "number":
         number = f"CAST({column} AS DOUBLE)"
-        finite = f"CASE WHEN isfinite({number}) THEN {number} END"
+        finite = _finite(name)
         return [
-            f"avg({finite})",
-            f"stddev_samp({finite})",
+            f"favg({finite})",
             f"min({finite})",
             f"max({finite})",
             _counted(f"isfinite({number}) AND {number} = 0"),
             _counted(f"isfinite({number}) AND {number} < 0"),
             _counted(f"isinf({number})"),
-            f"skewness({finite})",
-            f"kurtosis({finite})",
+            f"count({finite})",
         ]
     if kind == "text":
         length = f"CASE WHEN NOT {missing} THEN length({column}) END"
@@ -174,21 +229,20 @@ def _holistic(kind: str, name: str, missing: str, exact: bool) -> list[str]:
     count = "count(DISTINCT {})" if exact else "approx_count_distinct({})"
     found = [count.format(present)]
     if kind == "number":
-        number = f"CAST({column} AS DOUBLE)"
-        finite = f"CASE WHEN isfinite({number}) THEN {number} END"
         quantile = "quantile_cont" if exact else "approx_quantile"
-        found.append(f"{quantile}({finite}, {_QUARTILES})")
+        found.append(f"{quantile}({_finite(name)}, {_QUARTILES})")
     return found
 
 
-_POSITIONS = {
+_POSITIONS: dict[str, list[int | str]] = {
     "boolean": [7],
-    "number": [7, 8, 9, 13, 14, 15, 16, 17, 18],
+    "number": [7, 9, 13, 14, 15, 16, "finite"],
     "text": [19, 20],
     "date": [21, 22],
     "other": [],
 }
-"""Where each of the scan's statistics lands in a row of `_RESULT`."""
+"""Where each of the scan's statistics lands in a row of `_RESULT`, or the
+slot it is kept in (``finite``: a number's finite values)."""
 
 
 def profile(
@@ -202,17 +256,20 @@ def profile(
 ) -> Any:  # noqa: ANN401
     """Profile each column: its type, rows, missing and distinct values.
 
-    A scan reads every column once for its counts, extremes and moments,
-    20 columns a statement, since DuckDB holds a Parquet row group of every
-    column a statement reads on each thread. The exact distinct counts and
-    quartiles keep every value (a hash and a sort, held in memory), so they
-    follow in groups of columns, a statement each that reads only its
-    group's columns. A group holds as many columns as DuckDB's
-    ``memory_limit`` holds at about 32 bytes a row, from 1 to 20: on 12.5
-    million rows and a 2 GB limit, 4. The exact profile reads the data once
-    more per group, so each column twice in all. With ``exact=False`` the
-    estimates, a small state each, join the scan, and each column is read
-    once.
+    A scan reads every column once for its counts, extremes and mean (a
+    compensated ``favg``), 20 columns a statement, since DuckDB holds a
+    Parquet row group of every column a statement reads on each thread. The
+    standard deviation, skewness and kurtosis come from compensated sums
+    (``fsum``) of the deviations about that mean, a second pass. The exact
+    distinct counts and quartiles keep every value (a hash and a sort, held
+    in memory), so they follow in groups of columns, with the deviations, a
+    statement each that reads only its group's columns. A group holds as
+    many columns as DuckDB's ``memory_limit`` holds at about 32 bytes a
+    row, from 1 to 20: on 12.5 million rows and a 2 GB limit, 4. The exact
+    profile reads the data once more per group, so each column twice in
+    all. With ``exact=False`` the estimates, a small state each, join the
+    scan, and the deviations follow in 20-column blocks: each number is
+    read twice, any other column once.
 
     Parameters
     ----------
@@ -275,11 +332,32 @@ def profile(
     kinds = {name: _kind(types[name]) for name in names}
     try:
         rel = _profile(source, names, types, kinds, exact, id_rows, high_cardinality)
+    except _OutOfMemory as failed:
+        raise exploring_out_of_memory(
+            failed.exc,
+            source.relation.sql_query(),
+            "profile",
+            estimates=exact,
+            columns=[names[k] for k in failed.places],
+        ) from failed.exc
     except duckdb.OutOfMemoryException as exc:
         raise exploring_out_of_memory(
             exc, source.relation.sql_query(), "profile", estimates=exact
         ) from exc
     return to_output(rel, out if out is not None else get_config().out)
+
+
+Aggregate = tuple[int, int | str, str]
+"""One aggregate of a statement: the column's place, its slot, its SQL."""
+
+
+class _OutOfMemory(Exception):  # noqa: N818  (carries DuckDB's error out)
+    """DuckDB's out-of-memory error, with the places of the columns read."""
+
+    def __init__(self, exc: duckdb.OutOfMemoryException, places: list[int]) -> None:
+        super().__init__(str(exc))
+        self.exc = exc
+        self.places = places
 
 
 def _gather(
@@ -288,57 +366,89 @@ def _gather(
     types: dict[str, DuckDBPyType],
     kinds: dict[str, str],
     exact: bool,
-) -> tuple[int, list[list[Any]]]:
-    """Return the rows and each column's values, in the statements' order.
+) -> tuple[int, list[dict[int | str, Any]]]:
+    """Return the rows and each column's values, by slot.
 
-    A column's values are its missing count, its kind's statistics, its
-    distinct count and, for a number, its quartiles. The scan, in blocks of
+    A column's slots are ``missing``, its kind's statistics (`_POSITIONS`),
+    ``distinct``, and for a number ``quartiles`` and the sums of its
+    deviations ``s1`` to ``s4``. The scan, in blocks of
     `_SCAN_COLUMNS` columns, reads all but the exact distinct counts and
-    quartiles, which follow in groups, a statement each, sized by the rows
-    the scan counted.
+    quartiles and the deviations, which need the scan's mean. Exact, those
+    follow in groups, a statement each, sized by the rows the scan counted;
+    estimated, the deviations follow in blocks of their own.
     """
     absent = [missing_sql(name, types[name]) for name in names]
-    scan: list[list[tuple[int, str]]] = []
-    holistic: list[list[tuple[int, str]]] = []
+    scan: list[list[Aggregate]] = []
+    held: list[list[Aggregate]] = []
     for k, name in enumerate(names):
-        cheap = [(k, _counted(absent[k]))]
-        cheap += [(k, a) for a in _statistics(kinds[name], name, absent[k])]
-        held = [(k, a) for a in _holistic(kinds[name], name, absent[k], exact)]
+        kind = kinds[name]
+        cheap: list[Aggregate] = [(k, "missing", _counted(absent[k]))]
+        cheap += [
+            (k, slot, a)
+            for slot, a in zip(
+                _POSITIONS[kind], _statistics(kind, name, absent[k]), strict=True
+            )
+        ]
+        estimates: list[Aggregate] = [
+            (k, slot, a)
+            for slot, a in zip(
+                ("distinct", "quartiles"),
+                _holistic(kind, name, absent[k], exact),
+                strict=False,  # a number has quartiles, nothing else does
+            )
+        ]
         if exact:
-            holistic.append(held)
+            held.append(estimates)
         else:
-            cheap += held
+            cheap += estimates
+            held.append([])
         scan.append(cheap)
-    found: list[list[Any]] = [[] for _ in names]
-    blocks = [
-        [a for cheap in scan[start : start + _SCAN_COLUMNS] for a in cheap]
-        for start in range(0, len(scan), _SCAN_COLUMNS)
-    ] or [[]]
-    rows = _run(source, [(-1, "count(*)"), *blocks[0]], found)
+    found: list[dict[int | str, Any]] = [{} for _ in names]
+    blocks = _blocks(scan, _SCAN_COLUMNS) or [[]]
+    rows = _run(source, [(-1, "rows", "count(*)"), *blocks[0]], found)
     for block in blocks[1:]:
         _run(source, block, found)
-    size = max(
-        1,
-        min(_EXACT_COLUMNS, duckdb_limit(connection()) // max(1, rows * _VALUE_BYTES)),
-    )
-    for start in range(0, len(holistic), size):
-        _run(
-            source, [a for held in holistic[start : start + size] for a in held], found
-        )
+    for k, name in enumerate(names):
+        mean = found[k].get(7) if kinds[name] == "number" else None
+        if mean is not None:
+            held[k] += [
+                (k, slot, a)
+                for slot, a in zip(
+                    ("s1", "s2", "s3", "s4"), _moments(name, mean), strict=True
+                )
+            ]
+    size = _SCAN_COLUMNS
+    if exact:
+        limit = duckdb_limit(connection())
+        size = max(1, min(_EXACT_COLUMNS, limit // max(1, rows * _VALUE_BYTES)))
+    for block in _blocks([h for h in held if h], size):
+        _run(source, block, found)
     return rows, found
 
 
+def _blocks(columns: list[list[Aggregate]], size: int) -> list[list[Aggregate]]:
+    """Cut the columns' aggregates into statements of `size` columns each."""
+    return [
+        [a for aggregates in columns[start : start + size] for a in aggregates]
+        for start in range(0, len(columns), size)
+    ]
+
+
 def _run(
-    source: Source, statement: list[tuple[int, str]], found: list[list[Any]]
+    source: Source, statement: list[Aggregate], found: list[dict[int | str, Any]]
 ) -> int:
-    """Run one statement, append each column's values, return the rows counted."""
+    """Run one statement, keep each column's values, return the rows counted."""
     rows = 0
-    fetched = _fetch(source, [aggregate for _, aggregate in statement])
-    for (k, _), value in zip(statement, fetched, strict=True):
+    try:
+        fetched = _fetch(source, [aggregate for _, _, aggregate in statement])
+    except duckdb.OutOfMemoryException as exc:
+        places = sorted({k for k, _, _ in statement if k >= 0})
+        raise _OutOfMemory(exc, places) from exc
+    for (k, slot, _), value in zip(statement, fetched, strict=True):
         if k < 0:
             rows = int(value)
         else:
-            found[k].append(value)
+            found[k][slot] = value
     return rows
 
 
@@ -355,8 +465,7 @@ def _profile(
     rows, found = _gather(source, names, types, kinds, exact)
     values = []
     for name, held in zip(names, found, strict=True):
-        missing, *statistics = held[: 1 + len(_POSITIONS[kinds[name]])]
-        distinct, *quartiles = held[1 + len(statistics) :]
+        missing, distinct = held["missing"], held["distinct"]
         present = rows - missing
         row: list[str | float | bool | None] = [None] * _FILLED
         row[:7] = [
@@ -368,10 +477,15 @@ def _profile(
             distinct,
             None if present == 0 else min(distinct / present, 1.0),
         ]
-        for target, value in zip(_POSITIONS[kinds[name]], statistics, strict=True):
-            row[target] = value
-        if quartiles and quartiles[0] is not None:
-            row[10:13] = quartiles[0]
+        for slot, value in held.items():
+            if isinstance(slot, int):
+                row[slot] = value
+        if held.get("quartiles") is not None:
+            row[10:13] = held["quartiles"]
+        if kinds[name] == "number":
+            row[8], row[17], row[18] = _shape(
+                held["finite"], [held.get(f"s{p}") for p in range(1, 5)]
+            )
         is_text = kinds[name] == "text"
         row += [types[name].id in _INTEGERS or is_text, is_text]
         values.append(f"({', '.join(literal(v) for v in row)})")
