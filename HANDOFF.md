@@ -3,9 +3,9 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-21 · Branch: `main` · Last commit: `dc2bfa3` Merge branch
-'engine-phase-0' · Checks: passing (`just verify` on `69de4c7`; `just test`:
-3187 passed on the merge)
+Updated: 2026-11-21 · Branch: `main` · Last commit: `7f4fcc9` docs: the handoff
+after pushing Phase 0 (#78) · Checks: passing (`just verify` on `69de4c7`;
+`just test`: 3187 passed on the merge `dc2bfa3`)
 Verify with: `just verify`
 
 ## In progress
@@ -14,10 +14,13 @@ None.
 
 ## Waiting on the user
 
+- The remote branch `engine-phase-0` (at `f2f9668`, behind `main`) is merged
+  and can be deleted: `git push origin --delete engine-phase-0`. (since
+  2026-11-21)
 - Benchmarks run on a loaded machine, to rerun on a quiet one if wanted:
-  `generators-on-many-threads.md` (#46), `gram-batches.md`, and both
-  `explore-*.md` pages (load up to 145, a Rust build and a VM running).
-  (since 2026-11-18)
+  `generators-on-many-threads.md` (#46), `gram-batches.md`, both
+  `explore-*.md` pages (load up to 145) and `engine-profile.md` (load 10 to
+  17, 2026-11-21). (since 2026-11-18)
 
 ## Next up
 
@@ -59,6 +62,11 @@ None.
   profile per statement to stderr, so a subprocess can capture them all. Its
   stderr also carries nanobind's leak report, printed at exit after any
   traceback. `duckdb_logs`' timestamps need pytz too: fetch them as text.
+  (2026-11-21)
+- The docs tagger keeps a stale `summary` after an ADR body is rewritten
+  (`mdindex tag` has no force): edit `summary` and `tags` by hand, never the
+  `mdindex:` line. After a merge, `git branch -d` refuses when the branch's
+  upstream is behind: check `git merge-base --is-ancestor` then `-D`.
   (2026-11-21)
 - The harness moves a long foreground command (`just test` chained with
   others) into the background after about 2 minutes: wait for its
@@ -159,12 +167,12 @@ None.
 
 ## Just finished
 
-- The backup branch `main_python` and tag `python-final` are pushed, with
-  `main` (Tomas, 2026-11-21).
-- Phase 0 of the native engine (#78), all on `engine-phase-0`: plan 0a, the
-  ADRs 0060–0068 and their follow-on edits (`876d95f`..`41e64cf`, fix wave
-  `ccc73ee`); Tomas's platform decision (ADR 0062, spec §3.3); the profiling
-  script and page (`f254178`..`9069d8f`); the spec revised to all of sqlearn
-  in C++ (`957c496`) with plan 0c (`f6d1818`..`a59fe84`: ADRs 0060 and 0067
-  rewritten, 0061, 0063, 0065, 0068, `CLAUDE.md`, overview, glossary, layout,
-  issues retitled); the inventory (`5488e8a`..`aa3d97c`). (2026-11-21)
+- Phase 0 of the native engine (#78, closed): merged as `dc2bfa3` and pushed.
+  Plan 0a, ADRs 0060–0068 (`876d95f`..`41e64cf`, fix wave `ccc73ee`); the
+  profiling script and page (`f254178`..`9069d8f`); the spec revised to all
+  of sqlearn in C++, Python its bindings, Mojo tried for GPU kernels
+  (`957c496`), applied by plan 0c (`f6d1818`..`a59fe84`); the inventory
+  (`5488e8a`..`aa3d97c`); the final review's fixes (`44f7e55`). Issues #79,
+  #82, #83, #84 retitled or updated. (2026-11-21)
+- The backup branch `main_python` and tag `python-final` are on GitHub.
+  (2026-11-21)
