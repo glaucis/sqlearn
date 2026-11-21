@@ -21,10 +21,6 @@ None.
 
 ## Next up
 
-- The last small fix, before Phase 1 (the migration comes before any new
-  library area: Tomas, 2026-11-21; spec §4): #75, Spearman's first scan
-  reads every chosen column; number it in column groups, as Pearson's
-  blocks are bounded.
 - Phase 1's spec (#79), brainstormed with Tomas. Its topics, from spec §4:
   the checks redesigned for two languages and for speed, the review of the
   libraries sqlearn and its tooling use, and how the C++ is documented; also
@@ -36,6 +32,10 @@ None.
   application; 3.3 candidates: text features, more preprocessing, truncated
   SVD, `cross_validate`; sqlearn's own models are Phase 5 (spec §3.9).
 - #65's other minor follow-ups (in its comments; #65 is closed).
+- #75 (Spearman's first scan reads every chosen column) is fixed in the
+  port, not in Python (Tomas, 2026-11-21): the C++ scan carries each row's
+  position, so the copy goes a column group at a time. The options weighed
+  are on the issue.
 
 ## Dead ends and traps
 
