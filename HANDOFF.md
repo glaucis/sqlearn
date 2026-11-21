@@ -3,9 +3,9 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-21 · Branch: `main` · Last commit: `7bb0e55` docs: update
-the handoff · Checks: passing (`just check`, and `just test`: 3178 passed, on
-`7bb0e55`; `just verify` not run this session)
+Updated: 2026-11-21 · Branch: `main` · Last commit: `eb62ff6` chore: share
+CLion's project settings · Checks: passing (`just check`, and `just test`:
+3178 passed, on `eb62ff6`; `just verify` not run this session)
 Verify with: `just verify`
 
 ## In progress
@@ -22,9 +22,6 @@ Verify with: `just verify`
 
 ## Waiting on the user
 
-- Pushing: `main` is ahead of `origin`. The backup branch `main_python` and
-  the annotated tag `python-final` (both at `ca2b720`, the last pure-Python
-  state) are local only, and are pushed when Tomas says. (since 2026-11-21)
 - Benchmarks run on a loaded machine, to rerun on a quiet one if wanted:
   `generators-on-many-threads.md` (#46), `gram-batches.md`, and both
   `explore-*.md` pages (load up to 145, a Rust build and a VM running).
@@ -167,8 +164,10 @@ Verify with: `just verify`
 - GitHub: milestone "Native engine"; #77 (CPU against GPU benchmarks, under
   #84) and #78 to #84 (Phases 0 to 6, each blocked by the one before), on the
   board; the hosting decision commented on #4 and #6. (2026-11-21)
-- The backup `main_python` and `python-final` at `ca2b720`, local.
-  (2026-11-21)
+- The backup branch `main_python` and annotated tag `python-final` at
+  `ca2b720`, the last pure-Python state, pushed with `main` (Tomas, 2026-11-21).
+  Everything else is committed and pushed too: the docs tagger's frontmatter
+  edits (`7ca5a5e`) and CLion's project settings (`eb62ff6`). (2026-11-21)
 - The repository is public (Tomas, 2026-11-21), the history searched for
   keys and tokens first (clean), secret scanning and push protection on; the
   README says sqlearn is not ready for use (`ca2b720`). (2026-11-21)
