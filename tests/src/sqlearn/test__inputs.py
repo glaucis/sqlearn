@@ -192,6 +192,27 @@ def test_a_relation_duckdb_cannot_read_is_an_input_error():
         read(rel)
 
 
+@pytest.mark.parametrize("kind", ["table", "frame", "relation", "file"])
+def test_a_connection_busy_with_the_users_result_is_refused_with_a_fix(kind, tmp_path):
+    """An unfinished `execute` result is named, and is still there after."""
+    con = duckdb.connect()
+    con.sql("CREATE TABLE t AS SELECT range::DOUBLE AS x FROM range(5000)")
+    path = tmp_path / "t.parquet"
+    con.sql(f"COPY t TO '{path}'")
+    sq.set_config(connection=con)
+    data = {
+        "table": "t",
+        "frame": pd.DataFrame({"x": [1.0, 2.0]}),
+        "relation": con.table("t"),
+        "file": str(path),
+    }[kind]
+    con.execute("SELECT * FROM t")
+    with pytest.raises(SqlearnError, match=r"unfinished result.*Why:.*Fix:"):
+        sq.explore.profile(data)
+    assert len(con.fetchall()) == 5000
+    con.close()
+
+
 def test_an_edited_frame_gets_a_new_key():
     """Changing one value changes the frame's key; equal frames agree."""
     df = pd.DataFrame({"age": [1, 2, 3], "city": ["a", "b", "c"]})

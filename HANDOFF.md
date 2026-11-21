@@ -21,12 +21,10 @@ None.
 
 ## Next up
 
-- The two small fixes left, before Phase 1 (the migration comes before any
-  new library area: Tomas, 2026-11-21; spec §4):
-  - #75: Spearman's first scan reads every chosen column; number it in
-    column groups, as Pearson's blocks are bounded.
-  - #76: `read` gives a raw `ResourceInUseException` on a busy user
-    connection; reword the `meta_sqlearn` trap below with it.
+- The last small fix, before Phase 1 (the migration comes before any new
+  library area: Tomas, 2026-11-21; spec §4): #75, Spearman's first scan
+  reads every chosen column; number it in column groups, as Pearson's
+  blocks are bounded.
 - Phase 1's spec (#79), brainstormed with Tomas. Its topics, from spec §4:
   the checks redesigned for two languages and for speed, the review of the
   libraries sqlearn and its tooling use, and how the C++ is documented; also
@@ -106,8 +104,10 @@ None.
   patch, `git checkout` the files, merge, `git apply` (a file the branch
   changed no longer takes it). (2026-11-20)
 - `meta_sqlearn` (ADR 0052): one transaction writes one attached database,
-  so it is written through a cursor; `con.execute` on the user's connection
-  discards their unfinished result. Database names match case-insensitively
+  so it is written through a cursor. With DuckDB 2.0 a user's unfinished
+  `execute` result is kept and any other statement on that connection is
+  refused (`ResourceInUseException`); `read` probes for it first and refuses
+  with a `Fix:`. Database names match case-insensitively
   in `ATTACH` but not in `duckdb_databases()` comparisons. (2026-11-18)
 - The level planner (`_calls` in `_compose.py`) reads SQL text: DuckDB's
   scalar `filter` is not an aggregate, a subquery's aggregates are its own,
@@ -159,6 +159,11 @@ None.
   (2026-11-06)
 
 ## Just finished
+
+- #76: `read` first runs `SELECT 1`, and a connection busy with the user's
+  unfinished `execute` result is refused with a `SqlearnError` and `Fix:`
+  for every kind of input (a file or relation is read lazily, so the raw
+  error used to come from a later statement). (2026-11-21)
 
 - `profile`'s skewness and kurtosis divide each sum by its power of the
   variance before the sample factor, so `[0, 0, 0, 6e102]` gives 2.0, not
