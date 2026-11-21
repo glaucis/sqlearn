@@ -3,28 +3,25 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-21 · Branch: `main` · Last commit: `e0f1a7d` docs: specify
-the native engine and its Phase 0 (#78) · Checks: passing (`just check`, and
-`just test`: 3178 passed, before `e0f1a7d`; `just verify` not run this
-session)
+Updated: 2026-11-21 · Branch: `main` · Last commit: `7bb0e55` docs: update
+the handoff · Checks: passing (`just check`, and `just test`: 3178 passed, on
+`7bb0e55`; `just verify` not run this session)
 Verify with: `just verify`
 
 ## In progress
 
 - [verified] Phase 0 of the native engine (#78). The spec
-  `docs/specs/native-engine.md` is approved and committed. Its two plans are
-  written but **uncommitted**:
+  `docs/specs/native-engine.md` and its two plans, approved by Tomas on
+  2026-11-21, are committed:
   `docs/plans/2026-11-21-native-engine-phase-0a-decisions.md` (ADRs 0060–0068,
   12 tasks) and `docs/plans/2026-11-21-native-engine-phase-0b-inventory.md`
-  (profiling and the inventory, 4 tasks). Next: once Tomas approves them, commit
-  both on `main`, make the worktree `.worktrees/engine-phase-0` on branch
-  `engine-phase-0`, and run plan 0a from Task 0.
+  (profiling and the inventory, 4 tasks). Next: run plan 0a from Task 0
+  (which makes the worktree `.worktrees/engine-phase-0` on branch
+  `engine-phase-0`), then plan 0b, both with
+  superpowers:subagent-driven-development (Tomas's choice).
 
 ## Waiting on the user
 
-- Review the two Phase 0 plans and choose how to run them: subagent-driven
-  (recommended: a fresh reviewer per ADR catches one deciding more than the
-  spec) or native. (since 2026-11-21)
 - Pushing: `main` is ahead of `origin`. The backup branch `main_python` and
   the annotated tag `python-final` (both at `ca2b720`, the last pure-Python
   state) are local only, and are pushed when Tomas says. (since 2026-11-21)
