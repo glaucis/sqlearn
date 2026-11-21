@@ -76,6 +76,10 @@ Rules from the ADRs:
 - float64 runs on the CPU: Accelerate on macOS, OpenBLAS elsewhere. No
   MLX. GPU kernels are Metal, compiled ahead of time. Never `-ffast-math`
   (0063).
+- The C++ follows the safety rules from its first commit: RAII, no raw
+  `new` or `delete`, one thin layer for raw memory, warnings as errors,
+  clang-tidy and the static analyser, sanitizers and fuzzing in CI, a
+  hardened standard library, and no crash reaching the user (0065).
 - Python 3.12 is the floor (0007). Every task runs through `just` (0008).
 - British English in prose, American spelling in identifiers (0010).
 - sqlearn ships, generates and fetches no datasets: the user brings their
