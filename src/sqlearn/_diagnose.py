@@ -18,7 +18,7 @@ from sqlearn._expr import quote
 from sqlearn._memory import _megabytes, duckdb_limit
 from sqlearn._step import Learned, Step, apply_rows
 
-__all__ = ["applying_out_of_memory", "diagnose"]
+__all__ = ["applying_out_of_memory", "diagnose", "exploring_out_of_memory"]
 
 _MISSING_COLUMN = re.compile(r'column "([^"]+)" not found', re.IGNORECASE)
 _REPORT = "https://github.com/glaucis/sqlearn/issues"
@@ -294,6 +294,48 @@ def applying_out_of_memory(exc: BaseException, sql: str) -> SqlearnError:
         f"Fix: {_joined(fixes)}. DuckDB says: {_first_line(exc)}"
     )
     return SqlearnError(msg)
+
+
+def exploring_out_of_memory(
+    exc: BaseException, sql: str, function: str
+) -> SqlearnError:
+    """Explain DuckDB running out of memory while an exploration function reads.
+
+    Parameters
+    ----------
+    exc : BaseException
+        DuckDB's out-of-memory error.
+    sql : str
+        The statement that failed, or the one that reads the data.
+    function : str
+        The function's name, for the message.
+
+    Returns
+    -------
+    SqlearnError
+        The why and the fixes: fewer columns, more memory, fewer threads, and
+        smaller row groups when the data is a Parquet file whose row groups
+        are too wide.
+
+    Examples
+    --------
+    >>> import duckdb
+    >>> from sqlearn._diagnose import exploring_out_of_memory
+    >>> err = exploring_out_of_memory(
+    ...     duckdb.OutOfMemoryException("no"), "SELECT 1", "top"
+    ... )
+    >>> str(err).split(" Why:")[0]
+    'DuckDB ran out of memory while `top` read the data.'
+    """
+    wide = _row_groups(sql)
+    fixes = ["pass fewer columns with cols=", *_memory_fixes(wide)]
+    why = "DuckDB's memory_limit is too small for the columns it reads at once."
+    if wide is not None:
+        why = f"{why} {wide[0]}"
+    return SqlearnError(
+        f"DuckDB ran out of memory while `{function}` read the data. Why: {why} "
+        f"Fix: {_joined(fixes)}. DuckDB says: {_first_line(exc)}"
+    )
 
 
 def _out_of_memory(

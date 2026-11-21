@@ -3,6 +3,7 @@
 import importlib
 import math
 
+import duckdb
 import numpy as np
 import pandas as pd
 import pytest
@@ -146,14 +147,59 @@ def test_no_rows_give_pairs_with_null_and_zero():
     assert sq.explore.correlations(empty).fetchall() == [("a", "b", None, 0)]
 
 
-def test_pairs_are_computed_in_chunks(monkeypatch):
-    """A small chunk gives the same answer as one statement."""
-    frame = _frame()
+def _wide() -> pd.DataFrame:
+    rng = np.random.default_rng(2)
+    frame = pd.DataFrame(rng.normal(size=(40, 5)), columns=list("abcde"))
+    frame.loc[0:5, "b"] = np.nan
+    frame.loc[10:12, "e"] = np.nan
+    return frame
+
+
+def test_tiles_give_the_same_pairs_order_and_values_as_one_statement(monkeypatch):
+    """Blocks of 2 over 5 columns (the last block partial) match one block."""
+    frame = _wide()
+    monkeypatch.setattr(module, "_BLOCK_COLUMNS", 100)
     whole = sq.explore.correlations(frame).fetchall()
-    monkeypatch.setattr(module, "_PAIRS_PER_QUERY", 2)
-    chunked = sq.explore.correlations(frame).fetchall()
-    assert sorted(chunked) == sorted(whole)
-    assert [(r[0], r[1]) for r in chunked] == [(r[0], r[1]) for r in whole]
+    monkeypatch.setattr(module, "_BLOCK_COLUMNS", 2)
+    tiled = sq.explore.correlations(frame).fetchall()
+    assert len(whole) == 10
+    assert [(r[0], r[1], r[3]) for r in tiled] == [(r[0], r[1], r[3]) for r in whole]
+    for a, b in zip(tiled, whole, strict=True):
+        assert math.isclose(a[2], b[2], rel_tol=1e-12)
+
+
+def test_a_tile_reads_only_its_two_blocks_of_columns(monkeypatch):
+    """No statement reads more than two blocks of columns."""
+    seen = []
+    original = module._pairs_query
+
+    def spy(pairs, select):
+        seen.append(select.count("END AS"))
+        return original(pairs, select)
+
+    monkeypatch.setattr(module, "_pairs_query", spy)
+    monkeypatch.setattr(module, "_BLOCK_COLUMNS", 2)
+    sq.explore.correlations(_wide())
+    assert (
+        len(seen) == 5
+    )  # 2 diagonal tiles (the last block has no pair) and 3 off-diagonal
+    assert max(seen) == 4
+
+
+def test_running_out_of_memory_is_refused_with_a_fix(monkeypatch):
+    """DuckDB's out-of-memory error becomes a SqlearnError with Why and Fix.
+
+    The error is forced by monkeypatching the statement runner: a real one
+    depends on the machine's memory.
+    """
+
+    def fail(*_args):
+        raise duckdb.OutOfMemoryException("Out of Memory Error: failed")
+
+    monkeypatch.setattr(module, "_run", fail)
+    with pytest.raises(SqlearnError, match=r"(?s)Why:.*Fix:.*cols=.*memory=") as info:
+        sq.explore.correlations(_wide())
+    assert "failed" in str(info.value)
 
 
 def test_out_is_honoured():
