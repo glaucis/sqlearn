@@ -8,7 +8,9 @@ related: [docs/adr/0005-runtime-dependencies.md, docs/adr/0058-a-gram-step-build
 
 Status: accepted (2026-11-20), with the
 [decomposition spec](../specs/library-decomposition.md). Chosen by Tomas on
-2026-11-20. Amends [ADR 0005](0005-runtime-dependencies.md).
+2026-11-20. Amends [ADR 0005](0005-runtime-dependencies.md). Amended by
+[ADR 0061](0061-sqlearn-ships-its-own-duckdb-build.md) (2026-11-21): numpy stays
+until the engine's linear algebra (Phase 3), when this is decided again.
 
 ## Context
 

@@ -47,6 +47,7 @@ Computation as SQL, and how a pipeline becomes runs.
 sqlearn's computation in C++, inside its own DuckDB build.
 
 - [0060: A native engine in C++, inside DuckDB](0060-a-native-engine-in-cpp-inside-duckdb.md)
+- [0061: sqlearn ships its own DuckDB build](0061-sqlearn-ships-its-own-duckdb-build.md)
 
 ## The API
 

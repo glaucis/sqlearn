@@ -62,10 +62,14 @@ Rules from the ADRs:
 - The API follows scikit-learn conventions; any departure needs its own ADR
   (0003). The verbs are sqlearn's own: `learn`/`apply` for steps,
   `train`/`predict` for models (0013).
-- The runtime dependencies are `duckdb` and `numpy`; any other needs a written
-  reason and a permissive licence (0004, 0005, 0057).
+- sqlearn runs on its own DuckDB build: the `duckdb` module, built from
+  DuckDB's source at a pinned release with the engine compiled in, shipped
+  as a second package beside sqlearn. With numpy it is the whole runtime;
+  anything else needs a written reason and a permissive licence (0004,
+  0005, 0057, 0061).
 - Nothing needs the network: no telemetry, no cloud, data never leaves the
-  machine (0006).
+  machine. sqlearn's DuckDB never downloads an extension by itself; one the
+  user installs works (0006, 0061).
 - Python 3.12 is the floor (0007). Every task runs through `just` (0008).
 - British English in prose, American spelling in identifiers (0010).
 - sqlearn ships, generates and fetches no datasets: the user brings their

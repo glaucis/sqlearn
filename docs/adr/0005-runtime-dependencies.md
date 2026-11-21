@@ -9,7 +9,9 @@ mdindex: [type=0fc814, tags=85b197, related=f6bc0a]
 
 Status: accepted (2026-11-03, from the earlier attempt's blueprint); amended by
 [ADR 0057](0057-numpy-is-a-runtime-dependency.md) (2026-11-20): numpy is a
-runtime dependency too.
+runtime dependency too. Amended by
+[ADR 0061](0061-sqlearn-ships-its-own-duckdb-build.md) (2026-11-21): sqlearn's
+own DuckDB build replaces `duckdb` from PyPI.
 
 ## Context
 
