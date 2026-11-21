@@ -246,11 +246,11 @@ def _assert_spearman_matches_pandas(rows, frame):
         (a, b) for i, a in enumerate(names) for b in names[i + 1 :]
     ]
     for a, b, correlation, count in rows:
-        # abs_tol for a correlation pandas gives as exactly 0: DuckDB sums
+        # An absolute bound only where pandas gives exactly 0: DuckDB sums
         # in its own order (ADR 0043), and no relative bound holds at 0.
-        assert math.isclose(
-            correlation, expected.loc[a, b], rel_tol=1e-12, abs_tol=1e-15
-        )
+        want = expected.loc[a, b]
+        near = 1e-15 if want == 0 else 0.0
+        assert math.isclose(correlation, want, rel_tol=1e-12, abs_tol=near)
         assert count == int(frame[[a, b]].dropna().shape[0])
 
 
@@ -405,6 +405,7 @@ def test_spearman_out_of_memory_while_ranking_is_refused_and_cleaned(monkeypatch
         sq.explore.correlations(_wide(), method="spearman")
     assert "ranking" in str(info.value)
     assert "the rows a rank sorts" in str(info.value)
+    assert "Fix: give DuckDB more memory" in str(info.value)
     assert _sqlearn_tables() == before
 
 

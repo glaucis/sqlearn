@@ -269,24 +269,29 @@ def correlations(
 
     Notes
     -----
-    A statement reads two blocks of columns, so memory follows the block, not
-    the width of the data. A Parquet file with large row groups still holds a
+    A Pearson statement reads two blocks of columns, so memory follows the
+    block, not the width of the data. A Parquet file with large row groups still holds a
     whole row group of the columns read on each thread: when that exceeds
     DuckDB's memory limit the call is refused with a ``Fix:`` (fewer
     ``cols=``, more memory with ``sq.set_config(memory=...)``, fewer threads,
     or the file rewritten with smaller row groups).
 
     Spearman reads the data once, into a temporary copy of the chosen
-    columns, cleaned and numbered by row, on sqlearn's connection: as large
-    as those columns, it goes to disk when it does not fit DuckDB's memory
-    limit, and it is dropped at the end, whether the call succeeds or
-    fails. Each column with no missing value is then ranked once, a sort of
-    its rows that holds only it and the row number, and the ranks of two
-    blocks, joined on the row number, are correlated as Pearson's are. A
-    pair touching a column with missing values is ranked again over that
-    pair's complete rows, from the copy, in a statement of its own that
-    reads only its two columns: two sorts per pair, so each sparse column
-    costs two sorts for every other column chosen.
+    columns, cleaned and numbered by row, on sqlearn's connection. That
+    scan is one statement reading every chosen column, so its memory
+    follows the width, not the block, and on a Parquet file each thread
+    holds a row group of all of them. The copy is as large as those
+    columns; when it does not fit DuckDB's memory limit it goes to DuckDB's
+    temporary directory (for an in-memory connection, ``.tmp`` in the
+    current directory by default). It is dropped at the end, whether the
+    call succeeds or fails. Each column with no missing value is then
+    ranked once, a sort of its rows that holds only it and the row number,
+    and the ranks of two blocks, joined on the row number, are correlated
+    as Pearson's are. A pair touching a column with missing values is
+    ranked again over that pair's complete rows, from the copy, in a
+    statement of its own that reads only its two columns: two sorts per
+    pair, so each sparse column costs two sorts for every other column
+    chosen.
 
     Examples
     --------

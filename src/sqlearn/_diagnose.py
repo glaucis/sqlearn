@@ -312,7 +312,8 @@ def exploring_out_of_memory(
     sorts : bool, default False
         Whether the function also sorts the rows (ranks them), which a
         smaller memory_limit cannot hold either and fewer columns do not
-        shrink; the why then says so.
+        shrink; the why then says so, and more memory and fewer threads
+        lead the fixes.
 
     Returns
     -------
@@ -333,6 +334,11 @@ def exploring_out_of_memory(
     """
     wide = _row_groups(sql)
     fixes = ["pass fewer columns with cols=", *_memory_fixes(wide)]
+    if sorts:
+        # A sort is helped by memory or threads first; fewer columns does not
+        # shrink it, so it comes after them (before the row groups' fix).
+        fixes = _memory_fixes(wide)
+        fixes.insert(len(fixes) - (wide is not None), "pass fewer columns with cols=")
     why = "DuckDB's memory_limit is too small for the columns it reads at once"
     if sorts:
         why = f"{why}, or for the rows a rank sorts, which fewer columns do not shrink"

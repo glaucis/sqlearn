@@ -108,8 +108,8 @@ only its two columns.
 | `w200.parquet`, `sq.set_config(memory="1GB")` | refused after 1.8 | 0.63 | 17.66 12.86 10.33; 16.73 12.74 10.30 |
 | `w200.parquet`, `memory_limit` 1 GB on 2 threads | 206.1 | 1.75 | 12.86 12.13 10.14; 10.11 10.46 9.77 |
 
-- **Without missing values** the time is close to Pearson's 48.3 s: 200
-  sorts of two columns, then the tiles' joins.
+- **Without missing values** the time is about 1.8 times Pearson's 48.3
+  s: 200 sorts of two columns, then the tiles' joins.
 - **With 50 sparse columns** the 8,725 pairs that touch one dominate: two
   sorts of the pair's rows each, about 0.08 s a pair under this load. The
   cost follows the number of sparse columns times the number of columns;
@@ -121,11 +121,13 @@ only its two columns.
   memory and fewer threads; the process was not killed. On a connection given
   `SET memory_limit = '1GB'` and `SET threads = 2`, the same call completed in
   206.1 s at a 1.75 GB peak. The numbered copy and the ranks, about 3.2 GB
-  together, cannot all have been in memory, so DuckDB wrote them to its
-  temporary directory.
+  together (estimated from 8 bytes a value, not measured on disk), cannot
+  all have been in memory, so DuckDB wrote them to its temporary directory.
 - The peaks are resident memory, the numbered copy and the blocks' ranks
   included. These are temporary tables in DuckDB's buffer pool, written to
-  its temporary directory when they pass `memory_limit`.
+  its temporary directory when they pass `memory_limit`: for an in-memory
+  connection such as sqlearn's own, `.tmp` in the current directory by
+  default (DuckDB's `temp_directory` setting).
 
 ### What was tried first
 
