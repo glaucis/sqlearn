@@ -3,23 +3,20 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-21 · Branch: `exploration` (worktree
-`.claude/worktrees/exploration`) · Last commit: `b10d464` docs: state the
-exploration budgets as DuckDB reported them (#74) · Checks: passing (`just
-verify` on it: 3190 passed, 24 skipped, every validation runner 0 fails)
+Updated: 2026-11-21 · Branch: `main` · Last commit: `b779980` Merge branch
+'exploration': sq.explore (#74) · Checks: passing (`just verify` on the
+branch head: 3190 passed, 24 skipped, every validation runner 0 fails;
+`just test` on the merge: 3178 passed) · `main` is not pushed
 Verify with: `just verify`
 
 ## In progress
 
-- #74, the exploration module `sq.explore` (3.6, the library module): built
-  on branch `exploration`, every task reviewed, final review and fix wave
-  done. Waiting on Tomas's merge (below).
+None.
 
 ## Waiting on the user
 
-- Merge `exploration` into `main` (28 commits; #74 closes on merge). The
-  rulings made during the build are listed in the session's summary and in
-  the spec's "ruled during the build" notes. (since 2026-11-21)
+- Push `main` (the #74 merge and the handoff before it are local only).
+  (since 2026-11-21)
 - The #46 benchmark (`docs/benchmarks/generators-on-many-threads.md`) was not
   on a quiet machine (load average about 4 to about 35) and can be rerun on
   request; so can `docs/benchmarks/gram-batches.md`, whose `file_row_number`
@@ -148,11 +145,11 @@ Verify with: `just verify`
 
 ## Just finished
 
-- #74 built on `exploration`: `sq.explore.profile`, `histogram`, `top`,
-  `missing`, `correlations` (Pearson, Spearman), ADR 0059, validation 809
-  pass, guide and benchmarks (`explore-correlations.md`,
-  `explore-larger-than-memory.md`: profile and Pearson run on 20 GB at a
-  1–2 GB DuckDB limit; Spearman refuses with a `Fix:`, #75). (2026-11-21)
+- #74 merged into `main` in `b779980` (closed): `sq.explore.profile`,
+  `histogram`, `top`, `missing`, `correlations` (Pearson, Spearman), ADR 0059,
+  validation 809 pass, guide and benchmarks (`explore-correlations.md`,
+  `explore-larger-than-memory.md`: profile and Pearson run on 20 GB at a 1–2 GB
+  DuckDB limit; Spearman refuses with a `Fix:`, #75). (2026-11-21)
 - #65's first follow-up, pushed: a column selector by position passes
   `refuse_positionals` (`sq.select`, `sq.decompose`), `d37b08d`.
   (2026-11-20)
