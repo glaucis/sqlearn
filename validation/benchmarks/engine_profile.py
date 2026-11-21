@@ -26,7 +26,7 @@ import tempfile
 import time
 from collections.abc import Callable
 from pathlib import Path
-from typing import TypedDict
+from typing import Any, TypedDict
 
 import duckdb
 
@@ -121,6 +121,9 @@ def probe(call: str, path: str, result: str, profiled: bool) -> None:
     """Run one call on one file, in this process; write its JSON to `result`."""
     con = duckdb.connect()
     sq.set_config(connection=con)
+    # Read before profiling starts, so these queries are not profiled.
+    threads = con.execute("SELECT current_setting('threads')").fetchone()[0]
+    memory_limit = con.execute("SELECT current_setting('memory_limit')").fetchone()[0]
     if profiled:
         con.execute("SET enable_profiling = 'json'")
     profiler = cProfile.Profile() if profiled else None
@@ -130,19 +133,18 @@ def probe(call: str, path: str, result: str, profiled: bool) -> None:
     else:
         CALLS[call](path)
     seconds = time.perf_counter() - start
-    out: dict = {
+    out: dict[str, Any] = {
         "s": seconds,
         "peak_gb": _peak() / 1e9,
-        "threads": con.execute("SELECT current_setting('threads')").fetchone()[0],
-        "memory_limit": con.execute(
-            "SELECT current_setting('memory_limit')"
-        ).fetchone()[0],
+        "threads": threads,
+        "memory_limit": memory_limit,
     }
     if profiler:
         stats = pstats.Stats(profiler).stats  # type: ignore[attr-defined]
         own = [
             (f"{file}:{line}({name})", tottime)
             for (file, line, name), (_, _, tottime, _, _) in stats.items()
+            # cProfile names C methods "<method 'x' of 'duckdb...' objects>".
             if "duckdb" not in name.lower()
         ]
         own.sort(key=lambda item: -item[1])
@@ -150,8 +152,40 @@ def probe(call: str, path: str, result: str, profiled: bool) -> None:
     Path(result).write_text(json.dumps(out))
 
 
-def run(call: str, path: Path, profiled: bool) -> dict:
-    """Run a probe in a subprocess; return its result, or why it failed."""
+def _failure(returncode: int, stderr: str) -> str:
+    """Return why a probe failed, in at most 80 characters.
+
+    A probe killed by a signal has a negative return code. Otherwise the cause
+    is the last line of stderr outside any profile JSON a profiled probe printed.
+    """
+    if returncode < 0:
+        return f"killed by signal {-returncode}"
+    decoder = json.JSONDecoder()
+    kept: list[str] = []
+    at = 0
+    while at < len(stderr):
+        start = stderr.find("{", at)
+        if start == -1:
+            break
+        try:
+            _, end = decoder.raw_decode(stderr, start)
+        except ValueError:
+            kept.append(stderr[at : start + 1])
+            at = start + 1
+            continue
+        kept.append(stderr[at:start])
+        at = end
+    kept.append(stderr[at:])
+    lines = [line.strip() for line in "".join(kept).splitlines() if line.strip()]
+    return (lines[-1] if lines else "no error")[:80]
+
+
+def run(call: str, path: Path, profiled: bool) -> dict[str, Any]:
+    """Run a probe in a subprocess; return its result, or why it failed.
+
+    A profiled run's wall time includes cProfile's overhead, which counts
+    toward Python's share.
+    """
     with tempfile.TemporaryDirectory(prefix="engine_profile_") as tmp:
         result = Path(tmp) / "result.json"
         try:
@@ -174,8 +208,7 @@ def run(call: str, path: Path, profiled: bool) -> dict:
         except subprocess.TimeoutExpired:
             return {"s": "failed", "error": "timed out"}
         if out.returncode:
-            lines = out.stderr.strip().splitlines()
-            return {"s": "failed", "error": (lines[-1] if lines else "no error")[:80]}
+            return {"s": "failed", "error": _failure(out.returncode, out.stderr)}
         data = json.loads(result.read_text())
     # DuckDB 2.0 prints each profile to stderr here, so both streams are read.
     if profiled:
@@ -187,7 +220,9 @@ def run(call: str, path: Path, profiled: bool) -> dict:
     return data
 
 
-def _row(call: str, width: int, runs: list[dict], profiled: dict) -> str:
+def _row(
+    call: str, width: int, runs: list[dict[str, Any]], profiled: dict[str, Any]
+) -> str:
     def fmt(value: object) -> str:
         return f"{value:.2f}" if isinstance(value, float) else str(value)
 
@@ -217,7 +252,7 @@ def main(argv: list[str]) -> None:
     json_path = argv[argv.index("--json") + 1] if "--json" in argv else None
     print(json.dumps(_machine(), indent=2))  # noqa: T201
     print("\nuptime before:", _uptime())  # noqa: T201
-    results: list[dict] = []
+    results: list[dict[str, Any]] = []
     rows: list[str] = []
     with tempfile.TemporaryDirectory(prefix="engine_profile_data_") as tmp:
         path = Path(tmp) / "data.parquet"

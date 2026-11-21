@@ -2,12 +2,13 @@
 
 import json
 from pathlib import Path
+from typing import Any
 
-from validation.benchmarks.engine_profile import parse_profiles, run
+from validation.benchmarks.engine_profile import _failure, parse_profiles, run
 from validation.benchmarks.gram_batches import _write
 
 
-def _profile(sql: str) -> dict[str, object]:
+def _profile(sql: str) -> dict[str, Any]:
     return {
         "query": {"sql": sql, "total_time": 0.5, "cpu_time": 0.4},
         "system": {"peak_buffer_memory": 10, "peak_temp_dir_size": 0},
@@ -65,6 +66,9 @@ def test_a_profiled_probe_reports_every_statement(tmp_path: Path):
     assert len(result["statements"]) >= 1
     assert 0 <= result["duckdb_s"] <= result["s"]
     assert len(result["python_top"]) <= 5
+    assert result["python_s"] >= 0
+    assert all(s["operators"] for s in result["statements"])
+    assert not any("current_setting" in s["sql"] for s in result["statements"])
 
 
 def test_a_failed_probe_is_reported_not_raised(tmp_path: Path):
@@ -72,3 +76,18 @@ def test_a_failed_probe_is_reported_not_raised(tmp_path: Path):
     result = run("scale", tmp_path / "missing.parquet", profiled=False)
     assert result["s"] == "failed"
     assert result["error"]
+
+
+def test_a_failure_names_the_error_not_the_profile_json():
+    """The cause is the last line outside any profile JSON on stderr."""
+    stderr = "Traceback\nValueError: boom\n" + json.dumps(
+        _profile("SELECT 1"), indent=2
+    )
+    assert _failure(1, stderr) == "ValueError: boom"
+    assert len(_failure(1, "x" * 200)) == 80
+    assert _failure(1, "") == "no error"
+
+
+def test_a_probe_killed_by_a_signal_is_named():
+    """A negative return code is a signal, reported with its number."""
+    assert _failure(-9, "") == "killed by signal 9"
