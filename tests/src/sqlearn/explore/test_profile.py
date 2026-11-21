@@ -373,6 +373,32 @@ def test_a_mean_that_overflows_leaves_the_shape_null(source):
         assert pd.isna(row[name])
 
 
+@pytest.mark.parametrize(
+    ("values", "nulls"),
+    [
+        # The squares overflow: no statistic of the three.
+        ([-1e308, 1e308, 0.0], {"std", "skewness", "kurtosis"}),
+        # The fourth powers overflow, the cubes do not (pandas: NaN).
+        ([1e100, 2e100, -1e100, 5e99], {"kurtosis"}),
+    ],
+)
+def test_deviations_that_overflow_leave_their_statistics_null(values, nulls):
+    """A finite mean whose powered deviations overflow gives NULL, not NaN.
+
+    The relation is read, not pandas, which shows NULL and NaN alike.
+    """
+    result = sq.explore.profile(pd.DataFrame({"x": values}))
+    row = dict(zip(result.columns, result.fetchall()[0], strict=True))
+    assert math.isfinite(row["mean"])
+    for name in ("std", "skewness", "kurtosis"):
+        assert (row[name] is None) is (name in nulls), name
+        assert row[name] is None or math.isfinite(row[name]), name
+    series = pd.Series(values)
+    for name, pandas in (("std", series.std), ("skewness", series.skew)):
+        if name not in nulls:
+            assert math.isclose(row[name], pandas(), rel_tol=1e-12), name
+
+
 def _mixed() -> pd.DataFrame:
     """Five columns of four kinds, with repeats, missing and infinite values."""
     return pd.DataFrame(

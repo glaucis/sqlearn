@@ -164,20 +164,29 @@ def _shape(
     first sum over `n` is how far the rounded mean is from it) by the
     binomial shift. Each statistic is None where pandas' is undefined:
     below 2, 3 and 4 values, and the shape where the values do not vary.
+    Each is None too where a sum it needs, or a power of `s2` it divides
+    by, is not finite (deviations whose square, cube or fourth power
+    overflows the largest double), where pandas gives inf or NaN.
     """
     known = [float(s) for s in sums if s is not None]
     if n < 2 or len(known) < len(sums):
         return None, None, None
     s1, r2, r3, r4 = known
     e = s1 / n
+    # Products, not `**`: a float power that overflows raises in Python.
     s2 = r2 - n * e * e
-    s3 = r3 - 3 * e * r2 + 2 * n * e**3
-    s4 = r4 - 4 * e * r3 + 6 * e * e * r2 - 3 * n * e**4
+    s3 = r3 - 3 * e * r2 + 2 * n * e * e * e
+    s4 = r4 - 4 * e * r3 + 6 * e * e * r2 - 3 * n * e * e * e * e
+    if not math.isfinite(s2):
+        return None, None, None
     std = math.sqrt(s2 / (n - 1))
     if n < 3 or s2 == 0:
         return std, None, None
-    skewness = n * math.sqrt(n - 1) / (n - 2) * s3 / (s2 * math.sqrt(s2))
-    if n < 4:
+    spread = s2 * math.sqrt(s2)
+    skewness = None
+    if math.isfinite(s3) and math.isfinite(spread):
+        skewness = n * math.sqrt(n - 1) / (n - 2) * s3 / spread
+    if n < 4 or not (math.isfinite(s4) and math.isfinite(s2 * s2)):
         return std, skewness, None
     adjust = (n + 1) * (n - 1) / ((n - 2) * (n - 3))
     kurtosis = adjust * n * s4 / (s2 * s2) - 3 * (n - 1) ** 2 / ((n - 2) * (n - 3))
@@ -265,7 +274,11 @@ def profile(
     standard deviation, skewness and kurtosis come from compensated sums
     (``fsum``) of the deviations about that mean, a second pass; where the
     mean overflows (finite values whose sum passes the largest double),
-    ``mean`` shows what ``favg`` gave and the three are NULL. The exact
+    ``mean`` shows what ``favg`` gave and the three are NULL. Each of the
+    three is NULL too where a sum it needs is not finite: the squared
+    deviations for all three, the cubed for skewness, the fourth powers
+    for kurtosis (as on ``[-1e308, 1e308, 0]``, where pandas gives inf or
+    NaN). The exact
     distinct counts and quartiles keep every value (a hash and a sort, held
     in memory), so they follow in groups of columns, with the deviations, a
     statement each that reads only its group's columns. A group holds as
