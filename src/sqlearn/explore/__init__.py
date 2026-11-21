@@ -8,7 +8,8 @@ Examples
 """
 
 from sqlearn.explore.histogram import histogram
+from sqlearn.explore.missing import missing
 from sqlearn.explore.profile import profile
 from sqlearn.explore.top import top
 
-__all__ = ["histogram", "profile", "top"]
+__all__ = ["histogram", "missing", "profile", "top"]
