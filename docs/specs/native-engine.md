@@ -1,34 +1,45 @@
 ---
 type: spec
-tags: [native-engine, c++, duckdb, apple-silicon, sqlearn]
-summary: "Spec for moving sqlearn's computation into a C++ engine compiled into its own DuckDB build, with the decisions and Phase 0 plan."
-related: [docs/architecture/overview.md, docs/questions/multi-engine-support.md, ADR 0058, ADR 0002, ADR 0060, ADR 0061, ADR 0005, ADR 0006]
-mdindex: [type=d4f02e, tags=bc1538, summary=bda23d, related=a01efa]
+tags: [native-engine, c++, duckdb, python-bindings, architecture]
+summary: "Spec for sqlearn becoming a C++ library embedding DuckDB with Python as nanobind bindings, recording decisions and Phase 0."
+related: [docs/architecture/overview.md, docs/questions/multi-engine-support.md, ADR 0002, ADR 0005, ADR 0006, ADR 0007, ADR 0010, ADR 0015]
+mdindex: [type=d4f02e, tags=b05f98, summary=87b2b4, related=4fa03b]
 ---
 # Native engine: the decisions, and Phase 0
 
-A new part of [the overview](../architecture/overview.md): sqlearn's
-computation moves into a C++ engine compiled into sqlearn's own DuckDB build.
-This spec records the decisions Tomas made with an agent on 2026-11-21, each
-of which becomes an ADR, and specifies Phase 0. Each later phase gets a spec of
-its own.
+A new part of [the overview](../architecture/overview.md): sqlearn becomes a
+C++ library that embeds DuckDB, and Python becomes a thin layer of bindings
+over it, as Polars is Rust with Python on top. This spec records the decisions
+Tomas made with an agent on 2026-11-21, each of which becomes an ADR, and
+specifies Phase 0. Each later phase gets a spec of its own.
 
-Status: approved by Tomas on 2026-11-21. Phase 0 is
-[#78](https://github.com/glaucis/sqlearn/issues/78).
+Status: approved by Tomas on 2026-11-21; revised and approved again the same day
+(Tomas: "all pure C++", Python and any later language as bindings); the revision
+rewrote §1, §2, §3.1, §3.8, §4 and §5.3, and added to §3.2, §3.4 (Mojo) and
+§3.6. Phase 0 is [#78](https://github.com/glaucis/sqlearn/issues/78).
 
 ## 1. Purpose
 
-- **One engine.** Everything that computes runs inside DuckDB: the steps'
-  learning, statistics, sqlearn's own models, and later GPU kernels. No data
-  is copied out to Python or to other libraries.
-- **C++, compiled into DuckDB.** C++ was chosen over Rust because DuckDB's
-  internals (physical operators, optimiser rules, a GPU executor) and Apple's
-  Metal API are C++, and one native language is wanted, not Rust now and C++
-  later.
-- **sqlearn stays the product:** the Python library users install and import
-  instead of scikit-learn. Python stays the API (scikit-learn style, used in
-  notebooks) and the bridge to Python things: outside models, Optuna, users'
-  own steps, hand-overs to pandas, Polars and Arrow, saving to JSON.
+- **All of sqlearn in C++** (Tomas, 2026-11-21): the pipeline, the steps,
+  the SQL it builds, the learning store, the search, saving, exploration,
+  metrics, and later sqlearn's own models and GPU kernels. Python keeps no
+  logic of its own, only bindings. Tomas's reasons:
+  - if sqlearn becomes popular, bindings for other languages (Rust, R or
+    others) can follow, each a wrapper over the same core, written once;
+  - one language is easier and more uniform than logic split between Python
+    and C++;
+  - everything else is wrapping.
+- **One engine.** Everything that computes still runs inside DuckDB (ADR
+  0002): the steps' learning, statistics, sqlearn's own models, and later GPU
+  kernels. No data is copied out, except to an outside model the user chose.
+- **C++, not Rust,** because DuckDB's internals (physical operators,
+  optimiser rules, a GPU executor) and Apple's Metal API are C++, and one
+  native language is wanted, not Rust now and C++ later.
+- **To Python users nothing changes:** they install and import sqlearn
+  instead of scikit-learn, and `sq.` keeps its API (scikit-learn style, used
+  in notebooks). The bindings carry the bridge to Python things: outside
+  models, Optuna, users' own steps written in Python, hand-overs to pandas,
+  Polars and Arrow.
 - **Apple silicon first.** A Mac gets everything the chip has: CPU cores, the
   matrix units, the GPU, unified memory. Every other platform gets a safe CPU
   build. Tomas: data preparation on Apple silicon, with unified memory, is one
@@ -36,31 +47,38 @@ Status: approved by Tomas on 2026-11-21. Phase 0 is
 - **Memory safety** is the main worry about C++, so the safety rules bind
   from the first commit (§3.6).
 
-What there is today: only the Gram learn sends data through Python to compute
-something (ADR 0058). Everything else already runs in DuckDB as SQL, and
-Python only finishes a few numbers (F scores, skewness, PCA's `eigh`). So the
-engine moves little and adds most: kernels that SQL does badly (wide
-aggregates such as XᵀX), functions DuckDB lacks (the distributions behind
-p-values, linear algebra), and sqlearn's own models.
+What there is today: 74 Python modules, about 31,500 lines with their
+docstrings, and 27,400 lines of tests. Only the Gram learn sends data through
+Python to compute something (ADR 0058); everything else already runs in DuckDB
+as SQL that Python builds, and Python finishes a few numbers (F scores,
+skewness, PCA's `eigh`). So the port rewrites the library's logic, the SQL
+builder above all, rather than its computation, and the engine adds kernels
+that SQL does badly (wide aggregates such as XᵀX), functions DuckDB lacks
+(the distributions behind p-values, linear algebra), and sqlearn's own models.
 
 ## 2. What it looks like
 
 ```text
 uv add sqlearn            installs sqlearn and sqlearn's DuckDB build together
 
-sqlearn                   Python: the API, the pipeline, the SQL it builds
+sqlearn (C++)             the library: pipeline, steps, the SQL it builds,
+                          store, search, saving, explore, metrics, models;
+                          its kernels registered in DuckDB as `sqlearn_*`
+sqlearn (Python)          thin nanobind bindings: `import sqlearn as sq`
 sqlearn's DuckDB build    the `duckdb` module: DuckDB from its official
-                          source, the extensions sqlearn needs, and the
-                          engine (the `sqlearn` extension, C++)
+                          source and the extensions sqlearn needs; the
+                          same DuckDB the C++ library runs in
+later                     a C layer over the C++, for languages that need
+                          one (R, Rust), and their bindings
 ```
 
 ```python
-import duckdb  # sqlearn's build, with the engine inside
+import duckdb  # sqlearn's build: one DuckDB, shared with the C++ library
 import sqlearn as sq
 
-duckdb.sql("SELECT sqlearn_version()")  # the engine answers (Phase 1)
+sq.version()  # answered by the C++ library (Phase 1)
 pipe = sq.Pipeline([sq.scale(), sq.decompose.pca(n_components=3)])
-pipe.learn("big/*.parquet")  # XᵀX built inside DuckDB (Phase 2)
+pipe.learn("big/*.parquet")  # one call into C++; XᵀX built inside DuckDB
 ```
 
 ```sql
@@ -73,15 +91,43 @@ SELECT sqlearn_gram([a - 1.5, b - 2.0, c - 0.3]) FROM data
 Each subsection becomes one ADR; the numbers are proposed. "Considered" names
 what was weighed and why it lost.
 
-### 3.1 The engine (ADR 0060; amends 0002)
+### 3.1 sqlearn is a C++ library; Python is its bindings (ADR 0060; amends 0002)
 
-- The engine is C++: a DuckDB extension named `sqlearn`, written against
-  DuckDB's internal C++ API. That API changes between releases, so the engine
-  is built for one DuckDB version; Tomas accepts the exact pin and an upgrade
-  per release (§3.2).
-- Python reaches it only through SQL: sqlearn calls the engine's functions in
-  the SQL it already builds. No pybind11 or nanobind layer, unless a later ADR
-  shows that SQL cannot carry something.
+- **The library is C++**, embedding DuckDB and written against DuckDB's
+  internal C++ API. That API changes between releases, so sqlearn is built
+  for one DuckDB version; Tomas accepts the exact pin and an upgrade per
+  release (§3.2). Its kernels (XᵀX, the distributions, later the models and
+  GPU kernels) are registered in DuckDB as functions and run inside its
+  queries; the C++ library builds the SQL that calls them, as the Python
+  does today.
+- **Python is a thin layer of bindings**, written with nanobind (BSD-3): the
+  lowest per-call cost of the C++ binding tools, smaller and faster to build
+  than pybind11, by the same author; zero-copy numpy and Arrow arrays; and
+  CPython's stable ABI from 3.12, so one build serves every Python from our
+  floor (ADR 0007). DuckDB 2.0's own Python module is built with it. The
+  bindings hold no logic: they convert arguments, hand Python objects
+  (outside models, Optuna, users' own steps, data frames) to the C++ through
+  interfaces the C++ defines, and keep `sq.`'s names, docstrings and errors.
+  A call such as `learn` crosses into C++ once, never once per row.
+- **The one seam to Python steps** (the agent's call): a step written in
+  Python, built from DuckDB's Python expressions (today every step is; ADR
+  0019 inspects an undeclared one by calling its `apply`), reaches the C++
+  compositor through one interface the C++ defines: the bindings call the
+  Python step's methods and hand its expressions over as DuckDB expressions,
+  which cross unchanged because there is one DuckDB (§3.2). That seam lets
+  the core be ported first while the built-in steps are still Python, and
+  stays afterwards for the users' own steps: users keep writing their own
+  steps in Python after the port (Tomas, 2026-11-21), and those run as fast
+  as today, while sqlearn's own steps are C++.
+- **Other languages bind later, when wanted** (Tomas, 2026-11-21): Python
+  binds the C++ directly now. A small C layer over the C++ comes when a
+  language that needs one (R, Rust) is wanted, and each such language binds
+  that layer. Nothing in the C++ is rebuilt for it: the C layer sits on top.
+- **The C++ API is internal** (Tomas, 2026-11-21): only Python's `sq.` is
+  public, and the C++ names may change at any time until sqlearn is done,
+  tested and verified. Publishing a supported C++ API, with stable names,
+  documentation and versions, is a later ADR ("better to be safe than let
+  users down").
 - Its SQL functions start with `sqlearn_` (fewer collisions later, and plainly
   sqlearn's in the generated SQL); identifiers use American spelling (ADR
   0010).
@@ -100,13 +146,24 @@ what was weighed and why it lost.
     translator (sqlglot or another) can plug in there for a later
     `engine="postgresql"`
     ([questions/multi-engine-support.md](../questions/multi-engine-support.md)).
-- Amends 0002: computation stays inside DuckDB, and the engine's functions
-  join DuckDB's own. The generated SQL can always be inspected; it runs in any
-  DuckDB where its plain twin exists.
-- Considered: DuckDB's stable C API, called from C++ (one build loads into
-  later DuckDB releases, but functions only, no operators or optimiser rules,
-  and its template is marked experimental); Rust (a second native language
-  later); a Python binding layer (another boundary to keep safe).
+- Amends 0002: computation stays inside DuckDB, and sqlearn's functions
+  join DuckDB's own; the glue that builds the SQL and finishes a few numbers
+  is C++ instead of Python. The generated SQL can always be inspected; it runs
+  in any DuckDB where its plain twin exists.
+- Considered:
+  - C++ only for the heavy parts, called from SQL that Python builds (this
+    spec as first approved): two languages holding logic, and every other
+    language would need the Python rewritten.
+  - Bindings only at the end, the C++ tested by C++ ports of the tests: a
+    difference from today's answers shows up only at the end, across the
+    whole library, and the tests are written twice (Tomas chose bindings
+    from the start, 2026-11-21).
+  - A C layer from the start: more work now for languages not yet wanted.
+  - pybind11 (higher call cost, larger builds), Cython (a third language),
+    CPython's C API by hand (much code, easy to get wrong).
+  - DuckDB's stable C API (one build loads into later DuckDB releases, but
+    functions only, no operators or optimiser rules, and its template is
+    marked experimental); Rust (a second native language later).
 
 ### 3.2 sqlearn's own DuckDB build (ADR 0061; amends 0005, 0006, 0057)
 
@@ -122,9 +179,19 @@ what was weighed and why it lost.
   nothing else needs it (checked with `uv tree --invert`).
 - **It ships as a second package**, installed by the same `uv add sqlearn`
   (name chosen in Phase 1; `sqlearn-duckdb` is a placeholder). sqlearn
-  requires its exact version. A Python-only fix then ships without rebuilding
-  DuckDB, and Python changes never set off the C++ build. Shipping both in one
-  package instead holds the identical program, so it would not be faster.
+  requires its exact version. A change to sqlearn then ships without
+  rebuilding DuckDB. Shipping both in one package instead holds the identical
+  program, so it would not be faster.
+- **One DuckDB in the process** (added by the revision): the `duckdb` module
+  and sqlearn's C++ library must run in the same DuckDB, so that a user's
+  connection (`sq.set_config(connection=con)`) and the data frames they hand
+  in reach the C++ as they are, and the C++ is handed the C++ connection
+  behind the Python one. Two copies of DuckDB linked into two binaries would
+  be two databases that cannot see each other's data. Phase 1 decides how:
+  both packages linking one shared DuckDB library, or the C++ library
+  compiled into the DuckDB build's package. If the second, the two packages
+  become one, and the reason above for two lapses; §2 and Phase 1 name two
+  packages only as the default.
 - **At start, sqlearn checks that `duckdb` is its build** (the engine
   answers). If another package has replaced it with the official one, sqlearn
   refuses with its `Why:` and `Fix:` lines.
@@ -233,6 +300,27 @@ what was weighed and why it lost.
   and later uses 0.5 ms (measured on the M3). Kernels use only what every
   Apple GPU has, from the M1; per-chip variants or tuning are chosen at run
   time, each where a measurement shows it pays.
+- **Mojo is tried beside Metal** when the GPU kernels are benchmarked (Phase
+  6, #77; Tomas, 2026-11-21). Mojo 1.0 (August 2026) is open source under
+  Apache-2.0 with LLVM exceptions, compiler included, and compiles GPU
+  functions for Apple silicon to the same intermediate form as Metal (AIR).
+  It also compiles the same kernel for NVIDIA and AMD GPUs, so one source
+  could serve every GPU sqlearn supports later, with no second and third
+  version to maintain (Tomas, 2026-11-21); NVIDIA's GPUs have float64, which
+  Apple's lack. **If Mojo matches Metal on Apple silicon, Mojo becomes the
+  language of sqlearn's GPU kernels**, and Metal stays only where Mojo falls
+  short. Phase 6 decides it, by testing, against these conditions, all
+  measured:
+  - as fast as the Metal version on Apple silicon, within the run-to-run
+    spread;
+  - answers bit for bit the CPU's (§3.5), on each GPU it runs on;
+  - compiled ahead of time, with nothing compiled at start and no runtime
+    added beyond what the kernels need;
+  - callable from the C++ library through a plain C interface;
+  - everything that ships under it permissive (ADR 0066).
+
+  Otherwise C++ and Metal stay the native languages, as §1 wants. Either way
+  the GPU stays Apple's only until another vendor's can be tested (§3.3).
 - **No `-ffast-math`** anywhere, since it swaps in less accurate routines;
   Metal kernels compile in safe math mode (Metal's default is fast).
 - Considered: MLX (above); cross-platform GPU layers (WebGPU, Vulkan, SYCL,
@@ -286,6 +374,9 @@ Binding from the first commit.
   other build is built and tested (the agent's call).
 - **Fuzzing:** libFuzzer on each function's pure core (random, NaN, ±inf,
   empty and huge inputs), in CI.
+- **C++ tests** of the C++ library's internals, beside the Python tests that
+  check its behaviour (§3.8); the framework is Phase 1's choice (a permissive
+  one, ADR 0066).
 - **SQL-level tests:** DuckDB sqllogictest files for every function.
 - **Numerics:** the ADR 0016 method (exact values from mpmath or `Fraction`,
   bounds in ULPs per ADR 0043), run from Python against the built engine.
@@ -309,20 +400,47 @@ Binding from the first commit.
 - Considered: keeping ADR 0004's four licences, which would rule out bundling
   DuckDB as it is.
 
-### 3.8 How computation moves (ADR 0067)
+### 3.8 How the library is ported (ADR 0067)
 
-- `main` stays green. Each phase has its own spec, plan and branch in a
-  worktree, and Tomas merges it; `just verify` passes on `main` after every
+- **The whole library is ported to C++, piece by piece, with `main` green**
+  (Tomas chose this over bindings at the end, 2026-11-21). From Phase 1 the
+  Python package calls the C++ for each piece already ported and today's
+  Python for each piece still waiting; at the end no logic is left in
+  Python, only the bindings. Each phase has its own spec, plan and branch in
+  a worktree, and Tomas merges it; `just verify` passes on `main` after every
   merge.
 - **The Python API and its tests are the contract:** about 3,190 tests and
-  the validation runners (ADR 0016). A piece moves when its C++ version passes
-  the same tests unchanged and its benchmark is not slower; only then is its
-  Python computation deleted. A test of the public API changes only with an
-  ADR saying why the behaviour changes. A test of an internal that the move
-  deletes (the numpy Gram batches, say) goes with it, and the phase's spec
-  names it.
-- **Move by evidence, then by the vision:** profile where time and memory go
-  before choosing what moves next (§5.3).
+  the validation runners (ADR 0016), run against the C++ through the bindings
+  at every step, as Polars' Python tests run against its Rust. A piece is
+  ported when its C++ version passes the same tests unchanged and its
+  benchmark is not slower; only then is its Python deleted. A test of the
+  public API changes only with an ADR saying why the behaviour changes.
+- **Tests of internals** (the agent's call): 69 of the 96 test files import a
+  private module (`sqlearn._config`, `_store`, `_saving`, `_errors`, `_step`
+  most), and the validation runners reach into some (`learned_from_gram`).
+  The bindings keep no copies of private modules for them. When a piece is
+  ported, each test of its internals is rewritten against the public API
+  where the behaviour is public, or becomes a C++ test where it is not; the
+  phase's spec lists them, and no ADR is needed, since no public behaviour
+  changes. The gate "the same tests unchanged" applies to the public API's
+  tests and the validation runners' verdicts.
+- **A piece** is one group of the inventory (§5.3), not a module (the agent's
+  call). Inside a group's branch the code may be slower for a while, as
+  Python and C++ call each other; the group merges only when its benchmark,
+  run on the same data and machine with the load recorded, is not slower
+  than before the group. A difference within the run-to-run spread of two
+  runs counts as not slower.
+- **Saving keeps its behaviour exactly:** files saved before the port load
+  after it, and `sq.load`'s security rules hold in C++ (a static class
+  lookup; values reach exact arithmetic only as plain numbers). The saving
+  group gets a whole-branch security review of its own, as #55 and #65 did.
+- **Users' own steps:** see §3.1.
+- **The order** comes from the inventory (§5.3): what the rest depends on,
+  and what the profiling shows costs most.
+- **What stays Python:** in the library, only the bindings. The development
+  tools stay Python too: the tests, the validation that compares sqlearn with
+  scikit-learn (itself Python), the benchmarks and `devdata/`. None of them
+  ship.
 - **Measure honestly,** by HANDOFF's rules: `uptime` before and after, one
   probe per subprocess, large data written as Parquet with `COPY`, peak memory
   read twice.
@@ -346,31 +464,42 @@ Binding from the first commit.
 scikit-build-core), 0003, 0007 (stable-ABI builds keep the 3.12 floor), 0008
 (new recipes, same runner), 0009 (Pages, now from the public repository; ADR
 0062 adds an Amended-by line), 0010, 0015 (our build has the same Python
-expression objects), 0016, 0043 (order-free exact sums noted as a later option,
+expression objects; once the compositor is ported, it is the one place SQL
+is rendered in C++), 0016, 0043 (order-free exact sums noted as a later option,
 about 6 times the cost of XᵀX), and 0058, which Phase 2 supersedes, not Phase 0.
 
 ## 4. The phases
 
 | Phase | What | Done when |
 |---|---|---|
-| 0 | This spec: the decisions as ADRs, the inventory, the backup, the issues | §5 |
-| 1 | The engine's skeleton and sqlearn's DuckDB build | `sqlearn_version()` answers from Python on every platform's build, the safety stack runs in CI |
-| 2 | `sqlearn_gram`, and PCA on it | every PCA test and `validate_pca` pass unchanged, not slower, numpy Gram path removed |
-| 3 | Numeric functions | each function validated against mpmath; PCA's `eigh` in the engine |
-| 4 | sqlearn's own models, one spec each | each validated and benchmarked against scikit-learn |
-| 5 | The pipeline compiler in C++ | only when a non-Python client (the apps, DuckDB-WASM) needs it |
+| 0 | This spec: the decisions as ADRs, the inventory (the port's order), the backup, the issues | §5 |
+| 1 | sqlearn's DuckDB build, the C++ library's skeleton and its Python bindings, CI | `sq.version()` answers from the C++ on every platform's build, one DuckDB in the process, the safety stack runs in CI |
+| 2 | `sqlearn_gram`, and PCA's learn on it | every PCA test and `validate_pca` pass unchanged, not slower, numpy Gram path removed |
+| 3 | Numeric functions | each function validated against mpmath; PCA's `eigh` in C++ |
+| 4 | The rest of the library, in the inventory's order, one spec per group | every test passes unchanged against the C++, no logic left in Python |
+| 5 | sqlearn's own models, one spec each | each validated and benchmarked against scikit-learn |
 | 6 | Apple GPU kernels | one kernel at a time, each faster where it runs (#77) |
 
 - **Phase 1:**
   - `engine/` with DuckDB and its Python package as submodules at 2.0.1, built
-    as sqlearn's DuckDB (scikit-build-core, stable ABI), the `sqlearn`
-    extension compiled in;
-  - `sqlearn_version()` loaded from Python in a test, and the start-up check;
+    as sqlearn's DuckDB (scikit-build-core, stable ABI);
+  - the C++ library's skeleton in the same DuckDB (§3.2's "one DuckDB in the
+    process"), with nanobind bindings: `sq.version()` answered from C++ in a
+    test, a user's connection passed through to C++, and the start-up check;
   - no automatic downloads;
   - the safety stack in CI on every platform;
   - ready-made builds from CI;
   - `just` recipes (`build-engine`, `test-engine`) folded into `just check`,
     `just test` and `just verify`;
+  - the checks redesigned for two languages and for speed (Tomas,
+    2026-11-21): locally, only the tests a change affects (for example
+    `pytest-testmon` for Python, CTest for C++), tests in parallel, and no
+    test run for a docs-only commit; the full suite and `just verify` run in
+    CI on every push, and green CI is required before a merge to `main`;
+  - the libraries sqlearn and its tooling use reviewed, kept or replaced
+    (Tomas, 2026-11-21);
+  - how the C++ is documented: comments in Doxygen's format, the site staying
+    on Sphinx (Breathe if the internals are ever published);
   - the third-party file and `NOTICE`;
   - our build benchmarked against the official one on sqlearn's benchmarks,
     and the hardened standard library's cost measured.
@@ -393,56 +522,82 @@ about 6 times the cost of XᵀX), and 0058, which Phase 2 supersedes, not Phase 
 
   It unlocks the p-value selectors (`SelectFpr`, `SelectFdr`, `SelectFwe`),
   a 3.3 area of their own, and settles numpy's place (ADR 0057).
+- **Phase 4:** the rest of the library, in groups from the inventory, each
+  with its own spec: for example the expression and naming layer, the
+  compositor and planner, the step framework and the steps, the store,
+  saving, explore, metrics, model selection, and the hand-overs to Python
+  libraries through the bindings. Its specs may split it into several
+  numbered phases.
 - **Phase 6** may start sooner for one kernel a model needs (boosting's
-  histograms in Phase 4), if the evidence says so.
+  histograms in Phase 5), if the evidence says so.
+- **After the port:** the C layer and other languages when wanted (§3.1),
+  and the decision to publish a C++ API.
 
-**The order of work** (Tomas, 2026-11-21): the migration comes first, planned
-from start to end over sqlearn's whole current state, and done piece by piece
-with `main` green. From Phase 1 all of sqlearn's SQL runs in sqlearn's DuckDB
-build; Phases 2 and 3 move what Python and numpy still compute; the inventory
-(§5.3) is the migration's full map, module by module. Python stays the API
-(§1). Before Phase 1, HANDOFF's three small queued fixes land (the one-line
+**The order of work** (Tomas, 2026-11-21): the port comes first, planned from
+start to end over sqlearn's whole current state, and done piece by piece with
+`main` green. From Phase 1 all of sqlearn's SQL runs in sqlearn's DuckDB build
+and the Python package loads the C++ library's bindings, calling the C++ for
+each piece already ported and its own Python for the rest; Phases 2 to 4 port
+the library; the inventory (§5.3) is the port's full map, module by module.
+Before Phase 1, HANDOFF's three small queued fixes land (the one-line
 `profile` fix, #75, #76; the agent's call). New library areas wait until the
-migration is done, and work that needs an engine function (p-values,
-normality tests) waits for the phase that brings it.
+port is done, and work that needs an engine function (p-values, normality
+tests) waits for the phase that brings it.
 
 ## 5. Phase 0's deliverables
 
 ### 5.1 The backup
 
 Before any engine work, the branch `main_python` and the annotated tag
-`python-final` at `main`'s tip (`ca2b720` today, pure Python), local only;
-pushed when Tomas says.
+`python-final` at `main`'s tip (`ca2b720`, pure Python), pushed with `main`
+on Tomas's word (2026-11-21).
 
 ### 5.2 The ADRs
 
 ADRs 0060 to 0068 as in §3, each with an "Amended by" line added to every ADR
 it amends (0002, 0004, 0005, 0006, 0009, 0017, 0046, 0057), and grouped in
-`docs/adr/index.md` under a topic of their own.
+`docs/adr/index.md` under a topic of their own. The revision rewrites 0060 and
+0067 in place, since neither has reached `main` yet (the agent's call): a
+superseding ADR on their first day would only add a record of a draft. It
+also updates, as they follow:
+
+- ADR 0061 (one DuckDB in the process, and the second package as the
+  default), 0065 (the C++ tests) and 0068 (models in Phase 5);
+- `CLAUDE.md`'s rules from 0060 and 0067, the overview (§2, part 3.10 and
+  its "done when", the models' phase in §3.3), `GLOSSARY.md` (the engine,
+  sqlearn's C++ library, the bindings) and `layout.md`;
+- the GitHub issues (§5.5);
+- plan 0b's inventory task, for §5.3's new columns.
 
 ### 5.3 The inventory
 
-`docs/architecture/engine-inventory.md`: every module of `src/sqlearn` in
-one of three groups, with its reason:
+`docs/architecture/engine-inventory.md`, the port's map: every module of
+`src/sqlearn`, with:
 
-- **moves to C++**, naming the phase and the function;
-- **stays Python**, saying why;
-- **later**, saying what would trigger it.
+- the **phase** that ports it (2, 3, or 4 with its group), and the C++ that
+  replaces it: a kernel (`sqlearn_gram`), a numeric function, or a part of
+  the C++ library;
+- what **stays in the bindings** from it, if anything: the `sq.` names and
+  docstrings, and the bridge to Python objects (outside models, Optuna,
+  users' own steps, data frames);
+- what it **depends on** among the other modules, since a module is ported
+  after what it calls, or the bindings carry the seam between them;
+- the **evidence**: the profiling page's numbers, where there are any.
 
-The draft grouping, to be confirmed by the profiling:
+The draft order, to be confirmed by the dependencies and the profiling:
 
-| Area | Modules | Group |
+| Area | Modules | Ported in |
 |---|---|---|
-| The Gram learn | `_gram.py` | moves: `sqlearn_gram` (Phase 2) |
-| PCA | `decomposition/pca.py` | its learn moves with the Gram learn (Phase 2) and its `eigh` (Phase 3); its settings, learned values and apply SQL stay |
-| Feature scores | `feature_selection/_scores.py` | stays (finishes a few numbers); gains p-values from Phase 3 |
-| Exploration | `explore/*` | stays SQL; Spearman's ranks and `profile`'s moments move only if profiling shows a cost; `histogram`'s counts are a GPU candidate (Phase 6) |
-| Steps | `preprocessing/*`, the rest of `feature_selection/*` | stays: the SQL already runs in DuckDB; an exact median that spills (`quantile_cont` does not) is a later candidate |
-| Metrics | `metrics/*` | stays: one aggregate query each |
-| Model selection | `model_selection/*` | stays: it orchestrates runs and Optuna |
-| The core | `_pipeline`, `_compose`, `_plan`, `_step`, `_store`, `store`, `_inputs`, `_selectors`, `_names`, `_expr`, `fn`, `agg/*`, `_group`, `_config`, `_diagnose`, `_errors`, `errors`, `_output`, `out` | stays until Phase 5: it builds SQL once per run, never per row |
-| Hand-overs | `_feed`, `_model`, `_memory` | stays: the bridge to Python libraries; sqlearn's own models (Phase 4) skip it |
-| Saving | `_saving/*` | stays: JSON |
+| The Gram learn | `_gram.py` | Phase 2: `sqlearn_gram` |
+| PCA | `decomposition/pca.py` | its learn with the Gram learn (Phase 2), its `eigh` (Phase 3), the rest in Phase 4 |
+| Feature scores | `feature_selection/_scores.py` | Phase 4; gains p-values from Phase 3 |
+| The core | `_pipeline`, `_compose`, `_plan`, `_step`, `_store`, `store`, `_inputs`, `_selectors`, `_names`, `_expr`, `fn`, `agg/*`, `_group`, `_config`, `_diagnose`, `_errors`, `errors`, `_output`, `out` | Phase 4, first: everything else builds on it |
+| Steps | `preprocessing/*`, the rest of `feature_selection/*` | Phase 4, after the core; an exact median that spills (`quantile_cont` does not) is a kernel candidate |
+| Exploration | `explore/*` | Phase 4; Spearman's ranks and `profile`'s moments become kernels if the profiling shows a cost; `histogram`'s counts are a GPU candidate (Phase 6) |
+| Metrics | `metrics/*` | Phase 4 |
+| Model selection | `model_selection/*` | Phase 4; Optuna stays Python, reached through the bindings |
+| Hand-overs | `_feed`, `_model`, `_memory` | Phase 4; the Python side of a hand-over stays in the bindings |
+| Saving | `_saving/*` | Phase 4: the same JSON, so files saved before the port still load |
 
 The profiling, at the least:
 
@@ -470,7 +625,11 @@ answered by it.
 
 - The milestone "Native engine" (created on 2026-11-21).
 - One issue per phase, 0 to 6, on the board: #78 to #84, each blocked by the
-  one it follows (Phases 5 and 6 by Phase 1).
+  one it follows (Phase 6 by Phase 1). The revision retitles three of them:
+  #79 (sqlearn's DuckDB build, the C++ library's skeleton and its Python
+  bindings), #82 (Phase 4: the rest of the library ported) and #83 (Phase 5:
+  sqlearn's own models, from the old Phase 4); the old Phase 5, the pipeline
+  compiler in C++ for non-Python clients, is now part of Phase 4.
 - [#77](https://github.com/glaucis/sqlearn/issues/77) as a sub-issue of
   Phase 6's issue, #84.
 
@@ -498,7 +657,9 @@ branch; `HANDOFF.md` is updated in the merge; Phase 0's issue closes.
 
 Phase 1's code and every later phase; the exploration app's front end
 ([questions/application-front-end.md](../questions/application-front-end.md));
-the workflow editor; replacing Optuna; PyPI; GPUs other than Apple's.
+the workflow editor; replacing Optuna; PyPI; GPUs other than Apple's; the C
+layer, other languages' bindings, and a public C++ API; the review of the
+docs, after the port, when they describe what exists.
 
 ## 7. Left to the builder
 
@@ -511,8 +672,9 @@ the workflow editor; replacing Optuna; PyPI; GPUs other than Apple's.
 
 ## 8. Done when
 
-- ADRs 0060 to 0068 and the amendments are merged.
-- The inventory groups every module and cites the profiling page.
+- ADRs 0060 to 0068 and the amendments are merged, 0060 and 0067 as
+  revised.
+- The inventory gives every module its phase and cites the profiling page.
 - The milestone holds one issue per phase.
 - The overview, `CLAUDE.md`, `HANDOFF.md`, the layout page and the glossary
   are updated.
