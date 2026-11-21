@@ -37,9 +37,6 @@ Verify with: `just verify`
 
 - Approve the Phase 1 spec, or say what to change. Check the calls marked
   "(the agent's call)" in it. (since 2026-11-21)
-- CodeGraph indexing `engine/` only, never the DuckDB submodules (spec
-  §3.8, the agent's proposal): indexing is Tomas's decision. (since
-  2026-11-21)
 - The CLion MCP stays (its debugger, for step 2 on); no other tool or skill
   needed. Told Tomas; nothing to do.
 - Benchmarks run on a loaded machine, to rerun on a quiet one if wanted:
@@ -200,7 +197,8 @@ Verify with: `just verify`
   and libFuzzer from Homebrew LLVM; written into the Phase 1 spec, §3.8. The
   probe on macOS 27.2.1: Apple clang 21 and LLVM 23.1.6 have neither
   reflection nor contracts, GCC 16.2 has both, experimental; none has
-  `std::linalg`. (2026-11-21)
+  `std::linalg`. CodeGraph: a root `codegraph.json` in step 2 excludes the
+  DuckDB submodules, for this project only (Tomas). (2026-11-21)
 
 - The `profile` fix (`b135f1b`, on `main`, not pushed): skewness and
   kurtosis divide each sum by its power of the variance first, so `[0, 0,

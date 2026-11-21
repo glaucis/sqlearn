@@ -267,8 +267,10 @@ checks); everything on one branch (nothing usable until the end).
   nothing requires it there.
 - **The agent's editor tools:** clangd as the agent's language server, from
   the `compile_commands.json` that CMake writes (the agent's call).
-  CodeGraph indexing `engine/` only, never the DuckDB submodules (the
-  agent's proposal; indexing is Tomas's decision).
+  CodeGraph indexes sqlearn's own sources, `engine/` included, never the
+  DuckDB submodules (Tomas, 2026-11-21): step 2 adds a `codegraph.json`
+  at the root, for this project only, whose `exclude` lists the
+  submodules' paths, and maps `.h` to C++ if headers are named so.
 
 ## 4. What changes elsewhere
 
