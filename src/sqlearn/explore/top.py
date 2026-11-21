@@ -44,7 +44,7 @@ def top(
 
     Missing values (NULL, and NaN in a float column) count together as one
     value, shown with a NULL `value`, as pandas' ``value_counts(dropna=False)``
-    counts NaN.
+    counts NaN. In a float column -0.0 is counted as 0.0, as pandas does.
 
     Parameters
     ----------
@@ -93,9 +93,14 @@ def top(
     chosen = columns(source, cols, function="top")
     queries = []
     for position, name in enumerate(chosen):
+        value = quote(name)
+        if types[name].id in {"float", "double"}:
+            value = (
+                f"CASE WHEN {value} = 0 THEN CAST(0 AS {types[name]}) ELSE {value} END"
+            )
         shown = (
             f"CASE WHEN {missing_sql(name, types[name])} THEN NULL "
-            f"ELSE CAST({quote(name)} AS VARCHAR) END"
+            f"ELSE CAST({value} AS VARCHAR) END"
         )
         queries.append(
             f"SELECT {position} AS p, {literal(name)} AS c, {shown} AS v, "

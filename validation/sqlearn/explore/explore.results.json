@@ -1955,20 +1955,20 @@
       "value": null
     },
     {
-      "abs_error": 2.2662561605102382e-13,
+      "abs_error": 2.2729886950401124e-12,
       "bound_ulps": 32,
       "canonical": 999.9861113604584,
       "dataset": "large",
       "formula": "profile: mean",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 2.2662876361623145e-16,
+      "rel_error": 2.2730202641992328e-15,
       "result": "pass",
       "rows": 100000,
       "step": "explore",
       "type": "DOUBLE",
-      "ulps": 2,
-      "value": 999.9861113604586
+      "ulps": 20,
+      "value": 999.9861113604607
     },
     {
       "abs_error": 7.480593922082335e-16,
@@ -2291,21 +2291,21 @@
       "value": 1473.1957688635528
     },
     {
-      "abs_error": 4.397348597784554e-16,
+      "abs_error": 6.037013110215941e-16,
       "bound_ulps": 4,
       "canonical": -0.004394896997737394,
       "dataset": "large",
       "formula": "profile: skewness",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 1.0005578287837967e-13,
+      "rel_error": 1.373641546849437e-13,
       "result": "pass",
       "rows": 100000,
       "step": "explore",
       "type": "DOUBLE",
-      "ulps": 1.980389750640069,
+      "ulps": 2.718828999359931,
       "ulps_of": 1.0,
-      "value": -0.004394896997736954
+      "value": -0.004394896997737998
     },
     {
       "abs_error": 1.1293243975514467e-17,
@@ -2341,21 +2341,21 @@
       "value": null
     },
     {
-      "abs_error": 2.18353538395548e-16,
+      "abs_error": 2.257356714545146e-16,
       "bound_ulps": 64,
       "canonical": 0.018262125224079745,
       "dataset": "large",
       "formula": "profile: kurtosis",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 1.1956633508767935e-14,
+      "rel_error": 1.2360865380381256e-14,
       "result": "pass",
       "rows": 100000,
       "step": "explore",
       "type": "DOUBLE",
-      "ulps": 0.9833769141532193,
+      "ulps": 1.0166230858467806,
       "ulps_of": 1.0,
-      "value": 0.018262125224079526
+      "value": 0.01826212522407997
     },
     {
       "abs_error": 6.208093848221672e-16,
@@ -11185,7 +11185,7 @@
       "value": null
     },
     {
-      "abs_error": 13.0,
+      "abs_error": 0.0,
       "bound_ulps": 0,
       "canonical": null,
       "compared_with": "collections.Counter, sorted",
@@ -11193,12 +11193,12 @@
       "formula": "top, k=10",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 0.43333333333333335,
-      "result": "fail",
+      "rel_error": 0.0,
+      "result": "pass",
       "rows": 1000,
       "step": "explore",
       "type": "DOUBLE",
-      "ulps": 13,
+      "ulps": 0,
       "value": null
     },
     {
@@ -13116,21 +13116,21 @@
       "value": null
     },
     {
-      "abs_error": 1.2346588534228227e-15,
+      "abs_error": 3.196533810523964e-16,
       "bound_ulps": 16,
       "canonical": 0.7861138716713969,
       "dataset": "large",
       "formula": "correlations, spearman: x ~ related",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 1.5705852522329258e-15,
+      "rel_error": 4.066247811818471e-16,
       "result": "pass",
       "rows": 100000,
       "step": "explore",
       "type": "DOUBLE",
-      "ulps": 5.560409152204708,
+      "ulps": 1.4395908477952917,
       "ulps_of": 1.0,
-      "value": 0.7861138716713957
+      "value": 0.7861138716713972
     },
     {
       "abs_error": 1.3413526335150565e-17,
@@ -13183,21 +13183,21 @@
       "value": null
     },
     {
-      "abs_error": 1.8761399076041223e-15,
+      "abs_error": 6.297410901147865e-16,
       "bound_ulps": 16,
       "canonical": 0.0020977805723471844,
       "dataset": "large",
       "formula": "correlations, spearman: x ~ unrelated",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 8.943451628522469e-13,
+      "rel_error": 3.0019397567886515e-13,
       "result": "pass",
       "rows": 100000,
       "step": "explore",
       "type": "DOUBLE",
-      "ulps": 8.449382988780842,
+      "ulps": 2.8361017387808425,
       "ulps_of": 1.0,
-      "value": 0.0020977805723453083
+      "value": 0.0020977805723465547
     },
     {
       "abs_error": 3.646833520556344e-20,
@@ -13250,21 +13250,21 @@
       "value": null
     },
     {
-      "abs_error": 2.4188844782747497e-15,
+      "abs_error": 1.9782647153766407e-15,
       "bound_ulps": 16,
       "canonical": 0.004895254346892459,
       "dataset": "large",
       "formula": "correlations, spearman: related ~ unrelated",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 4.941284572496777e-13,
+      "rel_error": 4.041188823278318e-13,
       "result": "pass",
       "rows": 100000,
       "step": "explore",
       "type": "DOUBLE",
-      "ulps": 10.89368723501044,
+      "ulps": 8.90931223501044,
       "ulps_of": 1.0,
-      "value": 0.004895254346894878
+      "value": 0.004895254346894438
     },
     {
       "abs_error": 1.8740897490768492e-19,

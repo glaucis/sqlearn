@@ -38,11 +38,18 @@ as a float and ``ulps_of`` the scale), as ``validate_pca`` measures in ULPs
 of a scale. The skewness and the excess kurtosis, near 0 on normal data for
 the same reason, are measured in ULPs of 1 as well: each is a ratio of
 moments whose scale is 1 (the excess kurtosis is that ratio less about 3).
+In plain ULPs the kurtosis read 2,217 for sqlearn and 2,476 for pandas,
+which measures how close to 0 it is, not the computation.
+
 A histogram's edges are measured in ULPs of the larger of the extremes'
 magnitudes, the scale ``low + k * width`` is rounded at: an edge near 0
-between a negative low and a positive high carries that rounding. Its
-counts are those of the edges numpy's linspace gives in doubles, the bins
-``histogram`` promises.
+between a negative low and a positive high carries that rounding (on
+``signed``, an edge at 0.3 between -3.9 and 3.1 is 13 plain ULPs off for
+sqlearn and numpy alike, 1.6 ULPs of 3.9). Its counts are those of the
+edges numpy's linspace gives in doubles, ``low + k * ((high - low) /
+bins)``, the bins ``histogram`` promises: against the exactly rounded
+edges, 7 values of 0.3 on ``signed`` move to the next bin for sqlearn and
+numpy alike, an artefact of the exact edge, not an error of either.
 
 The datasets: `_cases.numbers()`, and one more, ``signed``: 1,000 values
 around 0, rounded to one decimal (so they hold ties, zeros and negative

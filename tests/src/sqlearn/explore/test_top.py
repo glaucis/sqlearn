@@ -45,6 +45,22 @@ def test_missing_values_are_one_null_row():
     assert rows == [("x", "1.0", 2, 0.5), ("x", None, 2, 0.5)]
 
 
+@pytest.mark.parametrize("kind", ["DOUBLE", "FLOAT"])
+def test_negative_zero_is_counted_as_zero(kind):
+    """-0.0 and 0.0 are one value, 0.0, as value_counts counts them."""
+    name = f"tz_{kind.lower()}"
+    connection().execute(
+        f"CREATE TABLE {name} AS SELECT x::{kind} AS x FROM (VALUES ('0.0'), "
+        "('-0.0'), ('-0.0'), ('1.0')) v(x)"
+    )
+    signs = connection().sql(f"SELECT count(*) FROM {name} WHERE signbit(x)")
+    assert signs.fetchall() == [(2,)]
+    rows = sq.explore.top(name).fetchall()
+    assert rows == [("x", "0.0", 3, 0.75), ("x", "1.0", 1, 0.25)]
+    counts = pd.Series([0.0, -0.0, -0.0, 1.0]).value_counts(dropna=False)
+    assert counts.to_dict() == {0.0: 3, 1.0: 1}
+
+
 def test_k_caps_each_column():
     """K caps each column."""
     frame = pd.DataFrame({"a": [1, 2, 3, 4], "b": ["x", "y", "z", "z"]})
