@@ -40,15 +40,20 @@ machine was shared with heavy unrelated work.
 | Load | see each table: the machine was shared with a Rust build and a virtual machine |
 
 The load average was 2.56 3.85 4.95 when the first round began and between 26
-and 145 while its probes ran, which affects the times a great deal and the
-peaks a little. Each probe ran once. The times are estimates and could be much
+and 145 while its probes ran, which affects the times a great deal and the peaks
+a little. Each probe ran once, except the exact profile, which ran in two rounds
+(below). The probe scripts were throwaway and are not in the repository, so this
+page cannot be reproduced from it. The times are estimates and could be much
 shorter on a quiet machine.
 
 ## Results
 
 ### The profile
 
-The final code, on the file above.
+The exact profile ran on the final code (a second round). The `exact=False`
+rows were measured before the compensated second pass, so with one read of
+each column; that pass gives `exact=False` a second read of every number
+column, and the rows were not rerun.
 
 | probe | `memory=` | result | seconds | peak GB | `uptime` load before; after |
 |---|---|---|---|---|---|
@@ -61,15 +66,16 @@ The exact times are from a second round, on a quieter machine. The first round
 took 128.4 s at 2.12 GB for `"4GB"` and 196.5 s at 1.23 GB for `"2GB"`, with
 load averages of 9.27 to 27.19 and 35.93 to 53.07, so the two rounds' times do
 not compare as a change of code. The `exact=False` rows are from the first
-round and were not run again after the second.
+round, before the compensated second pass.
 
 The exact profile reads each column twice: the scan in blocks of 20 columns,
 then the exact distinct counts and quartiles in groups of columns sized to the
 memory limit (4 columns a group at `"4GB"` here and 2 at `"2GB"`), a
 statement each that reads only its group, and that holds the deviations for the
 standard deviation, skewness and kurtosis. `exact=False` takes its estimates
-inside the scan and reads each number twice (the deviations follow in blocks of
-20), any other column once.
+inside the scan and, since the compensated second pass, reads each number twice
+(the deviations follow in blocks of 20), any other column once; the rows above
+measured it with one read of each column.
 
 ### Correlations
 
@@ -91,7 +97,9 @@ holds a row group of all 200: 197 MB each. That did not fit a 2 GB limit
 (after 146.5 s at `"4GB"`) nor a 1 GB one (after 36.3 s).
 sqlearn's message says why and names the fixes: fewer `cols=`, more memory with
 `sq.set_config(memory=...)`, fewer threads, or a file with smaller row groups.
-Pearson's memory follows its block of columns, so it fit at `"4GB"`; at `"2GB"`
+Pearson's memory follows its block of columns (measured at 1,000,000 rows in
+[explore-correlations](explore-correlations.md), not on this file); it fit at
+`"4GB"`; at `"2GB"`
 it was refused after 7.3 s.
 
 ## What was tried first
@@ -105,7 +113,9 @@ The first probes, on the code as built before this round, failed in two ways.
   the profile is exact).
 - **The operating system killed the process.** `profile` with `exact=False` at
   `"2GB"` was killed (exit 137) three times in about 10 seconds. The cause was
-  not the load: it was DuckDB's `FILTER` clause. Each filtered aggregate in an
+  found to be DuckDB's `FILTER` clause, from this evidence: `FILTER` over 200
+  columns was killed at a 1 GB limit while the `CASE` form was not, and the
+  original kill was not rerun after the change. Each filtered aggregate in an
   ungrouped aggregate gets its own copy of the statement's input chunk, so a
   statement's memory grows with aggregates times input columns, outside
   `memory_limit`. Measured on 1,000,000 rows of 200 columns, one thread, a 4
@@ -132,12 +142,12 @@ The first probes, on the code as built before this round, failed in two ways.
 - **The exact aggregates hold every value.** A `count(DISTINCT)` and an exact
   quantile keep every value and do not spill. At a 2 GB limit on 8 threads
   `count(DISTINCT)` alone peaked at 0.42, 1.19 and 2.17 GB for 1, 4 and 8
-  columns (about 20 bytes a value), `quantile_cont` alone at 0.35, 0.82 and
-  1.33 GB (about 11 bytes a value). Groups of 2 and 4 columns profiled all 200
-  columns and a group of 6 was refused, so the group size is the columns that
-  `memory_limit` holds at about 32 bytes a row, from 1 to 20. That was measured
-  on doubles: long text in a distinct count may take more, and the error's fix
-  then leads with `exact=False`.
+  columns (about 20 bytes a value), `quantile_cont` alone at 0.35, 0.82 and 1.33
+  GB (about 11 bytes a value). At `memory="4GB"` (a 1.8 GiB limit), groups of 2
+  and 4 columns profiled all 200 columns and a group of 6 was refused, so the
+  group size is the columns that `memory_limit` holds at about 32 bytes a row,
+  from 1 to 20. That was measured on doubles: long text in a distinct count may
+  take more, and the error's fix then leads with `exact=False`.
 
 ## What this shows and does not
 

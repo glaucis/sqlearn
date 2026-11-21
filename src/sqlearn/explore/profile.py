@@ -79,9 +79,10 @@ _EXACT_COLUMNS = 20
 _VALUE_BYTES = 32
 """The memory an exact distinct count and quartiles hold for each value.
 
-Measured on 12.5 million rows of 200 random doubles, 8 threads, a 2 GB
-``memory_limit`` (2026-11-21): groups of 2 and 4 columns profiled all 200
-and a group of 6 ran out (so 27 to 40 bytes a value of the limit); the
+Measured on 12.5 million rows of 200 random doubles, 8 threads,
+``memory="4GB"``, a 1.8 GiB ``memory_limit`` (2026-11-21): groups of 2
+and 4 columns profiled all 200 and a group of 6 ran out (so 27 to 40 bytes
+a value of the limit); the
 process's peak grew by about 20 bytes a value for the count and 11 for
 the quartiles. These are doubles: long text values in a distinct count
 may take more, and a group of them can still run out, when the error's
