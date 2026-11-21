@@ -3,8 +3,8 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-21 · Branch: `main` · Last commit: `7f4fcc9` docs: the handoff
-after pushing Phase 0 (#78) · Checks: passing (`just verify` on `69de4c7`;
+Updated: 2026-11-21 · Branch: `main` · Last commit: `b43b94e` docs: update the
+handoff · Checks: passing (`just verify` on `69de4c7`;
 `just test`: 3187 passed on the merge `dc2bfa3`)
 Verify with: `just verify`
 
