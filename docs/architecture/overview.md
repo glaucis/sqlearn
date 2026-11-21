@@ -1,9 +1,9 @@
 ---
 type: architecture
-tags: [sqlearn, duckdb, roadmap, scikit-learn, parts]
-summary: "Project map of sqlearn: its purpose, agreed constraints, the parts from foundation to validation, and their build order."
-related: [docs/adr/0003-scikit-learn-style-api.md, docs/adr/0002-sql-on-duckdb-execution-engine.md, docs/adr/0004-apache-2-licence.md, docs/adr/0005-runtime-dependencies.md, docs/adr/0006-local-and-offline.md, docs/questions/applications-home.md, docs/adr/0001-uv-for-python-packaging.md, docs/adr/0007-python-3-12-floor.md]
-mdindex: [type=4ca303, tags=83b516, summary=39d7b0, related=c3fc8f]
+tags: [sqlearn, duckdb, scikit-learn, roadmap, design-constraints, parts]
+summary: "Project map for sqlearn: purpose, agreed constraints, the numbered parts from foundation to validation, and their build order."
+related: [docs/adr/0003-scikit-learn-style-api.md, docs/adr/0002-sql-on-duckdb-execution-engine.md, docs/questions/README.md, docs/adr/0004-apache-2-licence.md, docs/adr/0058-a-gram-step-builds-xtx-in-numpy.md, docs/adr/0057-numpy-is-a-runtime-dependency.md, docs/adr/0005-runtime-dependencies.md, docs/adr/0006-local-and-offline.md]
+mdindex: [type=4ca303, tags=bf7702, summary=8520d5, related=30a8e2]
 ---
 # Overview
 

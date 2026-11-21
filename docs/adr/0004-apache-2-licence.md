@@ -1,8 +1,9 @@
 ---
 type: adr
-tags: [licence, apache-2-0, open-source, dependencies, contributors]
-summary: "Records the decision to license sqlearn under Apache-2.0, with rules on dependencies, trademark, CLA and credit."
-mdindex: [type=0fc814, tags=2e0d3f, summary=c96704]
+tags: [licence, apache-2-0, open-source, dependencies, cla]
+summary: "ADR 0004 records the decision to license sqlearn under Apache-2.0, with rules on dependencies, trademark, contributor CLA and credit."
+mdindex: [type=0fc814, tags=927ddc, summary=38c1e4, related=bc4d08]
+related: [docs/adr/0057-numpy-is-a-runtime-dependency.md, docs/adr/0005-runtime-dependencies.md, ADR-0057, ADR-0005]
 ---
 # 0004: Apache-2.0 licence
 

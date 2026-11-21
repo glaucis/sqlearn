@@ -1,9 +1,9 @@
 ---
 type: note
-tags: [datasets, licensing, uci, iris, wine, breast-cancer]
+tags: [datasets, licensing, iris, wine, breast-cancer, csv]
 summary: "Describes the three bundled CSV datasets (iris, wine, breast cancer), their UCI sources, CC BY 4.0 licence and citations."
-related: [src/sqlearn/datasets/data/iris.csv, src/sqlearn/datasets/data/wine.csv, src/sqlearn/datasets/data/breast_cancer.csv]
-mdindex: [type=edb465, tags=7c1641, summary=dbbe9e, related=019622]
+related: [devdata/data/iris.csv, devdata/data/wine.csv, devdata/data/breast_cancer.csv]
+mdindex: [type=edb465, tags=a6d2f8, summary=dbbe9e, related=fcfdeb]
 ---
 # The bundled datasets
 

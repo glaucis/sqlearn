@@ -1,9 +1,9 @@
 ---
 type: adr
-tags: [local, offline, privacy, on-premises, architecture-decision]
-summary: "ADR accepting that sqlearn runs fully locally and offline, with no cloud, telemetry, or network access, keeping data on the user's machine."
-mdindex: [type=0fc814, tags=4913b3, summary=8c5062, related=3d8346]
-related: [docs/architecture/overview.md]
+tags: [local-first, offline, privacy, data-residency, architecture]
+summary: "ADR 0006 decides sqlearn runs locally and offline with no cloud, telemetry, or network access, so data never leaves the machine."
+mdindex: [type=0fc814, tags=50d3e9, summary=ea14d2, related=98b680]
+related: [docs/adr/0053-sqlearn-ships-no-datasets.md, docs/architecture/overview.md]
 ---
 # 0006: Local and offline
 

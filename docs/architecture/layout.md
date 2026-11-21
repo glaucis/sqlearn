@@ -1,9 +1,9 @@
 ---
 type: architecture
-tags: [repository, layout, directory-structure, tests, docs, examples]
-summary: "Describes the sqlearn repository's directory layout, what each top-level folder holds, and the reasons behind the structure."
-related: [docs/specs/foundation.md, docs/adr/0025-results-stored-as-data-in-mirrored-folders.md]
-mdindex: [type=4ca303, tags=501a6b, summary=a1e6bf, related=03b487]
+tags: [repository-layout, directory-structure, docs, tests, examples]
+summary: "Describes the sqlearn repository's directory tree, why each top-level location exists, and how tests mirror the source layout."
+related: [docs/specs/foundation.md, docs/adr/0053-sqlearn-ships-no-datasets.md, docs/adr/0025-results-stored-as-data-in-mirrored-folders.md, examples/GALLERY_HEADER.rst, examples/show_version.py]
+mdindex: [type=4ca303, tags=a1a8d0, summary=f64b62, related=f2cd85]
 ---
 # The repository's layout
 

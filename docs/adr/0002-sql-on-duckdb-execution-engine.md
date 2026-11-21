@@ -1,9 +1,9 @@
 ---
 type: adr
 tags: [sql, duckdb, execution-engine, preprocessing, architecture-decision]
-summary: "Decision to express all sqlearn preprocessing steps as SQL executed by DuckDB, rather than pandas or Polars."
-related: [docs/questions/multi-engine-support.md, docs/questions/fit-execution-model.md]
-mdindex: [type=0fc814, tags=4a07c3, summary=eae77c, related=03f576]
+summary: "Decides that all sqlearn steps are expressed as SQL and executed by DuckDB, noting consequences for memory, inspectability and fit/transform."
+related: [ADR 0058, docs/adr/0058-a-gram-step-builds-xtx-in-numpy.md, docs/questions/multi-engine-support.md, docs/questions/fit-execution-model.md]
+mdindex: [type=0fc814, tags=4a07c3, summary=2f3739, related=a02a84]
 ---
 # 0002: SQL on DuckDB as the execution engine
 

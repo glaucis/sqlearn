@@ -1,9 +1,9 @@
 ---
 type: question
-tags: [multi-engine, duckdb, polars, sqlglot, portability]
-summary: "Open question on whether sqlearn should run on engines other than DuckDB, such as Postgres or Polars, and the costs and risks involved."
-mdindex: [type=1f5087, tags=4bd1ea, summary=1fa62c, related=a01e7f]
-related: [docs/adr/0015-duckdb-expressions-no-sqlglot.md, ADR 0015, earlier-attempts/README.md, "issue #54", "#50", docs/benchmarks/median-reach.md, ADR 0002, ADR 0004]
+tags: [multi-engine, duckdb, sqlglot, polars, transpilation, dialects]
+summary: "Open question on whether sqlearn should support engines other than DuckDB (transpilation, native SQL per engine, Polars), with earlier attempts' evidence."
+mdindex: [type=1f5087, tags=e33821, summary=d1d575, related=62cf5c]
+related: [docs/adr/0015-duckdb-expressions-no-sqlglot.md, ADR 0015, earlier-attempts/README.md, ADR 0002, ADR 0005, ADR 0057, docs/benchmarks/median-reach.md, "https://github.com/glaucis/sqlearn/issues/54"]
 ---
 # Should sqlearn run on engines other than DuckDB?
 
