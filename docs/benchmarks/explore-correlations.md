@@ -1,7 +1,7 @@
 ---
 type: note
 tags: [benchmarks, performance, exploration, correlations, memory, sqlearn]
-summary: Times sq.explore.correlations on 1,000,000 rows of 200 and 500 columns in Parquet files with default row groups, at blocks of 20, 40 and 80 columns, says why 20 was chosen, then measures Spearman at blocks of 5 and 10, with and without missing values.
+summary: Times sq.explore.correlations on 1,000,000 rows of 200 and 500 columns in Parquet files with default row groups, at blocks of 20, 40 and 80 columns, says why 20 was chosen, then measures Spearman on ranks written once, with and without missing values and under a small memory budget.
 related: [index, gram-batches, gram-streaming]
 ---
 # How many columns one statement reads
@@ -79,55 +79,69 @@ Measured on 1,000,000 rows, 500 columns:
 
 ## Spearman
 
-`method="spearman"` correlates average ranks. A rank is a window,
-`(rank() OVER w + count(*) OVER w) / 2` with `w` ordered by the column. A
-column with no missing value is ranked in the tile statement; a pair
-touching a column with missing values is ranked over its own complete rows,
-in a statement of two columns. Measured on the same machine, 1,000,000 rows,
-200 columns, one probe per process, `ru_maxrss` read twice a second apart
-(equal every time).
+`method="spearman"` correlates average ranks: `(rank() OVER w + count(*)
+OVER w) / 2`, with `w` ordered by the column. It reads the data once, into
+a temporary table of the chosen columns, cleaned and numbered by row
+(`row_number() OVER ()`, as the Gram step's learn numbers its rows). Each
+column with no missing value is ranked once from that table, the row number
+and its values only, into a table of its own. A block's ranks are then
+joined on the row number into one table, and each tile joins two blocks'
+tables and runs the same `corr` and `regr_count` as Pearson, at the same
+block of 20. A pair touching a column with missing values is ranked over
+its own complete rows from the numbered table, in a statement that reads
+only its two columns.
 
 - **Data:** `w200.parquet` above, and `w200m.parquet`, a copy written with
   `COPY` in which every fourth column (50 of 200) has 5 % of its values
   NULL at random.
-
-### How wide a Spearman tile can be
-
-DuckDB runs each rank's window as its own operator and carries every column
-the statement reads through each of them, so a tile's time and memory grow
-faster than its columns. One run of each width on `w200.parquet`, with
-`cols=` the first twice-a-block columns (three tiles, the widest reading
-them all); the 40-column row is one tile's statement timed alone, twice:
-
-| columns read by a statement | seconds | peak memory (GB) |
-|---|---|---|
-| 4 (block 2) | 0.37 | 0.49 |
-| 10 (block 5) | 1.09 | 2.15 |
-| 20 (block 10) | 3.52 | 7.04 |
-| 40 (block 20) | 33 to 50 | not measured |
-
-Three formulations that keep the ranks apart were tried. Each rank computed
-on (row number, value) in its own subquery and joined back on the row number
-ran out of memory at 40 columns. The same lined up with `POSITIONAL JOIN`
-took 2.22 s against the windows' 1.65 s at 20 columns, and ran out of memory
-at 40. Writing the ranks to temporary tables first took 4.2 s for 40
-columns, but copies the data twice and needs a row number that two scans of
-an arbitrary relation do not promise. None was taken.
+- **Probe:** `sq.explore.correlations(path, method="spearman")` in a fresh
+  process, the result counted, one run each. Runs were to be stopped at
+  1,200 s. `ru_maxrss` was read twice a second apart, and the two reads were
+  equal every time.
 
 ### Results
 
-| file | block | seconds | peak memory (GB) | `uptime` before; after |
-|---|---|---|---|---|
-| `w200.parquet`, no missing values | 10 | 484.1 | 7.79 | 6.03 4.85 7.68; 11.06 12.24 10.64 |
-| `w200.parquet`, no missing values | 5 | 540.5 | 2.66 | 5.68 9.07 10.02; 10.81 11.45 11.05 |
-| `w200m.parquet`, 50 sparse columns | 10 | stopped at 900 s | not reached | 11.06 12.24 10.64; 9.06 10.13 10.43 |
+| run | seconds | peak memory (GB) | `uptime` before; after |
+|---|---|---|---|
+| `w200.parquet`, no missing values | 88.1 | 4.99 | 4.50 4.85 6.92; 11.04 6.87 7.48 |
+| `w200m.parquet`, 50 sparse columns | 763.2 | 4.17 | 11.04 6.87 7.48; 17.66 12.86 10.33 |
+| `w200.parquet`, `sq.set_config(memory="1GB")` | refused after 1.8 | 0.63 | 17.66 12.86 10.33; 16.73 12.74 10.30 |
+| `w200.parquet`, `memory_limit` 1 GB on 2 threads | 206.1 | 1.75 | 12.86 12.13 10.14; 10.11 10.46 9.77 |
 
-`_RANKED_BLOCK_COLUMNS = 5`. Block 10 is 10 % faster than block 5 but holds
-7.8 GB of resident memory, more than DuckDB's 6.4 GB budget here and more
-than a machine with 8 GB has; block 5 holds 2.66 GB.
+- **Without missing values** the time is close to Pearson's 48.3 s: 200
+  sorts of two columns, then the tiles' joins.
+- **With 50 sparse columns** the 8,725 pairs that touch one dominate: two
+  sorts of the pair's rows each, about 0.08 s a pair under this load. The
+  cost follows the number of sparse columns times the number of columns;
+  `cols=` narrows it.
+- **Under a small budget**, `memory="1GB"` gives sqlearn's connection a
+  `memory_limit` of 500 MB. The first scan, which reads every chosen column, ran
+  out of memory at once: each of 8 threads holds a 197 MB row group. DuckDB
+  refused, and sqlearn's message names the row groups, fewer columns, more
+  memory and fewer threads; the process was not killed. On a connection given
+  `SET memory_limit = '1GB'` and `SET threads = 2`, the same call completed in
+  206.1 s at a 1.75 GB peak. The numbered copy and the ranks, about 3.2 GB
+  together, cannot all have been in memory, so DuckDB wrote them to its
+  temporary directory.
+- The peaks are resident memory, the numbered copy and the blocks' ranks
+  included. These are temporary tables in DuckDB's buffer pool, written to
+  its temporary directory when they pass `memory_limit`.
 
-With 50 sparse columns, 8,725 of the 19,900 pairs touch one and each is a
-statement of its own, two sorts of the pair's rows: 0.072 s for such a
-statement, about 630 s for those pairs alone, before the complete columns'
-tiles. That run was stopped at 900 s as planned. The cost follows the
-number of sparse columns times the number of columns; `cols=` narrows it.
+### What was tried first
+
+The first version ranked inside each tile statement: one window for each
+column the tile read. DuckDB runs each window as its own operator and
+carries every column the statement reads through each of them, so a tile's
+time and memory grew faster than its width. Statements reading 4, 10 and 20
+columns took 0.37 s, 1.09 s and 3.52 s and peaked at 0.49, 2.15 and 7.04 GB,
+and a 40-column tile took 33 to 50 s alone. Each column was also ranked
+again in every tile that read it, about 8,000 sorts at 200 columns where
+200 do. On `w200.parquet` it took 484.1 s at 7.79 GB with blocks of 10 and
+540.5 s at 2.66 GB with blocks of 5, and the run with 50 sparse columns was
+stopped at 900 s.
+
+To line the ranks up, `POSITIONAL JOIN` was measured against joins on the
+row number for 40 columns. Its tile took 4.08 s at 1.51 GB, against 2.15 s
+at 2.48 GB for the join. The join was taken: it is faster, and it does not
+depend on the tables keeping their insertion order, which a connection can
+turn off with `preserve_insertion_order`.

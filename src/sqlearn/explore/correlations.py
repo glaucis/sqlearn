@@ -1,5 +1,6 @@
 """`correlations`: pairwise correlations of numeric columns, in tiles of columns."""
 
+import contextlib
 import itertools
 from typing import Any
 
@@ -18,20 +19,16 @@ __all__ = ["correlations"]
 
 _VIEW = "__sqlearn_correlations_source"
 """The name the data goes by inside the pair queries."""
-_CLEAN = "__sqlearn_correlations_clean"
-"""The name the cleaned columns go by inside the pair queries."""
-_RANKED = "__sqlearn_correlations_ranked"
-"""The name the ranked columns go by inside the Spearman queries."""
+_TABLE = "__sqlearn_correlations_"
+"""The prefix of the temporary tables Spearman writes."""
+_ROW = "__sqlearn_rid"
+"""The row number Spearman's tables are joined on."""
 _METHODS = ("pearson", "spearman")
 """The methods `correlations` knows."""
 _BLOCK_COLUMNS = 20
 """How many columns make a block; each statement pairs two blocks, so it
 reads at most twice this many columns. Measured in
 docs/benchmarks/explore-correlations.md."""
-_RANKED_BLOCK_COLUMNS = 5
-"""The block for Spearman. DuckDB carries every column a statement reads
-through each rank's sort, so a tile's time and memory grow faster than its
-columns: measured in docs/benchmarks/explore-correlations.md."""
 _RESULT = [
     ("column_a", "VARCHAR"),
     ("column_b", "VARCHAR"),
@@ -40,6 +37,10 @@ _RESULT = [
 ]
 _ORDER = ["__sqlearn_pa", "__sqlearn_pb"]
 """The positions of a pair's columns, which put the tiles' rows in order."""
+_tables = itertools.count()
+
+Pair = tuple[int, int, str, str]
+"""A pair: the two columns' positions, then their names."""
 
 
 def _method(method: object) -> str:
@@ -55,21 +56,29 @@ def _method(method: object) -> str:
     return str(method)
 
 
-def _clean(names: list[str]) -> str:
+def _column(k: int) -> str:
+    """Return the name the column at position `k` goes by in the queries.
+
+    Naming by position keeps apart columns whose names differ only by case.
+    """
+    return quote(f"__sqlearn_c{k}")
+
+
+def _clean(chosen: list[str], places: list[int]) -> str:
     """Write the select list of the columns each pair is computed from.
 
     Every value is a DOUBLE; NaN and infinity become NULL, so a pair uses
     the rows where both values are present and finite.
     """
     parts = []
-    for name in names:
-        x = f"CAST({quote(name)} AS DOUBLE)"
-        parts.append(f"CASE WHEN isfinite({x}) THEN {x} END AS {quote(name)}")
+    for k in places:
+        x = f"CAST({quote(chosen[k])} AS DOUBLE)"
+        parts.append(f"CASE WHEN isfinite({x}) THEN {x} END AS {_column(k)}")
     return ", ".join(parts)
 
 
-def _rank(name: str, missing: str | None = None) -> str:
-    """Write the average rank of a cleaned column.
+def _rank(column: str, missing: str | None = None) -> str:
+    """Write the average rank of a cleaned column, named as the column is.
 
     `rank()` is one more than the rows below the value and `count(*)` over
     the same window (its frame ends at the last tie) is the rows at or
@@ -78,7 +87,6 @@ def _rank(name: str, missing: str | None = None) -> str:
     and the rest ranked among themselves; without, the column has no
     missing value.
     """
-    column = quote(name)
     if missing is None:
         window = f"(ORDER BY {column})"
     else:
@@ -89,88 +97,119 @@ def _rank(name: str, missing: str | None = None) -> str:
     return f"CASE WHEN NOT ({missing}) THEN {rank} END AS {column}"
 
 
-def _complete(source: Source, names: list[str]) -> set[str]:
-    """Return the columns with no missing value, counting a block at a time."""
+def _new_table(made: list[str]) -> str:
+    """Name a new temporary table, listed in `made` before it is written."""
+    name = f"{_TABLE}{next(_tables)}"
+    made.append(name)
+    return quote(name)
+
+
+def _number(source: Source, chosen: list[str], made: list[str]) -> str:
+    """Copy the cleaned columns, numbered, into a table: the one scan."""
+    table = _new_table(made)
+    clean = _clean(chosen, list(range(len(chosen))))
+    source.relation.query(
+        _VIEW,
+        f"CREATE TEMP TABLE {table} AS SELECT row_number() OVER () AS "
+        f"{quote(_ROW)}, {clean} FROM {quote(_VIEW)}",
+    )
+    return table
+
+
+def _complete(numbered: str, count: int) -> set[int]:
+    """Return the positions of the columns with no missing value."""
     found = set()
-    for start in range(0, len(names), _BLOCK_COLUMNS):
-        block = names[start : start + _BLOCK_COLUMNS]
-        counts = ", ".join(f"count({quote(name)})" for name in block)
-        sql = (
-            f"SELECT count(*), {counts} FROM "
-            f"(SELECT {_clean(block)} FROM {quote(_VIEW)})"
-        )
-        rel = source.relation.query(_VIEW, sql)
-        assert rel is not None  # a SELECT always has a result
-        ((total, *present),) = rel.fetchall()
-        found.update(n for n, k in zip(block, present, strict=True) if k == total)
+    for start in range(0, count, _BLOCK_COLUMNS):
+        block = range(start, min(start + _BLOCK_COLUMNS, count))
+        counts = ", ".join(f"count({_column(k)})" for k in block)
+        sql = f"SELECT count(*), {counts} FROM {numbered}"
+        ((total, *present),) = connection().execute(sql).fetchall()
+        found.update(k for k, n in zip(block, present, strict=True) if n == total)
     return found
 
 
-def _pairs_query(
-    pairs: list[tuple[int, int, str, str]], select: str, ranks: str | None = None
-) -> str:
-    """Write one statement that scans the data once for a tile of pairs.
+def _rank_block(numbered: str, places: list[int], made: list[str]) -> str:
+    """Rank each complete column of a block once, into one table by row.
 
-    `select` is the cleaned columns' select list; `ranks`, when given, the
-    select list over them that the pairs are correlated on instead.
+    Each column is ranked from the row number and its own values only, so a
+    sort holds two columns whatever the width; the ranks are then joined on
+    the row number.
+    """
+    con = connection()
+    singles = []
+    for k in places:
+        single = _new_table(made)
+        con.execute(
+            f"CREATE TEMP TABLE {single} AS SELECT {quote(_ROW)}, "
+            f"{_rank(_column(k))} FROM (SELECT {quote(_ROW)}, {_column(k)} "
+            f"FROM {numbered})"
+        )
+        singles.append(single)
+    block = _new_table(made)
+    joins = "".join(f" JOIN {s} USING ({quote(_ROW)})" for s in singles[1:])
+    con.execute(f"CREATE TEMP TABLE {block} AS SELECT * FROM {singles[0]}{joins}")
+    for single in singles:
+        con.execute(f"DROP TABLE {single}")
+    return block
+
+
+def _pairs_query(pairs: list[Pair], values: str) -> str:
+    """Write one statement that reads `values` once for a tile of pairs.
+
+    `values` is a table or subquery holding the pairs' columns, each named
+    by `_column` from its position.
     """
     items = ", ".join(
         f"{{'p': {i}, 'q': {j}, 'a': {literal(a)}, 'b': {literal(b)}, "
-        f"'r': corr({quote(a)}, {quote(b)}), "
-        f"'n': regr_count({quote(a)}, {quote(b)})}}"
+        f"'r': corr({_column(i)}, {_column(j)}), "
+        f"'n': regr_count({_column(i)}, {_column(j)})}}"
         for i, j, a, b in pairs
     )
-    tables = f"WITH {quote(_CLEAN)} AS (SELECT {select} FROM {quote(_VIEW)})"
-    values = _CLEAN
-    if ranks is not None:
-        tables += f", {quote(_RANKED)} AS (SELECT {ranks} FROM {quote(_CLEAN)})"
-        values = _RANKED
     return (
-        f"{tables} "
         f"SELECT CAST(t.p AS INTEGER) AS {quote(_ORDER[0])}, "
         f"CAST(t.q AS INTEGER) AS {quote(_ORDER[1])}, "
         f"CAST(t.a AS VARCHAR) AS {quote('column_a')}, "
         f"CAST(t.b AS VARCHAR) AS {quote('column_b')}, "
         f"CAST(CASE WHEN t.n < 2 OR isnan(t.r) THEN NULL ELSE t.r END AS DOUBLE) "
         f"AS {quote('correlation')}, CAST(t.n AS BIGINT) AS {quote('rows')} "
-        f"FROM (SELECT unnest([{items}], recursive := true) "
-        f"FROM {quote(values)}) AS t"
+        f"FROM (SELECT unnest([{items}], recursive := true) FROM {values}) AS t"
     )
 
 
-def _statements(
-    method: str, chosen: list[str], tile: list[tuple[int, int]], complete: set[str]
-) -> list[tuple[list[tuple[int, int, str, str]], list[str], str | None]]:
-    """Cut a tile into statements: its pairs, the columns read, their ranks.
+def _ranked_statements(
+    pairs: list[Pair], complete: set[int], ranks: str | None, numbered: str
+) -> list[tuple[list[Pair], str]]:
+    """Cut a Spearman tile into statements: their pairs and what they read.
 
-    Pearson is one statement. Spearman ranks each column with no missing
-    value once and correlates their pairs in one statement; a pair touching
-    a column with missing values is ranked over its own complete rows, in a
-    statement of its own.
+    The pairs of two complete columns read `ranks`, the tile's blocks of
+    ranks. A pair touching a column with missing values is ranked over its
+    own complete rows from the numbered copy, in a statement of its own
+    that reads only its two columns.
     """
-
-    def names(pairs: list[tuple[int, int, str, str]]) -> list[str]:
-        return [chosen[k] for k in sorted({k for p, q, _, _ in pairs for k in (p, q)})]
-
-    named = [(p, q, chosen[p], chosen[q]) for p, q in tile]
-    if method == "pearson":
-        return [(named, names(named), None)]
-    whole = [pair for pair in named if {pair[2], pair[3]} <= complete]
-    sparse = [pair for pair in named if not {pair[2], pair[3]} <= complete]
+    whole = [pair for pair in pairs if {pair[0], pair[1]} <= complete]
     statements = []
     if whole:
-        read = names(whole)
-        statements.append((whole, read, ", ".join(_rank(n) for n in read)))
-    for pair in sparse:
-        a, b = pair[2], pair[3]
-        missing = f"{quote(a)} IS NULL OR {quote(b)} IS NULL"
-        statements.append(([pair], [a, b], f"{_rank(a, missing)}, {_rank(b, missing)}"))
+        assert ranks is not None  # both blocks hold a complete column
+        statements.append((whole, ranks))
+    for pair in pairs:
+        if not {pair[0], pair[1]} <= complete:
+            a, b = _column(pair[0]), _column(pair[1])
+            missing = f"{a} IS NULL OR {b} IS NULL"
+            both = f"{_rank(a, missing)}, {_rank(b, missing)}"
+            statements.append(([pair], f"(SELECT {both} FROM {numbered})"))
     return statements
 
 
-def _run(source: Source, sql: str, table: str) -> None:
-    """Run one tile's statement over the data and append its rows to `table`."""
-    found = source.relation.query(_VIEW, sql)
+def _run(sql: str, table: str, source: Source | None = None) -> None:
+    """Run one statement and append its rows to `table`.
+
+    With `source`, the statement reads the data as `_VIEW`; without, it reads
+    sqlearn's own tables.
+    """
+    if source is None:
+        found = connection().sql(sql)
+    else:
+        found = source.relation.query(_VIEW, sql)
     assert found is not None  # a SELECT always has a result
     found.insert_into(table)
 
@@ -237,16 +276,17 @@ def correlations(
     ``cols=``, more memory with ``sq.set_config(memory=...)``, fewer threads,
     or the file rewritten with smaller row groups).
 
-    Spearman first counts each column's missing values, a block at a time.
-    Its blocks are a quarter as wide, since DuckDB carries every column
-    read through each rank's sort. A column with none is ranked in each
-    statement that reads it, one sort of the rows, and its pairs with other
-    such columns share that statement. A pair touching a column with
-    missing values is ranked again over that pair's complete rows, in a
-    statement of its own that reads only its two columns: two sorts per
-    pair, so each sparse column costs two sorts for every other column
-    chosen. A sort holds the rows it ranks, so Spearman's memory follows
-    the rows as well as the block.
+    Spearman reads the data once, into a temporary copy of the chosen
+    columns, cleaned and numbered by row, on sqlearn's connection: as large
+    as those columns, it goes to disk when it does not fit DuckDB's memory
+    limit, and it is dropped at the end, whether the call succeeds or
+    fails. Each column with no missing value is then ranked once, a sort of
+    its rows that holds only it and the row number, and the ranks of two
+    blocks, joined on the row number, are correlated as Pearson's are. A
+    pair touching a column with missing values is ranked again over that
+    pair's complete rows, from the copy, in a statement of its own that
+    reads only its two columns: two sorts per pair, so each sparse column
+    costs two sorts for every other column chosen.
 
     Examples
     --------
@@ -272,33 +312,58 @@ def correlations(
                 f"leave cols= out to take them all."
             )
     count = len(chosen)
-    size = _BLOCK_COLUMNS if method == "pearson" else _RANKED_BLOCK_COLUMNS
     blocks = [
-        list(range(start, min(start + size, count))) for start in range(0, count, size)
+        list(range(start, min(start + _BLOCK_COLUMNS, count)))
+        for start in range(0, count, _BLOCK_COLUMNS)
     ]
     head = [(_ORDER[0], "INTEGER"), (_ORDER[1], "INTEGER"), *_RESULT]
     casts = ", ".join(f"CAST(NULL AS {kind}) AS {quote(label)}" for label, kind in head)
-    staging = answer(f"SELECT {casts} WHERE false")
+    made = [answer(f"SELECT {casts} WHERE false").alias]
+    staging = quote(made[0])
+    numbered = ""
+    complete: set[int] = set()
+    ranked: list[str | None] = []
     try:
-        complete = _complete(source, chosen) if method == "spearman" else set()
+        if method == "spearman" and count > 1:
+            numbered = _number(source, chosen, made)
+            complete = _complete(numbered, count)
+            for block in blocks:
+                places = [k for k in block if k in complete]
+                ranked.append(_rank_block(numbered, places, made) if places else None)
         for i, first in enumerate(blocks):
-            for second in blocks[i:]:
-                if second is first:
+            for j in range(i, len(blocks)):
+                second = blocks[j]
+                if j == i:
                     tile = list(itertools.combinations(first, 2))
                 else:
                     tile = list(itertools.product(first, second))
                 if not tile:
                     continue
-                for pairs, names, ranks in _statements(method, chosen, tile, complete):
-                    sql = _pairs_query(pairs, _clean(names), ranks)
-                    _run(source, sql, staging.alias)
+                pairs = [(p, q, chosen[p], chosen[q]) for p, q in tile]
+                if method == "pearson":
+                    used = sorted({k for pair in tile for k in pair})
+                    values = f"(SELECT {_clean(chosen, used)} FROM {quote(_VIEW)})"
+                    _run(_pairs_query(pairs, values), staging, source)
+                    continue
+                ranks = ranked[i]
+                if j != i and ranks is not None and ranked[j] is not None:
+                    ranks = f"{ranks} JOIN {ranked[j]} USING ({quote(_ROW)})"
+                for some, values in _ranked_statements(
+                    pairs, complete, ranks, numbered
+                ):
+                    _run(_pairs_query(some, values), staging)
         labels = ", ".join(quote(label) for label, _ in _RESULT)
         order = ", ".join(quote(label) for label in _ORDER)
-        rel = answer(f"SELECT {labels} FROM {quote(staging.alias)} ORDER BY {order}")
+        rel = answer(f"SELECT {labels} FROM {staging} ORDER BY {order}")
     except duckdb.OutOfMemoryException as exc:
         raise exploring_out_of_memory(
-            exc, source.relation.sql_query(), "correlations"
+            exc,
+            source.relation.sql_query(),
+            "correlations",
+            sorts=method == "spearman",
         ) from exc
     finally:
-        connection().execute(f"DROP TABLE {quote(staging.alias)}")
+        for name in made:
+            with contextlib.suppress(duckdb.Error):
+                connection().execute(f"DROP TABLE IF EXISTS {quote(name)}")
     return to_output(rel, out if out is not None else get_config().out)

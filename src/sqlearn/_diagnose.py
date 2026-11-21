@@ -297,7 +297,7 @@ def applying_out_of_memory(exc: BaseException, sql: str) -> SqlearnError:
 
 
 def exploring_out_of_memory(
-    exc: BaseException, sql: str, function: str
+    exc: BaseException, sql: str, function: str, *, sorts: bool = False
 ) -> SqlearnError:
     """Explain DuckDB running out of memory while an exploration function reads.
 
@@ -309,6 +309,10 @@ def exploring_out_of_memory(
         The statement that failed, or the one that reads the data.
     function : str
         The function's name, for the message.
+    sorts : bool, default False
+        Whether the function also sorts the rows (ranks them), which a
+        smaller memory_limit cannot hold either and fewer columns do not
+        shrink; the why then says so.
 
     Returns
     -------
@@ -329,7 +333,10 @@ def exploring_out_of_memory(
     """
     wide = _row_groups(sql)
     fixes = ["pass fewer columns with cols=", *_memory_fixes(wide)]
-    why = "DuckDB's memory_limit is too small for the columns it reads at once."
+    why = "DuckDB's memory_limit is too small for the columns it reads at once"
+    if sorts:
+        why = f"{why}, or for the rows a rank sorts, which fewer columns do not shrink"
+    why = f"{why}."
     if wide is not None:
         why = f"{why} {wide[0]}"
     return SqlearnError(

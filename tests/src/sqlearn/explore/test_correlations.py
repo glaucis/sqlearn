@@ -176,9 +176,9 @@ def test_a_tile_reads_only_its_two_blocks_of_columns(monkeypatch):
     seen = []
     original = module._pairs_query
 
-    def spy(pairs, select, ranks=None):
-        seen.append(select.count("END AS"))
-        return original(pairs, select, ranks)
+    def spy(pairs, values):
+        seen.append(values.count("END AS"))
+        return original(pairs, values)
 
     monkeypatch.setattr(module, "_pairs_query", spy)
     monkeypatch.setattr(module, "_BLOCK_COLUMNS", 2)
@@ -246,7 +246,11 @@ def _assert_spearman_matches_pandas(rows, frame):
         (a, b) for i, a in enumerate(names) for b in names[i + 1 :]
     ]
     for a, b, correlation, count in rows:
-        assert math.isclose(correlation, expected.loc[a, b], rel_tol=1e-12)
+        # abs_tol for a correlation pandas gives as exactly 0: DuckDB sums
+        # in its own order (ADR 0043), and no relative bound holds at 0.
+        assert math.isclose(
+            correlation, expected.loc[a, b], rel_tol=1e-12, abs_tol=1e-15
+        )
         assert count == int(frame[[a, b]].dropna().shape[0])
 
 
@@ -299,9 +303,9 @@ def test_spearman_a_constant_or_short_pair_gives_null():
 def test_spearman_tiles_give_the_same_pairs_as_one_statement(monkeypatch):
     """Blocks of 2 over complete and sparse columns match one block, and pandas."""
     frame = _wide()
-    monkeypatch.setattr(module, "_RANKED_BLOCK_COLUMNS", 100)
+    monkeypatch.setattr(module, "_BLOCK_COLUMNS", 100)
     whole = sq.explore.correlations(frame, method="spearman").fetchall()
-    monkeypatch.setattr(module, "_RANKED_BLOCK_COLUMNS", 2)
+    monkeypatch.setattr(module, "_BLOCK_COLUMNS", 2)
     tiled = sq.explore.correlations(frame, method="spearman").fetchall()
     assert [(r[0], r[1], r[3]) for r in tiled] == [(r[0], r[1], r[3]) for r in whole]
     _assert_spearman_matches_pandas(tiled, frame)
@@ -312,14 +316,14 @@ def test_spearman_ranks_complete_columns_once_and_sparse_pairs_alone(monkeypatch
     seen = []
     original = module._pairs_query
 
-    def spy(pairs, select, ranks=None):
-        seen.append(([(p[2], p[3]) for p in pairs], select.count("END AS")))
-        return original(pairs, select, ranks)
+    def spy(pairs, values):
+        seen.append(([(p[2], p[3]) for p in pairs], values.count("END AS")))
+        return original(pairs, values)
 
     monkeypatch.setattr(module, "_pairs_query", spy)
-    monkeypatch.setattr(module, "_RANKED_BLOCK_COLUMNS", 100)
+    monkeypatch.setattr(module, "_BLOCK_COLUMNS", 100)
     sq.explore.correlations(_wide(), method="spearman")  # b and e are sparse
-    assert seen[0] == ([("a", "c"), ("a", "d"), ("c", "d")], 3)
+    assert seen[0] == ([("a", "c"), ("a", "d"), ("c", "d")], 0)
     assert sorted(pairs[0] for pairs, _ in seen[1:]) == [
         ("a", "b"),
         ("a", "e"),
@@ -332,17 +336,85 @@ def test_spearman_ranks_complete_columns_once_and_sparse_pairs_alone(monkeypatch
     assert all(len(pairs) == 1 and read == 2 for pairs, read in seen[1:])
 
 
-def test_spearman_tiles_by_its_own_smaller_block(monkeypatch):
-    """Spearman cuts the columns into blocks of `_RANKED_BLOCK_COLUMNS`."""
-    seen = []
-    original = module._pairs_query
+def _complete_frame() -> pd.DataFrame:
+    rng = np.random.default_rng(4)
+    return pd.DataFrame(
+        rng.integers(0, 6, size=(30, 25)), columns=[f"x{k}" for k in range(25)]
+    )
 
-    def spy(pairs, select, ranks=None):
-        seen.append(select.count("END AS"))
-        return original(pairs, select, ranks)
 
-    monkeypatch.setattr(module, "_pairs_query", spy)
-    monkeypatch.setattr(module, "_RANKED_BLOCK_COLUMNS", 1)
-    rows = sq.explore.correlations(_ties(), method="spearman").fetchall()
-    assert seen == [2] * 6
-    _assert_spearman_matches_pandas(rows, _ties())
+def test_spearman_ranks_each_complete_column_once(monkeypatch):
+    """A complete column is ranked once, however many tiles read it."""
+    ranked = []
+    original = module._rank
+
+    def spy(name, missing=None):
+        ranked.append((name, missing))
+        return original(name, missing)
+
+    monkeypatch.setattr(module, "_rank", spy)
+    frame = _complete_frame()
+    rows = sq.explore.correlations(frame, method="spearman").fetchall()
+    assert len(ranked) == 25
+    assert len(set(ranked)) == 25
+    assert all(missing is None for _, missing in ranked)
+    _assert_spearman_matches_pandas(rows, frame)
+
+
+def test_spearman_a_complete_pair_down_the_sparse_path_is_the_same(monkeypatch):
+    """Ranking complete pairs over their own rows gives the same answer."""
+    frame = _wide()
+    normal = sq.explore.correlations(frame, method="spearman").fetchall()
+    monkeypatch.setattr(module, "_complete", lambda *_args: set())
+    forced = sq.explore.correlations(frame, method="spearman").fetchall()
+    assert [(r[0], r[1], r[3]) for r in forced] == [(r[0], r[1], r[3]) for r in normal]
+    for a, b in zip(forced, normal, strict=True):
+        assert math.isclose(a[2], b[2], rel_tol=1e-12)
+
+
+def _sqlearn_tables() -> set[str]:
+    rows = connection().execute(
+        "SELECT table_name FROM duckdb_tables() WHERE table_name LIKE '__sqlearn_%'"
+    )
+    return {name for (name,) in rows.fetchall()}
+
+
+@pytest.mark.parametrize("method", ["pearson", "spearman"])
+def test_any_error_leaves_no_temporary_table(monkeypatch, method):
+    """A plain error from a tile, not only out of memory, drops every table."""
+    before = _sqlearn_tables()
+
+    def fail(*_args):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(module, "_run", fail)
+    with pytest.raises(RuntimeError, match="boom"):
+        sq.explore.correlations(_wide(), method=method)
+    assert _sqlearn_tables() == before
+
+
+def test_spearman_out_of_memory_while_ranking_is_refused_and_cleaned(monkeypatch):
+    """Out of memory in the ranking step is wrapped and leaves no table."""
+    before = _sqlearn_tables()
+
+    def fail(*_args):
+        raise duckdb.OutOfMemoryException("Out of Memory Error: ranking")
+
+    monkeypatch.setattr(module, "_rank_block", fail)
+    with pytest.raises(SqlearnError, match=r"(?s)Why:.*Fix:.*memory=") as info:
+        sq.explore.correlations(_wide(), method="spearman")
+    assert "ranking" in str(info.value)
+    assert "the rows a rank sorts" in str(info.value)
+    assert _sqlearn_tables() == before
+
+
+def test_pearson_out_of_memory_does_not_speak_of_ranks(monkeypatch):
+    """Only Spearman sorts, so only its refusal names the rows it sorts."""
+
+    def fail(*_args):
+        raise duckdb.OutOfMemoryException("Out of Memory Error: failed")
+
+    monkeypatch.setattr(module, "_run", fail)
+    with pytest.raises(SqlearnError) as info:
+        sq.explore.correlations(_wide())
+    assert "rank" not in str(info.value)
