@@ -276,18 +276,18 @@ def profile(
     mean overflows (finite values whose sum passes the largest double),
     ``mean`` shows what ``favg`` gave and the three are NULL. Each of the
     three is NULL too where a sum it needs is not finite: the squared
-    deviations for all three, the cubed for skewness, the fourth powers
-    for kurtosis (as on ``[-1e308, 1e308, 0]``, where pandas gives inf or
-    NaN). The exact
-    distinct counts and quartiles keep every value (a hash and a sort, held
-    in memory), so they follow in groups of columns, with the deviations, a
-    statement each that reads only its group's columns. A group holds as
-    many columns as DuckDB's ``memory_limit`` holds at about 32 bytes a
-    row, from 1 to 20: on 12.5 million rows and a 2 GB limit, 4. The exact
-    profile reads the data once more per group, so each column twice in
-    all. With ``exact=False`` the estimates, a small state each, join the
-    scan, and the deviations follow in 20-column blocks: each number is
-    read twice, any other column once.
+    deviations for all three, the cubed for skewness, the fourth powers for
+    kurtosis (as on ``[-1e308, 1e308, 0]``, where pandas gives inf or NaN).
+    The exact distinct counts and quartiles keep every value (a hash and a
+    sort, held in memory), so they follow in groups of columns, with the
+    deviations, a statement each that reads only its group's columns. A
+    group holds as many columns as DuckDB's ``memory_limit`` holds at about
+    32 bytes a row, from 1 to 20: on 12.5 million rows and the 1,986 MB
+    limit of ``sq.set_config(memory="4GB")``, 4. The exact profile reads the
+    data once more per group, so each column twice in all. With
+    ``exact=False`` the estimates, a small state each, join the scan, and
+    the deviations follow in 20-column blocks: each number is read twice,
+    any other column once.
 
     Parameters
     ----------

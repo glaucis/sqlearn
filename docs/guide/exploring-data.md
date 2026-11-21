@@ -220,10 +220,11 @@ and memory than Pearson; `cols=` narrows it.
 ## When the data is larger than memory
 
 Every function takes a path, so the data need not be loaded first:
-`sq.explore.profile("data/sales/*.parquet")`. When DuckDB runs out of memory the
-call is refused with a `Why:` and a `Fix:` (fewer columns, `exact=False`, more
-memory with `sq.set_config(memory=...)`, fewer threads, or a file with smaller
-row groups); in the runs measured, the process was not killed.
+`sq.explore.profile("data/sales/*.parquet")`. When DuckDB runs out of memory,
+each function refuses the call with a `Why:` and a `Fix:`: fewer columns with
+`cols=`, more memory with `sq.set_config(memory=...)`, fewer threads, or a file
+with smaller row groups, and for an exact `profile` first `exact=False`. In the
+runs measured, the process was not killed.
 [The benchmark](../benchmarks/explore-larger-than-memory.md) records a profile
 and correlations of 12.5 million rows of 200 columns, 20 GB, on a machine with
 16 GiB.

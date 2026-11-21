@@ -18,8 +18,8 @@ machine was shared with heavy unrelated work.
   with `COPY` and DuckDB's default row groups of 122,880 rows: 20.0 GB (the
   values do not compress), more than the machine's 16 GiB of RAM.
 - **Budget:** `sq.set_config(memory=X)` gives DuckDB half of `X` as its
-  `memory_limit`: `"4GB"` gave 2 GB (shown by DuckDB as 1.8 GiB) and `"2GB"`
-  gave 1 GB (953.6 MiB). Default threads (8).
+  `memory_limit`: `"4GB"` gave 1,986 MB (shown by DuckDB as 1.8 GiB) and
+  `"2GB"` gave 1 GB (953.6 MiB). Default threads (8).
 - **Probes**, one subprocess each so that its peak is its own: `profile`
   (exact, the default), `profile` with `exact=False`, `correlations` (Pearson)
   and `correlations` with `method="spearman"`, each over the file's path, the
@@ -93,8 +93,8 @@ computed as 55 statements, each pairing two blocks of 20 columns.
 Spearman was refused at both budgets, and the process was not killed by the
 operating system. Its first scan, which numbers the source into a temporary
 copy, is one statement that reads every chosen column, so each of 8 threads
-holds a row group of all 200: 197 MB each. That did not fit a 2 GB limit
-(after 146.5 s at `"4GB"`) nor a 1 GB one (after 36.3 s).
+holds a row group of all 200: 197 MB each. That did not fit the 1,986 MB limit
+of `"4GB"` (after 146.5 s) nor the 1 GB one of `"2GB"` (after 36.3 s).
 sqlearn's message says why and names the fixes: fewer `cols=`, more memory with
 `sq.set_config(memory=...)`, fewer threads, or a file with smaller row groups.
 Pearson's memory follows its block of columns (measured at 1,000,000 rows in
@@ -133,17 +133,17 @@ The first probes, on the code as built before this round, failed in two ways.
   columns (2.63 against 2.69 GB over all 200 columns on 8 threads). No
   `FILTER` remains in `profile`.
 - **One scan over all 200 columns did not fit either.** Even with `CASE`, a
-  statement that reads every column was refused under a 1 to 2 GB limit on
-  this file: a plain `sum` of the 200 columns at a 1 GB limit failed to
+  statement that reads every column was refused under a 1 GB to 1,986 MB limit
+  on this file: a plain `sum` of the 200 columns at a 1 GB limit failed to
   allocate 187.5 MiB, one row group of 200 doubles. So the scan is cut into
   blocks of 20 columns, each column still read once. On this file, 8 threads: at
   a 1 GB limit 20 columns peaked at 0.66 GB, 40 at 1.09 GB and 80 ran out of
-  memory; at 1.8 GiB, 80 fit (1.86 GB) and 200 ran out.
+  memory; at 1,986 MB (1.8 GiB), 80 fit (1.86 GB) and 200 ran out.
 - **The exact aggregates hold every value.** A `count(DISTINCT)` and an exact
-  quantile keep every value and do not spill. At a 2 GB limit on 8 threads
+  quantile keep every value and do not spill. At a 1,986 MB limit on 8 threads
   `count(DISTINCT)` alone peaked at 0.42, 1.19 and 2.17 GB for 1, 4 and 8
   columns (about 20 bytes a value), `quantile_cont` alone at 0.35, 0.82 and 1.33
-  GB (about 11 bytes a value). At `memory="4GB"` (a 1.8 GiB limit), groups of 2
+  GB (about 11 bytes a value). At `memory="4GB"` (a 1,986 MB limit), groups of 2
   and 4 columns profiled all 200 columns and a group of 6 was refused, so the
   group size is the columns that `memory_limit` holds at about 32 bytes a row,
   from 1 to 20. That was measured on doubles: long text in a distinct count may
@@ -152,7 +152,10 @@ The first probes, on the code as built before this round, failed in two ways.
 ## What this shows and does not
 
 - A profile of 20 GB completed under both budgets, exact in 103 to 115 s on
-  the quieter run and `exact=False` in 54 to 59 s, at peaks below 2.6 GB.
+  the quieter run and `exact=False` in 54 to 59 s, at peaks below 2.6 GB. The
+  `exact=False` times were measured before the compensated second pass, with
+  one read of each column, and were not rerun: that pass reads every number
+  column a second time.
 - Pearson completed at `"4GB"` and was refused at `"2GB"`. Spearman was
   refused at both, and a fix for it is to number the source in column groups
   as Pearson's blocks are bounded (not done).
