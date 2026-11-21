@@ -3,20 +3,23 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-21 · Branch: `engine-phase-0` · Last commit: `ccc73ee` docs:
-apply the review of the engine's ADRs (#78) · Checks: passing (`just verify`
-on `ccc73ee`, 68 minutes at load 4 to 6; `just test`: 3178 passed)
+Updated: 2026-11-21 · Branch: `engine-phase-0` · Last commit: `41e64cf` docs:
+plan 0a of the native engine is done (#78) · Checks: passing (`just verify` on
+`ccc73ee`, 68 minutes at load 4 to 6; `just test`: 3178 passed on `41e64cf`)
 
 Verify with: `just verify`
 
 ## In progress
 
-- Phase 0 of the native engine (#78), branch `engine-phase-0`: plan 0a done
-  (ADRs 0060 to 0068, commits `876d95f`..`ccc73ee`, reviewed task by task and
-  as a whole); plan 0b next. Spec `docs/specs/native-engine.md`. Left from the
-  last review, cosmetic: ADR 0062's Context names Tomas twice in one line;
-  spec §3.3's "Why Apple silicon leads" repeats the bullet above it; one
-  unwrapped line in the overview's §2.
+- [verified] Phase 0 of the native engine (#78), worktree
+  `.worktrees/engine-phase-0`, branch `engine-phase-0` (pushed, not merged):
+  plan 0a done (below). Next: run
+  `docs/plans/2026-11-21-native-engine-phase-0b-inventory.md` on the same
+  branch with superpowers:subagent-driven-development; it closes Phase 0, then
+  Tomas merges. Cosmetic leftovers from 0a's last review, fix with 0b: ADR
+  0062's Context names Tomas twice in one line; spec §3.3's "Why Apple
+  silicon leads" repeats the bullet above it; one unwrapped line in the
+  overview's §2.
 
 ## Waiting on the user
 
@@ -27,8 +30,8 @@ Verify with: `just verify`
 
 ## Next up
 
-- Phase 0 (#78), as above. The migration comes before any new library area
-  (Tomas, 2026-11-21; spec §4).
+- Plan 0b of Phase 0 (#78), as above. The migration comes before any new
+  library area (Tomas, 2026-11-21; spec §4).
 - Then the three small fixes, before Phase 1:
   - The one-line `profile` fix: its skewness and kurtosis multiply before
     dividing (`profile.py` `_shape`), so `[0, 0, 0, 6e102]` gives inf where
@@ -50,6 +53,10 @@ Verify with: `just verify`
 
 ## Dead ends and traps
 
+- Subagents writing ADRs invent reasons and attribute them to Tomas unless
+  told "no reason the spec does not give"; they leave `pgrep -f` wait loops
+  unless told to run `just test` once in the foreground. One, denied a
+  `kill`, asked the controller to do it: refuse, ask Tomas. (2026-11-21)
 - MLX (weighed for the engine, then left out): float64 runs on its CPU only,
   and there `exp` and `erf` are computed in float32 (`exp(1.0)` 1.86e8 ULPs
   off, `exp(100)` inf); `mx.array` of a float64 numpy array gives float32
@@ -155,17 +162,11 @@ Verify with: `just verify`
 
 ## Just finished
 
-- The native engine's spec, approved by Tomas and committed with its
-  research page (`e0f1a7d`): C++ inside sqlearn's own DuckDB build (the
-  `duckdb` module, a second package), Apple silicon first, nine decisions
-  for ADRs 0060–0068, seven phases. (2026-11-21)
-- GitHub: milestone "Native engine"; #77 (CPU against GPU benchmarks, under
-  #84) and #78 to #84 (Phases 0 to 6, each blocked by the one before), on the
-  board; the hosting decision commented on #4 and #6. (2026-11-21)
-- The backup branch `main_python` and annotated tag `python-final` at
-  `ca2b720`, the last pure-Python state, pushed with `main` (Tomas, 2026-11-21).
-  Everything else is committed and pushed too: the docs tagger's frontmatter
-  edits (`7ca5a5e`) and CLion's project settings (`eb62ff6`). (2026-11-21)
-- The repository is public (Tomas, 2026-11-21), the history searched for
-  keys and tokens first (clean), secret scanning and push protection on; the
-  README says sqlearn is not ready for use (`ca2b720`). (2026-11-21)
+- Plan 0a of Phase 0 (#78), `876d95f`..`41e64cf`: ADRs 0060–0068 with their
+  amendments to 0002, 0004, 0005, 0006, 0009, 0017, 0046, 0057; `CLAUDE.md`'s
+  rules, the overview (part 3.10), layout, glossary and `setup.md` follow
+  them; the site-hosting question answered and deleted. Reviewed per task and
+  as a whole, one fix wave. (2026-11-21)
+- Tomas's platform decision, in ADR 0062 and spec §3.3: Apple silicon above
+  all, maximum optimisation; other platforms CPU-only with general
+  optimisations; accuracy never traded (no `-ffast-math`). (2026-11-21)
