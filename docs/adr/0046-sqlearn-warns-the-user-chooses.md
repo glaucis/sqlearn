@@ -7,7 +7,10 @@ related: [docs/adr/0003-scikit-learn-style-api.md, docs/adr/0019-custom-steps-an
 # 0046: sqlearn warns, the user chooses
 
 Status: accepted (2026-11-10). Decided with Tomas while ruling on the
-library-breadth builds (#27, #31, #45, #47).
+library-breadth builds (#27, #31, #45, #47). Amended by
+[ADR 0064](0064-the-gpu-runs-by-itself-only-when-the-answer-is-the-same.md)
+(2026-11-21): on Apple silicon the GPU runs by itself when its answer is bit
+for bit the CPU's.
 
 ## Context
 

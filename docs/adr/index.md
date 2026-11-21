@@ -50,6 +50,7 @@ sqlearn's computation in C++, inside its own DuckDB build.
 - [0061: sqlearn ships its own DuckDB build](0061-sqlearn-ships-its-own-duckdb-build.md)
 - [0062: Apple silicon first, a safe CPU build elsewhere](0062-apple-silicon-first.md)
 - [0063: The engine's compute libraries: Accelerate, OpenBLAS and Metal](0063-the-engines-compute-libraries.md)
+- [0064: The GPU runs by itself only when the answer is the same](0064-the-gpu-runs-by-itself-only-when-the-answer-is-the-same.md)
 
 ## The API
 

@@ -82,7 +82,9 @@ Rules from the ADRs:
   own. `devdata/` at the root is for developing sqlearn: it never ships,
   `src/` never imports it, and published docs do not use it (0053).
 - sqlearn never changes on its own what the user asked for: it keeps the
-  default, warns with a `Fix:` line, and the user opts in (0046).
+  default, warns with a `Fix:` line, and the user opts in (0046). The one
+  exception: on Apple silicon a kernel runs on the GPU by itself when its
+  answer is bit for bit the CPU's (0064).
 
 Superpowers skills save specs to `docs/specs/` and plans to `docs/plans/`
 here, not `docs/superpowers/`.
