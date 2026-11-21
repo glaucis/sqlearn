@@ -19,10 +19,6 @@ None.
   `generators-on-many-threads.md` (#46), `gram-batches.md`, and both
   `explore-*.md` pages (load up to 145, a Rust build and a VM running).
   (since 2026-11-18)
-- #4, #6: where the site is hosted (`docs/questions/site-hosting.md`), so
-  the README and `switcher.json` get a URL: make the repository public, or
-  push the built site to an orphan branch or a public repository. Both fixes
-  are a few lines once it is chosen. (since 2026-11-05)
 
 ## Next up
 
@@ -34,6 +30,9 @@ None.
   groups, as Pearson's blocks are bounded.
 - #76: `read` gives a raw `ResourceInUseException` on a busy user
   connection; reword the `meta_sqlearn` trap below with it.
+- #4, #6: the site goes on GitHub Pages from the now public repository,
+  deployed with the CI the native engine's first phase sets up; then the
+  README and `switcher.json` get its URL.
 - The rest of 3.6 (spec §8: target panel, outliers, normality, Kendall,
   sampling, time series), then the application. Models stay outside (ADR
   0017; Tomas, 2026-11-20). 3.3 candidates: text features, more
@@ -133,6 +132,9 @@ None.
 
 ## Just finished
 
+- The repository is public (Tomas, 2026-11-21). The history was searched
+  for keys and tokens first and is clean; the README says sqlearn is not
+  ready for use and that contributions wait for the CLA (ADR 0004).
 - #74 merged in `b779980`, pushed, closed: `sq.explore` (`profile`,
   `histogram`, `top`, `missing`, `correlations`), ADR 0059, validation 809
   pass; profile and Pearson run on 20 GB at a 1–2 GB DuckDB limit, Spearman
