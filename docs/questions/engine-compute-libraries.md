@@ -7,6 +7,9 @@ mdindex: [type=1f5087, tags=64451b, summary=088550]
 ---
 # Which compute libraries does sqlearn's engine use?
 
+Answered by [ADR 0063](../adr/0063-the-engines-compute-libraries.md) on
+2026-11-21, and kept as the research behind it.
+
 sqlearn is building a C++ engine compiled into its own DuckDB 2.0 build.
 Apple silicon comes first and should use the whole chip; Linux and Windows
 get a safe CPU build; other GPUs come only when asked for and testable.

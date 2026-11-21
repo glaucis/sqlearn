@@ -1,0 +1,67 @@
+---
+type: adr
+tags: [compute-libraries, accelerate, openblas, metal, float64, gpu, architecture-decision]
+summary: "Records that float64 runs on the CPU (Accelerate on macOS, OpenBLAS elsewhere), that MLX is left out, that GPU kernels are written in Metal and compiled ahead of time, and that -ffast-math is never used."
+related: [docs/adr/0060-a-native-engine-in-cpp-inside-duckdb.md, docs/adr/0061-sqlearn-ships-its-own-duckdb-build.md, docs/adr/0062-apple-silicon-first.md, docs/specs/native-engine.md, docs/questions/engine-compute-libraries.md]
+---
+# 0063: The engine's compute libraries: Accelerate, OpenBLAS and Metal
+
+Status: accepted (2026-11-21). Decided by Tomas on 2026-11-21 with the
+[native engine spec](../specs/native-engine.md) (§3.4).
+
+## Context
+
+The engine needs matrix and special-function routines. Results are checked
+in float64. Metal has no float64, so nothing on Apple's GPU has it. The
+research is in [the compute libraries
+question](../questions/engine-compute-libraries.md).
+
+Measured on the M3:
+
+- XᵀX of 400,000 × 200 took 52 ms in Accelerate's float64, and 19 ms in
+  its float32. MLX's GPU took 36 ms in float32.
+- In float32, the small eigenvalues of XᵀX were wrong by 10 to 44 times
+  their own size at 200 columns.
+- MLX's float64 runs on the CPU only. There its `exp` and `erf` are
+  computed in float32: `exp(1.0)` was 1.86e8 ULPs off and `exp(100)` gave
+  infinity.
+- MLX's kernels weigh 214 MB.
+- Without a binary archive, a first kernel took 44 ms and later uses 0.5
+  ms (a 200 × 200 matrix product in MLX).
+- The GPU won once: at 65,536 × 200 in float32, 2.9 ms against
+  Accelerate's 3.5 ms.
+
+Weighed and left out:
+
+- **MLX.** See the numbers above.
+- **Cross-platform GPU layers** (WebGPU, Vulkan, SYCL, Halide, IREE):
+  float32 in practice, no linear algebra, and some compile at run time.
+- **Eigen.** Its licence is MPL-2.0.
+- **JAX and XLA.** They compile at the first call, and they are Python.
+
+## Decision
+
+- **float64 runs on the CPU, everywhere.** On macOS: Accelerate's BLAS,
+  LAPACK (3.12, with 64-bit indices) and vForce (`exp`, `log`, `expm1`,
+  `log1p`, `pow` over arrays), single-threaded inside each DuckDB thread
+  (`BLASSetThreading`, macOS 15+). Elsewhere: OpenBLAS (BSD-3).
+- **Special functions** (`erf`, the incomplete gamma and beta functions):
+  the C library, Boost.Math (BSL-1.0, header-only, tested first), or our
+  own, each validated against mpmath. Never Numerical Recipes' code, whose
+  licence forbids it.
+- **No MLX.**
+- **GPU kernels are written in Metal**, through metal-cpp (Apache-2.0), and
+  compiled ahead of time into a `.metallib` (Xcode's Metal toolchain on the
+  build machine), with binary archives for the chips we know, so nothing
+  compiles at start. Kernels use only what every Apple GPU has, from the
+  M1; per-chip variants or tuning are chosen at run time, each where a
+  measurement shows it pays.
+- **No `-ffast-math`** anywhere, since it swaps in less accurate routines.
+  Metal kernels compile in safe math mode (Metal's default is fast).
+
+## Consequences
+
+- MLX is not a dependency.
+- The Macs that build sqlearn need Xcode's Metal toolchain.
+- Validation results are kept per platform.
+- #77 sets each kernel's size threshold, from measurements.
