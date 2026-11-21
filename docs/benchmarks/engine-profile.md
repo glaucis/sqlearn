@@ -31,7 +31,10 @@ nothing. It is an estimate: the machine was heavily loaded.
   - `Python s`: the profiled run's wall time less `DuckDB s`.
   - `statements`: how many statements the call sent.
   - `longest s`: the longest single statement.
-  - Operator times: summed over every statement and every thread.
+  - `largest operators`: the three operators with the most time in the
+    longest single statement, each summed over that statement's threads. For
+    the one-statement paths it is the whole call; for the others the prose
+    below gives sums over every statement, labelled as such.
 
 `DuckDB s` and `Python s` come from the profiled run, which is slower than a
 timing run (profiling and `cProfile` cost time, and the load changed between
@@ -71,8 +74,12 @@ timing runs. No probe failed.
 | 200 | 11.70 / 9.15 | 3.56 / 3.45 | 5.71 | 2.14 | 20 | 3.07 | BATCH_CREATE_TABLE_AS 1.64, TABLE_SCAN 1.30, PROJECTION 0.06 |
 | 500 | 31.72 / 31.97 | 5.80 / 5.28 | 16.36 | 7.74 | 44 | 6.62 | TABLE_SCAN 26.88, UNGROUPED_AGGREGATE 7.66, PROJECTION 3.00 |
 
-In the profiled run, the largest Python function by its own time was
-`gram_matrix` (0.77 s at 50 columns, 5.01 s at 200, 10.69 s at 500).
+In the profiled run, the largest Python function by `cProfile`'s own time
+(`tottime`) was `gram_matrix` (0.77 s at 50 columns, 5.01 s at 200, 10.69 s
+at 500). That time includes work inside the DuckDB calls it makes, so it can
+exceed `Python s`. Summed over every statement and thread, the largest
+operators were TABLE_SCAN (0.63 s, 3.78 s, 29.63 s), UNGROUPED_AGGREGATE
+(0.45 s, 2.56 s, 7.66 s) and BATCH_CREATE_TABLE_AS (0.33 s, 1.64 s, 3.62 s).
 
 ### Spearman (`sq.explore.correlations`), before #75
 
@@ -83,8 +90,9 @@ In the profiled run, the largest Python function by its own time was
 
 Summed over all statements, the largest operators were UNGROUPED_AGGREGATE
 (40.45 s at 50 columns, 645.66 s at 200), then WINDOW (8.12 s, 23.22 s). In
-the profiled run `_rank_block` took 5.99 s of its own time at 50 columns and
-13.04 s at 200.
+the profiled run `_rank_block` took 5.99 s of `cProfile`'s own time at 50
+columns and 13.04 s at 200; that includes time inside the DuckDB calls it
+makes, so it can exceed `Python s` (0.35 s, 3.58 s).
 
 ### The widest steps (`scale`, `median`, `variance`, `profile`)
 
@@ -110,13 +118,13 @@ peaks of 5.09 to 8.66 GB in the timing runs.
 Shares are `Python s` over the profiled run's wall time, and are estimates
 under the load above.
 
-- **Gram learn (`pca`).** Python's share was 37% at 50 columns, 27% at 200
-  and 32% at 500. `gram_matrix` was the largest Python function at every
-  width. DuckDB's part moved from writing the batches (BATCH_CREATE_TABLE_AS,
-  TABLE_SCAN) at 50 and 200 columns to scanning at 500, where TABLE_SCAN was
-  26.88 s summed over threads. Time grew from about 1.5 s to about 10 s to
-  about 32 s as the columns went 50, 200, 500, and peak memory from 1.7 to
-  3.5 to 5.5 GB. The statements grew from 8 to 20 to 44.
+- **Gram learn (`pca`).** Python's share was 37% at 50 columns, 27% at 200 and
+  32% at 500. `gram_matrix` was the largest Python function at every width.
+  Summed over every statement, TABLE_SCAN was the largest operator at every
+  width (0.63 s, 3.78 s, 29.63 s), ahead of UNGROUPED_AGGREGATE, and it grew
+  faster than the rest from 200 to 500 columns. Time grew from about 1.5 s to
+  about 10 s to about 32 s as the columns went 50, 200, 500, and peak memory
+  from 1.7 to 3.5 to 5.5 GB. The statements grew from 8 to 20 to 44.
 - **Spearman.** Python's share was 3% at both widths: the time is in DuckDB.
   UNGROUPED_AGGREGATE dominated, with WINDOW next. The statements grew from
   63 to 269 and the time from about 11 s to about 126 s, 4 times the columns
@@ -134,14 +142,17 @@ under the load above.
   summed), with CTE_SCAN next. At 500 columns it spilled 15.74 GB to the
   temporary directory.
 - **`profile`.** 23 statements at 200 columns and 53 at 500. Python's share
-  was 8% and 9%. HASH_GROUP_BY and UNGROUPED_AGGREGATE were the largest
-  operators, with CTE next, and no operator stood out. Time went from about
+  was 8% and 9%. Summed over every statement, HASH_GROUP_BY (29.37 s)
+  was ahead of UNGROUPED_AGGREGATE (27.01 s) and CTE (22.97 s) at 200 columns;
+  at 500, UNGROUPED_AGGREGATE (57.94 s) was ahead of HASH_GROUP_BY (53.43 s)
+  and CTE (38.72 s). No operator stood out. Time went from about
   11.6 s to between 32 s and 51 s (two runs far apart). Peak memory stayed
   at about 2.4 to 2.7 GB, the lowest of the wide paths, and did not grow
   with the columns.
-- **Python against DuckDB overall.** Python's share was 1% to 17% for every
-  path except the three `pca` widths (27% to 37%) and `scale` (19% and 25%).
-  The Python time of the single-statement paths was almost all inside the
-  call that submits the statement to DuckDB. `pca`'s own Python time was in
-  `gram_matrix`; Spearman's was in `_rank_block`.
+- **Python against DuckDB overall.** Python's share was 1% to 17% for every path
+  except the three `pca` widths (27% to 37%) and `scale` (19% and 25%). The
+  Python time of the single-statement paths was almost all inside the call that
+  submits the statement to DuckDB. The largest Python function by `cProfile`'s
+  own time was `gram_matrix` for `pca` and `_rank_block` for Spearman; that time
+  includes the DuckDB calls they make.
 - **Failed probes:** none. All 13 cases ran to the end.
