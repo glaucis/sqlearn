@@ -69,6 +69,10 @@ Beside sqlearn: pandas (``describe``'s statistics, ``skew``, ``kurt``,
 like. pandas counts ``top``'s values and ``missing``'s patterns without
 sqlearn's order of ties: every count is compared, not the order. A function
 a reference lacks is recorded as skipped with the reason.
+
+Not validated, since no dataset here has them: a date's ``first`` and
+``last``, ``profile(exact=False)``'s estimates, and integer-typed columns
+(every numeric dataset is DOUBLE); the tests check those against pandas.
 """
 
 import bisect
@@ -95,15 +99,16 @@ STEP = "explore"
 # the worst of six runs. First measured (2026-11-21, six runs):
 # - 0 ULPs for the extremes, the median, the third quartile and the share
 #   true; 1 for the first quartile (large set: the interpolation rounded);
-# - 25 for the mean on the first run (large set), 8 to 27 over six: the
-#   profile's mean is DuckDB's `avg`, one sum of doubles, where `sq.agg.mean`
-#   (`favg`, compensated) reaches 1; hence 32;
-# - 6 for the standard deviation (medium set, every run): DuckDB's one-pass
-#   `stddev_samp`, where `sq.agg.std` (two compensated passes) reaches 2;
-#   hence 8;
-# - in ULPs of 1: 3.2 for the skewness (nan set) and 36 to 37 for the excess
-#   kurtosis (reserved and large sets), DuckDB's `skewness` and `kurtosis`;
-#   pandas is as far (7.9 on the small set); hence 4 and 64;
+# - the mean, the standard deviation, the skewness and the kurtosis were
+#   remeasured (2026-11-21, three runs) once the profile's mean became
+#   `favg` (compensated) and the three a compensated second pass, `fsum`
+#   of the deviations about that mean (d2a8c7b), in place of DuckDB's
+#   `avg`, one-pass `stddev_samp`, `skewness` and `kurtosis` (which were
+#   up to 27, 6, 3.2 and 37), each the same in all three runs: 1 for the
+#   mean (medium set) and 1 for the standard deviation (nan set); hence 1
+#   and 1;
+# - in ULPs of 1: 0.96 for the skewness and 15.9 for the excess kurtosis
+#   (both on the small set, four rows); hence 1 and 16;
 # - in ULPs of the larger extreme: 1.6 for the histogram's edges (signed
 #   set), the same as numpy's; hence 2;
 # - in ULPs of 1: 33.2 for Pearson (large set, x ~ related, every run;
@@ -114,16 +119,16 @@ STEP = "explore"
 #   correlation near 0.002, so a rounding of the sums moves it by many ULPs;
 #   the worst, 16.4, is above 16, hence 32.
 BOUNDS = {
-    "mean": 32,
+    "mean": 1,
     "share true": 1,
-    "std": 8,
+    "std": 1,
     "min": 1,
     "q25": 1,
     "median": 1,
     "q75": 1,
     "max": 1,
-    "skewness": 4,
-    "kurtosis": 64,
+    "skewness": 1,
+    "kurtosis": 16,
     "edges": 2,
     "pearson": 64,
     "spearman": 32,

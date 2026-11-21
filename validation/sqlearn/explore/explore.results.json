@@ -240,7 +240,7 @@
     },
     {
       "abs_error": 5.684341886080802e-14,
-      "bound_ulps": 32,
+      "bound_ulps": 1,
       "canonical": 1018.4737031349603,
       "dataset": "small",
       "formula": "profile: mean",
@@ -256,7 +256,7 @@
     },
     {
       "abs_error": 5.684341886080802e-14,
-      "bound_ulps": 32,
+      "bound_ulps": 1,
       "canonical": 1018.4737031349603,
       "dataset": "small",
       "formula": "profile: mean",
@@ -272,7 +272,7 @@
     },
     {
       "abs_error": 5.684341886080802e-14,
-      "bound_ulps": 32,
+      "bound_ulps": 1,
       "canonical": 1018.4737031349603,
       "dataset": "small",
       "formula": "profile: mean",
@@ -287,24 +287,24 @@
       "value": 1018.4737031349603
     },
     {
-      "abs_error": 1.2600474552768866e-14,
-      "bound_ulps": 8,
+      "abs_error": 1.610380162433138e-15,
+      "bound_ulps": 1,
       "canonical": 32.55220966250314,
       "dataset": "small",
       "formula": "profile: std",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 3.870850760488724e-16,
+      "rel_error": 4.9470686602517606e-17,
       "result": "pass",
       "rows": 4,
       "step": "explore",
       "type": "DOUBLE",
-      "ulps": 2,
-      "value": 32.552209662503124
+      "ulps": 0,
+      "value": 32.55220966250314
     },
     {
       "abs_error": 1.610380162433138e-15,
-      "bound_ulps": 8,
+      "bound_ulps": 1,
       "canonical": 32.55220966250314,
       "dataset": "small",
       "formula": "profile: std",
@@ -320,7 +320,7 @@
     },
     {
       "abs_error": 1.610380162433138e-15,
-      "bound_ulps": 8,
+      "bound_ulps": 1,
       "canonical": 32.55220966250314,
       "dataset": "small",
       "formula": "profile: std",
@@ -575,25 +575,25 @@
       "value": 1064.0422650443281
     },
     {
-      "abs_error": 6.757601686634061e-16,
-      "bound_ulps": 4,
+      "abs_error": 2.124182510367191e-16,
+      "bound_ulps": 1,
       "canonical": 1.2002366581041006,
       "dataset": "small",
       "formula": "profile: skewness",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 5.6302243736734385e-16,
+      "rel_error": 1.7698030601086287e-16,
       "result": "pass",
       "rows": 4,
       "step": "explore",
       "type": "DOUBLE",
-      "ulps": 3.043353243784339,
+      "ulps": 0.9566467562156606,
       "ulps_of": 1.0,
-      "value": 1.2002366581041013
+      "value": 1.2002366581041004
     },
     {
       "abs_error": 4.344628559617504e-16,
-      "bound_ulps": 4,
+      "bound_ulps": 1,
       "canonical": 1.2002366581041006,
       "dataset": "small",
       "formula": "profile: skewness",
@@ -610,7 +610,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 4,
+      "bound_ulps": 1,
       "canonical": null,
       "dataset": "small",
       "formula": "profile: skewness",
@@ -625,25 +625,25 @@
       "value": null
     },
     {
-      "abs_error": 4.208682553727689e-16,
-      "bound_ulps": 64,
+      "abs_error": 3.529492724323207e-15,
+      "bound_ulps": 16,
       "canonical": 2.307663852147325,
       "dataset": "small",
       "formula": "profile: kurtosis",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 1.8237849285594306e-16,
+      "rel_error": 1.5294657066448164e-15,
       "result": "pass",
       "rows": 4,
       "step": "explore",
       "type": "DOUBLE",
-      "ulps": 1.8954221180688728,
+      "ulps": 15.895422118068872,
       "ulps_of": 1.0,
-      "value": 2.3076638521473245
+      "value": 2.3076638521473214
     },
     {
       "abs_error": 1.7531358849229568e-15,
-      "bound_ulps": 64,
+      "bound_ulps": 16,
       "canonical": 2.307663852147325,
       "dataset": "small",
       "formula": "profile: kurtosis",
@@ -660,7 +660,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 64,
+      "bound_ulps": 16,
       "canonical": null,
       "dataset": "small",
       "formula": "profile: kurtosis",
@@ -1097,24 +1097,24 @@
       "value": null
     },
     {
-      "abs_error": 9.200675776810385e-13,
-      "bound_ulps": 32,
+      "abs_error": 1.0311396181350574e-13,
+      "bound_ulps": 1,
       "canonical": 995.3178501666819,
       "dataset": "medium",
       "formula": "profile: mean",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 9.243957370270798e-16,
+      "rel_error": 1.0359902798511819e-16,
       "result": "pass",
       "rows": 1000,
       "step": "explore",
       "type": "DOUBLE",
-      "ulps": 8,
-      "value": 995.3178501666828
+      "ulps": 1,
+      "value": 995.3178501666818
     },
     {
       "abs_error": 1.057287590811029e-14,
-      "bound_ulps": 32,
+      "bound_ulps": 1,
       "canonical": 995.3178501666819,
       "dataset": "medium",
       "formula": "profile: mean",
@@ -1130,7 +1130,7 @@
     },
     {
       "abs_error": 1.057287590811029e-14,
-      "bound_ulps": 32,
+      "bound_ulps": 1,
       "canonical": 995.3178501666819,
       "dataset": "medium",
       "formula": "profile: mean",
@@ -1145,24 +1145,24 @@
       "value": 995.3178501666819
     },
     {
-      "abs_error": 8.126803188971031e-14,
-      "bound_ulps": 8,
+      "abs_error": 3.9970964015017135e-15,
+      "bound_ulps": 1,
       "canonical": 97.78876298649573,
       "dataset": "medium",
       "formula": "profile: std",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 8.310569579547e-16,
+      "rel_error": 4.087480278335966e-17,
       "result": "pass",
       "rows": 1000,
       "step": "explore",
       "type": "DOUBLE",
-      "ulps": 6,
-      "value": 97.78876298649581
+      "ulps": 0,
+      "value": 97.78876298649573
     },
     {
       "abs_error": 3.9970964015017135e-15,
-      "bound_ulps": 8,
+      "bound_ulps": 1,
       "canonical": 97.78876298649573,
       "dataset": "medium",
       "formula": "profile: std",
@@ -1178,7 +1178,7 @@
     },
     {
       "abs_error": 3.9970964015017135e-15,
-      "bound_ulps": 8,
+      "bound_ulps": 1,
       "canonical": 97.78876298649573,
       "dataset": "medium",
       "formula": "profile: std",
@@ -1433,25 +1433,25 @@
       "value": 1306.6036739048898
     },
     {
-      "abs_error": 4.31976311219181e-16,
-      "bound_ulps": 4,
+      "abs_error": 1.5642676984747314e-17,
+      "bound_ulps": 1,
       "canonical": -0.07516519461122234,
       "dataset": "medium",
       "formula": "profile: skewness",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 5.74702578039605e-15,
+      "rel_error": 2.081106430397218e-16,
       "result": "pass",
       "rows": 1000,
       "step": "explore",
       "type": "DOUBLE",
-      "ulps": 1.945448354239585,
+      "ulps": 0.07044835423958504,
       "ulps_of": 1.0,
-      "value": -0.07516519461122191
+      "value": -0.07516519461122233
     },
     {
       "abs_error": 2.952046479256177e-17,
-      "bound_ulps": 4,
+      "bound_ulps": 1,
       "canonical": -0.07516519461122234,
       "dataset": "medium",
       "formula": "profile: skewness",
@@ -1468,7 +1468,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 4,
+      "bound_ulps": 1,
       "canonical": null,
       "dataset": "medium",
       "formula": "profile: skewness",
@@ -1483,25 +1483,25 @@
       "value": null
     },
     {
-      "abs_error": 6.4054008186622065e-15,
-      "bound_ulps": 64,
+      "abs_error": 7.987745443051661e-16,
+      "bound_ulps": 16,
       "canonical": 0.2914781561787233,
       "dataset": "medium",
       "formula": "profile: kurtosis",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 2.197557752744483e-14,
+      "rel_error": 2.7404267776944077e-15,
       "result": "pass",
       "rows": 1000,
       "step": "explore",
       "type": "DOUBLE",
-      "ulps": 28.847360740085783,
+      "ulps": 3.597360740085784,
       "ulps_of": 1.0,
-      "value": 0.2914781561787169
+      "value": 0.2914781561787225
     },
     {
       "abs_error": 3.669596315512483e-16,
-      "bound_ulps": 64,
+      "bound_ulps": 16,
       "canonical": 0.2914781561787233,
       "dataset": "medium",
       "formula": "profile: kurtosis",
@@ -1518,7 +1518,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 64,
+      "bound_ulps": 16,
       "canonical": null,
       "dataset": "medium",
       "formula": "profile: kurtosis",
@@ -1955,24 +1955,24 @@
       "value": null
     },
     {
-      "abs_error": 2.2729886950401124e-12,
-      "bound_ulps": 32,
+      "abs_error": 7.480593922082335e-16,
+      "bound_ulps": 1,
       "canonical": 999.9861113604584,
       "dataset": "large",
       "formula": "profile: mean",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 2.2730202641992328e-15,
+      "rel_error": 7.48069781879786e-19,
       "result": "pass",
       "rows": 100000,
       "step": "explore",
       "type": "DOUBLE",
-      "ulps": 20,
-      "value": 999.9861113604607
+      "ulps": 0,
+      "value": 999.9861113604584
     },
     {
       "abs_error": 7.480593922082335e-16,
-      "bound_ulps": 32,
+      "bound_ulps": 1,
       "canonical": 999.9861113604584,
       "dataset": "large",
       "formula": "profile: mean",
@@ -1988,7 +1988,7 @@
     },
     {
       "abs_error": 7.480593922082335e-16,
-      "bound_ulps": 32,
+      "bound_ulps": 1,
       "canonical": 999.9861113604584,
       "dataset": "large",
       "formula": "profile: mean",
@@ -2004,7 +2004,7 @@
     },
     {
       "abs_error": 6.84545709104988e-15,
-      "bound_ulps": 8,
+      "bound_ulps": 1,
       "canonical": 100.00693965430058,
       "dataset": "large",
       "formula": "profile: std",
@@ -2020,7 +2020,7 @@
     },
     {
       "abs_error": 6.84545709104988e-15,
-      "bound_ulps": 8,
+      "bound_ulps": 1,
       "canonical": 100.00693965430058,
       "dataset": "large",
       "formula": "profile: std",
@@ -2036,7 +2036,7 @@
     },
     {
       "abs_error": 6.84545709104988e-15,
-      "bound_ulps": 8,
+      "bound_ulps": 1,
       "canonical": 100.00693965430058,
       "dataset": "large",
       "formula": "profile: std",
@@ -2291,25 +2291,25 @@
       "value": 1473.1957688635528
     },
     {
-      "abs_error": 6.037013110215941e-16,
-      "bound_ulps": 4,
+      "abs_error": 8.498203563231828e-19,
+      "bound_ulps": 1,
       "canonical": -0.004394896997737394,
       "dataset": "large",
       "formula": "profile: skewness",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 1.373641546849437e-13,
+      "rel_error": 1.933652499161396e-16,
       "result": "pass",
       "rows": 100000,
       "step": "explore",
       "type": "DOUBLE",
-      "ulps": 2.718828999359931,
+      "ulps": 0.0038272506400689483,
       "ulps_of": 1.0,
-      "value": -0.004394896997737998
+      "value": -0.004394896997737393
     },
     {
       "abs_error": 1.1293243975514467e-17,
-      "bound_ulps": 4,
+      "bound_ulps": 1,
       "canonical": -0.004394896997737394,
       "dataset": "large",
       "formula": "profile: skewness",
@@ -2326,7 +2326,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 4,
+      "bound_ulps": 1,
       "canonical": null,
       "dataset": "large",
       "formula": "profile: skewness",
@@ -2341,25 +2341,25 @@
       "value": null
     },
     {
-      "abs_error": 2.257356714545146e-16,
-      "bound_ulps": 64,
+      "abs_error": 1.940674097318727e-16,
+      "bound_ulps": 16,
       "canonical": 0.018262125224079745,
       "dataset": "large",
       "formula": "profile: kurtosis",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 1.2360865380381256e-14,
+      "rel_error": 1.062677028826759e-14,
       "result": "pass",
       "rows": 100000,
       "step": "explore",
       "type": "DOUBLE",
-      "ulps": 1.0166230858467806,
+      "ulps": 0.8740019141532193,
       "ulps_of": 1.0,
-      "value": 0.01826212522407997
+      "value": 0.01826212522407955
     },
     {
       "abs_error": 6.208093848221672e-16,
-      "bound_ulps": 64,
+      "bound_ulps": 16,
       "canonical": 0.018262125224079745,
       "dataset": "large",
       "formula": "profile: kurtosis",
@@ -2376,7 +2376,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 64,
+      "bound_ulps": 16,
       "canonical": null,
       "dataset": "large",
       "formula": "profile: kurtosis",
@@ -2813,24 +2813,24 @@
       "value": null
     },
     {
-      "abs_error": 8.54464769322421e-13,
-      "bound_ulps": 32,
+      "abs_error": 5.502993245050721e-14,
+      "bound_ulps": 1,
       "canonical": 996.6889355365514,
       "dataset": "null",
       "formula": "profile: mean",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 8.57303355998864e-16,
+      "rel_error": 5.521274540976291e-17,
       "result": "pass",
       "rows": 1000,
       "step": "explore",
       "type": "DOUBLE",
-      "ulps": 8,
-      "value": 996.6889355365523
+      "ulps": 0,
+      "value": 996.6889355365514
     },
     {
       "abs_error": 5.865690527110882e-14,
-      "bound_ulps": 32,
+      "bound_ulps": 1,
       "canonical": 996.6889355365514,
       "dataset": "null",
       "formula": "profile: mean",
@@ -2846,7 +2846,7 @@
     },
     {
       "abs_error": 5.502993245050721e-14,
-      "bound_ulps": 32,
+      "bound_ulps": 1,
       "canonical": 996.6889355365514,
       "dataset": "null",
       "formula": "profile: mean",
@@ -2861,24 +2861,24 @@
       "value": 996.6889355365514
     },
     {
-      "abs_error": 1.850646091212374e-14,
-      "bound_ulps": 8,
+      "abs_error": 4.295606196921736e-15,
+      "bound_ulps": 1,
       "canonical": 104.38976520857848,
       "dataset": "null",
       "formula": "profile: std",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 1.772823310326109e-16,
+      "rel_error": 4.114968731214977e-17,
       "result": "pass",
       "rows": 1000,
       "step": "explore",
       "type": "DOUBLE",
-      "ulps": 1,
-      "value": 104.38976520857847
+      "ulps": 0,
+      "value": 104.38976520857848
     },
     {
       "abs_error": 4.295606196921736e-15,
-      "bound_ulps": 8,
+      "bound_ulps": 1,
       "canonical": 104.38976520857848,
       "dataset": "null",
       "formula": "profile: std",
@@ -2894,7 +2894,7 @@
     },
     {
       "abs_error": 4.295606196921736e-15,
-      "bound_ulps": 8,
+      "bound_ulps": 1,
       "canonical": 104.38976520857848,
       "dataset": "null",
       "formula": "profile: std",
@@ -3149,25 +3149,25 @@
       "value": 1289.607132020632
     },
     {
-      "abs_error": 2.5410320544860557e-16,
-      "bound_ulps": 4,
+      "abs_error": 2.6358689959618592e-18,
+      "bound_ulps": 1,
       "canonical": 0.013046974210782422,
       "dataset": "null",
       "formula": "profile: skewness",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 1.9476025731591227e-14,
+      "rel_error": 2.0202914126890018e-16,
       "result": "pass",
       "rows": 1000,
       "step": "explore",
       "type": "DOUBLE",
-      "ulps": 1.1443791013719886,
+      "ulps": 0.011870898628011273,
       "ulps_of": 1.0,
-      "value": 0.013046974210782675
+      "value": 0.013046974210782419
     },
     {
       "abs_error": 6.508591413112691e-17,
-      "bound_ulps": 4,
+      "bound_ulps": 1,
       "canonical": 0.013046974210782422,
       "dataset": "null",
       "formula": "profile: skewness",
@@ -3184,7 +3184,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 4,
+      "bound_ulps": 1,
       "canonical": null,
       "dataset": "null",
       "formula": "profile: skewness",
@@ -3199,25 +3199,25 @@
       "value": null
     },
     {
-      "abs_error": 2.3446714407321943e-15,
-      "bound_ulps": 64,
+      "abs_error": 2.365970915212945e-16,
+      "bound_ulps": 16,
       "canonical": -0.22831567025111063,
       "dataset": "null",
       "formula": "profile: kurtosis",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 1.026942845470673e-14,
+      "rel_error": 1.0362718041257335e-15,
       "result": "pass",
       "rows": 1000,
       "step": "explore",
       "type": "DOUBLE",
-      "ulps": 10.559461426787754,
+      "ulps": 1.065538573212245,
       "ulps_of": 1.0,
-      "value": -0.2283156702511083
+      "value": -0.22831567025111088
     },
     {
       "abs_error": 6.793369037944597e-16,
-      "bound_ulps": 64,
+      "bound_ulps": 16,
       "canonical": -0.22831567025111063,
       "dataset": "null",
       "formula": "profile: kurtosis",
@@ -3234,7 +3234,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 64,
+      "bound_ulps": 16,
       "canonical": null,
       "dataset": "null",
       "formula": "profile: kurtosis",
@@ -3671,24 +3671,24 @@
       "value": null
     },
     {
-      "abs_error": 6.583350287861409e-13,
-      "bound_ulps": 32,
+      "abs_error": 2.378599754355521e-14,
+      "bound_ulps": 1,
       "canonical": 999.3564990513225,
       "dataset": "nan",
       "formula": "profile: mean",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 6.587589407894887e-16,
+      "rel_error": 2.3801313711508334e-17,
       "result": "pass",
       "rows": 1000,
       "step": "explore",
       "type": "DOUBLE",
-      "ulps": 6,
-      "value": 999.3564990513232
+      "ulps": 0,
+      "value": 999.3564990513225
     },
     {
       "abs_error": 8.990084017806083e-14,
-      "bound_ulps": 32,
+      "bound_ulps": 1,
       "canonical": 999.3564990513225,
       "dataset": "nan",
       "formula": "profile: mean",
@@ -3704,7 +3704,7 @@
     },
     {
       "abs_error": 1.3747283526517123e-13,
-      "bound_ulps": 32,
+      "bound_ulps": 1,
       "canonical": 999.3564990513225,
       "dataset": "nan",
       "formula": "profile: mean",
@@ -3719,24 +3719,24 @@
       "value": 999.3564990513224
     },
     {
-      "abs_error": 2.1209395404248818e-14,
-      "bound_ulps": 8,
+      "abs_error": 7.21231402615519e-15,
+      "bound_ulps": 1,
       "canonical": 98.64592533316033,
       "dataset": "nan",
       "formula": "profile: std",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 2.1500528615467474e-16,
+      "rel_error": 7.311314686133045e-17,
       "result": "pass",
       "rows": 1000,
       "step": "explore",
       "type": "DOUBLE",
       "ulps": 1,
-      "value": 98.64592533316032
+      "value": 98.64592533316035
     },
     {
       "abs_error": 7.21231402615519e-15,
-      "bound_ulps": 8,
+      "bound_ulps": 1,
       "canonical": 98.64592533316033,
       "dataset": "nan",
       "formula": "profile: std",
@@ -3752,7 +3752,7 @@
     },
     {
       "abs_error": 7.21231402615519e-15,
-      "bound_ulps": 8,
+      "bound_ulps": 1,
       "canonical": 98.64592533316033,
       "dataset": "nan",
       "formula": "profile: std",
@@ -4007,25 +4007,25 @@
       "value": 1403.9223251174596
     },
     {
-      "abs_error": 7.200586676516813e-16,
-      "bound_ulps": 4,
+      "abs_error": 1.5862983546704183e-18,
+      "bound_ulps": 1,
       "canonical": 0.02232331679114055,
       "dataset": "nan",
       "formula": "profile: skewness",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 3.2255899711885593e-14,
+      "rel_error": 7.10601551513157e-17,
       "result": "pass",
       "rows": 1000,
       "step": "explore",
       "type": "DOUBLE",
-      "ulps": 3.242855947321008,
+      "ulps": 0.007144052678992127,
       "ulps_of": 1.0,
-      "value": 0.02232331679113983
+      "value": 0.02232331679114055
     },
     {
       "abs_error": 3.628076787420656e-17,
-      "bound_ulps": 4,
+      "bound_ulps": 1,
       "canonical": 0.02232331679114055,
       "dataset": "nan",
       "formula": "profile: skewness",
@@ -4042,7 +4042,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 4,
+      "bound_ulps": 1,
       "canonical": null,
       "dataset": "nan",
       "formula": "profile: skewness",
@@ -4057,25 +4057,25 @@
       "value": null
     },
     {
-      "abs_error": 9.614091659682563e-16,
-      "bound_ulps": 64,
+      "abs_error": 1.799162400407047e-16,
+      "bound_ulps": 16,
       "canonical": 0.0022052654753171174,
       "dataset": "nan",
       "formula": "profile: kurtosis",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 4.359607388448348e-13,
+      "rel_error": 8.158484411716132e-14,
       "result": "pass",
       "rows": 1000,
       "step": "explore",
       "type": "DOUBLE",
-      "ulps": 4.329801961605218,
+      "ulps": 0.8102707116052184,
       "ulps_of": 1.0,
-      "value": 0.002205265475318079
+      "value": 0.0022052654753172973
     },
     {
       "abs_error": 1.0737325110377545e-15,
-      "bound_ulps": 64,
+      "bound_ulps": 16,
       "canonical": 0.0022052654753171174,
       "dataset": "nan",
       "formula": "profile: kurtosis",
@@ -4092,7 +4092,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 64,
+      "bound_ulps": 16,
       "canonical": null,
       "dataset": "nan",
       "formula": "profile: kurtosis",
@@ -4530,7 +4530,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 32,
+      "bound_ulps": 1,
       "canonical": null,
       "dataset": "empty",
       "formula": "profile: mean",
@@ -4546,7 +4546,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 32,
+      "bound_ulps": 1,
       "canonical": null,
       "dataset": "empty",
       "formula": "profile: mean",
@@ -4562,7 +4562,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 32,
+      "bound_ulps": 1,
       "canonical": null,
       "dataset": "empty",
       "formula": "profile: mean",
@@ -4578,7 +4578,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 8,
+      "bound_ulps": 1,
       "canonical": null,
       "dataset": "empty",
       "formula": "profile: std",
@@ -4594,7 +4594,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 8,
+      "bound_ulps": 1,
       "canonical": null,
       "dataset": "empty",
       "formula": "profile: std",
@@ -4610,7 +4610,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 8,
+      "bound_ulps": 1,
       "canonical": null,
       "dataset": "empty",
       "formula": "profile: std",
@@ -4866,7 +4866,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 4,
+      "bound_ulps": 1,
       "canonical": null,
       "dataset": "empty",
       "formula": "profile: skewness",
@@ -4882,7 +4882,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 4,
+      "bound_ulps": 1,
       "canonical": null,
       "dataset": "empty",
       "formula": "profile: skewness",
@@ -4898,7 +4898,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 4,
+      "bound_ulps": 1,
       "canonical": null,
       "dataset": "empty",
       "formula": "profile: skewness",
@@ -4914,7 +4914,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 64,
+      "bound_ulps": 16,
       "canonical": null,
       "dataset": "empty",
       "formula": "profile: kurtosis",
@@ -4930,7 +4930,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 64,
+      "bound_ulps": 16,
       "canonical": null,
       "dataset": "empty",
       "formula": "profile: kurtosis",
@@ -4946,7 +4946,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 64,
+      "bound_ulps": 16,
       "canonical": null,
       "dataset": "empty",
       "formula": "profile: kurtosis",
@@ -5384,7 +5384,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 32,
+      "bound_ulps": 1,
       "canonical": 1084.6880948261512,
       "dataset": "single",
       "formula": "profile: mean",
@@ -5400,7 +5400,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 32,
+      "bound_ulps": 1,
       "canonical": 1084.6880948261512,
       "dataset": "single",
       "formula": "profile: mean",
@@ -5416,7 +5416,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 32,
+      "bound_ulps": 1,
       "canonical": 1084.6880948261512,
       "dataset": "single",
       "formula": "profile: mean",
@@ -5432,7 +5432,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 8,
+      "bound_ulps": 1,
       "canonical": null,
       "dataset": "single",
       "formula": "profile: std",
@@ -5448,7 +5448,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 8,
+      "bound_ulps": 1,
       "canonical": null,
       "dataset": "single",
       "formula": "profile: std",
@@ -5464,7 +5464,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 8,
+      "bound_ulps": 1,
       "canonical": null,
       "dataset": "single",
       "formula": "profile: std",
@@ -5720,7 +5720,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 4,
+      "bound_ulps": 1,
       "canonical": null,
       "dataset": "single",
       "formula": "profile: skewness",
@@ -5736,7 +5736,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 4,
+      "bound_ulps": 1,
       "canonical": null,
       "dataset": "single",
       "formula": "profile: skewness",
@@ -5752,7 +5752,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 4,
+      "bound_ulps": 1,
       "canonical": null,
       "dataset": "single",
       "formula": "profile: skewness",
@@ -5768,7 +5768,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 64,
+      "bound_ulps": 16,
       "canonical": null,
       "dataset": "single",
       "formula": "profile: kurtosis",
@@ -5784,7 +5784,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 64,
+      "bound_ulps": 16,
       "canonical": null,
       "dataset": "single",
       "formula": "profile: kurtosis",
@@ -5800,7 +5800,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 64,
+      "bound_ulps": 16,
       "canonical": null,
       "dataset": "single",
       "formula": "profile: kurtosis",
@@ -6237,24 +6237,24 @@
       "value": null
     },
     {
-      "abs_error": 6.788241080357693e-13,
-      "bound_ulps": 32,
+      "abs_error": 1.1038991942768916e-13,
+      "bound_ulps": 1,
       "canonical": 997.4032472437177,
       "dataset": "reserved",
       "formula": "profile: mean",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 6.805914357223835e-16,
+      "rel_error": 1.1067732106622582e-16,
       "result": "pass",
       "rows": 1000,
       "step": "explore",
       "type": "DOUBLE",
-      "ulps": 6,
-      "value": 997.4032472437184
+      "ulps": 1,
+      "value": 997.4032472437178
     },
     {
       "abs_error": 3.296918293926865e-15,
-      "bound_ulps": 32,
+      "bound_ulps": 1,
       "canonical": 997.4032472437177,
       "dataset": "reserved",
       "formula": "profile: mean",
@@ -6270,7 +6270,7 @@
     },
     {
       "abs_error": 3.296918293926865e-15,
-      "bound_ulps": 32,
+      "bound_ulps": 1,
       "canonical": 997.4032472437177,
       "dataset": "reserved",
       "formula": "profile: mean",
@@ -6285,24 +6285,24 @@
       "value": 997.4032472437177
     },
     {
-      "abs_error": 8.021317687306305e-14,
-      "bound_ulps": 8,
+      "abs_error": 9.158903297053031e-15,
+      "bound_ulps": 1,
       "canonical": 99.30077746379109,
       "dataset": "reserved",
       "formula": "profile: std",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 8.077799481712203e-16,
+      "rel_error": 9.223395355985729e-17,
       "result": "pass",
       "rows": 1000,
       "step": "explore",
       "type": "DOUBLE",
-      "ulps": 6,
-      "value": 99.30077746379101
+      "ulps": 1,
+      "value": 99.30077746379108
     },
     {
       "abs_error": 9.158903297053031e-15,
-      "bound_ulps": 8,
+      "bound_ulps": 1,
       "canonical": 99.30077746379109,
       "dataset": "reserved",
       "formula": "profile: std",
@@ -6318,7 +6318,7 @@
     },
     {
       "abs_error": 9.158903297053031e-15,
-      "bound_ulps": 8,
+      "bound_ulps": 1,
       "canonical": 99.30077746379109,
       "dataset": "reserved",
       "formula": "profile: std",
@@ -6573,25 +6573,25 @@
       "value": 1276.0547100621438
     },
     {
-      "abs_error": 5.799369713948754e-16,
-      "bound_ulps": 4,
+      "abs_error": 1.0947671274482603e-17,
+      "bound_ulps": 1,
       "canonical": -0.08320149419680589,
       "dataset": "reserved",
       "formula": "profile: skewness",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 6.9702711110341944e-15,
+      "rel_error": 1.3158022437177437e-16,
       "result": "pass",
       "rows": 1000,
       "step": "explore",
       "type": "DOUBLE",
-      "ulps": 2.6118039282723347,
+      "ulps": 0.049303928272334534,
       "ulps_of": 1.0,
-      "value": -0.08320149419680647
+      "value": -0.0832014941968059
     },
     {
       "abs_error": 1.0007463118803305e-16,
-      "bound_ulps": 4,
+      "bound_ulps": 1,
       "canonical": -0.08320149419680589,
       "dataset": "reserved",
       "formula": "profile: skewness",
@@ -6608,7 +6608,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 4,
+      "bound_ulps": 1,
       "canonical": null,
       "dataset": "reserved",
       "formula": "profile: skewness",
@@ -6623,25 +6623,25 @@
       "value": null
     },
     {
-      "abs_error": 7.936652628904798e-15,
-      "bound_ulps": 64,
+      "abs_error": 8.341092656339392e-16,
+      "bound_ulps": 16,
       "canonical": -0.03692534092974503,
       "dataset": "reserved",
       "formula": "profile: kurtosis",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 2.149378293894496e-13,
+      "rel_error": 2.258907418677417e-14,
       "result": "pass",
       "rows": 1000,
       "step": "explore",
       "type": "DOUBLE",
-      "ulps": 35.743505822104716,
+      "ulps": 3.7564941778952865,
       "ulps_of": 1.0,
-      "value": -0.036925340929737094
+      "value": -0.036925340929745865
     },
     {
       "abs_error": 7.230869631714235e-16,
-      "bound_ulps": 64,
+      "bound_ulps": 16,
       "canonical": -0.03692534092974503,
       "dataset": "reserved",
       "formula": "profile: kurtosis",
@@ -6658,7 +6658,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 64,
+      "bound_ulps": 16,
       "canonical": null,
       "dataset": "reserved",
       "formula": "profile: kurtosis",
@@ -7095,24 +7095,24 @@
       "value": null
     },
     {
-      "abs_error": 2.8400080839514146e-17,
-      "bound_ulps": 32,
+      "abs_error": 6.294388680021997e-18,
+      "bound_ulps": 1,
       "canonical": -0.045355850422195414,
       "dataset": "signed",
       "formula": "profile: mean",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 6.261613568073731e-16,
+      "rel_error": 1.3877787807814457e-16,
       "result": "pass",
       "rows": 1000,
       "step": "explore",
       "type": "DOUBLE",
-      "ulps": 4,
-      "value": -0.045355850422195386
+      "ulps": 1,
+      "value": -0.04535585042219542
     },
     {
       "abs_error": 7.583399127792459e-18,
-      "bound_ulps": 32,
+      "bound_ulps": 1,
       "canonical": -0.045355850422195414,
       "dataset": "signed",
       "formula": "profile: mean",
@@ -7128,7 +7128,7 @@
     },
     {
       "abs_error": 7.583399127792459e-18,
-      "bound_ulps": 32,
+      "bound_ulps": 1,
       "canonical": -0.045355850422195414,
       "dataset": "signed",
       "formula": "profile: mean",
@@ -7144,7 +7144,7 @@
     },
     {
       "abs_error": 3.4437172633908975e-17,
-      "bound_ulps": 8,
+      "bound_ulps": 1,
       "canonical": 0.9876744143802692,
       "dataset": "signed",
       "formula": "profile: std",
@@ -7160,7 +7160,7 @@
     },
     {
       "abs_error": 3.4437172633908975e-17,
-      "bound_ulps": 8,
+      "bound_ulps": 1,
       "canonical": 0.9876744143802692,
       "dataset": "signed",
       "formula": "profile: std",
@@ -7176,7 +7176,7 @@
     },
     {
       "abs_error": 3.4437172633908975e-17,
-      "bound_ulps": 8,
+      "bound_ulps": 1,
       "canonical": 0.9876744143802692,
       "dataset": "signed",
       "formula": "profile: std",
@@ -7431,25 +7431,25 @@
       "value": 3.1
     },
     {
-      "abs_error": 2.260310805356151e-16,
-      "bound_ulps": 4,
+      "abs_error": 1.0113099026528497e-16,
+      "bound_ulps": 1,
       "canonical": -0.09799136251505401,
       "dataset": "signed",
       "formula": "profile: skewness",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 2.30664289927483e-15,
+      "rel_error": 1.0320398417743057e-15,
       "result": "pass",
       "rows": 1000,
       "step": "explore",
       "type": "DOUBLE",
-      "ulps": 1.0179534900743468,
+      "ulps": 0.45545349007434666,
       "ulps_of": 1.0,
-      "value": -0.09799136251505379
+      "value": -0.09799136251505391
     },
     {
       "abs_error": 5.94976268418416e-17,
-      "bound_ulps": 4,
+      "bound_ulps": 1,
       "canonical": -0.09799136251505401,
       "dataset": "signed",
       "formula": "profile: skewness",
@@ -7466,7 +7466,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 4,
+      "bound_ulps": 1,
       "canonical": null,
       "dataset": "signed",
       "formula": "profile: skewness",
@@ -7481,25 +7481,25 @@
       "value": null
     },
     {
-      "abs_error": 3.61466201260142e-15,
-      "bound_ulps": 64,
+      "abs_error": 6.194833380091961e-17,
+      "bound_ulps": 16,
       "canonical": 0.4117857448556816,
       "dataset": "signed",
       "formula": "profile: kurtosis",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 8.778016378076055e-15,
+      "rel_error": 1.5043826692599722e-16,
       "result": "pass",
       "rows": 1000,
       "step": "explore",
       "type": "DOUBLE",
-      "ulps": 16.278990493022043,
+      "ulps": 0.27899049302204465,
       "ulps_of": 1.0,
-      "value": 0.4117857448556852
+      "value": 0.41178574485568165
     },
     {
       "abs_error": 1.3942159633511075e-15,
-      "bound_ulps": 64,
+      "bound_ulps": 16,
       "canonical": 0.4117857448556816,
       "dataset": "signed",
       "formula": "profile: kurtosis",
@@ -7516,7 +7516,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 64,
+      "bound_ulps": 16,
       "canonical": null,
       "dataset": "signed",
       "formula": "profile: kurtosis",
@@ -12307,7 +12307,7 @@
     },
     {
       "abs_error": 2.220446049250313e-16,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": 1.0,
       "dataset": "small",
       "formula": "correlations, spearman: x ~ related",
@@ -12324,7 +12324,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": 1.0,
       "dataset": "small",
       "formula": "correlations, spearman: x ~ related",
@@ -12341,7 +12341,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": null,
       "dataset": "small",
       "formula": "correlations, spearman: x ~ related",
@@ -12374,7 +12374,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": -0.5,
       "dataset": "small",
       "formula": "correlations, spearman: x ~ unrelated",
@@ -12391,7 +12391,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": -0.5,
       "dataset": "small",
       "formula": "correlations, spearman: x ~ unrelated",
@@ -12408,7 +12408,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": null,
       "dataset": "small",
       "formula": "correlations, spearman: x ~ unrelated",
@@ -12441,7 +12441,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": -0.5,
       "dataset": "small",
       "formula": "correlations, spearman: related ~ unrelated",
@@ -12458,7 +12458,7 @@
     },
     {
       "abs_error": 0.0,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": -0.5,
       "dataset": "small",
       "formula": "correlations, spearman: related ~ unrelated",
@@ -12475,7 +12475,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": null,
       "dataset": "small",
       "formula": "correlations, spearman: related ~ unrelated",
@@ -12712,7 +12712,7 @@
     },
     {
       "abs_error": 1.8962037346468646e-16,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": 0.7913810349867929,
       "dataset": "medium",
       "formula": "correlations, spearman: x ~ related",
@@ -12729,7 +12729,7 @@
     },
     {
       "abs_error": 3.242423146034484e-17,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": 0.7913810349867929,
       "dataset": "medium",
       "formula": "correlations, spearman: x ~ related",
@@ -12746,7 +12746,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": null,
       "dataset": "medium",
       "formula": "correlations, spearman: x ~ related",
@@ -12779,7 +12779,7 @@
     },
     {
       "abs_error": 2.2899666644414777e-16,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": -0.02810401188463504,
       "dataset": "medium",
       "formula": "correlations, spearman: x ~ unrelated",
@@ -12796,7 +12796,7 @@
     },
     {
       "abs_error": 1.3167615209235979e-20,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": -0.02810401188463504,
       "dataset": "medium",
       "formula": "correlations, spearman: x ~ unrelated",
@@ -12813,7 +12813,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": null,
       "dataset": "medium",
       "formula": "correlations, spearman: x ~ unrelated",
@@ -12846,7 +12846,7 @@
     },
     {
       "abs_error": 8.930838705794905e-16,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": -0.036049146508899524,
       "dataset": "medium",
       "formula": "correlations, spearman: related ~ unrelated",
@@ -12863,7 +12863,7 @@
     },
     {
       "abs_error": 2.0334430245419883e-18,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": -0.036049146508899524,
       "dataset": "medium",
       "formula": "correlations, spearman: related ~ unrelated",
@@ -12880,7 +12880,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": null,
       "dataset": "medium",
       "formula": "correlations, spearman: related ~ unrelated",
@@ -13116,25 +13116,25 @@
       "value": null
     },
     {
-      "abs_error": 3.196533810523964e-16,
-      "bound_ulps": 16,
+      "abs_error": 2.5400994303027093e-15,
+      "bound_ulps": 32,
       "canonical": 0.7861138716713969,
       "dataset": "large",
       "formula": "correlations, spearman: x ~ related",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 4.066247811818471e-16,
+      "rel_error": 3.231210543202951e-15,
       "result": "pass",
       "rows": 100000,
       "step": "explore",
       "type": "DOUBLE",
-      "ulps": 1.4395908477952917,
+      "ulps": 11.43959084779529,
       "ulps_of": 1.0,
-      "value": 0.7861138716713972
+      "value": 0.7861138716713995
     },
     {
       "abs_error": 1.3413526335150565e-17,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": 0.7861138716713969,
       "dataset": "large",
       "formula": "correlations, spearman: x ~ related",
@@ -13151,7 +13151,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": null,
       "dataset": "large",
       "formula": "correlations, spearman: x ~ related",
@@ -13183,25 +13183,25 @@
       "value": null
     },
     {
-      "abs_error": 6.297410901147865e-16,
-      "bound_ulps": 16,
+      "abs_error": 8.170912255202817e-16,
+      "bound_ulps": 32,
       "canonical": 0.0020977805723471844,
       "dataset": "large",
       "formula": "correlations, spearman: x ~ unrelated",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 3.0019397567886515e-13,
+      "rel_error": 3.8950271362559476e-13,
       "result": "pass",
       "rows": 100000,
       "step": "explore",
       "type": "DOUBLE",
-      "ulps": 2.8361017387808425,
+      "ulps": 3.6798517387808425,
       "ulps_of": 1.0,
-      "value": 0.0020977805723465547
+      "value": 0.0020977805723463674
     },
     {
       "abs_error": 3.646833520556344e-20,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": 0.0020977805723471844,
       "dataset": "large",
       "formula": "correlations, spearman: x ~ unrelated",
@@ -13218,7 +13218,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": null,
       "dataset": "large",
       "formula": "correlations, spearman: x ~ unrelated",
@@ -13250,25 +13250,25 @@
       "value": null
     },
     {
-      "abs_error": 1.9782647153766407e-15,
-      "bound_ulps": 16,
+      "abs_error": 9.487063323844057e-16,
+      "bound_ulps": 32,
       "canonical": 0.004895254346892459,
       "dataset": "large",
       "formula": "correlations, spearman: related ~ unrelated",
       "note": "",
       "reference": "sqlearn",
-      "rel_error": 4.041188823278318e-13,
+      "rel_error": 1.9380123383918775e-13,
       "result": "pass",
       "rows": 100000,
       "step": "explore",
       "type": "DOUBLE",
-      "ulps": 8.90931223501044,
+      "ulps": 4.2725934850104395,
       "ulps_of": 1.0,
-      "value": 0.004895254346894438
+      "value": 0.004895254346893408
     },
     {
       "abs_error": 1.8740897490768492e-19,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": 0.004895254346892459,
       "dataset": "large",
       "formula": "correlations, spearman: related ~ unrelated",
@@ -13285,7 +13285,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": null,
       "dataset": "large",
       "formula": "correlations, spearman: related ~ unrelated",
@@ -13522,7 +13522,7 @@
     },
     {
       "abs_error": 1.469928805226231e-17,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": 0.81574970550534,
       "dataset": "null",
       "formula": "correlations, spearman: x ~ related",
@@ -13539,7 +13539,7 @@
     },
     {
       "abs_error": 1.469928805226231e-17,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": 0.81574970550534,
       "dataset": "null",
       "formula": "correlations, spearman: x ~ related",
@@ -13556,7 +13556,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": null,
       "dataset": "null",
       "formula": "correlations, spearman: x ~ related",
@@ -13589,7 +13589,7 @@
     },
     {
       "abs_error": 2.8505591588170543e-16,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": 0.029767806654428342,
       "dataset": "null",
       "formula": "correlations, spearman: x ~ unrelated",
@@ -13606,7 +13606,7 @@
     },
     {
       "abs_error": 5.612658215090581e-19,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": 0.029767806654428342,
       "dataset": "null",
       "formula": "correlations, spearman: x ~ unrelated",
@@ -13623,7 +13623,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": null,
       "dataset": "null",
       "formula": "correlations, spearman: x ~ unrelated",
@@ -13656,7 +13656,7 @@
     },
     {
       "abs_error": 9.398756300007697e-17,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": 0.006924712444724348,
       "dataset": "null",
       "formula": "correlations, spearman: related ~ unrelated",
@@ -13673,7 +13673,7 @@
     },
     {
       "abs_error": 3.124952973293843e-19,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": 0.006924712444724348,
       "dataset": "null",
       "formula": "correlations, spearman: related ~ unrelated",
@@ -13690,7 +13690,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": null,
       "dataset": "null",
       "formula": "correlations, spearman: related ~ unrelated",
@@ -13927,7 +13927,7 @@
     },
     {
       "abs_error": 5.247515934954376e-16,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": 0.7920769666100735,
       "dataset": "nan",
       "formula": "correlations, spearman: x ~ related",
@@ -13944,7 +13944,7 @@
     },
     {
       "abs_error": 3.035991881714067e-17,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": 0.7920769666100735,
       "dataset": "nan",
       "formula": "correlations, spearman: x ~ related",
@@ -13961,7 +13961,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": null,
       "dataset": "nan",
       "formula": "correlations, spearman: x ~ related",
@@ -13994,7 +13994,7 @@
     },
     {
       "abs_error": 1.4226780438423788e-16,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": -0.011605896353965266,
       "dataset": "nan",
       "formula": "correlations, spearman: x ~ unrelated",
@@ -14011,7 +14011,7 @@
     },
     {
       "abs_error": 2.0479354139682273e-20,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": -0.011605896353965266,
       "dataset": "nan",
       "formula": "correlations, spearman: x ~ unrelated",
@@ -14028,7 +14028,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": null,
       "dataset": "nan",
       "formula": "correlations, spearman: x ~ unrelated",
@@ -14061,7 +14061,7 @@
     },
     {
       "abs_error": 1.2590603892997741e-16,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": -0.033608141598024055,
       "dataset": "nan",
       "formula": "correlations, spearman: related ~ unrelated",
@@ -14078,7 +14078,7 @@
     },
     {
       "abs_error": 1.0059486596473032e-18,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": -0.033608141598024055,
       "dataset": "nan",
       "formula": "correlations, spearman: related ~ unrelated",
@@ -14095,7 +14095,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": null,
       "dataset": "nan",
       "formula": "correlations, spearman: related ~ unrelated",
@@ -14323,7 +14323,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": null,
       "dataset": "empty",
       "formula": "correlations, spearman: x ~ related",
@@ -14339,7 +14339,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": null,
       "dataset": "empty",
       "formula": "correlations, spearman: x ~ related",
@@ -14355,7 +14355,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": null,
       "dataset": "empty",
       "formula": "correlations, spearman: x ~ related",
@@ -14388,7 +14388,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": null,
       "dataset": "empty",
       "formula": "correlations, spearman: x ~ unrelated",
@@ -14404,7 +14404,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": null,
       "dataset": "empty",
       "formula": "correlations, spearman: x ~ unrelated",
@@ -14420,7 +14420,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": null,
       "dataset": "empty",
       "formula": "correlations, spearman: x ~ unrelated",
@@ -14453,7 +14453,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": null,
       "dataset": "empty",
       "formula": "correlations, spearman: related ~ unrelated",
@@ -14469,7 +14469,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": null,
       "dataset": "empty",
       "formula": "correlations, spearman: related ~ unrelated",
@@ -14485,7 +14485,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": null,
       "dataset": "empty",
       "formula": "correlations, spearman: related ~ unrelated",
@@ -14713,7 +14713,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": null,
       "dataset": "single",
       "formula": "correlations, spearman: x ~ related",
@@ -14729,7 +14729,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": null,
       "dataset": "single",
       "formula": "correlations, spearman: x ~ related",
@@ -14745,7 +14745,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": null,
       "dataset": "single",
       "formula": "correlations, spearman: x ~ related",
@@ -14778,7 +14778,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": null,
       "dataset": "single",
       "formula": "correlations, spearman: x ~ unrelated",
@@ -14794,7 +14794,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": null,
       "dataset": "single",
       "formula": "correlations, spearman: x ~ unrelated",
@@ -14810,7 +14810,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": null,
       "dataset": "single",
       "formula": "correlations, spearman: x ~ unrelated",
@@ -14843,7 +14843,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": null,
       "dataset": "single",
       "formula": "correlations, spearman: related ~ unrelated",
@@ -14859,7 +14859,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": null,
       "dataset": "single",
       "formula": "correlations, spearman: related ~ unrelated",
@@ -14875,7 +14875,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": null,
       "dataset": "single",
       "formula": "correlations, spearman: related ~ unrelated",
@@ -15112,7 +15112,7 @@
     },
     {
       "abs_error": 7.937991800593966e-16,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": 0.7798657318604237,
       "dataset": "reserved",
       "formula": "correlations, spearman: select ~ related",
@@ -15129,7 +15129,7 @@
     },
     {
       "abs_error": 1.6643062821787082e-17,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": 0.7798657318604237,
       "dataset": "reserved",
       "formula": "correlations, spearman: select ~ related",
@@ -15146,7 +15146,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": null,
       "dataset": "reserved",
       "formula": "correlations, spearman: select ~ related",
@@ -15179,7 +15179,7 @@
     },
     {
       "abs_error": 4.250644332985088e-16,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": 0.02763520536022634,
       "dataset": "reserved",
       "formula": "correlations, spearman: select ~ unrelated",
@@ -15196,7 +15196,7 @@
     },
     {
       "abs_error": 1.6775417917857173e-18,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": 0.02763520536022634,
       "dataset": "reserved",
       "formula": "correlations, spearman: select ~ unrelated",
@@ -15213,7 +15213,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": null,
       "dataset": "reserved",
       "formula": "correlations, spearman: select ~ unrelated",
@@ -15246,7 +15246,7 @@
     },
     {
       "abs_error": 6.779844111820905e-16,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": -0.010523553716530952,
       "dataset": "reserved",
       "formula": "correlations, spearman: related ~ unrelated",
@@ -15263,7 +15263,7 @@
     },
     {
       "abs_error": 2.924679248410881e-19,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": -0.010523553716530952,
       "dataset": "reserved",
       "formula": "correlations, spearman: related ~ unrelated",
@@ -15280,7 +15280,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": null,
       "dataset": "reserved",
       "formula": "correlations, spearman: related ~ unrelated",
@@ -15517,7 +15517,7 @@
     },
     {
       "abs_error": 1.8180573366734026e-16,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": 0.9998949910518139,
       "dataset": "signed",
       "formula": "correlations, spearman: x ~ related",
@@ -15534,7 +15534,7 @@
     },
     {
       "abs_error": 7.07834312048246e-17,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": 0.9998949910518139,
       "dataset": "signed",
       "formula": "correlations, spearman: x ~ related",
@@ -15551,7 +15551,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": null,
       "dataset": "signed",
       "formula": "correlations, spearman: x ~ related",
@@ -15584,7 +15584,7 @@
     },
     {
       "abs_error": 9.363166192967145e-16,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": -0.03261332880816998,
       "dataset": "signed",
       "formula": "correlations, spearman: x ~ unrelated",
@@ -15601,7 +15601,7 @@
     },
     {
       "abs_error": 4.340577307613362e-19,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": -0.03261332880816998,
       "dataset": "signed",
       "formula": "correlations, spearman: x ~ unrelated",
@@ -15618,7 +15618,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": null,
       "dataset": "signed",
       "formula": "correlations, spearman: x ~ unrelated",
@@ -15651,7 +15651,7 @@
     },
     {
       "abs_error": 3.008920815694782e-17,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": -0.028118329270714126,
       "dataset": "signed",
       "formula": "correlations, spearman: related ~ unrelated",
@@ -15668,7 +15668,7 @@
     },
     {
       "abs_error": 1.1358144106347063e-18,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": -0.028118329270714126,
       "dataset": "signed",
       "formula": "correlations, spearman: related ~ unrelated",
@@ -15685,7 +15685,7 @@
     },
     {
       "abs_error": null,
-      "bound_ulps": 16,
+      "bound_ulps": 32,
       "canonical": null,
       "dataset": "signed",
       "formula": "correlations, spearman: related ~ unrelated",
