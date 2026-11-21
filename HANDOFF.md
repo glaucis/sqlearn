@@ -3,17 +3,23 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-20 · Branch: `main` · Last commit: `d37b08d` feat: take a
-column selector by position in sq.select (#65) · Checks: passing (`just
-verify` on it: 3023 passed, 24 skipped)
+Updated: 2026-11-21 · Branch: `exploration` (worktree
+`.claude/worktrees/exploration`) · Last commit: `b10d464` docs: state the
+exploration budgets as DuckDB reported them (#74) · Checks: passing (`just
+verify` on it: 3190 passed, 24 skipped, every validation runner 0 fails)
 Verify with: `just verify`
 
 ## In progress
 
-None.
+- #74, the exploration module `sq.explore` (3.6, the library module): built
+  on branch `exploration`, every task reviewed, final review and fix wave
+  done. Waiting on Tomas's merge (below).
 
 ## Waiting on the user
 
+- Merge `exploration` into `main` (28 commits; #74 closes on merge). The
+  rulings made during the build are listed in the session's summary and in
+  the spec's "ruled during the build" notes. (since 2026-11-21)
 - The #46 benchmark (`docs/benchmarks/generators-on-many-threads.md`) was not
   on a quiet machine (load average about 4 to about 35) and can be rerun on
   request; so can `docs/benchmarks/gram-batches.md`, whose `file_row_number`
@@ -25,14 +31,36 @@ None.
 
 ## Next up
 
-- The next 3.3 area, not chosen yet. Linear or ridge regression would reuse
-  the Gram step with Xᵀy (ADR 0058 opens it to users' steps after that; its
-  contract is written in `docs/guide/writing-a-step.md`). No dataset
-  fetcher (ADR 0053).
+- #75: Spearman's first scan reads every chosen column; number it in
+  column groups so it is bounded as Pearson's blocks are.
+- #76: `read` gives a raw `ResourceInUseException` when the user's
+  connection holds an unfinished result; and the trap below about
+  `con.execute` discarding it needs rewording (DuckDB 2.0 keeps it).
+- One-line follow-up from the final review: `profile`'s skewness and
+  kurtosis multiply before dividing (`profile.py`, `_shape`), so a finite
+  third or fourth sum near the largest double gives inf where the docstring
+  promises NULL (`[0, 0, 0, 6e102]`); divide first. Also `_SCAN_COLUMNS`'
+  docstring says "under 2 GB" where the benchmark page says 1,986 MB.
+- The rest of 3.6: a target panel, outliers, normality screens, Kendall,
+  sampling, time-series views (spec §8), then the application. Models stay
+  with scikit-learn and the libraries users install (ADR 0017; Tomas,
+  2026-11-20: leave models aside). Other 3.3 candidates: text features,
+  more preprocessing, truncated SVD, `cross_validate`/learning curves.
 - #65's other minor follow-ups (listed in its comments; #65 is closed).
 
 ## Dead ends and traps
 
+- DuckDB's `FILTER (WHERE ...)` gives each filtered aggregate its own copy
+  of the statement's inputs: memory grows with the square of the columns,
+  outside `memory_limit` (the OS killed `profile` at ~1.2 GB RSS). Write
+  `agg(CASE WHEN ... THEN x END)`. `sq.set_config(memory=X)` gives DuckDB
+  half of X. No statement over 200 columns fits a 1–2 GB limit on default
+  122,880-row Parquet groups (8 threads × a row group of every column):
+  read 20 columns a statement. Exact `quantile_cont` and
+  `count(DISTINCT)` hold every value and do not spill. A single-threaded
+  row-order `avg`/`stddev_samp` was 119 and 13 ULPs off on 100k rows:
+  `favg` and a compensated second pass give 1. In DuckDB a `-0.0` literal
+  is DECIMAL and becomes +0.0: insert it as text. (2026-11-21)
 - DuckDB's `memory_limit` and `duckdb_memory()` do not count parsing and
   binding a statement: a query of many constants (PCA's apply) holds GBs
   outside them. `ru_maxrss` peaks depend on whether DuckDB has handed
@@ -120,6 +148,11 @@ None.
 
 ## Just finished
 
+- #74 built on `exploration`: `sq.explore.profile`, `histogram`, `top`,
+  `missing`, `correlations` (Pearson, Spearman), ADR 0059, validation 809
+  pass, guide and benchmarks (`explore-correlations.md`,
+  `explore-larger-than-memory.md`: profile and Pearson run on 20 GB at a
+  1–2 GB DuckDB limit; Spearman refuses with a `Fix:`, #75). (2026-11-21)
 - #65's first follow-up, pushed: a column selector by position passes
   `refuse_positionals` (`sq.select`, `sq.decompose`), `d37b08d`.
   (2026-11-20)
