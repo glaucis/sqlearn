@@ -93,7 +93,7 @@ result:
 | `missing`, `missing_share` | all | NULL (and NaN) count and share of `rows` |
 | `distinct`, `distinct_share` | all | Distinct non-missing values, and their share of the non-missing rows |
 | `mean`, `std`, `min`, `q25`, `median`, `q75`, `max` | numeric | As pandas' `describe` |
-| `zeros`, `negative`, `infinite` | numeric | Counts |
+| `zeros`, `negative`, `infinite` | numeric | Counts; `zeros` and `negative` count finite values only (ruled during the build) |
 | `skewness`, `kurtosis` | numeric | Sample-adjusted, as pandas |
 | `min_length`, `max_length` | text | Characters |
 | `first`, `last` | dates and timestamps | Earliest and latest, as text |
@@ -102,10 +102,22 @@ result:
 
 A statistic that does not apply to a column's type is NULL. Booleans count as
 numbers for `mean` (the share true) and as categories for `distinct`.
+*Ruled during the build: a boolean gets only `mean`, the share true; its other
+numeric statistics are NULL.*
 
 The statistics are computed in as few queries as the level planner allows
 *(call: one aggregate query over all columns when it fits, as the steps' learn
-statements do)*.
+statements do)*. *Ruled during the build, which departs from this: the scan
+reads the data in blocks of 20 columns, a statement each, because DuckDB holds
+a Parquet row group of every column a statement reads on each thread (issue
+#68), and no statement over all 200 columns fit a 1 to 2 GB limit on 12.5
+million rows. The exact quantiles and distinct counts keep every value, so
+they run in groups of columns sized to the memory budget, a statement each
+that reads only its group's columns; with `exact=False` they join the scan.
+The mean is compensated (`favg`); the standard deviation, skewness and
+kurtosis come from a second pass of compensated sums (`fsum`) of the
+deviations about that mean, not from DuckDB's one-pass aggregates, which lose
+precision when the values are far from zero.*
 
 #### 4.1.1 Notes
 
@@ -136,7 +148,8 @@ default only numeric columns are taken *(call)*.
 The `k` commonest values of each column: `column`, `value` (as text),
 `count`, `share` (of all rows), ordered by count, then value. Missing values
 appear as one row with `value` NULL when they are among the commonest, as
-pandas' `value_counts(dropna=False)` *(call)*.
+pandas' `value_counts(dropna=False)` *(call)*. *Ruled during the build: in a
+float column -0.0 is counted as 0.0, as pandas does.*
 
 ### 4.4 `missing(data, cols=None, *, patterns=10, out=None)`
 
@@ -159,13 +172,21 @@ column does not empty the rest)*.
 - `"pearson"`: DuckDB's `corr`.
 - `"spearman"`: Pearson on average ranks (ties share the mean of their
   ranks), as pandas. v0.4 ranked with `RANK()`, which gives ties the lowest
-  rank: that is the bug to avoid.
+  rank: that is the bug to avoid. *Ruled during the build: Spearman numbers
+  the source once into a temporary copy of the chosen columns, ranks each
+  complete column once from that copy, and ranks a pair touching a column
+  with missing values over its own complete rows, in a statement that reads
+  only its two columns.*
 
 A column with no variance gives NULL for its pairs, as pandas gives NaN.
 p(p−1)/2 pairs at 200 columns is about 20,000 aggregates, which ADR 0058
 measured at 26 s in one statement and out of memory at 500 columns: the pairs
-are computed in chunks so memory stays bounded *(left to the builder: the
-chunk size, measured)*. Kendall is not in this spec (§8).
+are computed in chunks so memory stays bounded
+*(left to the builder: the chunk size, measured)*. *Ruled during the build: the
+chunks are 20-column blocks of the columns, each statement pairing two blocks
+and so reading only their columns (a chunk of pairs in order read nearly every
+column); see the [benchmark](../benchmarks/explore-correlations.md).* Kendall is
+not in this spec (§8).
 
 ## 5. Decisions to record
 

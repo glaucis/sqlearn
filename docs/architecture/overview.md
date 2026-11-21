@@ -214,6 +214,13 @@ spec adds), returning structured results a program can render. Then the
 interactive application that renders them. The module is usable without the
 application, from code and from notebooks.
 
+The module's first spec is built: `sq.explore` (`profile`, `histogram`, `top`,
+`missing`, `correlations`;
+[specs/library-exploration.md](../specs/library-exploration.md), guide
+[exploring-data](../guide/exploring-data.md)). Left: association with a target,
+outliers, normality screens, Kendall's tau, sampling, time-series views, and the
+application.
+
 **Done when:** for the module, when its spec says so; for the application,
 when a user can open a dataset and explore it without writing code.
 
