@@ -11,8 +11,8 @@ Verify with: `just verify`
 
 ## In progress
 
-- Phase 0 of the native engine (#78), branch `engine-phase-0`: plan 0a (the
-  decisions) running, then plan 0b (the inventory). Spec
+- Phase 0 of the native engine (#78), branch `engine-phase-0`: plan 0a done
+  (ADRs 0060 to 0068, commits `876d95f`..`8bf1fa9`); plan 0b next. Spec
   `docs/specs/native-engine.md`.
 
 ## Waiting on the user

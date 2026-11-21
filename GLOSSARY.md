@@ -54,3 +54,14 @@ Terms of sqlearn's domain, in the sense the code and the docs use them.
 - **Missing pattern:** the set of chosen columns that are missing together in
   a row (NULL, and NaN in a float column); `sq.explore.missing` lists the
   commonest, the empty set (nothing missing) among them.
+- **Native engine:** sqlearn's C++, compiled into sqlearn's DuckDB build as the
+  `sqlearn` extension; its SQL functions start with `sqlearn_` (ADR 0060).
+- **sqlearn's DuckDB build:** the `duckdb` module sqlearn installs as a second
+  package: DuckDB from its official source at a pinned release, with the engine
+  and the extensions sqlearn needs compiled in (ADR 0061).
+  _Avoid_: fork.
+- **Kernel:** one of the engine's computations over DuckDB's columns, with a
+  CPU version everywhere and, on Apple silicon, perhaps a Metal version that
+  gives the same answer (ADR 0063, 0064).
+- **Plain-SQL twin:** the DuckDB SQL that computes what an engine function in
+  apply computes, kept so the SQL runs in any DuckDB (ADR 0060).
