@@ -3,18 +3,20 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-21 · Branch: `engine-phase-0` · Last commit: `05414ce` docs:
-the layout and glossary follow the engine's ADRs (#78) · Checks: passing
-(`just fmt`, `just check`, `just test`: 3178 passed, `just build-docs`;
-`just verify` not run)
+Updated: 2026-11-21 · Branch: `engine-phase-0` · Last commit: `ccc73ee` docs:
+apply the review of the engine's ADRs (#78) · Checks: passing (`just verify`
+on `ccc73ee`, 68 minutes at load 4 to 6; `just test`: 3178 passed)
 
 Verify with: `just verify`
 
 ## In progress
 
 - Phase 0 of the native engine (#78), branch `engine-phase-0`: plan 0a done
-  (ADRs 0060 to 0068, commits `876d95f`..`05414ce`, then the review fixes); plan
-  0b next. Spec `docs/specs/native-engine.md`.
+  (ADRs 0060 to 0068, commits `876d95f`..`ccc73ee`, reviewed task by task and
+  as a whole); plan 0b next. Spec `docs/specs/native-engine.md`. Left from the
+  last review, cosmetic: ADR 0062's Context names Tomas twice in one line;
+  spec §3.3's "Why Apple silicon leads" repeats the bullet above it; one
+  unwrapped line in the overview's §2.
 
 ## Waiting on the user
 
