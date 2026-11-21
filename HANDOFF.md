@@ -3,17 +3,49 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-21 · Branch: `main` · Last commit: `b43b94e` docs: update the
-handoff · Checks: passing (`just verify` on `69de4c7`;
-`just test`: 3187 passed on the merge `dc2bfa3`)
+Updated: 2026-11-21 · Branch: `read-busy-connection` (worktree
+`../sqlearn-76`, on `main`'s `b135f1b`) · Last commit: `7d44141` docs: tests
+rerun only when what they depend on changed · Checks: on the branch `just
+check` and `just test` passing (3193 passed); `just verify` on `main` at
+`b135f1b` passed every step up to the validation, then stopped by Tomas's
+reboot
 Verify with: `just verify`
 
 ## In progress
 
-None.
+- [verified] `just verify` on `main` (`b135f1b`, the `profile` fix) was cut
+  off by a reboot during `python -m validation`. Rerun it in the main
+  checkout; then commit `validation/tests.json` (tests were added) and leave
+  the docs tagger's frontmatter edits (about 20 docs) out of the commit.
+- [verified] The branch `read-busy-connection` holds #76's fix (`52e17d3`),
+  #75's deferral (`1ec69e4`), spec §4's change (`7d44141`) and the Phase 1
+  spec draft. Next: `just verify` on it, fast-forward `main` to it, close
+  #76 (github-pm), push, remove the worktree and branch.
+- [verified] Phase 1's spec, `docs/specs/native-engine-phase-1.md`, drafted
+  with Tomas and checked by a builder subagent (its 11 questions answered in
+  the text, the agent's calls marked). Waits on his approval below; then
+  superpowers:writing-plans for step 1 (the checks).
 
 ## Waiting on the user
 
+- Approve the Phase 1 spec, or say what to change. Check the calls marked
+  "(the agent's call)" in it. (since 2026-11-21)
+- The C++ standard: recommended C++23 now (`std::expected`, `std::mdspan`),
+  C++26 by ADR when all three compilers have the features wanted
+  (reflection, contracts, `std::linalg`). A probe of the feature macros
+  (`__cpp_impl_reflection`, `__cpp_contracts`, `__cpp_lib_linalg`, ...)
+  under `-std=c++26` on Apple clang 21 (SDK 27.0) found only saturation
+  arithmetic; rerun it after any Xcode update. Then add to the spec: the
+  standard, clangd as the agent's language server (step 2), CodeGraph
+  indexing `engine/` only, not DuckDB (indexing is Tomas's decision).
+  (since 2026-11-21)
+- The CLion MCP stays (its debugger, for step 2 on); no other tool or skill
+  needed. Told Tomas; nothing to do.
+- macOS: the Mac is on 26.6.1 and offered nothing since 2026-08-07, though
+  Apple lists 27.2.1 and 26.7.3 for its board (J615); not managed, no
+  deferral, servers reachable, disk fine; `softwareupdate --list` hung.
+  Tomas is upgrading; if Software Update stays empty, `sudo killall
+  softwareupdated` or a restart. (since 2026-11-21)
 - Benchmarks run on a loaded machine, to rerun on a quiet one if wanted:
   `generators-on-many-threads.md` (#46), `gram-batches.md`, both
   `explore-*.md` pages (load up to 145) and `engine-profile.md` (load 10 to
@@ -21,12 +53,9 @@ None.
 
 ## Next up
 
-- Phase 1's spec (#79), brainstormed with Tomas. Its topics, from spec §4:
-  the checks redesigned for two languages and for speed, the review of the
-  libraries sqlearn and its tooling use, and how the C++ is documented; also
-  sqlearn's DuckDB build, the safety stack in CI, the ready-made builds. Then
-  #4 and #6: the site on GitHub Pages from the public repository, deployed
-  with Phase 1's CI; then the README and `switcher.json` get its URL.
+- Phase 1, once its spec is approved: step 1 (the checks: testmon, xdist,
+  recorded validation, the passed-tree record) on today's Python, then the
+  build, the workflows and the site (#4, #6), the review (spec §3.7).
 - After the port (Phases 1–4): the rest of 3.6 (spec §8: target panel,
   outliers, normality, Kendall, sampling, time series), then the
   application; 3.3 candidates: text features, more preprocessing, truncated
@@ -38,6 +67,10 @@ None.
   are on the issue.
 
 ## Dead ends and traps
+
+- Medium refuses the web-fetch agent (403): ask Tomas to paste the text.
+  On Apple clang, `-std=c++26` is accepted with almost no C++26 inside:
+  test a feature by its `__cpp_*` macro, never by the flag. (2026-11-21)
 
 - Subagents writing ADRs invent reasons and attribute them to Tomas unless
   told "no reason the spec does not give"; they leave `pgrep -f` wait loops
@@ -160,23 +193,14 @@ None.
 
 ## Just finished
 
-- #76: `read` first runs `SELECT 1`, and a connection busy with the user's
-  unfinished `execute` result is refused with a `SqlearnError` and `Fix:`
-  for every kind of input (a file or relation is read lazily, so the raw
-  error used to come from a later statement). (2026-11-21)
-
-- `profile`'s skewness and kurtosis divide each sum by its power of the
-  variance before the sample factor, so `[0, 0, 0, 6e102]` gives 2.0, not
-  inf (and `[0, 0, 0, 0, 1e77]` a kurtosis of 5.0); `_SCAN_COLUMNS`'
-  docstring says 1,986 MB. The remote branch `engine-phase-0` is deleted.
+- The `profile` fix (`b135f1b`, on `main`, not pushed): skewness and
+  kurtosis divide each sum by its power of the variance first, so `[0, 0,
+  0, 6e102]` gives 2.0, not inf; `_SCAN_COLUMNS`' docstring says 1,986 MB.
   (2026-11-21)
-
-- Phase 0 of the native engine (#78, closed): merged as `dc2bfa3` and pushed.
-  Plan 0a, ADRs 0060–0068 (`876d95f`..`41e64cf`, fix wave `ccc73ee`); the
-  profiling script and page (`f254178`..`9069d8f`); the spec revised to all
-  of sqlearn in C++, Python its bindings, Mojo tried for GPU kernels
-  (`957c496`), applied by plan 0c (`f6d1818`..`a59fe84`); the inventory
-  (`5488e8a`..`aa3d97c`); the final review's fixes (`44f7e55`). Issues #79,
-  #82, #83, #84 retitled or updated. (2026-11-21)
-- The backup branch `main_python` and tag `python-final` are on GitHub.
-  (2026-11-21)
+- #76 (`52e17d3`, on the branch): `read` probes with `SELECT 1` and refuses
+  a connection busy with the user's unfinished `execute` result with a
+  `Fix:`, for every kind of input. (2026-11-21)
+- #75 deferred to the port (`1ec69e4`, options on the issue); spec §4: a
+  test reruns only when what it depends on changed, full runs at a release
+  (`7d44141`). (2026-11-21)
+- The merged remote branch `engine-phase-0` is deleted. (2026-11-21)
