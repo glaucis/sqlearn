@@ -85,9 +85,12 @@ Rules from the ADRs:
   `new` or `delete`, one thin layer for raw memory, warnings as errors,
   clang-tidy and the static analyser, sanitizers and fuzzing in CI, a
   hardened standard library, and no crash reaching the user (0065).
-- Computation moves to the engine piece by piece, with `main` green: a
-  piece moves when its C++ passes the same tests unchanged and is not
-  slower, then its Python is deleted. A test of the public API changes
+- The library is ported to C++ one inventory group at a time, with `main`
+  green: the Python package calls the C++ for each group ported and its
+  own Python for the rest. A group merges when the public API's tests and
+  the validation pass unchanged against the C++ and its benchmark is not
+  slower; then its Python is deleted, and the tests of its internals are
+  rewritten against `sq.` or in C++. A test of the public API changes
   only with an ADR (0067).
 - Python 3.12 is the floor (0007). Every task runs through `just` (0008).
 - British English in prose, American spelling in identifiers (0010).
