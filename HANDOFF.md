@@ -6,7 +6,7 @@ versions.
 Updated: 2026-11-21 · Branch: `main` · Last commit: `b779980` Merge branch
 'exploration': sq.explore (#74) · Checks: passing (`just verify` on the
 branch head: 3190 passed, 24 skipped, every validation runner 0 fails;
-`just test` on the merge: 3178 passed) · `main` is not pushed
+`just test` on the merge: 3178 passed) · pushed
 Verify with: `just verify`
 
 ## In progress
@@ -15,8 +15,6 @@ None.
 
 ## Waiting on the user
 
-- Push `main` (the #74 merge and the handoff before it are local only).
-  (since 2026-11-21)
 - The #46 benchmark (`docs/benchmarks/generators-on-many-threads.md`) was not
   on a quiet machine (load average about 4 to about 35) and can be rerun on
   request; so can `docs/benchmarks/gram-batches.md`, whose `file_row_number`
