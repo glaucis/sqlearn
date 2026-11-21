@@ -322,8 +322,8 @@ the [inventory of every module](engine-inventory.md).
 left in Python (Phases 1 to 4); each later phase is done when its spec says
 so.
 
-**Depends on:** 3.2 and 3.3 for what moves, 3.8 for the validation every move
-passes, 3.9 for the benchmarks.
+**Depends on:** 3.2 and 3.3 for what is ported, 3.8 for the validation the
+port must keep passing, 3.9 for the benchmarks.
 
 ### Later: other database engines
 
@@ -346,9 +346,10 @@ to other engines would plug into its compositor:
    after it.
 7. Workflow editor (3.7), last, when the library is more or less done.
 
-Now (2026-11-21): the native engine (3.10), Phase 0, revised. Porting sqlearn's
-current state to C++, Phases 1 to 4, comes before any new area of 3.3 or 3.6,
-after HANDOFF's three small fixes ([spec](../specs/native-engine.md) §4).
+Now (2026-11-21): the native engine (3.10). Phase 0 is done (merge pending);
+porting sqlearn's current state to C++, Phases 1 to 4, comes before any new area
+of 3.3 or 3.6, after HANDOFF's three small fixes
+([spec](../specs/native-engine.md) §4).
 
 How the work runs, and where each kind of document goes:
 [workflow.md](workflow.md).

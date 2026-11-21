@@ -1,7 +1,7 @@
 ---
 type: adr
-tags: [migration, phases, tests, main-green, native-engine, architecture-decision]
-summary: "Records how computation moves to the native engine: piece by piece with main green, the Python API and its tests as the contract, measured honestly, the migration before any new library area."
+tags: [migration, port, phases, tests, main-green, architecture-decision]
+summary: "Records that the whole library is ported to C++ piece by piece with main green, the Python API and its tests as the contract, a piece being one group of the inventory, measured honestly, the port before any new library area."
 related: [docs/adr/0060-a-native-engine-in-cpp-inside-duckdb.md, docs/adr/0016-validation-method.md, docs/adr/0058-a-gram-step-builds-xtx-in-numpy.md, docs/specs/native-engine.md]
 ---
 # 0067: The library is ported to C++ piece by piece

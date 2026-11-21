@@ -58,7 +58,8 @@ Rules from the ADRs:
 - Python packaging uses **uv**: `uv add`, `uv run`. Never use pip or a bare
   `python` (0001).
 - sqlearn is a C++ library embedding DuckDB. Python is thin nanobind
-  bindings with no logic of their own; users' own steps stay writable in
+  bindings with no logic of their own, as it will be at the end of the
+  port (0067); users' own steps stay writable in
   Python. Other languages bind later, through a C layer when they need
   one. The C++ API is internal: only `sq.` is public (0060).
 - Computation runs inside DuckDB: the SQL the library builds, and
@@ -83,9 +84,10 @@ Rules from the ADRs:
 - Apple silicon first: macOS 15 or later gets the tuned build (CPU, matrix
   units, GPU); Linux and Windows get the safe CPU build, with general
   optimisations; no Intel Macs, and no musl for now (0062).
-- float64 runs on the CPU: Accelerate on macOS, OpenBLAS elsewhere. No
-  MLX. GPU kernels are Metal, compiled ahead of time. Never `-ffast-math`
-  (0063).
+- float64 runs on the CPU: Accelerate on macOS, OpenBLAS elsewhere. No MLX. GPU
+  kernels are Metal, compiled ahead of time; Phase 6 tries Mojo beside it, and
+  it becomes the kernels' language if it matches Metal (0063). Never
+  `-ffast-math` (0063).
 - The C++ follows the safety rules from its first commit: RAII, no raw
   `new` or `delete`, one thin layer for raw memory, warnings as errors,
   clang-tidy and the static analyser, sanitizers and fuzzing in CI, a

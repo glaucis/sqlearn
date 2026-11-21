@@ -1,7 +1,7 @@
 ---
 type: adr
-tags: [duckdb, packaging, dependencies, extensions, offline, architecture-decision]
-summary: "Records that sqlearn ships its own DuckDB build, installed as the duckdb module in a second package pinned to one release, checked at start, with no extension downloaded by itself; amends ADRs 0005, 0006 and 0057."
+tags: [duckdb, packaging, dependencies, one-duckdb, offline, architecture-decision]
+summary: "Records that sqlearn ships its own DuckDB build as the duckdb module, by default a second package pinned to one release, shared as one DuckDB with the C++ library, checked at start, with no extension downloaded by itself; Phase 1 decides one package or two; amends ADRs 0005, 0006 and 0057."
 related: [docs/adr/0005-runtime-dependencies.md, docs/adr/0006-local-and-offline.md, docs/adr/0057-numpy-is-a-runtime-dependency.md, docs/adr/0060-a-native-engine-in-cpp-inside-duckdb.md, docs/specs/native-engine.md]
 ---
 # 0061: sqlearn ships its own DuckDB build
@@ -16,9 +16,9 @@ with the C++ library.
 
 ## Context
 
-The engine is C++ inside DuckDB (ADR 0060). It must reach the user's
-DuckDB. Bundling sqlearn's own build avoids signing and version matching,
-and gives full control over what is compiled in.
+The C++ library embeds DuckDB and must share one DuckDB with the user's Python
+connection (ADR 0060). Bundling sqlearn's own build avoids signing and version
+matching, and gives full control over what is compiled in.
 
 A drop-in keeps users' code and sqlearn's tests unchanged: they keep
 `import duckdb`. Two packages, one for sqlearn and one for the build, are the

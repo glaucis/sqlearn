@@ -118,12 +118,16 @@ Two more measured facts from the profiled runs. The `median` statement at 500
 columns wrote a peak of 15.74 GB to DuckDB's temporary directory; no other
 case wrote any. The peak buffer memory DuckDB reported for one statement was
 13.53 GB for `median` at 200 columns and 15.12 GB at 500, against process
-peaks of 5.09 to 8.66 GB in the timing runs.
+peaks of 5.09 to 8.66 GB in the timing runs. The 15.12 GB is DuckDB's own
+metric as reported, and it is above the `memory_limit` (12.7 GiB).
 
 ## What it shows
 
 Shares are `Python s` over the profiled run's wall time, and are estimates
-under the load above.
+under the load above. "Python's share" is a residual: the profiled run's wall
+time less DuckDB's statement times. So it also holds whatever runs outside the
+profiled statements: parsing, result conversion, `cProfile`'s own overhead and,
+for `pca`, numpy's XᵀX.
 
 - **Gram learn (`pca`).** Python's share was 37% at 50 columns, 27% at 200 and
   32% at 500. `gram_matrix` was the largest Python function at every width.

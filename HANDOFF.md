@@ -3,21 +3,16 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-21 · Branch: `engine-phase-0` · Last commit: the Phase 0
-close, on `aa3d97c` · Checks: `just check`, `just test` and `just build-docs`
-pass; `just verify` is the controller's, run after the close commit
+Updated: 2026-11-21 · Branch: `engine-phase-0` · Last commit: the fix wave after
+`fb99ae1` (the Phase 0 close) · Checks: `just check`, `just test` and
+`just build-docs` pass; `just verify` is the controller's
 Verify with: `just verify`
 
 ## In progress
 
-- [verified] Phase 0 of the native engine (#78), branch `engine-phase-0`
-  (worktree `.worktrees/engine-phase-0`), is complete, pending the
-  controller's `just verify` and whole-branch review. Then Tomas merges: on
-  `main` save the docs tagger's edits as a patch, `git checkout` them, merge
-  as `Merge branch 'engine-phase-0': the native engine's Phase 0 (#78)`,
-  `git apply`, close #78 and check the board. After the merge, repoint the
-  links in the bodies of #79, #82 and #83 from the `engine-phase-0` branch
-  blob to `main`. Push nothing until Tomas says.
+- [verified] Phase 0 of the native engine (#78), branch `engine-phase-0`, is
+  complete, pending the controller's `just verify`. Tomas then merges (plan 0b,
+  Task 4 Step 8); afterwards repoint the links in #79, #82 and #83 to `main`.
 
 ## Waiting on the user
 
@@ -44,10 +39,10 @@ Verify with: `just verify`
   sqlearn's DuckDB build, the safety stack in CI, the ready-made builds. Then
   #4 and #6: the site on GitHub Pages from the public repository, deployed
   with Phase 1's CI; then the README and `switcher.json` get its URL.
-- After the migration (Phases 1–3): the rest of 3.6 (spec §8: target panel,
+- After the port (Phases 1–4): the rest of 3.6 (spec §8: target panel,
   outliers, normality, Kendall, sampling, time series), then the
   application; 3.3 candidates: text features, more preprocessing, truncated
-  SVD, `cross_validate`; sqlearn's own models are Phase 4 (spec §3.9).
+  SVD, `cross_validate`; sqlearn's own models are Phase 5 (spec §3.9).
 - #65's other minor follow-ups (in its comments; #65 is closed).
 
 ## Dead ends and traps
@@ -166,6 +161,8 @@ Verify with: `just verify`
 
 ## Just finished
 
+- The backup branch `main_python` and tag `python-final` are pushed, with
+  `main` (Tomas, 2026-11-21).
 - Phase 0 of the native engine (#78), all on `engine-phase-0`: plan 0a, the
   ADRs 0060–0068 and their follow-on edits (`876d95f`..`41e64cf`, fix wave
   `ccc73ee`); Tomas's platform decision (ADR 0062, spec §3.3); the profiling

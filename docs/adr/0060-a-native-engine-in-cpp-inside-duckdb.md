@@ -1,7 +1,7 @@
 ---
 type: adr
-tags: [engine, cpp, duckdb, extension, execution, architecture-decision]
-summary: "Records that sqlearn's native engine is C++, a DuckDB extension named sqlearn reached only through SQL, with sqlearn_ function names, living in engine/, and apply SQL may call it where a benchmark shows it faster; amends ADR 0002."
+tags: [cpp, duckdb, nanobind, bindings, engine, architecture-decision]
+summary: "Records that sqlearn becomes a C++ library embedding DuckDB with Python as thin nanobind bindings, its C++ API internal, its functions named sqlearn_ and living in engine/, and apply SQL free to call them where a benchmark shows it faster; amends ADR 0002."
 related: [docs/adr/0002-sql-on-duckdb-execution-engine.md, docs/adr/0015-duckdb-expressions-no-sqlglot.md, docs/adr/0058-a-gram-step-builds-xtx-in-numpy.md, docs/specs/native-engine.md, docs/questions/multi-engine-support.md]
 ---
 # 0060: sqlearn is a C++ library, and Python its bindings

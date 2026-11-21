@@ -75,7 +75,9 @@ def test_a_failed_probe_is_reported_not_raised(tmp_path: Path):
     """A probe on a missing file gives a failure with its error, not a raise."""
     result = run("scale", tmp_path / "missing.parquet", profiled=False)
     assert result["s"] == "failed"
-    assert result["error"]
+    # The error is cut to 80 characters, so a long path may not show: name
+    # what is robust, the missing file.
+    assert "No file matches" in result["error"]
 
 
 def test_a_failure_names_the_error_not_the_profile_json():
