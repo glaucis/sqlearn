@@ -17,13 +17,16 @@ Verify with: `just verify`
   stopped by the agent, at Tomas's request before a reboot, during `python
   -m validation`. No result file was half-written; only
   `validation/tests.json` changed, from the finished test step (left
-  uncommitted). Rerun `just verify` in the main checkout; then commit
-  `tests.json` (tests were added) and leave the docs tagger's frontmatter
-  edits (about 20 docs) out of the commit.
-- [verified] The branch `read-busy-connection` holds #76's fix (`52e17d3`),
-  #75's deferral (`1ec69e4`), spec §4's change (`7d44141`) and the Phase 1
-  spec draft. Next: `just verify` on it, fast-forward `main` to it, close
-  #76 (github-pm), push, remove the worktree and branch.
+  uncommitted). Do not rerun it on `main`: the branch below contains
+  `b135f1b`, and #76 changed `read`, which every runner goes through, so one
+  `just verify` on the branch covers both (Tomas, 2026-11-21). Discard
+  `main`'s `tests.json` change (`git checkout validation/tests.json`) and
+  leave the docs tagger's frontmatter edits (about 20 docs) out of commits.
+- [verified] The branch `read-busy-connection` holds #76's fix
+  (`52e17d3`), #75's deferral (`1ec69e4`), spec §4's change (`7d44141`) and the
+  Phase 1 spec draft. Next: `just verify` on it (about an hour), commit its
+  `tests.json`, fast-forward `main` to it, close #76 (github-pm), push, remove
+  the worktree and branch.
 - [verified] Phase 1's spec, `docs/specs/native-engine-phase-1.md`, drafted
   with Tomas and checked by a builder subagent (its 11 questions answered in
   the text, the agent's calls marked). Waits on his approval below; then
