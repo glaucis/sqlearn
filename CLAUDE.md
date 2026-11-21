@@ -53,12 +53,15 @@ Rules from the ADRs:
 
 - Python packaging uses **uv**: `uv add`, `uv run`. Never use pip or a bare
   `python` (0001).
-- Computation runs inside DuckDB: SQL, and the native engine's C++
-  functions (`sqlearn_*`), which Python reaches only through the SQL it
-  builds (0002, 0060). Apply SQL may call the engine where a benchmark
-  shows it faster; each such function keeps a plain-SQL twin where one
-  exists. Until the engine's Phase 2, a Gram step's learn sums XᵀX in
-  numpy from batches DuckDB streams (0058, 0067).
+- sqlearn is a C++ library embedding DuckDB. Python is thin nanobind
+  bindings with no logic of their own; users' own steps stay writable in
+  Python. Other languages bind later, through a C layer when they need
+  one. The C++ API is internal: only `sq.` is public (0060).
+- Computation runs inside DuckDB: the SQL the library builds, and
+  sqlearn's C++ functions (`sqlearn_*`) registered in it (0002, 0060).
+  Apply SQL may call them where a benchmark shows it faster; each keeps a
+  plain-SQL twin where one exists. Until the engine's Phase 2, a Gram
+  step's learn sums XᵀX in numpy from batches DuckDB streams (0058, 0067).
 - The API follows scikit-learn conventions; any departure needs its own ADR
   (0003). The verbs are sqlearn's own: `learn`/`apply` for steps,
   `train`/`predict` for models (0013).
