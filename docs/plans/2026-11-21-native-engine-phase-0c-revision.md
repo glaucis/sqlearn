@@ -1,9 +1,9 @@
 ---
-type: task
-tags: [native-engine, cpp, duckdb, sqlearn, implementation-plan, documentation]
-summary: "Implementation plan to revise ADRs, CLAUDE.md, architecture pages, plan 0b and phase issues so sqlearn becomes a C++ library embedding DuckDB with Python bindin"
+type: note
+tags: [native-engine, cpp, duckdb, sqlearn, migration]
+summary: "Implementation plan revising ADRs, CLAUDE.md, architecture pages and plan 0b so sqlearn becomes a C++ library embedding DuckDB, with Python as thin bindings."
 related: [docs/specs/native-engine.md, docs/adr/0060-a-native-engine-in-cpp-inside-duckdb.md, docs/adr/0061-sqlearn-ships-its-own-duckdb-build.md, docs/adr/0063-the-engines-compute-libraries.md, docs/adr/0065-safety-rules-for-the-cpp.md, docs/adr/0067-how-computation-moves-to-the-engine.md, docs/adr/0068-sqlearns-own-models.md, docs/adr/index.md]
-mdindex: [type=0ebb42, tags=93b9bf, summary=fea15d, related=771647]
+mdindex: [type=edb465, tags=e2bb43, summary=551698, related=771647]
 ---
 # Native engine, Phase 0c: the revision — Implementation Plan
 

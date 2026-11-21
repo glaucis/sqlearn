@@ -3,23 +3,21 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-21 · Branch: `engine-phase-0` · Last commit: `41e64cf` docs:
-plan 0a of the native engine is done (#78) · Checks: passing (`just verify` on
-`ccc73ee`, 68 minutes at load 4 to 6; `just test`: 3178 passed on `41e64cf`)
-
+Updated: 2026-11-21 · Branch: `engine-phase-0` · Last commit: the Phase 0
+close, on `aa3d97c` · Checks: `just check`, `just test` and `just build-docs`
+pass; `just verify` is the controller's, run after the close commit
 Verify with: `just verify`
 
 ## In progress
 
-- [verified] Phase 0 of the native engine (#78), worktree
-  `.worktrees/engine-phase-0`, branch `engine-phase-0` (pushed, not merged):
-  plan 0a done (below). Next: run
-  `docs/plans/2026-11-21-native-engine-phase-0b-inventory.md` on the same
-  branch with superpowers:subagent-driven-development; it closes Phase 0, then
-  Tomas merges. Cosmetic leftovers from 0a's last review, fix with 0b: ADR
-  0062's Context names Tomas twice in one line; spec §3.3's "Why Apple
-  silicon leads" repeats the bullet above it; one unwrapped line in the
-  overview's §2.
+- [verified] Phase 0 of the native engine (#78), branch `engine-phase-0`
+  (worktree `.worktrees/engine-phase-0`), is complete, pending the
+  controller's `just verify` and whole-branch review. Then Tomas merges: on
+  `main` save the docs tagger's edits as a patch, `git checkout` them, merge
+  as `Merge branch 'engine-phase-0': the native engine's Phase 0 (#78)`,
+  `git apply`, close #78 and check the board. After the merge, repoint the
+  links in the bodies of #79, #82 and #83 from the `engine-phase-0` branch
+  blob to `main`. Push nothing until Tomas says.
 
 ## Waiting on the user
 
@@ -30,9 +28,8 @@ Verify with: `just verify`
 
 ## Next up
 
-- Plan 0b of Phase 0 (#78), as above. The migration comes before any new
-  library area (Tomas, 2026-11-21; spec §4).
-- Then the three small fixes, before Phase 1:
+- The three small fixes, before Phase 1 (the migration comes before any new
+  library area: Tomas, 2026-11-21; spec §4):
   - The one-line `profile` fix: its skewness and kurtosis multiply before
     dividing (`profile.py` `_shape`), so `[0, 0, 0, 6e102]` gives inf where
     NULL is promised; divide first. `_SCAN_COLUMNS`' docstring says "under 2
@@ -41,10 +38,12 @@ Verify with: `just verify`
     column groups, as Pearson's blocks are bounded.
   - #76: `read` gives a raw `ResourceInUseException` on a busy user
     connection; reword the `meta_sqlearn` trap below with it.
-- Phase 1's spec (#79), brainstormed with Tomas: sqlearn's DuckDB build, the
-  safety stack in CI, the ready-made builds. Then #4 and #6: the site on
-  GitHub Pages from the public repository, deployed with Phase 1's CI; then
-  the README and `switcher.json` get its URL.
+- Phase 1's spec (#79), brainstormed with Tomas. Its topics, from spec §4:
+  the checks redesigned for two languages and for speed, the review of the
+  libraries sqlearn and its tooling use, and how the C++ is documented; also
+  sqlearn's DuckDB build, the safety stack in CI, the ready-made builds. Then
+  #4 and #6: the site on GitHub Pages from the public repository, deployed
+  with Phase 1's CI; then the README and `switcher.json` get its URL.
 - After the migration (Phases 1–3): the rest of 3.6 (spec §8: target panel,
   outliers, normality, Kendall, sampling, time series), then the
   application; 3.3 candidates: text features, more preprocessing, truncated
@@ -64,8 +63,13 @@ Verify with: `just verify`
   `docs/questions/engine-compute-libraries.md`. (2026-11-21)
 - DuckDB 2.0's profiling: `profiling_output` keeps only the last statement;
   with no output file set, `SET enable_profiling = 'json'` prints one JSON
-  profile per statement to stdout, so a subprocess can capture them all.
-  `duckdb_logs`' timestamps need pytz too: fetch them as text. (2026-11-21)
+  profile per statement to stderr, so a subprocess can capture them all. Its
+  stderr also carries nanobind's leak report, printed at exit after any
+  traceback. `duckdb_logs`' timestamps need pytz too: fetch them as text.
+  (2026-11-21)
+- The harness moves a long foreground command (`just test` chained with
+  others) into the background after about 2 minutes: wait for its
+  notification, never start a second copy. (2026-11-21)
 - `gh issue create --project sqlearn` left #77 to #84 off the board without
   an error: add with `gh project item-add 6 --owner glaucis --url <issue
   url>`, then `gh-board status`. The docs tagger once wrote a `related:` path
@@ -162,11 +166,10 @@ Verify with: `just verify`
 
 ## Just finished
 
-- Plan 0a of Phase 0 (#78), `876d95f`..`41e64cf`: ADRs 0060–0068 with their
-  amendments to 0002, 0004, 0005, 0006, 0009, 0017, 0046, 0057; `CLAUDE.md`'s
-  rules, the overview (part 3.10), layout, glossary and `setup.md` follow
-  them; the site-hosting question answered and deleted. Reviewed per task and
-  as a whole, one fix wave. (2026-11-21)
-- Tomas's platform decision, in ADR 0062 and spec §3.3: Apple silicon above
-  all, maximum optimisation; other platforms CPU-only with general
-  optimisations; accuracy never traded (no `-ffast-math`). (2026-11-21)
+- Phase 0 of the native engine (#78), all on `engine-phase-0`: plan 0a, the
+  ADRs 0060–0068 and their follow-on edits (`876d95f`..`41e64cf`, fix wave
+  `ccc73ee`); Tomas's platform decision (ADR 0062, spec §3.3); the profiling
+  script and page (`f254178`..`9069d8f`); the spec revised to all of sqlearn
+  in C++ (`957c496`) with plan 0c (`f6d1818`..`a59fe84`: ADRs 0060 and 0067
+  rewritten, 0061, 0063, 0065, 0068, `CLAUDE.md`, overview, glossary, layout,
+  issues retitled); the inventory (`5488e8a`..`aa3d97c`). (2026-11-21)

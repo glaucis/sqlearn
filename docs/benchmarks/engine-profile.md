@@ -1,3 +1,10 @@
+---
+type: note
+tags: [performance, profiling, duckdb, sqlearn, cpp-port]
+summary: "Profiles where sqlearn's Python and DuckDB heavy paths spend time, to order a planned C++ port (issue #78), under heavy machine load."
+related: [docs/adr/0058-a-gram-step-builds-xtx-in-numpy.md, docs/adr/0060-a-native-engine-in-cpp-inside-duckdb.md, docs/specs/native-engine.md, docs/benchmarks/gram-batches.md]
+mdindex: [type=edb465, tags=ba8af4, summary=ee7092, related=1fccc0]
+---
 # Where sqlearn's heavy paths spend their time
 
 sqlearn is to be ported to a C++ library

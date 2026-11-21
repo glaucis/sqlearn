@@ -259,11 +259,9 @@ what was weighed and why it lost.
   running processor has them. The condition is Apple's: a benchmark proves
   the gain and the tests prove the same answers (Tomas, 2026-11-21).
 - **Why Apple silicon leads (Tomas, 2026-11-21):** it is the priority above
-  all, with maximum optimisation and speed, because he uses it. The other
-  platforms are built at the same time, on the CPU only, with general
-  optimisations. Accuracy is never traded for speed: no `-ffast-math`, because
-  a machine learning library has to be exact. Fine-grained tuning is welcome
-  where it squeezes out more.
+  all, with maximum optimisation and speed, because he uses it. Accuracy is
+  never traded for speed: no `-ffast-math`, because a machine learning
+  library has to be exact.
 - **One ready-made build per platform** serves every Python from 3.12, on
   CPython's stable ABI as DuckDB's own wheels are (`cp312-abi3`; ADR 0007
   unchanged). CI builds them and attaches them to GitHub Releases. PyPI comes

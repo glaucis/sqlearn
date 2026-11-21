@@ -45,7 +45,11 @@ built.
   issue #66. Part 3.6's first piece, the exploration module (`sq.explore`:
   `profile`, `histogram`, `top`, `missing`, `correlations`), is built: spec
   `docs/specs/library-exploration.md`, plan
-  `docs/plans/2026-11-20-library-exploration.md`, ADR 0059, issue #74. sqlearn's
+  `docs/plans/2026-11-20-library-exploration.md`, ADR 0059, issue #74. The
+  native engine (part 3.10: sqlearn as a C++ library embedding DuckDB, Python
+  its bindings): spec `docs/specs/native-engine.md`, ADRs 0060–0068, the port's
+  inventory `docs/architecture/engine-inventory.md`, milestone "Native engine"
+  (#78 to #84). Phase 0 is done; the port comes before any new area. sqlearn's
   own models are a goal, built in the engine; outside models stay supported (ADR
   0017, 0068). **Next:** chosen from `HANDOFF.md`'s "Next up".
 

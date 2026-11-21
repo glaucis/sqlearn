@@ -148,7 +148,9 @@ def probe(call: str, path: str, result: str, profiled: bool) -> None:
         own = [
             (f"{file}:{line}({name})", tottime)
             for (file, line, name), (_, _, tottime, _, _) in stats.items()
-            # cProfile names C methods "<method 'x' of 'duckdb...' objects>".
+            # DuckDB's nanobind methods are not separate cProfile entries
+            # (their time lands in the calling function's tottime), so this
+            # drops only Python wrappers with "duckdb" in their name.
             if "duckdb" not in name.lower()
         ]
         own.sort(key=lambda item: -item[1])

@@ -222,10 +222,11 @@ Against the spec's draft order (§5.3), area by area.
 - **PCA:** kept. Its learn moves with the Gram learn in Phase 2, its `eigh` in
   Phase 3, the rest in Phase 4 (G7, after preprocessing, whose `scale.py` it
   imports).
-- **Feature scores:** kept in Phase 4, gaining p-values from Phase 3. They go
-  in G7 with the other selectors, after preprocessing, because
-  `univariate.py` imports `preprocessing/scale.py` and
-  `preprocessing/target.py`.
+- **Feature scores:** kept in Phase 4. It has no p-values today; Phase 3's
+  distribution functions make them possible, and the p-value selectors are a 3.3
+  area of their own after the port (spec §4). They go in G7 with the other
+  selectors, after preprocessing, because `univariate.py` imports
+  `preprocessing/scale.py` and `preprocessing/target.py`.
 - **The core:** kept first, split into G1 to G5 by its imports, as the spec's
   §4 names its parts (the expression and naming layer, the compositor and
   planner, the step framework, the store). Three changes, all from imports, not

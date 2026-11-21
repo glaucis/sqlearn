@@ -16,7 +16,7 @@ Data preparation on Apple silicon, with unified memory (the CPU, the matrix
 units and the GPU share one memory), is one of the best setups there is, and
 its users miss out today. sqlearn starts there.
 
-Three points from Tomas (Tomas, 2026-11-21). Apple silicon is the priority above
+Three points from Tomas (2026-11-21). Apple silicon is the priority above
 all, with maximum optimisation and speed, because he uses it. The other
 platforms are built at the same time, on the CPU only, with general
 optimisations. Accuracy is never traded for speed: no `-ffast-math`, because
