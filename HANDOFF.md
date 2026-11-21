@@ -14,8 +14,6 @@ None.
 
 ## Waiting on the user
 
-- Pushing `main` with Phase 0's merge (`dc2bfa3`), unpushed; the links in
-  #79, #82 and #83 already point at `main`. (since 2026-11-21)
 - Benchmarks run on a loaded machine, to rerun on a quiet one if wanted:
   `generators-on-many-threads.md` (#46), `gram-batches.md`, and both
   `explore-*.md` pages (load up to 145, a Rust build and a VM running).
