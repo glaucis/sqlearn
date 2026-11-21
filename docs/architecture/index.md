@@ -11,6 +11,7 @@ How sqlearn is designed and built, with the decision records.
 
 ```{toctree}
 overview
+engine-inventory
 workflow
 setup
 layout

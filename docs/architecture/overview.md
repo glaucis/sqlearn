@@ -316,7 +316,7 @@ bindings, ported piece by piece
 ([ADR 0067](../adr/0067-how-computation-moves-to-the-engine.md)), Apple
 silicon first, in seven phases ([spec](../specs/native-engine.md) §4; ADRs
 0060 to 0068; milestone "Native engine", #78 to #84). Phase 0 decides and takes
-the inventory of every module.
+the [inventory of every module](engine-inventory.md).
 
 **Done when:** every test passes unchanged against the C++ and no logic is
 left in Python (Phases 1 to 4); each later phase is done when its spec says
