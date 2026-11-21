@@ -3,19 +3,19 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-21 · Branch: `engine-phase-0` · Last commit: the fix wave after
-`fb99ae1` (the Phase 0 close) · Checks: `just check`, `just test` and
-`just build-docs` pass; `just verify` is the controller's
+Updated: 2026-11-21 · Branch: `main` · Last commit: `dc2bfa3` Merge branch
+'engine-phase-0' · Checks: passing (`just verify` on `69de4c7`; `just test`:
+3187 passed on the merge)
 Verify with: `just verify`
 
 ## In progress
 
-- [verified] Phase 0 of the native engine (#78), branch `engine-phase-0`, is
-  complete, pending the controller's `just verify`. Tomas then merges (plan 0b,
-  Task 4 Step 8); afterwards repoint the links in #79, #82 and #83 to `main`.
+None.
 
 ## Waiting on the user
 
+- Pushing `main` with Phase 0's merge (`dc2bfa3`), unpushed; the links in
+  #79, #82 and #83 already point at `main`. (since 2026-11-21)
 - Benchmarks run on a loaded machine, to rerun on a quiet one if wanted:
   `generators-on-many-threads.md` (#46), `gram-batches.md`, and both
   `explore-*.md` pages (load up to 145, a Rust build and a VM running).
