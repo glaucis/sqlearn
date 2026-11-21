@@ -1717,6 +1717,12 @@
       "tier": "fast"
     },
     {
+      "area": "docs/engine_inventory",
+      "name": "tests/docs/test_engine_inventory.py::test_the_inventory_gives_every_module_its_phase",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
       "area": "sqlearn/_saving/across_processes",
       "name": "tests/src/sqlearn/_saving/test_across_processes.py::test_a_changed_file_is_learned_again_with_a_warning",
       "outcome": "passed",
@@ -19179,6 +19185,54 @@
     {
       "area": "environment",
       "name": "tests/test_environment.py::test_the_runtime_dependencies_are_duckdb_and_numpy",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/benchmarks/engine_profile",
+      "name": "tests/validation/benchmarks/test_engine_profile.py::test_a_failed_probe_is_reported_not_raised",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/benchmarks/engine_profile",
+      "name": "tests/validation/benchmarks/test_engine_profile.py::test_a_failure_names_the_error_not_the_profile_json",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/benchmarks/engine_profile",
+      "name": "tests/validation/benchmarks/test_engine_profile.py::test_a_failure_skips_nanobinds_leak_report_after_the_traceback",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/benchmarks/engine_profile",
+      "name": "tests/validation/benchmarks/test_engine_profile.py::test_a_probe_killed_by_a_signal_is_named",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/benchmarks/engine_profile",
+      "name": "tests/validation/benchmarks/test_engine_profile.py::test_a_profiled_probe_reports_every_statement",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/benchmarks/engine_profile",
+      "name": "tests/validation/benchmarks/test_engine_profile.py::test_an_unprofiled_probe_reports_its_time",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/benchmarks/engine_profile",
+      "name": "tests/validation/benchmarks/test_engine_profile.py::test_json_without_a_query_is_skipped",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/benchmarks/engine_profile",
+      "name": "tests/validation/benchmarks/test_engine_profile.py::test_profiles_are_read_in_order_with_their_operators",
       "outcome": "passed",
       "tier": "fast"
     },
