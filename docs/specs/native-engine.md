@@ -186,7 +186,17 @@ what was weighed and why it lost.
   own extension builds treat them as best-effort in 2.0 and drop them in
   2.1). Nor does musl Linux (Alpine) for now: DuckDB itself ships no musl
   build, and the sanitizers do not support it; it comes when users ask
-  (Tomas, 2026-11-21).
+  (Tomas, 2026-11-21). The safe build still takes general optimisations:
+  full compiler optimisation, link-time optimisation, and faster
+  instructions (AVX2 or AVX-512 on x86_64) chosen at run time where the
+  running processor has them. The condition is Apple's: a benchmark proves
+  the gain and the tests prove the same answers (Tomas, 2026-11-21).
+- **Why Apple silicon leads (Tomas, 2026-11-21):** it is the priority above
+  all, with maximum optimisation and speed, because he uses it. The other
+  platforms are built at the same time, on the CPU only, with general
+  optimisations. Accuracy is never traded for speed: no `-ffast-math`, because
+  a machine learning library has to be exact. Fine-grained tuning is welcome
+  where it squeezes out more.
 - **One ready-made build per platform** serves every Python from 3.12, on
   CPython's stable ABI as DuckDB's own wheels are (`cp312-abi3`; ADR 0007
   unchanged). CI builds them and attaches them to GitHub Releases. PyPI comes
@@ -334,10 +344,10 @@ Binding from the first commit.
 
 0001 (uv: the DuckDB build is a uv workspace member, built with
 scikit-build-core), 0003, 0007 (stable-ABI builds keep the 3.12 floor), 0008
-(new recipes, same runner), 0009 (Pages, now from the public repository),
-0010, 0015 (our build has the same Python expression objects), 0016, 0043
-(order-free exact sums noted as a later option, about 6 times the cost of
-XᵀX), and 0058, which Phase 2 supersedes, not Phase 0.
+(new recipes, same runner), 0009 (Pages, now from the public repository; ADR
+0062 adds an Amended-by line), 0010, 0015 (our build has the same Python
+expression objects), 0016, 0043 (order-free exact sums noted as a later option,
+about 6 times the cost of XᵀX), and 0058, which Phase 2 supersedes, not Phase 0.
 
 ## 4. The phases
 
@@ -407,7 +417,7 @@ pushed when Tomas says.
 ### 5.2 The ADRs
 
 ADRs 0060 to 0068 as in §3, each with an "Amended by" line added to every ADR
-it amends (0002, 0004, 0005, 0006, 0017, 0046, 0057), and grouped in
+it amends (0002, 0004, 0005, 0006, 0009, 0017, 0046, 0057), and grouped in
 `docs/adr/index.md` under a topic of their own.
 
 ### 5.3 The inventory

@@ -20,7 +20,7 @@ Measured on the M3:
 
 - XᵀX of 400,000 × 200 took 52 ms in Accelerate's float64, and 19 ms in
   its float32. MLX's GPU took 36 ms in float32.
-- In float32, the small eigenvalues of XᵀX were wrong by 10 to 44 times
+- In float32, the noise-level eigenvalues of XᵀX were wrong by 10 to 44 times
   their own size at 200 columns.
 - MLX's float64 runs on the CPU only. There its `exp` and `erf` are
   computed in float32: `exp(1.0)` was 1.86e8 ULPs off and `exp(100)` gave
@@ -28,7 +28,7 @@ Measured on the M3:
 - MLX's kernels weigh 214 MB.
 - Without a binary archive, a first kernel took 44 ms and later uses 0.5
   ms (a 200 × 200 matrix product in MLX).
-- The GPU won once: at 65,536 × 200 in float32, 2.9 ms against
+- MLX's GPU won once: at 65,536 × 200 in float32, 2.9 ms against
   Accelerate's 3.5 ms.
 
 Weighed and left out:

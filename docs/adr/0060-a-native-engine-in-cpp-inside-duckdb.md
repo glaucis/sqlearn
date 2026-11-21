@@ -19,7 +19,7 @@ and Python only finishes a few numbers (F scores, skewness, PCA's `eigh`).
 So an engine moves little and adds most. SQL does some work badly: wide
 aggregates such as XᵀX. DuckDB lacks some functions: the distributions
 behind p-values, linear algebra. Later, sqlearn's own models need kernels
-that SQL cannot express.
+of their own.
 
 C++ was chosen because DuckDB's internals (physical operators, optimiser
 rules, a GPU executor) and Apple's Metal API are C++, and one native

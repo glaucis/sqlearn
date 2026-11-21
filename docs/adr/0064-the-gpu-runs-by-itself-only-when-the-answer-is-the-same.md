@@ -50,8 +50,8 @@ Weighed and left out:
 
 ## Consequences
 
-- Every automatic GPU kernel has a CPU version, and a test that the two
-  agree exactly.
+- So every automatic GPU kernel has a CPU version to compare against, and a
+  test that the two agree exactly.
 - A setting shows which device ran and forces one.
 - #77 sets the thresholds.
 - A float32 GPU version needs the user's choice and its own bounds

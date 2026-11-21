@@ -3,17 +3,18 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-21 · Branch: `engine-phase-0` · Last commit: `eb62ff6` chore:
-share CLion's project settings · Checks: passing (`just check`, and `just test`:
-3178 passed, on `eb62ff6`; `just verify` not run this session)
+Updated: 2026-11-21 · Branch: `engine-phase-0` · Last commit: `05414ce` docs:
+the layout and glossary follow the engine's ADRs (#78) · Checks: passing
+(`just fmt`, `just check`, `just test`: 3178 passed, `just build-docs`;
+`just verify` not run)
 
 Verify with: `just verify`
 
 ## In progress
 
 - Phase 0 of the native engine (#78), branch `engine-phase-0`: plan 0a done
-  (ADRs 0060 to 0068, commits `876d95f`..`8bf1fa9`); plan 0b next. Spec
-  `docs/specs/native-engine.md`.
+  (ADRs 0060 to 0068, commits `876d95f`..`05414ce`, then the review fixes); plan
+  0b next. Spec `docs/specs/native-engine.md`.
 
 ## Waiting on the user
 

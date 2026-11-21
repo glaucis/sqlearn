@@ -1,7 +1,13 @@
+---
+type: adr
+tags: [migration, phases, tests, main-green, native-engine, architecture-decision]
+summary: "Records how computation moves to the native engine: piece by piece with main green, the Python API and its tests as the contract, measured honestly, the migration before any new library area."
+related: [docs/adr/0060-a-native-engine-in-cpp-inside-duckdb.md, docs/adr/0016-validation-method.md, docs/adr/0058-a-gram-step-builds-xtx-in-numpy.md, docs/specs/native-engine.md]
+---
 # 0067: How computation moves to the engine
 
 Status: accepted (2026-11-21). Decided by Tomas on 2026-11-21 with the
-[native engine spec](../specs/native-engine.md) (§3.8).
+[native engine spec](../specs/native-engine.md) (§3.8, §4).
 
 ## Context
 

@@ -12,9 +12,16 @@ Status: accepted (2026-11-21). Decided by Tomas on 2026-11-21 with the
 
 ## Context
 
-Tomas works on Apple silicon, where the CPU, the matrix units and the GPU
-share one memory. Apple users miss out on that today: the tools that
-use it are built for other machines first. sqlearn starts there.
+Data preparation on Apple silicon, with unified memory (the CPU, the matrix
+units and the GPU share one memory), is one of the best setups there is, and
+its users miss out today. sqlearn starts there.
+
+Three points from Tomas (Tomas, 2026-11-21). Apple silicon is the priority above
+all, with maximum optimisation and speed, because he uses it. The other
+platforms are built at the same time, on the CPU only, with general
+optimisations. Accuracy is never traded for speed: no `-ffast-math`, because
+a machine learning library has to be exact. Fine-grained tuning is welcome
+where it squeezes out more.
 
 The other platforms are the ones DuckDB itself builds for: Linux x86_64 and
 arm64 (glibc) and Windows x86_64 and arm64. DuckDB's own extension builds
@@ -40,6 +47,11 @@ Three other ways were weighed:
 - **Every other platform gets the safe default CPU build:** Linux x86_64 and
   arm64 (glibc) and Windows x86_64 and arm64. Intel Macs get none. Nor does
   musl Linux (Alpine) for now; it comes when users ask (Tomas, 2026-11-21).
+  The safe build still takes general optimisations: full compiler
+  optimisation, link-time optimisation, and faster instructions (AVX2 or
+  AVX-512 on x86_64) chosen at run time where the running processor has
+  them. The condition is Apple's: a benchmark proves the gain and the tests
+  prove the same answers (Tomas, 2026-11-21).
 - **One ready-made build per platform** serves every Python from 3.12, on
   CPython's stable ABI as DuckDB's own wheels are (`cp312-abi3`; ADR 0007
   unchanged). CI builds them and attaches them to GitHub Releases. PyPI comes
