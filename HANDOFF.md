@@ -3,10 +3,10 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-21 · Branch: `main` · Last commit: `b779980` Merge branch
-'exploration': sq.explore (#74) · Checks: passing (`just verify` on the
-branch head: 3190 passed, 24 skipped, every validation runner 0 fails;
-`just test` on the merge: 3178 passed) · pushed
+Updated: 2026-11-21 · Branch: `main` · Last commit: `d314eac` docs: note in
+the handoff that main is pushed · Checks: passing (`just verify` on the
+branch head: 3190 passed, every validation runner 0 fails; `just test` on the
+merge `b779980`: 3178 passed)
 Verify with: `just verify`
 
 ## In progress
@@ -15,10 +15,10 @@ None.
 
 ## Waiting on the user
 
-- The #46 benchmark (`docs/benchmarks/generators-on-many-threads.md`) was not
-  on a quiet machine (load average about 4 to about 35) and can be rerun on
-  request; so can `docs/benchmarks/gram-batches.md`, whose `file_row_number`
-  cut lost at 500 columns on one loaded run. (since 2026-11-18)
+- Benchmarks run on a loaded machine, to rerun on a quiet one if wanted:
+  `generators-on-many-threads.md` (#46), `gram-batches.md`, and both
+  `explore-*.md` pages (load up to 145, a Rust build and a VM running).
+  (since 2026-11-18)
 - #4, #6: where the site is hosted (`docs/questions/site-hosting.md`), so
   the README and `switcher.json` get a URL: make the repository public, or
   push the built site to an orphan branch or a public repository. Both fixes
@@ -26,36 +26,28 @@ None.
 
 ## Next up
 
-- #75: Spearman's first scan reads every chosen column; number it in
-  column groups so it is bounded as Pearson's blocks are.
-- #76: `read` gives a raw `ResourceInUseException` when the user's
-  connection holds an unfinished result; and the trap below about
-  `con.execute` discarding it needs rewording (DuckDB 2.0 keeps it).
-- One-line follow-up from the final review: `profile`'s skewness and
-  kurtosis multiply before dividing (`profile.py`, `_shape`), so a finite
-  third or fourth sum near the largest double gives inf where the docstring
-  promises NULL (`[0, 0, 0, 6e102]`); divide first. Also `_SCAN_COLUMNS`'
-  docstring says "under 2 GB" where the benchmark page says 1,986 MB.
-- The rest of 3.6: a target panel, outliers, normality screens, Kendall,
-  sampling, time-series views (spec §8), then the application. Models stay
-  with scikit-learn and the libraries users install (ADR 0017; Tomas,
-  2026-11-20: leave models aside). Other 3.3 candidates: text features,
-  more preprocessing, truncated SVD, `cross_validate`/learning curves.
-- #65's other minor follow-ups (listed in its comments; #65 is closed).
+- One line, first: `profile`'s skewness and kurtosis multiply before
+  dividing (`profile.py` `_shape`), so `[0, 0, 0, 6e102]` gives inf where
+  NULL is promised; divide first. `_SCAN_COLUMNS`' docstring says "under 2
+  GB" where the benchmark says 1,986 MB.
+- #75: Spearman's first scan reads every chosen column; number it in column
+  groups, as Pearson's blocks are bounded.
+- #76: `read` gives a raw `ResourceInUseException` on a busy user
+  connection; reword the `meta_sqlearn` trap below with it.
+- The rest of 3.6 (spec §8: target panel, outliers, normality, Kendall,
+  sampling, time series), then the application. Models stay outside (ADR
+  0017; Tomas, 2026-11-20). 3.3 candidates: text features, more
+  preprocessing, truncated SVD, `cross_validate`.
+- #65's other minor follow-ups (in its comments; #65 is closed).
 
 ## Dead ends and traps
 
-- DuckDB's `FILTER (WHERE ...)` gives each filtered aggregate its own copy
-  of the statement's inputs: memory grows with the square of the columns,
-  outside `memory_limit` (the OS killed `profile` at ~1.2 GB RSS). Write
-  `agg(CASE WHEN ... THEN x END)`. `sq.set_config(memory=X)` gives DuckDB
-  half of X. No statement over 200 columns fits a 1–2 GB limit on default
-  122,880-row Parquet groups (8 threads × a row group of every column):
-  read 20 columns a statement. Exact `quantile_cont` and
-  `count(DISTINCT)` hold every value and do not spill. A single-threaded
-  row-order `avg`/`stddev_samp` was 119 and 13 ULPs off on 100k rows:
-  `favg` and a compensated second pass give 1. In DuckDB a `-0.0` literal
-  is DECIMAL and becomes +0.0: insert it as text. (2026-11-21)
+- `FILTER (WHERE ...)` copies a statement's inputs per filtered aggregate,
+  outside `memory_limit` (the OS killed `profile`): write `agg(CASE ...)`.
+  `memory=X` gives DuckDB X/2. No statement over 200 columns fits 1–2 GB
+  on default row groups: read 20 a statement. Exact `quantile_cont` and
+  `count(DISTINCT)` do not spill. Row-order `avg` was 119 ULPs off: `favg`.
+  A `-0.0` literal is DECIMAL (+0.0): insert it as text. (2026-11-21)
 - DuckDB's `memory_limit` and `duckdb_memory()` do not count parsing and
   binding a statement: a query of many constants (PCA's apply) holds GBs
   outside them. `ru_maxrss` peaks depend on whether DuckDB has handed
@@ -114,13 +106,11 @@ None.
   tagger's frontmatter edits: leave them out of commits. (2026-11-11)
 - `gh-board status` can fail for one issue now and then: rerun it, then
   `GH_BOARD=glaucis/6 gh-board audit`. (2026-11-11)
-- `sq.load` security: per-task reviews passed, yet whole-branch reviews found
-  routes from a crafted file to `KeptFolds` (#55) and a 12-byte value that
-  hung it (#65). Probe every tag and learned slot end to end after any
-  change to `_saving` or a step's learned values; learned values reach
-  `Fraction` only as plain `int`/`float`. The class lookup stays static
-  (`is`, type descriptors; no `getattr`/`isinstance`/`==` on file data).
-  "nanobind: leaked" at exit is DuckDB's noise. (2026-11-20)
+- `sq.load` security: whole-branch reviews found what per-task ones missed
+  (#55, #65). After any change to `_saving` or learned values, probe every
+  tag and slot end to end; values reach `Fraction` only as plain
+  `int`/`float`; the class lookup stays static (no `getattr`/`isinstance`/
+  `==` on file data). "nanobind: leaked" is DuckDB's noise. (2026-11-20)
 - After a merge adding a dependency, run `uv sync` before committing. A
   step's `inputs` sees only names and types, never the table. (2026-11-11)
 - Benchmarks: record `uptime` before and after; write large data as Parquet
@@ -143,16 +133,8 @@ None.
 
 ## Just finished
 
-- #74 merged into `main` in `b779980` (closed): `sq.explore.profile`,
-  `histogram`, `top`, `missing`, `correlations` (Pearson, Spearman), ADR 0059,
-  validation 809 pass, guide and benchmarks (`explore-correlations.md`,
-  `explore-larger-than-memory.md`: profile and Pearson run on 20 GB at a 1–2 GB
-  DuckDB limit; Spearman refuses with a `Fix:`, #75). (2026-11-21)
-- #65's first follow-up, pushed: a column selector by position passes
-  `refuse_positionals` (`sq.select`, `sq.decompose`), `d37b08d`.
-  (2026-11-20)
-- #70, #71, #72, #73, pushed and closed: the Gram contract tidied and
-  documented in `docs/guide/writing-a-step.md`; `validate_pca` sturdier
-  (neighbour cut 1e-14 λ₁); small tidies; PCA's weights written once as a
-  matrix (learn peak at 200 columns 1.11 to 0.36 GB). Details on each issue.
-  (2026-11-20)
+- #74 merged in `b779980`, pushed, closed: `sq.explore` (`profile`,
+  `histogram`, `top`, `missing`, `correlations`), ADR 0059, validation 809
+  pass; profile and Pearson run on 20 GB at a 1–2 GB DuckDB limit, Spearman
+  refuses with a `Fix:` (#75). Rulings in the spec's "ruled during the
+  build" notes. (2026-11-21)
