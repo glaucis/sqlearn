@@ -314,6 +314,7 @@ def exploring_out_of_memory(
     *,
     sorts: bool = False,
     estimates: bool = False,
+    counts: str | None = None,
     columns: Sequence[str] | None = None,
 ) -> SqlearnError:
     """Explain DuckDB running out of memory while an exploration function reads.
@@ -337,6 +338,12 @@ def exploring_out_of_memory(
         then says the exact ones keep every value, and ``exact=False``
         leads the fixes, before more memory, fewer threads and fewer
         columns.
+    counts : str, optional
+        What the function counts by group, every one of which DuckDB holds
+        until the counting ends (`top`'s distinct values, `missing`'s
+        patterns); the why then names it. Fewer columns hold fewer of
+        them; a smaller `k` or `patterns` does not, since the commonest are
+        kept only once all are counted, so it is not a fix.
     columns : sequence of str, optional
         The columns the failed statement reads; a Parquet row group then
         weighs only those, and the why says how many. By default every
@@ -360,12 +367,6 @@ def exploring_out_of_memory(
     'DuckDB ran out of memory while `top` read the data.'
     """
     wide = _row_groups(sql, columns)
-    fixes = ["pass fewer columns with cols=", *_memory_fixes(wide)]
-    if sorts:
-        # A sort is helped by memory or threads first; fewer columns does not
-        # shrink it, so it comes after them (before the row groups' fix).
-        fixes = _memory_fixes(wide)
-        fixes.insert(len(fixes) - (wide is not None), "pass fewer columns with cols=")
     if estimates:
         # The exact counts and quartiles keep every value; exact=False keeps
         # a small state instead, so it leads, and the memory follows.
@@ -374,6 +375,13 @@ def exploring_out_of_memory(
             *_memory_fixes(wide),
         ]
         fixes.insert(len(fixes) - (wide is not None), "pass fewer columns with cols=")
+    elif sorts:
+        # A sort is helped by memory or threads first; fewer columns does not
+        # shrink it, so it comes after them (before the row groups' fix).
+        fixes = _memory_fixes(wide)
+        fixes.insert(len(fixes) - (wide is not None), "pass fewer columns with cols=")
+    else:
+        fixes = ["pass fewer columns with cols=", *_memory_fixes(wide)]
     why = "DuckDB's memory_limit is too small for the columns it reads at once"
     if sorts:
         why = f"{why}, or for the rows a rank sorts, which fewer columns do not shrink"
@@ -382,6 +390,8 @@ def exploring_out_of_memory(
             f"{why}, or for the values an exact distinct count hashes and exact "
             "quartiles sort, which are every value of a column"
         )
+    if counts is not None:
+        why = f"{why}, or for the {counts} it counts, all held until counted"
     why = f"{why}."
     if wide is not None:
         why = f"{why} {wide[0]}"

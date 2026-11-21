@@ -13,9 +13,11 @@ from sqlearn._expr import quote
 from sqlearn._inputs import Source
 from sqlearn._selectors import Selector, to_selector
 
-__all__ = ["answer", "columns", "literal", "missing_sql"]
+__all__ = ["LARGEST_LIMIT", "answer", "columns", "literal", "missing_sql"]
 
 _tables = itertools.count()
+LARGEST_LIMIT = 2**63 - 1
+"""The largest count DuckDB's LIMIT takes: BIGINT's largest value."""
 _LISTED = 10
 
 

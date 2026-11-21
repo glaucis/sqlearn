@@ -1,11 +1,17 @@
 """Tests of `sq.explore.missing`: the commonest patterns of missing values."""
 
+import importlib
+
+import duckdb
 import pandas as pd
 import pytest
 
 import sqlearn as sq
 from sqlearn._config import connection
 from sqlearn.errors import SqlearnError
+
+# `sqlearn.explore.missing` the attribute is the function; this is the module.
+module = importlib.import_module("sqlearn.explore.missing")
 
 
 def test_patterns_match_a_pandas_group_by():
@@ -87,3 +93,35 @@ def test_out_is_honoured():
     """Out hands the result back in the format asked."""
     result = sq.explore.missing(pd.DataFrame({"a": [None]}), out="pandas")
     assert list(result["count"]) == [1]
+
+
+def test_a_patterns_past_the_largest_limit_is_refused():
+    """A patterns past what DuckDB's LIMIT takes (BIGINT's largest) is refused."""
+    frame = pd.DataFrame({"a": [1, None]})
+    with pytest.raises(SqlearnError, match=r"patterns=.*Why:.*Fix:"):
+        sq.explore.missing(frame, patterns=10**30)
+    with pytest.raises(SqlearnError, match=r"patterns=.*Why:.*Fix:"):
+        sq.explore.missing(frame, patterns=2**63)
+    assert sq.explore.missing(frame, patterns=2**63 - 1).fetchall()
+
+
+@pytest.mark.parametrize("seam", ["_fetch", "answer"])
+def test_running_out_of_memory_is_refused_with_a_fix(monkeypatch, seam):
+    """An out-of-memory error in either statement has a Why and a Fix.
+
+    The error is forced by monkeypatching the counting statement's runner
+    (`_fetch`) or the result's (`answer`) to raise DuckDB's out-of-memory
+    error: a real one depends on the machine's memory.
+    """
+
+    def fail(*_args):
+        raise duckdb.OutOfMemoryException("Out of Memory Error: failed")
+
+    monkeypatch.setattr(module, seam, fail)
+    with pytest.raises(
+        SqlearnError, match=r"(?s)Why:.*Fix:.*cols=.*memory=.*threads"
+    ) as info:
+        sq.explore.missing(pd.DataFrame({"a": [1, None], "b": ["x", "y"]}))
+    assert "failed" in str(info.value)
+    assert "`missing`" in str(info.value)
+    assert "the patterns it counts" in str(info.value)

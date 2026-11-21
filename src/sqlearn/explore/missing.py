@@ -2,13 +2,22 @@
 
 from typing import Any
 
+import duckdb
+
 from sqlearn._config import get_config
+from sqlearn._diagnose import exploring_out_of_memory
 from sqlearn._errors import SqlearnError
 from sqlearn._expr import quote
-from sqlearn._inputs import read
+from sqlearn._inputs import Source, read
 from sqlearn._output import Output, to_output
 from sqlearn._selectors import Selector
-from sqlearn.explore._common import answer, columns, literal, missing_sql
+from sqlearn.explore._common import (
+    LARGEST_LIMIT,
+    answer,
+    columns,
+    literal,
+    missing_sql,
+)
 
 __all__ = ["missing"]
 
@@ -26,7 +35,21 @@ def _patterns(value: object) -> int:
             f"positive integer. Why: it counts the patterns kept, so it is a "
             f"whole number from 1. Fix: pass an integer such as patterns=10."
         )
+    if value > LARGEST_LIMIT:
+        raise SqlearnError(
+            f"`missing` was given patterns={value!r}, more than "
+            f"{LARGEST_LIMIT}. Why: DuckDB's LIMIT takes a BIGINT, and no data "
+            f"has more patterns than rows. Fix: pass a smaller patterns, such "
+            f"as patterns=10."
+        )
     return value
+
+
+def _fetch(source: Source, sql: str) -> list[tuple[Any, ...]]:
+    """Run one statement over the data, as `_VIEW`, and return its rows."""
+    found = source.relation.query(_VIEW, sql)
+    assert found is not None  # a SELECT always has a result
+    return found.fetchall()
 
 
 def missing(
@@ -70,8 +93,10 @@ def missing(
     Raises
     ------
     SqlearnError
-        If `patterns` is not a positive integer, a name in `cols` is not a
-        column, or more than 64 columns are chosen.
+        If `patterns` is not a positive integer or is past 2**63 - 1 (the
+        largest BIGINT, which DuckDB's LIMIT takes), a name in `cols` is not
+        a column, more than 64 columns are chosen, or DuckDB runs out of
+        memory (the message names the fixes).
 
     Examples
     --------
@@ -107,11 +132,12 @@ def missing(
             f"SELECT {', '.join(flags)}, count(*) AS n FROM {quote(_VIEW)} "
             f"GROUP BY ALL)"
         )
-        found = source.relation.query(
-            _VIEW,
-            f"{counted} ORDER BY n DESC, {keys} LIMIT {keep}",
-        )
-        rows = found.fetchall() if found is not None else []
+        try:
+            rows = _fetch(source, f"{counted} ORDER BY n DESC, {keys} LIMIT {keep}")
+        except duckdb.OutOfMemoryException as exc:
+            raise exploring_out_of_memory(
+                exc, source.relation.sql_query(), "missing", counts="patterns"
+            ) from exc
     width = len(chosen)
     listed = [
         (
@@ -134,5 +160,10 @@ def missing(
         f"CAST(t.{a} AS {kind}) AS {quote(label)}"
         for a, (label, kind) in zip(labels, _RESULT, strict=True)
     )
-    rel = answer(f"SELECT {select} FROM {body}")
+    try:
+        rel = answer(f"SELECT {select} FROM {body}")
+    except duckdb.OutOfMemoryException as exc:
+        raise exploring_out_of_memory(
+            exc, f"SELECT {select} FROM {body}", "missing", counts="patterns"
+        ) from exc
     return to_output(rel, out if out is not None else get_config().out)

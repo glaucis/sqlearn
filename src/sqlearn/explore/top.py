@@ -2,13 +2,22 @@
 
 from typing import Any
 
+import duckdb
+
 from sqlearn._config import get_config
+from sqlearn._diagnose import exploring_out_of_memory
 from sqlearn._errors import SqlearnError
 from sqlearn._expr import quote
-from sqlearn._inputs import read
+from sqlearn._inputs import Source, read
 from sqlearn._output import Output, to_output
 from sqlearn._selectors import Selector
-from sqlearn.explore._common import answer, columns, literal, missing_sql
+from sqlearn.explore._common import (
+    LARGEST_LIMIT,
+    answer,
+    columns,
+    literal,
+    missing_sql,
+)
 
 __all__ = ["top"]
 
@@ -30,7 +39,20 @@ def _k(value: object) -> int:
             f"Why: it counts the values kept for each column, so it is a "
             f"whole number from 1. Fix: pass an integer such as k=10."
         )
+    if value > LARGEST_LIMIT:
+        raise SqlearnError(
+            f"`top` was given k={value!r}, more than {LARGEST_LIMIT}. Why: "
+            f"DuckDB counts rows as a BIGINT, so no column has more values "
+            f"than that. Fix: pass a smaller k, such as k=10."
+        )
     return value
+
+
+def _fetch(source: Source, sql: str) -> list[tuple[Any, ...]]:
+    """Run one statement over the data, as `_VIEW`, and return its rows."""
+    found = source.relation.query(_VIEW, sql)
+    assert found is not None  # a SELECT always has a result
+    return found.fetchall()
 
 
 def top(
@@ -74,8 +96,10 @@ def top(
     Raises
     ------
     SqlearnError
-        If `k` is not a positive integer, or a name in `cols` is not a
-        column.
+        If `k` is not a positive integer or is past 2**63 - 1 (the largest
+        BIGINT, more values than any column holds), a name in `cols` is not
+        a column, or DuckDB runs out of memory (the message names the
+        fixes).
 
     Examples
     --------
@@ -113,11 +137,13 @@ def top(
             "row_number() OVER (PARTITION BY p ORDER BY n DESC, v NULLS LAST) "
             f"AS r FROM ({' UNION ALL '.join(queries)})"
         )
-        found = source.relation.query(
-            _VIEW,
-            f"SELECT c, v, n, s FROM ({ranked}) WHERE r <= {k} ORDER BY p, r",
-        )
-        rows = found.fetchall() if found is not None else []
+        sql = f"SELECT c, v, n, s FROM ({ranked}) WHERE r <= {k} ORDER BY p, r"
+        try:
+            rows = _fetch(source, sql)
+        except duckdb.OutOfMemoryException as exc:
+            raise exploring_out_of_memory(
+                exc, source.relation.sql_query(), "top", counts="distinct values"
+            ) from exc
     labels = ["c", "v", "n", "s"]
     if rows:
         values = ", ".join(f"({', '.join(literal(x) for x in row)})" for row in rows)
@@ -129,5 +155,10 @@ def top(
         f"CAST(t.{a} AS {kind}) AS {quote(label)}"
         for a, (label, kind) in zip(labels, _RESULT, strict=True)
     )
-    rel = answer(f"SELECT {select} FROM {body}")
+    try:
+        rel = answer(f"SELECT {select} FROM {body}")
+    except duckdb.OutOfMemoryException as exc:
+        raise exploring_out_of_memory(
+            exc, f"SELECT {select} FROM {body}", "top", counts="distinct values"
+        ) from exc
     return to_output(rel, out if out is not None else get_config().out)
