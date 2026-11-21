@@ -107,8 +107,12 @@ STEP = "explore"
 # - in ULPs of the larger extreme: 1.6 for the histogram's edges (signed
 #   set), the same as numpy's; hence 2;
 # - in ULPs of 1: 33.2 for Pearson (large set, x ~ related, every run;
-#   pandas 32.7, numpy 0.8), DuckDB's `corr`; hence 64; 8.6 to 9.3 for
-#   Spearman (large set) over six runs; hence 16.
+#   pandas 32.7, numpy 0.8), DuckDB's `corr`; hence 64; for Spearman (large
+#   set) the worst of each of five more runs (2026-11-21) was 16.4, 10.9, 9.0,
+#   9.2 and 8.7 (the earlier six: 8.6 to 9.3): DuckDB sums doubles in
+#   thread-finish order (ADR 0043), and the pair `x ~ unrelated` has a
+#   correlation near 0.002, so a rounding of the sums moves it by many ULPs;
+#   the worst, 16.4, is above 16, hence 32.
 BOUNDS = {
     "mean": 32,
     "share true": 1,
@@ -122,7 +126,7 @@ BOUNDS = {
     "kurtosis": 64,
     "edges": 2,
     "pearson": 64,
-    "spearman": 16,
+    "spearman": 32,
 }
 
 QUARTILES = {"q25": 0.25, "median": 0.5, "q75": 0.75}
