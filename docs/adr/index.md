@@ -42,6 +42,20 @@ Computation as SQL, and how a pipeline becomes runs.
 - [0023: Lazy results, `out=` and `feed=`](0023-lazy-results-out-and-feed.md)
 - [0052: sqlearn's own tables live in `meta_sqlearn`](0052-meta-sqlearn.md)
 
+## The native engine
+
+sqlearn's computation in C++, inside its own DuckDB build.
+
+- [0060: sqlearn is a C++ library, and Python its bindings](0060-a-native-engine-in-cpp-inside-duckdb.md)
+- [0061: sqlearn ships its own DuckDB build](0061-sqlearn-ships-its-own-duckdb-build.md)
+- [0062: Apple silicon first, a safe CPU build elsewhere](0062-apple-silicon-first.md)
+- [0063: The engine's compute libraries: Accelerate, OpenBLAS and Metal](0063-the-engines-compute-libraries.md)
+- [0064: The GPU runs by itself only when the answer is the same](0064-the-gpu-runs-by-itself-only-when-the-answer-is-the-same.md)
+- [0065: Safety rules for the C++](0065-safety-rules-for-the-cpp.md)
+- [0066: Permissive licences, never copyleft](0066-permissive-licences-never-copyleft.md)
+- [0067: The library is ported to C++ piece by piece](0067-how-computation-moves-to-the-engine.md)
+- [0068: sqlearn's own models, in the engine](0068-sqlearns-own-models.md)
+
 ## The API
 
 The verbs and conventions users write against.

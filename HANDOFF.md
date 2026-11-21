@@ -3,22 +3,16 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-21 · Branch: `main` · Last commit: `eb62ff6` chore: share
-CLion's project settings · Checks: passing (`just check`, and `just test`:
-3178 passed, on `eb62ff6`; `just verify` not run this session)
+Updated: 2026-11-21 · Branch: `engine-phase-0` · Last commit: the fix wave after
+`fb99ae1` (the Phase 0 close) · Checks: `just check`, `just test` and
+`just build-docs` pass; `just verify` is the controller's
 Verify with: `just verify`
 
 ## In progress
 
-- [verified] Phase 0 of the native engine (#78). The spec
-  `docs/specs/native-engine.md` and its two plans, approved by Tomas on
-  2026-11-21, are committed:
-  `docs/plans/2026-11-21-native-engine-phase-0a-decisions.md` (ADRs 0060–0068,
-  12 tasks) and `docs/plans/2026-11-21-native-engine-phase-0b-inventory.md`
-  (profiling and the inventory, 4 tasks). Next: run plan 0a from Task 0
-  (which makes the worktree `.worktrees/engine-phase-0` on branch
-  `engine-phase-0`), then plan 0b, both with
-  superpowers:subagent-driven-development (Tomas's choice).
+- [verified] Phase 0 of the native engine (#78), branch `engine-phase-0`, is
+  complete, pending the controller's `just verify`. Tomas then merges (plan 0b,
+  Task 4 Step 8); afterwards repoint the links in #79, #82 and #83 to `main`.
 
 ## Waiting on the user
 
@@ -29,9 +23,8 @@ Verify with: `just verify`
 
 ## Next up
 
-- Phase 0 (#78), as above. The migration comes before any new library area
-  (Tomas, 2026-11-21; spec §4).
-- Then the three small fixes, before Phase 1:
+- The three small fixes, before Phase 1 (the migration comes before any new
+  library area: Tomas, 2026-11-21; spec §4):
   - The one-line `profile` fix: its skewness and kurtosis multiply before
     dividing (`profile.py` `_shape`), so `[0, 0, 0, 6e102]` gives inf where
     NULL is promised; divide first. `_SCAN_COLUMNS`' docstring says "under 2
@@ -40,18 +33,24 @@ Verify with: `just verify`
     column groups, as Pearson's blocks are bounded.
   - #76: `read` gives a raw `ResourceInUseException` on a busy user
     connection; reword the `meta_sqlearn` trap below with it.
-- Phase 1's spec (#79), brainstormed with Tomas: sqlearn's DuckDB build, the
-  safety stack in CI, the ready-made builds. Then #4 and #6: the site on
-  GitHub Pages from the public repository, deployed with Phase 1's CI; then
-  the README and `switcher.json` get its URL.
-- After the migration (Phases 1–3): the rest of 3.6 (spec §8: target panel,
+- Phase 1's spec (#79), brainstormed with Tomas. Its topics, from spec §4:
+  the checks redesigned for two languages and for speed, the review of the
+  libraries sqlearn and its tooling use, and how the C++ is documented; also
+  sqlearn's DuckDB build, the safety stack in CI, the ready-made builds. Then
+  #4 and #6: the site on GitHub Pages from the public repository, deployed
+  with Phase 1's CI; then the README and `switcher.json` get its URL.
+- After the port (Phases 1–4): the rest of 3.6 (spec §8: target panel,
   outliers, normality, Kendall, sampling, time series), then the
   application; 3.3 candidates: text features, more preprocessing, truncated
-  SVD, `cross_validate`; sqlearn's own models are Phase 4 (spec §3.9).
+  SVD, `cross_validate`; sqlearn's own models are Phase 5 (spec §3.9).
 - #65's other minor follow-ups (in its comments; #65 is closed).
 
 ## Dead ends and traps
 
+- Subagents writing ADRs invent reasons and attribute them to Tomas unless
+  told "no reason the spec does not give"; they leave `pgrep -f` wait loops
+  unless told to run `just test` once in the foreground. One, denied a
+  `kill`, asked the controller to do it: refuse, ask Tomas. (2026-11-21)
 - MLX (weighed for the engine, then left out): float64 runs on its CPU only,
   and there `exp` and `erf` are computed in float32 (`exp(1.0)` 1.86e8 ULPs
   off, `exp(100)` inf); `mx.array` of a float64 numpy array gives float32
@@ -59,8 +58,13 @@ Verify with: `just verify`
   `docs/questions/engine-compute-libraries.md`. (2026-11-21)
 - DuckDB 2.0's profiling: `profiling_output` keeps only the last statement;
   with no output file set, `SET enable_profiling = 'json'` prints one JSON
-  profile per statement to stdout, so a subprocess can capture them all.
-  `duckdb_logs`' timestamps need pytz too: fetch them as text. (2026-11-21)
+  profile per statement to stderr, so a subprocess can capture them all. Its
+  stderr also carries nanobind's leak report, printed at exit after any
+  traceback. `duckdb_logs`' timestamps need pytz too: fetch them as text.
+  (2026-11-21)
+- The harness moves a long foreground command (`just test` chained with
+  others) into the background after about 2 minutes: wait for its
+  notification, never start a second copy. (2026-11-21)
 - `gh issue create --project sqlearn` left #77 to #84 off the board without
   an error: add with `gh project item-add 6 --owner glaucis --url <issue
   url>`, then `gh-board status`. The docs tagger once wrote a `related:` path
@@ -157,17 +161,12 @@ Verify with: `just verify`
 
 ## Just finished
 
-- The native engine's spec, approved by Tomas and committed with its
-  research page (`e0f1a7d`): C++ inside sqlearn's own DuckDB build (the
-  `duckdb` module, a second package), Apple silicon first, nine decisions
-  for ADRs 0060–0068, seven phases. (2026-11-21)
-- GitHub: milestone "Native engine"; #77 (CPU against GPU benchmarks, under
-  #84) and #78 to #84 (Phases 0 to 6, each blocked by the one before), on the
-  board; the hosting decision commented on #4 and #6. (2026-11-21)
-- The backup branch `main_python` and annotated tag `python-final` at
-  `ca2b720`, the last pure-Python state, pushed with `main` (Tomas, 2026-11-21).
-  Everything else is committed and pushed too: the docs tagger's frontmatter
-  edits (`7ca5a5e`) and CLion's project settings (`eb62ff6`). (2026-11-21)
-- The repository is public (Tomas, 2026-11-21), the history searched for
-  keys and tokens first (clean), secret scanning and push protection on; the
-  README says sqlearn is not ready for use (`ca2b720`). (2026-11-21)
+- The backup branch `main_python` and tag `python-final` are pushed, with
+  `main` (Tomas, 2026-11-21).
+- Phase 0 of the native engine (#78), all on `engine-phase-0`: plan 0a, the
+  ADRs 0060–0068 and their follow-on edits (`876d95f`..`41e64cf`, fix wave
+  `ccc73ee`); Tomas's platform decision (ADR 0062, spec §3.3); the profiling
+  script and page (`f254178`..`9069d8f`); the spec revised to all of sqlearn
+  in C++ (`957c496`) with plan 0c (`f6d1818`..`a59fe84`: ADRs 0060 and 0067
+  rewritten, 0061, 0063, 0065, 0068, `CLAUDE.md`, overview, glossary, layout,
+  issues retitled); the inventory (`5488e8a`..`aa3d97c`). (2026-11-21)

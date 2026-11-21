@@ -69,19 +69,28 @@ the building.
 
 ## 2. Constraints (agreed)
 
-- **Python and DuckDB.** Computation is pushed into DuckDB; Python is the glue
-  ([ADR 0002](../adr/0002-sql-on-duckdb-execution-engine.md)), amended by
-  [ADR 0058](../adr/0058-a-gram-step-builds-xtx-in-numpy.md): a Gram step
-  (PCA) learns from XᵀX, which numpy sums from batches DuckDB streams, and
-  data passes through Python in no other learn.
-- **Two runtime dependencies.** The installed package depends on `duckdb` and
-  `numpy` (the small matrices some steps learn from: [ADR
+- **Python, C++ and DuckDB.** Computation runs inside DuckDB, as SQL the
+  library builds and as its `sqlearn_*` C++ functions. The library is C++,
+  and Python is its bindings
+  ([ADR 0060](../adr/0060-a-native-engine-in-cpp-inside-duckdb.md),
+  [ADR 0002](../adr/0002-sql-on-duckdb-execution-engine.md)). One exception,
+  until the engine's Phase 2
+  ([ADR 0058](../adr/0058-a-gram-step-builds-xtx-in-numpy.md)): a Gram step
+  (PCA) learns from XᵀX, which numpy sums from batches DuckDB streams, and data
+  passes through Python in no other learn.
+- **Two runtime dependencies.** The installed package depends on `duckdb`
+  (from the engine's Phase 1, sqlearn's own DuckDB build: [ADR
+  0061](../adr/0061-sqlearn-ships-its-own-duckdb-build.md); until then, the
+  one from PyPI) and `numpy` (the
+  small matrices some steps learn from: [ADR
   0057](../adr/0057-numpy-is-a-runtime-dependency.md)), and as little else as
   possible; every runtime dependency is justified in writing
   ([ADR 0005](../adr/0005-runtime-dependencies.md)). Tools used to build,
   test, validate and document the project are free to use anything.
 - **Licence.** Apache-2.0, free for any use; anything paid is a separate
-  package ([ADR 0004](../adr/0004-apache-2-licence.md)).
+  package ([ADR 0004](../adr/0004-apache-2-licence.md)). Runtime code is under
+  permissive licences only, never copyleft ([ADR
+  0066](../adr/0066-permissive-licences-never-copyleft.md)).
 - **Local and offline.** No cloud service, no cluster, no telemetry, no
   network access needed; data never leaves the machine
   ([ADR 0006](../adr/0006-local-and-offline.md)).
@@ -92,13 +101,19 @@ the building.
 - **Professional throughout:** code, tests, documentation, process.
 - **One static site** for the documentation and the learning path, on GitHub
   Pages ([ADR 0009](../adr/0009-sphinx-documentation-site.md)). The repository
-  is private, and GitHub Pages serves a private repository only on a paid
-  plan. Open: [questions/site-hosting.md](../questions/site-hosting.md).
-- **Tooling:** uv ([ADR 0001](../adr/0001-uv-for-python-packaging.md)),
-  Python 3.12 as the floor ([ADR 0007](../adr/0007-python-3-12-floor.md)),
-  `just` as the task runner ([ADR 0008](../adr/0008-just-task-runner.md)),
-  British prose with American identifiers
-  ([ADR 0010](../adr/0010-british-prose-american-identifiers.md)).
+  is public (2026-11-21), and Pages serves the site from it, deployed with the
+  CI the native engine's Phase 1 sets up ([ADR
+  0062](../adr/0062-apple-silicon-first.md); #4, #6).
+- **Tooling:** uv ([ADR 0001](../adr/0001-uv-for-python-packaging.md)), Python
+  3.12 as the floor ([ADR 0007](../adr/0007-python-3-12-floor.md)), `just` as
+  the task runner ([ADR 0008](../adr/0008-just-task-runner.md)), British prose
+  with American identifiers
+  ([ADR 0010](../adr/0010-british-prose-american-identifiers.md)). The native
+  engine adds CMake and a C++ toolchain, and Xcode's Metal toolchain on the Macs
+  that build its GPU kernels
+  ([ADR 0060](../adr/0060-a-native-engine-in-cpp-inside-duckdb.md),
+  [ADR 0063](../adr/0063-the-engines-compute-libraries.md),
+  [spec](../specs/native-engine.md) §4, Phase 1).
 
 ## 3. The parts
 
@@ -176,8 +191,10 @@ saves the trained model and `sq.load` imports nothing
 ([ADR 0048](../adr/0048-the-user-saves-the-model-and-imports-its-packages.md)),
 decomposition (PCA, `sq.decompose`), and whatever the core's contract makes
 possible. Models come from other
-libraries the user installs, for now; models in SQL are a later idea
-([ADR 0017](../adr/0017-models-from-other-libraries.md)).
+libraries the user installs, for now
+([ADR 0017](../adr/0017-models-from-other-libraries.md)); sqlearn's own models
+come with the native engine (3.10, Phase 5; [ADR
+0068](../adr/0068-sqlearns-own-models.md)).
 
 **Done when:** never; it grows. Each area is done when its spec says so.
 
@@ -292,6 +309,22 @@ sqlearn stands and at what size the others stop.
 **Depends on:** 3.3. Open points:
 [questions/benchmarks-scope.md](../questions/benchmarks-scope.md).
 
+### 3.10 Native engine
+
+**What:** sqlearn becomes a C++ library embedding DuckDB, with Python as its
+bindings, ported piece by piece
+([ADR 0067](../adr/0067-how-computation-moves-to-the-engine.md)), Apple
+silicon first, in seven phases ([spec](../specs/native-engine.md) §4; ADRs
+0060 to 0068; milestone "Native engine", #78 to #84). Phase 0 decides and takes
+the [inventory of every module](engine-inventory.md).
+
+**Done when:** every test passes unchanged against the C++ and no logic is
+left in Python (Phases 1 to 4); each later phase is done when its spec says
+so.
+
+**Depends on:** 3.2 and 3.3 for what is ported, 3.8 for the validation the
+port must keep passing, 3.9 for the benchmarks.
+
 ### Later: other database engines
 
 Not one of the parts yet, and planned only if users ask for it. sqlearn
@@ -312,6 +345,11 @@ to other engines would plug into its compositor:
 6. Exploratory data analysis (3.6): the module alongside 3.3, the application
    after it.
 7. Workflow editor (3.7), last, when the library is more or less done.
+
+Now (2026-11-21): the native engine (3.10). Phase 0 is done (merge pending);
+porting sqlearn's current state to C++, Phases 1 to 4, comes before any new area
+of 3.3 or 3.6, after HANDOFF's three small fixes
+([spec](../specs/native-engine.md) §4).
 
 How the work runs, and where each kind of document goes:
 [workflow.md](workflow.md).

@@ -90,7 +90,8 @@ Never skip either hook with `--no-verify`.
 
 ## Where work runs
 
-Work is on the laptop for now. There is no CI and no bootstrap for Claude Code
-web sessions, since the repository is private; the hooks, the reviewer and
+Work is on the laptop for now. There is no CI yet: it arrives with the native
+engine's Phase 1 ([ADR 0062](../adr/0062-apple-silicon-first.md)). There is no
+bootstrap for Claude Code web sessions; the hooks, the reviewer and
 `just verify` are the net, and Linux and Windows are a known gap. See [the
 spec's out-of-scope list](../specs/foundation.md).

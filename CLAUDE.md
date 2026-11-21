@@ -45,31 +45,69 @@ built.
   issue #66. Part 3.6's first piece, the exploration module (`sq.explore`:
   `profile`, `histogram`, `top`, `missing`, `correlations`), is built: spec
   `docs/specs/library-exploration.md`, plan
-  `docs/plans/2026-11-20-library-exploration.md`, ADR 0059, issue #74.
-  Models stay with outside libraries (ADR 0017). **Next:** chosen from
-  `HANDOFF.md`'s "Next up".
+  `docs/plans/2026-11-20-library-exploration.md`, ADR 0059, issue #74. The
+  native engine (part 3.10: sqlearn as a C++ library embedding DuckDB, Python
+  its bindings): spec `docs/specs/native-engine.md`, ADRs 0060–0068, the port's
+  inventory `docs/architecture/engine-inventory.md`, milestone "Native engine"
+  (#78 to #84). Phase 0 is done; the port comes before any new area. sqlearn's
+  own models are a goal, built in the engine; outside models stay supported (ADR
+  0017, 0068). **Next:** chosen from `HANDOFF.md`'s "Next up".
 
 Rules from the ADRs:
 
 - Python packaging uses **uv**: `uv add`, `uv run`. Never use pip or a bare
   `python` (0001).
-- Computation is SQL executed by DuckDB; Python is the glue (0002). The one
-  exception: a Gram step's learn, where numpy sums XᵀX from batches DuckDB
-  streams (0058).
+- sqlearn is a C++ library embedding DuckDB. Python is thin nanobind
+  bindings with no logic of their own, as it will be at the end of the
+  port (0067); users' own steps stay writable in
+  Python. Other languages bind later, through a C layer when they need
+  one. The C++ API is internal: only `sq.` is public (0060).
+- Computation runs inside DuckDB: the SQL the library builds, and
+  sqlearn's C++ functions (`sqlearn_*`) registered in it (0002, 0060).
+  Apply SQL may call them where a benchmark shows it faster; each keeps a
+  plain-SQL twin where one exists. Until the engine's Phase 2, a Gram
+  step's learn sums XᵀX in numpy from batches DuckDB streams (0058, 0067).
 - The API follows scikit-learn conventions; any departure needs its own ADR
   (0003). The verbs are sqlearn's own: `learn`/`apply` for steps,
   `train`/`predict` for models (0013).
-- The runtime dependencies are `duckdb` and `numpy`; any other needs a written
-  reason and a permissive licence (0004, 0005, 0057).
+- From the engine's Phase 1, sqlearn runs on its own DuckDB build: the `duckdb`
+  module, built from DuckDB's source at a pinned release, the same DuckDB the
+  C++ library runs in, shipped by default as a second package beside sqlearn.
+  With numpy it is the whole runtime; anything else needs a written reason
+  (0005, 0057, 0060, 0061).
+- Runtime code carries only permissive licences approved by the OSI (MIT,
+  BSD, Apache-2.0, PSF, Boost, zlib, Unicode, ISC), never copyleft, each
+  listed in the third-party file (0004, 0066).
 - Nothing needs the network: no telemetry, no cloud, data never leaves the
-  machine (0006).
+  machine. sqlearn's DuckDB never downloads an extension by itself; one the
+  user installs works (0006, 0061).
+- Apple silicon first: macOS 15 or later gets the tuned build (CPU, matrix
+  units, GPU); Linux and Windows get the safe CPU build, with general
+  optimisations; no Intel Macs, and no musl for now (0062).
+- float64 runs on the CPU: Accelerate on macOS, OpenBLAS elsewhere. No MLX. GPU
+  kernels are Metal, compiled ahead of time; Phase 6 tries Mojo beside it, and
+  it becomes the kernels' language if it matches Metal (0063). Never
+  `-ffast-math` (0063).
+- The C++ follows the safety rules from its first commit: RAII, no raw
+  `new` or `delete`, one thin layer for raw memory, warnings as errors,
+  clang-tidy and the static analyser, sanitizers and fuzzing in CI, a
+  hardened standard library, and no crash reaching the user (0065).
+- The library is ported to C++ one inventory group at a time, with `main`
+  green: the Python package calls the C++ for each group ported and its
+  own Python for the rest. A group merges when the public API's tests and
+  the validation pass unchanged against the C++ and its benchmark is not
+  slower; then its Python is deleted, and the tests of its internals are
+  rewritten against `sq.` or in C++. A test of the public API changes
+  only with an ADR (0067).
 - Python 3.12 is the floor (0007). Every task runs through `just` (0008).
 - British English in prose, American spelling in identifiers (0010).
 - sqlearn ships, generates and fetches no datasets: the user brings their
   own. `devdata/` at the root is for developing sqlearn: it never ships,
   `src/` never imports it, and published docs do not use it (0053).
 - sqlearn never changes on its own what the user asked for: it keeps the
-  default, warns with a `Fix:` line, and the user opts in (0046).
+  default, warns with a `Fix:` line, and the user opts in (0046). The one
+  exception: on Apple silicon a kernel runs on the GPU by itself when its
+  answer is bit for bit the CPU's (0064).
 
 Superpowers skills save specs to `docs/specs/` and plans to `docs/plans/`
 here, not `docs/superpowers/`.

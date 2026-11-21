@@ -9,6 +9,9 @@ related: [docs/adr/0053-sqlearn-ships-no-datasets.md, docs/architecture/overview
 
 Status: accepted (2026-11-03, from the earlier attempt's blueprint). Its line on
 example datasets is replaced by [ADR 0053](0053-sqlearn-ships-no-datasets.md).
+Amended by [ADR 0061](0061-sqlearn-ships-its-own-duckdb-build.md) (2026-11-21):
+sqlearn's DuckDB never downloads an extension by itself; one the user installs
+works.
 
 ## Context
 

@@ -8,7 +8,9 @@ related: [docs/adr/0057-numpy-is-a-runtime-dependency.md, docs/adr/0005-runtime-
 # 0004: Apache-2.0 licence
 
 Status: accepted (decided 2026-10-01 in the earlier attempt; carried over
-2026-11-03)
+2026-11-03). Amended by
+[ADR 0066](0066-permissive-licences-never-copyleft.md) (2026-11-21): runtime
+code may carry any permissive licence the OSI approves, never copyleft.
 
 ## Context
 

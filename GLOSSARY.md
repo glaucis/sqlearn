@@ -54,3 +54,22 @@ Terms of sqlearn's domain, in the sense the code and the docs use them.
 - **Missing pattern:** the set of chosen columns that are missing together in
   a row (NULL, and NaN in a float column); `sq.explore.missing` lists the
   commonest, the empty set (nothing missing) among them.
+- **Native engine:** sqlearn's C++ library with its kernels, registered in
+  sqlearn's DuckDB build; its SQL functions start with `sqlearn_` (ADR 0060).
+- **sqlearn's C++ library:** all of sqlearn in C++, embedding DuckDB and
+  written against its internal C++ API: the pipeline, the steps, the SQL it
+  builds, the store, search, saving, exploration, metrics and later the models.
+  Its C++ API is internal; only `sq.` is public (ADR 0060).
+- **The bindings:** sqlearn's Python layer, written with nanobind: it converts
+  arguments, hands Python objects to the C++ and keeps `sq.`'s names,
+  docstrings and errors, and holds no logic of its own (ADR 0060).
+- **sqlearn's DuckDB build:** the `duckdb` module sqlearn installs, by default
+  as a second package (Phase 1 may make it one; ADR 0061): DuckDB from its
+  official source at a pinned release, with the engine and the extensions
+  sqlearn needs compiled in (ADR 0061). _Avoid_: fork.
+- **Kernel:** one of the engine's computations over DuckDB's columns, with a
+  CPU version everywhere and, on Apple silicon, perhaps a Metal version that
+  gives the same answer (ADR 0063, 0064); Phase 6 also tries Mojo, which
+  becomes the kernels' language if it matches Metal (ADR 0063).
+- **Plain-SQL twin:** the DuckDB SQL that computes what an engine function in
+  apply computes, kept so the SQL runs in any DuckDB (ADR 0060).

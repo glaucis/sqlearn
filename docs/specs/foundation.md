@@ -2,7 +2,7 @@
 type: spec
 tags: [foundation, repository-skeleton, tooling, documentation, git-hooks]
 summary: "Spec for sqlearn's repository skeleton: layout, packaging from git tags, quality gates, git hooks, docs site toolchain and conventions."
-related: [docs/architecture/overview.md, docs/plans/2026-11-03-foundation.md, docs/adr/README.md, docs/adr/0004-apache-2-licence.md, docs/adr/0011-curriculum-levels.md, docs/questions/site-hosting.md]
+related: [docs/architecture/overview.md, docs/plans/2026-11-03-foundation.md, docs/adr/README.md, docs/adr/0004-apache-2-licence.md, docs/adr/0011-curriculum-levels.md, docs/adr/0062-apple-silicon-first.md]
 mdindex: [type=d4f02e, tags=e3c482, summary=62ba0d, related=f6906d]
 ---
 # Foundation
@@ -41,7 +41,8 @@ every tool's configuration) and creates nothing a later part owns. It holds no
 product code.
 
 There is no CI and no deploy while the repository is private (§16), and site
-hosting is open ([questions/site-hosting.md](../questions/site-hosting.md)).
+hosting is open (settled since by
+[ADR 0062](../adr/0062-apple-silicon-first.md): the repository is public).
 
 ## 2. Done when
 

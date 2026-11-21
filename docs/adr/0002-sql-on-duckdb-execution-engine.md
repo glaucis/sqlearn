@@ -9,7 +9,10 @@ mdindex: [type=0fc814, tags=4a07c3, summary=2f3739, related=a02a84]
 
 Status: accepted (2026-11-03); amended by
 [ADR 0058](0058-a-gram-step-builds-xtx-in-numpy.md) (2026-11-20): a Gram step
-builds XᵀX in numpy from streamed batches.
+builds XᵀX in numpy from streamed batches. Amended by
+[ADR 0060](0060-a-native-engine-in-cpp-inside-duckdb.md) (2026-11-21):
+sqlearn becomes a C++ library embedding DuckDB and Python its bindings;
+its functions join DuckDB's own.
 
 ## Context
 
