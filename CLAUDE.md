@@ -65,8 +65,10 @@ Rules from the ADRs:
 - sqlearn runs on its own DuckDB build: the `duckdb` module, built from
   DuckDB's source at a pinned release with the engine compiled in, shipped
   as a second package beside sqlearn. With numpy it is the whole runtime;
-  anything else needs a written reason and a permissive licence (0004,
-  0005, 0057, 0061).
+  anything else needs a written reason (0005, 0057, 0061).
+- Runtime code carries only permissive licences approved by the OSI (MIT,
+  BSD, Apache-2.0, PSF, Boost, zlib, Unicode, ISC), never copyleft, each
+  listed in the third-party file (0004, 0066).
 - Nothing needs the network: no telemetry, no cloud, data never leaves the
   machine. sqlearn's DuckDB never downloads an extension by itself; one the
   user installs works (0006, 0061).

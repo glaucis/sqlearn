@@ -52,6 +52,7 @@ sqlearn's computation in C++, inside its own DuckDB build.
 - [0063: The engine's compute libraries: Accelerate, OpenBLAS and Metal](0063-the-engines-compute-libraries.md)
 - [0064: The GPU runs by itself only when the answer is the same](0064-the-gpu-runs-by-itself-only-when-the-answer-is-the-same.md)
 - [0065: Safety rules for the C++](0065-safety-rules-for-the-cpp.md)
+- [0066: Permissive licences, never copyleft](0066-permissive-licences-never-copyleft.md)
 
 ## The API
 
