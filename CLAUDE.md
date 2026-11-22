@@ -166,16 +166,22 @@ commit both of these into it, without being asked:
 - **Once per clone, run `just setup`.** It installs the git hooks and syncs
   the environment.
 - **Before every commit, `just check` and `just test` pass.** The pre-commit
-  hook runs `just pre-commit` over the files going into the commit and refuses
-  the commit when it fails; the commit-msg hook runs commitlint. `just test` is
-  yours to run before you commit. Never `--no-verify`. Run `just fmt` before
-  you commit: it wraps the Markdown at 80 columns and formats the Python, and
-  its two parts are the only recipes that reformat your files.
-- **Before you say any work is done, `just done` passes.** It runs what a
-  change affects and remembers the tree that passed, so a passed tree (after a
-  fast-forward or a merge too) runs nothing again. `just verify` is the release
-  tier, run by hand before `1.0.0`. A reviewer's verdict says which ran and
-  passed.
+  hook runs `just pre-commit` (`just check` and `just check-lockfile`) over the
+  files going into the commit and refuses the commit when it fails; the
+  commit-msg hook runs commitlint. `just test` is yours to run before you
+  commit: it runs the tests when what they read changed since a passed run.
+  Never `--no-verify`. Run `just fmt` before you commit: it wraps the Markdown
+  at 80 columns and formats the Python, and its two parts are the only recipes
+  that reformat your files.
+- **Before you say any work is done, `just done` passes.** It runs
+  `check-lockfile`, `check-mirror` and `check-no-devdata`, then each check
+  (`format`, `lint`, `docstrings`, `types`, `test`, `validate`, `docs`) on what
+  changed since it passed, stops at the first failure, and remembers the tree
+  that passed, so a passed tree (after a fast-forward or a merge too) runs
+  nothing again. `just full <task>` runs one check all through. `just verify`
+  is the release tier: every check in full, coverage, every Python, run by
+  hand before `1.0.0`. A reviewer's verdict says which ran and passed. How a
+  check finds what changed: `docs/architecture/testing.md`.
 - **`just --list` names every recipe.** When a composite fails, `just` names
   the recipe that failed: run that one alone.
 - **The conventions are in `docs/architecture/`**: the layout, the Python

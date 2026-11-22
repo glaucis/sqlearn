@@ -40,8 +40,12 @@ system's OpenMP library; uv cannot provide it. uv is the only package tool
 | maintain | `clean`, `upgrade-dependencies` |
 
 Which recipe runs when (a commit, a merge, work done, a release) is in
-[the tiers' table](testing.md). `just fmt` and its two parts are
-the only recipes that reformat your files.
+[the tiers' table](testing.md). The checks `just done` runs (`format`, `lint`,
+`docstrings`, `types`, `test`, `validate`, `docs`) each run on what changed
+since they passed, and `just full <task>` runs one all through:
+[testing](testing.md), "How each check finds what changed". The other `check-*`,
+`lint-*` and `test-*` recipes run on everything, unrecorded. `just fmt` and its
+two parts are the only recipes that reformat your files.
 
 When a composite recipe fails, `just` names the recipe that failed: run that
 one alone.

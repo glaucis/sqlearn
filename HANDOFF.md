@@ -11,19 +11,23 @@ Verify with: `just done` (`just verify` is the release tier)
 
 ## In progress
 
-- [verified] **Next session: execute the rework plan,**
+- [verified] **The rework plan is running,**
   `docs/plans/2026-11-22-native-engine-phase-1-checks-rework.md`, with
   superpowers:subagent-driven-development (Tomas, 2026-11-22: "spawn agents and
-  make them work hard"), in the worktree `../sqlearn-79` on `phase-1-checks`;
-  then its final whole-branch review and one fix wave. Stop before the merge: it
+  make them work hard"), in the worktree `../sqlearn-79` on `phase-1-checks`.
+  Tasks 1 to 4 are done (below, "Just finished"); next are Task 5, the done-when
+  shown on the real repository (`just done`, `just verify`, the table on #79),
+  then the final whole-branch review and one fix wave. Stop before the merge: it
   needs Tomas. Why the rework: the step 1 plan
   (`docs/plans/2026-11-22-native-engine-phase-1-checks.md`) was executed with
   pytest-testmon, and three reviews kept finding tests it skipped (code run at
   import, files read as data, helpers of import-time code); Tomas chose
   per-check selection instead (spec §3.1, §3.9, amended 2026-11-22). The old
-  plan's ledger, with every ruling and deferred minor, is
-  `../sqlearn-79/.superpowers/sdd/2026-11-22-native-engine-phase-1-checks/progress.md`
-  (git-ignored); the rework plan gets its own workspace.
+  plan's ledger is
+  `../sqlearn-79/.superpowers/sdd/2026-11-22-native-engine-phase-1-checks/progress.md`,
+  the rework's is beside it in
+  `.superpowers/sdd/2026-11-22-native-engine-phase-1-checks-rework/` (both
+  git-ignored).
 
 ## Waiting on the user
 
@@ -223,17 +227,26 @@ Verify with: `just done` (`just verify` is the release tier)
 
 ## Just finished
 
-- Phase 1 step 1, the checks (#79), built on the branch `phase-1-checks`,
-  not merged: `just test` runs the tests affected by a change (testmon,
-  in parallel); `just validate` the runners whose recorded inputs changed;
-  `just done` skips a tree already passed; `just verify` runs everything;
-  pydoclint in `just check`. Shown on the real repository, results on
-  #79: one changed line in one module ran 4 of 3,292 tests; a docs-only
-  commit ran no test and no runner; a fast-forward of a passed tree ran
-  nothing; `just verify` passed in 1 h 12 min (3,292 tests with 97.13%
-  coverage, 3,240 on each of 3.12, 3.13, 3.14). Known limit: any change
-  under `src/sqlearn` reruns every runner (about 45 minutes), because
-  `import sqlearn` loads the whole package. (2026-11-22)
+- The rework's Tasks 1 to 4, on `phase-1-checks`, not merged: each check
+  is a task in `validation/_checks.py` that runs on what changed since it
+  passed, its records in `sqlearn-checks/` in git's common directory
+  (`eb9c992`); `just format`, `lint`, `docstrings`, `types`, `test`, `docs`
+  and `just full <task>` (`f49d879`); pytest-testmon removed (`00900f0`);
+  `checkable-tree` takes the `test` task's own inputs
+  (`python -m validation._checks --declared`, `edab18e`); `just done` runs
+  every task, `just verify` every task in full, and the docs say so (the
+  commit after). (2026-11-22)
+- Phase 1 step 1, the checks (#79), first built with pytest-testmon, which the
+  rework above replaced; built on the branch `phase-1-checks`, not merged:
+  `just test` runs the tests affected by a change (testmon, in parallel);
+  `just validate` the runners whose recorded inputs changed; `just done` skips a
+  tree already passed; `just verify` runs everything; pydoclint in `just check`.
+  Shown on the real repository, results on #79: one changed line in one module
+  ran 4 of 3,292 tests; a docs-only commit ran no test and no runner; a
+  fast-forward of a passed tree ran nothing; `just verify` passed in 1 h 12 min
+  (3,292 tests with 97.13% coverage, 3,240 on each of 3.12, 3.13, 3.14). Known
+  limit: any change under `src/sqlearn` reruns every runner (about 45 minutes),
+  because `import sqlearn` loads the whole package. (2026-11-22)
 
 - The branch `read-busy-connection` merged into `main`: #76's fix (closed),
   #75's deferral, spec §4, the approved Phase 1 spec, PCA's bounds after

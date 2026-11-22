@@ -8,19 +8,24 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 
-# Stand-ins for the tiers; the real justfile is imported under them.
-OVERRIDES = """set allow-duplicate-recipes
-import 'real.just'
+# What done runs, in order: the instant checks, then every task.
+RUNS = (
+    "check-lockfile",
+    "check-mirror",
+    "check-no-devdata",
+    "format",
+    "lint",
+    "docstrings",
+    "types",
+    "test",
+    "validate",
+    "docs",
+)
 
-check:
-    @echo check >> calls.log
-
-test:
-    @echo test >> calls.log
-
-validate:
-    @echo validate >> calls.log
-"""
+# Stand-ins for what done runs; the real justfile is imported under them.
+OVERRIDES = "set allow-duplicate-recipes\nimport 'real.just'\n" + "".join(
+    f"\n{name}:\n    @echo {name} >> calls.log\n" for name in RUNS
+)
 
 
 def git(cwd, *args, env):
@@ -81,19 +86,19 @@ def passed(repo, env):
 
 
 def test_a_clean_tree_that_passed_is_remembered(tmp_path):
-    """done runs the checks, every test tier and the runners, then remembers."""
+    """done runs the instant checks, then every task, then remembers."""
     repo, env = make_repo(tmp_path)
     just(repo, "done", env=env)
-    assert calls(repo) == ["check", "test", "validate"]
+    assert calls(repo) == list(RUNS)
     assert passed(repo, env) == [git(repo, "rev-parse", "HEAD^{tree}", env=env)]
 
 
 def test_a_failing_check_remembers_nothing(tmp_path):
-    """done stops at the first failing tier and leaves the record as it was."""
+    """done stops at the first failing task and leaves the record as it was."""
     repo, env = make_repo(tmp_path)
     (repo / "justfile").write_text(
         OVERRIDES.replace(
-            "@echo check >> calls.log", "@echo check >> calls.log\n    @exit 1"
+            "@echo lint >> calls.log", "@echo lint >> calls.log\n    @exit 1"
         )
     )
     git(repo, "commit", "-qam", "chore: failing check", env=env)
@@ -101,7 +106,13 @@ def test_a_failing_check_remembers_nothing(tmp_path):
         ["just", "done"], cwd=repo, env=env, capture_output=True, text=True, check=False
     )
     assert failed.returncode != 0
-    assert calls(repo) == ["check"]
+    assert calls(repo) == [
+        "check-lockfile",
+        "check-mirror",
+        "check-no-devdata",
+        "format",
+        "lint",
+    ]
     assert passed(repo, env) == []
 
 

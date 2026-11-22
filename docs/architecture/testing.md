@@ -1,7 +1,7 @@
 ---
 type: guide
-tags: [testing, pytest, coverage, hooks, tiers]
-summary: "Explains how tests are written, split into fast and slow tiers, the hook tests, and coverage reporting in this project."
+tags: [testing, pytest, coverage, hooks, tiers, checks]
+summary: "Explains how tests are written, split into fast and slow tiers, how each check finds what changed and keeps its records, the hook tests, and coverage reporting in this project."
 related: [docs/architecture/layout.md, tests/githooks/test_pre_commit.py, tests/githooks/test_pre_merge_commit.py, tests/githooks/test_commit_msg.py, pyproject.toml]
 mdindex: [type=83ca68, tags=683dc4, summary=ca8286, related=ec2e81]
 ---
@@ -17,11 +17,11 @@ How the tests are written and run. The settings are in `pyproject.toml`.
 - **No numpydoc validation.** `just check-docstrings` reads `src/`, not
   `tests/`.
 - **pydoclint checks `src/` only.** `just check-docstring-args` (part of
-  `just check`) compares each docstring under `src/` with its signature: every
-  argument written, a Returns section where the function returns. Types are
-  written in the docstring, numpydoc's own style, so the recipe lets code
-  DOC111 pass (no option drops it) and fails on any other. Its options are in
-  `[tool.pydoclint]`.
+  `just check` and `just docstrings`) compares each docstring under `src/` with
+  its signature: every argument written, a Returns section where the function
+  returns. Types are written in the docstring, numpydoc's own style, so the
+  recipe lets code DOC111 pass (no option drops it) and fails on any other. Its
+  options are in `[tool.pydoclint]`.
 - Warnings are errors (`filterwarnings = ["error"]`), so a deprecation is found
   the day it appears.
 
@@ -48,15 +48,16 @@ before work is done, and `just verify` is the release tier.
 | A commit | the pre-commit hook: `just pre-commit` over the files committed |
 | A push | none: a push runs no suite |
 | A merge to `main` | the pre-merge-commit hook runs what the pre-commit hook runs; `just done` on `main` runs nothing for a tree that passed |
-| Work is done | `just done`: `check`, `test`, `validate`, then the tree is remembered |
-| A release | `just verify`: `done`'s checks in full (`test-all`, `validate-all`, every Python, the docs), by hand before `1.0.0` |
+| Work is done | `just done`: `check-lockfile`, `check-mirror`, `check-no-devdata`, then each check on what changed (`format`, `lint`, `docstrings`, `types`, `test`, `validate`, `docs`), then the tree is remembered |
+| A release | `just verify`: the same three, each check with `just full` (`validate` as `validate-all`), then `test-all` (coverage) and `test-python-versions`, by hand before `1.0.0` |
 
 `just done` remembers each tree that passed in `sqlearn-passed`, in the git
 common directory (the 50 newest, shared by worktrees). A tree that differs
 from `HEAD` only in Markdown still counts, so a fast-forward or a `--no-ff`
-merge of a passed tree runs nothing. A declared Markdown file (below) is an
-input, not prose: edited and not committed, it leaves no checkable tree.
-A tier that fails stops `just done`, and nothing is remembered.
+merge of a passed tree runs nothing. A Markdown file the tests read is an
+input, not prose: one under the `test` task's inputs (below), edited and not
+committed, leaves no checkable tree. `just done` stops at the first check that
+fails, the later ones do not run, and nothing is remembered.
 
 `just checkable-tree` also ignores the files the checks write:
 `validation/**/*.results.json`, `validation/tests.json` and
@@ -65,18 +66,10 @@ inputs, so a run that rewrites them leaves the tree it checked still HEAD's.
 
 ### When `just test` runs
 
-`just test` runs the tests when what they read changed since a passed run, and
-`just full test` runs them whatever the record says. A task's inputs are
-digested before it runs and the digest recorded when it passes
-(`validation/_checks.py`); the tests' inputs are `src/`, `tests/`,
-`validation/`, `devdata/`, every `conftest.py`, `docs/conf.py`,
-`docs/architecture/engine-inventory.md`, `.githooks/` and
-`commitlint.config.mjs`, with the settings every task reads (`pyproject.toml`,
-`uv.lock`, `.python-version`, `justfile`). Each file counts by its path, its
-executable bit and its bytes, so a new, deleted or chmodded file reruns every
-test. When nothing changed, nothing runs. `just checkable-tree` reads the
-justfile's `declared` list, the data and settings files among them, so a
-declared Markdown file is an input there too.
+`just test` runs the tests when anything they read changed since a passed run,
+and nothing otherwise; `just full test` runs them whatever the record says.
+What they read, and how a change is found, is in
+"How each check finds what changed", below.
 
 ### The passes
 
@@ -113,6 +106,66 @@ of a file not collected stay unless the file is gone. Under xdist the
 controller writes, from the reports and from the lists the workers sent, so a
 parallel run writes the same bytes as a serial one.
 
+## How each check finds what changed
+
+Each check is a task in `validation/_checks.py` (`TASKS`), run by
+`just <task>`. Before it runs, the task takes a digest of its inputs and
+settings; when it passes, it records that digest. The next run skips what a
+passed run already checked.
+
+| Task | Its inputs | Runs on |
+|---|---|---|
+| `format` | every `*.py`, `*.pyi` and `*.md` file | each changed file: `ruff format --check`, `rumdl fmt --check` |
+| `lint` | every file | each changed file: `ruff check` (Python), `typos` (every file), `rumdl check` (Markdown) |
+| `docstrings` | the Python files under `src/` | each changed file: `numpydoc lint`, `just check-docstring-args` |
+| `types` | every `*.py` and `*.pyi` file | the whole program: `ty check`, then `mypy` |
+| `test` | `src/`, `tests/`, `validation/`, `devdata/`, every `conftest.py`, `docs/conf.py`, `docs/architecture/engine-inventory.md`, `.githooks/`, `commitlint.config.mjs` | every test: the four passes (above) |
+| `docs` | `docs/`, `src/`, `examples/` | the whole site: `just build-docs` |
+| `validate` | each runner's imported modules, `uv.lock`, `devdata/data/` | each changed runner, by its own records (below) |
+
+Every task also reads the settings: `pyproject.toml`, `uv.lock`,
+`.python-version` and the `justfile`.
+
+- **Per file** (`format`, `lint`, `docstrings`): a file is checked again
+  unless a kept record passed it, with the same digest, under today's
+  settings. A change to the settings checks every file. `lint` also counts
+  which Python files exist, since ruff's import sorting depends on it: a
+  Python file added or removed reruns every `lint` step on every file, the
+  Markdown and the spelling included.
+- **Whole** (`types`, `test`, `docs`): the task runs all of it when its digest
+  matches no kept record, and nothing otherwise.
+- Every step runs even when one before it fails, so one tool's failure hides
+  no other's findings. A run that fails records nothing, so the next run
+  checks the same again.
+
+**What a digest covers.** Each file's path, its executable bit and its bytes,
+for the tracked files and the untracked ones git does not ignore. A deleted
+file drops out, which changes the digest; a new one adds to it. The place a
+task runs in leads every digest: the Python version, the platform and the
+machine, so another Python reruns every task. The checks' own outputs
+(`validation/tests.json`, `validation/environment.json`,
+`validation/**/*.results.json`) are never inputs. The digest is taken before
+the run and only that one is recorded, and only when the inputs are the same
+after the run: a file edited while a check runs is checked again.
+
+**The records** live in `sqlearn-checks/` in git's common directory (`git
+rev-parse --git-common-dir`), one JSON file per task holding its 20 newest.
+Every worktree shares them. Two worktrees recording at once can lose a record,
+which costs a rerun, never a skip; a file that cannot be read counts as
+absent. Deleting the directory makes the next run of each task check
+everything.
+
+**`just full <task>`** runs one task all through, whatever its records say,
+and records the pass. `just full validate` is `just validate-all`. `just
+verify` runs every task this way.
+
+**`validate`** is not in the table of `validation/_checks.py`: it keeps a
+record for each runner (the validation runners, below).
+
+**`just checkable-tree`** lets Markdown differ from `HEAD`, except a file
+under the `test` task's inputs or settings. It takes that list from `python -m
+validation._checks --declared`, the task's own, so the two cannot drift.
+
 ## The validation runners
 
 `just validate` (`python -m validation`) reruns a runner only when a file it
@@ -146,8 +199,8 @@ repositories that carry a copy of the hook. The pre-commit and pre-merge-commit
 tests put a stand-in `just` first on `PATH`, which notes its arguments and
 exits as it is told. The commit-message tests run the real
 commitlint and are skipped, with a reason, where it is not installed.
-`just test` runs them as its last pass; `just test-hooks` runs them alone, and
-`just verify` includes it.
+`just test` runs them as its last pass, and so do `just done` and `just
+verify`; `just test-hooks` runs them alone.
 
 ## Coverage
 

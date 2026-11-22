@@ -335,7 +335,7 @@ remember-tree tree:
     fi
     printf '\nChecked tree %s: remembered.\n' "$before"
 
-# Run the checks and what a change affects (fast, slow and hook tests, runners), unless this tree already passed, and remember the tree
+# Run every check on what changed since it passed (the instant ones, then each task), stopping at the first failure, unless this tree already passed; then remember the tree
 [group('check')]
 done:
     #!/usr/bin/env bash
@@ -346,17 +346,20 @@ done:
         echo "Tree $tree already passed: nothing to run."
         exit 0
     fi
-    "${j[@]}" check
-    "${j[@]}" test
-    "${j[@]}" validate
+    "${j[@]}" check-lockfile check-mirror check-no-devdata
+    "${j[@]}" format lint docstrings types test validate docs
     "${j[@]}" remember-tree "$tree"
 
-# Run every check and every test: the release tier, by hand before 1.0.0
+# Run every check all through, whatever the records say, then the tests with coverage and on every Python: the release tier, by hand before 1.0.0
 [group('check')]
 verify:
     #!/usr/bin/env bash
     set -euo pipefail
     j=(just --justfile '{{ justfile() }}')
     tree="$("${j[@]}" checkable-tree)"
-    "${j[@]}" check check-types-mypy test-all test-python-versions test-hooks check-docstrings validate-all build-docs
+    "${j[@]}" check-lockfile check-mirror check-no-devdata
+    for task in format lint docstrings types test validate docs; do
+        "${j[@]}" full "$task"
+    done
+    "${j[@]}" test-all test-python-versions
     "${j[@]}" remember-tree "$tree"
