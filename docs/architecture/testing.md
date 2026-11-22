@@ -47,7 +47,8 @@ reruns only the tests whose lines changed. pytest-xdist runs them in parallel
 
 testmon sees only Python it traces, so `just test-env` hashes the files that
 change a result without being traced, and testmon reruns every test when the
-hash changes. Each is declared for a reason:
+hash changes. It hashes each file's path, then its bytes, so a new empty
+file counts. Each is declared for a reason:
 
 - `uv.lock`, `.python-version`: the installed libraries and the interpreter.
 - `pyproject.toml`, `justfile`: the test settings and the flags.
@@ -68,9 +69,7 @@ commitlint and are skipped, with a reason, where it is not installed.
 
 ## Coverage
 
-`just test` does not measure coverage: testmon refuses to run beside it. `just
-test-all` does.
-
 Coverage is reported, with missing lines shown and branches measured over
-`sqlearn`. There is no floor yet: the core spec sets it, measured on the full
-suite.
+`sqlearn`. The floor, `fail_under = 95` in `pyproject.toml`, is enforced by the
+full run, `just test-all`. `just test` measures no coverage, because testmon
+cannot run beside branch coverage.

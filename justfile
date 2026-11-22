@@ -78,8 +78,9 @@ test-env root=".":
         find . -mindepth 1 \( -name '.*' -o -name node_modules \) -prune -o -name conftest.py -print | sed 's|^\./||'
         find devdata/data -type f 2>/dev/null || true
     } | LC_ALL=C sort -u | while IFS= read -r f; do
-        [ -f "$f" ] && cat "$f"
-        true
+        printf '%s\0' "$f"
+        if [ -f "$f" ]; then cat "$f"; fi
+        printf '\0'
     done | shasum -a 256 | cut -c1-16
 
 # Run the fast tests a change affects, in parallel, without coverage

@@ -113,3 +113,12 @@ def test_test_env_is_the_same_twice(tmp_path):
     first = just("test-env", str(tmp_path))
     assert re.fullmatch(r"[0-9a-f]{16}", first)
     assert just("test-env", str(tmp_path)) == first
+
+
+def test_a_new_empty_conftest_changes_test_env(tmp_path):
+    """An empty conftest.py adds no bytes, so its path must be hashed."""
+    make_project(tmp_path)
+    before = just("test-env", str(tmp_path))
+    (tmp_path / "sub").mkdir()
+    (tmp_path / "sub" / "conftest.py").write_text("")
+    assert just("test-env", str(tmp_path)) != before
