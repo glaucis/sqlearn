@@ -93,6 +93,31 @@ of a file not collected stay unless the file is gone. Under xdist the
 controller writes, from the reports and from the lists the workers sent, so a
 parallel run writes the same bytes as a serial one.
 
+## The validation runners
+
+`just validate` (`python -m validation`) reruns a runner only when a file it
+depends on changed since it last passed. Each runner runs in its own process,
+writes its `*.results.json` as before, and then saves a record: the SHA-256 of
+every module it imported from the repository (outside `.venv`), of `uv.lock`
+and of every file under `devdata/data/`, with the environment
+(`environment.json`'s fields: library versions, OS release, BLAS), the count
+of each result and whether every sqlearn case passed. The next run skips a
+runner, printing `unchanged since a passed run` and leaving its results file
+alone, when its newest passing record has the same environment and every file
+it names is present with the same hash. A run with a failing case reruns every
+time. `environment.json` is written when any runner ran. The code is
+`validation/_record.py`.
+
+The records live in `sqlearn-validation/` in git's common directory (`git
+rev-parse --git-common-dir`), one JSON file per runner holding its 20 newest.
+Every worktree shares them: a record stands only while its hashes match, so
+one worktree's passed run spares another the hour, and a new worktree starts
+with them. Deleting the directory makes the next run rerun everything.
+
+`just validate-all` (`--all`) reruns every runner whatever its record says. At a
+release, run it, so the release's results come from one full run. ADR 0016
+holds either way: a failing case fails the run and blocks the merge.
+
 ## The hook tests
 
 `tests/githooks/test_pre_commit.py`, `tests/githooks/test_pre_merge_commit.py`

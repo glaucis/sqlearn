@@ -245,10 +245,15 @@ check: lint-python check-types lint-markdown check-spelling check-mirror
 [group('check')]
 pre-commit: check check-lockfile
 
-# Run every test and every validation runner, writing their results as JSON under validation/
+# Rerun each validation runner whose imported files changed since a passed run
 [group('test')]
 validate:
     uv run --locked python -m validation
+
+# Rerun every validation runner, recorded or not (at a release)
+[group('test')]
+validate-all:
+    uv run --locked python -m validation --all
 
 # Run every check, for review, merge and release
 [group('check')]

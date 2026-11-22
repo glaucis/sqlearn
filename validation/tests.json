@@ -19322,13 +19322,37 @@
     },
     {
       "area": "validation/__main__",
-      "name": "tests/validation/test___main__.py::test_a_failing_runner_makes_it_exit_one",
+      "name": "tests/validation/test___main__.py::test_a_changed_runner_reruns",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "validation/__main__",
-      "name": "tests/validation/test___main__.py::test_passing_runners_exit_zero_and_write_their_results",
+      "name": "tests/validation/test___main__.py::test_a_failing_runner_reruns_each_time_and_exits_1",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/__main__",
+      "name": "tests/validation/test___main__.py::test_an_anomaly_exits_zero_and_is_written",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/__main__",
+      "name": "tests/validation/test___main__.py::test_an_unchanged_runner_is_skipped_and_its_results_kept",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/__main__",
+      "name": "tests/validation/test___main__.py::test_everything_reruns_every_runner",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/__main__",
+      "name": "tests/validation/test___main__.py::test_one_runner_writes_its_results_and_its_record",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -19401,6 +19425,48 @@
     {
       "area": "validation/_cases",
       "name": "tests/validation/test__cases.py::test_ulps_counts_one_step_to_the_next_double",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_record",
+      "name": "tests/validation/test__record.py::test_a_changed_environment_breaks_the_match",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_record",
+      "name": "tests/validation/test__record.py::test_a_changed_file_breaks_the_match",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_record",
+      "name": "tests/validation/test__record.py::test_a_deleted_file_breaks_the_match",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_record",
+      "name": "tests/validation/test__record.py::test_a_failed_run_is_never_matched",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_record",
+      "name": "tests/validation/test__record.py::test_a_record_matches_while_its_files_are_unchanged",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_record",
+      "name": "tests/validation/test__record.py::test_loaded_files_names_repo_modules_and_declared_data_only",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_record",
+      "name": "tests/validation/test__record.py::test_save_keeps_the_twenty_newest",
       "outcome": "passed",
       "tier": "fast"
     },
