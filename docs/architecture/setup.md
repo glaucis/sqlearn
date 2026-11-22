@@ -7,7 +7,7 @@ mdindex: [type=4ca303, tags=191ee2, summary=25a6a5, related=e63be6]
 ---
 # Setting up
 
-How to get a working clone, the recipes it gives you, and what the two git
+How to get a working clone, the recipes it gives you, and what the git
 hooks do.
 
 ## A new laptop
