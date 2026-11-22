@@ -188,6 +188,13 @@ Verify with: `just done` (`just verify` is the release tier)
 
 ## Just finished
 
+- Phase 1 step 1, the checks (#79), built on the branch `phase-1-checks`,
+  not merged: `just test` runs the tests affected by a change (testmon,
+  in parallel); `just validate` the runners whose recorded inputs changed;
+  `just done` skips a tree already passed; `just verify` runs everything;
+  pydoclint in `just check`. Shown on the real repository, results on
+  #79. (2026-11-22)
+
 - The branch `read-busy-connection` merged into `main`: #76's fix (closed),
   #75's deferral, spec §4, the approved Phase 1 spec, PCA's bounds after
   the macOS upgrade, `environment.json`'s OS release and BLAS.
