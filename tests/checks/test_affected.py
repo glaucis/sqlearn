@@ -10,9 +10,7 @@ import pytest
 
 REPO = Path(__file__).resolve().parents[2]
 JUSTFILE = REPO / "justfile"
-NO_TESTS_RAN = (
-    0  # with xdist; plain pytest exits 5, which the recipe also counts as success
-)
+NO_TESTS_RAN = 0  # pytest exits 5, which the recipe counts as success
 
 
 def just(*args):
@@ -40,24 +38,28 @@ def make_project(root):
     )
     (root / "conftest.py").write_text("")
     (root / "uv.lock").write_text("lock\n")
+    (root / "pytest.ini").write_text(
+        "[pytest]\nmarkers =\n    slow: slow\n    serial: serial\n"
+    )
 
 
-def run_affected(root):
-    """Run pytest as `just test` does, on the scratch project; return the process."""
-    flags = just("--evaluate", "affected").split()
-    env = just("test-env", str(root))
+def run_affected(root, recipe="test"):
+    """Run the recipe on the scratch project, pytest from this environment."""
     return subprocess.run(
         [
-            sys.executable,
-            "-m",
+            "just",
+            "--justfile",
+            str(JUSTFILE),
+            "--working-directory",
+            str(root),
+            "--set",
             "pytest",
-            *flags,
-            f"--testmon-env='{env}'",
-            f"--rootdir={root}",
-            "-p",
-            "no:cacheprovider",
+            f"{sys.executable} -m pytest -p no:cacheprovider",
+            "--set",
+            "report",
+            "",
+            recipe,
         ],
-        cwd=root,
         capture_output=True,
         text=True,
         check=False,
@@ -208,3 +210,29 @@ def test_a_module_that_does_not_parse_counts_by_its_bytes(tmp_path):
     assert re.fullmatch(r"[0-9a-f]{16}", before)
     broken.write_text("def ((:\n")
     assert just("test-env", str(tmp_path)) != before
+
+
+@pytest.mark.parametrize(
+    ("marker", "recipe"), [("slow", "test-rest"), ("serial", "test")]
+)
+def test_a_test_another_pass_runs_reruns_when_its_code_changes(
+    tmp_path, marker, recipe
+):
+    """A test the parallel pass deselects must still rerun in its own pass."""
+    make_project(tmp_path)
+    tests = tmp_path / "tests"
+    (tests / "githooks").mkdir()
+    (tests / "githooks" / "test_hook.py").write_text("def test_hook():\n    pass\n")
+    (tests / "test_a.py").write_text(
+        "import pytest\nfrom a import one\n\n\ndef test_a():\n    pass\n\n\n"
+        f"@pytest.mark.{marker}\ndef test_marked():\n    assert one() >= 1\n"
+    )
+    for _ in range(2):
+        for each in ("test", "test-rest"):
+            done = run_affected(tmp_path, each)
+            assert done.returncode == 0, done.stdout + done.stderr
+    (tests / "a.py").write_text("def one():\n    return 1 + 1\n")
+    second = run_affected(tmp_path, "test")
+    if recipe == "test-rest":
+        second = run_affected(tmp_path, recipe)
+    assert "1 passed" in second.stdout, second.stdout

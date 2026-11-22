@@ -92,6 +92,18 @@
     },
     {
       "area": "checks/affected",
+      "name": "tests/checks/test_affected.py::test_a_test_another_pass_runs_reruns_when_its_code_changes[serial-test]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/affected",
+      "name": "tests/checks/test_affected.py::test_a_test_another_pass_runs_reruns_when_its_code_changes[slow-test-rest]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/affected",
       "name": "tests/checks/test_affected.py::test_nothing_changed_runs_nothing_and_succeeds",
       "outcome": "passed",
       "tier": "fast"

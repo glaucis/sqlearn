@@ -64,8 +64,9 @@ check-spelling:
 check-lockfile:
     uv lock --check
 
-# The flags that select the tests a change affects, and run them in parallel
-affected := "--testmon --testmon-forceselect -n auto"
+# How pytest runs, and the plugin that merges validation/tests.json (the recipes' tests set both on a scratch project)
+pytest := "uv run --locked pytest"
+report := "-p validation._tests_report"
 
 # The files tests depend on that testmon cannot trace: a file, or every file in a folder (test-env hashes them; checkable-tree never skips them, Markdown included)
 declared := "uv.lock .python-version pyproject.toml justfile commitlint.config.mjs .githooks devdata/data docs/architecture/engine-inventory.md"
@@ -100,28 +101,36 @@ test-env root=".":
 test:
     #!/usr/bin/env bash
     set -euo pipefail
-    env="'$(just test-env)'"
-    # 5 means the change affected no test: nothing to run is success
-    rc=0
-    uv run --locked pytest {{ affected }} -m "not slow and not serial" -p validation._tests_report --testmon-env="$env" --ignore=tests/githooks || rc=$?
-    [ "$rc" -eq 5 ] || [ "$rc" -eq 0 ] || exit "$rc"
-    rc=0
-    uv run --locked pytest --testmon --testmon-forceselect -p no:xdist -m "serial and not slow" -p validation._tests_report --testmon-env="$env" --ignore=tests/githooks || rc=$?
-    [ "$rc" -eq 5 ] || [ "$rc" -eq 0 ] || exit "$rc"
+    env=$("{{ just_executable() }}" --justfile "{{ justfile() }}" --working-directory . test-env)
+    # One pass of the affected tests, in a testmon environment of its own: a test one pass deselects
+    # is never recorded under xdist, and another pass sharing the record would skip its file
+    # as unchanged. 5 means the change affected no test: nothing to run is success.
+    pass() {
+        local name=$1 rc=0
+        shift
+        {{ pytest }} --testmon --testmon-forceselect {{ report }} --testmon-env="'$env $name'" "$@" || rc=$?
+        [ "$rc" -eq 5 ] || [ "$rc" -eq 0 ] || exit "$rc"
+    }
+    pass fast -n auto -m "not slow and not serial" --ignore=tests/githooks
+    pass serial -p no:xdist -m "serial and not slow" --ignore=tests/githooks
 
 # Run the affected tests `test` leaves out: the slow tier alone (larger-than-memory, as test-all runs it), then the hook tests in parallel
 [group('test')]
 test-rest:
     #!/usr/bin/env bash
     set -euo pipefail
-    env="'$(just test-env)'"
-    # 5 means the change affected no test: nothing to run is success
-    rc=0
-    uv run --locked pytest --testmon --testmon-forceselect -p no:xdist -m slow -p validation._tests_report --testmon-env="$env" --ignore=tests/githooks || rc=$?
-    [ "$rc" -eq 5 ] || [ "$rc" -eq 0 ] || exit "$rc"
-    rc=0
-    uv run --locked pytest {{ affected }} -m "" -p validation._tests_report --testmon-env="$env" tests/githooks || rc=$?
-    [ "$rc" -eq 5 ] || [ "$rc" -eq 0 ] || exit "$rc"
+    env=$("{{ just_executable() }}" --justfile "{{ justfile() }}" --working-directory . test-env)
+    # One pass of the affected tests, in a testmon environment of its own: a test one pass deselects
+    # is never recorded under xdist, and another pass sharing the record would skip its file
+    # as unchanged. 5 means the change affected no test: nothing to run is success.
+    pass() {
+        local name=$1 rc=0
+        shift
+        {{ pytest }} --testmon --testmon-forceselect {{ report }} --testmon-env="'$env $name'" "$@" || rc=$?
+        [ "$rc" -eq 5 ] || [ "$rc" -eq 0 ] || exit "$rc"
+    }
+    pass slow -p no:xdist -m slow --ignore=tests/githooks
+    pass hooks -n auto -m "" tests/githooks
 
 # Run the hook tests
 [group('test')]

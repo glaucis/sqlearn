@@ -136,6 +136,14 @@ selected" as success. Today no test is marked: three parallel runs of the
 whole fast suite, one of them with the machine at a load of 50 on 8 cores,
 passed every test.
 
+Each pass (`fast`, `serial`, and `test-rest`'s `slow` and `hooks`) keeps its
+own testmon environment: `test-env`'s digest followed by the pass's name.
+Under xdist, testmon records only the tests a pass selects, so a test the
+parallel pass deselects by marker is never recorded there; a pass sharing
+that record would find the test's file unchanged and skip it, even after
+its code changed. In an environment of its own, each pass records every
+test it runs.
+
 ### The worker count
 
 `-n auto` starts one worker per core (8 on the M-series machine measured).
