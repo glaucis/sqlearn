@@ -10,17 +10,16 @@ Verify with: `just verify`
 
 ## In progress
 
-- [verified] Phase 1 step 1's plan
-  (`docs/plans/2026-11-22-native-engine-phase-1-checks.md`) is running,
-  subagent-driven (Tomas, 2026-11-22), on the branch `phase-1-checks` in the
-  worktree `../sqlearn-79`; nothing pushed or merged. Paused when Tomas left:
-  tasks 1–5 are done and reviewed; a fix to task 1 (testmon ignores sqlearn's
-  own version, `43d10d6`) waits on its re-review; task 6 (the done-when
-  scenarios) resumes at scenario 4; then the whole-branch review and the merge,
-  which needs Tomas. Resume from the ledger's "PAUSED" section:
-  `../sqlearn-79/.superpowers/sdd/2026-11-22-native-engine-phase-1-checks/progress.md`
-  (git-ignored, in that worktree). The branch's own `HANDOFF.md` carries the
-  step's other handoff edits.
+- [verified] **Next session (Tomas, 2026-11-22, overnight): execute the
+  rework plan** of Phase 1 step 1 with
+  superpowers:subagent-driven-development, then its final review and one
+  fix wave; stop before the merge (it needs Tomas). Everything is on the
+  branch `phase-1-checks` in the worktree `../sqlearn-79`, not on `main`:
+  read that worktree's `HANDOFF.md` first (its "In progress" says what and
+  why), then the plan
+  `../sqlearn-79/docs/plans/2026-11-22-native-engine-phase-1-checks-rework.md`
+  and the amended spec `../sqlearn-79/docs/specs/native-engine-phase-1.md`
+  (§3.1, §3.9). Work in that worktree, never on `main`.
 
 ## Waiting on the user
 
