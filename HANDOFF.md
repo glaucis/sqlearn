@@ -3,19 +3,35 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-22 · Branch: `phase-1-checks` (Phase 1 step 1, in the
-worktree `sqlearn-79`, not merged) · Checks: `just done` passed on the
-branch (exit 0; macOS 27.2.1); `just verify` too (1 h 12 min, load 13 to 8)
+Updated: 2026-11-22 (night) · Branch: `phase-1-checks` (Phase 1 step 1, in
+the worktree `../sqlearn-79`, not merged, not pushed) · Checks: `just done`
+passed on the branch at `449b345`; `just verify` passed at `1523dab` (1 h
+12 min)
 Verify with: `just done` (`just verify` is the release tier)
 
 ## In progress
 
-- Nothing: step 1 is built on the branch `phase-1-checks`, waiting to merge.
+- [verified] **Next session: execute the rework plan,**
+  `docs/plans/2026-11-22-native-engine-phase-1-checks-rework.md`, with
+  superpowers:subagent-driven-development (Tomas, 2026-11-22: "spawn agents and
+  make them work hard"), in the worktree `../sqlearn-79` on `phase-1-checks`;
+  then its final whole-branch review and one fix wave. Stop before the merge: it
+  needs Tomas. Why the rework: the step 1 plan
+  (`docs/plans/2026-11-22-native-engine-phase-1-checks.md`) was executed with
+  pytest-testmon, and three reviews kept finding tests it skipped (code run at
+  import, files read as data, helpers of import-time code); Tomas chose
+  per-check selection instead (spec §3.1, §3.9, amended 2026-11-22). The old
+  plan's ledger, with every ruling and deferred minor, is
+  `../sqlearn-79/.superpowers/sdd/2026-11-22-native-engine-phase-1-checks/progress.md`
+  (git-ignored); the rework plan gets its own workspace.
 
 ## Waiting on the user
 
-- Review and merge the branch `phase-1-checks` (step 1, below).
-  (since 2026-11-22)
+- Merge `phase-1-checks` into `main` once the rework's final review is
+  clean (the overnight session stops there). (since 2026-11-22)
+- The FMA ADR: `-ffp-contract=off` everywhere, `std::fma` on purpose and
+  validated (spec §3.9, the agent's proposal); decide before step 2's
+  kernels. (since 2026-11-22)
 - The CLion MCP stays (its debugger, for step 2 on); no other tool or skill
   needed. Told Tomas; nothing to do.
 - Benchmarks run on a loaded machine, to rerun on a quiet one if wanted:
@@ -25,12 +41,15 @@ Verify with: `just done` (`just verify` is the release tier)
 
 ## Next up
 
-- Phase 1 step 2 (the build) next, its plan first, with
-  superpowers:writing-plans; then the workflows and the site (#4, #6), the
-  review (spec §3.7).
+- Phase 1 step 2 (the build) after the merge, its plan first, with
+  superpowers:writing-plans: it carries spec §3.9's C++ parts (presets,
+  sanitizers, safety warnings, benchmarks, crash handler) and per-group
+  test selection from the build's dependency lists (§3.1); then the
+  workflows and the site (#4, #6), the review (spec §3.7).
 - Finer validation selection: a src change reruns every runner (`import
-  sqlearn` loads the package); per-function selection, as testmon does, is
-  a follow-up to raise with Tomas.
+  sqlearn` loads the package); after the port, per group as the tests are.
+- Open question: free-threaded Python, `docs/questions/free-threaded-python.md`
+  (decide in step 2).
 - After the port (Phases 1–4): the rest of 3.6 (spec §8: target panel,
   outliers, normality, Kendall, sampling, time series), then the
   application; 3.3 candidates: text features, more preprocessing, truncated
@@ -42,6 +61,22 @@ Verify with: `just done` (`just verify` is the release tier)
   are on the issue.
 
 ## Dead ends and traps
+
+- pytest-testmon selects from the lines each test ran, so it misses code run
+  at import (module constants, `__init__` re-exports, class bases,
+  `__post_init__` behind module-level instances), files read as data, and
+  anything compiled; under xdist it also never records tests a pass leaves
+  out by marker. Three reviews found a new hole each: dropped for per-check
+  selection (spec §3.1). Its environment includes every installed
+  package's version, and sqlearn's carries the commit hash. A `-p` pytest
+  plugin loads before coverage and testmon start: import nothing of
+  sqlearn in one. (2026-11-22)
+- Subagents leave log watchers behind (13 idle `tail -F /tmp/t6/s1a.log`
+  shells, 2026-11-22): every dispatch carries the waiting rule (no Monitor,
+  no `tail -F`/`until`/`pgrep` loops); after each agent, `ps -Ao command |
+  grep "tail -F"`. A subagent that reports BLOCKED but "waits on its own
+  background work" can wake and run commands: stop it (TaskStop) before
+  dispatching another into the same worktree. (2026-11-22)
 
 - While `just test` or the validation runs in a worktree, start no other
   `uv run` there: after a commit or a pyproject edit it reinstalls the
