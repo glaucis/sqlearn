@@ -13,8 +13,8 @@ with the C++ library's skeleton and its Python bindings inside it, the tools
 that hold the C++ to its rules, and the site on GitHub Pages. No library
 logic moves to C++ yet; Phase 2 starts that.
 
-Status: brainstormed with Tomas on 2026-11-21; awaiting his approval. Calls
-marked "(the agent's call)" are open to his correction.
+Status: brainstormed with Tomas and approved by him on 2026-11-21. Calls
+marked "(the agent's call)" stay open to his correction.
 
 ## 1. Why
 

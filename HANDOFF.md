@@ -3,40 +3,18 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-21 · Branch: `read-busy-connection` (worktree
-`../sqlearn-76`, on `main`'s `b135f1b`) · Last commit: `7d44141` docs: tests
-rerun only when what they depend on changed · Checks: on the branch `just
-check` and `just test` passing (3193 passed); `just verify` on `main` at
-`b135f1b` passed every step up to the validation, then stopped by the agent
-before a reboot
+Updated: 2026-11-22 · Branch: `main` (the branch `read-busy-connection`
+merged and removed) · Checks: `just verify` passed on the branch before the
+merge (exit 0, no failures; macOS 27.2.1, load 3 to 9)
 Verify with: `just verify`
 
 ## In progress
 
-- [verified] `just verify` on `main` (`b135f1b`, the `profile` fix) was
-  stopped by the agent, at Tomas's request before a reboot, during `python
-  -m validation`. No result file was half-written; only
-  `validation/tests.json` changed, from the finished test step (left
-  uncommitted). Do not rerun it on `main`: the branch below contains
-  `b135f1b`, and #76 changed `read`, which every runner goes through, so one
-  `just verify` on the branch covers both (Tomas, 2026-11-21). Discard
-  `main`'s `tests.json` change (`git checkout validation/tests.json`) and
-  leave the docs tagger's frontmatter edits (about 20 docs) out of commits.
-- [verified] The branch `read-busy-connection` holds #76's fix
-  (`52e17d3`), #75's deferral (`1ec69e4`), spec §4's change (`7d44141`) and the
-  Phase 1 spec draft. Next: `just verify` on it (about an hour), commit its
-  `tests.json`, merge it into `main` (both hold the same `HANDOFF.md`, so no
-  conflict), close #76 (github-pm), push, remove
-  the worktree and branch.
-- [verified] Phase 1's spec, `docs/specs/native-engine-phase-1.md`, drafted
-  with Tomas and checked by a builder subagent (its 11 questions answered in
-  the text, the agent's calls marked). Waits on his approval below; then
-  superpowers:writing-plans for step 1 (the checks).
+- Nothing. Phase 1's spec is approved (Tomas, 2026-11-21); its step 1 is
+  next.
 
 ## Waiting on the user
 
-- Approve the Phase 1 spec, or say what to change. Check the calls marked
-  "(the agent's call)" in it. (since 2026-11-21)
 - The CLion MCP stays (its debugger, for step 2 on); no other tool or skill
   needed. Told Tomas; nothing to do.
 - Benchmarks run on a loaded machine, to rerun on a quiet one if wanted:
@@ -46,9 +24,10 @@ Verify with: `just verify`
 
 ## Next up
 
-- Phase 1, once its spec is approved: step 1 (the checks: testmon, xdist,
-  recorded validation, the passed-tree record) on today's Python, then the
-  build, the workflows and the site (#4, #6), the review (spec §3.7).
+- Phase 1 step 1 (the checks: testmon, xdist, recorded validation, the
+  passed-tree record) on today's Python: its plan first, with
+  superpowers:writing-plans; then the build, the workflows and the site
+  (#4, #6), the review (spec §3.7).
 - After the port (Phases 1–4): the rest of 3.6 (spec §8: target panel,
   outliers, normality, Kendall, sampling, time series), then the
   application; 3.3 candidates: text features, more preprocessing, truncated
@@ -60,6 +39,15 @@ Verify with: `just verify`
   are on the issue.
 
 ## Dead ends and traps
+
+- An OS update can change Accelerate, numpy's BLAS, and with it the last
+  digits of `eigh`: macOS 27.2.1 failed three PCA bounds by a hair, the same
+  on every run and on `main` alike; the bounds were loosened with their
+  reason. `environment.json` now records `os_release` and `blas`. A failure
+  that repeats exactly is not summation order: check the environment.
+  `validation.__main__.main` takes `validation/` as its root (`ROOT`),
+  never `.`. `just verify > log; echo EXIT=$?` keeps `just`'s exit only
+  when saved first (`rc=$?`). (2026-11-22)
 
 - Medium refuses the web-fetch agent (403): ask Tomas to paste the text.
   On Apple clang, `-std=c++26` is accepted with almost no C++26 inside:
@@ -191,6 +179,11 @@ Verify with: `just verify`
   (2026-11-06)
 
 ## Just finished
+
+- The branch `read-busy-connection` merged into `main`: #76's fix (closed),
+  #75's deferral, spec §4, the approved Phase 1 spec, PCA's bounds after
+  the macOS upgrade, `environment.json`'s OS release and BLAS.
+  (2026-11-22)
 
 - The C++ standard and compilers: C++23 for now (Tomas), C++26 by ADR once
   Apple clang has reflection and contracts; each compiler's job; LeakSanitizer
