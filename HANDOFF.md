@@ -5,7 +5,7 @@ versions.
 
 Updated: 2026-11-22 · Branch: `phase-1-checks` (Phase 1 step 1, in the
 worktree `sqlearn-79`, not merged) · Checks: `just done` passed on the
-branch (exit 0; macOS 27.2.1)
+branch (exit 0; macOS 27.2.1); `just verify` too (1 h 12 min, load 13 to 8)
 Verify with: `just done` (`just verify` is the release tier)
 
 ## In progress
@@ -193,7 +193,12 @@ Verify with: `just done` (`just verify` is the release tier)
   in parallel); `just validate` the runners whose recorded inputs changed;
   `just done` skips a tree already passed; `just verify` runs everything;
   pydoclint in `just check`. Shown on the real repository, results on
-  #79. (2026-11-22)
+  #79: one changed line in one module ran 4 of 3,292 tests; a docs-only
+  commit ran no test and no runner; a fast-forward of a passed tree ran
+  nothing; `just verify` passed in 1 h 12 min (3,292 tests with 97.13%
+  coverage, 3,240 on each of 3.12, 3.13, 3.14). Known limit: any change
+  under `src/sqlearn` reruns every runner (about 45 minutes), because
+  `import sqlearn` loads the whole package. (2026-11-22)
 
 - The branch `read-busy-connection` merged into `main`: #76's fix (closed),
   #75's deferral, spec §4, the approved Phase 1 spec, PCA's bounds after
