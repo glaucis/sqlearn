@@ -127,8 +127,9 @@ one (the native module, in step 2) joins by its rule, not by chance:
 
 One test reads source text inside function bodies:
 `test_the_package_holds_no_datasets` scans every module of the package for
-`devdata`. A function body edit adding that word is not rerun by `just test`;
-`just test-all` and `just verify` catch it.
+`devdata`, which `just test` does not rerun after a function body edit, so
+`just check-no-devdata`, part of `just check`, applies its rule on every
+commit.
 
 `--testmon-forceselect` keeps the selection on despite `-m "not slow"`.
 

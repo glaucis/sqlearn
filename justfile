@@ -287,9 +287,24 @@ check-mirror:
     done < <(find src/sqlearn -name '*.py' | sort)
     exit $missing
 
+# Refuse "devdata" in any module of the package (ADR 0053), test_the_package_holds_no_datasets's rule on every commit
+[group('check')]
+check-no-devdata:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    rc=0
+    found=$(grep -rn --include='*.py' devdata src/sqlearn) || rc=$?
+    # 1 = no line found, the pass; 2 = grep itself failed, which is not a pass
+    if [ $rc -gt 1 ]; then exit $rc; fi
+    if [ $rc -eq 0 ]; then
+        printf '%s\n' "$found"
+        echo "src/ names devdata/, which never ships (ADR 0053): move what uses it out of src/."
+        exit 1
+    fi
+
 # Run the checks that run on every commit
 [group('check')]
-check: lint-python check-types lint-markdown check-spelling check-mirror check-docstring-args
+check: lint-python check-types lint-markdown check-spelling check-mirror check-docstring-args check-no-devdata
 
 # Run what the pre-commit hook runs
 [group('check')]
