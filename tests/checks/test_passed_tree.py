@@ -7,7 +7,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 
-# Stand-ins for the three tiers; the real justfile is imported under them.
+# Stand-ins for the tiers; the real justfile is imported under them.
 OVERRIDES = """set allow-duplicate-recipes
 import 'real.just'
 
@@ -16,6 +16,9 @@ check:
 
 test:
     @echo test >> calls.log
+
+test-rest:
+    @echo test-rest >> calls.log
 
 validate:
     @echo validate >> calls.log
@@ -73,11 +76,28 @@ def passed(repo, env):
 
 
 def test_a_clean_tree_that_passed_is_remembered(tmp_path):
-    """done runs the three tiers, then remembers the tree."""
+    """done runs the checks, every test tier and the runners, then remembers."""
     repo, env = make_repo(tmp_path)
     just(repo, "done", env=env)
-    assert calls(repo) == ["check", "test", "validate"]
+    assert calls(repo) == ["check", "test", "test-rest", "validate"]
     assert passed(repo, env) == [git(repo, "rev-parse", "HEAD^{tree}", env=env)]
+
+
+def test_a_failing_check_remembers_nothing(tmp_path):
+    """done stops at the first failing tier and leaves the record as it was."""
+    repo, env = make_repo(tmp_path)
+    (repo / "justfile").write_text(
+        OVERRIDES.replace(
+            "@echo check >> calls.log", "@echo check >> calls.log\n    @exit 1"
+        )
+    )
+    git(repo, "commit", "-qam", "chore: failing check", env=env)
+    failed = subprocess.run(
+        ["just", "done"], cwd=repo, env=env, capture_output=True, text=True, check=False
+    )
+    assert failed.returncode != 0
+    assert calls(repo) == ["check"]
+    assert passed(repo, env) == []
 
 
 def test_a_remembered_tree_runs_nothing(tmp_path):

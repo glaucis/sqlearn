@@ -128,6 +128,12 @@
     },
     {
       "area": "checks/passed_tree",
+      "name": "tests/checks/test_passed_tree.py::test_a_failing_check_remembers_nothing",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/passed_tree",
       "name": "tests/checks/test_passed_tree.py::test_a_fast_forward_to_a_passed_tree_runs_nothing",
       "outcome": "passed",
       "tier": "fast"

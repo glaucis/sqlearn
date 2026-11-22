@@ -109,6 +109,20 @@ test:
     uv run --locked pytest --testmon --testmon-forceselect -p no:xdist -m "serial and not slow" -p validation._tests_report --testmon-env="$env" --ignore=tests/githooks || rc=$?
     [ "$rc" -eq 5 ] || [ "$rc" -eq 0 ] || exit "$rc"
 
+# Run the affected tests `test` leaves out: the slow tier alone (larger-than-memory, as test-all runs it), then the hook tests in parallel
+[group('test')]
+test-rest:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    env="'$(just test-env)'"
+    # 5 means the change affected no test: nothing to run is success
+    rc=0
+    uv run --locked pytest --testmon --testmon-forceselect -p no:xdist -m slow -p validation._tests_report --testmon-env="$env" --ignore=tests/githooks || rc=$?
+    [ "$rc" -eq 5 ] || [ "$rc" -eq 0 ] || exit "$rc"
+    rc=0
+    uv run --locked pytest {{ affected }} -m "" -p validation._tests_report --testmon-env="$env" tests/githooks || rc=$?
+    [ "$rc" -eq 5 ] || [ "$rc" -eq 0 ] || exit "$rc"
+
 # Run the hook tests
 [group('test')]
 test-hooks:
@@ -315,7 +329,7 @@ remember-tree tree:
     fi
     printf '\nChecked tree %s: remembered.\n' "$before"
 
-# Run what a change affects, unless this tree already passed, and remember the tree
+# Run the checks and what a change affects (fast, slow and hook tests, runners), unless this tree already passed, and remember the tree
 [group('check')]
 done:
     #!/usr/bin/env bash
@@ -328,6 +342,7 @@ done:
     fi
     "${j[@]}" check
     "${j[@]}" test
+    "${j[@]}" test-rest
     "${j[@]}" validate
     "${j[@]}" remember-tree "$tree"
 
