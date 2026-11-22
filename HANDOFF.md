@@ -10,18 +10,20 @@ Verify with: `just verify`
 
 ## In progress
 
-- [verified] Phase 1 step 1's plan,
-  `docs/plans/2026-11-22-native-engine-phase-1-checks.md`, written
-  (superpowers:writing-plans): six tasks (affected tests with testmon and
-  xdist, the serial pass and `tests.json` merged, validation runners
-  recorded in the git common directory, the passed tree with `just done`,
-  pydoclint, the done-when shown). Waits on Tomas's review and his choice
-  of execution method.
+- [verified] Phase 1 step 1's plan
+  (`docs/plans/2026-11-22-native-engine-phase-1-checks.md`) is running,
+  subagent-driven (Tomas, 2026-11-22), on the branch `phase-1-checks` in the
+  worktree `../sqlearn-79`; nothing pushed or merged. Paused when Tomas left:
+  tasks 1–5 are done and reviewed; a fix to task 1 (testmon ignores sqlearn's
+  own version, `43d10d6`) waits on its re-review; task 6 (the done-when
+  scenarios) resumes at scenario 4; then the whole-branch review and the merge,
+  which needs Tomas. Resume from the ledger's "PAUSED" section:
+  `../sqlearn-79/.superpowers/sdd/2026-11-22-native-engine-phase-1-checks/progress.md`
+  (git-ignored, in that worktree). The branch's own `HANDOFF.md` carries the
+  step's other handoff edits.
 
 ## Waiting on the user
 
-- Review the step 1 plan and choose subagent-driven or native execution.
-  (since 2026-11-22)
 - The CLion MCP stays (its debugger, for step 2 on); no other tool or skill
   needed. Told Tomas; nothing to do.
 - Benchmarks run on a loaded machine, to rerun on a quiet one if wanted:
