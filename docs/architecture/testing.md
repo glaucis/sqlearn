@@ -16,6 +16,12 @@ How the tests are written and run. The settings are in `pyproject.toml`.
 - **No annotations.** ruff's `ANN` rules apply to `src/` only.
 - **No numpydoc validation.** `just check-docstrings` reads `src/`, not
   `tests/`.
+- **pydoclint checks `src/` only.** `just check-docstring-args` (part of
+  `just check`) compares each docstring under `src/` with its signature: every
+  argument written, a Returns section where the function returns. Types are
+  written in the docstring, numpydoc's own style, so the recipe lets code
+  DOC111 pass (no option drops it) and fails on any other. Its options are in
+  `[tool.pydoclint]`.
 - Warnings are errors (`filterwarnings = ["error"]`), so a deprecation is found
   the day it appears.
 

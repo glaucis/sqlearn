@@ -79,9 +79,15 @@ class EncodeGroup(Group):
             The columns, as a selector; not given with `names`.
         keep : bool, default False
             Keep the input column beside the encoded ones.
-        smooth, cv, seed, target_type : optional
-            The settings of ``target`` (see `TargetEncoder`), only with it;
-            its defaults when not given.
+        smooth : str or float, optional
+            The ``target`` setting of that name (see `TargetEncoder`), only
+            with it; its default when not given.
+        cv : int, optional
+            The ``target`` setting of that name, as `smooth`.
+        seed : int, optional
+            The ``target`` setting of that name, as `smooth`.
+        target_type : str, optional
+            The ``target`` setting of that name, as `smooth`.
         lookup : {"list", "hash"}, optional
             How ``ordinal`` and ``target`` find a value among the categories
             (see `Ordinal`); left out, ``"list"``.

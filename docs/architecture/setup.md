@@ -33,7 +33,7 @@ system's OpenMP library; uv cannot provide it. uv is the only package tool
 |---|---|
 | setup | `setup` |
 | format | `fmt`, `fmt-markdown`, `fmt-python` |
-| check | `check`, `check-docstrings`, `check-lockfile`, `check-spelling`, `check-types`, `check-types-mypy`, `lint-markdown`, `lint-python`, `pre-commit`, `verify` |
+| check | `check`, `check-docstring-args`, `check-docstrings`, `check-lockfile`, `check-spelling`, `check-types`, `check-types-mypy`, `lint-markdown`, `lint-python`, `pre-commit`, `verify` |
 | test | `test`, `test-all`, `test-hooks`, `test-python-versions` |
 | docs | `build-docs`, `fetch-inventories`, `fetch-mathjax` |
 | build | `build-package` |

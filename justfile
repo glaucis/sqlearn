@@ -121,6 +121,21 @@ test-python-versions:
 check-docstrings:
     uv run --locked numpydoc lint $(git ls-files 'src/*.py')
 
+# Compare each docstring under src/ with its signature (pydoclint); DOC111, types written in the docstring, is numpydoc's own style and is not a finding
+[group('check')]
+check-docstring-args:
+    #!/usr/bin/env bash
+    set -uo pipefail
+    out=$(uv run --locked pydoclint src 2>&1)
+    rc=$?
+    # 0 = clean, 1 = findings; anything else is pydoclint itself failing
+    if [ $rc -gt 1 ]; then printf '%s\n' "$out"; exit $rc; fi
+    # every line naming a DOC code other than DOC111 is a finding, printed under its file
+    bad=$(printf '%s\n' "$out" | awk '/^src\// {f=$0} /DOC[0-9]+/ && !/DOC111/ {print f ": " $0}')
+    if [ -n "$bad" ]; then printf '%s\n' "$bad"; exit 1; fi
+    # a failure with no DOC line at all is an error, not a pass
+    if [ $rc -eq 1 ] && ! printf '%s\n' "$out" | grep -q 'DOC111'; then printf '%s\n' "$out"; exit 1; fi
+
 # Build the sdist and the wheel into dist/
 [group('build')]
 build-package:
@@ -239,7 +254,7 @@ check-mirror:
 
 # Run the checks that run on every commit
 [group('check')]
-check: lint-python check-types lint-markdown check-spelling check-mirror
+check: lint-python check-types lint-markdown check-spelling check-mirror check-docstring-args
 
 # Run what the pre-commit hook runs
 [group('check')]

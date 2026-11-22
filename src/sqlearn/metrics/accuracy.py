@@ -150,6 +150,11 @@ class Metric:
         **settings : object
             Any setting.
 
+        Returns
+        -------
+        Metric
+            Never: the call always raises.
+
         Raises
         ------
         SqlearnError
