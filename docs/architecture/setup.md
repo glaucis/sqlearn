@@ -33,19 +33,15 @@ system's OpenMP library; uv cannot provide it. uv is the only package tool
 |---|---|
 | setup | `setup` |
 | format | `fmt`, `fmt-markdown`, `fmt-python` |
-| check | `check`, `check-docstring-args`, `check-docstrings`, `check-lockfile`, `check-spelling`, `check-types`, `check-types-mypy`, `lint-markdown`, `lint-python`, `pre-commit`, `verify` |
-| test | `test`, `test-all`, `test-hooks`, `test-python-versions` |
+| check | `check`, `check-docstring-args`, `check-docstrings`, `check-lockfile`, `check-mirror`, `check-spelling`, `check-types`, `check-types-mypy`, `checkable-tree`, `done`, `lint-markdown`, `lint-python`, `pre-commit`, `remember-tree`, `verify` |
+| test | `test`, `test-all`, `test-env`, `test-hooks`, `test-python-versions`, `test-rest`, `validate`, `validate-all` |
 | docs | `build-docs`, `fetch-inventories`, `fetch-mathjax` |
 | build | `build-package` |
 | maintain | `clean`, `upgrade-dependencies` |
 
-Two rhythms:
-
-- **Every commit.** `just fmt`, then `just check` and `just test`. `just fmt`
-  and its two parts are the only recipes that reformat your files.
-- **Review, merge and release.** `just verify` runs `check`, mypy, the tests
-  on every Python in the matrix, the hook tests, the docstring validation, every
-  validation runner and the docs build.
+Which recipe runs when (a commit, a merge, work done, a release) is in
+[the tiers' table](testing.md#two-tiers). `just fmt` and its two parts are
+the only recipes that reformat your files.
 
 When a composite recipe fails, `just` names the recipe that failed: run that
 one alone.

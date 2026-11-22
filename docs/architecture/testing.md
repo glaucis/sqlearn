@@ -36,8 +36,9 @@ not declared.
 | Recipe | What it runs |
 |---|---|
 | `just test` | the fast tests a change affects: a parallel pass, then the `serial` ones alone, without coverage, without `tests/githooks` |
+| `just test-rest` | the affected tests `just test` leaves out: the slow tier alone, then the hook tests in parallel |
 | `just test-all` | every test, the slow ones included, with coverage and the floor |
-| `just test-env` | 16 hex digits naming the declared dependencies below |
+| `just test-env` | 16 hex digits naming the declared dependencies and the module-level code below |
 | `just test-python-versions` | the tests, slow ones included, on each Python in the matrix |
 | `just test-hooks` | the hook tests alone |
 
@@ -49,13 +50,15 @@ before work is done, and `just verify` is the release tier.
 | A commit | the pre-commit hook: `just pre-commit` over the files committed |
 | A push | none: a push runs no suite |
 | A merge to `main` | the pre-merge-commit hook runs what the pre-commit hook runs; `just done` on `main` runs nothing for a tree that passed |
-| Work is done | `just done`: `check`, `test`, `validate`, then the tree is remembered |
+| Work is done | `just done`: `check`, `test`, `test-rest`, `validate`, then the tree is remembered |
 | A release | `just verify`: `done`'s checks in full (`test-all`, `validate-all`, every Python, the docs), by hand before `1.0.0` |
 
 `just done` remembers each tree that passed in `sqlearn-passed`, in the git
 common directory (the 50 newest, shared by worktrees). A tree that differs
 from `HEAD` only in Markdown still counts, so a fast-forward or a `--no-ff`
-merge of a passed tree runs nothing.
+merge of a passed tree runs nothing. A declared Markdown file (below) is an
+input, not prose: edited and not committed, it leaves no checkable tree.
+A tier that fails stops `just done`, and nothing is remembered.
 
 `just checkable-tree` also ignores the files the checks write:
 `validation/**/*.results.json`, `validation/tests.json` and
@@ -69,18 +72,54 @@ reruns only the tests whose lines changed. pytest-xdist runs them in parallel
 (`-n auto`). A run that selects nothing succeeds. The data is in
 `.testmondata*`, which git ignores.
 
-testmon sees only Python it traces, so `just test-env` hashes the files that
-change a result without being traced, and testmon reruns every test when the
-hash changes. It hashes each file's path, then its bytes, so a new empty
-file counts. Each is declared for a reason:
+testmon sees only the lines it traces while a test runs, so `just test-env`
+hashes what changes a result without being traced, and testmon reruns every
+test when the hash changes. It hashes each declared file's path, then its
+bytes, so a new empty file counts. The list is `declared` in the `justfile`,
+the one place `test-env` and `checkable-tree` read it from:
 
 - `uv.lock`, `.python-version`: the installed libraries and the interpreter.
 - `pyproject.toml`, `justfile`: the test settings and the flags.
-- every `conftest.py`: fixtures reach every test beneath them.
-- every file under `devdata/data/`: tests read it as data.
+- every `conftest.py` (found, not listed): fixtures reach every test beneath
+  them.
+- every file under `devdata/data/`, and
+  `docs/architecture/engine-inventory.md`: tests read them as data.
+- every file under `.githooks/`, and `commitlint.config.mjs`: the hook tests
+  run them in a subprocess.
 
 sqlearn's own version is left out of testmon's environment
 (`testmon_ignore_dependencies`) because it changes with every commit.
+
+### What testmon cannot see, and how each is declared
+
+Each input testmon cannot trace is declared by one of four rules, so a new
+one (the native module, in step 2) joins by its rule, not by chance:
+
+- **Import-time code.** testmon starts tracing at the first test, after
+  collection has imported every module, so a module's constants, imports,
+  class bases and bodies, decorators, signatures and `__all__` belong to no
+  test. `test-env` hashes them: `validation/_env.py` reads every `.py` file
+  under `src/`, `tests/`, `validation/` and `devdata/`, empties each function
+  and method body, and hashes what is left (the syntax tree, so comments and
+  blank lines do not count) with the sorted paths, and the path of every
+  file under `src/`. A module-level edit, or a new or deleted module, reruns
+  every test; an edit inside a function leaves the selection to testmon. A
+  file that does not parse counts by its bytes.
+- **Files read as data.** A test that opens a file, rather than running it,
+  depends on its bytes: the file, or its folder, goes in `declared`. A test
+  that globs for files depends on their paths, which the module-level digest
+  covers for Python files and for everything under `src/`.
+- **Code in a subprocess.** testmon traces its own process only. A test that
+  runs a script, a hook or a tool depends on that file: it goes in
+  `declared`, as `.githooks/` does.
+- **Installed packages.** testmon records each installed package's version
+  and reruns every test when one changes; `uv.lock` is declared besides.
+  `testmon_ignore_dependencies` lists the two that change with every commit.
+
+One test reads source text inside function bodies:
+`test_the_package_holds_no_datasets` scans every module of the package for
+`devdata`. A function body edit adding that word is not rerun by `just test`;
+`just test-all` and `just verify` catch it.
 
 `--testmon-forceselect` keeps the selection on despite `-m "not slow"`.
 
@@ -153,7 +192,8 @@ repositories that carry a copy of the hook. The pre-commit and pre-merge-commit
 tests put a stand-in `just` first on `PATH`, which notes its arguments and
 exits as it is told. The commit-message tests run the real
 commitlint and are skipped, with a reason, where it is not installed.
-`just test-hooks` runs them, and `just verify` includes it.
+`just test-rest` runs the affected ones, in parallel, from `just done`;
+`just test-hooks` runs them all, and `just verify` includes it.
 
 ## Coverage
 

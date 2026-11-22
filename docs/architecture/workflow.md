@@ -31,13 +31,13 @@ What runs at each point:
 | A commit | the pre-commit hook: `just pre-commit` over the files committed |
 | A push | none: a push runs no suite |
 | A merge to `main` | the pre-merge-commit hook runs what the pre-commit hook runs; `just done` on `main` runs nothing for a tree that passed |
-| Work is done | `just done`: `check`, `test`, `validate`, then the tree is remembered |
+| Work is done | `just done`: `check`, `test`, `test-rest`, `validate`, then the tree is remembered |
 | A release | `just verify`: `done`'s checks in full (`test-all`, `validate-all`, every Python, the docs), by hand before `1.0.0` |
 
 `just done` remembers each tree that passed in `sqlearn-passed`, in the git
-common directory (the 50 newest, shared by worktrees). A tree that differs
-from `HEAD` only in Markdown still counts, so a fast-forward or a `--no-ff`
-merge of a passed tree runs nothing.
+common directory (the 50 newest, shared by worktrees). A tree that differs from
+`HEAD` only in Markdown (a declared file aside, [testing](testing.md)) still
+counts, so a fast-forward or a `--no-ff` merge of a passed tree runs nothing.
 
 ## Where things go
 
