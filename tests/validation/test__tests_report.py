@@ -44,12 +44,18 @@ def _scratch(tmp_path: Path, files: dict[str, str]) -> Path:
 def _run(project: Path, *args: str) -> dict[str, str]:
     """Run pytest in `project` with the plugin; return outcome by node id."""
     env = {**os.environ, "PYTHONPATH": str(ROOT)}
-    subprocess.run(
+    done = subprocess.run(
         [sys.executable, "-m", "pytest", "-p", "validation._tests_report", *args],
         cwd=project,
         env=env,
         check=False,
         capture_output=True,
+        text=True,
+    )
+    # 0 and 1 are a run with passing and failing tests; anything else is a crash
+    assert done.returncode in {0, 1}, f"{done.stdout}\n{done.stderr}"
+    assert (project / "validation" / "tests.json").exists(), (
+        f"{done.stdout}\n{done.stderr}"
     )
     return {t["name"]: t["outcome"] for t in _read(project)}
 

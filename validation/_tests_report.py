@@ -58,6 +58,7 @@ def pytest_runtest_logreport(report: pytest.TestReport) -> None:
         entry["outcome"] = outcome
 
 
+@pytest.hookimpl(tryfirst=True)
 def pytest_collection_modifyitems(
     config: pytest.Config, items: list[pytest.Item]
 ) -> None:
