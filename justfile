@@ -134,7 +134,7 @@ check-docstring-args:
     bad=$(printf '%s\n' "$out" | awk '/^src\// {f=$0} /DOC[0-9]+/ && !/DOC111/ {print f ": " $0}')
     if [ -n "$bad" ]; then printf '%s\n' "$bad"; exit 1; fi
     # a failure with no DOC line at all is an error, not a pass
-    if [ $rc -eq 1 ] && ! printf '%s\n' "$out" | grep -q 'DOC111'; then printf '%s\n' "$out"; exit 1; fi
+    if [ $rc -eq 1 ] && ! grep -q 'DOC111' <<<"$out"; then printf '%s\n' "$out"; exit 1; fi
 
 # Build the sdist and the wheel into dist/
 [group('build')]
