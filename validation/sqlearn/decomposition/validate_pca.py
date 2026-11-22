@@ -130,12 +130,17 @@ from validation import _cases
 #   eigenvalues and components multiplied back in mpmath.
 # - applied [3.32, breast cancer's pca1]: the row less the learned mean,
 #   times the learned weights, each product and the sum rounded in DuckDB.
+# Loosened 2026-11-22: macOS 26.6.1 to 27.2.1 changed Accelerate, numpy's
+# BLAS, and with it numpy's eigh, every package pinned; the same cases
+# measure the same on every run since. Decomposition 7.6 to 9.8 [8.92,
+# breast cancer; nearly collinear 4.30 to 8.30], output 2.2 to 2.5 [2.28,
+# breast cancer's pca0]. Tomas agreed.
 BOUNDS = {
     "eigenvalue": 8.3,
     "component": 2.0,
-    "output": 2.2,
+    "output": 2.5,
     "covariance": 12.7,
-    "decomposition": 7.6,
+    "decomposition": 9.8,
     "applied": 3.7,
 }
 
