@@ -64,6 +64,12 @@ def test_a_failed_run_is_never_matched(root):
     assert matching([_record(root, passed=False)], root, dict(ENVIRONMENT)) is None
 
 
+def test_a_failed_run_cancels_an_earlier_pass_of_the_same_inputs(root):
+    """A pass, then a fail with nothing changed: the newest decides, it reruns."""
+    records = [_record(root), _record(root, passed=False)]
+    assert matching(records, root, dict(ENVIRONMENT)) is None
+
+
 def test_save_keeps_the_twenty_newest(root, tmp_path):
     """Each save adds a record; only the twenty newest are kept, oldest first."""
     records = tmp_path / "records"

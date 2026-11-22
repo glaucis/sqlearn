@@ -98,15 +98,15 @@ parallel run writes the same bytes as a serial one.
 `just validate` (`python -m validation`) reruns a runner only when a file it
 depends on changed since it last passed. Each runner runs in its own process,
 writes its `*.results.json` as before, and then saves a record: the SHA-256 of
-every module it imported from the repository (outside `.venv`), of `uv.lock`
-and of every file under `devdata/data/`, with the environment
-(`environment.json`'s fields: library versions, OS release, BLAS), the count
-of each result and whether every sqlearn case passed. The next run skips a
-runner, printing `unchanged since a passed run` and leaving its results file
-alone, when its newest passing record has the same environment and every file
-it names is present with the same hash. A run with a failing case reruns every
-time. `environment.json` is written when any runner ran. The code is
-`validation/_record.py`.
+every module it imported from the repository (outside `.venv`), of `uv.lock` and
+of every file under `devdata/data/`, with the environment (`environment.json`'s
+fields: library versions, OS release, BLAS), the count of each result and
+whether every sqlearn case passed. The next run skips a runner, printing
+`unchanged since a passed run` and leaving its results file alone, when the
+newest record with the same environment and every file it names present with the
+same hash passed. A run with a failing case reruns every time, and it cancels
+any earlier pass of the same inputs. `environment.json` is written when any
+runner ran. The code is `validation/_record.py`.
 
 The records live in `sqlearn-validation/` in git's common directory (`git
 rev-parse --git-common-dir`), one JSON file per runner holding its 20 newest.

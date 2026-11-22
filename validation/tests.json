@@ -19448,6 +19448,12 @@
     },
     {
       "area": "validation/_record",
+      "name": "tests/validation/test__record.py::test_a_failed_run_cancels_an_earlier_pass_of_the_same_inputs",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_record",
       "name": "tests/validation/test__record.py::test_a_failed_run_is_never_matched",
       "outcome": "passed",
       "tier": "fast"

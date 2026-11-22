@@ -4,8 +4,9 @@ A runner reruns only when a file it depends on changed (spec §4): every
 module it imported from the repository, ``uv.lock`` (the libraries it ran
 with) and devdata's files (the data it read). A record holds their SHA-256
 hashes, the environment (``_cases.environment()``) and the counts of each
-result. It stands for a rerun while it passed, its environment is the same
-and every file it names is present with the same hash; anything else reruns.
+result. A runner is skipped when the newest record whose environment is the
+same and whose every file is present with the same hash passed; a failed run
+of the same inputs cancels an earlier pass, and anything else reruns.
 
 The records live in the git common directory, so every worktree shares them:
 a record is valid only while its hashes match, whichever worktree wrote it.
@@ -99,14 +100,15 @@ def _unchanged(depends: dict[str, str], root: Path) -> bool:
 def matching(
     records: Sequence[Record], root: Path, environment: dict[str, str]
 ) -> Record | None:
-    """Return the newest record that passed with nothing it depends on changed."""
+    """Return the newest record of today's inputs, if it passed; else None.
+
+    Among the records whose environment equals `environment` and whose every
+    file is present with the same hash, the newest decides: a failed run
+    cancels an earlier pass of the same inputs, so the runner reruns.
+    """
     for record in reversed(records):
-        if (
-            record["passed"]
-            and record["environment"] == environment
-            and _unchanged(record["depends"], root)
-        ):
-            return record
+        if record["environment"] == environment and _unchanged(record["depends"], root):
+            return record if record["passed"] else None
     return None
 
 
