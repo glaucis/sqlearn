@@ -41,7 +41,6 @@ test = [
     "pyarrow>=26.0.1",
     "pytest>=9.2.0",
     "pytest-cov>=7.1.0",
-    "pytest-testmon>=2.3.1",
     "pytest-xdist>=3.8.0",
     "scikit-learn>=1.9.1",
 ]
@@ -159,8 +158,6 @@ addopts = [
     "--import-mode=importlib",
     "-m", "not slow",
 ]
-# sqlearn's version carries the commit hash: left in, each commit reruns every test
-testmon_ignore_dependencies = ["sqlearn", "pytest-testmon"]
 markers = [
     "slow: the larger-than-memory tier; test-all and test-python-versions run it",
     "serial: runs alone, after the parallel pass: it fails beside other tests",

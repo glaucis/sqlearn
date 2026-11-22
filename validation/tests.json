@@ -1,150 +1,6 @@
 {
   "tests": [
     {
-      "area": "checks/affected",
-      "name": "tests/checks/test_affected.py::test_a_comment_or_function_body_edit_keeps_test_env[comment]",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "checks/affected",
-      "name": "tests/checks/test_affected.py::test_a_comment_or_function_body_edit_keeps_test_env[function-body]",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "checks/affected",
-      "name": "tests/checks/test_affected.py::test_a_declared_dependency_reruns_every_test[.githooks/pre-commit]",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "checks/affected",
-      "name": "tests/checks/test_affected.py::test_a_declared_dependency_reruns_every_test[commitlint.config.mjs]",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "checks/affected",
-      "name": "tests/checks/test_affected.py::test_a_declared_dependency_reruns_every_test[conftest.py]",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "checks/affected",
-      "name": "tests/checks/test_affected.py::test_a_declared_dependency_reruns_every_test[devdata/data/table.csv]",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "checks/affected",
-      "name": "tests/checks/test_affected.py::test_a_declared_dependency_reruns_every_test[docs/architecture/engine-inventory.md]",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "checks/affected",
-      "name": "tests/checks/test_affected.py::test_a_declared_dependency_reruns_every_test[uv.lock]",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "checks/affected",
-      "name": "tests/checks/test_affected.py::test_a_markdown_change_runs_nothing",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "checks/affected",
-      "name": "tests/checks/test_affected.py::test_a_module_level_constant_change_reruns_every_test",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "checks/affected",
-      "name": "tests/checks/test_affected.py::test_a_module_that_does_not_parse_counts_by_its_bytes",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "checks/affected",
-      "name": "tests/checks/test_affected.py::test_a_moved_re_export_reruns_every_test",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "checks/affected",
-      "name": "tests/checks/test_affected.py::test_a_new_empty_conftest_changes_test_env",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "checks/affected",
-      "name": "tests/checks/test_affected.py::test_a_new_module_reruns_every_test",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "checks/affected",
-      "name": "tests/checks/test_affected.py::test_a_one_line_change_reruns_only_its_tests",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "checks/affected",
-      "name": "tests/checks/test_affected.py::test_a_test_another_pass_runs_reruns_when_its_code_changes[serial-affected]",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "checks/affected",
-      "name": "tests/checks/test_affected.py::test_a_test_another_pass_runs_reruns_when_its_code_changes[slow-test-rest]",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "checks/affected",
-      "name": "tests/checks/test_affected.py::test_an_edit_in_a_decorator_applied_at_module_level_reruns_every_test",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "checks/affected",
-      "name": "tests/checks/test_affected.py::test_an_edit_in_a_function_another_file_calls_at_module_level_reruns_every_test",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "checks/affected",
-      "name": "tests/checks/test_affected.py::test_an_edit_in_a_function_nothing_calls_at_import_keeps_test_env",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "checks/affected",
-      "name": "tests/checks/test_affected.py::test_an_edit_in_a_post_init_behind_a_module_level_instance_reruns_every_test",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "checks/affected",
-      "name": "tests/checks/test_affected.py::test_nothing_changed_runs_nothing_and_succeeds",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "checks/affected",
-      "name": "tests/checks/test_affected.py::test_test_env_is_the_same_twice",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "checks/affected",
-      "name": "tests/checks/test_affected.py::test_testmon_ignores_sqlearns_own_version",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
       "area": "checks/passed_tree",
       "name": "tests/checks/test_passed_tree.py::test_a_clean_tree_that_passed_is_remembered",
       "outcome": "passed",
@@ -249,6 +105,12 @@
     {
       "area": "checks/tasks",
       "name": "tests/checks/test_tasks.py::test_a_docs_only_change_runs_no_test",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_full_validate_runs_every_runner",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -20018,6 +19880,12 @@
     },
     {
       "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_a_new_module_checks_every_file_again",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
       "name": "tests/validation/test__checks.py::test_a_new_place_to_run_reruns_every_task[platform-machine-<lambda>]",
       "outcome": "passed",
       "tier": "fast"
@@ -20054,6 +19922,12 @@
     },
     {
       "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_a_removed_module_checks_every_file_again",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
       "name": "tests/validation/test__checks.py::test_a_whole_task_runs_once_then_is_skipped",
       "outcome": "passed",
       "tier": "fast"
@@ -20067,6 +19941,18 @@
     {
       "area": "validation/_checks",
       "name": "tests/validation/test__checks.py::test_an_edit_undone_after_the_run_is_not_recorded",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_an_executable_bit_change_checks_that_file_again",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_an_executable_bit_change_reruns_a_whole_task",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -20090,6 +19976,12 @@
     },
     {
       "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_checkable_trees_declared_files_are_inputs_of_the_test_task",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
       "name": "tests/validation/test__checks.py::test_every_task_declares_the_settings_files",
       "outcome": "passed",
       "tier": "fast"
@@ -20108,6 +20000,12 @@
     },
     {
       "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_only_the_serial_pass_may_collect_nothing",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
       "name": "tests/validation/test__checks.py::test_records_are_kept_twenty_and_replaced_atomically",
       "outcome": "passed",
       "tier": "fast"
@@ -20121,6 +20019,12 @@
     {
       "area": "validation/_checks",
       "name": "tests/validation/test__checks.py::test_the_command_line_runs_a_task",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_the_lint_task_keys_its_config_to_the_python_layout",
       "outcome": "passed",
       "tier": "fast"
     },

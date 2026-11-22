@@ -86,6 +86,10 @@ class Task:
     per_file : bool
         Whether each file's result depends only on that file and the
         settings, so only the changed files are checked.
+    layout : tuple of str
+        The pathspecs of files whose names, not bytes, are configuration: a
+        tool that classifies by which files exist (ruff's import sorting)
+        reruns on every file when one appears or goes.
     """
 
     name: str
@@ -93,6 +97,7 @@ class Task:
     config: tuple[str, ...]
     steps: tuple[Step, ...]
     per_file: bool
+    layout: tuple[str, ...] = ()
 
 
 class Record(TypedDict):
@@ -164,6 +169,8 @@ def _table() -> dict[str, Task]:
                 Step(("rumdl", "check"), MARKDOWN),
             ),
             per_file=True,
+            # ruff's import sorting classifies by which modules exist.
+            layout=PYTHON,
         ),
         Task(
             name="docstrings",
@@ -188,7 +195,12 @@ def _table() -> dict[str, Task]:
             inputs=TEST_INPUTS,
             config=SETTINGS,
             steps=tuple(
-                Step(("pytest", "-p", "validation._tests_report", *p), ok=(0, 5))
+                Step(
+                    ("pytest", "-p", "validation._tests_report", *p),
+                    # Only the serial pass may find nothing: a marker or a
+                    # testpaths broken elsewhere must fail, not pass.
+                    ok=(0, 5) if "serial and not slow" in p else (0,),
+                )
                 for p in _PYTEST_PASSES
             ),
             per_file=False,
@@ -232,9 +244,20 @@ def _listed(pathspecs: Sequence[str], root: Path) -> list[str]:
     return sorted(n for n in names if (root / n).is_file())
 
 
+def _mode(path: Path) -> bytes:
+    """Return ``x`` for an executable file, ``-`` for any other.
+
+    The hook tests assert the executable bit, so it is part of a file.
+    """
+    return b"x" if path.stat().st_mode & 0o111 else b"-"
+
+
 def _hashes(names: Sequence[str], root: Path) -> dict[str, str]:
-    """Return each file of `names` with its content's SHA-256."""
-    return {n: hashlib.sha256((root / n).read_bytes()).hexdigest() for n in names}
+    """Return each file of `names` with the SHA-256 of its mode and content."""
+    return {
+        n: hashlib.sha256(_mode(root / n) + (root / n).read_bytes()).hexdigest()
+        for n in names
+    }
 
 
 def _place() -> bytes:
@@ -243,13 +266,15 @@ def _place() -> bytes:
 
 
 def _combined(names: Sequence[str], root: Path) -> str:
-    """Return the SHA-256 of the place, then each file's path and bytes, sorted.
+    """Return the SHA-256 of the place, then each file's path, mode and bytes.
 
-    The place leads, then each file's path, a NUL, its bytes, a NUL.
+    The place leads, then, sorted, each file's path, a NUL, its mode, its
+    bytes, a NUL.
     """
     sha = hashlib.sha256(_place() + b"\0")
     for name in sorted(names):
-        sha.update(name.encode() + b"\0" + (root / name).read_bytes() + b"\0")
+        path = root / name
+        sha.update(name.encode() + b"\0" + _mode(path) + path.read_bytes() + b"\0")
     return sha.hexdigest()
 
 
@@ -275,8 +300,15 @@ def digest(task: Task, root: Path) -> str:
 
 
 def _config(task: Task, root: Path) -> str:
-    """Return the SHA-256 of the place and `task`'s configuration, no input."""
-    return _combined(_listed(task.config, root), root)
+    """Return the SHA-256 of the place, `task`'s configuration and its layout.
+
+    The layout is the sorted names of the files under ``task.layout``, never
+    their bytes: a new or removed file changes it.
+    """
+    layout = "\0".join(_listed(task.layout, root)).encode()
+    sha = hashlib.sha256(_combined(_listed(task.config, root), root).encode())
+    sha.update(b"\0layout\0" + layout)
+    return sha.hexdigest()
 
 
 def record_dir(root: Path) -> Path:

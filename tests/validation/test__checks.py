@@ -53,6 +53,7 @@ def _table(tool):
                 Step((*command, "md"), files=("*.md",)),
             ),
             per_file=True,
+            layout=("*.py",),
         ),
         "allowed": Task(
             name="allowed",
@@ -141,6 +142,45 @@ def test_a_deleted_file_reruns_a_whole_task(scratch):
     assert _calls(scratch) == [["whole"]]
 
 
+def test_an_executable_bit_change_reruns_a_whole_task(scratch):
+    """A file's mode is read by tests (the hooks): chmod alone reruns the task."""
+    run("whole", scratch)
+    _calls(scratch)
+    (scratch / "src" / "a.py").chmod(0o755)
+    assert run("whole", scratch) == 0
+    assert _calls(scratch) == [["whole"]]
+
+
+def test_an_executable_bit_change_checks_that_file_again(scratch):
+    """A per-file task counts the mode in each file's own digest."""
+    run("lint", scratch)
+    _calls(scratch)
+    (scratch / "src" / "a.py").chmod(0o755)
+    assert run("lint", scratch) == 0
+    assert _calls(scratch) == [["py", "src/a.py"]]
+
+
+def test_a_new_module_checks_every_file_again(scratch):
+    """Import sorting depends on which modules exist: a new one relints all."""
+    run("lint", scratch)
+    _calls(scratch)
+    (scratch / "src" / "c.py").write_text("c = 3\n")
+    assert run("lint", scratch) == 0
+    assert _calls(scratch) == [
+        ["py", "src/a.py", "src/b.py", "src/c.py"],
+        ["md", "notes.md"],
+    ]
+
+
+def test_a_removed_module_checks_every_file_again(scratch):
+    """A module gone changes what the imports of the others classify as."""
+    run("lint", scratch)
+    _calls(scratch)
+    (scratch / "src" / "b.py").unlink()
+    assert run("lint", scratch) == 0
+    assert _calls(scratch) == [["py", "src/a.py"], ["md", "notes.md"]]
+
+
 def test_an_ignored_file_changes_nothing(scratch):
     """A git-ignored file under the inputs is no input: nothing reruns."""
     run("whole", scratch)
@@ -205,12 +245,12 @@ def test_a_per_file_task_checks_only_the_changed_files(scratch, capsys):
 
 
 def test_a_per_file_task_checks_a_new_file(scratch):
-    """A file added under the inputs is checked, alone."""
+    """A file added under the inputs but not the layout is checked, alone."""
     run("lint", scratch)
     _calls(scratch)
-    (scratch / "src" / "c.py").write_text("c = 3\n")
+    (scratch / "more.md").write_text("# More\n")
     assert run("lint", scratch) == 0
-    assert _calls(scratch) == [["py", "src/c.py"]]
+    assert _calls(scratch) == [["md", "more.md"]]
 
 
 def test_a_per_file_task_checks_a_file_restored_to_an_earlier_pass(scratch):
@@ -407,3 +447,27 @@ def test_every_task_declares_the_settings_files():
     """A change to the settings every tool reads reruns each task in full."""
     for task in _checks.TASKS.values():
         assert set(task.config) >= SETTINGS, task.name
+
+
+def test_only_the_serial_pass_may_collect_nothing():
+    """Exit 5 passes the serial pass alone: a broken marker elsewhere must fail."""
+    steps = _checks.TASKS["test"].steps
+    passes = [s.command[s.command.index("-m") + 1] for s in steps]
+    assert passes == ["not slow and not serial", "serial and not slow", "slow", ""]
+    assert [s.ok for s in steps] == [(0,), (0, 5), (0,), (0,)]
+
+
+def test_the_lint_task_keys_its_config_to_the_python_layout():
+    """Ruff's import sorting depends on which modules exist."""
+    assert "*.py" in _checks.TASKS["lint"].layout
+
+
+def test_checkable_trees_declared_files_are_inputs_of_the_test_task():
+    """The justfile's ``declared`` list names only files the ``test`` task reads."""
+    justfile = (Path(__file__).resolve().parents[2] / "justfile").read_text()
+    line = next(x for x in justfile.splitlines() if x.startswith("declared :="))
+    declared = line.split('"')[1].split()
+    task = _checks.TASKS["test"]
+    read = {*task.inputs, *task.config}
+    for name in declared:
+        assert any(name == r or name.startswith(r + "/") for r in read), name

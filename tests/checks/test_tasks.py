@@ -20,6 +20,9 @@ import 'real.just'
 
 build-docs:
     @echo '["build-docs"]' >> "$CALLS"
+
+validate-all:
+    @echo '["validate-all"]' >> "$CALLS"
 """
 
 TOOL = """#!{python}
@@ -171,3 +174,10 @@ def test_a_data_file_change_reruns_the_tests(scratch, data):
     ]
     report = ["pytest", "-p", "validation._tests_report"]
     assert calls(env) == [[*report, *p] for p in passes]
+
+
+def test_full_validate_runs_every_runner(scratch):
+    """``just full validate`` is ``validate-all``, outside the task table."""
+    repo, env = scratch
+    just(repo, env, "full", "validate")
+    assert calls(env) == [["validate-all"]]

@@ -64,73 +64,8 @@ check-spelling:
 check-lockfile:
     uv lock --check
 
-# How pytest runs, and the plugin that merges validation/tests.json (the recipes' tests set both on a scratch project)
-pytest := "uv run --locked pytest"
-report := "-p validation._tests_report"
-
-# The files tests depend on that testmon cannot trace: a file, or every file in a folder (test-env hashes them; checkable-tree never skips them, Markdown included)
+# The files the tests read as data or run in a subprocess, beyond the settings; the `test` task declares the same ones (TEST_INPUTS in validation/_checks.py, which a test compares), and checkable-tree never skips them, Markdown included
 declared := "uv.lock .python-version pyproject.toml justfile commitlint.config.mjs .githooks devdata/data docs/architecture/engine-inventory.md"
-
-# The folders whose module-level code and file paths test-env hashes (validation/_env.py)
-code_dirs := "src tests validation devdata"
-
-# Print 16 hex digits: the SHA-256 of the declared files, every conftest.py, and the module-level code under code_dirs
-[group('test')]
-test-env root=".":
-    #!/usr/bin/env bash
-    set -euo pipefail
-    cd "{{ root }}"
-    {
-        {
-            for p in {{ declared }}; do
-                if [ -d "$p" ]; then find "$p" -type f; else printf '%s\n' "$p"; fi
-            done
-            find . -mindepth 1 \( -name '.*' -o -name node_modules \) -prune -o -name conftest.py -print | sed 's|^\./||'
-        } | LC_ALL=C sort -u | while IFS= read -r f; do
-            printf '%s\0' "$f"
-            if [ -f "$f" ]; then cat "$f"; fi
-            printf '\0'
-        done
-        # import-time code, which testmon never traces
-        printf 'module-level\0'
-        uv run --locked --project "{{ justfile_directory() }}" python -I "{{ justfile_directory() }}/validation/_env.py" {{ code_dirs }}
-    } | shasum -a 256 | cut -c1-16
-
-# Run the fast tests testmon finds a change affects: in parallel, then the serial ones alone; tests.json is merged
-[group('test')]
-affected:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    env=$("{{ just_executable() }}" --justfile "{{ justfile() }}" --working-directory . test-env)
-    # One pass of the affected tests, in a testmon environment of its own: a test one pass deselects
-    # is never recorded under xdist, and another pass sharing the record would skip its file
-    # as unchanged. 5 means the change affected no test: nothing to run is success.
-    pass() {
-        local name=$1 rc=0
-        shift
-        {{ pytest }} --testmon --testmon-forceselect {{ report }} --testmon-env="'$env $name'" "$@" || rc=$?
-        [ "$rc" -eq 5 ] || [ "$rc" -eq 0 ] || exit "$rc"
-    }
-    pass fast -n auto -m "not slow and not serial" --ignore=tests/githooks
-    pass serial -p no:xdist -m "serial and not slow" --ignore=tests/githooks
-
-# Run the affected tests `test` leaves out: the slow tier alone (larger-than-memory, as test-all runs it), then the hook tests in parallel
-[group('test')]
-test-rest:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    env=$("{{ just_executable() }}" --justfile "{{ justfile() }}" --working-directory . test-env)
-    # One pass of the affected tests, in a testmon environment of its own: a test one pass deselects
-    # is never recorded under xdist, and another pass sharing the record would skip its file
-    # as unchanged. 5 means the change affected no test: nothing to run is success.
-    pass() {
-        local name=$1 rc=0
-        shift
-        {{ pytest }} --testmon --testmon-forceselect {{ report }} --testmon-env="'$env $name'" "$@" || rc=$?
-        [ "$rc" -eq 5 ] || [ "$rc" -eq 0 ] || exit "$rc"
-    }
-    pass slow -p no:xdist -m slow --ignore=tests/githooks
-    pass hooks -n auto -m "" tests/githooks
 
 # Run the hook tests
 [group('test')]
@@ -355,9 +290,14 @@ test:
 docs:
     {{ checks }} docs
 
-# Run one check all through, whatever its record says, and record its pass (validation/_checks.py)
+# Run one check all through, whatever its record says, and record its pass (validation/_checks.py); `validate` runs every runner (validate-all), its records being its own
 [group('check')]
 full task:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ "{{ task }}" = validate ]; then
+        exec "{{ just_executable() }}" --justfile "{{ justfile() }}" validate-all
+    fi
     {{ checks }} "{{ task }}" --all
 
 # Print the tree of HEAD when only undeclared Markdown files and the checks' outputs differ from it, and nothing otherwise
@@ -406,7 +346,6 @@ done:
     fi
     "${j[@]}" check
     "${j[@]}" test
-    "${j[@]}" test-rest
     "${j[@]}" validate
     "${j[@]}" remember-tree "$tree"
 

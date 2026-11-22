@@ -60,7 +60,7 @@ def pytest_runtest_logreport(report: pytest.TestReport) -> None:
 def pytest_collection_modifyitems(
     config: pytest.Config, items: list[pytest.Item]
 ) -> None:
-    """Note every collected test before a deselection (-k, -m, testmon) removes any."""
+    """Note every collected test before a deselection (-k, -m) removes any."""
     _COLLECTED.update(item.nodeid for item in items)
     output = getattr(config, "workeroutput", None)
     if output is not None:  # an xdist worker hands its list to the controller

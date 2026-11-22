@@ -34,7 +34,7 @@ ROOT = Path(__file__).resolve().parents[2]
 def _scratch(tmp_path: Path, files: dict[str, str]) -> Path:
     """Write a scratch project holding `files`, with the plugin's rootdir at it."""
     (tmp_path / "pytest.ini").write_text(
-        "[pytest]\nmarkers = slow: slow\naddopts = -p no:cacheprovider -p no:testmon\n"
+        "[pytest]\nmarkers = slow: slow\naddopts = -p no:cacheprovider\n"
     )
     for name, body in files.items():
         (tmp_path / name).write_text(body)

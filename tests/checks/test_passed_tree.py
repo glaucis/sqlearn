@@ -17,9 +17,6 @@ check:
 test:
     @echo test >> calls.log
 
-test-rest:
-    @echo test-rest >> calls.log
-
 validate:
     @echo validate >> calls.log
 """
@@ -79,7 +76,7 @@ def test_a_clean_tree_that_passed_is_remembered(tmp_path):
     """done runs the checks, every test tier and the runners, then remembers."""
     repo, env = make_repo(tmp_path)
     just(repo, "done", env=env)
-    assert calls(repo) == ["check", "test", "test-rest", "validate"]
+    assert calls(repo) == ["check", "test", "validate"]
     assert passed(repo, env) == [git(repo, "rev-parse", "HEAD^{tree}", env=env)]
 
 

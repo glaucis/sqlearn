@@ -33,14 +33,14 @@ system's OpenMP library; uv cannot provide it. uv is the only package tool
 |---|---|
 | setup | `setup` |
 | format | `fmt`, `fmt-markdown`, `fmt-python` |
-| check | `check`, `check-docstring-args`, `check-docstrings`, `check-lockfile`, `check-mirror`, `check-no-devdata`, `check-spelling`, `check-types`, `check-types-mypy`, `checkable-tree`, `done`, `lint-markdown`, `lint-python`, `pre-commit`, `remember-tree`, `verify` |
-| test | `test`, `test-all`, `test-env`, `test-hooks`, `test-python-versions`, `test-rest`, `validate`, `validate-all` |
-| docs | `build-docs`, `fetch-inventories`, `fetch-mathjax` |
+| check | `check`, `check-docstring-args`, `check-docstrings`, `check-lockfile`, `check-mirror`, `check-no-devdata`, `check-spelling`, `check-types`, `check-types-mypy`, `checkable-tree`, `docstrings`, `done`, `format`, `full`, `lint`, `lint-markdown`, `lint-python`, `pre-commit`, `remember-tree`, `types`, `verify` |
+| test | `test`, `test-all`, `test-hooks`, `test-python-versions`, `validate`, `validate-all` |
+| docs | `build-docs`, `docs`, `fetch-inventories`, `fetch-mathjax` |
 | build | `build-package` |
 | maintain | `clean`, `upgrade-dependencies` |
 
 Which recipe runs when (a commit, a merge, work done, a release) is in
-[the tiers' table](testing.md#two-tiers). `just fmt` and its two parts are
+[the tiers' table](testing.md). `just fmt` and its two parts are
 the only recipes that reformat your files.
 
 When a composite recipe fails, `just` names the recipe that failed: run that
