@@ -43,7 +43,7 @@ def make_project(root):
     )
 
 
-def run_affected(root, recipe="test"):
+def run_affected(root, recipe="affected"):
     """Run the recipe on the scratch project, pytest from this environment."""
     return subprocess.run(
         [
@@ -213,7 +213,7 @@ def test_a_module_that_does_not_parse_counts_by_its_bytes(tmp_path):
 
 
 @pytest.mark.parametrize(
-    ("marker", "recipe"), [("slow", "test-rest"), ("serial", "test")]
+    ("marker", "recipe"), [("slow", "test-rest"), ("serial", "affected")]
 )
 def test_a_test_another_pass_runs_reruns_when_its_code_changes(
     tmp_path, marker, recipe
@@ -228,11 +228,11 @@ def test_a_test_another_pass_runs_reruns_when_its_code_changes(
         f"@pytest.mark.{marker}\ndef test_marked():\n    assert one() >= 1\n"
     )
     for _ in range(2):
-        for each in ("test", "test-rest"):
+        for each in ("affected", "test-rest"):
             done = run_affected(tmp_path, each)
             assert done.returncode == 0, done.stdout + done.stderr
     (tests / "a.py").write_text("def one():\n    return 1 + 1\n")
-    second = run_affected(tmp_path, "test")
+    second = run_affected(tmp_path, "affected")
     if recipe == "test-rest":
         second = run_affected(tmp_path, recipe)
     assert "1 passed" in second.stdout, second.stdout

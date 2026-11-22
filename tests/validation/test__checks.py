@@ -1,8 +1,10 @@
 """Each check's record: the digest of its inputs when it passed, and its reruns."""
 
 import json
+import platform
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -19,6 +21,8 @@ if sys.argv[1] == "edit":
         source.write("# edited while the check ran\\n")
 if (here / "fail").exists():
     sys.exit(1)
+if (here / "code").exists():
+    sys.exit(int((here / "code").read_text()))
 """
 
 
@@ -48,6 +52,20 @@ def _table(tool):
                 Step((*command, "py"), files=("*.py",)),
                 Step((*command, "md"), files=("*.md",)),
             ),
+            per_file=True,
+        ),
+        "allowed": Task(
+            name="allowed",
+            inputs=("src",),
+            config=("settings.toml",),
+            steps=(Step((*command, "allowed"), ok=(0, 5)),),
+            per_file=False,
+        ),
+        "none": Task(
+            name="none",
+            inputs=("*.rst",),
+            config=("settings.toml",),
+            steps=(Step((*command, "rst")),),
             per_file=True,
         ),
     }
@@ -178,7 +196,7 @@ def test_a_per_file_task_checks_only_the_changed_files(scratch, capsys):
     assert run("lint", scratch) == 0
     assert _calls(scratch) == [["py", "src/a.py", "src/b.py"], ["md", "notes.md"]]
     (scratch / "src" / "a.py").write_text("a = 10\n")
-    assert changed_files(_checks.TASKS["lint"], scratch) == [_checks.Path("src/a.py")]
+    assert changed_files(_checks.TASKS["lint"], scratch) == [Path("src/a.py")]
     assert run("lint", scratch) == 0
     assert _calls(scratch) == [["py", "src/a.py"]]
     assert run("lint", scratch) == 0
@@ -262,8 +280,7 @@ def test_records_are_kept_twenty_and_replaced_atomically(scratch, monkeypatch):
     assert records[-1]["digest"] == digest(_checks.TASKS["whole"], scratch)
     assert len(moves) == 25
     assert all(
-        _checks.Path(s).parent == directory and t == directory / "whole.json"
-        for s, t in moves
+        Path(s).parent == directory and t == directory / "whole.json" for s, t in moves
     )
     assert sorted(p.name for p in directory.iterdir()) == ["whole.json"]
     assert directory.parent == (scratch / ".git").resolve()
@@ -277,3 +294,116 @@ def test_the_command_line_runs_a_task(scratch, monkeypatch, capsys):
     assert _checks.cli(["whole", "--all"]) == 0
     assert _calls(scratch) == [["whole"], ["whole"]]
     assert "whole: unchanged since a passed run" in capsys.readouterr().out
+
+
+def test_a_failing_step_does_not_hide_the_others(scratch):
+    """Every step runs, and the task returns the first failure's exit code."""
+    (scratch.parent / "fail").touch()
+    assert run("lint", scratch) == 1
+    assert _calls(scratch) == [["py", "src/a.py", "src/b.py"], ["md", "notes.md"]]
+
+
+def test_an_exit_code_a_step_allows_is_a_pass(scratch):
+    """A step's allowed exit (pytest's 5, no test collected) passes and records."""
+    (scratch.parent / "code").write_text("5")
+    assert run("allowed", scratch) == 0
+    assert _calls(scratch) == [["allowed"]]
+    assert run("allowed", scratch) == 0
+    assert _calls(scratch) == []
+    (scratch.parent / "code").write_text("3")
+    (scratch / "src" / "a.py").write_text("a = 10\n")
+    assert run("allowed", scratch) == 3
+
+
+def test_everything_on_a_task_with_no_files_says_so(scratch, capsys):
+    """``--all`` with no input file runs nothing and claims no passed run."""
+    assert run("none", scratch, everything=True) == 0
+    assert _calls(scratch) == []
+    out = capsys.readouterr().out
+    assert "none: no files to check" in out
+    assert "unchanged" not in out
+
+
+@pytest.mark.parametrize("content", ["{not json", "{}", "[1]", '[{"digest": 1}]'])
+def test_a_malformed_record_file_counts_as_absent(scratch, content):
+    """A record file that does not parse as records reruns the task, no crash."""
+    directory = _checks.record_dir(scratch)
+    directory.mkdir()
+    (directory / "whole.json").write_text(content)
+    assert run("whole", scratch) == 0
+    assert _calls(scratch) == [["whole"]]
+    assert run("whole", scratch) == 0
+    assert _calls(scratch) == []
+
+
+def test_an_unreadable_record_file_counts_as_absent(scratch):
+    """A record file that cannot be read reruns the task, no crash."""
+    directory = _checks.record_dir(scratch)
+    directory.mkdir()
+    path = directory / "whole.json"
+    path.write_text("[]")
+    path.chmod(0)
+    try:
+        assert _checks.load(directory, "whole") == []
+        assert run("whole", scratch) == 0
+    finally:
+        path.chmod(0o644)
+    assert _calls(scratch) == [["whole"]]
+
+
+def test_a_failed_save_leaves_no_temporary_file(scratch, monkeypatch):
+    """A write that fails leaves the records' directory as it was."""
+
+    def broken(*args, **kwargs):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(_checks.json, "dump", broken)
+    with pytest.raises(OSError, match="disk full"):
+        run("whole", scratch)
+    directory = _checks.record_dir(scratch)
+    assert list(directory.iterdir()) == []
+
+
+@pytest.mark.parametrize(
+    ("owner", "name", "value"),
+    [
+        (sys, "version", "3.99.0 (another build)"),
+        (platform, "platform", lambda: "another-os-1.0"),
+        (platform, "machine", lambda: "another-cpu"),
+    ],
+)
+def test_a_new_place_to_run_reruns_every_task(scratch, monkeypatch, owner, name, value):
+    """Another Python, platform or machine reruns a whole task and every file."""
+    run("whole", scratch)
+    run("lint", scratch)
+    _calls(scratch)
+    monkeypatch.setattr(owner, name, value)
+    assert run("whole", scratch) == 0
+    assert run("lint", scratch) == 0
+    assert _calls(scratch) == [
+        ["whole"],
+        ["py", "src/a.py", "src/b.py"],
+        ["md", "notes.md"],
+    ]
+
+
+SETTINGS = {"pyproject.toml", "uv.lock", ".python-version", "justfile"}
+
+
+def test_the_task_table_names_every_check():
+    """The table holds each check the helper records; validate keeps its own."""
+    assert set(_checks.TASKS) == {
+        "format",
+        "lint",
+        "docstrings",
+        "types",
+        "test",
+        "docs",
+    }
+    assert all(name == task.name for name, task in _checks.TASKS.items())
+
+
+def test_every_task_declares_the_settings_files():
+    """A change to the settings every tool reads reruns each task in full."""
+    for task in _checks.TASKS.values():
+        assert set(task.config) >= SETTINGS, task.name

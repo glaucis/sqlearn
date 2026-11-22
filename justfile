@@ -96,9 +96,9 @@ test-env root=".":
         uv run --locked --project "{{ justfile_directory() }}" python -I "{{ justfile_directory() }}/validation/_env.py" {{ code_dirs }}
     } | shasum -a 256 | cut -c1-16
 
-# Run the fast tests a change affects: in parallel, then the serial ones alone; tests.json is merged
+# Run the fast tests testmon finds a change affects: in parallel, then the serial ones alone; tests.json is merged
 [group('test')]
-test:
+affected:
     #!/usr/bin/env bash
     set -euo pipefail
     env=$("{{ just_executable() }}" --justfile "{{ justfile() }}" --working-directory . test-env)
@@ -156,12 +156,14 @@ test-python-versions:
 check-docstrings:
     uv run --locked numpydoc lint $(git ls-files 'src/*.py')
 
-# Compare each docstring under src/ with its signature (pydoclint); DOC111, types written in the docstring, is numpydoc's own style and is not a finding
+# Compare each docstring under src/, or in the files named, with its signature (pydoclint); DOC111, types written in the docstring, is numpydoc's own style and is not a finding
 [group('check')]
-check-docstring-args:
+[positional-arguments]
+check-docstring-args *files:
     #!/usr/bin/env bash
     set -uo pipefail
-    out=$(uv run --locked pydoclint src 2>&1)
+    [ $# -gt 0 ] || set -- src
+    out=$(uv run --locked pydoclint "$@" 2>&1)
     rc=$?
     # 0 = clean, 1 = findings; anything else is pydoclint itself failing
     if [ $rc -gt 1 ]; then printf '%s\n' "$out"; exit $rc; fi
@@ -236,11 +238,11 @@ fetch-mathjax:
     printf '%s\n' "$stamp" > "$out/.pinned"
     rm -rf "$dest" && mv "$out" "$dest"
 
-# Build the site, then run the doctests, warnings as errors
+# Build the site, then run the doctests, warnings as errors; every page is read again (--fresh-env), since an incremental build repeats no warning of a page it did not reread
 [group('docs')]
 build-docs: fetch-mathjax
-    uv run --locked sphinx-build -W --keep-going -b html docs docs/_build/html
-    uv run --locked sphinx-build -W --keep-going -b doctest docs docs/_build/doctest
+    uv run --locked sphinx-build -W --keep-going --fresh-env -b html docs docs/_build/html
+    uv run --locked sphinx-build -W --keep-going --fresh-env -b doctest docs docs/_build/doctest
 
 # Remove build output, the matrix environments and tool caches
 [group('maintain')]
@@ -320,10 +322,43 @@ validate:
 validate-all:
     uv run --locked python -m validation --all
 
+# How a task runs only when its inputs changed (the tasks' tests set it on a scratch repository)
+checks := "uv run --locked python -m validation._checks"
+
+# Check the formatting of the Python and Markdown files changed since a passed run
+[group('check')]
+format:
+    {{ checks }} format
+
+# Lint the Python, the spelling and the Markdown of the files changed since a passed run
+[group('check')]
+lint:
+    {{ checks }} lint
+
+# Validate the docstrings of the files under src/ changed since a passed run (numpydoc, pydoclint)
+[group('check')]
+docstrings:
+    {{ checks }} docstrings
+
+# Type-check with ty, then mypy strict, when a Python file changed since a passed run
+[group('check')]
+types:
+    {{ checks }} types
+
+# Run the tests when what they read changed since a passed run: the fast ones in parallel, the serial ones, the slow tier, the hooks; tests.json is merged
+[group('test')]
+test:
+    {{ checks }} test
+
+# Build the site and run its doctests when docs/, src/ or examples/ changed since a passed run
+[group('docs')]
+docs:
+    {{ checks }} docs
+
 # Run one check all through, whatever its record says, and record its pass (validation/_checks.py)
 [group('check')]
 full task:
-    uv run --locked python -m validation._checks "{{ task }}" --all
+    {{ checks }} "{{ task }}" --all
 
 # Print the tree of HEAD when only undeclared Markdown files and the checks' outputs differ from it, and nothing otherwise
 [group('check')]

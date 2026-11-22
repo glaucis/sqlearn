@@ -6,23 +6,29 @@ digest of its inputs and configuration has no passed record; a per-file
 task (``format``, ``lint``) gives each step the files whose own digest has
 no passed record under today's configuration, and every file once the
 configuration changed. ``everything`` runs it all regardless, and records.
+Every step runs, a failing one included, so one tool's failure hides no
+other's findings.
 
 The digest covers the tracked files and the untracked ones git does not
 ignore; a tracked file deleted from the working tree is absent from it, so
 its deletion is a change. The checks' own outputs are never inputs. The
+place a task runs in is part of its configuration: another Python, platform
+or machine reruns every task. The
 digest is taken before the run and only that one is recorded, and only
 when nothing changed while the task ran, so a file edited meanwhile is
 checked again.
 
 The records live in the git common directory, ``sqlearn-checks/``, one
 file per task, so every worktree shares them; two worktrees recording at
-once can lose a record, which costs a rerun, never a skip.
+once can lose a record, which costs a rerun, never a skip; a record file
+that cannot be read or parsed counts as absent.
 """
 
 import argparse
 import hashlib
 import json
 import os
+import platform
 import subprocess
 import sys
 import tempfile
@@ -53,10 +59,14 @@ class Step:
     files : tuple of str
         The pathspecs, within the task's inputs, this step takes; empty for
         every input.
+    ok : tuple of int
+        The exit codes that are a pass: pytest's 5, no test collected, is
+        one for a pass that selects none.
     """
 
     command: tuple[str, ...]
     files: tuple[str, ...] = ()
+    ok: tuple[int, ...] = (0,)
 
 
 @dataclass(frozen=True)
@@ -72,7 +82,7 @@ class Task:
     config : tuple of str
         The pathspecs of the settings whose change reruns all of it.
     steps : tuple of Step
-        Its commands, run in order; the first to fail stops it.
+        Its commands, run in order, each whatever the others' exit.
     per_file : bool
         Whether each file's result depends only on that file and the
         settings, so only the changed files are checked.
@@ -93,8 +103,109 @@ class Record(TypedDict):
     files: dict[str, str]
 
 
-TASKS: dict[str, Task] = {}
-"""The checks by name (filled by the per-task recipes' table)."""
+SETTINGS = ("pyproject.toml", "uv.lock", ".python-version", "justfile")
+"""The settings every task reads: the tools', the locked versions, the recipes."""
+
+PYTHON = ("*.py", "*.pyi")
+"""Every Python file, at any depth."""
+
+MARKDOWN = ("*.md",)
+"""Every Markdown file, at any depth."""
+
+TEST_INPUTS = (
+    "src",
+    "tests",
+    "validation",
+    "devdata",
+    # Files the tests read as data.
+    "docs/architecture/engine-inventory.md",
+    "docs/conf.py",
+    ".githooks",
+    "commitlint.config.mjs",
+    ":(glob)**/conftest.py",
+)
+"""What the tests import or read, so a change to any of it reruns them all."""
+
+_PYTEST_PASSES = (
+    ("-n", "auto", "-m", "not slow and not serial", "--ignore=tests/githooks"),
+    ("-p", "no:xdist", "-m", "serial and not slow", "--ignore=tests/githooks"),
+    ("-p", "no:xdist", "-m", "slow", "--ignore=tests/githooks"),
+    ("-n", "auto", "-m", "", "tests/githooks"),
+)
+"""The fast tests in parallel, the serial ones alone, the slow tier, the hooks."""
+
+
+def _table() -> dict[str, Task]:
+    """Return the checks by name; the tools are those of the environment.
+
+    ``validate`` is not among them: its runners keep records of their own
+    (``python -m validation``).
+    """
+    tasks = (
+        Task(
+            name="format",
+            inputs=(*PYTHON, *MARKDOWN),
+            config=SETTINGS,
+            steps=(
+                Step(("ruff", "format", "--check", "--force-exclude"), PYTHON),
+                # rumdl applies its configured excludes to named files itself.
+                Step(("rumdl", "fmt", "--check"), MARKDOWN),
+            ),
+            per_file=True,
+        ),
+        Task(
+            name="lint",
+            # typos reads every file; ruff and rumdl their own kinds.
+            inputs=(".",),
+            config=SETTINGS,
+            steps=(
+                Step(("ruff", "check", "--force-exclude"), PYTHON),
+                Step(("typos", "--force-exclude")),
+                Step(("rumdl", "check"), MARKDOWN),
+            ),
+            per_file=True,
+        ),
+        Task(
+            name="docstrings",
+            inputs=("src/*.py",),
+            config=SETTINGS,
+            steps=(
+                Step(("numpydoc", "lint")),
+                # pydoclint through its filter, which drops DOC111.
+                Step(("just", "check-docstring-args")),
+            ),
+            per_file=True,
+        ),
+        Task(
+            name="types",
+            inputs=PYTHON,
+            config=SETTINGS,
+            steps=(Step(("ty", "check")), Step(("mypy",))),
+            per_file=False,
+        ),
+        Task(
+            name="test",
+            inputs=TEST_INPUTS,
+            config=SETTINGS,
+            steps=tuple(
+                Step(("pytest", "-p", "validation._tests_report", *p), ok=(0, 5))
+                for p in _PYTEST_PASSES
+            ),
+            per_file=False,
+        ),
+        Task(
+            name="docs",
+            inputs=("docs", "src", "examples"),
+            config=SETTINGS,
+            steps=(Step(("just", "build-docs")),),
+            per_file=False,
+        ),
+    )
+    return {t.name: t for t in tasks}
+
+
+TASKS: dict[str, Task] = _table()
+"""The checks by name, ``just <name>`` each."""
 
 
 def _listed(pathspecs: Sequence[str], root: Path) -> list[str]:
@@ -126,9 +237,17 @@ def _hashes(names: Sequence[str], root: Path) -> dict[str, str]:
     return {n: hashlib.sha256((root / n).read_bytes()).hexdigest() for n in names}
 
 
+def _place() -> bytes:
+    """Return what names the place a task runs in: Python, platform, machine."""
+    return "\0".join((sys.version, platform.platform(), platform.machine())).encode()
+
+
 def _combined(names: Sequence[str], root: Path) -> str:
-    """Return the SHA-256 of each file's path, a NUL, its bytes, a NUL, sorted."""
-    sha = hashlib.sha256()
+    """Return the SHA-256 of the place, then each file's path and bytes, sorted.
+
+    The place leads, then each file's path, a NUL, its bytes, a NUL.
+    """
+    sha = hashlib.sha256(_place() + b"\0")
     for name in sorted(names):
         sha.update(name.encode() + b"\0" + (root / name).read_bytes() + b"\0")
     return sha.hexdigest()
@@ -147,7 +266,8 @@ def digest(task: Task, root: Path) -> str:
     Returns
     -------
     str
-        The hex digest of every file under its inputs and configuration.
+        The hex digest of the place it runs in and every file under its
+        inputs and configuration.
     """
     return _combined(
         sorted({*_listed(task.inputs, root), *_listed(task.config, root)}), root
@@ -155,7 +275,7 @@ def digest(task: Task, root: Path) -> str:
 
 
 def _config(task: Task, root: Path) -> str:
-    """Return the SHA-256 of `task`'s configuration alone."""
+    """Return the SHA-256 of the place and `task`'s configuration, no input."""
     return _combined(_listed(task.config, root), root)
 
 
@@ -182,26 +302,51 @@ def record_dir(root: Path) -> Path:
     return (root / common).resolve() / "sqlearn-checks"
 
 
+def _is_record(value: object) -> bool:
+    """Return whether `value` has a record's shape, as JSON gives it."""
+    return (
+        isinstance(value, dict)
+        and isinstance(value.get("digest"), str)
+        and isinstance(value.get("config"), str)
+        and isinstance(value.get("files"), dict)
+        and all(
+            isinstance(k, str) and isinstance(v, str) for k, v in value["files"].items()
+        )
+    )
+
+
 def load(directory: Path, task: str) -> list[Record]:
-    """Return `task`'s records in `directory`, oldest first; none when absent."""
+    """Return `task`'s records in `directory`, oldest first.
+
+    None when the file is absent, unreadable or not a list of records: that
+    costs a rerun, never a crash.
+    """
     path = directory / f"{task}.json"
-    if not path.is_file():
+    try:
+        records = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
         return []
-    return json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(records, list) or not all(_is_record(r) for r in records):
+        return []
+    return records
 
 
 def save(directory: Path, task: str, record: Record) -> None:
     """Add `record` to `task`'s file, keeping the newest ``KEPT``.
 
     Written to a temporary file and moved into place, so a reader (another
-    worktree's run) never sees half a file.
+    worktree's run) never sees half a file; a write that fails removes it.
     """
     directory.mkdir(parents=True, exist_ok=True)
     records = [*load(directory, task), record][-KEPT:]
     handle, temporary = tempfile.mkstemp(dir=directory, suffix=".tmp")
-    with os.fdopen(handle, "w", encoding="utf-8") as out:
-        json.dump(records, out, indent=1, sort_keys=True)
-    os.replace(temporary, directory / f"{task}.json")
+    try:
+        with os.fdopen(handle, "w", encoding="utf-8") as out:
+            json.dump(records, out, indent=1, sort_keys=True)
+        os.replace(temporary, directory / f"{task}.json")
+    except BaseException:
+        Path(temporary).unlink(missing_ok=True)
+        raise
 
 
 def _changed(task: Task, root: Path, config: str, files: dict[str, str]) -> list[Path]:
@@ -236,7 +381,12 @@ def changed_files(task: Task, root: Path) -> list[Path]:
 
 
 def _run_steps(task: Task, root: Path, files: list[Path] | None) -> int:
-    """Run `task`'s steps in order, each given its share of `files` when set."""
+    """Run every step of `task`, each given its share of `files` when set.
+
+    Returns the first failing step's exit code, else 0: a failure does not
+    stop the steps after it, so their findings show too.
+    """
+    first = 0
     for step in task.steps:
         argv = list(step.command)
         if files is not None:
@@ -246,9 +396,9 @@ def _run_steps(task: Task, root: Path, files: list[Path] | None) -> int:
                 continue
             argv += mine
         code = subprocess.run(argv, cwd=root, check=False).returncode
-        if code != 0:
-            return code
-    return 0
+        if code not in step.ok and first == 0:
+            first = code
+    return first
 
 
 def run(task_name: str, root: Path, *, everything: bool = False) -> int:
@@ -266,7 +416,7 @@ def run(task_name: str, root: Path, *, everything: bool = False) -> int:
     Returns
     -------
     int
-        The exit code of the first step to fail, else 0.
+        The exit code of the first step to fail, else 0; every step runs.
     """
     task = TASKS[task_name]
     root = root.resolve()
@@ -274,6 +424,9 @@ def run(task_name: str, root: Path, *, everything: bool = False) -> int:
     config = _config(task, root)
     files = _hashes(_listed(task.inputs, root), root)
     directory = record_dir(root)
+    if task.per_file and not files:
+        print(f"{task.name}: no files to check", flush=True)  # noqa: T201
+        return 0
     if task.per_file:
         todo = (
             sorted(files)
