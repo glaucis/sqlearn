@@ -29,13 +29,32 @@ not declared.
 
 | Recipe | What it runs |
 |---|---|
-| `just test` | the fast tests, with coverage, without `tests/githooks` |
-| `just test-all` | every test, the slow ones included, with coverage |
+| `just test` | the fast tests a change affects, in parallel, without coverage, without `tests/githooks` |
+| `just test-all` | every test, the slow ones included, with coverage and the floor |
+| `just test-env` | 16 hex digits naming the declared dependencies below |
 | `just test-python-versions` | the tests, slow ones included, on each Python in the matrix |
 | `just test-hooks` | the hook tests alone |
 
 `just test` is every agent's to run before a commit; `just verify` runs the
 rest.
+
+### Affected tests
+
+`just test` uses pytest-testmon: it records which lines each test runs, and
+reruns only the tests whose lines changed. pytest-xdist runs them in parallel
+(`-n auto`). A run that selects nothing succeeds. The data is in
+`.testmondata*`, which git ignores.
+
+testmon sees only Python it traces, so `just test-env` hashes the files that
+change a result without being traced, and testmon reruns every test when the
+hash changes. Each is declared for a reason:
+
+- `uv.lock`, `.python-version`: the installed libraries and the interpreter.
+- `pyproject.toml`, `justfile`: the test settings and the flags.
+- every `conftest.py`: fixtures reach every test beneath them.
+- every file under `devdata/data/`: tests read it as data.
+
+`--testmon-forceselect` keeps the selection on despite `-m "not slow"`.
 
 ## The hook tests
 
@@ -48,6 +67,9 @@ commitlint and are skipped, with a reason, where it is not installed.
 `just test-hooks` runs them, and `just verify` includes it.
 
 ## Coverage
+
+`just test` does not measure coverage: testmon refuses to run beside it. `just
+test-all` does.
 
 Coverage is reported, with missing lines shown and branches measured over
 `sqlearn`. There is no floor yet: the core spec sets it, measured on the full

@@ -41,6 +41,8 @@ test = [
     "pyarrow>=26.0.1",
     "pytest>=9.2.0",
     "pytest-cov>=7.1.0",
+    "pytest-testmon>=2.3.1",
+    "pytest-xdist>=3.8.0",
     "scikit-learn>=1.9.1",
 ]
 lint = ["mypy>=2.4.1", "ruff>=0.17.3", "rumdl>=0.3.2", "ty>=0.0.96", "typos>=1.51.1"]

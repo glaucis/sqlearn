@@ -27,3 +27,4 @@ docs/_static/.mathjax.*
 htmlcov/
 # Notebooks are generated; lessons are stored as text
 *.ipynb
+.testmondata*

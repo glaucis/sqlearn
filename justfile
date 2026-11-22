@@ -64,10 +64,34 @@ check-spelling:
 check-lockfile:
     uv lock --check
 
-# Run the fast tests with coverage
+# The flags that select the tests a change affects, and run them in parallel
+affected := "--testmon --testmon-forceselect -n auto"
+
+# Print 16 hex digits: the SHA-256 of the files a test run depends on besides code
+[group('test')]
+test-env root=".":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd "{{ root }}"
+    {
+        printf '%s\n' uv.lock .python-version pyproject.toml justfile
+        find . -mindepth 1 \( -name '.*' -o -name node_modules \) -prune -o -name conftest.py -print | sed 's|^\./||'
+        find devdata/data -type f 2>/dev/null || true
+    } | LC_ALL=C sort -u | while IFS= read -r f; do
+        [ -f "$f" ] && cat "$f"
+        true
+    done | shasum -a 256 | cut -c1-16
+
+# Run the fast tests a change affects, in parallel, without coverage
 [group('test')]
 test:
-    uv run --locked pytest --cov --ignore=tests/githooks
+    #!/usr/bin/env bash
+    set -euo pipefail
+    rc=0
+    uv run --locked pytest {{ affected }} --testmon-env="'$(just test-env)'" --ignore=tests/githooks || rc=$?
+    # 5 means the change affected no test: nothing to run is success
+    [ "$rc" -eq 5 ] && exit 0
+    exit "$rc"
 
 # Run the hook tests
 [group('test')]
