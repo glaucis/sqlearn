@@ -1,9 +1,11 @@
 {
+  "blas": "accelerate",
   "duckdb": "2.0.0",
   "machine": "arm64",
   "mpmath": "1.4.1",
   "numpy": "2.5.4",
   "os": "Darwin",
+  "os_release": "27.2.1",
   "pandas": "3.1.0",
   "python": "3.12.13",
   "scikit-learn": "1.9.1",

@@ -553,8 +553,12 @@ def environment() -> dict:
     sqlearn's version comes from git (hatch-vcs) and changes with every
     commit, so only its release part is kept (``0.1``, not ``0.1.dev5+g…``):
     the file changes when a release or a library changes, not each commit.
+    The OS release and numpy's BLAS are kept because an OS update can change
+    the BLAS (Accelerate ships with macOS) and with it the last digits of
+    numpy's linear algebra.
     """
     release = version("sqlearn").split(".dev")[0].split("+")[0]
+    blas = np.show_config(mode="dicts")["Build Dependencies"]["blas"]["name"]
     return {
         "sqlearn": ".".join(release.split(".")[:2]),
         "duckdb": version("duckdb"),
@@ -564,5 +568,7 @@ def environment() -> dict:
         "mpmath": version("mpmath"),
         "python": ".".join(str(v) for v in sys.version_info[:3]),
         "os": platform.system(),
+        "os_release": platform.mac_ver()[0] or platform.release(),
         "machine": platform.machine(),
+        "blas": blas,
     }

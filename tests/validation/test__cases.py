@@ -1,9 +1,11 @@
 """The validation's shared pieces: error measures, judging, datasets, JSON."""
 
 import math
+import platform
 from fractions import Fraction
 
 import mpmath
+import numpy as np
 
 from validation import _cases
 
@@ -148,3 +150,12 @@ def test_json_is_byte_identical_across_runs(tmp_path):
     assert text.endswith("}\n")
     assert '"NaN"' in text and '"Infinity"' in text and '"-Infinity"' in text
     assert text.index('"a"') < text.index('"b"')
+
+
+def test_the_environment_names_the_os_release_and_numpys_blas():
+    """An OS update can change numpy's linear algebra, so both are recorded."""
+    env = _cases.environment()
+    blas = np.show_config(mode="dicts")["Build Dependencies"]["blas"]["name"]
+    release = platform.mac_ver()[0] or platform.release()
+    assert env["os_release"] == release
+    assert env["blas"] == blas

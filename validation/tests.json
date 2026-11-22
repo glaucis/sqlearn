@@ -6488,6 +6488,18 @@
     },
     {
       "area": "sqlearn/explore/profile",
+      "name": "tests/src/sqlearn/explore/test_profile.py::test_deviations_that_overflow_leave_their_statistics_null[values2-nulls2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/explore/profile",
+      "name": "tests/src/sqlearn/explore/test_profile.py::test_deviations_that_overflow_leave_their_statistics_null[values3-nulls3]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/explore/profile",
       "name": "tests/src/sqlearn/explore/test_profile.py::test_exact_false_says_so",
       "outcome": "passed",
       "tier": "fast"
@@ -16658,6 +16670,30 @@
     },
     {
       "area": "sqlearn/_inputs",
+      "name": "tests/src/sqlearn/test__inputs.py::test_a_connection_busy_with_the_users_result_is_refused_with_a_fix[file]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_inputs",
+      "name": "tests/src/sqlearn/test__inputs.py::test_a_connection_busy_with_the_users_result_is_refused_with_a_fix[frame]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_inputs",
+      "name": "tests/src/sqlearn/test__inputs.py::test_a_connection_busy_with_the_users_result_is_refused_with_a_fix[relation]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_inputs",
+      "name": "tests/src/sqlearn/test__inputs.py::test_a_connection_busy_with_the_users_result_is_refused_with_a_fix[table]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_inputs",
       "name": "tests/src/sqlearn/test__inputs.py::test_a_connection_token_is_never_given_twice",
       "outcome": "passed",
       "tier": "fast"
@@ -19299,6 +19335,12 @@
     {
       "area": "validation/_cases",
       "name": "tests/validation/test__cases.py::test_nearest_rounds_the_exact_value_to_a_double",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_cases",
+      "name": "tests/validation/test__cases.py::test_the_environment_names_the_os_release_and_numpys_blas",
       "outcome": "passed",
       "tier": "fast"
     },
