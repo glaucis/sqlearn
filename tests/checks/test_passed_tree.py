@@ -131,3 +131,28 @@ def test_a_fast_forward_to_a_passed_tree_runs_nothing(tmp_path):
         (repo / "calls.log").unlink()
         assert "already passed" in just(repo, "done", env=env)
         assert calls(repo) == []
+
+
+def test_a_rewritten_results_file_keeps_the_tree_checkable(tmp_path):
+    """done remembers the tree when the checks rewrote only their own outputs."""
+    repo, env = make_repo(tmp_path)
+    (repo / "validation" / "sqlearn").mkdir(parents=True)
+    for name in ("sqlearn/x.results.json", "tests.json", "environment.json"):
+        (repo / "validation" / name).write_text("{}\n")
+    git(repo, "add", "-A", env=env)
+    git(repo, "commit", "-m", "chore: outputs", env=env)
+    tree = git(repo, "rev-parse", "HEAD^{tree}", env=env)
+    (repo / "justfile").write_text(
+        OVERRIDES.replace(
+            "@echo validate >> calls.log",
+            "@echo validate >> calls.log\n"
+            "    @echo '{\"n\": 1}' > validation/sqlearn/x.results.json\n"
+            "    @echo '{\"n\": 1}' > validation/tests.json\n"
+            "    @echo '{\"n\": 1}' > validation/environment.json\n"
+            "    @echo '{}' > validation/sqlearn/new.results.json",
+        )
+    )
+    git(repo, "commit", "-qam", "chore: rewrite", env=env)
+    tree = git(repo, "rev-parse", "HEAD^{tree}", env=env)
+    just(repo, "done", env=env)
+    assert passed(repo, env) == [tree]

@@ -51,6 +51,11 @@ common directory (the 50 newest, shared by worktrees). A tree that differs
 from `HEAD` only in Markdown still counts, so a fast-forward or a `--no-ff`
 merge of a passed tree runs nothing.
 
+`just checkable-tree` also ignores the files the checks write:
+`validation/**/*.results.json`, `validation/tests.json` and
+`validation/environment.json`. They are outputs of `validate` and `test`, not
+inputs, so a run that rewrites them leaves the tree it checked still HEAD's.
+
 ### Affected tests
 
 `just test` uses pytest-testmon: it records which lines each test runs, and

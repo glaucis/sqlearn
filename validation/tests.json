@@ -85,6 +85,12 @@
       "tier": "fast"
     },
     {
+      "area": "checks/passed_tree",
+      "name": "tests/checks/test_passed_tree.py::test_a_rewritten_results_file_keeps_the_tree_checkable",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
       "area": "devdata/_random",
       "name": "tests/devdata/test__random.py::test_a_row_source_gives_the_rows_of_range",
       "outcome": "passed",

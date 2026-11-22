@@ -255,13 +255,15 @@ validate:
 validate-all:
     uv run --locked python -m validation --all
 
-# Print the tree of HEAD when only Markdown files differ from it, and nothing otherwise
+# Print the tree of HEAD when only Markdown files and the checks' outputs differ from it, and nothing otherwise
 [group('check')]
 checkable-tree:
     #!/usr/bin/env bash
     set -euo pipefail
-    if git diff --quiet HEAD -- . ':(exclude)*.md' &&
-        [ -z "$(git ls-files --others --exclude-standard -- . ':(exclude)*.md')" ]; then
+    # Markdown and the checks' own outputs are not inputs: they may differ from HEAD
+    skip=(':(exclude)*.md' ':(exclude,glob)validation/**/*.results.json' ':(exclude)validation/tests.json' ':(exclude)validation/environment.json')
+    if git diff --quiet HEAD -- . "${skip[@]}" &&
+        [ -z "$(git ls-files --others --exclude-standard -- . "${skip[@]}")" ]; then
         git rev-parse 'HEAD^{tree}'
     fi
 
