@@ -44,8 +44,8 @@ Two rhythms:
 - **Every commit.** `just fmt`, then `just check` and `just test`. `just fmt`
   and its two parts are the only recipes that reformat your files.
 - **Review, merge and release.** `just verify` runs `check`, mypy, the tests
-  on every Python in the matrix, the hook tests, the docstring validation and
-  the docs build.
+  on every Python in the matrix, the hook tests, the docstring validation, every
+  validation runner and the docs build.
 
 When a composite recipe fails, `just` names the recipe that failed: run that
 one alone.
