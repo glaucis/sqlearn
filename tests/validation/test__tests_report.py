@@ -137,3 +137,17 @@ def test_a_parallel_run_writes_the_same_entries_as_a_serial_one(tmp_path):
         outcomes.append((project / "validation" / "tests.json").read_text())
     assert outcomes[0] == outcomes[1]
     assert '"failed"' in outcomes[0]
+
+
+def test_loading_the_report_plugin_leaves_sqlearn_unimported():
+    """Loading the plugin imports neither sqlearn nor duckdb, so coverage sees them."""
+    code = (
+        "import sys\n"
+        "import validation._tests_report\n"
+        "assert 'sqlearn' not in sys.modules\n"
+        "assert 'duckdb' not in sys.modules\n"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True, check=False
+    )
+    assert result.returncode == 0, result.stderr

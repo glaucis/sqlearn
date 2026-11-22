@@ -12,8 +12,6 @@ from pathlib import Path
 
 import pytest
 
-from validation import _cases
-
 _RESULTS: dict[str, dict[str, str]] = {}
 _COLLECTED: set[str] = set()
 
@@ -105,6 +103,9 @@ def pytest_sessionfinish(session: pytest.Session) -> None:
     """
     if hasattr(session.config, "workerinput") or not _RESULTS:
         return
+    # Local: _cases imports sqlearn, which must load after coverage starts.
+    from validation import _cases
+
     root = Path(session.config.rootpath)
     path = root / "validation" / "tests.json"
     old = json.loads(path.read_text())["tests"] if path.exists() else []
