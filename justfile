@@ -320,6 +320,11 @@ validate:
 validate-all:
     uv run --locked python -m validation --all
 
+# Run one check all through, whatever its record says, and record its pass (validation/_checks.py)
+[group('check')]
+full task:
+    uv run --locked python -m validation._checks "{{ task }}" --all
+
 # Print the tree of HEAD when only undeclared Markdown files and the checks' outputs differ from it, and nothing otherwise
 [group('check')]
 checkable-tree:
