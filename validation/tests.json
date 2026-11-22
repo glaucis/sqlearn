@@ -26,6 +26,12 @@
     },
     {
       "area": "checks/affected",
+      "name": "tests/checks/test_affected.py::test_a_new_commit_alone_reruns_nothing",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/affected",
       "name": "tests/checks/test_affected.py::test_a_new_empty_conftest_changes_test_env",
       "outcome": "passed",
       "tier": "fast"
