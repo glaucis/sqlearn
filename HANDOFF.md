@@ -3,56 +3,20 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-21 · Branch: `read-busy-connection` (worktree
-`../sqlearn-76`, on `main`'s `b135f1b`) · Last commit: `7d44141` docs: tests
-rerun only when what they depend on changed · Checks: on the branch `just
-check` and `just test` passing (3193 passed); `just verify` on `main` at
-`b135f1b` passed every step up to the validation, then stopped by the agent
-before a reboot
+Updated: 2026-11-22 · Branch: `main` (the branch `read-busy-connection`
+merged and removed) · Checks: `just verify` passed on the branch before the
+merge (exit 0, no failures; macOS 27.2.1, load 3 to 9)
 Verify with: `just verify`
 
 ## In progress
 
-- [verified] `just verify` on `main` (`b135f1b`, the `profile` fix) was
-  stopped by the agent, at Tomas's request before a reboot, during `python
-  -m validation`. No result file was half-written; only
-  `validation/tests.json` changed, from the finished test step (left
-  uncommitted). Do not rerun it on `main`: the branch below contains
-  `b135f1b`, and #76 changed `read`, which every runner goes through, so one
-  `just verify` on the branch covers both (Tomas, 2026-11-21). Discard
-  `main`'s `tests.json` change (`git checkout validation/tests.json`) and
-  leave the docs tagger's frontmatter edits (about 20 docs) out of commits.
-- [verified] The branch `read-busy-connection` holds #76's fix
-  (`52e17d3`), #75's deferral (`1ec69e4`), spec §4's change (`7d44141`) and the
-  Phase 1 spec draft. Next: `just verify` on it (about an hour), commit its
-  `tests.json`, merge it into `main` (both hold the same `HANDOFF.md`, so no
-  conflict), close #76 (github-pm), push, remove
-  the worktree and branch.
-- [verified] Phase 1's spec, `docs/specs/native-engine-phase-1.md`, drafted
-  with Tomas and checked by a builder subagent (its 11 questions answered in
-  the text, the agent's calls marked). Waits on his approval below; then
-  superpowers:writing-plans for step 1 (the checks).
+- Nothing. Phase 1's spec is approved (Tomas, 2026-11-21); its step 1 is
+  next.
 
 ## Waiting on the user
 
-- Approve the Phase 1 spec, or say what to change. Check the calls marked
-  "(the agent's call)" in it. (since 2026-11-21)
-- The C++ standard: recommended C++23 now (`std::expected`, `std::mdspan`),
-  C++26 by ADR when all three compilers have the features wanted
-  (reflection, contracts, `std::linalg`). A probe of the feature macros
-  (`__cpp_impl_reflection`, `__cpp_contracts`, `__cpp_lib_linalg`, ...)
-  under `-std=c++26` on Apple clang 21 (SDK 27.0) found only saturation
-  arithmetic; rerun it after any Xcode update. Then add to the spec: the
-  standard, clangd as the agent's language server (step 2), CodeGraph
-  indexing `engine/` only, not DuckDB (indexing is Tomas's decision).
-  (since 2026-11-21)
 - The CLion MCP stays (its debugger, for step 2 on); no other tool or skill
   needed. Told Tomas; nothing to do.
-- macOS: the Mac is on 26.6.1 and offered nothing since 2026-08-07, though
-  Apple lists 27.2.1 and 26.7.3 for its board (J615); not managed, no
-  deferral, servers reachable, disk fine; `softwareupdate --list` hung.
-  Tomas is upgrading; if Software Update stays empty, `sudo killall
-  softwareupdated` or a restart. (since 2026-11-21)
 - Benchmarks run on a loaded machine, to rerun on a quiet one if wanted:
   `generators-on-many-threads.md` (#46), `gram-batches.md`, both
   `explore-*.md` pages (load up to 145) and `engine-profile.md` (load 10 to
@@ -60,9 +24,10 @@ Verify with: `just verify`
 
 ## Next up
 
-- Phase 1, once its spec is approved: step 1 (the checks: testmon, xdist,
-  recorded validation, the passed-tree record) on today's Python, then the
-  build, the workflows and the site (#4, #6), the review (spec §3.7).
+- Phase 1 step 1 (the checks: testmon, xdist, recorded validation, the
+  passed-tree record) on today's Python: its plan first, with
+  superpowers:writing-plans; then the build, the workflows and the site
+  (#4, #6), the review (spec §3.7).
 - After the port (Phases 1–4): the rest of 3.6 (spec §8: target panel,
   outliers, normality, Kendall, sampling, time series), then the
   application; 3.3 candidates: text features, more preprocessing, truncated
@@ -75,9 +40,24 @@ Verify with: `just verify`
 
 ## Dead ends and traps
 
+- An OS update can change Accelerate, numpy's BLAS, and with it the last
+  digits of `eigh`: macOS 27.2.1 failed three PCA bounds by a hair, the same
+  on every run and on `main` alike; the bounds were loosened with their
+  reason. `environment.json` now records `os_release` and `blas`. A failure
+  that repeats exactly is not summation order: check the environment.
+  `validation.__main__.main` takes `validation/` as its root (`ROOT`),
+  never `.`. `just verify > log; echo EXIT=$?` keeps `just`'s exit only
+  when saved first (`rc=$?`). (2026-11-22)
+
 - Medium refuses the web-fetch agent (403): ask Tomas to paste the text.
   On Apple clang, `-std=c++26` is accepted with almost no C++26 inside:
   test a feature by its `__cpp_*` macro, never by the flag. (2026-11-21)
+- Apple clang has no libFuzzer runtime (`libclang_rt.fuzzer_osx.a` not
+  found) and refuses `detect_leaks` on Apple silicon: Homebrew LLVM
+  (`/opt/homebrew/opt/llvm`) has both; build with `-isysroot $(xcrun
+  --show-sdk-path)`. LLVM 23 lists `-freflection` but the driver ignores
+  it. In zsh, `$flags` holding several flags is one word: use `eval` or an
+  array. (2026-11-21)
 
 - Subagents writing ADRs invent reasons and attribute them to Tomas unless
   told "no reason the spec does not give"; they leave `pgrep -f` wait loops
@@ -199,6 +179,19 @@ Verify with: `just verify`
   (2026-11-06)
 
 ## Just finished
+
+- The branch `read-busy-connection` merged into `main`: #76's fix (closed),
+  #75's deferral, spec §4, the approved Phase 1 spec, PCA's bounds after
+  the macOS upgrade, `environment.json`'s OS release and BLAS.
+  (2026-11-22)
+
+- The C++ standard and compilers: C++23 for now (Tomas), C++26 by ADR once
+  Apple clang has reflection and contracts; each compiler's job; LeakSanitizer
+  and libFuzzer from Homebrew LLVM; written into the Phase 1 spec, §3.8. The
+  probe on macOS 27.2.1: Apple clang 21 and LLVM 23.1.6 have neither
+  reflection nor contracts, GCC 16.2 has both, experimental; none has
+  `std::linalg`. CodeGraph: a root `codegraph.json` in step 2 excludes the
+  DuckDB submodules, for this project only (Tomas). (2026-11-21)
 
 - The `profile` fix (`b135f1b`, on `main`, not pushed): skewness and
   kurtosis divide each sum by its power of the variance first, so `[0, 0,

@@ -517,6 +517,28 @@ def _read_relation(data: duckdb.DuckDBPyRelation) -> Source:
     return source
 
 
+def _refuse_busy() -> None:
+    """Refuse a connection holding the user's unfinished `execute` result.
+
+    DuckDB refuses every other statement on it until that result is fetched
+    or ended, and keeps the result. A relation or file is read lazily, so
+    without this probe the refusal would come raw from a later statement.
+    """
+    try:
+        connection().sql("SELECT 1").fetchall()
+    except duckdb.ResourceInUseException as exc:
+        msg = (
+            "sqlearn's connection has an unfinished result from execute(), "
+            "so sqlearn cannot run its queries on it. Why: DuckDB runs one "
+            "statement at a time on a connection and refuses another while "
+            "a result is still to be fetched; that result is kept. Fix: "
+            "fetch the rest of it or call abort() on the connection first, "
+            "or give sqlearn a connection of its own with "
+            "sq.set_config(connection=con.cursor())."
+        )
+        raise SqlearnError(msg) from exc
+
+
 def read(data: object, *, learning: bool = False) -> Source:
     """Read an input as a relation, keyed so the store knows when it changes.
 
@@ -541,8 +563,9 @@ def read(data: object, *, learning: bool = False) -> Source:
     ------
     SqlearnError
         If a path or glob matches nothing, a table is missing, a relation
-        belongs to another connection or cannot be read, or the input is of
-        a kind not accepted.
+        belongs to another connection or cannot be read, the connection is
+        busy with an unfinished result, or the input is of a kind not
+        accepted.
 
     Examples
     --------
@@ -552,6 +575,7 @@ def read(data: object, *, learning: bool = False) -> Source:
     >>> source.key[0], source.relation.fetchall()
     ('relation', [(1,)])
     """
+    _refuse_busy()
     _release_pending()
     if isinstance(data, duckdb.DuckDBPyRelation):
         return _read_relation(data)
