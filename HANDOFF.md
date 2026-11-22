@@ -10,11 +10,18 @@ Verify with: `just verify`
 
 ## In progress
 
-- Nothing. Phase 1's spec is approved (Tomas, 2026-11-21); its step 1 is
-  next.
+- [verified] Phase 1 step 1's plan,
+  `docs/plans/2026-11-22-native-engine-phase-1-checks.md`, written
+  (superpowers:writing-plans): six tasks (affected tests with testmon and
+  xdist, the serial pass and `tests.json` merged, validation runners
+  recorded in the git common directory, the passed tree with `just done`,
+  pydoclint, the done-when shown). Waits on Tomas's review and his choice
+  of execution method.
 
 ## Waiting on the user
 
+- Review the step 1 plan and choose subagent-driven or native execution.
+  (since 2026-11-22)
 - The CLion MCP stays (its debugger, for step 2 on); no other tool or skill
   needed. Told Tomas; nothing to do.
 - Benchmarks run on a loaded machine, to rerun on a quiet one if wanted:
