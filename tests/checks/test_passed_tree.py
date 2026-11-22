@@ -98,6 +98,27 @@ def test_a_markdown_change_keeps_the_tree_checkable(tmp_path):
     assert just(repo, "checkable-tree", env=env) == tree
 
 
+def test_an_edited_declared_markdown_file_makes_the_tree_uncheckable(tmp_path):
+    """A Markdown file a test reads as data is an input, so it must be committed."""
+    repo, env = make_repo(tmp_path)
+    inventory = repo / "docs" / "architecture" / "engine-inventory.md"
+    inventory.parent.mkdir(parents=True)
+    inventory.write_text("| `a.py` | 2 |\n")
+    git(repo, "add", "-A", env=env)
+    git(repo, "commit", "-m", "docs: inventory", env=env)
+    inventory.write_text("| `a.py` | 3 |\n")
+    assert just(repo, "checkable-tree", env=env) == ""
+
+
+def test_a_new_declared_markdown_file_makes_the_tree_uncheckable(tmp_path):
+    """An untracked declared Markdown file differs from HEAD like any input."""
+    repo, env = make_repo(tmp_path)
+    inventory = repo / "docs" / "architecture" / "engine-inventory.md"
+    inventory.parent.mkdir(parents=True)
+    inventory.write_text("| `a.py` | 2 |\n")
+    assert just(repo, "checkable-tree", env=env) == ""
+
+
 def test_a_dirty_tree_is_not_remembered(tmp_path):
     """An untracked Python file makes the tree uncheckable and not remembered."""
     repo, env = make_repo(tmp_path)

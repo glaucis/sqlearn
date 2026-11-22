@@ -67,21 +67,33 @@ check-lockfile:
 # The flags that select the tests a change affects, and run them in parallel
 affected := "--testmon --testmon-forceselect -n auto"
 
-# Print 16 hex digits: the SHA-256 of the files a test run depends on besides code
+# The files tests depend on that testmon cannot trace: a file, or every file in a folder (test-env hashes them; checkable-tree never skips them, Markdown included)
+declared := "uv.lock .python-version pyproject.toml justfile commitlint.config.mjs .githooks devdata/data docs/architecture/engine-inventory.md"
+
+# The folders whose module-level code and file paths test-env hashes (validation/_env.py)
+code_dirs := "src tests validation devdata"
+
+# Print 16 hex digits: the SHA-256 of the declared files, every conftest.py, and the module-level code under code_dirs
 [group('test')]
 test-env root=".":
     #!/usr/bin/env bash
     set -euo pipefail
     cd "{{ root }}"
     {
-        printf '%s\n' uv.lock .python-version pyproject.toml justfile
-        find . -mindepth 1 \( -name '.*' -o -name node_modules \) -prune -o -name conftest.py -print | sed 's|^\./||'
-        find devdata/data -type f 2>/dev/null || true
-    } | LC_ALL=C sort -u | while IFS= read -r f; do
-        printf '%s\0' "$f"
-        if [ -f "$f" ]; then cat "$f"; fi
-        printf '\0'
-    done | shasum -a 256 | cut -c1-16
+        {
+            for p in {{ declared }}; do
+                if [ -d "$p" ]; then find "$p" -type f; else printf '%s\n' "$p"; fi
+            done
+            find . -mindepth 1 \( -name '.*' -o -name node_modules \) -prune -o -name conftest.py -print | sed 's|^\./||'
+        } | LC_ALL=C sort -u | while IFS= read -r f; do
+            printf '%s\0' "$f"
+            if [ -f "$f" ]; then cat "$f"; fi
+            printf '\0'
+        done
+        # import-time code, which testmon never traces
+        printf 'module-level\0'
+        uv run --locked --project "{{ justfile_directory() }}" python -I "{{ justfile_directory() }}/validation/_env.py" {{ code_dirs }}
+    } | shasum -a 256 | cut -c1-16
 
 # Run the fast tests a change affects: in parallel, then the serial ones alone; tests.json is merged
 [group('test')]
@@ -270,15 +282,19 @@ validate:
 validate-all:
     uv run --locked python -m validation --all
 
-# Print the tree of HEAD when only Markdown files and the checks' outputs differ from it, and nothing otherwise
+# Print the tree of HEAD when only undeclared Markdown files and the checks' outputs differ from it, and nothing otherwise
 [group('check')]
 checkable-tree:
     #!/usr/bin/env bash
     set -euo pipefail
     # Markdown and the checks' own outputs are not inputs: they may differ from HEAD
     skip=(':(exclude)*.md' ':(exclude,glob)validation/**/*.results.json' ':(exclude)validation/tests.json' ':(exclude)validation/environment.json')
+    # a declared file is an input whatever its kind, a Markdown file a test reads included
+    declared=({{ declared }})
     if git diff --quiet HEAD -- . "${skip[@]}" &&
-        [ -z "$(git ls-files --others --exclude-standard -- . "${skip[@]}")" ]; then
+        git diff --quiet HEAD -- "${declared[@]}" &&
+        [ -z "$(git ls-files --others --exclude-standard -- . "${skip[@]}")" ] &&
+        [ -z "$(git ls-files --others --exclude-standard -- "${declared[@]}")" ]; then
         git rev-parse 'HEAD^{tree}'
     fi
 
