@@ -49,6 +49,42 @@
       "tier": "fast"
     },
     {
+      "area": "checks/passed_tree",
+      "name": "tests/checks/test_passed_tree.py::test_a_clean_tree_that_passed_is_remembered",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/passed_tree",
+      "name": "tests/checks/test_passed_tree.py::test_a_commit_during_the_checks_is_not_remembered",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/passed_tree",
+      "name": "tests/checks/test_passed_tree.py::test_a_dirty_tree_is_not_remembered",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/passed_tree",
+      "name": "tests/checks/test_passed_tree.py::test_a_fast_forward_to_a_passed_tree_runs_nothing",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/passed_tree",
+      "name": "tests/checks/test_passed_tree.py::test_a_markdown_change_keeps_the_tree_checkable",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/passed_tree",
+      "name": "tests/checks/test_passed_tree.py::test_a_remembered_tree_runs_nothing",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
       "area": "devdata/_random",
       "name": "tests/devdata/test__random.py::test_a_row_source_gives_the_rows_of_range",
       "outcome": "passed",

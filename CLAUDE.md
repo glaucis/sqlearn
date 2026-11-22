@@ -171,8 +171,11 @@ commit both of these into it, without being asked:
   yours to run before you commit. Never `--no-verify`. Run `just fmt` before
   you commit: it wraps the Markdown at 80 columns and formats the Python, and
   its two parts are the only recipes that reformat your files.
-- **Before you say any work is done, `just verify` passes**, and a reviewer's
-  verdict says whether it ran and passed.
+- **Before you say any work is done, `just done` passes.** It runs what a
+  change affects and remembers the tree that passed, so a passed tree (after a
+  fast-forward or a merge too) runs nothing again. `just verify` is the release
+  tier, run by hand before `1.0.0`. A reviewer's verdict says which ran and
+  passed.
 - **`just --list` names every recipe.** When a composite fails, `just` names
   the recipe that failed: run that one alone.
 - **The conventions are in `docs/architecture/`**: the layout, the Python

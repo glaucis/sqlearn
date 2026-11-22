@@ -102,10 +102,10 @@ test:
 test-hooks:
     uv run --locked pytest tests/githooks -m ""
 
-# Run every test with coverage
+# Run every test with coverage, and write the slow tier's entries in tests.json
 [group('test')]
 test-all:
-    uv run --locked pytest --cov -m ""
+    uv run --locked pytest --cov -m "" -p validation._tests_report
 
 # Run the package's tests on every Python in the matrix
 [group('test')]
@@ -255,6 +255,55 @@ validate:
 validate-all:
     uv run --locked python -m validation --all
 
-# Run every check, for review, merge and release
+# Print the tree of HEAD when only Markdown files differ from it, and nothing otherwise
 [group('check')]
-verify: check check-types-mypy test-python-versions test-hooks check-docstrings validate build-docs
+checkable-tree:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if git diff --quiet HEAD -- . ':(exclude)*.md' &&
+        [ -z "$(git ls-files --others --exclude-standard -- . ':(exclude)*.md')" ]; then
+        git rev-parse 'HEAD^{tree}'
+    fi
+
+# Remember a tree the checks passed on, when it is still the checkable tree
+[group('check')]
+remember-tree tree:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    before="{{ tree }}"
+    file="$(git rev-parse --git-common-dir)/sqlearn-passed"
+    if [ -z "$before" ] || [ "$before" != "$(just --justfile '{{ justfile() }}' checkable-tree)" ]; then
+        printf '\nNot remembered: a file other than Markdown differed from the last commit, or the commit changed, while the checks ran. Commit, then run this again.\n'
+        exit 0
+    fi
+    if ! grep -qx "$before" "$file" 2>/dev/null; then
+        printf '%s\n' "$before" >> "$file"
+        tail -n 50 "$file" > "$file.new" && mv "$file.new" "$file"
+    fi
+    printf '\nChecked tree %s: remembered.\n' "$before"
+
+# Run what a change affects, unless this tree already passed, and remember the tree
+[group('check')]
+done:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    j=(just --justfile '{{ justfile() }}')
+    tree="$("${j[@]}" checkable-tree)"
+    if [ -n "$tree" ] && grep -qx "$tree" "$(git rev-parse --git-common-dir)/sqlearn-passed" 2>/dev/null; then
+        echo "Tree $tree already passed: nothing to run."
+        exit 0
+    fi
+    "${j[@]}" check
+    "${j[@]}" test
+    "${j[@]}" validate
+    "${j[@]}" remember-tree "$tree"
+
+# Run every check and every test: the release tier, by hand before 1.0.0
+[group('check')]
+verify:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    j=(just --justfile '{{ justfile() }}')
+    tree="$("${j[@]}" checkable-tree)"
+    "${j[@]}" check check-types-mypy test-all test-python-versions test-hooks check-docstrings validate-all build-docs
+    "${j[@]}" remember-tree "$tree"
