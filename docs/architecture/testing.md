@@ -79,6 +79,9 @@ file counts. Each is declared for a reason:
 - every `conftest.py`: fixtures reach every test beneath them.
 - every file under `devdata/data/`: tests read it as data.
 
+sqlearn's own version is left out of testmon's environment
+(`testmon_ignore_dependencies`) because it changes with every commit.
+
 `--testmon-forceselect` keeps the selection on despite `-m "not slow"`.
 
 ### The serial pass

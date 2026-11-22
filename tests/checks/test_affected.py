@@ -3,6 +3,7 @@
 import re
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -122,3 +123,10 @@ def test_a_new_empty_conftest_changes_test_env(tmp_path):
     (tmp_path / "sub").mkdir()
     (tmp_path / "sub" / "conftest.py").write_text("")
     assert just("test-env", str(tmp_path)) != before
+
+
+def test_a_new_commit_alone_reruns_nothing():
+    """Each commit changes sqlearn's version, so testmon must ignore it or rerun all."""
+    config = tomllib.loads((REPO / "pyproject.toml").read_text())
+    ignored = config["tool"]["pytest"]["ini_options"]["testmon_ignore_dependencies"]
+    assert {"sqlearn", "pytest-testmon"} <= set(ignored)
