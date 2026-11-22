@@ -236,3 +236,74 @@ def test_a_test_another_pass_runs_reruns_when_its_code_changes(
     if recipe == "test-rest":
         second = run_affected(tmp_path, recipe)
     assert "1 passed" in second.stdout, second.stdout
+
+
+def test_an_edit_in_a_post_init_behind_a_module_level_instance_reruns_every_test(
+    tmp_path,
+):
+    """A __post_init__ a module-level instance runs at import, unseen by testmon."""
+    make_project(tmp_path)
+    tests = tmp_path / "tests"
+    metric = (
+        "from dataclasses import dataclass\n\n\n@dataclass(frozen=True)\n"
+        "class Metric:\n    power: float\n\n    def __post_init__(self):\n"
+        "        scale = {}\n        object.__setattr__(self, 'scale', scale)\n\n"
+        "    def compute(self):\n        return self.power * self.scale\n\n\n"
+        "gamma = Metric(2.0)\n"
+    )
+    (tests / "metric.py").write_text(metric.format(1))
+    (tests / "test_metric.py").write_text(
+        "from metric import gamma\n\n\ndef test_gamma():\n"
+        "    assert gamma.compute() == 2.0\n"
+    )
+    first = run_affected(tmp_path)
+    assert "3 passed" in first.stdout, first.stdout + first.stderr
+    (tests / "metric.py").write_text(metric.format(3))
+    second = run_affected(tmp_path)
+    assert "1 failed, 2 passed" in second.stdout, second.stdout
+
+
+def test_an_edit_in_a_function_another_file_calls_at_module_level_reruns_every_test(
+    tmp_path,
+):
+    """X = helper() in one file runs helper's body at import, wherever it is."""
+    make_project(tmp_path)
+    tests = tmp_path / "tests"
+    (tests / "helpers.py").write_text("def helper():\n    return 1\n")
+    (tests / "consts.py").write_text("from helpers import helper\n\nX = helper()\n")
+    (tests / "a.py").write_text("import consts\n\n\ndef one():\n    return consts.X\n")
+    first_run(tmp_path)
+    (tests / "helpers.py").write_text("def helper():\n    return 1 + 0\n")
+    second = run_affected(tmp_path)
+    assert "2 passed" in second.stdout, second.stdout
+
+
+def test_an_edit_in_a_decorator_applied_at_module_level_reruns_every_test(tmp_path):
+    """A decorator's body runs when the function it decorates is defined."""
+    make_project(tmp_path)
+    tests = tmp_path / "tests"
+    (tests / "deco.py").write_text("def register(f):\n    f.tag = 1\n    return f\n")
+    (tests / "a.py").write_text(
+        "from deco import register\n\n\n@register\ndef one():\n    return one.tag\n"
+    )
+    first_run(tmp_path)
+    (tests / "deco.py").write_text(
+        "def register(f):\n    f.tag = 1 + 0\n    return f\n"
+    )
+    second = run_affected(tmp_path)
+    assert "2 passed" in second.stdout, second.stdout
+
+
+def test_an_edit_in_a_function_nothing_calls_at_import_keeps_test_env(tmp_path):
+    """Other bodies stay testmon's, so its fine selection holds."""
+    make_project(tmp_path)
+    module = (
+        "def helper():\n    return 1\n\n\nX = helper()\n\n\n"
+        "def other():\n    return {}\n\n\nclass K:\n    def m(self):\n"
+        "        return {}\n"
+    )
+    path = tmp_path / "tests" / "c.py"
+    path.write_text(module.format(2, 3))
+    before = just("test-env", str(tmp_path))
+    path.write_text(module.format("2 + 0", "3 + 0"))
+    assert just("test-env", str(tmp_path)) == before

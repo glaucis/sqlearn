@@ -104,6 +104,30 @@
     },
     {
       "area": "checks/affected",
+      "name": "tests/checks/test_affected.py::test_an_edit_in_a_decorator_applied_at_module_level_reruns_every_test",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/affected",
+      "name": "tests/checks/test_affected.py::test_an_edit_in_a_function_another_file_calls_at_module_level_reruns_every_test",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/affected",
+      "name": "tests/checks/test_affected.py::test_an_edit_in_a_function_nothing_calls_at_import_keeps_test_env",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/affected",
+      "name": "tests/checks/test_affected.py::test_an_edit_in_a_post_init_behind_a_module_level_instance_reruns_every_test",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/affected",
       "name": "tests/checks/test_affected.py::test_nothing_changed_runs_nothing_and_succeeds",
       "outcome": "passed",
       "tier": "fast"

@@ -103,8 +103,17 @@ one (the native module, in step 2) joins by its rule, not by chance:
   and method body, and hashes what is left (the syntax tree, so comments and
   blank lines do not count) with the sorted paths, and the path of every
   file under `src/`. A module-level edit, or a new or deleted module, reruns
-  every test; an edit inside a function leaves the selection to testmon. A
-  file that does not parse counts by its bytes.
+  every test. An edit inside a function leaves the selection to testmon,
+  unless the function may run at import: then its body is hashed too, since
+  no test would see the edit. Those are the dunders Python calls when an
+  instance or a class is made (`__init__`, `__new__`, `__post_init__`,
+  `__init_subclass__`, `__set_name__`, `__class_getitem__`), and every
+  function, or every method of a class, whose name a statement outside any
+  function body calls or applies as a decorator, in any of those files: a
+  module-level `gamma = Metric(2.0)` keeps `Metric`'s methods. The match is
+  by name alone, across files, so it reruns more than it must; it does not
+  follow a kept body's calls into other functions. A file that does not
+  parse counts by its bytes.
 - **Files read as data.** A test that opens a file, rather than running it,
   depends on its bytes: the file, or its folder, goes in `declared`. A test
   that globs for files depends on their paths, which the module-level digest
