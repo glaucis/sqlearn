@@ -3,24 +3,18 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-22 · Branch: `main` (the branch `read-busy-connection`
-merged and removed) · Checks: `just verify` passed on the branch before the
-merge (exit 0, no failures; macOS 27.2.1, load 3 to 9)
-Verify with: `just verify`
+Updated: 2026-11-22 · Branch: `phase-1-checks` (Phase 1 step 1, in the
+worktree `sqlearn-79`, not merged) · Checks: `just done` passed on the
+branch (exit 0; macOS 27.2.1)
+Verify with: `just done` (`just verify` is the release tier)
 
 ## In progress
 
-- [verified] Phase 1 step 1's plan,
-  `docs/plans/2026-11-22-native-engine-phase-1-checks.md`, written
-  (superpowers:writing-plans): six tasks (affected tests with testmon and
-  xdist, the serial pass and `tests.json` merged, validation runners
-  recorded in the git common directory, the passed tree with `just done`,
-  pydoclint, the done-when shown). Waits on Tomas's review and his choice
-  of execution method.
+- Nothing: step 1 is built on the branch `phase-1-checks`, waiting to merge.
 
 ## Waiting on the user
 
-- Review the step 1 plan and choose subagent-driven or native execution.
+- Review and merge the branch `phase-1-checks` (step 1, below).
   (since 2026-11-22)
 - The CLion MCP stays (its debugger, for step 2 on); no other tool or skill
   needed. Told Tomas; nothing to do.
@@ -31,10 +25,12 @@ Verify with: `just verify`
 
 ## Next up
 
-- Phase 1 step 1 (the checks: testmon, xdist, recorded validation, the
-  passed-tree record) on today's Python: its plan first, with
-  superpowers:writing-plans; then the build, the workflows and the site
-  (#4, #6), the review (spec §3.7).
+- Phase 1 step 2 (the build) next, its plan first, with
+  superpowers:writing-plans; then the workflows and the site (#4, #6), the
+  review (spec §3.7).
+- Finer validation selection: a src change reruns every runner (`import
+  sqlearn` loads the package); per-function selection, as testmon does, is
+  a follow-up to raise with Tomas.
 - After the port (Phases 1–4): the rest of 3.6 (spec §8: target panel,
   outliers, normality, Kendall, sampling, time series), then the
   application; 3.3 candidates: text features, more preprocessing, truncated
@@ -47,6 +43,9 @@ Verify with: `just verify`
 
 ## Dead ends and traps
 
+- While `just test` or the validation runs in a worktree, start no other
+  `uv run` there: after a commit or a pyproject edit it reinstalls the
+  editable sqlearn and the tests reading its metadata fail (2026-11-22).
 - An OS update can change Accelerate, numpy's BLAS, and with it the last
   digits of `eigh`: macOS 27.2.1 failed three PCA bounds by a hair, the same
   on every run and on `main` alike; the bounds were loosened with their
@@ -149,8 +148,10 @@ Verify with: `just verify`
   the second of `a`, `A` to `A_1`. (2026-11-15)
 - `_drop_later` tables drop at the next `read`. A `just verify` rerun can
   flip a large-set result to "anomaly" by thread order (ADR 0016): discard
-  it. `just verify` rewrites `*.results.json` and `tests.json`: discard ULP
-  diffs, commit `tests.json` when tests were added (ADR 0043). (2026-11-15)
+  it. `just test` merges `tests.json`; `just validate` rewrites only the
+  rerun runners' results (`just validate-all` and `just verify` all of
+  them): discard ULP diffs, commit `tests.json` when tests were added
+  (ADR 0043). (2026-11-22)
 - commitlint takes no scope but `hooks`, `site`, `deps`; header and body
   lines at most 72 characters. (2026-11-13)
 - When the network drops mid-build, resume the same subagent (SendMessage
