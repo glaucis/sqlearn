@@ -1819,6 +1819,318 @@
       "tier": "fast"
     },
     {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_a_breaking_change_needs_its_footer",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_a_commit_at_an_edit_stop_is_checked",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_a_commit_from_a_subfolder_finds_the_rules",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_a_good_message_lands",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_a_merge_with_gits_own_message_lands",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_a_picked_commit_in_a_rebase_is_not_checked",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_a_reword_in_a_linked_worktree_is_checked",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_a_reword_in_a_rebase_is_checked",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_a_rule_at_level_two_refuses[FEAT: add x]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_a_rule_at_level_two_refuses[Updated stuff.]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_a_rule_at_level_two_refuses[feat(Auth): add x]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_a_rule_at_level_two_refuses[feat: add x.]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_a_rule_at_level_two_refuses[feat: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_a_rule_at_level_two_refuses[wip: add x]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_a_rule_refuses_and_is_named[ feat: add x-header-trim]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_a_rule_refuses_and_is_named[feat(sssssssssssssssssssssssss): add x-scope-max-length]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_a_rule_refuses_and_is_named[feat: add x -header-trim]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_a_rule_refuses_and_is_named[feat: add x\\nBody directly under the header.\\n-body-leading-blank]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_a_subject_starting_with_the_comment_character_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_a_warning_lets_the_commit_land",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_an_empty_message_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_empty_rules_are_a_tooling_failure",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_missing_rules_refuse",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_no_commitlint_refuses_with_the_cure",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_rules_that_fail_to_load_are_a_tooling_failure",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_the_comment_character_follows_core_commentchar[#]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_the_comment_character_follows_core_commentchar[(]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_the_comment_character_follows_core_commentchar[)]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_the_comment_character_follows_core_commentchar[+]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_the_comment_character_follows_core_commentchar[;]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_the_comment_character_follows_core_commentchar[?]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_the_comment_character_follows_core_commentchar[{]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_the_comment_character_follows_core_commentchar[|]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_the_hook_is_committed_executable",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_the_hook_runs_in_a_linked_worktree",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_the_hook_runs_under_a_path_with_spaces",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_the_scissors_section_is_ignored",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/pre_commit",
+      "name": "tests/githooks/test_pre_commit.py::test_a_checkout_without_an_environment_is_refused_with_the_cure",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/pre_commit",
+      "name": "tests/githooks/test_pre_commit.py::test_a_commit_that_deletes_a_file_passes",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/pre_commit",
+      "name": "tests/githooks/test_pre_commit.py::test_a_failing_recipe_refuses_the_commit",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/pre_commit",
+      "name": "tests/githooks/test_pre_commit.py::test_a_partial_commit_checks_only_the_named_paths",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/pre_commit",
+      "name": "tests/githooks/test_pre_commit.py::test_a_passing_commit_prints_nothing",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/pre_commit",
+      "name": "tests/githooks/test_pre_commit.py::test_a_passing_recipe_lets_the_commit_land",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/pre_commit",
+      "name": "tests/githooks/test_pre_commit.py::test_no_just_refuses_with_the_cure",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/pre_commit",
+      "name": "tests/githooks/test_pre_commit.py::test_the_checks_read_the_index_not_the_working_tree",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/pre_commit",
+      "name": "tests/githooks/test_pre_commit.py::test_the_environment_is_not_synced_from_the_copy",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/pre_commit",
+      "name": "tests/githooks/test_pre_commit.py::test_the_hook_is_committed_executable",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/pre_commit",
+      "name": "tests/githooks/test_pre_commit.py::test_the_hook_runs_in_a_linked_worktree",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/pre_commit",
+      "name": "tests/githooks/test_pre_commit.py::test_the_hook_runs_under_a_path_with_spaces",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/pre_merge_commit",
+      "name": "tests/githooks/test_pre_merge_commit.py::test_a_clean_merge_bringing_a_failing_file_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/pre_merge_commit",
+      "name": "tests/githooks/test_pre_merge_commit.py::test_a_clean_merge_that_passes_lands",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/pre_merge_commit",
+      "name": "tests/githooks/test_pre_merge_commit.py::test_the_hook_is_committed_executable",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
       "area": "sqlearn/_saving/across_processes",
       "name": "tests/src/sqlearn/_saving/test_across_processes.py::test_a_changed_file_is_learned_again_with_a_warning",
       "outcome": "passed",
@@ -19569,6 +19881,12 @@
     {
       "area": "validation/_tests_report",
       "name": "tests/validation/test__tests_report.py::test_area_is_the_mirrored_module[tests/validation/test__cases.py::test_z-validation/_cases]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_tests_report",
+      "name": "tests/validation/test__tests_report.py::test_loading_the_report_plugin_leaves_sqlearn_unimported",
       "outcome": "passed",
       "tier": "fast"
     },
