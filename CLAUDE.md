@@ -176,12 +176,13 @@ commit both of these into it, without being asked:
 - **Before you say any work is done, `just done` passes.** It runs
   `check-lockfile`, `check-mirror` and `check-no-devdata`, then each check
   (`format`, `lint`, `docstrings`, `types`, `test`, `validate`, `docs`) on what
-  changed since it passed, stops at the first failure, and remembers the tree
-  that passed, so a passed tree (after a fast-forward or a merge too) runs
-  nothing again. `just full <task>` runs one check all through. `just verify`
-  is the release tier: every check in full, coverage, every Python, run by
-  hand before `1.0.0`. A reviewer's verdict says which ran and passed. How a
-  check finds what changed: `docs/architecture/testing.md`.
+  changed since it passed, every one even when another fails, and remembers the
+  tree that passed (nothing uncommitted but the checks' outputs), so a passed
+  tree (after a fast-forward or a merge too) runs nothing again.
+  `just full <task>` runs one check all through. `just verify` is the release
+  tier: every check in full, coverage, every Python, run by hand before `1.0.0`.
+  A reviewer's verdict says which ran and passed. How a check finds what
+  changed: `docs/architecture/testing.md`.
 - **`just --list` names every recipe.** When a composite fails, `just` names
   the recipe that failed: run that one alone.
 - **The conventions are in `docs/architecture/`**: the layout, the Python

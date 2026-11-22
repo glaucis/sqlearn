@@ -52,14 +52,16 @@ before work is done, and `just verify` is the release tier.
 | A release | `just verify`: the same three, each check with `just full` (`validate` as `validate-all`), then `test-all` (coverage) and `test-python-versions`, by hand before `1.0.0` |
 
 `just done` remembers each tree that passed in `sqlearn-passed`, in the git
-common directory (the 50 newest, shared by worktrees). A tree that differs
-from `HEAD` only in Markdown still counts, so a fast-forward or a `--no-ff`
-merge of a passed tree runs nothing. A Markdown file the tests read is an
-input, not prose: one under the `test` task's inputs (below), edited and not
-committed, leaves no checkable tree. `just done` stops at the first check that
-fails, the later ones do not run, and nothing is remembered.
+common directory (the 50 newest, shared by worktrees). Only a tree with
+nothing uncommitted counts, so a fast-forward or a `--no-ff` merge of a passed
+tree runs nothing. Markdown is an input like any file (`format`, `lint` and
+`docs` read it): edited and not committed, it leaves no checkable tree, and
+`just done` runs; each task still skips what its records show passed, so that
+costs seconds. `just done` runs every check even when one fails, as a task
+runs every step, so one failure hides no other's findings; it exits with the
+first failure's code, and nothing is remembered.
 
-`just checkable-tree` also ignores the files the checks write:
+`just checkable-tree` ignores only the files the checks write:
 `validation/**/*.results.json`, `validation/tests.json` and
 `validation/environment.json`. They are outputs of `validate` and `test`, not
 inputs, so a run that rewrites them leaves the tree it checked still HEAD's.
@@ -161,10 +163,6 @@ verify` runs every task this way.
 
 **`validate`** is not in the table of `validation/_checks.py`: it keeps a
 record for each runner (the validation runners, below).
-
-**`just checkable-tree`** lets Markdown differ from `HEAD`, except a file
-under the `test` task's inputs or settings. It takes that list from `python -m
-validation._checks --declared`, the task's own, so the two cannot drift.
 
 ## The validation runners
 

@@ -232,21 +232,12 @@ Verify with: `just done` (`just verify` is the release tier)
   passed, its records in `sqlearn-checks/` in git's common directory
   (`eb9c992`); `just format`, `lint`, `docstrings`, `types`, `test`, `docs`
   and `just full <task>` (`f49d879`); pytest-testmon removed (`00900f0`);
-  `checkable-tree` takes the `test` task's own inputs
-  (`python -m validation._checks --declared`, `edab18e`); `just done` runs
-  every task, `just verify` every task in full, and the docs say so (the
-  commit after). (2026-11-22)
-- Phase 1 step 1, the checks (#79), first built with pytest-testmon, which the
-  rework above replaced; built on the branch `phase-1-checks`, not merged:
-  `just test` runs the tests affected by a change (testmon, in parallel);
-  `just validate` the runners whose recorded inputs changed; `just done` skips a
-  tree already passed; `just verify` runs everything; pydoclint in `just check`.
-  Shown on the real repository, results on #79: one changed line in one module
-  ran 4 of 3,292 tests; a docs-only commit ran no test and no runner; a
-  fast-forward of a passed tree ran nothing; `just verify` passed in 1 h 12 min
-  (3,292 tests with 97.13% coverage, 3,240 on each of 3.12, 3.13, 3.14). Known
-  limit: any change under `src/sqlearn` reruns every runner (about 45 minutes),
-  because `import sqlearn` loads the whole package. (2026-11-22)
+  `just done` runs every task, `just verify` every task in full, and the
+  docs say so (`edab18e`, `98f08de`); `checkable-tree` exempts only the
+  checks' outputs, and `done` runs every check past a failure (the commit
+  after). (2026-11-22)
+- Phase 1 step 1 was first built with pytest-testmon, then replaced by the
+  rework above; the first run's results are on #79. (2026-11-22)
 
 - The branch `read-busy-connection` merged into `main`: #76's fix (closed),
   #75's deferral, spec §4, the approved Phase 1 spec, PCA's bounds after

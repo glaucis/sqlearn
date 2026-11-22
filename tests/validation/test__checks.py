@@ -460,11 +460,3 @@ def test_only_the_serial_pass_may_collect_nothing():
 def test_the_lint_task_keys_its_config_to_the_python_layout():
     """Ruff's import sorting depends on which modules exist."""
     assert "*.py" in _checks.TASKS["lint"].layout
-
-
-def test_the_command_line_prints_what_the_test_task_reads(capsys):
-    """``--declared`` lists the test task's inputs and settings, which
-    ``checkable-tree`` treats as inputs whatever their kind, Markdown included."""
-    assert _checks.cli(["--declared"]) == 0
-    task = _checks.TASKS["test"]
-    assert capsys.readouterr().out.splitlines() == [*task.inputs, *task.config]

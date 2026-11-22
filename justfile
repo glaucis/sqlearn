@@ -254,8 +254,8 @@ validate:
 validate-all:
     uv run --locked python -m validation --all
 
-# How a task runs only when its inputs changed; SQLEARN_CHECKS replaces it, as the recipes' tests do in a scratch repository
-checks := env("SQLEARN_CHECKS", "uv run --locked python -m validation._checks")
+# How a task runs only when its inputs changed (the tasks' tests set it on a scratch repository)
+checks := "uv run --locked python -m validation._checks"
 
 # Check the formatting of the Python and Markdown files changed since a passed run
 [group('check')]
@@ -297,24 +297,15 @@ full task:
     fi
     {{ checks }} "{{ task }}" --all
 
-# Print the tree of HEAD when only Markdown the tests do not read and the checks' outputs differ from it, and nothing otherwise
+# Print the tree of HEAD when only the checks' own outputs differ from it, and nothing otherwise
 [group('check')]
 checkable-tree:
     #!/usr/bin/env bash
     set -euo pipefail
-    # the checks' own outputs are never inputs (OUTPUTS in validation/_checks.py), and Markdown is not one either: they may differ from HEAD
-    outputs=(':(exclude,glob)validation/**/*.results.json' ':(exclude)validation/tests.json' ':(exclude)validation/environment.json')
-    skip=(':(exclude)*.md' "${outputs[@]}")
-    # what the test task reads is an input whatever its kind, a Markdown file a test reads included; the list is the task's own
-    list=$({{ checks }} --declared)
-    if [ -z "$list" ]; then echo "checkable-tree: no declared files listed" >&2; exit 1; fi
-    declared=()
-    while IFS= read -r spec; do declared+=("$spec"); done <<<"$list"
-    declared+=("${outputs[@]}")
+    # the checks' own outputs are never inputs (OUTPUTS in validation/_checks.py); any other change, Markdown included, is one
+    skip=(':(exclude,glob)validation/**/*.results.json' ':(exclude)validation/tests.json' ':(exclude)validation/environment.json')
     if git diff --quiet HEAD -- . "${skip[@]}" &&
-        git diff --quiet HEAD -- "${declared[@]}" &&
-        [ -z "$(git ls-files --others --exclude-standard -- . "${skip[@]}")" ] &&
-        [ -z "$(git ls-files --others --exclude-standard -- "${declared[@]}")" ]; then
+        [ -z "$(git ls-files --others --exclude-standard -- . "${skip[@]}")" ]; then
         git rev-parse 'HEAD^{tree}'
     fi
 
@@ -326,7 +317,7 @@ remember-tree tree:
     before="{{ tree }}"
     file="$(git rev-parse --git-common-dir)/sqlearn-passed"
     if [ -z "$before" ] || [ "$before" != "$(just --justfile '{{ justfile() }}' checkable-tree)" ]; then
-        printf '\nNot remembered: a file other than Markdown differed from the last commit, or the commit changed, while the checks ran. Commit, then run this again.\n'
+        printf '\nNot remembered: a file other than an output of the checks differed from the last commit, or the commit changed, while the checks ran. Commit, then run this again.\n'
         exit 0
     fi
     if ! grep -qx "$before" "$file" 2>/dev/null; then
@@ -335,7 +326,7 @@ remember-tree tree:
     fi
     printf '\nChecked tree %s: remembered.\n' "$before"
 
-# Run every check on what changed since it passed (the instant ones, then each task), stopping at the first failure, unless this tree already passed; then remember the tree
+# Run every check on what changed since it passed (the instant ones, then each task), unless this tree already passed; every one runs, a failing one included, and the first failure's code is the exit; then remember the tree
 [group('check')]
 done:
     #!/usr/bin/env bash
@@ -346,8 +337,14 @@ done:
         echo "Tree $tree already passed: nothing to run."
         exit 0
     fi
-    "${j[@]}" check-lockfile check-mirror check-no-devdata
-    "${j[@]}" format lint docstrings types test validate docs
+    # every check runs whatever the others' exit, as each task's steps do, so one failure hides no other's findings
+    first=0
+    for check in check-lockfile check-mirror check-no-devdata format lint docstrings types test validate docs; do
+        code=0
+        "${j[@]}" "$check" || code=$?
+        if [ "$first" -eq 0 ]; then first=$code; fi
+    done
+    if [ "$first" -ne 0 ]; then exit "$first"; fi
     "${j[@]}" remember-tree "$tree"
 
 # Run every check all through, whatever the records say, then the tests with coverage and on every Python: the release tier, by hand before 1.0.0

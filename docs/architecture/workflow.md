@@ -35,11 +35,11 @@ What runs at each point:
 | A release | `just verify`: the same three, each check with `just full` (`validate` as `validate-all`), then `test-all` (coverage) and `test-python-versions`, by hand before `1.0.0` |
 
 `just done` remembers each tree that passed in `sqlearn-passed`, in the git
-common directory (the 50 newest, shared by worktrees). A tree that differs from
-`HEAD` only in Markdown (a file the tests read aside) still counts, so a
-fast-forward or a `--no-ff` merge of a passed tree runs nothing. Each check
-runs only on what changed since it passed, and `just done` stops at the first
-that fails: [testing](testing.md), "How each check finds what changed".
+common directory (the 50 newest, shared by worktrees). Only a committed tree
+counts, the checks' own outputs aside, so a fast-forward or a `--no-ff` merge of
+a passed tree runs nothing. Each check runs only on what changed since it
+passed, and `just done` runs every one even when one fails:
+[testing](testing.md), "How each check finds what changed".
 
 ## Where things go
 

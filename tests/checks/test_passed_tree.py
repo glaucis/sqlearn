@@ -3,7 +3,6 @@
 import os
 import shutil
 import subprocess
-import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
@@ -49,14 +48,7 @@ def make_repo(tmp_path):
     home = tmp_path / "home"
     home.mkdir()
     ambient = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
-    env = {
-        **ambient,
-        "HOME": str(home),
-        "GIT_CONFIG_NOSYSTEM": "1",
-        # checkable-tree reads the declared files from this repository's module.
-        "PYTHONPATH": str(REPO),
-        "SQLEARN_CHECKS": f"{sys.executable} -m validation._checks",
-    }
+    env = {**ambient, "HOME": str(home), "GIT_CONFIG_NOSYSTEM": "1"}
     git(repo, "init", "-b", "main", env=env)
     git(repo, "config", "user.name", "Test", env=env)
     git(repo, "config", "user.email", "test@example.com", env=env)
@@ -94,25 +86,20 @@ def test_a_clean_tree_that_passed_is_remembered(tmp_path):
 
 
 def test_a_failing_check_remembers_nothing(tmp_path):
-    """done stops at the first failing task and leaves the record as it was."""
+    """done runs every task past a failure, exits with the first one's code, and
+    leaves the record as it was, so one task's failure hides no other's findings."""
     repo, env = make_repo(tmp_path)
     (repo / "justfile").write_text(
         OVERRIDES.replace(
-            "@echo lint >> calls.log", "@echo lint >> calls.log\n    @exit 1"
-        )
+            "@echo lint >> calls.log", "@echo lint >> calls.log\n    @exit 3"
+        ).replace("@echo docs >> calls.log", "@echo docs >> calls.log\n    @exit 4")
     )
     git(repo, "commit", "-qam", "chore: failing check", env=env)
     failed = subprocess.run(
         ["just", "done"], cwd=repo, env=env, capture_output=True, text=True, check=False
     )
-    assert failed.returncode != 0
-    assert calls(repo) == [
-        "check-lockfile",
-        "check-mirror",
-        "check-no-devdata",
-        "format",
-        "lint",
-    ]
+    assert failed.returncode == 3
+    assert calls(repo) == list(RUNS)
     assert passed(repo, env) == []
 
 
@@ -126,61 +113,20 @@ def test_a_remembered_tree_runs_nothing(tmp_path):
     assert calls(repo) == []
 
 
-def test_a_markdown_change_keeps_the_tree_checkable(tmp_path):
-    """An edited or new Markdown file leaves the checkable tree as HEAD's."""
+def test_an_uncommitted_markdown_file_makes_the_tree_uncheckable(tmp_path):
+    """Markdown is an input of format, lint and docs: edited or new, it must be
+    committed before a tree can be remembered."""
     repo, env = make_repo(tmp_path)
-    (repo / "notes.md").write_text("new\n")
-    tree = git(repo, "rev-parse", "HEAD^{tree}", env=env)
-    assert just(repo, "checkable-tree", env=env) == tree
-
-
-def test_an_edited_declared_markdown_file_makes_the_tree_uncheckable(tmp_path):
-    """A Markdown file a test reads as data is an input, so it must be committed."""
-    repo, env = make_repo(tmp_path)
-    inventory = repo / "docs" / "architecture" / "engine-inventory.md"
-    inventory.parent.mkdir(parents=True)
-    inventory.write_text("| `a.py` | 2 |\n")
-    git(repo, "add", "-A", env=env)
-    git(repo, "commit", "-m", "docs: inventory", env=env)
-    inventory.write_text("| `a.py` | 3 |\n")
-    assert just(repo, "checkable-tree", env=env) == ""
-
-
-def test_a_new_declared_markdown_file_makes_the_tree_uncheckable(tmp_path):
-    """An untracked declared Markdown file differs from HEAD like any input."""
-    repo, env = make_repo(tmp_path)
-    inventory = repo / "docs" / "architecture" / "engine-inventory.md"
-    inventory.parent.mkdir(parents=True)
-    inventory.write_text("| `a.py` | 2 |\n")
-    assert just(repo, "checkable-tree", env=env) == ""
-
-
-def test_an_edited_markdown_file_the_tests_read_makes_the_tree_uncheckable(tmp_path):
-    """A Markdown file under tests/, an input of the test task, must be committed."""
-    repo, env = make_repo(tmp_path)
-    notes = repo / "tests" / "notes.md"
+    notes = repo / "docs" / "notes.md"
     notes.parent.mkdir()
     notes.write_text("one\n")
+    assert just(repo, "checkable-tree", env=env) == ""
     git(repo, "add", "-A", env=env)
     git(repo, "commit", "-m", "docs: notes", env=env)
+    tree = git(repo, "rev-parse", "HEAD^{tree}", env=env)
+    assert just(repo, "checkable-tree", env=env) == tree
     notes.write_text("two\n")
     assert just(repo, "checkable-tree", env=env) == ""
-
-
-def test_a_failing_list_of_declared_files_is_not_a_checkable_tree(tmp_path):
-    """When the declared files cannot be listed, checkable-tree fails, never prints."""
-    repo, env = make_repo(tmp_path)
-    env = {**env, "SQLEARN_CHECKS": "false"}
-    done = subprocess.run(
-        ["just", "checkable-tree"],
-        cwd=repo,
-        env=env,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    assert done.returncode != 0
-    assert done.stdout == ""
 
 
 def test_a_dirty_tree_is_not_remembered(tmp_path):
