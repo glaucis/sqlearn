@@ -29,7 +29,7 @@ not declared.
 
 | Recipe | What it runs |
 |---|---|
-| `just test` | the fast tests a change affects, in parallel, without coverage, without `tests/githooks` |
+| `just test` | the fast tests a change affects: a parallel pass, then the `serial` ones alone, without coverage, without `tests/githooks` |
 | `just test-all` | every test, the slow ones included, with coverage and the floor |
 | `just test-env` | 16 hex digits naming the declared dependencies below |
 | `just test-python-versions` | the tests, slow ones included, on each Python in the matrix |
@@ -56,6 +56,42 @@ file counts. Each is declared for a reason:
 - every file under `devdata/data/`: tests read it as data.
 
 `--testmon-forceselect` keeps the selection on despite `-m "not slow"`.
+
+### The serial pass
+
+`just test` runs two passes: every fast test on all cores (`-n auto`), then
+the tests marked `serial` alone, without xdist (`-p no:xdist`). A test marked
+`@pytest.mark.serial` fails beside other tests; its docstring says why, in
+one line (a wall-clock ratio, a memory probe). The marker is never a way to
+hide a bug: a test that fails in parallel is first understood, and fixed
+when its cause is shared state (a fixed path becomes `tmp_path`, a learned
+store is cleared). Both passes keep testmon, and each treats "nothing
+selected" as success. Today no test is marked: three parallel runs of the
+whole fast suite, one of them with the machine at a load of 50 on 8 cores,
+passed every test.
+
+### The worker count
+
+`-n auto` starts one worker per core (8 on the M-series machine measured).
+One full parallel run of the fast suite peaked at 4.6 GB resident summed over
+the pytest process and its workers, on a machine with 16 GB: under half of
+physical memory, so the count stays `auto`. It was measured by sampling `ps
+-axo rss,command` every second for the processes running from the project's
+`.venv` and taking the largest sum, because macOS's `/usr/bin/time -l`
+reports the parent's peak only. Rerun the measurement when the suite grows
+a large fixture; cap `-n` at a fixed number if the peak passes half of
+memory.
+
+### `validation/tests.json`
+
+The `validation._tests_report` plugin, loaded by both passes, writes
+`validation/tests.json` and merges rather than rewrites. A file collected in
+the run has its entries rebuilt from its collected tests: a test that ran
+takes its new outcome, a test collected but deselected (testmon, `-k`, `-m`)
+keeps its old one, and a test no longer in its file is dropped. The entries
+of a file not collected stay unless the file is gone. Under xdist the
+controller writes, from the reports and from the lists the workers sent, so a
+parallel run writes the same bytes as a serial one.
 
 ## The hook tests
 

@@ -83,16 +83,19 @@ test-env root=".":
         printf '\0'
     done | shasum -a 256 | cut -c1-16
 
-# Run the fast tests a change affects, in parallel, without coverage
+# Run the fast tests a change affects: in parallel, then the serial ones alone; tests.json is merged
 [group('test')]
 test:
     #!/usr/bin/env bash
     set -euo pipefail
-    rc=0
-    uv run --locked pytest {{ affected }} --testmon-env="'$(just test-env)'" --ignore=tests/githooks || rc=$?
+    env="'$(just test-env)'"
     # 5 means the change affected no test: nothing to run is success
-    [ "$rc" -eq 5 ] && exit 0
-    exit "$rc"
+    rc=0
+    uv run --locked pytest {{ affected }} -m "not slow and not serial" -p validation._tests_report --testmon-env="$env" --ignore=tests/githooks || rc=$?
+    [ "$rc" -eq 5 ] || [ "$rc" -eq 0 ] || exit "$rc"
+    rc=0
+    uv run --locked pytest --testmon --testmon-forceselect -p no:xdist -m "serial and not slow" -p validation._tests_report --testmon-env="$env" --ignore=tests/githooks || rc=$?
+    [ "$rc" -eq 5 ] || [ "$rc" -eq 0 ] || exit "$rc"
 
 # Run the hook tests
 [group('test')]
@@ -245,7 +248,6 @@ pre-commit: check check-lockfile
 # Run every test and every validation runner, writing their results as JSON under validation/
 [group('test')]
 validate:
-    uv run --locked pytest -m "" -q -p validation._tests_report --ignore=tests/githooks
     uv run --locked python -m validation
 
 # Run every check, for review, merge and release

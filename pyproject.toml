@@ -152,7 +152,10 @@ addopts = [
     "--import-mode=importlib",
     "-m", "not slow",
 ]
-markers = ["slow: the larger-than-memory tier; test-all and test-python-versions run it"]
+markers = [
+    "slow: the larger-than-memory tier; test-all and test-python-versions run it",
+    "serial: runs alone, after the parallel pass: it fails beside other tests",
+]
 xfail_strict = true
 # A warning is an error: a deprecation is found the day it appears, not at the next major.
 filterwarnings = ["error"]
