@@ -64,9 +64,6 @@ check-spelling:
 check-lockfile:
     uv lock --check
 
-# The files the tests read as data or run in a subprocess, beyond the settings; the `test` task declares the same ones (TEST_INPUTS in validation/_checks.py, which a test compares), and checkable-tree never skips them, Markdown included
-declared := "uv.lock .python-version pyproject.toml justfile commitlint.config.mjs .githooks devdata/data docs/architecture/engine-inventory.md"
-
 # Run the hook tests
 [group('test')]
 test-hooks:
@@ -257,8 +254,8 @@ validate:
 validate-all:
     uv run --locked python -m validation --all
 
-# How a task runs only when its inputs changed (the tasks' tests set it on a scratch repository)
-checks := "uv run --locked python -m validation._checks"
+# How a task runs only when its inputs changed; SQLEARN_CHECKS replaces it, as the recipes' tests do in a scratch repository
+checks := env("SQLEARN_CHECKS", "uv run --locked python -m validation._checks")
 
 # Check the formatting of the Python and Markdown files changed since a passed run
 [group('check')]
@@ -300,15 +297,20 @@ full task:
     fi
     {{ checks }} "{{ task }}" --all
 
-# Print the tree of HEAD when only undeclared Markdown files and the checks' outputs differ from it, and nothing otherwise
+# Print the tree of HEAD when only Markdown the tests do not read and the checks' outputs differ from it, and nothing otherwise
 [group('check')]
 checkable-tree:
     #!/usr/bin/env bash
     set -euo pipefail
-    # Markdown and the checks' own outputs are not inputs: they may differ from HEAD
-    skip=(':(exclude)*.md' ':(exclude,glob)validation/**/*.results.json' ':(exclude)validation/tests.json' ':(exclude)validation/environment.json')
-    # a declared file is an input whatever its kind, a Markdown file a test reads included
-    declared=({{ declared }})
+    # the checks' own outputs are never inputs (OUTPUTS in validation/_checks.py), and Markdown is not one either: they may differ from HEAD
+    outputs=(':(exclude,glob)validation/**/*.results.json' ':(exclude)validation/tests.json' ':(exclude)validation/environment.json')
+    skip=(':(exclude)*.md' "${outputs[@]}")
+    # what the test task reads is an input whatever its kind, a Markdown file a test reads included; the list is the task's own
+    list=$({{ checks }} --declared)
+    if [ -z "$list" ]; then echo "checkable-tree: no declared files listed" >&2; exit 1; fi
+    declared=()
+    while IFS= read -r spec; do declared+=("$spec"); done <<<"$list"
+    declared+=("${outputs[@]}")
     if git diff --quiet HEAD -- . "${skip[@]}" &&
         git diff --quiet HEAD -- "${declared[@]}" &&
         [ -z "$(git ls-files --others --exclude-standard -- . "${skip[@]}")" ] &&

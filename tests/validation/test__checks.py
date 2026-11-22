@@ -462,12 +462,9 @@ def test_the_lint_task_keys_its_config_to_the_python_layout():
     assert "*.py" in _checks.TASKS["lint"].layout
 
 
-def test_checkable_trees_declared_files_are_inputs_of_the_test_task():
-    """The justfile's ``declared`` list names only files the ``test`` task reads."""
-    justfile = (Path(__file__).resolve().parents[2] / "justfile").read_text()
-    line = next(x for x in justfile.splitlines() if x.startswith("declared :="))
-    declared = line.split('"')[1].split()
+def test_the_command_line_prints_what_the_test_task_reads(capsys):
+    """``--declared`` lists the test task's inputs and settings, which
+    ``checkable-tree`` treats as inputs whatever their kind, Markdown included."""
+    assert _checks.cli(["--declared"]) == 0
     task = _checks.TASKS["test"]
-    read = {*task.inputs, *task.config}
-    for name in declared:
-        assert any(name == r or name.startswith(r + "/") for r in read), name
+    assert capsys.readouterr().out.splitlines() == [*task.inputs, *task.config]

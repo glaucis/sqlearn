@@ -3,6 +3,7 @@
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
@@ -43,7 +44,14 @@ def make_repo(tmp_path):
     home = tmp_path / "home"
     home.mkdir()
     ambient = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
-    env = {**ambient, "HOME": str(home), "GIT_CONFIG_NOSYSTEM": "1"}
+    env = {
+        **ambient,
+        "HOME": str(home),
+        "GIT_CONFIG_NOSYSTEM": "1",
+        # checkable-tree reads the declared files from this repository's module.
+        "PYTHONPATH": str(REPO),
+        "SQLEARN_CHECKS": f"{sys.executable} -m validation._checks",
+    }
     git(repo, "init", "-b", "main", env=env)
     git(repo, "config", "user.name", "Test", env=env)
     git(repo, "config", "user.email", "test@example.com", env=env)
@@ -134,6 +142,34 @@ def test_a_new_declared_markdown_file_makes_the_tree_uncheckable(tmp_path):
     inventory.parent.mkdir(parents=True)
     inventory.write_text("| `a.py` | 2 |\n")
     assert just(repo, "checkable-tree", env=env) == ""
+
+
+def test_an_edited_markdown_file_the_tests_read_makes_the_tree_uncheckable(tmp_path):
+    """A Markdown file under tests/, an input of the test task, must be committed."""
+    repo, env = make_repo(tmp_path)
+    notes = repo / "tests" / "notes.md"
+    notes.parent.mkdir()
+    notes.write_text("one\n")
+    git(repo, "add", "-A", env=env)
+    git(repo, "commit", "-m", "docs: notes", env=env)
+    notes.write_text("two\n")
+    assert just(repo, "checkable-tree", env=env) == ""
+
+
+def test_a_failing_list_of_declared_files_is_not_a_checkable_tree(tmp_path):
+    """When the declared files cannot be listed, checkable-tree fails, never prints."""
+    repo, env = make_repo(tmp_path)
+    env = {**env, "SQLEARN_CHECKS": "false"}
+    done = subprocess.run(
+        ["just", "checkable-tree"],
+        cwd=repo,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert done.returncode != 0
+    assert done.stdout == ""
 
 
 def test_a_dirty_tree_is_not_remembered(tmp_path):

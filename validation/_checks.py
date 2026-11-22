@@ -169,7 +169,10 @@ def _table() -> dict[str, Task]:
                 Step(("rumdl", "check"), MARKDOWN),
             ),
             per_file=True,
-            # ruff's import sorting classifies by which modules exist.
+            # ruff's import sorting classifies by which modules exist. The
+            # layout is the whole task's configuration, so a Python file
+            # added or removed reruns every step on every file, the Markdown
+            # and the spelling included.
             layout=PYTHON,
         ),
         Task(
@@ -501,8 +504,24 @@ def _root() -> Path:
     return Path(top)
 
 
+def declared() -> tuple[str, ...]:
+    """Return the pathspecs that are inputs whatever their kind: what tests read.
+
+    ``just checkable-tree`` lets Markdown differ from the last commit, but
+    not under these: the ``test`` task's inputs and settings, a Markdown
+    file a test reads as data included.
+
+    Returns
+    -------
+    tuple of str
+        The ``test`` task's inputs, then its configuration.
+    """
+    task = TASKS["test"]
+    return (*task.inputs, *task.config)
+
+
 def cli(argv: Sequence[str]) -> int:
-    """Parse ``<task> [--all]`` and run it in the current working tree.
+    """Parse ``<task> [--all]`` and run it, or ``--declared`` and print them.
 
     Parameters
     ----------
@@ -512,14 +531,28 @@ def cli(argv: Sequence[str]) -> int:
     Returns
     -------
     int
-        The task's exit code.
+        The task's exit code; 0 after ``--declared``.
     """
     parser = argparse.ArgumentParser(prog="python -m validation._checks")
-    parser.add_argument("task", choices=sorted(TASKS), help="the check to run")
+    parser.add_argument(
+        "task", nargs="?", choices=sorted(TASKS), help="the check to run"
+    )
     parser.add_argument(
         "--all", action="store_true", help="run all of it, recorded or not"
     )
+    parser.add_argument(
+        "--declared",
+        action="store_true",
+        help="print the pathspecs checkable-tree treats as inputs, one a line",
+    )
     args = parser.parse_args(argv)
+    if args.declared:
+        if args.task is not None or args.all:
+            parser.error("--declared takes no task")
+        print("\n".join(declared()), flush=True)  # noqa: T201
+        return 0
+    if args.task is None:
+        parser.error("name a task, or --declared")
     return run(args.task, _root(), everything=args.all)
 
 
