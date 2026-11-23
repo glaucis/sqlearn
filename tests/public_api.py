@@ -14,9 +14,14 @@ from pathlib import Path
 from types import ModuleType
 
 RECORD = Path(__file__).with_name("public_api.txt")
-# A default's repr may hold its address (``<object object at 0x...>``),
-# which changes from run to run.
-_ADDRESS = re.compile(r"\b0x[0-9a-f]+\b")
+# What differs between runs or Python versions, and its one spelling here: a
+# default's address (``<object object at 0x...>``), pathlib's module
+# (``pathlib._local`` from 3.13), and ``typing.`` before a name (3.14 drops it).
+_SAME = (
+    (re.compile(r"\b0x[0-9a-f]+\b"), "0x..."),
+    (re.compile(r"\bpathlib\._local\."), "pathlib."),
+    (re.compile(r"\btyping\."), ""),
+)
 
 
 def _line(qualified: str, value: object) -> str:
@@ -42,7 +47,10 @@ def render() -> str:
                 lines.append(_line(f"sqlearn.{name}.{inner}", getattr(value, inner)))
         else:
             lines.append(_line(f"sqlearn.{name}", value))
-    return _ADDRESS.sub("0x...", "\n".join(lines) + "\n")
+    text = "\n".join(lines) + "\n"
+    for pattern, spelling in _SAME:
+        text = pattern.sub(spelling, text)
+    return text
 
 
 if __name__ == "__main__":

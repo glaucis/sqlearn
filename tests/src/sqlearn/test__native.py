@@ -2,7 +2,6 @@
 
 import importlib
 import importlib.machinery
-import shutil
 import subprocess
 import sys
 import textwrap
@@ -17,6 +16,7 @@ from sqlearn import _native
 
 REPO = Path(__file__).resolve().parents[3]
 DUCKDB_COMMIT = "8d78114e90"
+STUB = "src/sqlearn/_native.pyi"
 
 
 def test_version_answers_from_cpp():
@@ -85,13 +85,29 @@ def test_the_official_duckdb_is_refused():
     assert "Fix: uv sync --reinstall-package sqlearn" in done.stderr
 
 
-@pytest.mark.skipif(shutil.which("just") is None, reason="no just")
-def test_the_stubs_match_the_module():
-    """just check-stubs: nanobind's stubgen gives the committed _native.pyi."""
-    done = subprocess.run(
-        ["just", "check-stubs"], cwd=REPO, capture_output=True, text=True, check=False
+def test_the_stubs_match_the_module(tmp_path):
+    """nanobind's stubgen, formatted by ruff, gives the committed _native.pyi.
+
+    What ``just check-stubs`` runs, here on the running interpreter with no
+    uv, so it never syncs or rebuilds the environment the tests run in.
+    """
+    raw = tmp_path / "raw.pyi"
+    stubgen = ["-m", "nanobind.stubgen", "-q", "-D", "-m", "sqlearn._native"]
+    subprocess.run(
+        [sys.executable, *stubgen, "-o", str(raw)],
+        cwd=REPO,
+        check=True,
     )
-    assert done.returncode == 0, done.stdout + done.stderr
+    formatted = subprocess.run(
+        [sys.executable, "-m", "ruff", "format", "--stdin-filename", STUB],
+        cwd=REPO,
+        input=raw.read_text(encoding="utf-8"),
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    committed = (REPO / STUB).read_text(encoding="utf-8")
+    assert formatted == committed, "Fix: just stubs"
 
 
 def test_the_module_is_an_extension_module():

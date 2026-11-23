@@ -1851,7 +1851,7 @@
     {
       "area": "docs/engine_inventory",
       "name": "tests/docs/test_engine_inventory.py::test_the_inventory_gives_every_module_its_phase",
-      "outcome": "failed",
+      "outcome": "passed",
       "tier": "fast"
     },
     {
