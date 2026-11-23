@@ -83,6 +83,8 @@ only-include = ["src"]
 
 [tool.ruff]
 line-length = 88
+# The submodules are other projects' code, never ours to lint or format.
+extend-exclude = ["engine/duckdb-python", "engine/third_party"]
 
 [tool.ruff.lint]
 select = [
@@ -183,6 +185,8 @@ checks = ["all", "ES01", "SA01"]
 exclude = ['\._']
 
 [tool.rumdl]
+# The submodules are other projects' files, never ours to wrap.
+exclude = ["engine/duckdb-python/**", "engine/third_party/**"]
 # MD013 alone: prose wraps at 80 columns. Another rule joins with its reason.
 enable = ["MD013"]
 
@@ -202,7 +206,7 @@ reflow = true
 # because typos applies .gitignore only inside a git repository, and the
 # hook runs it on an export that has none.
 ignore-hidden = false
-extend-exclude = [".git/", "uv.lock", ".codegraph/", ".ruff_cache/", ".rumdl_cache/", ".mypy_cache/"]
+extend-exclude = [".git/", "uv.lock", ".codegraph/", ".ruff_cache/", ".rumdl_cache/", ".mypy_cache/", "engine/duckdb-python/", "engine/third_party/"]
 
 [tool.typos.default]
 # British prose and American identifiers both pass at `en`.

@@ -12,9 +12,41 @@ font_integrity := "sha512-gzAB3dFHilHX1l5x2xUqRL+1jDQt3Fyza1DkEMVXWC4E8SvsGdlgEz
 default:
     @just --list
 
-# Point git at .githooks and install the locked environment
+# Check the C++ toolchain: each tool, its version, and the brew line for a missing one
+[group('setup')]
+doctor:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    missing=0
+    check() { # formula, command, version argument
+        local found
+        if [ "$1" = llvm ]; then
+            found=/opt/homebrew/opt/llvm/bin/clang
+            [ -x "$found" ] || found=
+        else
+            found=$(command -v "$2" 2>/dev/null || true)
+        fi
+        if [ -z "$found" ]; then
+            echo "missing $1"
+            echo "Fix: brew install $1"
+            missing=1
+        else
+            echo "$1: $("$found" $3 2>&1 | head -n 1)"
+        fi
+    }
+    check cmake cmake --version
+    check ninja ninja --version
+    check ccache ccache --version
+    check llvm clang --version
+    check include-what-you-use include-what-you-use --version
+    check gitleaks gitleaks version
+    exit "$missing"
+
+# Check the toolchain, fetch the submodules, point git at .githooks and install the locked environment
 [group('setup')]
 setup:
+    just doctor
+    git submodule update --init --recursive
     git config core.hooksPath .githooks
     uv sync --locked
 

@@ -489,3 +489,44 @@ def test_a_new_tool_config_file_reruns_lint_on_every_file(scratch, config):
     assert changed_files(lint, scratch) == []
     (scratch / config).write_text("line-length = 79\n")
     assert set(changed_files(lint, scratch)) >= {Path(n) for n in files}
+
+
+def test_a_submodule_bump_reruns_a_whole_task(scratch, tmp_path):
+    """A gitlink is a directory, not a file: its pinned commit still counts."""
+    sub = tmp_path / "sub"
+    sub.mkdir()
+    _git(sub, "init", "--quiet")
+    commit = ("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q")
+    _git(sub, *commit, "--allow-empty", "-m", "one")
+    _git(sub, *commit, "--allow-empty", "-m", "two")
+
+    def rev(name):
+        return subprocess.run(
+            ["git", "rev-parse", name],
+            cwd=sub,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+
+    first, second = rev("HEAD~1"), rev("HEAD")
+    _git(
+        scratch,
+        "-c",
+        "protocol.file.allow=always",
+        "submodule",
+        "add",
+        "-q",
+        str(sub),
+        "src/sub",
+    )
+    _git(scratch / "src" / "sub", "checkout", "-q", first)
+    _git(scratch, "add", "src/sub")
+    before = digest(_checks.TASKS["whole"], scratch)
+    run("whole", scratch)
+    _calls(scratch)
+    _git(scratch / "src" / "sub", "checkout", "-q", second)
+    _git(scratch, "add", "src/sub")
+    assert digest(_checks.TASKS["whole"], scratch) != before
+    assert run("whole", scratch) == 0
+    assert _calls(scratch) == [["whole"]]

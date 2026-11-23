@@ -61,6 +61,24 @@
       "tier": "fast"
     },
     {
+      "area": "checks/pins_check",
+      "name": "tests/checks/test_pins_check.py::test_a_configure_at_another_commit_names_the_fix",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/pins_check",
+      "name": "tests/checks/test_pins_check.py::test_a_configure_with_every_pin_matched_passes",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/pins_check",
+      "name": "tests/checks/test_pins_check.py::test_a_configure_without_submodules_names_the_fix",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
       "area": "checks/tasks",
       "name": "tests/checks/test_tasks.py::test_a_change_to_one_python_file_lints_only_that_file",
       "outcome": "passed",
@@ -1833,6 +1851,48 @@
     {
       "area": "docs/engine_inventory",
       "name": "tests/docs/test_engine_inventory.py::test_the_inventory_gives_every_module_its_phase",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/pins",
+      "name": "tests/engine/test_pins.py::test_a_pin_is_a_full_commit_hash[SQ_CATCH2_COMMIT]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/pins",
+      "name": "tests/engine/test_pins.py::test_a_pin_is_a_full_commit_hash[SQ_CPPTRACE_COMMIT]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/pins",
+      "name": "tests/engine/test_pins.py::test_a_pin_is_a_full_commit_hash[SQ_DUCKDB_PYTHON_COMMIT]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/pins",
+      "name": "tests/engine/test_pins.py::test_a_pin_is_a_full_commit_hash[SQ_NANOBENCH_COMMIT]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/pins",
+      "name": "tests/engine/test_pins.py::test_a_pin_is_a_full_commit_hash[SQ_RAPIDCHECK_COMMIT]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/pins",
+      "name": "tests/engine/test_pins.py::test_duckdb_python_pins_duckdb_v2_0_1",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/pins",
+      "name": "tests/engine/test_pins.py::test_each_pin_is_the_submodules_commit",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -19965,6 +20025,12 @@
     {
       "area": "validation/_checks",
       "name": "tests/validation/test__checks.py::test_a_removed_module_checks_every_file_again",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_a_submodule_bump_reruns_a_whole_task",
       "outcome": "passed",
       "tier": "fast"
     },

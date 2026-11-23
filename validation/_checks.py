@@ -143,6 +143,8 @@ TEST_INPUTS = (
     "devdata",
     # Files the tests read as data.
     "docs/architecture/engine-inventory.md",
+    # The pins file, and the submodules' commits.
+    "engine",
     "docs/conf.py",
     ".githooks",
     "commitlint.config.mjs",
@@ -266,6 +268,30 @@ def _listed(pathspecs: Sequence[str], root: Path) -> list[str]:
     return sorted(n for n in names if (root / n).is_file())
 
 
+def _gitlinks(pathspecs: Sequence[str], root: Path) -> dict[str, str]:
+    """Return each submodule under `pathspecs` with the commit the tree pins.
+
+    A gitlink (mode 160000) is a directory in the working tree, so
+    ``_listed`` drops it; its commit is what a bump changes.
+    """
+    if not pathspecs:
+        return {}
+    out = subprocess.run(
+        ["git", "ls-files", "-s", "-z", "--", *pathspecs],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    links = {}
+    for entry in out.split("\0"):
+        info, _, name = entry.partition("\t")
+        mode, commit, *_ = info.split(" ") if info else ("", "", "")
+        if mode == "160000":
+            links[name] = commit
+    return links
+
+
 def _mode(path: Path) -> bytes:
     """Return ``x`` for an executable file, ``-`` for any other.
 
@@ -287,16 +313,21 @@ def _place() -> bytes:
     return "\0".join((sys.version, platform.platform(), platform.machine())).encode()
 
 
-def _combined(names: Sequence[str], root: Path) -> str:
+def _combined(
+    names: Sequence[str], root: Path, links: dict[str, str] | None = None
+) -> str:
     """Return the SHA-256 of the place, then each file's path, mode and bytes.
 
     The place leads, then, sorted, each file's path, a NUL, its mode, its
-    bytes, a NUL.
+    bytes, a NUL; then, sorted, each submodule's path, a NUL, its commit, a
+    NUL.
     """
     sha = hashlib.sha256(_place() + b"\0")
     for name in sorted(names):
         path = root / name
         sha.update(name.encode() + b"\0" + _mode(path) + path.read_bytes() + b"\0")
+    for name, commit in sorted((links or {}).items()):
+        sha.update(name.encode() + b"\0" + commit.encode() + b"\0")
     return sha.hexdigest()
 
 
@@ -313,12 +344,15 @@ def digest(task: Task, root: Path) -> str:
     Returns
     -------
     str
-        The hex digest of the place it runs in and every file under its
-        inputs and configuration.
+        The hex digest of the place it runs in, every file under its inputs
+        and configuration, and the commit each submodule there pins.
     """
-    return _combined(
-        sorted({*_listed(task.inputs, root), *_listed(task.config, root)}), root
-    )
+    names = sorted({*_listed(task.inputs, root), *_listed(task.config, root)})
+    links = {
+        **_gitlinks(task.inputs, root),
+        **_gitlinks(task.config, root),
+    }
+    return _combined(names, root, links)
 
 
 def _config(task: Task, root: Path) -> str:
