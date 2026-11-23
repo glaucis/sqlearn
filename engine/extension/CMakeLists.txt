@@ -22,4 +22,7 @@ target_include_directories(sqlearn_extension SYSTEM PRIVATE ${sq_duckdb_includes
 # core/version.hpp: core::describe is compiled into _duckdb with the rest of
 # sqlearn's objects, and this archive resolves it there at the link.
 target_include_directories(sqlearn_extension PRIVATE "${SQ_ENGINE_DIR}/src")
-target_compile_options(sqlearn_extension PRIVATE ${SQ_WARNINGS})
+# sqlearn's warnings, floating-point rule and flavour, as on every group
+# (engine/cmake/warnings.cmake, hardening.cmake).
+sq_target_warnings(sqlearn_extension)
+sq_target_flavor(sqlearn_extension)

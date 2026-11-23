@@ -146,6 +146,88 @@ check-docstring-args *files:
 build-package:
     uv build --wheel
 
+# Configure and build sqlearn's C++ groups and their test programs with a preset (dev, debug, release, profile, llvm-dev) into engine/build/<preset>
+[group('build')]
+build-engine preset="dev":
+    cd engine && cmake --preset {{ preset }}
+    cd engine && cmake --build --preset {{ preset }} --parallel
+
+# Build a preset's C++ groups, then run their tests and the must-not-compile tests with CTest
+[group('test')]
+test-engine preset="dev": (build-engine preset)
+    cd engine && ctest --preset {{ preset }}
+
+# Print which C++26 features each compiler on this machine has, by its __cpp_* macros (spec §3.8's table); rerun after each Xcode or compiler update
+[group('maintain')]
+probe-cxx26:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    tmp=$(mktemp -d)
+    trap 'rm -rf "$tmp"' EXIT
+    cat > "$tmp/probe.cpp" <<'CPP'
+    #include <cstdio>
+    #include <version>
+    #define SQ_STR2(x) #x
+    #define SQ_STR(x) SQ_STR2(x)
+    int main() {
+        std::printf("%ld\n", static_cast<long>(__cplusplus));
+    #if defined(__cpp_reflection)
+        std::puts("__cpp_reflection " SQ_STR(__cpp_reflection));
+    #elif defined(__cpp_impl_reflection)
+        std::puts("__cpp_impl_reflection " SQ_STR(__cpp_impl_reflection));
+    #else
+        std::puts("no");
+    #endif
+    #if defined(__cpp_contracts)
+        std::puts(SQ_STR(__cpp_contracts));
+    #else
+        std::puts("no");
+    #endif
+    #if defined(__cpp_lib_linalg)
+        std::puts(SQ_STR(__cpp_lib_linalg));
+    #else
+        std::puts("no");
+    #endif
+    }
+    CPP
+    sdk=$(xcrun --show-sdk-path)
+    names=() ; columns=()
+    probe() { # name, compiler, flags...
+        local name=$1 cxx=$2
+        shift 2
+        if ! command -v "$cxx" > /dev/null 2>&1; then return; fi
+        local version
+        version=$("$cxx" --version | head -n 1)
+        if "$cxx" -std=c++26 "$@" "$tmp/probe.cpp" -o "$tmp/probe" 2> "$tmp/err"; then
+            names+=("$name ($version)")
+            columns+=("$("$tmp/probe" | paste -sd '|' -)")
+        else
+            names+=("$name ($version)")
+            columns+=("compile failed: $(head -n 1 "$tmp/err")|||")
+        fi
+    }
+    probe "Apple clang" clang++
+    probe "Homebrew LLVM" /opt/homebrew/opt/llvm/bin/clang++ -isysroot "$sdk"
+    for gcc in g++-16 gcc-16; do
+        if command -v "$gcc" > /dev/null 2>&1; then
+            [ "$gcc" = gcc-16 ] && set -- -lstdc++ || set --
+            probe "GCC" "$gcc" "$@"
+            probe "GCC, -freflection -fcontracts" "$gcc" -freflection -fcontracts "$@"
+            break
+        fi
+    done
+    row() { # label, field
+        printf '| %s |' "$1"
+        for c in "${columns[@]}"; do printf ' %s |' "$(cut -d '|' -f "$2" <<<"$c")"; done
+        printf '\n'
+    }
+    printf '| |'; for n in "${names[@]}"; do printf ' %s |' "$n"; done; printf '\n'
+    printf '|---|'; for n in "${names[@]}"; do printf -- '---|'; done; printf '\n'
+    row "__cplusplus (-std=c++26)" 1
+    row "Reflection" 2
+    row "Contracts" 3
+    row "std::linalg" 4
+
 # Write src/sqlearn/_native.pyi from the built engine, with nanobind's stubgen (signatures only: a docstring stays on its function), formatted as ruff formats the package
 [group('build')]
 stubs:

@@ -1981,6 +1981,36 @@
       "tier": "fast"
     },
     {
+      "area": "engine/presets",
+      "name": "tests/engine/test_presets.py::test_every_preset_builds_in_its_own_directory",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/presets",
+      "name": "tests/engine/test_presets.py::test_every_preset_named_in_the_spec_exists",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/presets",
+      "name": "tests/engine/test_presets.py::test_no_preset_sets_fast_math",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/presets",
+      "name": "tests/engine/test_presets.py::test_our_sources_never_contract_to_fma",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/presets",
+      "name": "tests/engine/test_presets.py::test_the_wheel_compiles_our_sources_with_the_strict_flags",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
       "area": "githooks/commit_msg",
       "name": "tests/githooks/test_commit_msg.py::test_a_breaking_change_needs_its_footer",
       "outcome": "passed",
