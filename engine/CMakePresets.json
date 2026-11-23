@@ -9,9 +9,7 @@
       "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
         "SQ_ENGINE_ONLY": "ON",
-        "SQ_BUILD_TESTS": "ON",
-        "CMAKE_CXX_COMPILER_LAUNCHER": "ccache",
-        "CMAKE_C_COMPILER_LAUNCHER": "ccache"
+        "SQ_BUILD_TESTS": "ON"
       }
     },
     {
@@ -41,8 +39,28 @@
     {
       "name": "llvm-dev",
       "inherits": "dev",
-      "displayName": "llvm-dev: dev with Homebrew LLVM",
+      "displayName": "llvm-dev: dev with Homebrew LLVM, AddressSanitizer's leak check on",
       "toolchainFile": "${sourceDir}/cmake/toolchain-llvm.cmake"
+    },
+    {
+      "name": "tsan",
+      "inherits": "base",
+      "displayName": "tsan: -O1 -g, ThreadSanitizer",
+      "cacheVariables": { "SQ_FLAVOR": "tsan", "CMAKE_BUILD_TYPE": "Debug" }
+    },
+    {
+      "name": "lsan",
+      "inherits": "base",
+      "displayName": "lsan: -O1 -g, LeakSanitizer, with Homebrew LLVM",
+      "toolchainFile": "${sourceDir}/cmake/toolchain-llvm.cmake",
+      "cacheVariables": { "SQ_FLAVOR": "lsan", "CMAKE_BUILD_TYPE": "Debug" }
+    },
+    {
+      "name": "tysan",
+      "inherits": "base",
+      "displayName": "tysan: -O1 -g, TypeSanitizer, with Homebrew LLVM",
+      "toolchainFile": "${sourceDir}/cmake/toolchain-llvm.cmake",
+      "cacheVariables": { "SQ_FLAVOR": "tysan", "CMAKE_BUILD_TYPE": "Debug" }
     }
   ],
   "buildPresets": [
@@ -50,13 +68,19 @@
     { "name": "debug", "configurePreset": "debug" },
     { "name": "release", "configurePreset": "release" },
     { "name": "profile", "configurePreset": "profile" },
-    { "name": "llvm-dev", "configurePreset": "llvm-dev" }
+    { "name": "llvm-dev", "configurePreset": "llvm-dev" },
+    { "name": "tsan", "configurePreset": "tsan" },
+    { "name": "lsan", "configurePreset": "lsan" },
+    { "name": "tysan", "configurePreset": "tysan" }
   ],
   "testPresets": [
     { "name": "dev", "configurePreset": "dev", "output": { "outputOnFailure": true } },
     { "name": "debug", "configurePreset": "debug", "output": { "outputOnFailure": true } },
     { "name": "release", "configurePreset": "release", "output": { "outputOnFailure": true } },
     { "name": "profile", "configurePreset": "profile", "output": { "outputOnFailure": true } },
-    { "name": "llvm-dev", "configurePreset": "llvm-dev", "output": { "outputOnFailure": true } }
+    { "name": "llvm-dev", "configurePreset": "llvm-dev", "output": { "outputOnFailure": true } },
+    { "name": "tsan", "configurePreset": "tsan", "output": { "outputOnFailure": true } },
+    { "name": "lsan", "configurePreset": "lsan", "output": { "outputOnFailure": true } },
+    { "name": "tysan", "configurePreset": "tysan", "output": { "outputOnFailure": true } }
   ]
 }

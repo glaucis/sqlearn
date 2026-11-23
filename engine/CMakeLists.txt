@@ -27,12 +27,14 @@ option(
 option(SQ_BUILD_TESTS "Build the C++ test programs (CTest)" ${SQ_ENGINE_ONLY})
 
 include(cmake/pins.cmake)
+include(cmake/ccache.cmake)
 include(cmake/duckdb_package.cmake)
 include(cmake/warnings.cmake)
 include(cmake/hardening.cmake)
 include(cmake/groups.cmake)
 include(cmake/headers_alone.cmake)
 sq_check_pins()
+sq_ccache()
 
 set(SQ_ENGINE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 

@@ -39,12 +39,14 @@ def test_a_command_runs_outside_its_build(monkeypatch, tmp_path):
 
 
 def test_the_sources_are_ours_alone():
-    """Never a must-not-compile or must-not-pass-tidy case, never a header."""
+    """Never a must-not-compile or must-not-pass-tidy case, never a canary (each
+    holds a fault on purpose), never a header."""
     root = Path(__file__).resolve().parents[2]
     names = _tidy.sources(root)
     assert "engine/src/core/error.cpp" in names
     assert "engine/bench/bench_buffer.cpp" in names
     assert not [n for n in names if "/must_not_" in n or not n.endswith(".cpp")]
+    assert not [n for n in names if n.startswith("engine/tests/canary/")]
     assert not [
         n
         for n in names

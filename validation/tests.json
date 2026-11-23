@@ -2030,6 +2030,18 @@
     },
     {
       "area": "engine/presets",
+      "name": "tests/engine/test_presets.py::test_the_optimised_flavours_alone_carry_the_release_hardening",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/presets",
+      "name": "tests/engine/test_presets.py::test_the_wheel_compiles_our_sources_with_the_release_hardening",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/presets",
       "name": "tests/engine/test_presets.py::test_the_wheel_compiles_our_sources_with_the_strict_flags",
       "outcome": "passed",
       "tier": "fast"
@@ -2039,6 +2051,90 @@
       "name": "tests/engine/test_raw_layer.py::test_the_raw_allocation_is_named_only_in_the_raw_layer",
       "outcome": "passed",
       "tier": "fast"
+    },
+    {
+      "area": "engine/sanitizers",
+      "name": "tests/engine/test_sanitizers.py::test_a_canary_passes_only_when_its_sanitizer_stopped_it",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/sanitizers",
+      "name": "tests/engine/test_sanitizers.py::test_a_presets_build_checks_the_compiler_by_version[lsan]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/sanitizers",
+      "name": "tests/engine/test_sanitizers.py::test_a_presets_build_checks_the_compiler_by_version[release]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/sanitizers",
+      "name": "tests/engine/test_sanitizers.py::test_a_tests_data_directory_is_refused_with_a_fix",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/sanitizers",
+      "name": "tests/engine/test_sanitizers.py::test_ccache_asks_the_compiler_behind_a_shim_for_its_version",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/sanitizers",
+      "name": "tests/engine/test_sanitizers.py::test_each_sanitizer_has_a_preset_of_its_flavour",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/sanitizers",
+      "name": "tests/engine/test_sanitizers.py::test_each_sanitizer_preset_has_its_canaries_alone[dev-canaries0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/sanitizers",
+      "name": "tests/engine/test_sanitizers.py::test_each_sanitizer_preset_has_its_canaries_alone[lsan-canaries2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/sanitizers",
+      "name": "tests/engine/test_sanitizers.py::test_each_sanitizer_preset_has_its_canaries_alone[tsan-canaries1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/sanitizers",
+      "name": "tests/engine/test_sanitizers.py::test_each_sanitizer_preset_has_its_canaries_alone[tysan-canaries3]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/sanitizers",
+      "name": "tests/engine/test_sanitizers.py::test_every_build_reads_sq_ccache_before_duckdb",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/sanitizers",
+      "name": "tests/engine/test_sanitizers.py::test_just_sanitize_runs_every_sanitizer_preset",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/sanitizers",
+      "name": "tests/engine/test_sanitizers.py::test_the_wheels_build_checks_the_compiler_by_version",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/steady_memory",
+      "name": "tests/engine/test_steady_memory.py::test_memory_levels_off",
+      "outcome": "passed",
+      "tier": "slow"
     },
     {
       "area": "engine/tidy",
@@ -20463,6 +20559,12 @@
     {
       "area": "validation/_ctest",
       "name": "tests/validation/test__ctest.py::test_a_must_not_compile_test_reruns_when_a_header_changes",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_ctest",
+      "name": "tests/validation/test__ctest.py::test_a_nested_rpath_library_is_found_through_the_programs_run_paths",
       "outcome": "passed",
       "tier": "fast"
     },

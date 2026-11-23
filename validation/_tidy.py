@@ -17,9 +17,9 @@ command from the build that compiles it:
 
 The database, ``engine/build/tidy/compile_commands.json``, holds our
 sources alone: never a submodule's, never the must-not-compile cases (they
-are meant not to compile) nor the must-not-pass-tidy ones (meant to fail
-it). A source no build compiles is refused with a ``Fix:`` line, so none is
-skipped unseen.
+are meant not to compile), the must-not-pass-tidy ones (meant to fail it)
+nor the sanitizers' canaries (each holds a fault on purpose). A source no
+build compiles is refused with a ``Fix:`` line, so none is skipped unseen.
 """
 
 import argparse
@@ -44,6 +44,7 @@ SOURCES = (
     "engine/extension/src/*.cpp",
     ":(exclude)engine/tests/must_not_compile",
     ":(exclude)engine/tests/must_not_pass_tidy",
+    ":(exclude)engine/tests/canary",
 )
 """Our C++ sources, as git pathspecs; a header is checked through them."""
 

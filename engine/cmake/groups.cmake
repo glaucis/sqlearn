@@ -44,11 +44,21 @@ endfunction()
 # Give the test `test` the files it reads at run time, relative to the
 # current source directory or absolute, as CTest's REQUIRED_FILES: CTest
 # refuses to run it without them, and the checks hash them into its group's
-# identity (validation/_ctest.py), so an edited file reruns it.
+# identity (validation/_ctest.py), so an edited file reruns it. A directory
+# is refused: the checks hash a file's bytes, and a directory's would be
+# none of its files'.
 function(sq_test_data test)
   set(files "")
   foreach(file IN LISTS ARGN)
     get_filename_component(path "${file}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+    if(IS_DIRECTORY "${path}")
+      message(
+        FATAL_ERROR
+        "sq_test_data(${test}): ${path} is a directory, whose files the checks "
+        "would not hash, so an edited one would not rerun ${test}.\n"
+        "Fix: name each file it reads, as sq_add_group(... DATA <dir>/a.csv <dir>/b.csv)"
+      )
+    endif()
     list(APPEND files "${path}")
   endforeach()
   if(files)
@@ -97,6 +107,9 @@ function(sq_add_group name)
     )
     add_test(NAME ${program} COMMAND ${program})
     set_tests_properties(${program} PROPERTIES LABELS ${name})
+    if(SQ_TEST_ENVIRONMENT)
+      set_tests_properties(${program} PROPERTIES ENVIRONMENT "${SQ_TEST_ENVIRONMENT}")
+    endif()
     sq_test_data(${program} ${arg_DATA})
   endif()
 endfunction()

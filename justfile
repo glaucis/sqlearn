@@ -173,6 +173,19 @@ test-engine preset="dev": (build-engine preset)
 test-engine-changed preset="dev" *flags:
     uv run --locked python -m validation._ctest {{ preset }} {{ flags }}
 
+# Build each sanitizer preset and run every C++ group's tests and its canaries under it: dev (AddressSanitizer, UndefinedBehaviorSanitizer), tsan, lsan, tysan (validation/_ctest.py, --all); every preset runs, a failing one included, and the first failure's code is the exit
+[group('test')]
+sanitize:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    first=0
+    for preset in dev tsan lsan tysan; do
+        code=0
+        uv run --locked python -m validation._ctest "$preset" --all || code=$?
+        if [ "$first" -eq 0 ]; then first=$code; fi
+    done
+    exit "$first"
+
 # Run clang-tidy, with the Clang static analyser, over our C++ (engine/.clang-tidy, every finding an error), from one compile database of the llvm-dev, release and wheel builds (validation/_tidy.py)
 [group('check')]
 tidy-engine:

@@ -61,7 +61,7 @@ from validation import _checks
 TOOLS = ("cmake", "ctest", "ninja")
 """The programs a run needs on ``PATH``."""
 
-SANITIZER_ENVIRONMENT = re.compile(r"^(ASAN|UBSAN|LSAN|TSAN|MSAN|RC|CATCH)_")
+SANITIZER_ENVIRONMENT = re.compile(r"^(ASAN|UBSAN|LSAN|TSAN|TYSAN|MSAN|RC|CATCH)_")
 """The variables whose values change what a test checks: part of the place."""
 
 SYSTEM = ("/usr/lib/", "/System/", "/lib/", "/lib64/", "/usr/lib64/")
@@ -319,48 +319,59 @@ def _macho(binary: Path, *, library: bool) -> tuple[list[str], list[str]]:
     return names, rpaths
 
 
+def _placed(text: str, loader: Path, program: Path) -> str:
+    """Return `text` with ``@executable_path`` and ``@loader_path`` replaced."""
+    return text.replace("@executable_path", str(program.parent)).replace(
+        "@loader_path", str(loader.parent)
+    )
+
+
 def _resolve(name: str, loader: Path, program: Path, rpaths: list[str]) -> Path | None:
-    """Return the file the dynamic loader would load for `name`, None if none."""
+    """Return the file the dynamic loader would load for `name`, None if none.
 
-    def place(text: str) -> str:
-        return text.replace("@executable_path", str(program.parent)).replace(
-            "@loader_path", str(loader.parent)
-        )
-
+    `rpaths` are the run-path directories dyld searches for an ``@rpath/``
+    name of `loader`, already placed: `loader`'s own, then those of each
+    image that loaded it, back to the program's.
+    """
     if name.startswith("@rpath/"):
         rest = name.removeprefix("@rpath/")
         for rpath in rpaths:
-            candidate = Path(place(rpath)) / rest
+            candidate = Path(rpath) / rest
             if candidate.is_file():
                 return candidate.resolve()
         return None
-    candidate = Path(place(name))
+    candidate = Path(_placed(name, loader, program))
     return candidate.resolve() if candidate.is_file() else None
 
 
 def _libraries(program: Path) -> list[str]:
     """Return each non-system shared library `program` loads, with its digest.
 
-    On macOS through ``otool`` (its names, resolved through each file's
-    run-path directories); elsewhere through ``ldd`` when present. A library
-    that cannot be found is named as such.
+    On macOS through ``otool``: each file's names, an ``@rpath/`` one
+    resolved as dyld does, through the run paths of the whole chain that
+    loaded it (its own, then each loader's, back to the program's; an
+    ``@loader_path`` in a run path is the directory of the file declaring
+    it). Elsewhere through ``ldd`` when present. A library that cannot be
+    found is named as such.
     """
     found: list[str] = []
     if sys.platform == "darwin" and shutil.which("otool"):
-        seen = {program.resolve()}
-        queue = [program.resolve()]
+        start = program.resolve()
+        seen = {start}
+        queue: list[tuple[Path, list[str]]] = [(start, [])]
         while queue:
-            binary = queue.pop()
-            names, rpaths = _macho(binary, library=binary != program.resolve())
+            binary, inherited = queue.pop()
+            names, own = _macho(binary, library=binary != start)
+            rpaths = [_placed(r, binary, start) for r in own] + inherited
             for name in names:
                 if name.startswith(SYSTEM):
                     continue
-                path = _resolve(name, binary, program, rpaths)
+                path = _resolve(name, binary, start, rpaths)
                 if path is None:
                     found.append(f"{name}\0unresolved")
                 elif path not in seen:
                     seen.add(path)
-                    queue.append(path)
+                    queue.append((path, rpaths))
                     found.append(f"{path}\0{_sha(path)}")
     elif shutil.which("ldd"):
         for line in (_output(["ldd", str(program)]) or "").splitlines():

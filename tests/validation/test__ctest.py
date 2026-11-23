@@ -160,3 +160,61 @@ def test_a_failure_cancels_a_pass_of_the_same_identity(engine_scratch):
     scratch.runs()
     fail.unlink()
     assert _passes(scratch) == ["core", "raw"]
+
+
+def test_a_nested_rpath_library_is_found_through_the_programs_run_paths(tmp_path):
+    """``a`` names ``@rpath/libb`` and has no run path; the program's finds it.
+
+    dyld searches the run paths of the whole chain that loaded a library,
+    the program's included: so ``libb``, which only the program's run path
+    reaches, is loaded, and a new ``libb`` must rerun the program's group.
+    """
+    import shutil
+    import subprocess
+    import sys
+
+    import pytest
+
+    if sys.platform != "darwin" or shutil.which("c++") is None:
+        pytest.skip("Mach-O run paths: macOS with a compiler")
+    a, b = tmp_path / "a", tmp_path / "b"
+    a.mkdir()
+    b.mkdir()
+
+    def build(*argv):
+        subprocess.run(["c++", *argv], cwd=tmp_path, check=True, capture_output=True)
+
+    (tmp_path / "b.cpp").write_text("int fb() { return 0; }\n")
+    (tmp_path / "a.cpp").write_text("int fb();\nint fa() { return fb(); }\n")
+    (tmp_path / "main.cpp").write_text("int fa();\nint main() { return fa(); }\n")
+    build(
+        "-dynamiclib",
+        "b.cpp",
+        "-install_name",
+        "@rpath/libb.dylib",
+        "-o",
+        "b/libb.dylib",
+    )
+    build(
+        "-dynamiclib",
+        "a.cpp",
+        "-install_name",
+        "@rpath/liba.dylib",
+        "b/libb.dylib",
+        "-o",
+        "a/liba.dylib",
+    )
+    build(
+        "main.cpp",
+        "a/liba.dylib",
+        "-Wl,-rpath,@executable_path/a",
+        "-Wl,-rpath,@executable_path/b",
+        "-o",
+        "program",
+    )
+    program = tmp_path / "program"
+    assert subprocess.run([program], check=False).returncode == 0
+    found = _ctest._libraries(program)
+    assert [x.split("\0")[0] for x in found] == sorted(
+        [str((a / "liba.dylib").resolve()), str((b / "libb.dylib").resolve())]
+    )

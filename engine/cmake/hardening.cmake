@@ -1,7 +1,8 @@
 # The build flavours of sqlearn's own sources (spec §3.9's presets): the
 # optimisation and debug-information levels, the hardened libc++ mode, how
-# uninitialised locals start, the CPU target and the sanitizers. A preset
-# sets SQ_FLAVOR; the wheel (scikit-build-core, no preset) is `release`.
+# uninitialised locals start, the CPU target, the release hardening and the
+# sanitizers. A preset sets SQ_FLAVOR; the wheel (scikit-build-core, no
+# preset) is `release`.
 #
 # libc++'s hardening mode is chosen per translation unit, so ours can differ
 # from DuckDB's (theirs are built without the macro, libc++'s default
@@ -17,11 +18,11 @@ set(
   SQ_FLAVOR
   "release"
   CACHE STRING
-  "The flavour of sqlearn's own sources: dev, debug, release or profile"
+  "The flavour of sqlearn's own sources: dev, debug, release, profile, tsan, lsan or tysan"
 )
 set_property(
   CACHE SQ_FLAVOR
-  PROPERTY STRINGS dev debug release profile
+  PROPERTY STRINGS dev debug release profile tsan lsan tysan
 )
 
 set(SQ_HARDENING_EXTENSIVE "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE")
@@ -34,12 +35,64 @@ if(APPLE AND CMAKE_SYSTEM_PROCESSOR MATCHES "arm64|aarch64")
   set(SQ_CPU_OPTIONS -mcpu=apple-m1)
 endif()
 
+# The release hardening of OpenSSF's compiler options guide, for the
+# optimised flavours: _FORTIFY_SOURCE needs optimisation, and is undefined
+# first in case the compiler or a caller set another level. macOS's SDK
+# reads any level above 1 as its level 2 (secure/_common.h). Stack clash
+# protection only where the compiler takes it: Apple clang 21 and LLVM 23
+# ignore it on arm64 macOS ("argument unused"), so it is left out there.
+# Branch protection (pointer authentication, branch targets) on arm64.
+include(CheckCXXCompilerFlag)
+set(SQ_RELEASE_HARDENING -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 -fstack-protector-strong)
+# The check compiles and links; an unused argument is only a warning there.
+set(CMAKE_REQUIRED_FLAGS -Werror=unused-command-line-argument)
+check_cxx_compiler_flag(-fstack-clash-protection SQ_TAKES_STACK_CLASH_PROTECTION)
+unset(CMAKE_REQUIRED_FLAGS)
+if(SQ_TAKES_STACK_CLASH_PROTECTION)
+  list(APPEND SQ_RELEASE_HARDENING -fstack-clash-protection)
+endif()
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "arm64|aarch64")
+  list(APPEND SQ_RELEASE_HARDENING -mbranch-protection=standard)
+endif()
+
+# The sanitizer flavours build as dev does, for the debugger's sake, with
+# their one sanitizer. Every finding stops the program, so a test cannot
+# pass over one: -fno-sanitize-recover=all, and for TypeSanitizer, which
+# reports and goes on whatever that flag says, halt_on_error in each test's
+# environment (SQ_TEST_ENVIRONMENT).
+set(SQ_DEBUG_OPTIONS -O1 -g -fno-omit-frame-pointer -ftrivial-auto-var-init=pattern)
 set(SQ_SANITIZERS "")
+set(SQ_TEST_ENVIRONMENT "")
+if(SQ_FLAVOR MATCHES "^(lsan|tysan)$" AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  # Apple clang has no LeakSanitizer on Apple silicon and no TypeSanitizer.
+  message(
+    FATAL_ERROR
+    "SQ_FLAVOR ${SQ_FLAVOR} needs Homebrew LLVM's clang, not ${CMAKE_CXX_COMPILER_ID}.\n"
+    "Fix: cmake --preset ${SQ_FLAVOR} (it builds with engine/cmake/toolchain-llvm.cmake)"
+  )
+endif()
 if(SQ_FLAVOR STREQUAL "dev")
-  set(SQ_FLAVOR_OPTIONS -O1 -g -fno-omit-frame-pointer -ftrivial-auto-var-init=pattern)
+  set(SQ_FLAVOR_OPTIONS ${SQ_DEBUG_OPTIONS})
   set(SQ_HARDENING ${SQ_HARDENING_EXTENSIVE})
-  # Every finding stops the program, so a test cannot pass over one.
   set(SQ_SANITIZERS -fsanitize=address,undefined -fno-sanitize-recover=all)
+  # AddressSanitizer's leak check: Homebrew LLVM's runtime has it on Apple
+  # silicon, Apple's refuses detect_leaks=1 there.
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    set(SQ_TEST_ENVIRONMENT ASAN_OPTIONS=detect_leaks=1)
+  endif()
+elseif(SQ_FLAVOR STREQUAL "tsan")
+  set(SQ_FLAVOR_OPTIONS ${SQ_DEBUG_OPTIONS})
+  set(SQ_HARDENING ${SQ_HARDENING_EXTENSIVE})
+  set(SQ_SANITIZERS -fsanitize=thread -fno-sanitize-recover=all)
+elseif(SQ_FLAVOR STREQUAL "lsan")
+  set(SQ_FLAVOR_OPTIONS ${SQ_DEBUG_OPTIONS})
+  set(SQ_HARDENING ${SQ_HARDENING_EXTENSIVE})
+  set(SQ_SANITIZERS -fsanitize=leak -fno-sanitize-recover=all)
+elseif(SQ_FLAVOR STREQUAL "tysan")
+  set(SQ_FLAVOR_OPTIONS ${SQ_DEBUG_OPTIONS})
+  set(SQ_HARDENING ${SQ_HARDENING_EXTENSIVE})
+  set(SQ_SANITIZERS -fsanitize=type -fno-sanitize-recover=all)
+  set(SQ_TEST_ENVIRONMENT TYSAN_OPTIONS=halt_on_error=1)
 elseif(SQ_FLAVOR STREQUAL "debug")
   set(SQ_FLAVOR_OPTIONS -O0 -g -ftrivial-auto-var-init=pattern)
   set(SQ_HARDENING ${SQ_HARDENING_EXTENSIVE})
@@ -47,7 +100,14 @@ elseif(SQ_FLAVOR STREQUAL "release")
   # ThinLTO is left out: our objects link into _duckdb with DuckDB's, which
   # are built without it, and no build with it has been measured; spec
   # §3.9's `just tune` tries LTO.
-  set(SQ_FLAVOR_OPTIONS -O2 -gline-tables-only -ftrivial-auto-var-init=zero ${SQ_CPU_OPTIONS})
+  set(
+    SQ_FLAVOR_OPTIONS
+    -O2
+    -gline-tables-only
+    -ftrivial-auto-var-init=zero
+    ${SQ_CPU_OPTIONS}
+    ${SQ_RELEASE_HARDENING}
+  )
   set(SQ_HARDENING ${SQ_HARDENING_FAST})
 elseif(SQ_FLAVOR STREQUAL "profile")
   set(
@@ -57,13 +117,14 @@ elseif(SQ_FLAVOR STREQUAL "profile")
     -fno-omit-frame-pointer
     -ftrivial-auto-var-init=zero
     ${SQ_CPU_OPTIONS}
+    ${SQ_RELEASE_HARDENING}
   )
   set(SQ_HARDENING ${SQ_HARDENING_FAST})
 else()
   message(
     FATAL_ERROR
     "SQ_FLAVOR is \"${SQ_FLAVOR}\".\n"
-    "Fix: configure with a preset (cmake --preset dev), or set SQ_FLAVOR to dev, debug, release or profile"
+    "Fix: configure with a preset (cmake --preset dev), or set SQ_FLAVOR to dev, debug, release, profile, tsan, lsan or tysan"
   )
 endif()
 

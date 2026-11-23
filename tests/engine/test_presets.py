@@ -2,6 +2,7 @@
 the flag files they read, turns on fast math."""
 
 import json
+import platform
 import re
 from pathlib import Path
 from typing import Any
@@ -95,3 +96,34 @@ def test_the_wheel_compiles_our_sources_with_the_strict_flags() -> None:
         assert "-D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_FAST" in flags, command[
             "file"
         ]
+
+
+def test_the_wheel_compiles_our_sources_with_the_release_hardening() -> None:
+    """The wheel's build gives our sources OpenSSF's release hardening: fortified
+    libc calls, the stack protector, and on arm64 branch protection."""
+    builds = sorted((REPO / "build").glob("*/compile_commands.json"))
+    if not builds:
+        pytest.skip("no wheel build here yet: uv sync makes one")
+    commands = json.loads(builds[0].read_text())
+    ours = [c for c in commands if c["file"].startswith(str(ENGINE / "src"))]
+    assert ours
+    wanted = ["-U_FORTIFY_SOURCE", "-D_FORTIFY_SOURCE=3", "-fstack-protector-strong"]
+    if platform.machine() in {"arm64", "aarch64"}:
+        wanted.append("-mbranch-protection=standard")
+    for command in ours:
+        flags = command["command"].split()
+        for flag in wanted:
+            assert flag in flags, (command["file"], flag)
+        assert flags.index("-U_FORTIFY_SOURCE") < flags.index("-D_FORTIFY_SOURCE=3")
+
+
+def test_the_optimised_flavours_alone_carry_the_release_hardening() -> None:
+    """release and profile take the hardening; _FORTIFY_SOURCE needs optimisation,
+    so the dev, debug and sanitizer flavours go without it."""
+    text = (ENGINE / "cmake" / "hardening.cmake").read_text()
+    code = "\n".join(line.split("#", 1)[0] for line in text.splitlines())
+    branches = re.split(r'\n(?:else)?if\(SQ_FLAVOR STREQUAL "', code)
+    flavours = {b.split('"', 1)[0]: b for b in branches[1:]}
+    assert set(flavours) >= {"dev", "debug", "release", "profile", "tsan", "lsan"}
+    for name, body in flavours.items():
+        assert ("${SQ_RELEASE_HARDENING}" in body) == (name in {"release", "profile"})

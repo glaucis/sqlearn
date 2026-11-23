@@ -192,19 +192,22 @@ A group's identity is the hash of:
   time into the debug map);
 - the bytes of each shared library the program loads outside the system's
   (`/usr/lib/`, `/System/`, `/lib/`): the sanitizers' runtime, another libc++,
-  a library of the build, found with `otool` and the run-path directories on
-  macOS, `ldd` elsewhere;
+  a library of the build, found with `otool` on macOS, an `@rpath/` name
+  through the run paths of the whole chain that loaded it as dyld searches
+  them (its own, then each loader's, back to the program's), and `ldd`
+  elsewhere;
 - the files the tests read at run time: `sq_add_group`'s `DATA` (CTest's
-  `REQUIRED_FILES`, through `sq_test_data`);
+  `REQUIRED_FILES`, through `sq_test_data`), each named, since a directory
+  is refused with a `Fix:` line (its bytes would be none of its files');
 - its CTest entry (command, properties);
 - the place: the checks' place; the compiler as it is now (the path the build
   was configured with, its `--version`, the bytes of the real compiler behind
   it, through `xcrun` for `/usr/bin/c++`, and on macOS of the linker); and the
-  variables that change what a test checks, `ASAN_`, `UBSAN_`, `LSAN_`,
-  `TSAN_`, `MSAN_`, `RC_` and `CATCH_` ones. A compiler updated in place
-  since the build was configured (an Xcode or Command Line Tools update, `brew
-  upgrade llvm`) also configures the build afresh, since CMake would not look
-  again.
+  variables that change what a test checks, `ASAN_`, `UBSAN_`, `LSAN_`, `TSAN_`,
+  `TYSAN_`, `MSAN_`, `RC_` and `CATCH_` ones. A compiler updated in place since
+  the build was configured (an Xcode or Command Line Tools update,
+  `brew upgrade llvm`) also configures the build afresh, since CMake would not
+  look again.
 
 A must-not-compile test has no program: its identity is the compile commands
 of the target it builds (from `compile_commands.json`) and the bytes of every
@@ -222,6 +225,30 @@ step runs even when the `test` task is unchanged since a passed run, before it
 prints so: what its records name and no input of the task does (the compiler,
 the environment) still reruns a group. `just full test` passes `--all`, which
 runs every group.
+
+**The sanitizers.** `just sanitize` runs `validation._ctest` with `--all` on
+each sanitizer preset: `dev` (AddressSanitizer and UndefinedBehaviorSanitizer,
+Apple clang), `tsan` (ThreadSanitizer, Apple clang), `lsan` (LeakSanitizer)
+and `tysan` (TypeSanitizer), the last two with Homebrew LLVM, since Apple
+clang has neither on Apple silicon. Each builds our groups alone
+(`SQ_ENGINE_ONLY`) with its sanitizer on every target, the test libraries
+included, and runs every group's tests under it; every preset runs, a failing
+one included. A finding stops the program (`-fno-sanitize-recover=all`, and
+`TYSAN_OPTIONS=halt_on_error=1` in the tests' environment, since
+TypeSanitizer goes on otherwise); `llvm-dev` also turns on AddressSanitizer's
+leak check (`ASAN_OPTIONS=detect_leaks=1`), which Apple's runtime refuses.
+Each preset has a canary per sanitizer it carries (`engine/tests/canary/`,
+label `canary`): a program holding the one fault that sanitizer finds (a heap
+overflow, a signed overflow, a data race, a leak, a type-punned store). Its
+test passes only when the program was stopped and its output holds the
+sanitizer's report (`expect_finding.cmake`), so a sanitizer that is off, lets
+a finding pass, or a crash of another kind fails it. The canaries break the
+rules on purpose, so clang-tidy leaves them out.
+
+`tests/engine/test_steady_memory.py` (`slow`) makes 100,000 calls of
+`count_rows` and `build_identity` in a process of its own, in 10 rounds,
+reading its resident set from `ps` twice after each: round 10's must lie
+within 5 % of round 2's.
 
 ## The validation runners
 
