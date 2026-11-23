@@ -1,6 +1,24 @@
 {
   "tests": [
     {
+      "area": "checks/engine_groups",
+      "name": "tests/checks/test_engine_groups.py::test_a_change_to_one_groups_file_runs_that_group_only",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/engine_groups",
+      "name": "tests/checks/test_engine_groups.py::test_a_failed_group_records_nothing",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/engine_groups",
+      "name": "tests/checks/test_engine_groups.py::test_everything_runs_every_group",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
       "area": "checks/passed_tree",
       "name": "tests/checks/test_passed_tree.py::test_a_clean_tree_that_passed_is_remembered",
       "outcome": "passed",
@@ -123,6 +141,12 @@
     {
       "area": "checks/tasks",
       "name": "tests/checks/test_tasks.py::test_a_docs_only_change_runs_no_test",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_full_test_runs_every_cxx_group",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -20198,6 +20222,12 @@
     },
     {
       "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_a_step_that_selects_within_itself_runs_on_an_unchanged_task",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
       "name": "tests/validation/test__checks.py::test_a_submodule_bump_reruns_a_whole_task",
       "outcome": "passed",
       "tier": "fast"
@@ -20258,6 +20288,12 @@
     },
     {
       "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_everything_hands_a_step_its_own_all_arguments",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
       "name": "tests/validation/test__checks.py::test_everything_on_a_task_with_no_files_says_so",
       "outcome": "passed",
       "tier": "fast"
@@ -20307,6 +20343,54 @@
     {
       "area": "validation/_checks",
       "name": "tests/validation/test__checks.py::test_the_task_table_names_every_check",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_the_test_task_runs_the_changed_cxx_groups_before_python",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_ctest",
+      "name": "tests/validation/test__ctest.py::test_a_build_failure_runs_and_records_nothing",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_ctest",
+      "name": "tests/validation/test__ctest.py::test_a_must_not_compile_test_reruns_when_a_header_changes",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_ctest",
+      "name": "tests/validation/test__ctest.py::test_a_relinked_program_of_the_same_objects_is_not_rerun",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_ctest",
+      "name": "tests/validation/test__ctest.py::test_a_test_without_a_label_is_refused_with_a_fix",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_ctest",
+      "name": "tests/validation/test__ctest.py::test_an_unreadable_record_counts_as_absent",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_ctest",
+      "name": "tests/validation/test__ctest.py::test_another_compiler_reruns_every_group",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_ctest",
+      "name": "tests/validation/test__ctest.py::test_the_command_line_takes_the_preset_and_all",
       "outcome": "passed",
       "tier": "fast"
     },

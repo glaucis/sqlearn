@@ -24,6 +24,19 @@ function(sq_target_options target)
   sq_target_flavor(${target})
 endfunction()
 
+# Link `target`, a program, so that relinking the same objects gives the
+# same bytes. Apple's linker writes each object's modification time into a
+# program's debug map unless ZERO_AR_DATE is set, so a rebuilt object with
+# unchanged bytes (a touched header, a ccache hit) would change the program;
+# the checks know a test program by the hash of its bytes
+# (validation/_ctest.py). Its UUID is derived from the content, so it stays.
+function(sq_stable_link target)
+  if(APPLE)
+    set_property(TARGET ${target} PROPERTY CXX_LINKER_LAUNCHER
+                                           "${CMAKE_COMMAND}" -E env ZERO_AR_DATE=1)
+  endif()
+endfunction()
+
 # sq_add_group(<name> SOURCES <file>... [DEPENDS <group>...] [TESTS <file>...])
 #
 # The object library sq_<name> from SOURCES (engine/src/<name>/), with
@@ -52,6 +65,7 @@ function(sq_add_group name)
   if(SQ_BUILD_TESTS AND arg_TESTS)
     set(program test_${name})
     add_executable(${program} ${arg_TESTS})
+    sq_stable_link(${program})
     sq_target_options(${program} ${raw})
     list(TRANSFORM arg_DEPENDS PREPEND sq_ OUTPUT_VARIABLE depends)
     target_link_libraries(${program} PRIVATE ${target} ${depends} Catch2::Catch2WithMain

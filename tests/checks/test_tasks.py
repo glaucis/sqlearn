@@ -1,6 +1,8 @@
 """Tests of the task recipes (``just lint``, ``just test``) in scratch repositories.
 
-The real justfile is imported under a stand-in ``build-docs``; the tools are
+The real justfile is imported under stand-ins for ``build-docs``,
+``validate-all`` and ``test-engine-changed`` (the C++ groups, tested on a
+scratch engine in ``test_engine_groups.py``); the tools are
 stand-ins on ``PATH`` that log their arguments, so no real check runs.
 """
 
@@ -23,6 +25,9 @@ build-docs:
 
 validate-all:
     @echo '["validate-all"]' >> "$CALLS"
+
+test-engine-changed *args:
+    @echo '["test-engine-changed {{ args }}"]' >> "$CALLS"
 """
 
 TOOL = """#!{python}
@@ -115,10 +120,15 @@ def test_a_docs_only_change_runs_no_test(scratch):
     repo, env = scratch
     just(repo, env, "test")
     just(repo, env, "docs")
-    assert [c[0] for c in calls(env)] == ["pytest"] * 4 + ["build-docs"]
+    assert [c[0] for c in calls(env)] == [
+        "test-engine-changed dev",
+        *["pytest"] * 4,
+        "build-docs",
+    ]
     (repo / "docs" / "guide" / "notes.md").write_text("# Notes, edited\n")
     assert "test: unchanged since a passed run" in just(repo, env, "test")
-    assert calls(env) == []
+    # The C++ step keeps records of its own and decides for itself.
+    assert calls(env) == [["test-engine-changed dev"]]
     just(repo, env, "docs")
     assert calls(env) == [["build-docs"]]
 
@@ -173,7 +183,19 @@ def test_a_data_file_change_reruns_the_tests(scratch, data):
         ["-n", "auto", "-m", "", "tests/githooks"],
     ]
     report = ["pytest", "-p", "validation._tests_report"]
-    assert calls(env) == [[*report, *p] for p in passes]
+    assert calls(env) == [
+        ["test-engine-changed dev"],
+        *([*report, *p] for p in passes),
+    ]
+
+
+def test_full_test_runs_every_cxx_group(scratch):
+    """``just full test`` hands the C++ step ``--all``; ``just test`` does not."""
+    repo, env = scratch
+    just(repo, env, "test")
+    just(repo, env, "full", "test")
+    groups = [c for c in calls(env) if c[0].startswith("test-engine-changed")]
+    assert groups == [["test-engine-changed dev"], ["test-engine-changed dev --all"]]
 
 
 def test_full_validate_runs_every_runner(scratch):

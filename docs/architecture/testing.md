@@ -126,7 +126,7 @@ passed run already checked.
 | `lint` | every file | each changed file: `ruff check` (Python), `typos` (every file), `rumdl check` (Markdown) |
 | `docstrings` | the Python files under `src/` | each changed file: `numpydoc lint`, `just check-docstring-args` |
 | `types` | every `*.py` and `*.pyi` file | the whole program: `ty check`, then `mypy` |
-| `test` | `src/`, `tests/`, `validation/`, `devdata/`, every `conftest.py`, `docs/conf.py`, `docs/architecture/engine-inventory.md`, `.githooks/`, `commitlint.config.mjs` | every test: the four passes (above) |
+| `test` | `src/`, `tests/`, `validation/`, `devdata/`, `engine/` (with its submodules' commits), every `conftest.py`, `docs/conf.py`, `docs/architecture/engine-inventory.md`, `.githooks/`, `commitlint.config.mjs` | the C++ groups whose program changed (below), then every test: the four passes (above) |
 | `docs` | `docs/`, `src/`, `examples/` | the whole site: `just build-docs` |
 | `validate` | each runner's imported modules, `uv.lock`, `devdata/data/` | each changed runner, by its own records (below) |
 
@@ -171,6 +171,30 @@ verify` runs every task this way.
 
 **`validate`** is not in the table of `validation/_checks.py`: it keeps a
 record for each runner (the validation runners, below).
+
+**The C++ groups.** The `test` task's first step, `just test-engine-changed
+dev` (`validation/_ctest.py`), builds the `dev` preset (Ninja rebuilds only
+what changed) and runs, with `ctest -L ^<group>$`, each group whose identity
+no kept record passed, printing `<group>: unchanged since a passed run` for
+the rest. Each CTest label is one unit: a group's (its program `test_<group>`)
+or `must_not_compile`, which every must-not-compile test carries. A group's
+identity is the hash of its program's bytes, with its CTest entry (command,
+properties) and the place: the checks' place and the preset's compiler id and
+version. Ninja relinks a program only when one of its objects changed, and
+`sq_stable_link` (`engine/cmake/groups.cmake`) sets `ZERO_AR_DATE` for the
+link on macOS, so a relink of the same objects gives the same bytes (Apple's
+linker otherwise writes each object's modification time into the debug map).
+A must-not-compile test has no program: its identity is the compile commands
+of the target it builds (from `compile_commands.json`), its source and every
+header under the directories those commands include with `-I`. The records
+are `ctest-<preset>.json` in `sqlearn-checks/`, under the same rules as the
+tasks'; a record names every group passed or found unchanged in a run, a
+failed group is not in it, and a build that fails runs and records nothing. A
+test with no label is refused with a `Fix:` line, since no group would run
+it. The step runs even when the `test` task is unchanged since a passed run,
+before it prints so: what its records name and no input of the task does (the
+compiler) still reruns a group. `just full test` passes `--all`, which runs
+every group.
 
 ## The validation runners
 

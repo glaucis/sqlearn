@@ -157,6 +157,11 @@ build-engine preset="dev":
 test-engine preset="dev": (build-engine preset)
     cd engine && ctest --preset {{ preset }}
 
+# Build a preset, then run each C++ group's tests whose program changed since they passed (validation/_ctest.py); --all runs every group; `just test` runs it on dev
+[group('test')]
+test-engine-changed preset="dev" *flags:
+    uv run --locked python -m validation._ctest {{ preset }} {{ flags }}
+
 # Build the release preset and run the C++ benchmarks (nanobench), each printing its table
 [group('test')]
 bench-engine: (build-engine "release")
@@ -431,7 +436,7 @@ docstrings:
 types:
     {{ checks }} types
 
-# Run the tests when what they read changed since a passed run: the fast ones in parallel, the serial ones, the slow tier, the hooks; tests.json is merged
+# Run the tests when what they read changed since a passed run: the C++ groups whose program changed (dev), then the fast ones in parallel, the serial ones, the slow tier, the hooks; tests.json is merged
 [group('test')]
 test:
     {{ checks }} test

@@ -7,7 +7,9 @@ task (``format``, ``lint``) gives each step the files whose own digest has
 no passed record under today's configuration, and every file once the
 configuration changed. ``everything`` runs it all regardless, and records.
 Every step runs, a failing one included, so one tool's failure hides no
-other's findings.
+other's findings. A step that keeps records of its own (the C++ groups,
+``validation._ctest``) runs even when its task is unchanged, and is told
+when to run everything.
 
 The digest covers the tracked files and the untracked ones git does not
 ignore; a tracked file deleted from the working tree is absent from it, so
@@ -62,11 +64,22 @@ class Step:
     ok : tuple of int
         The exit codes that are a pass: pytest's 5, no test collected, is
         one for a pass that selects none.
+    everything : tuple of str
+        The arguments appended when the task runs all through
+        (``everything``): a step that keeps records of its own, as the C++
+        groups do, then runs all of its own too.
+    always : bool
+        Whether it runs when the task is unchanged since a passed run, the
+        other steps skipped: it keeps records of its own and decides what to
+        run, so what its records name and no input of the task does (the
+        compiler, for the C++ groups) still reruns it.
     """
 
     command: tuple[str, ...]
     files: tuple[str, ...] = ()
     ok: tuple[int, ...] = (0,)
+    everything: tuple[str, ...] = ()
+    always: bool = False
 
 
 @dataclass(frozen=True)
@@ -218,14 +231,23 @@ def _table() -> dict[str, Task]:
             name="test",
             inputs=TEST_INPUTS,
             config=SETTINGS,
-            steps=tuple(
+            steps=(
+                # Each C++ group whose test program changed since it passed
+                # (validation/_ctest.py), on the sanitized dev build.
                 Step(
-                    ("pytest", "-p", "validation._tests_report", *p),
-                    # Only the serial pass may find nothing: a marker or a
-                    # testpaths broken elsewhere must fail, not pass.
-                    ok=(0, 5) if "serial and not slow" in p else (0,),
-                )
-                for p in _PYTEST_PASSES
+                    ("just", "test-engine-changed", "dev"),
+                    everything=("--all",),
+                    always=True,
+                ),
+                *(
+                    Step(
+                        ("pytest", "-p", "validation._tests_report", *p),
+                        # Only the serial pass may find nothing: a marker or a
+                        # testpaths broken elsewhere must fail, not pass.
+                        ok=(0, 5) if "serial and not slow" in p else (0,),
+                    )
+                    for p in _PYTEST_PASSES
+                ),
             ),
             per_file=False,
         ),
@@ -468,8 +490,12 @@ def changed_files(task: Task, root: Path) -> list[Path]:
     return _changed(task, root, _config(task, root), files)
 
 
-def _run_steps(task: Task, root: Path, files: list[Path] | None) -> int:
+def _run_steps(
+    task: Task, root: Path, files: list[Path] | None, *, everything: bool = False
+) -> int:
     """Run every step of `task`, each given its share of `files` when set.
+
+    With `everything`, each step is given its ``everything`` arguments too.
 
     Returns the first failing step's exit code, else 0: a failure does not
     stop the steps after it, so their findings show too.
@@ -477,6 +503,8 @@ def _run_steps(task: Task, root: Path, files: list[Path] | None) -> int:
     first = 0
     for step in task.steps:
         argv = list(step.command)
+        if everything:
+            argv += step.everything
         if files is not None:
             taken = set(_listed(step.files or task.inputs, root))
             mine = [f.as_posix() for f in files if f.as_posix() in taken]
@@ -489,8 +517,25 @@ def _run_steps(task: Task, root: Path, files: list[Path] | None) -> int:
     return first
 
 
+def _run_always(task: Task, root: Path) -> int:
+    """Run the steps of `task` that run when it is unchanged, on all its inputs.
+
+    Returns the first failing step's exit code, else 0.
+    """
+    first = 0
+    for step in task.steps:
+        if not step.always:
+            continue
+        code = subprocess.run(list(step.command), cwd=root, check=False).returncode
+        if code not in step.ok and first == 0:
+            first = code
+    return first
+
+
 def run(task_name: str, root: Path, *, everything: bool = False) -> int:
     """Run the task `task_name` unless a passed run checked today's inputs.
+
+    A step marked ``always`` runs either way: it keeps records of its own.
 
     Parameters
     ----------
@@ -528,9 +573,15 @@ def run(task_name: str, root: Path, *, everything: bool = False) -> int:
             r["digest"] == whole for r in load(directory, task.name)
         )
     if skip:
+        code = _run_always(task, root)
         print(f"{task.name}: unchanged since a passed run", flush=True)  # noqa: T201
-        return 0
-    code = _run_steps(task, root, None if todo is None else [Path(n) for n in todo])
+        return code
+    code = _run_steps(
+        task,
+        root,
+        None if todo is None else [Path(n) for n in todo],
+        everything=everything,
+    )
     if code != 0:
         return code
     if digest(task, root) != whole:

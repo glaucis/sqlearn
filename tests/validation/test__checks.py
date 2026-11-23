@@ -62,6 +62,16 @@ def _table(tool):
             steps=(Step((*command, "allowed"), ok=(0, 5)),),
             per_file=False,
         ),
+        "selective": Task(
+            name="selective",
+            inputs=("src",),
+            config=("settings.toml",),
+            steps=(
+                Step((*command, "selective"), everything=("--all",), always=True),
+                Step((*command, "rest")),
+            ),
+            per_file=False,
+        ),
         "none": Task(
             name="none",
             inputs=("*.rst",),
@@ -336,6 +346,31 @@ def test_the_command_line_runs_a_task(scratch, monkeypatch, capsys):
     assert "whole: unchanged since a passed run" in capsys.readouterr().out
 
 
+def test_everything_hands_a_step_its_own_all_arguments(scratch):
+    """A step that selects within itself (the C++ groups) is told to run all."""
+    assert run("selective", scratch) == 0
+    assert run("selective", scratch, everything=True) == 0
+    assert _calls(scratch) == [
+        ["selective"],
+        ["rest"],
+        ["selective", "--all"],
+        ["rest"],
+    ]
+
+
+def test_a_step_that_selects_within_itself_runs_on_an_unchanged_task(scratch, capsys):
+    """It keeps records of its own, so it decides; the other steps are skipped."""
+    assert run("selective", scratch) == 0
+    _calls(scratch)
+    capsys.readouterr()
+    assert run("selective", scratch) == 0
+    assert _calls(scratch) == [["selective"]]
+    assert "selective: unchanged since a passed run" in capsys.readouterr().out
+    (scratch.parent / "code").write_text("3")
+    assert run("selective", scratch) == 3
+    assert _calls(scratch) == [["selective"]]
+
+
 def test_a_failing_step_does_not_hide_the_others(scratch):
     """Every step runs, and the task returns the first failure's exit code."""
     (scratch.parent / "fail").touch()
@@ -451,7 +486,7 @@ def test_every_task_declares_the_settings_files():
 
 def test_only_the_serial_pass_may_collect_nothing():
     """Exit 5 passes the serial pass alone: a broken marker elsewhere must fail."""
-    steps = _checks.TASKS["test"].steps
+    steps = [s for s in _checks.TASKS["test"].steps if s.command[0] == "pytest"]
     passes = [s.command[s.command.index("-m") + 1] for s in steps]
     assert passes == ["not slow and not serial", "serial and not slow", "slow", ""]
     assert [s.ok for s in steps] == [(0,), (0, 5), (0,), (0,)]
@@ -530,3 +565,10 @@ def test_a_submodule_bump_reruns_a_whole_task(scratch, tmp_path):
     assert digest(_checks.TASKS["whole"], scratch) != before
     assert run("whole", scratch) == 0
     assert _calls(scratch) == [["whole"]]
+
+
+def test_the_test_task_runs_the_changed_cxx_groups_before_python():
+    """The C++ groups go first, on dev, and all of them under ``--all``."""
+    first = _checks.TASKS["test"].steps[0]
+    assert first.command == ("just", "test-engine-changed", "dev")
+    assert first.everything == ("--all",)
