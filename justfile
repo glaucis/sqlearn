@@ -157,6 +157,11 @@ build-engine preset="dev":
 test-engine preset="dev": (build-engine preset)
     cd engine && ctest --preset {{ preset }}
 
+# Build the release preset and run the C++ benchmarks (nanobench), each printing its table
+[group('test')]
+bench-engine: (build-engine "release")
+    engine/build/release/bench/bench_buffer
+
 # Print which C++26 features each compiler on this machine has, by its __cpp_* macros (spec §3.8's table); rerun after each Xcode or compiler update
 [group('maintain')]
 probe-cxx26:

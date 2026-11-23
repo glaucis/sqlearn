@@ -26,7 +26,11 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # 2026-11-23: the core, bindings and extension sources build clean with
   # it under Apple clang 21 and Homebrew LLVM 23. Only LLVM 23 acts on it
   # (a returned view of a local string is found); Apple clang 21 accepts it
-  # and reports nothing, so the llvm-dev build is where it bites.
+  # and reports nothing, so the llvm-dev build is where it bites. Tried again
+  # on 2026-11-23 with the version parser and the raw layer's Buffer: no
+  # finding, true or false, under LLVM 23. It misses a returned span of a
+  # local Buffer and a view of a local Version's `pre`, so it is a net, not
+  # a proof.
   list(APPEND SQ_WARNINGS -Wlifetime-safety)
 endif()
 

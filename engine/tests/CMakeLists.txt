@@ -7,8 +7,13 @@
 # must build, so the failure is the warning's and not the file's.
 set(sq_must_not_compile
     "conversion|-Wno-conversion"
-    "buffer|-Wno-unsafe-buffer-usage"
     "fallthrough|-Wno-implicit-fallthrough")
+# -Wunsafe-buffer-usage is Clang's alone (warnings.cmake), so on another
+# compiler buffer.cpp builds and its test would fail for the compiler, not
+# the code.
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  list(APPEND sq_must_not_compile "buffer|-Wno-unsafe-buffer-usage")
+endif()
 
 foreach(entry IN LISTS sq_must_not_compile)
   string(REPLACE "|" ";" parts "${entry}")

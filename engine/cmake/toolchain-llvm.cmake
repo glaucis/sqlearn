@@ -23,3 +23,12 @@ endif()
 set(CMAKE_C_COMPILER "${SQ_LLVM_ROOT}/bin/clang")
 set(CMAKE_CXX_COMPILER "${SQ_LLVM_ROOT}/bin/clang++")
 set(CMAKE_OSX_SYSROOT "${SQ_SDK_PATH}")
+
+# Link Homebrew LLVM's own libc++, the library its headers are from, not the
+# SDK's older one: a header newer than the library it links can call a
+# function the library lacks. Its libc++ finds its libc++abi and libunwind
+# through its own rpaths.
+set(SQ_LLVM_LIBCXX_FLAGS "-L${SQ_LLVM_ROOT}/lib/c++ -Wl,-rpath,${SQ_LLVM_ROOT}/lib/c++")
+set(CMAKE_EXE_LINKER_FLAGS_INIT "${SQ_LLVM_LIBCXX_FLAGS}")
+set(CMAKE_SHARED_LINKER_FLAGS_INIT "${SQ_LLVM_LIBCXX_FLAGS}")
+set(CMAKE_MODULE_LINKER_FLAGS_INIT "${SQ_LLVM_LIBCXX_FLAGS}")

@@ -24,15 +24,18 @@ function(sq_target_options target)
   sq_target_flavor(${target})
 endfunction()
 
-# sq_add_group(<name> SOURCES <file>... [TESTS <file>...])
+# sq_add_group(<name> SOURCES <file>... [DEPENDS <group>...] [TESTS <file>...])
 #
 # The object library sq_<name> from SOURCES (engine/src/<name>/), with
-# sqlearn's options; in the wheel its objects join _duckdb. With TESTS, and
-# when the tests are built (SQ_BUILD_TESTS), the Catch2 program
-# test_<name>, registered with CTest as test_<name> under the label <name>.
-# The group `raw` alone goes without -Wunsafe-buffer-usage.
+# sqlearn's options; in the wheel its objects join _duckdb. DEPENDS names
+# the groups whose objects it calls, which its test program links too (an
+# object library's objects reach only the targets that name it). With TESTS,
+# and when the tests are built (SQ_BUILD_TESTS), the Catch2 program
+# test_<name>, with RapidCheck for its properties, registered with CTest as
+# test_<name> under the label <name>. The group `raw` alone goes without
+# -Wunsafe-buffer-usage.
 function(sq_add_group name)
-  cmake_parse_arguments(PARSE_ARGV 1 arg "" "" "SOURCES;TESTS")
+  cmake_parse_arguments(PARSE_ARGV 1 arg "" "" "SOURCES;DEPENDS;TESTS")
   if(NOT arg_SOURCES)
     message(FATAL_ERROR "sq_add_group(${name}) has no SOURCES")
   endif()
@@ -50,7 +53,9 @@ function(sq_add_group name)
     set(program test_${name})
     add_executable(${program} ${arg_TESTS})
     sq_target_options(${program} ${raw})
-    target_link_libraries(${program} PRIVATE ${target} Catch2::Catch2WithMain)
+    list(TRANSFORM arg_DEPENDS PREPEND sq_ OUTPUT_VARIABLE depends)
+    target_link_libraries(${program} PRIVATE ${target} ${depends} Catch2::Catch2WithMain
+                                             sq_rapidcheck_catch)
     add_test(NAME ${program} COMMAND ${program})
     set_tests_properties(${program} PROPERTIES LABELS ${name})
   endif()

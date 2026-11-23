@@ -1,5 +1,5 @@
 /// @file
-/// The core group's program: the build identity and its one line.
+/// The core group's build identity and its one line.
 #include "core/version.hpp"
 
 #include <catch2/catch_test_macros.hpp>

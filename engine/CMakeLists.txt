@@ -87,11 +87,34 @@ if(SQ_BUILD_TESTS)
   add_subdirectory(third_party/catch2 EXCLUDE_FROM_ALL)
   # As system headers to our tests, so our warnings cover our code only.
   set_property(TARGET Catch2 Catch2WithMain PROPERTY SYSTEM TRUE)
+
+  # RapidCheck's library from its own CMake, with no tests, examples or
+  # extras: its extras' CMake would add ext/catch, a nested submodule we do
+  # not fetch. Its Catch2 header (extras/catch/include) is all the
+  # integration there is, so sq_rapidcheck_catch carries it beside the
+  # library. It keeps its own flags; the flavour's sanitizers and hardening
+  # reach it through sq_flavor_everywhere, as they reach Catch2.
+  set(RC_ENABLE_TESTS OFF CACHE BOOL "" FORCE)
+  set(RC_ENABLE_EXAMPLES OFF CACHE BOOL "" FORCE)
+  set(RC_INSTALL_ALL_EXTRAS OFF CACHE BOOL "" FORCE)
+  set(RC_ENABLE_CATCH OFF CACHE BOOL "" FORCE)
+  add_subdirectory(third_party/rapidcheck EXCLUDE_FROM_ALL)
+  set_property(TARGET rapidcheck PROPERTY SYSTEM TRUE)
+  add_library(sq_rapidcheck_catch INTERFACE)
+  target_include_directories(sq_rapidcheck_catch SYSTEM
+                             INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/third_party/rapidcheck/extras/catch/include")
+  target_link_libraries(sq_rapidcheck_catch INTERFACE rapidcheck)
 endif()
 
 sq_add_group(core
-  SOURCES src/core/error.cpp src/core/version.cpp
-  TESTS tests/core/test_core.cpp)
+  SOURCES src/core/error.cpp src/core/parse_version.cpp src/core/version.cpp
+  TESTS tests/core/test_version.cpp tests/core/test_parse_version.cpp)
+# The one layer allowed raw memory (ADR 0065); its SQ_EXPECTS throws core's
+# PreconditionError.
+sq_add_group(raw
+  SOURCES src/raw/buffer.cpp
+  DEPENDS core
+  TESTS tests/raw/test_buffer.cpp)
 # On this file alone, so a new version recompiles only it.
 set_source_files_properties(
   src/core/version.cpp
@@ -114,4 +137,5 @@ endif()
 
 if(SQ_BUILD_TESTS)
   add_subdirectory(tests)
+  add_subdirectory(bench)
 endif()

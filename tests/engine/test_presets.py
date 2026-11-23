@@ -63,7 +63,8 @@ def test_our_sources_never_contract_to_fma() -> None:
 
 
 def test_the_wheel_compiles_our_sources_with_the_strict_flags() -> None:
-    """The wheel's build gives the core, bindings and extension the strict flags."""
+    """The wheel's build gives the groups, bindings and extension the strict flags,
+    with -Wunsafe-buffer-usage off in the raw layer alone (ADR 0065)."""
     builds = sorted((REPO / "build").glob("*/compile_commands.json"))
     if not builds:
         pytest.skip("no wheel build here yet: uv sync makes one")
@@ -77,20 +78,20 @@ def test_the_wheel_compiles_our_sources_with_the_strict_flags() -> None:
     files = {Path(c["file"]).name for c in ours}
     assert {
         "error.cpp",
+        "parse_version.cpp",
         "version.cpp",
+        "buffer.cpp",
         "module.cpp",
         "connection.cpp",
         "sqlearn_extension.cpp",
     } <= files
+    raw = str(ENGINE / "src" / "raw")
     for command in ours:
         flags = command["command"].split()
-        for flag in (
-            "-Wconversion",
-            "-Wunsafe-buffer-usage",
-            "-Werror",
-            "-ffp-contract=off",
-        ):
+        for flag in ("-Wconversion", "-Werror", "-ffp-contract=off"):
             assert flag in flags, (command["file"], flag)
+        in_raw = command["file"].startswith(raw)
+        assert ("-Wunsafe-buffer-usage" in flags) != in_raw, command["file"]
         assert "-D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_FAST" in flags, command[
             "file"
         ]
