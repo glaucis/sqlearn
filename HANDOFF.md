@@ -224,7 +224,8 @@ Nothing in progress: Phase 1 step 2's plan comes next (Next up).
   `just done`, `just verify`), testmon dropped; the rework plan's five
   tasks, the final review and its fix wave (I1 the place kept with each
   passed tree, I2 a runner's files hashed before it runs). Proof on #79.
-  The worktree `../sqlearn-79` can go once nothing else needs it.
+  The worktree `../sqlearn-79`, its ledgers and the branch (local and
+  remote) are removed.
 
 - The final review's fix wave, on `phase-1-checks`: the passed-tree record
   keeps the place (Python, platform, machine) with each tree, `just place`
