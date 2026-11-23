@@ -32,18 +32,6 @@
     },
     {
       "area": "checks/passed_tree",
-      "name": "tests/checks/test_passed_tree.py::test_a_markdown_change_keeps_the_tree_checkable",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "checks/passed_tree",
-      "name": "tests/checks/test_passed_tree.py::test_a_new_declared_markdown_file_makes_the_tree_uncheckable",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "checks/passed_tree",
       "name": "tests/checks/test_passed_tree.py::test_a_remembered_tree_runs_nothing",
       "outcome": "passed",
       "tier": "fast"
@@ -56,7 +44,7 @@
     },
     {
       "area": "checks/passed_tree",
-      "name": "tests/checks/test_passed_tree.py::test_an_edited_declared_markdown_file_makes_the_tree_uncheckable",
+      "name": "tests/checks/test_passed_tree.py::test_an_uncommitted_markdown_file_makes_the_tree_uncheckable",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -19971,12 +19959,6 @@
     {
       "area": "validation/_checks",
       "name": "tests/validation/test__checks.py::test_an_unreadable_record_file_counts_as_absent",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "validation/_checks",
-      "name": "tests/validation/test__checks.py::test_checkable_trees_declared_files_are_inputs_of_the_test_task",
       "outcome": "passed",
       "tier": "fast"
     },

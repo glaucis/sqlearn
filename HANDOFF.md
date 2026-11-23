@@ -3,31 +3,24 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-22 (night) · Branch: `phase-1-checks` (Phase 1 step 1, in
+Updated: 2026-11-23 · Branch: `phase-1-checks` (Phase 1 step 1, in
 the worktree `../sqlearn-79`, not merged, not pushed) · Checks: `just done`
-passed on the branch at `449b345`; `just verify` passed at `1523dab` (1 h
-12 min)
+passed on the clean tree twice (the second said already passed), and after a
+docs-only, a one-file `src/`, a runner's-own-file change and a fast-forward
+(local demo branches, deleted); `just verify` passed (67 min, "remembered"),
+at the commit named below
 Verify with: `just done` (`just verify` is the release tier)
 
 ## In progress
 
-- [verified] **The rework plan is running,**
-  `docs/plans/2026-11-22-native-engine-phase-1-checks-rework.md`, with
-  superpowers:subagent-driven-development (Tomas, 2026-11-22: "spawn agents and
-  make them work hard"), in the worktree `../sqlearn-79` on `phase-1-checks`.
-  Tasks 1 to 4 are done (below, "Just finished"); next are Task 5, the done-when
-  shown on the real repository (`just done`, `just verify`, the table on #79),
-  then the final whole-branch review and one fix wave. Stop before the merge: it
-  needs Tomas. Why the rework: the step 1 plan
-  (`docs/plans/2026-11-22-native-engine-phase-1-checks.md`) was executed with
-  pytest-testmon, and three reviews kept finding tests it skipped (code run at
-  import, files read as data, helpers of import-time code); Tomas chose
-  per-check selection instead (spec §3.1, §3.9, amended 2026-11-22). The old
-  plan's ledger is
-  `../sqlearn-79/.superpowers/sdd/2026-11-22-native-engine-phase-1-checks/progress.md`,
-  the rework's is beside it in
-  `.superpowers/sdd/2026-11-22-native-engine-phase-1-checks-rework/` (both
-  git-ignored).
+- [verified] **The rework's five tasks are done** on `phase-1-checks`
+  (the worktree `../sqlearn-79`), not merged: next is the controller's final
+  whole-branch review and one fix wave, then Tomas merges. The proof table
+  of Task 5 is on #79 (comment 7089619284). Why the rework: the step 1 plan
+  (`docs/plans/2026-11-22-native-engine-phase-1-checks.md`) ran with
+  pytest-testmon and three reviews kept finding tests it skipped; Tomas chose
+  per-check selection instead (spec §3.1, §3.9). The ledgers are in
+  `.superpowers/sdd/` beside the plans (git-ignored).
 
 ## Waiting on the user
 
@@ -226,6 +219,14 @@ Verify with: `just done` (`just verify` is the release tier)
   (2026-11-06)
 
 ## Just finished
+
+- The rework's Task 5, the done-when shown (#79): `just done` twice, a
+  docs-only commit (`docs` alone ran), a one-line `src/` change (`format`
+  and `lint` on that file, `types` and `test` ran, every runner reran), a
+  runner's own file (that runner alone), a fast-forward of a passed tree
+  (already passed), and `just verify` (passed, remembered). A killed run
+  left `.tmp/` (DuckDB's temp directory) in the worktree, which made the
+  tree uncheckable until removed. (2026-11-23)
 
 - The rework's Tasks 1 to 4, on `phase-1-checks`, not merged: each check
   is a task in `validation/_checks.py` that runs on what changed since it
