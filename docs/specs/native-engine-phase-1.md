@@ -63,41 +63,72 @@ marked "(the agent's call)" stay open to his correction.
 
 ## 3. Decisions
 
-### 3.1 When a test runs (Tomas, 2026-11-21)
+### 3.1 When a check runs (Tomas, 2026-11-21; per check from 2026-11-22)
 
-A test that passed reruns only when something it depends on changed:
+A check that passed reruns only when one of its inputs changed:
 
-1. **its code**;
+1. **its inputs**: the files it reads, or the files a group is built from;
 2. **a change it now meets**: a merge to `main` combining two changes each
-   tested alone;
-3. **a declared dependency** the selection cannot see: the native module,
-   `uv.lock`, `devdata/`'s data, the test settings in `pyproject.toml` and
-   `conftest.py`;
+   checked alone;
+3. **its configuration**: the tool's settings (`pyproject.toml`,
+   `.clang-tidy`, `uv.lock`), which rerun the whole check;
 4. **a new place to run**: another Python, platform or DuckDB build.
 
-Otherwise a run repeats one already passed and is skipped. So:
+Otherwise a run repeats one already passed and is skipped. Each check is
+its own `just` task and runs on what changed unless asked for all of it:
+
+| Task | By default | `just full <task>` |
+|---|---|---|
+| `format`, `lint`, `docstrings` | the changed files (their result depends only on the file and the tool's settings) | every file |
+| `types` | the whole program, when any `.py` file changed | always |
+| `test` | the groups whose inputs changed (below) | every test, every Python |
+| `validate` | the runners whose imported files changed | every runner |
+| `docs` | when `docs/` or a docstring changed | always |
+
+`just done` runs every task by default; `just verify` runs every task in
+full, with coverage and the sanitizers. So:
 
 | When | What runs |
 |---|---|
-| A commit | the hook's `just check` (about 2 s, plus clang-format and clang-tidy on changed C++); `just test`, the affected tests in parallel, run by the developer before committing as today (none for a docs-only commit) |
+| A commit | the hook's `format` and `lint` on the files going into it |
 | A push | nothing (the site's deploy aside, §3.6) |
-| A merge to `main` | nothing, when it is a fast-forward to a tree that passed; else the affected tests on the merged tree |
-| Work is done | `just check`, the affected tests and the affected validation runners pass |
-| A release | everything (§3.5) |
+| A merge to `main` | nothing, when it is a fast-forward to a tree that passed; else `just done` on the merged tree |
+| Work is done | `just done` |
+| A release | `just verify` (§3.5) |
 
-The passed-tree record and testmon's map are local to each clone (the
-agent's call): a fresh clone runs everything once, then only what changes.
-A forgotten dependency shows at the release at the latest; the fix is to
-declare it. This replaces native-engine.md §4's "the full suite and `just
-verify` run in CI on every push" (changed there on 2026-11-21).
+**Which tests a change selects: the build decides, not coverage.** Tests
+belong to a group of the inventory (`docs/architecture/engine-inventory.md`).
+A group's tests run when a file it is built from changed: for C++ the
+compiler's own dependency lists (the `.cpp` and `.h` files of the group's
+target, from Ninja), for Python the group's package and the shared code it
+imports. A change to shared code runs every group that uses it, because
+every one of them depends on it. A group's tests run together, so a group
+is the grain: coarser than per test, and it cannot miss a dependency the
+build knows. Considered: pytest-testmon (per test, from the lines each test
+ran): it misses code that runs at import, files read as data, and anything
+compiled, so after the port it would see almost nothing (found on the step
+1 branch, 2026-11-22).
+
+**Until step 2 builds the groups,** the Python tests are one group: any
+change to `src/`, `tests/`, `validation/`, `devdata/` or the declared
+settings runs every fast test in parallel (about one minute); nothing runs
+when nothing changed.
+
+The passed-tree record is local to each clone (the agent's call); the
+validation records are shared by its worktrees. A fresh clone runs
+everything once, then only what changes. This replaces native-engine.md
+§4's "the full suite and `just verify` run in CI on every push" (changed
+there on 2026-11-21).
 
 ### 3.2 The tools (the agent's proposals; Tomas: "add all tools")
 
 **For the checks**
 
-- **Python test selection:** `pytest-testmon` (MIT), which maps each test to
-  the lines it runs. The declared dependencies of §3.1 widen its selection:
-  the tests that touch them, or every test where that cannot be narrowed.
+- **Selection by inputs:** each task records the digest of its inputs when
+  it passes and is skipped while they match (§3.1); the per-file tools run
+  on the changed files. From step 2, the C++ tests are one Catch2 program
+  per group under CTest, and a program runs only when its binary changed
+  since it last passed; the Python API tests of a group run with it.
 - **Parallel tests:** `pytest-xdist` (MIT), on every core.
 - **Validation recorded:** each runner's verdicts are kept with a digest of
   the code they covered (its sqlearn modules, its references' versions, its
@@ -272,6 +303,124 @@ checks); everything on one branch (nothing usable until the end).
   at the root, for this project only, whose `exclude` lists the
   submodules' paths, and maps `.h` to C++ if headers are named so.
 
+### 3.9 The quality bar (Tomas, 2026-11-22: "agree to all")
+
+Each tool must catch something the others do not; the tier says when it
+runs (§3.1: `just done` by what changed, `just verify` in full). Most of it
+applies from step 2, when there is C++; the compiler facts were probed on
+2026-11-22 (Apple clang 21, Homebrew LLVM 23).
+
+**Memory safety and undefined behaviour (C++)**
+
+| Tool | Tier |
+|---|---|
+| AddressSanitizer + UndefinedBehaviorSanitizer, on in the `dev` preset | every C++ test run |
+| ThreadSanitizer; LeakSanitizer (Homebrew LLVM); the steady-memory test | release |
+| hardened libc++: `extensive` in tests, `fast` in release (cost measured, ADR 0065) | every build |
+| `-Wunsafe-buffer-usage` (no raw indexing or pointer arithmetic outside `engine/src/raw/`) | every build |
+| `-ftrivial-auto-var-init`: `pattern` in tests, `zero` in release | every build |
+| TypeSanitizer (strict aliasing), Homebrew LLVM only | release |
+| RealtimeSanitizer on kernels marked non-blocking, Homebrew LLVM only | release |
+| libFuzzer, extended to the SQL builder and the `sq.load` reader, time-boxed | release |
+
+MemorySanitizer stays left out: neither compiler has it on macOS, and it
+needs every library rebuilt.
+
+**Type safety and ownership:** RAII, `unique_ptr`, ownership as a tree (in
+place); the warnings of §3.2 plus `-Wsign-conversion`,
+`-Wimplicit-fallthrough`, `-Wswitch-enum`, `-Wdouble-promotion`;
+`-Wthread-safety` with annotated locks; `-Wlifetime-safety` after a trial
+(experimental); `[[nodiscard]]`, `explicit`, `std::expected` for errors and
+strong types for indices and counts, by rule and clang-tidy; ty and strict
+mypy (in place); typed stubs for the bindings, generated by nanobind,
+committed and checked against the module.
+
+**Correctness:** validation, ULP bounds, no `-ffast-math` (in place); a
+snapshot of the public `sq.` API (every name and signature; a change fails
+until accepted, so ADR 0003 and 0067's rule is checked); snapshots of the SQL
+reference pipelines build; fault tests (memory limit, disk full while
+spilling, DuckDB out of memory, Ctrl-C in a long query: a clean `sq.errors`
+message and consistent state); in the release, the GCC and MSVC builds'
+answers within the same bounds.
+
+**Performance: builds and flags**
+
+| Preset | Flags | For |
+|---|---|---|
+| `dev` | `-O1 -g`, ASan + UBSan, auto-var-init `pattern`, libc++ `extensive` | every test run |
+| `debug` | `-O0 -g` | the debugger |
+| `release` | `-O2` (`-O3` only if measured faster), ThinLTO, PGO, the OpenSSF hardening flags each benchmarked, libc++ `fast`, `-gline-tables-only` | the wheels |
+| `profile` | `release` with full `-g` and `-fno-omit-frame-pointer` | profiling |
+| `sanitizers`, `fuzzing` | as §3.2 | the release tier |
+
+CPU targets as ADR 0062: macOS `-mcpu=apple-m1`; Linux and Windows a safe
+baseline. Never `-ffast-math` (ADR 0063); FMA contraction off
+(`-ffp-contract=off`), so every compiler and platform gives the same bits,
+and a kernel that wants FMA calls `std::fma` and is validated for it — an
+ADR beside 0063 (the agent's proposal, to decide with Tomas).
+
+**Performance: the method** (most gain first)
+
+1. Algorithms and data layout: the method for the data's size and shape,
+   memory read in order, no copies, work pushed into DuckDB.
+2. One baseline for the whole library, per platform (the `release` preset).
+   No flags per file by hand.
+3. PGO, trained on the benchmark suite, its profile committed so builds stay
+   reproducible, kept only if measured faster: the compiler tunes each
+   function from a real run. BOLT on Linux, if measured faster.
+4. Choice at run time: hot kernels carry variants per instruction set
+   (NEON, SVE, AVX2, AVX-512), picked by the CPU at start — through Google
+   Highway (Apache-2.0 or BSD-3-Clause, both approved; a third-party entry
+   and its notice, ADR 0066) where its benchmark beats code the compiler
+   vectorises itself, else `target_clones`; the backend (Accelerate or
+   OpenBLAS, CPU or GPU, ADR 0063, 0064) and the method by data size chosen
+   by measured thresholds.
+5. `just tune`: builds the variants worth trying (`-O2`/`-O3`, LTO, PGO, CPU
+   targets), runs the benchmark suite, writes a table; the winner becomes
+   the baseline; rerun at compiler updates. A flag on one file only with a
+   benchmark showing the gain, recorded beside it.
+
+Guardrails: no flag that changes results; every variant and backend passes
+the same validation bounds; a performance claim comes from the benchmark
+gate.
+
+**Benchmarks and profiling:** `just bench [group]` is the gate (per changed
+group in `just done`, all in `just verify`): recorded baselines, repeats,
+medians within a noise bound, `uptime` recorded, a warning instead of a
+verdict on a loaded machine. `just profile <benchmark>` is by hand: the
+`profile` preset, a recording, the viewer. Tools: samply (MIT/Apache) and
+Instruments (`xctrace`) on macOS, perf and heaptrack on Linux, DuckDB's own
+profile through `sq.explain(..., profile=True)`, nanobench for small
+measurements; `-ftime-trace` for build time; binary size recorded each
+release. Profiling explains a number; it is never a gate.
+
+**Observability** (nothing sent anywhere, ADR 0006; off by default, no cost
+when off): `sq.set_config(log=...)` logs to Python's `logging` (each step's
+SQL, timings, memory, spills, C++ events through the binding);
+`sq.explain(pipeline)` shows the SQL and DuckDB's plan, `profile=True` its
+measured profile; warnings with `Fix:` (ADR 0046, in place).
+
+**Crash readiness** (ADR 0065): every C++ error caught at the binding and
+raised as an `sq.errors` class with `Why:` and `Fix:`, each path tested; a
+crash handler writing a local report (versions, build identity, stack trace
+through cpptrace, MIT, since Apple's libc++ has no `std::stacktrace`), never
+sent; Ctrl-C cancels a query cleanly.
+
+**Supply chain and security:** the third-party file, CodeQL, no downloads
+(in place); every dependency's licence checked against the approved list,
+failing otherwise; a secret scan (gitleaks) in the commit hook; at each
+release a vulnerability audit of `uv.lock` (by hand, it needs the network),
+an SBOM, reproducible wheels and signed releases.
+
+**Documentation and code health:** numpydoc, pydoclint, `-Wdocumentation`,
+typos, rumdl, doctests, the docs build with warnings as errors, ADRs (in
+place); an example in every public docstring, each tested; every
+cross-reference resolves; a changelog from the commit messages (git-cliff);
+complexity limits (ruff, clang-tidy); every C++ header compiles alone; one
+wheel per platform for every Python from 3.12 (nanobind's stable ABI).
+
+**Open:** free-threaded Python, `docs/questions/free-threaded-python.md`.
+
 ## 4. What changes elsewhere
 
 - `CLAUDE.md`'s checks section and `docs/architecture/workflow.md`: the
@@ -289,21 +438,25 @@ checks); everything on one branch (nothing usable until the end).
 - The recipes' names, the presets' names, the native submodule's name
   (`duckdb._sqlearn` or similar).
 - How the passed tree is recorded, and the validation digest's exact inputs.
-- How testmon's selection is widened for each declared dependency.
+- Each task's exact inputs, how its digest is recorded, and how the
+  per-file tools find the changed files.
 - The clang-tidy checks beyond those named, each with its reason; the
   coverage gate's level.
 - Which libraries the review covers beyond the tools named here.
 
 ## 6. Done when
 
-- Step 1: a one-line change to one module runs only its tests; a docs-only
-  commit runs none; a fast-forward merge of a passed tree runs nothing; the
-  validation reruns only what changed; the release tier runs everything.
+- Step 1: each task (`format`, `lint`, `docstrings`, `types`, `test`,
+  `validate`, `docs`) runs only when its inputs changed and in full with
+  `just full`; a docs-only commit runs no test and no runner; a
+  fast-forward merge of a passed tree runs nothing; a runner reruns only
+  when a file it imports changed; `just verify` runs everything.
 - Step 2: `sq.version()` answers from C++ on this Mac; one DuckDB in the
-  process; the start-up check refuses the official `duckdb`; every existing
-  test passes unchanged on our build; every C++ tool of §3.2 runs on the
-  skeleton and passes; the skeleton builds as C++23 with Apple clang and
-  Homebrew LLVM, and the C++26 probe runs (§3.8).
+  process; the start-up check refuses the official `duckdb`; every existing test
+  passes unchanged on our build; every C++ tool of §3.2 runs on the skeleton and
+  passes; the skeleton builds as C++23 with Apple clang and Homebrew LLVM, and
+  the C++26 probe runs (§3.8); a change to one group's C++ file rebuilds and
+  runs that group's tests only.
 - Step 3: the hand-started workflow passes on every platform of ADR 0062
   and produces each platform's wheel; the site is live on GitHub Pages.
 - Step 4: the review is recorded, the benchmarks published, and Tomas has

@@ -1,6 +1,120 @@
 {
   "tests": [
     {
+      "area": "checks/passed_tree",
+      "name": "tests/checks/test_passed_tree.py::test_a_clean_tree_that_passed_is_remembered",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/passed_tree",
+      "name": "tests/checks/test_passed_tree.py::test_a_commit_during_the_checks_is_not_remembered",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/passed_tree",
+      "name": "tests/checks/test_passed_tree.py::test_a_dirty_tree_is_not_remembered",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/passed_tree",
+      "name": "tests/checks/test_passed_tree.py::test_a_failing_check_remembers_nothing",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/passed_tree",
+      "name": "tests/checks/test_passed_tree.py::test_a_fast_forward_to_a_passed_tree_runs_nothing",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/passed_tree",
+      "name": "tests/checks/test_passed_tree.py::test_a_passed_tree_in_a_new_place_runs_everything",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/passed_tree",
+      "name": "tests/checks/test_passed_tree.py::test_a_place_changed_while_the_checks_ran_is_not_remembered",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/passed_tree",
+      "name": "tests/checks/test_passed_tree.py::test_a_remembered_tree_runs_nothing",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/passed_tree",
+      "name": "tests/checks/test_passed_tree.py::test_a_rewritten_results_file_keeps_the_tree_checkable",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/passed_tree",
+      "name": "tests/checks/test_passed_tree.py::test_an_uncommitted_markdown_file_makes_the_tree_uncheckable",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_a_change_to_one_python_file_lints_only_that_file",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_a_data_file_change_reruns_the_tests[.githooks/pre-commit]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_a_data_file_change_reruns_the_tests[commitlint.config.mjs]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_a_data_file_change_reruns_the_tests[devdata/data/iris.csv]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_a_data_file_change_reruns_the_tests[docs/architecture/engine-inventory.md]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_a_data_file_change_reruns_the_tests[docs/conf.py]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_a_data_file_change_reruns_the_tests[tests/conftest.py]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_a_docs_only_change_runs_no_test",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_full_validate_runs_every_runner",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
       "area": "devdata/_random",
       "name": "tests/devdata/test__random.py::test_a_row_source_gives_the_rows_of_range",
       "outcome": "passed",
@@ -1719,6 +1833,318 @@
     {
       "area": "docs/engine_inventory",
       "name": "tests/docs/test_engine_inventory.py::test_the_inventory_gives_every_module_its_phase",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_a_breaking_change_needs_its_footer",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_a_commit_at_an_edit_stop_is_checked",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_a_commit_from_a_subfolder_finds_the_rules",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_a_good_message_lands",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_a_merge_with_gits_own_message_lands",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_a_picked_commit_in_a_rebase_is_not_checked",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_a_reword_in_a_linked_worktree_is_checked",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_a_reword_in_a_rebase_is_checked",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_a_rule_at_level_two_refuses[FEAT: add x]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_a_rule_at_level_two_refuses[Updated stuff.]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_a_rule_at_level_two_refuses[feat(Auth): add x]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_a_rule_at_level_two_refuses[feat: add x.]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_a_rule_at_level_two_refuses[feat: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_a_rule_at_level_two_refuses[wip: add x]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_a_rule_refuses_and_is_named[ feat: add x-header-trim]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_a_rule_refuses_and_is_named[feat(sssssssssssssssssssssssss): add x-scope-max-length]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_a_rule_refuses_and_is_named[feat: add x -header-trim]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_a_rule_refuses_and_is_named[feat: add x\\nBody directly under the header.\\n-body-leading-blank]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_a_subject_starting_with_the_comment_character_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_a_warning_lets_the_commit_land",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_an_empty_message_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_empty_rules_are_a_tooling_failure",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_missing_rules_refuse",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_no_commitlint_refuses_with_the_cure",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_rules_that_fail_to_load_are_a_tooling_failure",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_the_comment_character_follows_core_commentchar[#]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_the_comment_character_follows_core_commentchar[(]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_the_comment_character_follows_core_commentchar[)]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_the_comment_character_follows_core_commentchar[+]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_the_comment_character_follows_core_commentchar[;]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_the_comment_character_follows_core_commentchar[?]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_the_comment_character_follows_core_commentchar[{]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_the_comment_character_follows_core_commentchar[|]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_the_hook_is_committed_executable",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_the_hook_runs_in_a_linked_worktree",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_the_hook_runs_under_a_path_with_spaces",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/commit_msg",
+      "name": "tests/githooks/test_commit_msg.py::test_the_scissors_section_is_ignored",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/pre_commit",
+      "name": "tests/githooks/test_pre_commit.py::test_a_checkout_without_an_environment_is_refused_with_the_cure",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/pre_commit",
+      "name": "tests/githooks/test_pre_commit.py::test_a_commit_that_deletes_a_file_passes",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/pre_commit",
+      "name": "tests/githooks/test_pre_commit.py::test_a_failing_recipe_refuses_the_commit",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/pre_commit",
+      "name": "tests/githooks/test_pre_commit.py::test_a_partial_commit_checks_only_the_named_paths",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/pre_commit",
+      "name": "tests/githooks/test_pre_commit.py::test_a_passing_commit_prints_nothing",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/pre_commit",
+      "name": "tests/githooks/test_pre_commit.py::test_a_passing_recipe_lets_the_commit_land",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/pre_commit",
+      "name": "tests/githooks/test_pre_commit.py::test_no_just_refuses_with_the_cure",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/pre_commit",
+      "name": "tests/githooks/test_pre_commit.py::test_the_checks_read_the_index_not_the_working_tree",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/pre_commit",
+      "name": "tests/githooks/test_pre_commit.py::test_the_environment_is_not_synced_from_the_copy",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/pre_commit",
+      "name": "tests/githooks/test_pre_commit.py::test_the_hook_is_committed_executable",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/pre_commit",
+      "name": "tests/githooks/test_pre_commit.py::test_the_hook_runs_in_a_linked_worktree",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/pre_commit",
+      "name": "tests/githooks/test_pre_commit.py::test_the_hook_runs_under_a_path_with_spaces",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/pre_merge_commit",
+      "name": "tests/githooks/test_pre_merge_commit.py::test_a_clean_merge_bringing_a_failing_file_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/pre_merge_commit",
+      "name": "tests/githooks/test_pre_merge_commit.py::test_a_clean_merge_that_passes_lands",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "githooks/pre_merge_commit",
+      "name": "tests/githooks/test_pre_merge_commit.py::test_the_hook_is_committed_executable",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -19274,13 +19700,49 @@
     },
     {
       "area": "validation/__main__",
-      "name": "tests/validation/test___main__.py::test_a_failing_runner_makes_it_exit_one",
+      "name": "tests/validation/test___main__.py::test_a_changed_runner_reruns",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "validation/__main__",
-      "name": "tests/validation/test___main__.py::test_passing_runners_exit_zero_and_write_their_results",
+      "name": "tests/validation/test___main__.py::test_a_failing_runner_reruns_each_time_and_exits_1",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/__main__",
+      "name": "tests/validation/test___main__.py::test_a_file_edited_while_the_runner_ran_is_not_recorded",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/__main__",
+      "name": "tests/validation/test___main__.py::test_a_module_written_while_the_runner_ran_is_not_recorded",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/__main__",
+      "name": "tests/validation/test___main__.py::test_an_anomaly_exits_zero_and_is_written",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/__main__",
+      "name": "tests/validation/test___main__.py::test_an_unchanged_runner_is_skipped_and_its_results_kept",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/__main__",
+      "name": "tests/validation/test___main__.py::test_everything_reruns_every_runner",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/__main__",
+      "name": "tests/validation/test___main__.py::test_one_runner_writes_its_results_and_its_record",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -19357,6 +19819,378 @@
       "tier": "fast"
     },
     {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_a_changed_input_reruns_a_whole_task",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_a_config_change_checks_every_file",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_a_config_change_reruns_a_whole_task",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_a_deleted_file_reruns_a_whole_task",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_a_failed_run_records_nothing",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_a_failed_save_leaves_no_temporary_file",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_a_failing_step_does_not_hide_the_others",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_a_malformed_record_file_counts_as_absent[[1]]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_a_malformed_record_file_counts_as_absent[[{\"digest\": 1}]]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_a_malformed_record_file_counts_as_absent[{not json]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_a_malformed_record_file_counts_as_absent[{}]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_a_new_file_reruns_a_whole_task",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_a_new_module_checks_every_file_again",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_a_new_place_to_run_reruns_every_task[platform-machine-<lambda>]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_a_new_place_to_run_reruns_every_task[platform-platform-<lambda>]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_a_new_place_to_run_reruns_every_task[sys-version-3.99.0 (another build)]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_a_new_tool_config_file_reruns_lint_on_every_file[.ruff.toml]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_a_new_tool_config_file_reruns_lint_on_every_file[_typos.toml]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_a_new_tool_config_file_reruns_lint_on_every_file[ruff.toml]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_a_new_tool_config_file_reruns_lint_on_every_file[src/ruff.toml]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_a_new_tool_config_file_reruns_lint_on_every_file[ty.toml]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_a_per_file_task_checks_a_file_restored_to_an_earlier_pass",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_a_per_file_task_checks_a_new_file",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_a_per_file_task_checks_only_the_changed_files",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_a_removed_module_checks_every_file_again",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_a_whole_task_runs_once_then_is_skipped",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_an_edit_during_the_run_is_not_recorded",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_an_edit_undone_after_the_run_is_not_recorded",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_an_executable_bit_change_checks_that_file_again",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_an_executable_bit_change_reruns_a_whole_task",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_an_exit_code_a_step_allows_is_a_pass",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_an_ignored_file_changes_nothing",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_an_unreadable_record_file_counts_as_absent",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_every_task_declares_the_settings_files",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_everything_on_a_task_with_no_files_says_so",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_everything_runs_the_whole_task_and_records",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_only_the_serial_pass_may_collect_nothing",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_records_are_kept_twenty_and_replaced_atomically",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_the_checks_outputs_change_nothing",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_the_command_line_runs_a_task",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_the_lint_task_keys_its_config_to_the_python_layout",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_the_place_is_printed_as_one_word_that_names_python",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_the_task_table_names_every_check",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_record",
+      "name": "tests/validation/test__record.py::test_a_changed_environment_breaks_the_match",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_record",
+      "name": "tests/validation/test__record.py::test_a_changed_file_breaks_the_match",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_record",
+      "name": "tests/validation/test__record.py::test_a_corrupt_or_partial_record_file_counts_as_absent[[1]]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_record",
+      "name": "tests/validation/test__record.py::test_a_corrupt_or_partial_record_file_counts_as_absent[[{\"runner\": \"validation.x]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_record",
+      "name": "tests/validation/test__record.py::test_a_corrupt_or_partial_record_file_counts_as_absent[[{\"runner\": 1}]]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_record",
+      "name": "tests/validation/test__record.py::test_a_corrupt_or_partial_record_file_counts_as_absent[]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_record",
+      "name": "tests/validation/test__record.py::test_a_corrupt_or_partial_record_file_counts_as_absent[{}]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_record",
+      "name": "tests/validation/test__record.py::test_a_deleted_file_breaks_the_match",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_record",
+      "name": "tests/validation/test__record.py::test_a_failed_run_cancels_an_earlier_pass_of_the_same_inputs",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_record",
+      "name": "tests/validation/test__record.py::test_a_failed_run_is_never_matched",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_record",
+      "name": "tests/validation/test__record.py::test_a_failed_save_leaves_no_temporary_file",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_record",
+      "name": "tests/validation/test__record.py::test_a_record_matches_while_its_files_are_unchanged",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_record",
+      "name": "tests/validation/test__record.py::test_an_unreadable_record_file_counts_as_absent",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_record",
+      "name": "tests/validation/test__record.py::test_loaded_files_names_repo_modules_and_declared_data_only",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_record",
+      "name": "tests/validation/test__record.py::test_save_keeps_the_twenty_newest",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_tests_report",
+      "name": "tests/validation/test__tests_report.py::test_a_deselected_test_keeps_its_outcome",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_tests_report",
+      "name": "tests/validation/test__tests_report.py::test_a_parallel_run_writes_the_same_entries_as_a_serial_one",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_tests_report",
+      "name": "tests/validation/test__tests_report.py::test_a_partial_run_keeps_the_entries_of_tests_not_run",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_tests_report",
+      "name": "tests/validation/test__tests_report.py::test_a_test_removed_from_its_file_loses_its_entry",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
       "area": "validation/_tests_report",
       "name": "tests/validation/test__tests_report.py::test_area_is_the_mirrored_module[tests/src/sqlearn/preprocessing/test_scale.py::test_x[a]-sqlearn/preprocessing/scale]",
       "outcome": "passed",
@@ -19377,6 +20211,18 @@
     {
       "area": "validation/_tests_report",
       "name": "tests/validation/test__tests_report.py::test_area_is_the_mirrored_module[tests/validation/test__cases.py::test_z-validation/_cases]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_tests_report",
+      "name": "tests/validation/test__tests_report.py::test_loading_the_report_plugin_leaves_sqlearn_unimported",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_tests_report",
+      "name": "tests/validation/test__tests_report.py::test_the_entries_of_a_deleted_file_are_dropped",
       "outcome": "passed",
       "tier": "fast"
     }

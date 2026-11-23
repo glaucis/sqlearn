@@ -272,7 +272,8 @@ function (a scaler, a model, a metric), one page holds:
   trusted, numpy included.
 
 The same reference code is imported by the tests, where it guards against a
-wrong SQL expression on every `just verify`. The pages do not run at build:
+wrong SQL expression whenever `just test` reruns the tests a change affects,
+and on every `just test-all`. The pages do not run at build:
 `just validate` computes each function with sqlearn and each library and
 writes the inputs, reference value, each library's value, error and version to
 `validation/results/` as JSON. The results are committed and the pages are

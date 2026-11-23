@@ -1225,6 +1225,27 @@ class Pipeline:
         table to disk as it needs, so no fold is held in memory whole. The
         caller drops it.
 
+        Parameters
+        ----------
+        learn_from : Source
+            The fold's training rows with the target set aside.
+        fold : FoldKey
+            The key that completes `learn_from`'s keys.
+        data : duckdb.DuckDBPyRelation
+            Every row, with the `keep` columns.
+        target : str
+            The target column.
+        keep : sequence of str
+            The columns that pass through the steps and come back beside the
+            features.
+        held : Expression
+            True for the rows the fold holds out.
+
+        Returns
+        -------
+        _FoldTable
+            The table of the prepared rows and its layout.
+
         Raises
         ------
         SqlearnError
@@ -1261,6 +1282,27 @@ class Pipeline:
         Returns the query of the prepared rows and the features: the
         query's columns are the features in order, then `TARGET`, the `keep`
         columns and each row's number in the query's order (`_ROW`).
+
+        Parameters
+        ----------
+        learn_from : Source
+            The fold's training rows with the target set aside.
+        fold : FoldKey
+            The key that completes `learn_from`'s keys.
+        data : duckdb.DuckDBPyRelation
+            Every row, with the `keep` columns.
+        target : str
+            The target column.
+        keep : sequence of str
+            The columns that pass through the steps and come back beside the
+            features.
+        held : Expression
+            True for the rows the fold holds out.
+
+        Returns
+        -------
+        tuple of (str, tuple of str)
+            The query of the prepared rows, and the features.
 
         Raises
         ------

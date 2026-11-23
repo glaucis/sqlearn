@@ -3,26 +3,22 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-22 · Branch: `main` (the branch `read-busy-connection`
-merged and removed) · Checks: `just verify` passed on the branch before the
-merge (exit 0, no failures; macOS 27.2.1, load 3 to 9)
-Verify with: `just verify`
+Updated: 2026-11-23 · Branch: `main` (`phase-1-checks` merged and
+pushed) · Checks: `just verify`
+passed at Task 5's commit `3d54d52` (67 min, "remembered"); after the final
+review's fix wave, `just done` passed at `ac535f3` (47 min, every check and
+every runner ran, "remembered"; load 8 to 15)
+Verify with: `just done` (`just verify` is the release tier)
 
 ## In progress
 
-- [verified] **Next session (Tomas, 2026-11-22, overnight): execute the
-  rework plan** of Phase 1 step 1 with
-  superpowers:subagent-driven-development, then its final review and one
-  fix wave; stop before the merge (it needs Tomas). Everything is on the
-  branch `phase-1-checks` in the worktree `../sqlearn-79`, not on `main`:
-  read that worktree's `HANDOFF.md` first (its "In progress" says what and
-  why), then the plan
-  `../sqlearn-79/docs/plans/2026-11-22-native-engine-phase-1-checks-rework.md`
-  and the amended spec `../sqlearn-79/docs/specs/native-engine-phase-1.md`
-  (§3.1, §3.9). Work in that worktree, never on `main`.
+Nothing in progress: Phase 1 step 2's plan comes next (Next up).
 
 ## Waiting on the user
 
+- The FMA ADR: `-ffp-contract=off` everywhere, `std::fma` on purpose and
+  validated (spec §3.9, the agent's proposal); decide before step 2's
+  kernels. (since 2026-11-22)
 - The CLion MCP stays (its debugger, for step 2 on); no other tool or skill
   needed. Told Tomas; nothing to do.
 - Benchmarks run on a loaded machine, to rerun on a quiet one if wanted:
@@ -32,10 +28,24 @@ Verify with: `just verify`
 
 ## Next up
 
-- Phase 1 step 1 (the checks: testmon, xdist, recorded validation, the
-  passed-tree record) on today's Python: its plan first, with
-  superpowers:writing-plans; then the build, the workflows and the site
-  (#4, #6), the review (spec §3.7).
+- Phase 1 step 2 (the build) after the merge, its plan first, with
+  superpowers:writing-plans: it carries spec §3.9's C++ parts (presets,
+  sanitizers, safety warnings, benchmarks, crash handler) and per-group
+  test selection from the build's dependency lists (§3.1); then the
+  workflows and the site (#4, #6), the review (spec §3.7).
+- Before the DuckDB submodules land (step 2): `_checks.digest` does not
+  hash gitlinks, so a submodule bump changes no digest and skips every
+  check. Hash the mode-160000 entries of `git ls-files -s` (the commit each
+  submodule points at) into the digests of the tasks that read them.
+- Step 2 must declare the built native module (`.so`) as a validation
+  input: a git-ignored file a runner imports gets no record, so every
+  runner would rerun every time (safe, but slow). `just done` runs
+  `just place` before `check-lockfile`, so a stale lock fails with uv's
+  error rather than the named check (fails safe; reorder if wanted).
+- Finer validation selection: a src change reruns every runner (`import
+  sqlearn` loads the package); after the port, per group as the tests are.
+- Open question: free-threaded Python, `docs/questions/free-threaded-python.md`
+  (decide in step 2).
 - After the port (Phases 1–4): the rest of 3.6 (spec §8: target panel,
   outliers, normality, Kendall, sampling, time series), then the
   application; 3.3 candidates: text features, more preprocessing, truncated
@@ -48,6 +58,25 @@ Verify with: `just verify`
 
 ## Dead ends and traps
 
+- pytest-testmon selects from the lines each test ran, so it misses code run
+  at import (module constants, `__init__` re-exports, class bases,
+  `__post_init__` behind module-level instances), files read as data, and
+  anything compiled; under xdist it also never records tests a pass leaves
+  out by marker. Three reviews found a new hole each: dropped for per-check
+  selection (spec §3.1). Its environment includes every installed
+  package's version, and sqlearn's carries the commit hash. A `-p` pytest
+  plugin loads before coverage and testmon start: import nothing of
+  sqlearn in one. (2026-11-22)
+- Subagents leave log watchers behind (13 idle `tail -F /tmp/t6/s1a.log`
+  shells, 2026-11-22): every dispatch carries the waiting rule (no Monitor,
+  no `tail -F`/`until`/`pgrep` loops); after each agent, `ps -Ao command |
+  grep "tail -F"`. A subagent that reports BLOCKED but "waits on its own
+  background work" can wake and run commands: stop it (TaskStop) before
+  dispatching another into the same worktree. (2026-11-22)
+
+- While `just test` or the validation runs in a worktree, start no other
+  `uv run` there: after a commit or a pyproject edit it reinstalls the
+  editable sqlearn and the tests reading its metadata fail (2026-11-22).
 - An OS update can change Accelerate, numpy's BLAS, and with it the last
   digits of `eigh`: macOS 27.2.1 failed three PCA bounds by a hair, the same
   on every run and on `main` alike; the bounds were loosened with their
@@ -150,8 +179,10 @@ Verify with: `just verify`
   the second of `a`, `A` to `A_1`. (2026-11-15)
 - `_drop_later` tables drop at the next `read`. A `just verify` rerun can
   flip a large-set result to "anomaly" by thread order (ADR 0016): discard
-  it. `just verify` rewrites `*.results.json` and `tests.json`: discard ULP
-  diffs, commit `tests.json` when tests were added (ADR 0043). (2026-11-15)
+  it. `just test` merges `tests.json`; `just validate` rewrites only the
+  rerun runners' results (`just validate-all` and `just verify` all of
+  them): discard ULP diffs, commit `tests.json` when tests were added
+  (ADR 0043). (2026-11-22)
 - commitlint takes no scope but `hooks`, `site`, `deps`; header and body
   lines at most 72 characters. (2026-11-13)
 - When the network drops mid-build, resume the same subagent (SendMessage
@@ -187,6 +218,41 @@ Verify with: `just verify`
   (2026-11-06)
 
 ## Just finished
+
+- Phase 1 step 1 merged into `main` (Tomas, 2026-11-23): per-check
+  selection by inputs (`validation/_checks.py`, `just full <task>`,
+  `just done`, `just verify`), testmon dropped; the rework plan's five
+  tasks, the final review and its fix wave (I1 the place kept with each
+  passed tree, I2 a runner's files hashed before it runs). Proof on #79.
+  The worktree `../sqlearn-79` can go once nothing else needs it.
+
+- The final review's fix wave, on `phase-1-checks`: the passed-tree record
+  keeps the place (Python, platform, machine) with each tree, `just place`
+  (`a56c615`); a validation record keeps its files' hashes from before the
+  runner ran, and records no pass when one changed meanwhile; corrupt
+  record files load as none (`f7de127`); the tools' own configuration
+  files are settings (`5b09c2c`); `/.tmp/` ignored, the native-engine spec
+  points at §3.1, the empty serial pass explained (the docs commit after).
+  (2026-11-23)
+- The rework's Task 5 (`3d54d52`), the done-when shown (#79): `just done` twice,
+  a docs-only commit (`docs` alone ran), a one-line `src/` change (`format` and
+  `lint` on that file, `types` and `test` ran, every runner reran), a runner's
+  own file (that runner alone), a fast-forward of a passed tree (already
+  passed), and `just verify` (passed, remembered). A killed run left `.tmp/`
+  (DuckDB's temp directory) in the worktree, which made the tree uncheckable
+  until removed. (2026-11-23)
+
+- The rework's Tasks 1 to 4, on `phase-1-checks`, not merged: each check
+  is a task in `validation/_checks.py` that runs on what changed since it
+  passed, its records in `sqlearn-checks/` in git's common directory
+  (`eb9c992`); `just format`, `lint`, `docstrings`, `types`, `test`, `docs`
+  and `just full <task>` (`f49d879`); pytest-testmon removed (`00900f0`);
+  `just done` runs every task, `just verify` every task in full, and the
+  docs say so (`edab18e`, `98f08de`); `checkable-tree` exempts only the
+  checks' outputs, and `done` runs every check past a failure (the commit
+  after). (2026-11-22)
+- Phase 1 step 1 was first built with pytest-testmon, then replaced by the
+  rework above; the first run's results are on #79. (2026-11-22)
 
 - The branch `read-busy-connection` merged into `main`: #76's fix (closed),
   #75's deferral, spec §4, the approved Phase 1 spec, PCA's bounds after

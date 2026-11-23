@@ -489,20 +489,19 @@ about 6 times the cost of XᵀX), and 0058, which Phase 2 supersedes, not Phase 
   - ready-made builds from CI;
   - `just` recipes (`build-engine`, `test-engine`) folded into `just check`,
     `just test` and `just verify`;
-  - the checks redesigned for two languages and for speed (Tomas,
-    2026-11-21): a test reruns only when something it depends on changed
-    (its code; a change it now meets, as when a merge to `main` combines
-    two; a declared dependency the selection cannot see, such as the native
-    module, `uv.lock`, `devdata/` or the test settings; or a new place to
-    run: another Python, platform or DuckDB build). So only the tests a
-    change affects run (for example `pytest-testmon` for Python, CTest for
-    C++), in parallel, and none for a docs-only commit; a push runs no full
-    suite, and a fast-forward merge of a tree that passed runs nothing more.
-    The full suite, on every Python and platform with the sanitizers, the
-    docs build, and the validation run only at a release. Validation
-    runners record their verdicts with the code they covered and rerun when
-    it changes. `just` stays the one entry point, calling CMake (with Ninja,
-    ccache and presets) for the C++;
+  - the checks redesigned for two languages and for speed (Tomas, 2026-11-21): a
+    test reruns only when something it depends on changed (its code; a change it
+    now meets, as when a merge to `main` combines two; a declared dependency the
+    selection cannot see, such as the native module, `uv.lock`, `devdata/` or
+    the test settings; or a new place to run: another Python, platform or DuckDB
+    build). So only the checks a change affects run (each check selected by its
+    inputs' digests, Phase 1 spec §3.1; CTest for C++), in parallel, and none
+    for a docs-only commit; a push runs no full suite, and a fast-forward merge
+    of a tree that passed runs nothing more. The full suite, on every Python and
+    platform with the sanitizers, the docs build, and the validation run only at
+    a release. Validation runners record their verdicts with the code they
+    covered and rerun when it changes. `just` stays the one entry point, calling
+    CMake (with Ninja, ccache and presets) for the C++;
   - the libraries sqlearn and its tooling use reviewed, kept or replaced
     (Tomas, 2026-11-21);
   - how the C++ is documented: comments in Doxygen's format, the site staying

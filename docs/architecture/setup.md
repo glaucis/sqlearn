@@ -7,7 +7,7 @@ mdindex: [type=4ca303, tags=191ee2, summary=74a9d4, related=58b62f]
 ---
 # Setting up
 
-How to get a working clone, the recipes it gives you, and what the two git
+How to get a working clone, the recipes it gives you, and what the git
 hooks do.
 
 ## A new laptop
@@ -33,19 +33,19 @@ system's OpenMP library; uv cannot provide it. uv is the only package tool
 |---|---|
 | setup | `setup` |
 | format | `fmt`, `fmt-markdown`, `fmt-python` |
-| check | `check`, `check-docstrings`, `check-lockfile`, `check-spelling`, `check-types`, `check-types-mypy`, `lint-markdown`, `lint-python`, `pre-commit`, `verify` |
-| test | `test`, `test-all`, `test-hooks`, `test-python-versions` |
-| docs | `build-docs`, `fetch-inventories`, `fetch-mathjax` |
+| check | `check`, `check-docstring-args`, `check-docstrings`, `check-lockfile`, `check-mirror`, `check-no-devdata`, `check-spelling`, `check-types`, `check-types-mypy`, `checkable-tree`, `docstrings`, `done`, `format`, `full`, `lint`, `lint-markdown`, `lint-python`, `place`, `pre-commit`, `remember-tree`, `types`, `verify` |
+| test | `test`, `test-all`, `test-hooks`, `test-python-versions`, `validate`, `validate-all` |
+| docs | `build-docs`, `docs`, `fetch-inventories`, `fetch-mathjax` |
 | build | `build-package` |
 | maintain | `clean`, `upgrade-dependencies` |
 
-Two rhythms:
-
-- **Every commit.** `just fmt`, then `just check` and `just test`. `just fmt`
-  and its two parts are the only recipes that reformat your files.
-- **Review, merge and release.** `just verify` runs `check`, mypy, the tests
-  on every Python in the matrix, the hook tests, the docstring validation and
-  the docs build.
+Which recipe runs when (a commit, a merge, work done, a release) is in
+[the tiers' table](testing.md). The checks `just done` runs (`format`, `lint`,
+`docstrings`, `types`, `test`, `validate`, `docs`) each run on what changed
+since they passed, and `just full <task>` runs one all through:
+[testing](testing.md), "How each check finds what changed". The other `check-*`,
+`lint-*` and `test-*` recipes run on everything, unrecorded. `just fmt` and its
+two parts are the only recipes that reformat your files.
 
 When a composite recipe fails, `just` names the recipe that failed: run that
 one alone.

@@ -41,9 +41,17 @@ test = [
     "pyarrow>=26.0.1",
     "pytest>=9.2.0",
     "pytest-cov>=7.1.0",
+    "pytest-xdist>=3.8.0",
     "scikit-learn>=1.9.1",
 ]
-lint = ["mypy>=2.4.1", "ruff>=0.17.3", "rumdl>=0.3.2", "ty>=0.0.96", "typos>=1.51.1"]
+lint = [
+    "mypy>=2.4.1",
+    "pydoclint>=0.12.0",
+    "ruff>=0.17.3",
+    "rumdl>=0.3.2",
+    "ty>=0.0.96",
+    "typos>=1.51.1",
+]
 docs = [
     "ipykernel>=7.4.0",
     "myst-nb>=1.4.0",
@@ -150,7 +158,10 @@ addopts = [
     "--import-mode=importlib",
     "-m", "not slow",
 ]
-markers = ["slow: the larger-than-memory tier; test-all and test-python-versions run it"]
+markers = [
+    "slow: the larger-than-memory tier; test-all and test-python-versions run it",
+    "serial: runs alone, after the parallel pass: it fails beside other tests",
+]
 xfail_strict = true
 # A warning is an error: a deprecation is found the day it appears, not at the next major.
 filterwarnings = ["error"]
@@ -213,3 +224,11 @@ mape = "mape"
 Fwe = "Fwe"
 # numpy.arange, the range of numbers as an array.
 arange = "arange"
+
+[tool.pydoclint]
+style = "numpy"
+arg-type-hints-in-docstring = false
+check-return-types = false
+check-yield-types = false
+check-class-attributes = false
+skip-checking-raises = true

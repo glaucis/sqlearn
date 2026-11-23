@@ -64,20 +64,15 @@ check-spelling:
 check-lockfile:
     uv lock --check
 
-# Run the fast tests with coverage
-[group('test')]
-test:
-    uv run --locked pytest --cov --ignore=tests/githooks
-
 # Run the hook tests
 [group('test')]
 test-hooks:
     uv run --locked pytest tests/githooks -m ""
 
-# Run every test with coverage
+# Run every test with coverage, and write the slow tier's entries in tests.json
 [group('test')]
 test-all:
-    uv run --locked pytest --cov -m ""
+    uv run --locked pytest --cov -m "" -p validation._tests_report
 
 # Run the package's tests on every Python in the matrix
 [group('test')]
@@ -92,6 +87,23 @@ test-python-versions:
 [group('check')]
 check-docstrings:
     uv run --locked numpydoc lint $(git ls-files 'src/*.py')
+
+# Compare each docstring under src/, or in the files named, with its signature (pydoclint); DOC111, types written in the docstring, is numpydoc's own style and is not a finding
+[group('check')]
+[positional-arguments]
+check-docstring-args *files:
+    #!/usr/bin/env bash
+    set -uo pipefail
+    [ $# -gt 0 ] || set -- src
+    out=$(uv run --locked pydoclint "$@" 2>&1)
+    rc=$?
+    # 0 = clean, 1 = findings; anything else is pydoclint itself failing
+    if [ $rc -gt 1 ]; then printf '%s\n' "$out"; exit $rc; fi
+    # every line naming a DOC code other than DOC111 is a finding, printed under its file
+    bad=$(printf '%s\n' "$out" | awk '/^src\// {f=$0} /DOC[0-9]+/ && !/DOC111/ {print f ": " $0}')
+    if [ -n "$bad" ]; then printf '%s\n' "$bad"; exit 1; fi
+    # a failure with no DOC line at all is an error, not a pass
+    if [ $rc -eq 1 ] && ! grep -q 'DOC111' <<<"$out"; then printf '%s\n' "$out"; exit 1; fi
 
 # Build the sdist and the wheel into dist/
 [group('build')]
@@ -158,11 +170,11 @@ fetch-mathjax:
     printf '%s\n' "$stamp" > "$out/.pinned"
     rm -rf "$dest" && mv "$out" "$dest"
 
-# Build the site, then run the doctests, warnings as errors
+# Build the site, then run the doctests, warnings as errors; every page is read again (--fresh-env), since an incremental build repeats no warning of a page it did not reread
 [group('docs')]
 build-docs: fetch-mathjax
-    uv run --locked sphinx-build -W --keep-going -b html docs docs/_build/html
-    uv run --locked sphinx-build -W --keep-going -b doctest docs docs/_build/doctest
+    uv run --locked sphinx-build -W --keep-going --fresh-env -b html docs docs/_build/html
+    uv run --locked sphinx-build -W --keep-going --fresh-env -b doctest docs docs/_build/doctest
 
 # Remove build output, the matrix environments and tool caches
 [group('maintain')]
@@ -209,20 +221,155 @@ check-mirror:
     done < <(find src/sqlearn -name '*.py' | sort)
     exit $missing
 
+# Refuse "devdata" in any module of the package (ADR 0053), test_the_package_holds_no_datasets's rule on every commit
+[group('check')]
+check-no-devdata:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    rc=0
+    found=$(grep -rn --include='*.py' devdata src/sqlearn) || rc=$?
+    # 1 = no line found, the pass; 2 = grep itself failed, which is not a pass
+    if [ $rc -gt 1 ]; then exit $rc; fi
+    if [ $rc -eq 0 ]; then
+        printf '%s\n' "$found"
+        echo "src/ names devdata/, which never ships (ADR 0053): move what uses it out of src/."
+        exit 1
+    fi
+
 # Run the checks that run on every commit
 [group('check')]
-check: lint-python check-types lint-markdown check-spelling check-mirror
+check: lint-python check-types lint-markdown check-spelling check-mirror check-docstring-args check-no-devdata
 
 # Run what the pre-commit hook runs
 [group('check')]
 pre-commit: check check-lockfile
 
-# Run every test and every validation runner, writing their results as JSON under validation/
+# Rerun each validation runner whose imported files changed since a passed run
 [group('test')]
 validate:
-    uv run --locked pytest -m "" -q -p validation._tests_report --ignore=tests/githooks
     uv run --locked python -m validation
 
-# Run every check, for review, merge and release
+# Rerun every validation runner, recorded or not (at a release)
+[group('test')]
+validate-all:
+    uv run --locked python -m validation --all
+
+# How a task runs only when its inputs changed (the tasks' tests set it on a scratch repository)
+checks := "uv run --locked python -m validation._checks"
+
+# Check the formatting of the Python and Markdown files changed since a passed run
 [group('check')]
-verify: check check-types-mypy test-python-versions test-hooks check-docstrings validate build-docs
+format:
+    {{ checks }} format
+
+# Lint the Python, the spelling and the Markdown of the files changed since a passed run
+[group('check')]
+lint:
+    {{ checks }} lint
+
+# Validate the docstrings of the files under src/ changed since a passed run (numpydoc, pydoclint)
+[group('check')]
+docstrings:
+    {{ checks }} docstrings
+
+# Type-check with ty, then mypy strict, when a Python file changed since a passed run
+[group('check')]
+types:
+    {{ checks }} types
+
+# Run the tests when what they read changed since a passed run: the fast ones in parallel, the serial ones, the slow tier, the hooks; tests.json is merged
+[group('test')]
+test:
+    {{ checks }} test
+
+# Build the site and run its doctests when docs/, src/ or examples/ changed since a passed run
+[group('docs')]
+docs:
+    {{ checks }} docs
+
+# Run one check all through, whatever its record says, and record its pass (validation/_checks.py); `validate` runs every runner (validate-all), its records being its own
+[group('check')]
+full task:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ "{{ task }}" = validate ]; then
+        exec "{{ just_executable() }}" --justfile "{{ justfile() }}" validate-all
+    fi
+    {{ checks }} "{{ task }}" --all
+
+# Print the tree of HEAD when only the checks' own outputs differ from it, and nothing otherwise
+[group('check')]
+checkable-tree:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # the checks' own outputs are never inputs (OUTPUTS in validation/_checks.py); any other change, Markdown included, is one
+    skip=(':(exclude,glob)validation/**/*.results.json' ':(exclude)validation/tests.json' ':(exclude)validation/environment.json')
+    if git diff --quiet HEAD -- . "${skip[@]}" &&
+        [ -z "$(git ls-files --others --exclude-standard -- . "${skip[@]}")" ]; then
+        git rev-parse 'HEAD^{tree}'
+    fi
+
+# Print the place the checks run in (Python, platform, machine), hashed: a tree passed in one place is checked again in another
+[group('check')]
+place:
+    @{{ checks }} --place
+
+# Remember a tree the checks passed on in a place, when both are still the checkable tree and today's place
+[group('check')]
+remember-tree tree place:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    j=(just --justfile '{{ justfile() }}')
+    before="{{ tree }}"
+    where="{{ place }}"
+    file="$(git rev-parse --git-common-dir)/sqlearn-passed"
+    if [ -z "$before" ] || [ "$before" != "$("${j[@]}" checkable-tree)" ]; then
+        printf '\nNot remembered: a file other than an output of the checks differed from the last commit, or the commit changed, while the checks ran. Commit, then run this again.\n'
+        exit 0
+    fi
+    if [ -z "$where" ] || [ "$where" != "$("${j[@]}" place)" ]; then
+        printf '\nNot remembered: the place the checks run in (Python, platform, machine) changed while they ran. Run them again.\n'
+        exit 0
+    fi
+    if ! grep -qx "$before $where" "$file" 2>/dev/null; then
+        printf '%s %s\n' "$before" "$where" >> "$file"
+        tail -n 50 "$file" > "$file.new" && mv "$file.new" "$file"
+    fi
+    printf '\nChecked tree %s: remembered.\n' "$before"
+
+# Run every check on what changed since it passed (the instant ones, then each task), unless this tree already passed in this place; every one runs, a failing one included, and the first failure's code is the exit; then remember the tree and the place
+[group('check')]
+done:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    j=(just --justfile '{{ justfile() }}')
+    tree="$("${j[@]}" checkable-tree)"
+    place="$("${j[@]}" place)"
+    if [ -n "$tree" ] && grep -qx "$tree $place" "$(git rev-parse --git-common-dir)/sqlearn-passed" 2>/dev/null; then
+        echo "Tree $tree already passed: nothing to run."
+        exit 0
+    fi
+    # every check runs whatever the others' exit, as each task's steps do, so one failure hides no other's findings
+    first=0
+    for check in check-lockfile check-mirror check-no-devdata format lint docstrings types test validate docs; do
+        code=0
+        "${j[@]}" "$check" || code=$?
+        if [ "$first" -eq 0 ]; then first=$code; fi
+    done
+    if [ "$first" -ne 0 ]; then exit "$first"; fi
+    "${j[@]}" remember-tree "$tree" "$place"
+
+# Run every check all through, whatever the records say, then the tests with coverage and on every Python: the release tier, by hand before 1.0.0
+[group('check')]
+verify:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    j=(just --justfile '{{ justfile() }}')
+    tree="$("${j[@]}" checkable-tree)"
+    place="$("${j[@]}" place)"
+    "${j[@]}" check-lockfile check-mirror check-no-devdata
+    for task in format lint docstrings types test validate docs; do
+        "${j[@]}" full "$task"
+    done
+    "${j[@]}" test-all test-python-versions
+    "${j[@]}" remember-tree "$tree" "$place"
