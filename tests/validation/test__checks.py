@@ -471,3 +471,21 @@ def test_the_place_is_printed_as_one_word_that_names_python(monkeypatch, capsys)
     monkeypatch.setattr(sys, "version", "3.99.0 (another build)")
     assert _checks.cli(["--place"]) == 0
     assert capsys.readouterr().out.strip() not in {"", here}
+
+
+@pytest.mark.parametrize(
+    "config", ["ruff.toml", ".ruff.toml", "src/ruff.toml", "_typos.toml", "ty.toml"]
+)
+def test_a_new_tool_config_file_reruns_lint_on_every_file(scratch, config):
+    """A tool's own configuration file, added at the root or deeper, governs
+    every file it reaches: the real lint task checks every file again."""
+    lint = _checks._table()["lint"]
+    files = _checks._hashes(_checks._listed(lint.inputs, scratch), scratch)
+    _checks.save(
+        _checks.record_dir(scratch),
+        "lint",
+        _checks.Record(digest="", config=_checks._config(lint, scratch), files=files),
+    )
+    assert changed_files(lint, scratch) == []
+    (scratch / config).write_text("line-length = 79\n")
+    assert set(changed_files(lint, scratch)) >= {Path(n) for n in files}

@@ -129,7 +129,10 @@ passed run already checked.
 | `validate` | each runner's imported modules, `uv.lock`, `devdata/data/` | each changed runner, by its own records (below) |
 
 Every task also reads the settings: `pyproject.toml`, `uv.lock`,
-`.python-version` and the `justfile`.
+`.python-version` and the `justfile`, and each tool's own configuration file at
+any depth (`pyproject.toml`, `ruff.toml`, `.ruff.toml`, `typos.toml`,
+`_typos.toml`, `.typos.toml`, `rumdl.toml`, `.rumdl.toml`, `mypy.ini`,
+`.mypy.ini`, `ty.toml`), so one added reruns every file it governs.
 
 - **Per file** (`format`, `lint`, `docstrings`): a file is checked again
   unless a kept record passed it, with the same digest, under today's

@@ -108,7 +108,26 @@ class Record(TypedDict):
     files: dict[str, str]
 
 
-SETTINGS = ("pyproject.toml", "uv.lock", ".python-version", "justfile")
+SETTINGS = (
+    "pyproject.toml",
+    "uv.lock",
+    ".python-version",
+    "justfile",
+    # The tools' own configuration files, at the root or deeper: one added
+    # governs every file it reaches, so it reruns all of each task. An absent
+    # one hashes as absent.
+    ":(glob)**/pyproject.toml",
+    ":(glob)**/ruff.toml",
+    ":(glob)**/.ruff.toml",
+    ":(glob)**/typos.toml",
+    ":(glob)**/_typos.toml",
+    ":(glob)**/.typos.toml",
+    ":(glob)**/rumdl.toml",
+    ":(glob)**/.rumdl.toml",
+    ":(glob)**/mypy.ini",
+    ":(glob)**/.mypy.ini",
+    ":(glob)**/ty.toml",
+)
 """The settings every task reads: the tools', the locked versions, the recipes."""
 
 PYTHON = ("*.py", "*.pyi")
