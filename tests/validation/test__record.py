@@ -147,6 +147,7 @@ def engine_repo(tmp_path, monkeypatch):
     (tmp_path / "engine").mkdir()
     (tmp_path / "engine" / "a.cpp").write_text("int a;\n")
     (tmp_path / "pyproject.toml").write_text(
+        '[build-system]\nrequires = ["nanobind==3.1.0"]\n\n'
         '[project]\nname = "x"\n\n[tool.scikit-build]\nbuild-dir = "build"\n'
     )
     compiler = tmp_path / "cxx"
@@ -186,6 +187,16 @@ def test_the_engine_digest_follows_what_the_module_is_built_from(engine_repo):
         check=True,
     )
     assert record_module.engine(engine_repo) != first
+
+
+def test_a_build_requirement_bump_is_another_engine(engine_repo):
+    """A pinned build requirement is an input: its bump changes the digest."""
+    first = record_module.engine(engine_repo)
+    pyproject = engine_repo / "pyproject.toml"
+    pyproject.write_text(pyproject.read_text().replace("3.1.0", "3.1.1"))
+    assert record_module.engine(engine_repo) != first
+    pyproject.write_text(pyproject.read_text().replace("3.1.1", "3.1.0"))
+    assert record_module.engine(engine_repo) == first
 
 
 def test_a_records_environment_holds_the_engine_digest(engine_repo):

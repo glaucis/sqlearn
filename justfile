@@ -146,6 +146,37 @@ check-docstring-args *files:
 build-package:
     uv build --wheel
 
+# Write src/sqlearn/_native.pyi from the built engine, with nanobind's stubgen (signatures only: a docstring stays on its function), formatted as ruff formats the package
+[group('build')]
+stubs:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    tmp=$(mktemp -d)
+    trap 'rm -rf "$tmp"' EXIT
+    uv run --locked python -m nanobind.stubgen -q -D -m sqlearn._native -o "$tmp/raw.pyi"
+    uv run --locked ruff format --stdin-filename src/sqlearn/_native.pyi < "$tmp/raw.pyi" > "$tmp/_native.pyi"
+    mv "$tmp/_native.pyi" src/sqlearn/_native.pyi
+
+# Check that src/sqlearn/_native.pyi is what `just stubs` writes from the built engine
+[group('check')]
+check-stubs:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    tmp=$(mktemp -d)
+    trap 'rm -rf "$tmp"' EXIT
+    uv run --locked python -m nanobind.stubgen -q -D -m sqlearn._native -o "$tmp/raw.pyi"
+    uv run --locked ruff format --stdin-filename src/sqlearn/_native.pyi < "$tmp/raw.pyi" > "$tmp/_native.pyi"
+    if ! diff -u src/sqlearn/_native.pyi "$tmp/_native.pyi"; then
+        echo "src/sqlearn/_native.pyi differs from the engine's stubs."
+        echo "Fix: just stubs"
+        exit 1
+    fi
+
+# Write tests/public_api.txt, the public API one name a line; commit it with the reason the API changed (ADR 0003, 0067)
+[group('build')]
+api-snapshot:
+    uv run --locked python tests/public_api.py
+
 # Upgrade the locked dependencies, then verify
 [group('maintain')]
 upgrade-dependencies:

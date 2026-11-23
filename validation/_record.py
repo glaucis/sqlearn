@@ -167,6 +167,7 @@ def engine(root: Path) -> str:
 
     Every file under ``engine/`` and the commit each submodule there pins,
     as ``_checks`` digests a task's inputs; ``pyproject.toml``'s
+    ``[build-system]`` table (the build requirements, pinned exactly) and its
     ``[tool.scikit-build]`` table; and the C++ compiler's version. A module
     built from other inputs is another engine, so every runner reruns. Its
     inputs, not the binary nor its version string: a rebuild of the same
@@ -177,15 +178,17 @@ def engine(root: Path) -> str:
     files = _checks._listed(("engine",), root)
     links = _checks._gitlinks(("engine",), root)
     pyproject = root / "pyproject.toml"
-    table = (
+    project = (
         tomllib.loads(pyproject.read_text(encoding="utf-8"))
-        .get("tool", {})
-        .get("scikit-build", {})
         if pyproject.is_file()
         else {}
     )
+    tables = {
+        "build-system": project.get("build-system", {}),
+        "scikit-build": project.get("tool", {}).get("scikit-build", {}),
+    }
     sha = hashlib.sha256(_checks._combined(files, root, links).encode() + b"\0")
-    sha.update(json.dumps(table, sort_keys=True).encode() + b"\0")
+    sha.update(json.dumps(tables, sort_keys=True).encode() + b"\0")
     sha.update(_compiler().encode())
     return sha.hexdigest()
 

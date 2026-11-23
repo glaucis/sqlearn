@@ -170,6 +170,7 @@ The API of the sqlearn package, generated from its docstrings.
    sqlearn.store.prepared
    sqlearn.get_config
    sqlearn.set_config
+   sqlearn.version
    sqlearn.errors.SqlearnError
    sqlearn.errors.SqlearnWarning
    sqlearn.errors.StepError

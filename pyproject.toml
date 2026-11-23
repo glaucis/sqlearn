@@ -1,11 +1,15 @@
 [build-system]
 # scikit-build-core runs engine/CMakeLists.txt, which builds DuckDB's module
 # from the submodules; nanobind and numpy's headers are what that build needs.
+# Pinned exactly: uv.lock does not hold build requirements, so a release of
+# one would otherwise change the module unseen. A bump is by hand, and it
+# changes the engine's digest (validation/_record.py), so every runner reruns.
+# numpy is the version uv.lock gives the runtime.
 requires = [
-    "scikit-build-core>=1.1.2",
-    "nanobind>=3.1.0",
-    "numpy>=2.5.4",
-    "setuptools-scm>=10.3.4",
+    "scikit-build-core==1.1.2",
+    "nanobind==3.1.0",
+    "numpy==2.5.4",
+    "setuptools-scm==10.3.4",
 ]
 build-backend = "scikit_build_core.build"
 
@@ -53,6 +57,7 @@ test = [
 ]
 lint = [
     "mypy>=2.4.1",
+    "nanobind==3.1.0",
     "pydoclint>=0.12.0",
     "ruff>=0.17.3",
     "rumdl>=0.3.2",
@@ -108,6 +113,10 @@ wheel.packages = ["src/sqlearn"]
 [tool.scikit-build.cmake.define]
 # DuckDB's official extensions, compiled in.
 BUILD_EXTENSIONS = "core_functions;json;parquet;icu"
+# The extensions linked into the module: the official four, repeated since
+# this replaces duckdb-python's default list, and sqlearn's own
+# (engine/extension/).
+LINK_EXTENSIONS = "core_functions;json;parquet;icu;sqlearn"
 
 # macOS 15 is the floor (ADR 0062): the module is built for it, and
 # scikit-build-core tags the wheel macosx_15_0 from this define.
@@ -163,6 +172,9 @@ convention = "numpy"
 "docs/**" = ["ANN", "D"]
 # Validations against the references: written like tests.
 "validation/**" = ["ANN", "D2", "D3", "D4"]
+# The start-up check runs before the package's imports, since they import
+# duckdb, which the check is about (ADR 0061).
+"src/sqlearn/__init__.py" = ["E402"]
 
 [tool.ruff.format]
 docstring-code-format = true

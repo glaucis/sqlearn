@@ -1851,6 +1851,36 @@
     {
       "area": "docs/engine_inventory",
       "name": "tests/docs/test_engine_inventory.py::test_the_inventory_gives_every_module_its_phase",
+      "outcome": "failed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/bindings",
+      "name": "tests/engine/test_bindings.py::test_a_busy_connection_never_crashes",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/bindings",
+      "name": "tests/engine/test_bindings.py::test_a_closed_connection_raises_duckdbs_error",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/bindings",
+      "name": "tests/engine/test_bindings.py::test_a_connection_to_another_database_sees_its_own_tables",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/bindings",
+      "name": "tests/engine/test_bindings.py::test_a_precondition_is_an_internal_error",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/bindings",
+      "name": "tests/engine/test_bindings.py::test_a_users_connection_reaches_cpp_and_back",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1875,6 +1905,36 @@
     {
       "area": "engine/build",
       "name": "tests/engine/test_build.py::test_the_version_substitution_refuses_a_changed_file",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/extension",
+      "name": "tests/engine/test_extension.py::test_a_user_who_asks_for_downloads_keeps_them",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/extension",
+      "name": "tests/engine/test_extension.py::test_a_user_who_turns_downloads_off_keeps_that",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/extension",
+      "name": "tests/engine/test_extension.py::test_an_extension_the_user_installed_loads",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/extension",
+      "name": "tests/engine/test_extension.py::test_every_database_has_the_sqlearn_extension",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/extension",
+      "name": "tests/engine/test_extension.py::test_nothing_downloads_by_itself",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -17845,6 +17905,48 @@
       "tier": "fast"
     },
     {
+      "area": "sqlearn/_native",
+      "name": "tests/src/sqlearn/test__native.py::test_a_file_without_the_engine_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_native",
+      "name": "tests/src/sqlearn/test__native.py::test_the_build_identity_is_the_pinned_build",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_native",
+      "name": "tests/src/sqlearn/test__native.py::test_the_engine_is_in_duckdbs_binary",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_native",
+      "name": "tests/src/sqlearn/test__native.py::test_the_module_is_an_extension_module",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_native",
+      "name": "tests/src/sqlearn/test__native.py::test_the_official_duckdb_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_native",
+      "name": "tests/src/sqlearn/test__native.py::test_the_stubs_match_the_module",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_native",
+      "name": "tests/src/sqlearn/test__native.py::test_version_answers_from_cpp",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
       "area": "sqlearn/_output",
       "name": "tests/src/sqlearn/test__output.py::test_an_unknown_name_lists_the_names",
       "outcome": "passed",
@@ -19508,6 +19610,12 @@
     },
     {
       "area": "sqlearn/init",
+      "name": "tests/src/sqlearn/test_init.py::test_the_public_api_is_the_recorded_one",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/init",
       "name": "tests/src/sqlearn/test_init.py::test_the_top_level_holds_only_the_builders",
       "outcome": "passed",
       "tier": "fast"
@@ -20169,6 +20277,12 @@
     {
       "area": "validation/_checks",
       "name": "tests/validation/test__checks.py::test_the_task_table_names_every_check",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_record",
+      "name": "tests/validation/test__record.py::test_a_build_requirement_bump_is_another_engine",
       "outcome": "passed",
       "tier": "fast"
     },

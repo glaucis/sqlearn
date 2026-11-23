@@ -25,6 +25,9 @@ def test_duckdb_is_sqlearns_build():
     """DuckDB is v2.0.1 from the pinned commit, and sqlearn's own files."""
     assert duckdb.__version__ == "2.0.1"
     assert duckdb.build_info()["duckdb_commit"].startswith("8d78114e90")
+    from duckdb import _build_info
+
+    assert duckdb.build_info()["duckdb_version"] == _build_info.DUCKDB_VERSION
     files = importlib.metadata.distribution("sqlearn").files or []
     assert "duckdb/__init__.py" in {f.as_posix() for f in files}
     with pytest.raises(importlib.metadata.PackageNotFoundError):
@@ -82,6 +85,7 @@ def test_the_module_and_the_wheel_target_macos_15():
     done = subprocess.run(
         ["otool", "-l", _duckdb.__file__], capture_output=True, text=True, check=True
     )
+    assert "cmd LC_BUILD_VERSION" in done.stdout, done.stdout[:500]
     build = done.stdout.split("cmd LC_BUILD_VERSION", 1)[1]
     assert re.search(r"^\s*minos 15\.0$", build, re.M), build[:200]
     wheel = importlib.metadata.distribution("sqlearn").read_text("WHEEL") or ""

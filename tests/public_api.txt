@@ -1,0 +1,113 @@
+sqlearn.Learned(items: collections.abc.Mapping[str, object]) -> None
+sqlearn.Model(estimator: object, feed: str = 'numpy', *, rows: int | None = None, megabytes: int | None = None, epochs: int = 1, shuffle: bool = True, seed: int = 0) -> None
+sqlearn.Output(path: str, format: str) -> None
+sqlearn.Pipeline(steps: collections.abc.Sequence[sqlearn._step.Step | object | tuple[str, sqlearn._step.Step | object]]) -> None
+sqlearn.Step(cols: sqlearn._selectors.Selector | str | tuple[str, ...] | list[str] | None = None, keep: bool = False, suffix: str | None = None, *, learn: collections.abc.Callable[[duckdb._expression.Expression], collections.abc.Mapping[str, duckdb._expression.Expression]] | None = None, apply: collections.abc.Callable[..., duckdb._expression.Expression | collections.abc.Mapping[str, duckdb._expression.Expression] | collections.abc.Sequence[tuple[str, duckdb._expression.Expression]]] | None = None) -> None
+sqlearn.__version__: str
+sqlearn.agg: module
+sqlearn.agg.Aggregate(name: str, build: collections.abc.Callable[..., duckdb._expression.Expression], *, defaults: collections.abc.Mapping[str, object] | None = None, numeric_only: bool = True, params: collections.abc.Mapping[str, object] | None = None, checks: collections.abc.Mapping[str, collections.abc.Callable[[str, object], object]] | None = None, doc: str | None = None) -> None
+sqlearn.agg.approx_quantile(x: object = None, **params: object) -> 'Expression | Aggregate'
+sqlearn.agg.count(x: object = None, **params: object) -> 'Expression | Aggregate'
+sqlearn.agg.distinct(x: object = None, **params: object) -> 'Expression | Aggregate'
+sqlearn.agg.iqr(x: object = None, **params: object) -> 'Expression | Aggregate'
+sqlearn.agg.max(x: object = None, **params: object) -> 'Expression | Aggregate'
+sqlearn.agg.maxabs(x: object = None, **params: object) -> 'Expression | Aggregate'
+sqlearn.agg.mean(x: object = None, **params: object) -> 'Expression | Aggregate'
+sqlearn.agg.median(x: object = None, **params: object) -> 'Expression | Aggregate'
+sqlearn.agg.min(x: object = None, **params: object) -> 'Expression | Aggregate'
+sqlearn.agg.mode(x: object = None, **params: object) -> 'Expression | Aggregate'
+sqlearn.agg.quantile(x: object = None, **params: object) -> 'Expression | Aggregate'
+sqlearn.agg.range(x: object = None, **params: object) -> 'Expression | Aggregate'
+sqlearn.agg.std(x: object = None, **params: object) -> 'Expression | Aggregate'
+sqlearn.agg.var(x: object = None, **params: object) -> 'Expression | Aggregate'
+sqlearn.bin(*names: object, method: str = 'quantile', n: int = 5, threshold: float = 0.0, cols: sqlearn._selectors.Selector | str | collections.abc.Sequence[str] | None = None, keep: bool = False, suffix: str | None = None) -> sqlearn.preprocessing.bin.Bin | sqlearn.preprocessing.bin.Binarize
+sqlearn.cols(*names: str) -> sqlearn._selectors.Selector
+sqlearn.decompose(*names: object, method: str = 'pca', n_components: float | None = None, whiten: bool = False, cols: sqlearn._selectors.Selector | str | collections.abc.Sequence[str] | None = None) -> sqlearn.decomposition.pca.PCA
+sqlearn.encode(*names: object, method: str = 'onehot', cols: sqlearn._selectors.Selector | str | collections.abc.Sequence[str] | None = None, keep: bool = False, smooth: str | float | None = None, cv: int | None = None, seed: int | None = None, target_type: str | None = None, lookup: str | None = None) -> sqlearn.preprocessing.onehot.OneHot | sqlearn.preprocessing.ordinal.Ordinal | sqlearn.preprocessing.target.TargetEncoder
+sqlearn.errors: module
+sqlearn.errors.DefaultsUsedWarning: type
+sqlearn.errors.InternalError: type
+sqlearn.errors.SqlearnError: type
+sqlearn.errors.SqlearnWarning: type
+sqlearn.errors.StepError(message: str, *, step: str, position: int) -> None
+sqlearn.errors.UndefinedMetricWarning: type
+sqlearn.explore: module
+sqlearn.explore.correlations(data: object, cols: sqlearn._selectors.Selector | str | list[str] | None = None, *, method: str = 'pearson', out: str | sqlearn._output.Output | None = None) -> Any
+sqlearn.explore.histogram(data: object, cols: sqlearn._selectors.Selector | str | list[str] | None = None, *, bins: int = 10, out: str | sqlearn._output.Output | None = None) -> Any
+sqlearn.explore.missing(data: object, cols: sqlearn._selectors.Selector | str | list[str] | None = None, *, patterns: int = 10, out: str | sqlearn._output.Output | None = None) -> Any
+sqlearn.explore.profile(data: object, cols: sqlearn._selectors.Selector | str | list[str] | None = None, *, exact: bool = True, id_rows: int = 20, high_cardinality: int = 50, out: str | sqlearn._output.Output | None = None) -> Any
+sqlearn.explore.top(data: object, cols: sqlearn._selectors.Selector | str | list[str] | None = None, *, k: int = 10, out: str | sqlearn._output.Output | None = None) -> Any
+sqlearn.features(*names: object, method: str, degree: int | None = None, interaction_only: bool | None = None, include_bias: bool | None = None, n_knots: int | None = None, knots: str | None = None, extrapolation: str | None = None, cols: sqlearn._selectors.Selector | str | collections.abc.Sequence[str] | None = None) -> sqlearn.preprocessing.features.Polynomial | sqlearn.preprocessing.features.Spline
+sqlearn.fn: module
+sqlearn.fn.abs(x: duckdb._expression.Expression | object) -> duckdb._expression.Expression
+sqlearn.fn.coalesce(*xs: duckdb._expression.Expression | object) -> duckdb._expression.Expression
+sqlearn.fn.const(v: object) -> duckdb._expression.Expression
+sqlearn.fn.exp(x: duckdb._expression.Expression | object) -> duckdb._expression.Expression
+sqlearn.fn.greatest(*xs: duckdb._expression.Expression | object) -> duckdb._expression.Expression
+sqlearn.fn.is_missing(x: duckdb._expression.Expression) -> duckdb._expression.Expression
+sqlearn.fn.least(*xs: duckdb._expression.Expression | object) -> duckdb._expression.Expression
+sqlearn.fn.ln(x: duckdb._expression.Expression | object) -> duckdb._expression.Expression
+sqlearn.fn.log10(x: duckdb._expression.Expression | object) -> duckdb._expression.Expression
+sqlearn.fn.lower(x: duckdb._expression.Expression | object) -> duckdb._expression.Expression
+sqlearn.fn.sqrt(x: duckdb._expression.Expression | object) -> duckdb._expression.Expression
+sqlearn.fn.upper(x: duckdb._expression.Expression | object) -> duckdb._expression.Expression
+sqlearn.folds: FoldsGroup
+sqlearn.get_config() -> 'Config'
+sqlearn.impute(*names: object, value: object = 'median', indicator: bool = False, cols: sqlearn._selectors.Selector | str | collections.abc.Sequence[str] | None = None, keep: bool = False, suffix: str | None = None) -> sqlearn.preprocessing.impute.Impute
+sqlearn.load(path: str | os.PathLike[str]) -> sqlearn._pipeline.Pipeline
+sqlearn.metrics: module
+sqlearn.metrics.AveragePrecision(name: str, expression: collections.abc.Callable[..., duckdb._expression.Expression], greater_is_better: bool, needs: str = 'predict', windows: collections.abc.Callable[[list[duckdb._expression.Expression]], list[duckdb._expression.Expression]] | None = None, pos_label: object = 1) -> None
+sqlearn.metrics.BrierScore(name: str, expression: collections.abc.Callable[..., duckdb._expression.Expression], greater_is_better: bool, needs: str = 'predict', windows: collections.abc.Callable[[list[duckdb._expression.Expression]], list[duckdb._expression.Expression]] | None = None, scale_by_half: bool | str = 'auto') -> None
+sqlearn.metrics.ClassificationMetric(name: str, expression: collections.abc.Callable[..., duckdb._expression.Expression], greater_is_better: bool, needs: str = 'predict', windows: collections.abc.Callable[[list[duckdb._expression.Expression]], list[duckdb._expression.Expression]] | None = None, score: Literal['precision', 'recall', 'f1', 'fbeta'] = 'f1', beta: float | None = None, average: str = 'binary', pos_label: object = 1, zero_division: str | float = 'warn') -> None
+sqlearn.metrics.CountMetric(name: str, expression: collections.abc.Callable[..., duckdb._expression.Expression], greater_is_better: bool, needs: str = 'predict', windows: collections.abc.Callable[[list[duckdb._expression.Expression]], list[duckdb._expression.Expression]] | None = None, score: Literal['balanced_accuracy', 'mcc'] = 'balanced_accuracy', adjusted: bool = False) -> None
+sqlearn.metrics.LogError(name: str, expression: collections.abc.Callable[..., duckdb._expression.Expression], greater_is_better: bool, needs: str = 'predict', windows: collections.abc.Callable[[list[duckdb._expression.Expression]], list[duckdb._expression.Expression]] | None = None) -> None
+sqlearn.metrics.Metric(name: str, expression: collections.abc.Callable[..., duckdb._expression.Expression], greater_is_better: bool, needs: str = 'predict', windows: collections.abc.Callable[[list[duckdb._expression.Expression]], list[duckdb._expression.Expression]] | None = None) -> None
+sqlearn.metrics.MissingClassError(message: str, reason: str) -> None
+sqlearn.metrics.PinballLoss(name: str, expression: collections.abc.Callable[..., duckdb._expression.Expression], greater_is_better: bool, needs: str = 'predict', windows: collections.abc.Callable[[list[duckdb._expression.Expression]], list[duckdb._expression.Expression]] | None = None, alpha: float = 0.5, d2: bool = False, settable: bool = True) -> None
+sqlearn.metrics.TweedieDeviance(name: str, expression: collections.abc.Callable[..., duckdb._expression.Expression], greater_is_better: bool, needs: str = 'predict', windows: collections.abc.Callable[[list[duckdb._expression.Expression]], list[duckdb._expression.Expression]] | None = None, power: float = 0.0, d2: bool = False, settable: bool = True) -> None
+sqlearn.metrics.accuracy(**settings: object) -> 'Metric'
+sqlearn.metrics.average_precision(**settings: object) -> 'AveragePrecision'
+sqlearn.metrics.balanced_accuracy(**settings: object) -> 'CountMetric'
+sqlearn.metrics.brier(**settings: object) -> 'BrierScore'
+sqlearn.metrics.classification_report(rel: duckdb._relation.DuckDBPyRelation, target: str, prediction: str = 'prediction', *, zero_division: str | float = 'warn', out: str | sqlearn._output.Output | None = None) -> Any
+sqlearn.metrics.confusion_matrix(rel: duckdb._relation.DuckDBPyRelation, target: str, prediction: str = 'prediction', *, normalize: str | None = None, out: str | sqlearn._output.Output | None = None) -> Any
+sqlearn.metrics.d2_absolute_error(**settings: object) -> 'PinballLoss'
+sqlearn.metrics.d2_pinball(**settings: object) -> 'PinballLoss'
+sqlearn.metrics.d2_tweedie(**settings: object) -> 'TweedieDeviance'
+sqlearn.metrics.explained_variance(**settings: object) -> 'Metric'
+sqlearn.metrics.f1(**settings: object) -> 'ClassificationMetric'
+sqlearn.metrics.fbeta(**settings: object) -> 'ClassificationMetric'
+sqlearn.metrics.gamma_deviance(**settings: object) -> 'TweedieDeviance'
+sqlearn.metrics.log_loss(**settings: object) -> 'Metric'
+sqlearn.metrics.mae(**settings: object) -> 'Metric'
+sqlearn.metrics.mape(**settings: object) -> 'Metric'
+sqlearn.metrics.max_error(**settings: object) -> 'Metric'
+sqlearn.metrics.mcc(**settings: object) -> 'CountMetric'
+sqlearn.metrics.median_absolute_error(**settings: object) -> 'Metric'
+sqlearn.metrics.mse(**settings: object) -> 'Metric'
+sqlearn.metrics.msle(**settings: object) -> 'Metric'
+sqlearn.metrics.pinball_loss(**settings: object) -> 'PinballLoss'
+sqlearn.metrics.poisson_deviance(**settings: object) -> 'TweedieDeviance'
+sqlearn.metrics.precision(**settings: object) -> 'ClassificationMetric'
+sqlearn.metrics.precision_recall_curve(rel: duckdb._relation.DuckDBPyRelation, target: str, score: str, *, pos_label: object = None, drop_intermediate: bool = False, out: str | sqlearn._output.Output | None = None) -> Any
+sqlearn.metrics.r2(**settings: object) -> 'Metric'
+sqlearn.metrics.recall(**settings: object) -> 'ClassificationMetric'
+sqlearn.metrics.rmse(**settings: object) -> 'Metric'
+sqlearn.metrics.rmsle(**settings: object) -> 'Metric'
+sqlearn.metrics.roc_auc(**settings: object) -> 'Metric'
+sqlearn.metrics.roc_curve(rel: duckdb._relation.DuckDBPyRelation, target: str, score: str, *, pos_label: object = None, drop_intermediate: bool = True, out: str | sqlearn._output.Output | None = None) -> Any
+sqlearn.metrics.tweedie_deviance(**settings: object) -> 'TweedieDeviance'
+sqlearn.out: module
+sqlearn.out.csv(path: str | pathlib.Path) -> sqlearn._output.Output
+sqlearn.out.json(path: str | pathlib.Path) -> sqlearn._output.Output
+sqlearn.out.parquet(path: str | pathlib.Path) -> sqlearn._output.Output
+sqlearn.save(pipe: sqlearn._pipeline.Pipeline, path: str | os.PathLike[str], *, learned: bool = True) -> None
+sqlearn.scale(*names: object, method: str = 'standard', center: sqlearn.agg.aggregates.Aggregate | str | None = 'default', spread: sqlearn.agg.aggregates.Aggregate | str | None = 'default', feature_range: tuple[float, float] | list[float] | str | None = 'default', norm: str = 'default', cols: sqlearn._selectors.Selector | str | collections.abc.Sequence[str] | None = None, keep: bool = False, suffix: str | None = None) -> sqlearn.preprocessing.scale.Scale | sqlearn.preprocessing.scale.Normalize
+sqlearn.search(pipe: sqlearn._pipeline.Pipeline, params: dict[str, typing.Any] | list[dict[str, typing.Any]] | None = None, metric: sqlearn.metrics.accuracy.Metric = Metric(name='accuracy', expression=<function <lambda> at 0x...>, greater_is_better=True, needs='predict', windows=None), method: sqlearn.model_selection.methods.Method | None = None, folds: sqlearn.model_selection.folds.Folds | None = None, keep_prepared: str | os.PathLike[str] | None = None) -> sqlearn.model_selection.search.Search
+sqlearn.select(*names: object, method: str = 'variance', threshold: float | None = None, k: int | str | None = None, percentile: float | None = None, score: str | None = None, cols: sqlearn._selectors.Selector | str | collections.abc.Sequence[str] | None = None) -> sqlearn.feature_selection.variance.VarianceThreshold | sqlearn.feature_selection.univariate.SelectKBest | sqlearn.feature_selection.univariate.SelectPercentile
+sqlearn.set_config(*, out: 'str | Output | object | None' = <object object at 0x...>, connection: 'duckdb.DuckDBPyConnection | object | None' = <object object at 0x...>, memory: 'int | str | object | None' = <object object at 0x...>) -> 'None'
+sqlearn.store: module
+sqlearn.store.clear(prepared: str | os.PathLike[str] | None = None) -> None
+sqlearn.store.prepared(path: str | os.PathLike[str]) -> duckdb._relation.DuckDBPyRelation
+sqlearn.transform(*names: object, method: str, lower: float | None = None, upper: float | None = None, cols: sqlearn._selectors.Selector | str | collections.abc.Sequence[str] | None = None, keep: bool = False, suffix: str | None = None) -> sqlearn.preprocessing.transform.Transform
+sqlearn.version() -> str
