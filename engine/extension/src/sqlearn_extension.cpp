@@ -3,11 +3,23 @@
 /// opens, since the extension is statically linked into _duckdb.
 #include "core/version.hpp"
 
-#include "duckdb.hpp"
+#include "duckdb/common/identifier.hpp"
+#include "duckdb/common/types.hpp"
+#include "duckdb/common/types/data_chunk.hpp"
+#include "duckdb/common/types/size.hpp"
+#include "duckdb/common/types/value.hpp"
+#include "duckdb/common/types/vector.hpp"
+#include "duckdb/common/vector.hpp"
+#include "duckdb/execution/expression_executor_state.hpp"
 #include "duckdb/function/scalar_function.hpp"
 #include "duckdb/main/config.hpp"
 #include "duckdb/main/extension/extension_loader.hpp"
 #include "duckdb/main/settings.hpp"
+#include "duckdb/main/user_settings.hpp"
+
+// describe()'s std::string becomes a Value below: include-what-you-use counts
+// that a use of <string>, misc-include-cleaner does not.
+#include <string> // IWYU pragma: keep
 
 namespace {
 
@@ -42,7 +54,8 @@ extern "C" {
 /// The entry DuckDB's static loader calls for each new database.
 DUCKDB_CPP_EXTENSION_ENTRY(sqlearn, loader) {
     no_downloads_by_default(loader.GetDatabaseInstance());
-    loader.RegisterFunction(duckdb::ScalarFunction("sqlearn_version", duckdb::vector<duckdb::LogicalType>{},
+    loader.RegisterFunction(duckdb::ScalarFunction("sqlearn_version",
+                                                   duckdb::vector<duckdb::LogicalType>{},
                                                    duckdb::LogicalType::VARCHAR, sqlearn_version));
 }
 }

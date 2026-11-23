@@ -9,12 +9,14 @@ function(sq_target_options target)
   cmake_parse_arguments(PARSE_ARGV 1 arg "RAW" "" "")
   set_target_properties(
     ${target}
-    PROPERTIES CXX_STANDARD ${SQ_CXX_STANDARD}
-               CXX_STANDARD_REQUIRED ON
-               CXX_EXTENSIONS OFF
-               CXX_VISIBILITY_PRESET hidden
-               VISIBILITY_INLINES_HIDDEN ON
-               POSITION_INDEPENDENT_CODE ON)
+    PROPERTIES
+      CXX_STANDARD ${SQ_CXX_STANDARD}
+      CXX_STANDARD_REQUIRED ON
+      CXX_EXTENSIONS OFF
+      CXX_VISIBILITY_PRESET hidden
+      VISIBILITY_INLINES_HIDDEN ON
+      POSITION_INDEPENDENT_CODE ON
+  )
   target_include_directories(${target} PRIVATE "${SQ_ENGINE_DIR}/src")
   if(arg_RAW)
     sq_target_warnings(${target} RAW)
@@ -32,8 +34,10 @@ endfunction()
 # (validation/_ctest.py). Its UUID is derived from the content, so it stays.
 function(sq_stable_link target)
   if(APPLE)
-    set_property(TARGET ${target} PROPERTY CXX_LINKER_LAUNCHER
-                                           "${CMAKE_COMMAND}" -E env ZERO_AR_DATE=1)
+    set_property(
+      TARGET ${target}
+      PROPERTY CXX_LINKER_LAUNCHER "${CMAKE_COMMAND}" -E env ZERO_AR_DATE=1
+    )
   endif()
 endfunction()
 
@@ -58,7 +62,9 @@ endfunction()
 # The object library sq_<name> from SOURCES (engine/src/<name>/), with
 # sqlearn's options; in the wheel its objects join _duckdb. DEPENDS names
 # the groups whose objects it calls, which its test program links too (an
-# object library's objects reach only the targets that name it). With TESTS,
+# object library's objects reach only the targets that name it). DEPENDS is
+# not transitive: a group whose dependency has a dependency of its own names
+# both. With TESTS,
 # and when the tests are built (SQ_BUILD_TESTS), the Catch2 program
 # test_<name>, with RapidCheck for its properties, registered with CTest as
 # test_<name> under the label <name>; DATA names the files it reads at run
@@ -85,8 +91,10 @@ function(sq_add_group name)
     sq_stable_link(${program})
     sq_target_options(${program} ${raw})
     list(TRANSFORM arg_DEPENDS PREPEND sq_ OUTPUT_VARIABLE depends)
-    target_link_libraries(${program} PRIVATE ${target} ${depends} Catch2::Catch2WithMain
-                                             sq_rapidcheck_catch)
+    target_link_libraries(
+      ${program}
+      PRIVATE ${target} ${depends} Catch2::Catch2WithMain sq_rapidcheck_catch
+    )
     add_test(NAME ${program} COMMAND ${program})
     set_tests_properties(${program} PROPERTIES LABELS ${name})
     sq_test_data(${program} ${arg_DATA})

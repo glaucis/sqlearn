@@ -3,6 +3,7 @@
 /// new and delete itself (ADR 0065).
 #include "raw/buffer.hpp"
 
+#include <cstddef>
 #include <new>
 
 namespace sq::raw::detail {

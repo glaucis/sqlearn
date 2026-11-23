@@ -122,11 +122,12 @@ passed run already checked.
 
 | Task | Its inputs | Runs on |
 |---|---|---|
-| `format` | every `*.py`, `*.pyi` and `*.md` file | each changed file: `ruff format --check`, `rumdl fmt --check` |
+| `format` | every `*.py`, `*.pyi`, `*.md`, `*.cpp`, `*.hpp`, `CMakeLists.txt` and `*.cmake` file (none of the submodules') | each changed file: `ruff format --check`, `rumdl fmt --check`, `clang-format --dry-run -Werror` (C++), `gersemi --check` (CMake) |
 | `lint` | every file | each changed file: `ruff check` (Python), `typos` (every file), `rumdl check` (Markdown) |
 | `docstrings` | the Python files under `src/` | each changed file: `numpydoc lint`, `just check-docstring-args` |
 | `types` | every `*.py` and `*.pyi` file | the whole program: `ty check`, then `mypy` |
 | `test` | `src/`, `tests/`, `validation/`, `devdata/`, `engine/` (with its submodules' commits), every `conftest.py`, `docs/conf.py`, `docs/architecture/engine-inventory.md`, `.githooks/`, `commitlint.config.mjs` | the C++ groups whose program changed (below), then every test: the four passes (above) |
+| `tidy` | our C++ (`engine/src/`, `engine/tests/`, `engine/bench/`, `engine/extension/`), `engine/cmake/`, the CMake files and presets, `engine/.clang-tidy`, `engine/src/raw/.clang-tidy`, `engine/iwyu.imp`, the submodules' commits | the whole engine: `just tidy-engine` (clang-tidy with the static analyser), `just iwyu-engine` (include-what-you-use), `just headers-alone` |
 | `docs` | `docs/`, `src/`, `examples/` | the whole site: `just build-docs` |
 | `validate` | each runner's imported modules, `uv.lock`, `devdata/data/` | each changed runner, by its own records (below) |
 
@@ -134,7 +135,10 @@ Every task also reads the settings: `pyproject.toml`, `uv.lock`,
 `.python-version` and the `justfile`, and each tool's own configuration file at
 any depth (`pyproject.toml`, `ruff.toml`, `.ruff.toml`, `typos.toml`,
 `_typos.toml`, `.typos.toml`, `rumdl.toml`, `.rumdl.toml`, `mypy.ini`,
-`.mypy.ini`, `ty.toml`), so one added reruns every file it governs.
+`.mypy.ini`, `ty.toml`), so one added reruns every file it governs. `format`
+also reads `engine/.clang-format` and `.gersemirc`. A tool from Homebrew, not
+`uv.lock` (clang-format, clang-tidy, include-what-you-use, and the SDK),
+counts by its version: an upgrade reruns all of the tasks that use it.
 
 - **Per file** (`format`, `lint`, `docstrings`): a file is checked again
   unless a kept record passed it, with the same digest, under today's
@@ -142,8 +146,8 @@ any depth (`pyproject.toml`, `ruff.toml`, `.ruff.toml`, `typos.toml`,
   which Python files exist, since ruff's import sorting depends on it: a
   Python file added or removed reruns every `lint` step on every file, the
   Markdown and the spelling included.
-- **Whole** (`types`, `test`, `docs`): the task runs all of it when its digest
-  matches no kept record, and nothing otherwise.
+- **Whole** (`types`, `test`, `tidy`, `docs`): the task runs all of it when its
+  digest matches no kept record, and nothing otherwise.
 - Every step runs even when one before it fails, so one tool's failure hides
   no other's findings. A run that fails records nothing, so the next run
   checks the same again.

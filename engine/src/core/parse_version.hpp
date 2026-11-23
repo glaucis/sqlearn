@@ -18,6 +18,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <expected>
 #include <string>
 #include <string_view>
@@ -31,9 +32,9 @@ namespace sq::core {
 /// file's grammar has them. format() writes every valid version as text
 /// parse_version reads back to it.
 struct Version {
-    int major;       ///< The first release number.
-    int minor;       ///< The second release number.
-    int patch;       ///< The third release number, 0 when the text has none.
+    int major = 0;   ///< The first release number.
+    int minor = 0;   ///< The second release number.
+    int patch = 0;   ///< The third release number, 0 when the text has none.
     std::string pre; ///< The dev part and its local label after the release
                      ///< numbers, without the "." before it, such as "dev597"
                      ///< or "dev667+g136548be1"; empty for a final release.
@@ -47,7 +48,7 @@ struct Version {
 /// Why parse_version refused a text, and where.
 struct ParseError {
     /// What was wrong.
-    enum class Kind {
+    enum class Kind : std::uint8_t {
         empty,            ///< The text is empty.
         expected_number,  ///< A number is missing where the grammar needs one.
         leading_zero,     ///< A number other than 0 starts with 0.
@@ -69,10 +70,15 @@ struct ParseError {
 /// Read a version in the file's subset of PEP 440.
 /// @param text The whole text: nothing may come before or after the version.
 /// @return The version, or why and where the text is not one.
-[[nodiscard]] std::expected<Version, ParseError> parse_version(std::string_view text) noexcept;
+/// @throws std::bad_alloc when there is no memory to copy the dev part into
+///         the version's `pre`; a text that is no version is never an
+///         exception.
+[[nodiscard]] std::expected<Version, ParseError> parse_version(std::string_view text);
 
 /// Write a version as text: "MAJOR.MINOR.PATCH", then "." and `pre` when
-/// `pre` is not empty. The patch number is always written.
+/// `pre` is not empty. The patch number is always written, so this is not
+/// always the text the version was read from: "0.1.dev597" is written
+/// "0.1.0.dev597", the same version (PEP 440 pads a release with zeros).
 /// @param version A valid version (see Version).
 /// @return The text, which parse_version reads back to `version`.
 [[nodiscard]] std::string format(const Version &version);

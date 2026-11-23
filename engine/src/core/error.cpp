@@ -3,6 +3,8 @@
 #include "core/error.hpp"
 
 #include <format>
+#include <source_location>
+#include <string_view>
 
 namespace sq::core {
 
@@ -14,7 +16,10 @@ namespace {
 /// @return The part after the last '/' or '\'.
 std::string_view base_name(std::string_view path) noexcept {
     const auto slash = path.find_last_of("/\\");
-    return slash == std::string_view::npos ? path : path.substr(slash + 1);
+    if (slash != std::string_view::npos) {
+        path.remove_prefix(slash + 1);
+    }
+    return path;
 }
 
 } // namespace

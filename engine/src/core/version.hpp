@@ -17,7 +17,8 @@ struct BuildIdentity {
 
 /// Return this build's identity.
 /// @return The values CMake compiled in.
-[[nodiscard]] BuildIdentity build_identity() noexcept;
+/// @throws std::bad_alloc when there is no memory for its strings.
+[[nodiscard]] BuildIdentity build_identity();
 
 /// Describe a build in one line.
 /// @param identity The build to describe.

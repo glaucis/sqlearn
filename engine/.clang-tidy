@@ -1,0 +1,44 @@
+---
+# clang-tidy for sqlearn's own C++ (spec §3.2, ADR 0065): engine/src,
+# engine/tests, engine/bench and engine/extension/src, through `just tidy`,
+# with the Clang static analyser (clang-analyzer-*), every finding an error.
+# The submodules are never checked: their headers are system headers to our
+# targets, and HeaderFilterRegex names our directories alone.
+#
+# The checks turned off, each after the families it belongs to:
+#
+#   bugprone-easily-swappable-parameters: it fires on any two neighbouring
+#     parameters of one type, which an API of sizes and strings has
+#     everywhere (Error's what, why and fix); the parameters' names and the
+#     tests carry their order.
+Checks: >
+  -*,
+  bugprone-*,
+  cppcoreguidelines-*,
+  performance-*,
+  clang-analyzer-*,
+  readability-function-cognitive-complexity,
+  modernize-use-nodiscard,
+  google-explicit-constructor,
+  misc-include-cleaner,
+  -bugprone-easily-swappable-parameters
+WarningsAsErrors: '*'
+HeaderFilterRegex: '.*/engine/(src|tests|bench|extension/src)/.*'
+ExcludeHeaderFilterRegex: '.*/engine/(duckdb-python|third_party|build)/.*'
+SystemHeaders: false
+FormatStyle: none
+CheckOptions:
+  readability-function-cognitive-complexity.Threshold: 15
+  # A Catch2 or RapidCheck test case is a macro; its assertions expand to
+  # branches the reader never sees.
+  readability-function-cognitive-complexity.IgnoreMacros: true
+  # SQ_EXPECTS is a statement macro (spec §3.8), written as macros are, in
+  # `do { ... } while (false)`; a loop of ours is never a do-while.
+  cppcoreguidelines-avoid-do-while.IgnoreMacros: true
+  # RapidCheck is one library behind <rapidcheck.h>, and Python's C API one
+  # behind <Python.h>: include-what-you-use maps their parts to them
+  # (engine/iwyu.imp), which this check cannot.
+  misc-include-cleaner.IgnoreHeaders: 'rapidcheck\.h;rapidcheck/.*;python3\.[0-9]+/.*'
+  # nanobind's dict, like std::map, inserts on operator[]: there is no index
+  # to check.
+  cppcoreguidelines-pro-bounds-avoid-unchecked-container-access.ExcludeClasses: '::std::map;::std::unordered_map;::std::flat_map;::nanobind::dict'

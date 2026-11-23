@@ -171,8 +171,8 @@ commit both of these into it, without being asked:
   commit-msg hook runs commitlint. `just test` is yours to run before you
   commit: it runs the tests when what they read changed since a passed run.
   Never `--no-verify`. Run `just fmt` before you commit: it wraps the Markdown
-  at 80 columns and formats the Python, and its two parts are the only recipes
-  that reformat your files.
+  at 80 columns and formats the Python, the C++ and the CMake files, and its
+  three parts are the only recipes that reformat your files.
 - **Before you say any work is done, `just done` passes.** It runs
   `check-lockfile`, `check-mirror` and `check-no-devdata`, then each check
   (`format`, `lint`, `docstrings`, `types`, `test`, `validate`, `docs`) on what

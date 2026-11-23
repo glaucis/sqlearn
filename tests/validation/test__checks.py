@@ -1,5 +1,6 @@
 """Each check's record: the digest of its inputs when it passed, and its reruns."""
 
+import dataclasses
 import json
 import platform
 import subprocess
@@ -23,6 +24,13 @@ if (here / "fail").exists():
     sys.exit(1)
 if (here / "code").exists():
     sys.exit(int((here / "code").read_text()))
+"""
+
+# A tool outside uv.lock (Homebrew's clang-tidy): it prints the version the
+# file beside it names.
+VERSION = """\
+import pathlib
+print((pathlib.Path(__file__).parent / "version.txt").read_text(), end="")
 """
 
 
@@ -72,6 +80,22 @@ def _table(tool):
             ),
             per_file=False,
         ),
+        "tooled": Task(
+            name="tooled",
+            inputs=("src",),
+            config=("settings.toml",),
+            steps=(Step((*command, "tooled")),),
+            per_file=False,
+            tools=((sys.executable, str(tool.parent / "version.py")),),
+        ),
+        "tooled-lint": Task(
+            name="tooled-lint",
+            inputs=("*.py",),
+            config=("settings.toml",),
+            steps=(Step((*command, "py")),),
+            per_file=True,
+            tools=((sys.executable, str(tool.parent / "version.py")),),
+        ),
         "none": Task(
             name="none",
             inputs=("*.rst",),
@@ -102,6 +126,8 @@ def scratch(tmp_path, monkeypatch):
     _git(root, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "start")
     tool = tmp_path / "tool.py"
     tool.write_text(TOOL)
+    (tmp_path / "version.py").write_text(VERSION)
+    (tmp_path / "version.txt").write_text("tool 1.0\n")
     monkeypatch.setattr(_checks, "TASKS", _table(tool))
     return root
 
@@ -474,6 +500,7 @@ def test_the_task_table_names_every_check():
         "types",
         "test",
         "docs",
+        "tidy",
     }
     assert all(name == task.name for name, task in _checks.TASKS.items())
 
@@ -572,3 +599,59 @@ def test_the_test_task_runs_the_changed_cxx_groups_before_python():
     first = _checks.TASKS["test"].steps[0]
     assert first.command == ("just", "test-engine-changed", "dev")
     assert first.everything == ("--all",)
+
+
+def test_a_tool_upgrade_reruns_a_whole_task(scratch):
+    """A tool outside uv.lock is part of the configuration: a new version of it,
+    with no input changed, runs the task again."""
+    run("tooled", scratch)
+    _calls(scratch)
+    assert run("tooled", scratch) == 0
+    assert _calls(scratch) == []
+    (scratch.parent / "version.txt").write_text("tool 2.0\n")
+    assert run("tooled", scratch) == 0
+    assert _calls(scratch) == [["tooled"]]
+
+
+def test_a_tool_upgrade_checks_every_file_again(scratch):
+    """A per-file task checks every file again under a new version of its tool."""
+    run("tooled-lint", scratch)
+    _calls(scratch)
+    (scratch.parent / "version.txt").write_text("tool 2.0\n")
+    assert run("tooled-lint", scratch) == 0
+    assert _calls(scratch) == [["py", "src/a.py", "src/b.py"]]
+
+
+def test_a_missing_tool_is_part_of_the_configuration(scratch):
+    """A tool that is not installed hashes as absent, never a crash: its
+    task's own step then fails and names it."""
+    task = _checks.TASKS["tooled"]
+    before = _checks._config(task, scratch)
+    missing = dataclasses.replace(task, tools=(("no-such-tool-here", "--version"),))
+    assert _checks._config(missing, scratch) != before
+
+
+def test_the_engine_tasks_name_their_homebrew_tools():
+    """clang-tidy, include-what-you-use and clang-format come from Homebrew,
+    not uv.lock: their versions rerun the tasks that use them."""
+    tidy = {t[0].rsplit("/", 1)[-1] for t in _checks.TASKS["tidy"].tools}
+    fmt = {t[0].rsplit("/", 1)[-1] for t in _checks.TASKS["format"].tools}
+    assert {"clang-tidy", "include-what-you-use"} <= tidy
+    assert "clang-format" in fmt
+
+
+def test_the_tidy_task_reads_our_cxx_and_not_the_submodules():
+    """tidy's inputs are our sources, its settings and the submodules' commits."""
+    tidy = _checks.TASKS["tidy"]
+    assert not tidy.per_file
+    for path in (
+        "engine/src",
+        "engine/tests",
+        "engine/bench",
+        "engine/extension",
+        "engine/cmake",
+        "engine/.clang-tidy",
+        "engine/src/raw/.clang-tidy",
+        "engine/iwyu.imp",
+    ):
+        assert path in tidy.inputs, path

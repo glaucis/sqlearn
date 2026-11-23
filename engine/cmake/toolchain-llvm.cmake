@@ -4,20 +4,17 @@
 set(SQ_LLVM_ROOT "/opt/homebrew/opt/llvm" CACHE PATH "Homebrew LLVM's prefix")
 
 if(NOT EXISTS "${SQ_LLVM_ROOT}/bin/clang++")
-  message(FATAL_ERROR
-          "Homebrew LLVM is not at ${SQ_LLVM_ROOT}.\n"
-          "Fix: brew install llvm")
+  message(FATAL_ERROR "Homebrew LLVM is not at ${SQ_LLVM_ROOT}.\n" "Fix: brew install llvm")
 endif()
 
 execute_process(
   COMMAND xcrun --show-sdk-path
   OUTPUT_VARIABLE SQ_SDK_PATH
   OUTPUT_STRIP_TRAILING_WHITESPACE
-  RESULT_VARIABLE sq_xcrun_result)
+  RESULT_VARIABLE sq_xcrun_result
+)
 if(NOT sq_xcrun_result EQUAL 0 OR SQ_SDK_PATH STREQUAL "")
-  message(FATAL_ERROR
-          "xcrun --show-sdk-path found no macOS SDK.\n"
-          "Fix: xcode-select --install")
+  message(FATAL_ERROR "xcrun --show-sdk-path found no macOS SDK.\n" "Fix: xcode-select --install")
 endif()
 
 set(CMAKE_C_COMPILER "${SQ_LLVM_ROOT}/bin/clang")

@@ -8,8 +8,11 @@ if(NOT SQ_FLAVOR MATCHES "^(release|profile)$")
 endif()
 
 add_library(sq_nanobench INTERFACE)
-target_include_directories(sq_nanobench SYSTEM
-                           INTERFACE "${SQ_ENGINE_DIR}/third_party/nanobench/src/include")
+target_include_directories(
+  sq_nanobench
+  SYSTEM
+  INTERFACE "${SQ_ENGINE_DIR}/third_party/nanobench/src/include"
+)
 
 add_executable(bench_buffer bench_buffer.cpp)
 sq_target_options(bench_buffer)

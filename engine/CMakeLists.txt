@@ -19,7 +19,11 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # preset's (CMakePresets.json, `just build-engine`) sets SQ_ENGINE_ONLY and
 # compiles our groups alone, with their test programs: no group of step 2
 # needs DuckDB, so the sanitizer builds do not rebuild it.
-option(SQ_ENGINE_ONLY "Build sqlearn's C++ groups and their tests, without DuckDB or the module" OFF)
+option(
+  SQ_ENGINE_ONLY
+  "Build sqlearn's C++ groups and their tests, without DuckDB or the module"
+  OFF
+)
 option(SQ_BUILD_TESTS "Build the C++ test programs (CTest)" ${SQ_ENGINE_ONLY})
 
 include(cmake/pins.cmake)
@@ -27,6 +31,7 @@ include(cmake/duckdb_package.cmake)
 include(cmake/warnings.cmake)
 include(cmake/hardening.cmake)
 include(cmake/groups.cmake)
+include(cmake/headers_alone.cmake)
 sq_check_pins()
 
 set(SQ_ENGINE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -49,11 +54,13 @@ else()
   # duckdb-python's default list, so pyproject.toml repeats the four.
   set(DUCKDB_EXTENSION_CONFIGS "${CMAKE_CURRENT_SOURCE_DIR}/extension/sqlearn_config.cmake")
   if(NOT "sqlearn" IN_LIST LINK_EXTENSIONS)
-    message(FATAL_ERROR
-            "LINK_EXTENSIONS is \"${LINK_EXTENSIONS}\", without sqlearn: the module "
-            "would have no sqlearn_version() and would download extensions.\n"
-            "Fix: set LINK_EXTENSIONS to \"core_functions;json;parquet;icu;sqlearn\" "
-            "in pyproject.toml's [tool.scikit-build.cmake.define]")
+    message(
+      FATAL_ERROR
+      "LINK_EXTENSIONS is \"${LINK_EXTENSIONS}\", without sqlearn: the module "
+      "would have no sqlearn_version() and would download extensions.\n"
+      "Fix: set LINK_EXTENSIONS to \"core_functions;json;parquet;icu;sqlearn\" "
+      "in pyproject.toml's [tool.scikit-build.cmake.define]"
+    )
   endif()
 
   # The version and commit DuckDB is built as, from the pins, not from git
@@ -66,8 +73,11 @@ else()
   # Their headers are system headers to our targets, so our warnings (as
   # errors) cover our code and not theirs. Setting a property of their
   # targets edits none of their files.
-  foreach(theirs IN ITEMS _duckdb_dependencies duckdb_target duckdb_static
-                          nanobind-static-abi3 nanobind-static)
+  foreach(
+    theirs
+    IN
+    ITEMS _duckdb_dependencies duckdb_target duckdb_static nanobind-static-abi3 nanobind-static
+  )
     if(TARGET ${theirs})
       set_property(TARGET ${theirs} PROPERTY SYSTEM TRUE)
     endif()
@@ -101,26 +111,31 @@ if(SQ_BUILD_TESTS)
   add_subdirectory(third_party/rapidcheck EXCLUDE_FROM_ALL)
   set_property(TARGET rapidcheck PROPERTY SYSTEM TRUE)
   add_library(sq_rapidcheck_catch INTERFACE)
-  target_include_directories(sq_rapidcheck_catch SYSTEM
-                             INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/third_party/rapidcheck/extras/catch/include")
+  target_include_directories(
+    sq_rapidcheck_catch
+    SYSTEM
+    INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/third_party/rapidcheck/extras/catch/include"
+  )
   target_link_libraries(sq_rapidcheck_catch INTERFACE rapidcheck)
 endif()
 
-sq_add_group(core
+sq_add_group(
+  core
   SOURCES src/core/error.cpp src/core/parse_version.cpp src/core/version.cpp
-  TESTS tests/core/test_version.cpp tests/core/test_parse_version.cpp)
+  TESTS tests/core/test_version.cpp tests/core/test_parse_version.cpp
+)
 # The one layer allowed raw memory (ADR 0065); its SQ_EXPECTS throws core's
 # PreconditionError.
-sq_add_group(raw
-  SOURCES src/raw/buffer.cpp
-  DEPENDS core
-  TESTS tests/raw/test_buffer.cpp)
+sq_add_group(raw SOURCES src/raw/buffer.cpp DEPENDS core TESTS tests/raw/test_buffer.cpp)
 # On this file alone, so a new version recompiles only it.
 set_source_files_properties(
   src/core/version.cpp
-  PROPERTIES COMPILE_DEFINITIONS
-             "SQ_SQLEARN_VERSION=\"${SQ_SQLEARN_VERSION}\";SQ_DUCKDB_VERSION=\"${SQ_DUCKDB_VERSION}\";SQ_DUCKDB_COMMIT=\"${SQ_DUCKDB_COMMIT}\";SQ_COMPILER=\"${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}\";SQ_BUILD_TYPE=\"${CMAKE_BUILD_TYPE}\""
+  PROPERTIES
+    COMPILE_DEFINITIONS
+      "SQ_SQLEARN_VERSION=\"${SQ_SQLEARN_VERSION}\";SQ_DUCKDB_VERSION=\"${SQ_DUCKDB_VERSION}\";SQ_DUCKDB_COMMIT=\"${SQ_DUCKDB_COMMIT}\";SQ_COMPILER=\"${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}\";SQ_BUILD_TYPE=\"${CMAKE_BUILD_TYPE}\""
 )
+
+sq_add_headers_alone()
 
 if(NOT SQ_ENGINE_ONLY)
   # The bindings: sqlearn._native, built against DuckDB's and nanobind's

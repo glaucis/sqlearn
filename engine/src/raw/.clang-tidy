@@ -1,0 +1,9 @@
+---
+# The raw layer, the one place sqlearn's C++ owns raw memory (ADR 0065):
+# every check of engine/.clang-tidy but the two families that forbid what
+# this layer is for, pointer arithmetic and bounds (a Buffer pairs its
+# pointer with its count) and reinterpret_cast (memory as bytes).
+InheritParentConfig: true
+Checks: >
+  -cppcoreguidelines-pro-bounds-*,
+  -cppcoreguidelines-pro-type-reinterpret-cast

@@ -4,4 +4,5 @@
 # is sqlearn's, never git describe of this checkout.
 duckdb_extension_load(sqlearn
     SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}"
-    EXTENSION_VERSION "${SQ_SQLEARN_VERSION}")
+    EXTENSION_VERSION "${SQ_SQLEARN_VERSION}"
+)

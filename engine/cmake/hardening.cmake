@@ -13,8 +13,16 @@
 # interact"). The prebuilt libc++ dylib keeps the mode Apple built it with.
 # The macro must come before any header: it is a compile definition.
 
-set(SQ_FLAVOR "release" CACHE STRING "The flavour of sqlearn's own sources: dev, debug, release or profile")
-set_property(CACHE SQ_FLAVOR PROPERTY STRINGS dev debug release profile)
+set(
+  SQ_FLAVOR
+  "release"
+  CACHE STRING
+  "The flavour of sqlearn's own sources: dev, debug, release or profile"
+)
+set_property(
+  CACHE SQ_FLAVOR
+  PROPERTY STRINGS dev debug release profile
+)
 
 set(SQ_HARDENING_EXTENSIVE "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE")
 set(SQ_HARDENING_FAST "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_FAST")
@@ -42,12 +50,21 @@ elseif(SQ_FLAVOR STREQUAL "release")
   set(SQ_FLAVOR_OPTIONS -O2 -gline-tables-only -ftrivial-auto-var-init=zero ${SQ_CPU_OPTIONS})
   set(SQ_HARDENING ${SQ_HARDENING_FAST})
 elseif(SQ_FLAVOR STREQUAL "profile")
-  set(SQ_FLAVOR_OPTIONS -O2 -g -fno-omit-frame-pointer -ftrivial-auto-var-init=zero ${SQ_CPU_OPTIONS})
+  set(
+    SQ_FLAVOR_OPTIONS
+    -O2
+    -g
+    -fno-omit-frame-pointer
+    -ftrivial-auto-var-init=zero
+    ${SQ_CPU_OPTIONS}
+  )
   set(SQ_HARDENING ${SQ_HARDENING_FAST})
 else()
-  message(FATAL_ERROR
-          "SQ_FLAVOR is \"${SQ_FLAVOR}\".\n"
-          "Fix: configure with a preset (cmake --preset dev), or set SQ_FLAVOR to dev, debug, release or profile")
+  message(
+    FATAL_ERROR
+    "SQ_FLAVOR is \"${SQ_FLAVOR}\".\n"
+    "Fix: configure with a preset (cmake --preset dev), or set SQ_FLAVOR to dev, debug, release or profile"
+  )
 endif()
 
 # Give `target` the flavour: its compile options, the hardening mode and,

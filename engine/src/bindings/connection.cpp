@@ -4,13 +4,19 @@
 #include "bindings/guard.hpp"
 #include "core/expects.hpp"
 
-#include "duckdb.hpp"
 #include "duckdb/common/sql_identifier.hpp"
+#include "duckdb/common/types/data_chunk.hpp"
+#include "duckdb/common/types/value.hpp"
+#include "duckdb/common/unique_ptr.hpp"
+#include "duckdb/main/connection.hpp"
+#include "duckdb/main/query_result.hpp"
 #include "duckdb_python/pyconnection/pyconnection.hpp"
 
 #include <nanobind/nanobind.h>
-#include <nanobind/stl/shared_ptr.h>
-#include <nanobind/stl/string.h>
+// nanobind's type casters, which the bindings below use through templates,
+// so no symbol of theirs is named here.
+#include <nanobind/stl/shared_ptr.h> // IWYU pragma: keep
+#include <nanobind/stl/string.h>     // IWYU pragma: keep
 
 #include <cstdint>
 #include <format>
@@ -31,7 +37,8 @@ std::int64_t count_rows(duckdb::DuckDBPyConnection &con, const std::string &tabl
         SQ_EXPECTS(!table.empty());
         const duckdb::DuckDBPyConnection::ConnectionLockGuard lock(con);
         auto &connection = con.con.GetConnection();
-        const auto sql = std::format("SELECT count(*) FROM {}", duckdb::SQLIdentifier::ToString(table));
+        const auto sql =
+            std::format("SELECT count(*) FROM {}", duckdb::SQLIdentifier::ToString(table));
         const nb::gil_scoped_release release;
         auto result = connection.Query(sql);
         if (result->HasError()) {
@@ -52,7 +59,8 @@ std::int64_t count_rows(duckdb::DuckDBPyConnection &con, const std::string &tabl
 /// Return `con` itself, through C++ and back.
 /// @param con The user's connection.
 /// @return The same Python object.
-std::shared_ptr<duckdb::DuckDBPyConnection> roundtrip(std::shared_ptr<duckdb::DuckDBPyConnection> con) {
+std::shared_ptr<duckdb::DuckDBPyConnection>
+roundtrip(std::shared_ptr<duckdb::DuckDBPyConnection> con) {
     return con;
 }
 

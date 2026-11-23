@@ -1,7 +1,8 @@
 """Each check as a task that runs only when its inputs changed.
 
-A task names its inputs and its configuration as git pathspecs, and the
-steps that check them. A whole task (``types``, ``test``) runs when the
+A task names its inputs and its configuration as git pathspecs, the tools
+from outside uv.lock whose versions are configuration too, and the steps
+that check them. A whole task (``types``, ``test``) runs when the
 digest of its inputs and configuration has no passed record; a per-file
 task (``format``, ``lint``) gives each step the files whose own digest has
 no passed record under today's configuration, and every file once the
@@ -103,6 +104,11 @@ class Task:
         The pathspecs of files whose names, not bytes, are configuration: a
         tool that classifies by which files exist (ruff's import sorting)
         reruns on every file when one appears or goes.
+    tools : tuple of tuple of str
+        The argv of each command that names a tool from outside uv.lock
+        (Homebrew's clang-tidy): its output is configuration, so an upgraded
+        tool reruns all of the task. A tool that is not installed counts as
+        absent, and the task's own step then fails.
     """
 
     name: str
@@ -111,6 +117,7 @@ class Task:
     steps: tuple[Step, ...]
     per_file: bool
     layout: tuple[str, ...] = ()
+    tools: tuple[tuple[str, ...], ...] = ()
 
 
 class Record(TypedDict):
@@ -149,6 +156,37 @@ PYTHON = ("*.py", "*.pyi")
 MARKDOWN = ("*.md",)
 """Every Markdown file, at any depth."""
 
+LLVM = "/opt/homebrew/opt/llvm/bin"
+"""Homebrew LLVM's tools: the formula is keg-only, so they are off ``PATH``."""
+
+CXX = ("*.cpp", "*.hpp")
+"""Every C++ file of ours: git lists no file inside a submodule."""
+
+CMAKE = (":(glob)**/CMakeLists.txt", ":(glob)**/*.cmake")
+"""Every CMake file of ours, at any depth."""
+
+ENGINE_SOURCES = (
+    "engine/src",
+    "engine/tests",
+    "engine/bench",
+    "engine/extension",
+)
+"""sqlearn's own C++: the groups, their tests, the benchmarks, the extension."""
+
+TIDY_INPUTS = (
+    *ENGINE_SOURCES,
+    "engine/.clang-tidy",
+    "engine/src/raw/.clang-tidy",
+    "engine/iwyu.imp",
+    "engine/cmake",
+    "engine/CMakeLists.txt",
+    "engine/CMakePresets.json",
+    # Their headers are what our includes resolve to: a bump reruns it.
+    "engine/duckdb-python",
+    "engine/third_party",
+)
+"""What clang-tidy, include-what-you-use and the headers-alone build read."""
+
 TEST_INPUTS = (
     "src",
     "tests",
@@ -183,14 +221,17 @@ def _table() -> dict[str, Task]:
     tasks = (
         Task(
             name="format",
-            inputs=(*PYTHON, *MARKDOWN),
-            config=SETTINGS,
+            inputs=(*PYTHON, *MARKDOWN, *CXX, *CMAKE),
+            config=(*SETTINGS, "engine/.clang-format", ".gersemirc"),
             steps=(
                 Step(("ruff", "format", "--check", "--force-exclude"), PYTHON),
                 # rumdl applies its configured excludes to named files itself.
                 Step(("rumdl", "fmt", "--check"), MARKDOWN),
+                Step((f"{LLVM}/clang-format", "--dry-run", "-Werror"), CXX),
+                Step(("gersemi", "--check"), CMAKE),
             ),
             per_file=True,
+            tools=((f"{LLVM}/clang-format", "--version"),),
         ),
         Task(
             name="lint",
@@ -250,6 +291,26 @@ def _table() -> dict[str, Task]:
                 ),
             ),
             per_file=False,
+        ),
+        Task(
+            name="tidy",
+            inputs=TIDY_INPUTS,
+            config=SETTINGS,
+            steps=(
+                # clang-tidy, with the static analyser, then
+                # include-what-you-use, over one compile database of our
+                # sources (validation/_tidy.py); then every header alone.
+                Step(("just", "tidy-engine")),
+                Step(("just", "iwyu-engine")),
+                Step(("just", "headers-alone")),
+            ),
+            per_file=False,
+            tools=(
+                (f"{LLVM}/clang-tidy", "--version"),
+                ("include-what-you-use", "--version"),
+                # The SDK whose headers the wheel's compile commands read.
+                ("xcrun", "--show-sdk-version"),
+            ),
         ),
         Task(
             name="docs",
@@ -335,6 +396,20 @@ def _place() -> bytes:
     return "\0".join((sys.version, platform.platform(), platform.machine())).encode()
 
 
+def _tool_versions(task: Task) -> bytes:
+    """Return what each of `task`'s tools prints, its argv first; absent when
+    it cannot run."""
+    out = b""
+    for argv in task.tools:
+        try:
+            done = subprocess.run(list(argv), capture_output=True, check=False)
+            said = done.stdout + done.stderr
+        except OSError:
+            said = b"absent"
+        out += "\0".join(argv).encode() + b"\0" + said + b"\0"
+    return out
+
+
 def _combined(
     names: Sequence[str], root: Path, links: dict[str, str] | None = None
 ) -> str:
@@ -367,25 +442,33 @@ def digest(task: Task, root: Path) -> str:
     -------
     str
         The hex digest of the place it runs in, every file under its inputs
-        and configuration, and the commit each submodule there pins.
+        and configuration, the commit each submodule there pins, and its
+        tools' versions.
     """
     names = sorted({*_listed(task.inputs, root), *_listed(task.config, root)})
     links = {
         **_gitlinks(task.inputs, root),
         **_gitlinks(task.config, root),
     }
-    return _combined(names, root, links)
+    combined = _combined(names, root, links)
+    if not task.tools:
+        return combined
+    tools = b"\0tools\0" + _tool_versions(task)
+    return hashlib.sha256(combined.encode() + tools).hexdigest()
 
 
 def _config(task: Task, root: Path) -> str:
     """Return the SHA-256 of the place, `task`'s configuration and its layout.
 
     The layout is the sorted names of the files under ``task.layout``, never
-    their bytes: a new or removed file changes it.
+    their bytes: a new or removed file changes it. The tools' versions count
+    too.
     """
     layout = "\0".join(_listed(task.layout, root)).encode()
     sha = hashlib.sha256(_combined(_listed(task.config, root), root).encode())
     sha.update(b"\0layout\0" + layout)
+    if task.tools:
+        sha.update(b"\0tools\0" + _tool_versions(task))
     return sha.hexdigest()
 
 

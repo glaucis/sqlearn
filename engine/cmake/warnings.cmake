@@ -5,18 +5,20 @@
 
 # Spec §3.2 and §3.9. -Wunsafe-buffer-usage is kept apart: it is on
 # everywhere but engine/src/raw/, the one layer for raw memory (ADR 0065).
-set(SQ_WARNINGS
-    -Wall
-    -Wextra
-    -Wconversion
-    -Wsign-conversion
-    -Wshadow
-    -Wold-style-cast
-    -Wnon-virtual-dtor
-    -Wimplicit-fallthrough
-    -Wswitch-enum
-    -Wdouble-promotion
-    -Werror)
+set(
+  SQ_WARNINGS
+  -Wall
+  -Wextra
+  -Wconversion
+  -Wsign-conversion
+  -Wshadow
+  -Wold-style-cast
+  -Wnon-virtual-dtor
+  -Wimplicit-fallthrough
+  -Wswitch-enum
+  -Wdouble-promotion
+  -Werror
+)
 set(SQ_BUFFER_WARNING "")
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")

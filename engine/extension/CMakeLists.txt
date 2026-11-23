@@ -8,11 +8,13 @@ project(SqlearnExtension LANGUAGES CXX)
 build_static_extension(sqlearn src/sqlearn_extension.cpp)
 set_target_properties(
   sqlearn_extension
-  PROPERTIES CXX_STANDARD ${SQ_CXX_STANDARD}
-             CXX_STANDARD_REQUIRED ON
-             CXX_EXTENSIONS OFF
-             CXX_VISIBILITY_PRESET hidden
-             VISIBILITY_INLINES_HIDDEN ON)
+  PROPERTIES
+    CXX_STANDARD ${SQ_CXX_STANDARD}
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS OFF
+    CXX_VISIBILITY_PRESET hidden
+    VISIBILITY_INLINES_HIDDEN ON
+)
 # DuckDB's directories give this target their headers as ordinary include
 # directories; as system ones instead, our warnings (as errors) cover our
 # code and not theirs.

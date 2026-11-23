@@ -32,8 +32,8 @@ system's OpenMP library; uv cannot provide it. uv is the only package tool
 | Group | Recipes |
 |---|---|
 | setup | `setup` |
-| format | `fmt`, `fmt-markdown`, `fmt-python` |
-| check | `check`, `check-docstring-args`, `check-docstrings`, `check-lockfile`, `check-mirror`, `check-no-devdata`, `check-spelling`, `check-types`, `check-types-mypy`, `checkable-tree`, `docstrings`, `done`, `format`, `full`, `lint`, `lint-markdown`, `lint-python`, `place`, `pre-commit`, `remember-tree`, `types`, `verify` |
+| format | `fmt`, `fmt-engine`, `fmt-markdown`, `fmt-python` |
+| check | `check`, `check-docstring-args`, `check-docstrings`, `check-lockfile`, `check-mirror`, `check-no-devdata`, `check-spelling`, `check-types`, `check-types-mypy`, `checkable-tree`, `docstrings`, `done`, `format`, `full`, `headers-alone`, `iwyu-engine`, `lint`, `lint-markdown`, `lint-python`, `place`, `pre-commit`, `remember-tree`, `tidy`, `tidy-engine`, `types`, `verify` |
 | test | `test`, `test-all`, `test-hooks`, `test-python-versions`, `validate`, `validate-all` |
 | docs | `build-docs`, `docs`, `fetch-inventories`, `fetch-mathjax` |
 | build | `build-package` |
@@ -45,7 +45,7 @@ Which recipe runs when (a commit, a merge, work done, a release) is in
 since they passed, and `just full <task>` runs one all through:
 [testing](testing.md), "How each check finds what changed". The other `check-*`,
 `lint-*` and `test-*` recipes run on everything, unrecorded. `just fmt` and its
-two parts are the only recipes that reformat your files.
+three parts are the only recipes that reformat your files.
 
 When a composite recipe fails, `just` names the recipe that failed: run that
 one alone.

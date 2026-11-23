@@ -5,13 +5,14 @@
 #include "core/version.hpp"
 
 #include <catch2/catch_test_macros.hpp>
+#include <rapidcheck.h>
 #include <rapidcheck/catch.h>
 
 #include <climits>
-#include <cstddef>
 #include <expected>
 #include <ostream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace sq::core {
@@ -52,10 +53,9 @@ rc::Gen<int> number() {
 /// digits, at least one.
 /// @return The generator.
 rc::Gen<std::string> local_segment() {
-    static const std::vector<char> alphabet{'0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
-                                            'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j',
-                                            'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't',
-                                            'u', 'v', 'w', 'x', 'y', 'z'};
+    static const std::vector<char> alphabet{
+        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h',
+        'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'};
     return rc::gen::nonEmpty(rc::gen::container<std::string>(rc::gen::elementOf(alphabet)));
 }
 
@@ -73,10 +73,10 @@ rc::Gen<std::string> pre() {
             }
             return label;
         });
-    return rc::gen::oneOf(rc::gen::just(std::string{}), dev,
-                          rc::gen::apply([](const std::string &d,
-                                            const std::string &l) { return d + "+" + l; },
-                                         dev, local));
+    return rc::gen::oneOf(
+        rc::gen::just(std::string{}), dev,
+        rc::gen::apply([](const std::string &d, const std::string &l) { return d + "+" + l; }, dev,
+                       local));
 }
 
 } // namespace
@@ -161,4 +161,21 @@ TEST_CASE("whatever parse_version accepts formats to text it accepts again", "[c
             RC_ASSERT(parsed.error().offset <= text.size());
         }
     });
+}
+
+TEST_CASE("a version made with no values is 0.0.0, a final release", "[core]") {
+    // Default-initialised, not value-initialised: the members' own
+    // initialisers alone give them their values.
+    const Version version;
+    CHECK(version.major == 0);
+    CHECK(version.minor == 0);
+    CHECK(version.patch == 0);
+    CHECK(version.pre.empty());
+}
+
+TEST_CASE("parse_version may throw, so a failed allocation is std::bad_alloc", "[core]") {
+    // Copying `pre` allocates: under noexcept a std::bad_alloc would end the
+    // process (ADR 0065); without it the bindings pass it to Python as
+    // MemoryError.
+    STATIC_CHECK_FALSE(noexcept(sq::core::parse_version("")));
 }

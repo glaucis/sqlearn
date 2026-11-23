@@ -5,10 +5,12 @@
 #include "bindings/guard.hpp"
 #include "core/version.hpp"
 
+#include <Python.h>
 #include <nanobind/nanobind.h>
-#include <nanobind/stl/string.h>
+// nanobind's caster for std::string, which describe's binding uses through
+// templates, so no symbol of it is named here.
+#include <nanobind/stl/string.h> // IWYU pragma: keep
 
-#include <map>
 #include <string>
 
 namespace nb = nanobind;
@@ -53,8 +55,7 @@ std::string describe() {
 /// The module sqlearn._native: PyInit__native, beside PyInit__duckdb.
 NB_MODULE(_native, m) {
     m.doc() = "sqlearn's engine, compiled into DuckDB's _duckdb binary.";
-    m.def("build_identity", &build_identity,
-          nb::sig("def build_identity() -> dict[str, str]"),
+    m.def("build_identity", &build_identity, nb::sig("def build_identity() -> dict[str, str]"),
           "Return what this engine was built as: sqlearn's and DuckDB's versions,\n"
           "DuckDB's commit, the compiler and the build type.");
     m.def("describe", &describe,

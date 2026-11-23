@@ -15,3 +15,10 @@ TEST_CASE("describe gives the build identity in one line", "[core]") {
     CHECK(line.ends_with(identity.compiler + ", " + identity.build_type));
     CHECK(line.find('\n') == std::string::npos);
 }
+
+TEST_CASE("build_identity may throw, so a failed allocation is std::bad_alloc", "[core]") {
+    // Its five strings allocate: under noexcept a std::bad_alloc would end
+    // the process (ADR 0065); without it the bindings pass it to Python as
+    // MemoryError.
+    STATIC_CHECK_FALSE(noexcept(sq::core::build_identity()));
+}

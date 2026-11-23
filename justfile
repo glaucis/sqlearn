@@ -3,6 +3,9 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 # The Python versions the package is tested on
 matrix := "3.12 3.13 3.14"
 
+# Homebrew LLVM's tools (clang-tidy, clang-format): the formula is keg-only, so they are off PATH
+llvm := "/opt/homebrew/opt/llvm/bin"
+
 # MathJax 4 and its font package (released together, one version), from the npm registry, with sha512 integrities
 mathjax_version := "4.1.3"
 mathjax_integrity := "sha512-BN/8Pkgn7G1pIDYJqd9md+JHsE/jydSYbyOZnSdSA0WziuVO8mRxdYiWFumkVVly/8U+hm9DpIIoWuvySverzw=="
@@ -65,9 +68,17 @@ fmt-python:
 fmt-markdown:
     uv run --locked rumdl fmt .
 
-# Format the Python, then the Markdown
+# Format our C++ (clang-format, engine/.clang-format) and CMake files (gersemi, .gersemirc); the submodules are other repositories, so git lists none of their files
 [group('format')]
-fmt: fmt-python fmt-markdown
+fmt-engine:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    git ls-files -z --cached --others --exclude-standard -- '*.cpp' '*.hpp' | xargs -0 {{ llvm }}/clang-format -i
+    git ls-files -z --cached --others --exclude-standard -- ':(glob)**/CMakeLists.txt' ':(glob)**/*.cmake' | xargs -0 uv run --locked gersemi -i
+
+# Format the Python, the Markdown, then the C++ and CMake files
+[group('format')]
+fmt: fmt-python fmt-markdown fmt-engine
 
 # Lint and check the formatting of the Python
 [group('check')]
@@ -161,6 +172,22 @@ test-engine preset="dev": (build-engine preset)
 [group('test')]
 test-engine-changed preset="dev" *flags:
     uv run --locked python -m validation._ctest {{ preset }} {{ flags }}
+
+# Run clang-tidy, with the Clang static analyser, over our C++ (engine/.clang-tidy, every finding an error), from one compile database of the llvm-dev, release and wheel builds (validation/_tidy.py)
+[group('check')]
+tidy-engine:
+    uv run --locked python -m validation._tidy tidy
+
+# Run include-what-you-use over our C++ and headers, from the same compile database as tidy-engine, with engine/iwyu.imp's mappings
+[group('check')]
+iwyu-engine:
+    uv run --locked python -m validation._tidy iwyu
+
+# Build every header under engine/src alone (engine/cmake/headers_alone.cmake) on the llvm-dev preset; the bindings' headers build alone in the wheel's build
+[group('check')]
+headers-alone:
+    cd engine && cmake --preset llvm-dev
+    cd engine && cmake --build --preset llvm-dev --target sq_headers_alone
 
 # Build the release preset and run the C++ benchmarks (nanobench), each printing its table
 [group('test')]
@@ -416,7 +443,7 @@ validate-all:
 # How a task runs only when its inputs changed (the tasks' tests set it on a scratch repository)
 checks := "uv run --locked python -m validation._checks"
 
-# Check the formatting of the Python and Markdown files changed since a passed run
+# Check the formatting of the Python, Markdown, C++ and CMake files changed since a passed run
 [group('check')]
 format:
     {{ checks }} format
@@ -440,6 +467,11 @@ types:
 [group('test')]
 test:
     {{ checks }} test
+
+# Run clang-tidy, include-what-you-use and the headers-alone build when our C++, its settings or the submodules changed since a passed run, or one of the tools was upgraded
+[group('check')]
+tidy:
+    {{ checks }} tidy
 
 # Build the site and run its doctests when docs/, src/ or examples/ changed since a passed run
 [group('docs')]

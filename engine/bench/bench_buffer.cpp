@@ -7,20 +7,27 @@
 #include "raw/buffer.hpp"
 
 #include <cstddef>
+#include <cstdint>
+#include <exception>
+#include <iostream>
+#include <span>
 
 namespace {
 
 /// The elements each run fills and sums.
 constexpr std::size_t elements = 1'000'000;
 
-} // namespace
+/// The fewest iterations nanobench times in each epoch.
+constexpr std::uint64_t min_epoch_iterations = 100;
 
 /// Run the benchmarks and print nanobench's table.
-/// @return 0.
-int main() {
+void run() {
     sq::raw::Buffer<double> buffer(elements);
     ankerl::nanobench::Bench bench;
-    bench.title("raw::Buffer<double> of 1e6").unit("element").batch(elements).minEpochIterations(100);
+    bench.title("raw::Buffer<double> of 1e6")
+        .unit("element")
+        .batch(elements)
+        .minEpochIterations(min_epoch_iterations);
 
     bench.run("fill", [&] {
         std::size_t i = 0;
@@ -37,5 +44,18 @@ int main() {
         }
         ankerl::nanobench::doNotOptimizeAway(sum);
     });
-    return 0;
+}
+
+} // namespace
+
+/// Run the benchmarks; an exception is reported, never let out of main.
+/// @return 0, or 1 when a benchmark threw.
+int main() {
+    try {
+        run();
+        return 0;
+    } catch (const std::exception &e) {
+        std::cerr << e.what() << '\n';
+        return 1;
+    }
 }

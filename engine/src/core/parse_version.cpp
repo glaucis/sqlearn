@@ -3,7 +3,11 @@
 #include "core/parse_version.hpp"
 
 #include <charconv>
+#include <cstddef>
+#include <expected>
 #include <format>
+#include <string>
+#include <string_view>
 #include <system_error>
 
 namespace sq::core {
@@ -39,12 +43,18 @@ public:
     /// @return True at the end.
     [[nodiscard]] bool done() const noexcept { return offset_ == text_.size(); }
 
+    /// Return the text from the cursor to the end.
+    /// @return What is left to read; empty at the end.
+    [[nodiscard]] std::string_view rest() const noexcept {
+        auto rest = text_;
+        rest.remove_prefix(offset_);
+        return rest;
+    }
+
     /// Return whether the text continues with `word` at the cursor.
     /// @param word The text to look for.
     /// @return True when it is there; the cursor does not move.
-    [[nodiscard]] bool at(std::string_view word) const noexcept {
-        return text_.substr(offset_).starts_with(word);
-    }
+    [[nodiscard]] bool at(std::string_view word) const noexcept { return rest().starts_with(word); }
 
     /// Skip `word` when the text continues with it.
     /// @param word The text to look for at the cursor.
@@ -57,15 +67,29 @@ public:
         return true;
     }
 
+    /// Skip the characters `keep` accepts, from the cursor on.
+    /// @param keep Whether a character is part of what is skipped.
+    /// @return What was skipped; empty when the cursor did not move.
+    std::string_view skip_while(bool (*keep)(char) noexcept) noexcept {
+        auto skipped = rest();
+        std::size_t count = 0;
+        for (const char c : skipped) {
+            if (!keep(c)) {
+                break;
+            }
+            ++count;
+        }
+        skipped.remove_suffix(skipped.size() - count);
+        offset_ += count;
+        return skipped;
+    }
+
     /// Read a number: "0", or a digit 1 to 9 and more digits, at most
     /// INT_MAX.
     /// @return The number, or why and where there is none.
     std::expected<int, ParseError> number() noexcept {
         const auto start = offset_;
-        while (!done() && is_digit(text_[offset_])) {
-            ++offset_;
-        }
-        const auto digits = text_.substr(start, offset_ - start);
+        const auto digits = skip_while(is_digit);
         if (digits.empty()) {
             return std::unexpected(ParseError{ParseError::Kind::expected_number, start});
         }
@@ -85,11 +109,7 @@ public:
     /// @return Nothing, or why and where the label is wrong.
     std::expected<void, ParseError> local() noexcept {
         while (true) {
-            const auto start = offset_;
-            while (!done() && is_local_character(text_[offset_])) {
-                ++offset_;
-            }
-            if (offset_ == start || (!done() && text_[offset_] != '.')) {
+            if (skip_while(is_local_character).empty() || !(done() || at("."))) {
                 return std::unexpected(ParseError{ParseError::Kind::bad_local, offset_});
             }
             if (done()) {
@@ -104,15 +124,12 @@ private:
     std::size_t offset_ = 0;
 };
 
-} // namespace
-
-std::expected<Version, ParseError> parse_version(std::string_view text) noexcept {
-    if (text.empty()) {
-        return std::unexpected(ParseError{ParseError::Kind::empty, 0});
-    }
-    Reader reader(text);
-    Version version{0, 0, 0, {}};
-
+/// Read the release numbers, "MAJOR.MINOR" and an optional ".PATCH", into
+/// `version`.
+/// @param reader At the start of the text.
+/// @param version Where the numbers go; the patch stays 0 when absent.
+/// @return Nothing, or why and where the text is not a release.
+std::expected<void, ParseError> read_release(Reader &reader, Version &version) noexcept {
     const auto major = reader.number();
     if (!major) {
         return std::unexpected(major.error());
@@ -137,32 +154,56 @@ std::expected<Version, ParseError> parse_version(std::string_view text) noexcept
         }
         version.patch = *patch;
     }
+    return {};
+}
 
-    // Where `pre` starts, after the '.' before "dev"; npos for a final release.
-    auto pre_start = std::string_view::npos;
-    if (reader.skip(".")) {
-        pre_start = reader.offset();
-        if (!reader.skip("dev")) {
-            return std::unexpected(
-                ParseError{ParseError::Kind::unexpected_text, pre_start - 1});
+/// Read the dev part, ".devN" and an optional "+local", when the text
+/// continues with one.
+/// @param reader Just after the release numbers.
+/// @return Where `pre` starts, after the '.'; npos for a final release; or
+///         why and where the dev part is wrong.
+std::expected<std::size_t, ParseError> read_dev(Reader &reader) noexcept {
+    if (!reader.skip(".")) {
+        return std::string_view::npos;
+    }
+    const auto start = reader.offset();
+    if (!reader.skip("dev")) {
+        return std::unexpected(ParseError{ParseError::Kind::unexpected_text, start - 1});
+    }
+    const auto dev = reader.number();
+    if (!dev) {
+        return std::unexpected(dev.error());
+    }
+    if (reader.skip("+")) {
+        const auto local = reader.local();
+        if (!local) {
+            return std::unexpected(local.error());
         }
-        const auto dev = reader.number();
-        if (!dev) {
-            return std::unexpected(dev.error());
-        }
-        if (reader.skip("+")) {
-            const auto local = reader.local();
-            if (!local) {
-                return std::unexpected(local.error());
-            }
-        }
+    }
+    return start;
+}
+
+} // namespace
+
+std::expected<Version, ParseError> parse_version(std::string_view text) {
+    if (text.empty()) {
+        return std::unexpected(ParseError{ParseError::Kind::empty, 0});
+    }
+    Reader reader(text);
+    Version version;
+    if (const auto release = read_release(reader, version); !release) {
+        return std::unexpected(release.error());
+    }
+    const auto pre_start = read_dev(reader);
+    if (!pre_start) {
+        return std::unexpected(pre_start.error());
     }
     if (!reader.done()) {
         return std::unexpected(ParseError{ParseError::Kind::unexpected_text, reader.offset()});
     }
-    if (pre_start != std::string_view::npos) {
+    if (*pre_start != std::string_view::npos) {
         // The rest of the text, as the grammar has checked it.
-        version.pre = std::string(text.substr(pre_start));
+        version.pre = std::string(text.substr(*pre_start));
     }
     return version;
 }

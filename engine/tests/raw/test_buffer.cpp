@@ -4,11 +4,14 @@
 #include "raw/buffer.hpp"
 
 #include <catch2/catch_test_macros.hpp>
+#include <rapidcheck.h>
 #include <rapidcheck/catch.h>
 
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <span>
+#include <string>
 #include <type_traits>
 #include <utility>
 
@@ -21,7 +24,8 @@ using sq::raw::Buffer;
 /// @param pointer Any pointer.
 /// @return True when its address is a multiple of 64.
 bool on_64_bytes(const void *pointer) {
-    return reinterpret_cast<std::uintptr_t>(pointer) % 64 == 0;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast): an address as a number
+    return reinterpret_cast<std::uintptr_t>(pointer) % sq::raw::buffer_alignment == 0;
 }
 
 } // namespace
@@ -33,7 +37,8 @@ TEST_CASE("a buffer has the size it was made with", "[raw]") {
 }
 
 TEST_CASE("a buffer's elements start at zero", "[raw]") {
-    Buffer<std::int64_t> buffer(17);
+    constexpr std::size_t count = 17;
+    const Buffer<std::int64_t> buffer(count);
     for (const auto element : buffer.span()) {
         CHECK(element == 0);
     }
@@ -45,6 +50,7 @@ TEST_CASE("a buffer starts on a 64-byte boundary", "[raw]") {
         Buffer<char> chars(n);
         Buffer<double> doubles(n);
         RC_ASSERT(chars.span().size() == n);
+        RC_ASSERT(doubles.span().size() == n);
         RC_ASSERT(on_64_bytes(chars.span().data()));
         RC_ASSERT(on_64_bytes(doubles.span().data()));
     });
@@ -74,21 +80,43 @@ TEST_CASE("a buffer of no elements is allowed", "[raw]") {
 }
 
 TEST_CASE("moving a buffer leaves the source empty", "[raw]") {
-    Buffer<double> source(8);
+    constexpr std::size_t count = 8;
+    Buffer<double> source(count);
     const auto *const data = source.span().data();
 
     Buffer<double> moved(std::move(source));
-    CHECK(moved.size() == 8);
+    CHECK(moved.size() == count);
     CHECK(moved.span().data() == data);
     CHECK(source.size() == 0); // NOLINT(bugprone-use-after-move): what a move leaves
     CHECK(source.span().empty());
 
     Buffer<double> assigned(3);
     assigned = std::move(moved);
-    CHECK(assigned.size() == 8);
+    CHECK(assigned.size() == count);
     CHECK(assigned.span().data() == data);
     CHECK(moved.size() == 0); // NOLINT(bugprone-use-after-move): what a move leaves
     CHECK(moved.span().empty());
+}
+
+TEST_CASE("moving a buffer into itself leaves it as it was", "[raw]") {
+    constexpr std::size_t count = 8;
+    constexpr double first = 2.5;
+    Buffer<double> buffer(count);
+    buffer.span().front() = first;
+    const auto *const data = buffer.span().data();
+
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wself-move" // the self-move is what is tested
+#endif
+    buffer = std::move(buffer);
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
+
+    CHECK(buffer.size() == count);
+    CHECK(buffer.span().data() == data);
+    CHECK(buffer.span().front() == first);
 }
 
 TEST_CASE("a buffer is move-only", "[raw]") {

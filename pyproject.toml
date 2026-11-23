@@ -56,6 +56,10 @@ test = [
     "scikit-learn>=1.9.1",
 ]
 lint = [
+    # The CMake formatter (just fmt-engine, just format). Its licence is
+    # MPL-2.0: allowed, as it is for development only, never shipped or
+    # compiled in (ADR 0066's rule is for runtime code).
+    "gersemi>=0.29.2",
     "mypy>=2.4.1",
     "nanobind==3.1.0",
     "pydoclint>=0.12.0",

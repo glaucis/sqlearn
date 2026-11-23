@@ -14,13 +14,15 @@ set(SQ_CPPTRACE_COMMIT "3db8da80111171c219ab5839905771386bee06b3")
 # commit other than its pin.
 function(sq_check_pins)
   get_filename_component(engine "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/.." ABSOLUTE)
-  set(checks
-      "duckdb-python|${SQ_DUCKDB_PYTHON_COMMIT}"
-      "duckdb-python/external/duckdb|${SQ_DUCKDB_COMMIT}"
-      "third_party/catch2|${SQ_CATCH2_COMMIT}"
-      "third_party/rapidcheck|${SQ_RAPIDCHECK_COMMIT}"
-      "third_party/nanobench|${SQ_NANOBENCH_COMMIT}"
-      "third_party/cpptrace|${SQ_CPPTRACE_COMMIT}")
+  set(
+    checks
+    "duckdb-python|${SQ_DUCKDB_PYTHON_COMMIT}"
+    "duckdb-python/external/duckdb|${SQ_DUCKDB_COMMIT}"
+    "third_party/catch2|${SQ_CATCH2_COMMIT}"
+    "third_party/rapidcheck|${SQ_RAPIDCHECK_COMMIT}"
+    "third_party/nanobench|${SQ_NANOBENCH_COMMIT}"
+    "third_party/cpptrace|${SQ_CPPTRACE_COMMIT}"
+  )
   find_package(Git REQUIRED)
   foreach(check IN LISTS checks)
     string(REPLACE "|" ";" parts "${check}")
@@ -33,16 +35,21 @@ function(sq_check_pins)
         COMMAND "${GIT_EXECUTABLE}" -C "${dir}" rev-parse HEAD
         OUTPUT_VARIABLE found
         OUTPUT_STRIP_TRAILING_WHITESPACE
-        ERROR_QUIET)
+        ERROR_QUIET
+      )
     endif()
     if(found STREQUAL "")
-      message(FATAL_ERROR
-              "engine/${path} is not checked out.\n"
-              "Fix: git submodule update --init --recursive")
+      message(
+        FATAL_ERROR
+        "engine/${path} is not checked out.\n"
+        "Fix: git submodule update --init --recursive"
+      )
     elseif(NOT found STREQUAL pinned)
-      message(FATAL_ERROR
-              "engine/${path} is at ${found}, pinned to ${pinned}.\n"
-              "Fix: git submodule update --init --recursive")
+      message(
+        FATAL_ERROR
+        "engine/${path} is at ${found}, pinned to ${pinned}.\n"
+        "Fix: git submodule update --init --recursive"
+      )
     endif()
   endforeach()
 endfunction()

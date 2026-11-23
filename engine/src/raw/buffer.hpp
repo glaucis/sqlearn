@@ -14,6 +14,19 @@
 #include <type_traits>
 #include <utility>
 
+/// [[clang::lifetimebound]] where the compiler has it: a value returned from
+/// a function marked with it must not outlive the object it was called on,
+/// and -Wdangling (an error under sqlearn's warnings) refuses code where it
+/// would. Other compilers get nothing.
+#if defined(__has_cpp_attribute)
+#if __has_cpp_attribute(clang::lifetimebound)
+#define SQ_LIFETIMEBOUND [[clang::lifetimebound]]
+#endif
+#endif
+#ifndef SQ_LIFETIMEBOUND
+#define SQ_LIFETIMEBOUND
+#endif
+
 namespace sq::raw {
 
 /// The boundary every Buffer starts on: a cache line on Apple silicon and
@@ -23,7 +36,9 @@ inline constexpr std::size_t buffer_alignment = 64;
 namespace detail {
 
 /// Allocate `bytes` bytes on a buffer_alignment boundary.
-/// @param bytes How many bytes, more than 0.
+/// @param bytes How many bytes; 0 gives a unique pointer to no bytes, which
+///        free_aligned frees like any other (Buffer allocates nothing for
+///        no elements and never asks for 0).
 /// @return The memory, uninitialised; std::bad_alloc when there is none.
 [[nodiscard]] void *allocate_aligned(std::size_t bytes);
 
@@ -100,13 +115,17 @@ public:
 #if defined(__clang__)
 #pragma clang unsafe_buffer_usage begin
 #endif
-    /// Return the elements to read and write.
+    /// Return the elements to read and write. The view must not outlive the
+    /// buffer (SQ_LIFETIMEBOUND).
     /// @return A view of all `size()` elements; empty for an empty buffer.
-    [[nodiscard]] std::span<T> span() noexcept { return {data_.get(), size_}; }
+    [[nodiscard]] std::span<T> span() noexcept SQ_LIFETIMEBOUND { return {data_.get(), size_}; }
 
-    /// Return the elements to read.
+    /// Return the elements to read. The view must not outlive the buffer
+    /// (SQ_LIFETIMEBOUND).
     /// @return A read-only view of all `size()` elements.
-    [[nodiscard]] std::span<const T> span() const noexcept { return {data_.get(), size_}; }
+    [[nodiscard]] std::span<const T> span() const noexcept SQ_LIFETIMEBOUND {
+        return {data_.get(), size_};
+    }
 #if defined(__clang__)
 #pragma clang unsafe_buffer_usage end
 #endif

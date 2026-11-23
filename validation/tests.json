@@ -2035,6 +2035,36 @@
       "tier": "fast"
     },
     {
+      "area": "engine/raw_layer",
+      "name": "tests/engine/test_raw_layer.py::test_the_raw_allocation_is_named_only_in_the_raw_layer",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/tidy",
+      "name": "tests/engine/test_tidy.py::test_a_raw_new_fails_tidy",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/tidy",
+      "name": "tests/engine/test_tidy.py::test_every_header_compiles_alone",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/tidy",
+      "name": "tests/engine/test_tidy.py::test_pointer_arithmetic_outside_raw_fails_tidy",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/tidy",
+      "name": "tests/engine/test_tidy.py::test_the_raw_layer_relaxes_only_its_pointer_checks",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
       "area": "githooks/commit_msg",
       "name": "tests/githooks/test_commit_msg.py::test_a_breaking_change_needs_its_footer",
       "outcome": "passed",
@@ -20138,6 +20168,12 @@
     },
     {
       "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_a_missing_tool_is_part_of_the_configuration",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
       "name": "tests/validation/test__checks.py::test_a_new_file_reruns_a_whole_task",
       "outcome": "passed",
       "tier": "fast"
@@ -20229,6 +20265,18 @@
     {
       "area": "validation/_checks",
       "name": "tests/validation/test__checks.py::test_a_submodule_bump_reruns_a_whole_task",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_a_tool_upgrade_checks_every_file_again",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_a_tool_upgrade_reruns_a_whole_task",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -20330,6 +20378,12 @@
     },
     {
       "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_the_engine_tasks_name_their_homebrew_tools",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
       "name": "tests/validation/test__checks.py::test_the_lint_task_keys_its_config_to_the_python_layout",
       "outcome": "passed",
       "tier": "fast"
@@ -20349,6 +20403,12 @@
     {
       "area": "validation/_checks",
       "name": "tests/validation/test__checks.py::test_the_test_task_runs_the_changed_cxx_groups_before_python",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_the_tidy_task_reads_our_cxx_and_not_the_submodules",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -20589,6 +20649,24 @@
     {
       "area": "validation/_tests_report",
       "name": "tests/validation/test__tests_report.py::test_the_entries_of_a_deleted_file_are_dropped",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_tidy",
+      "name": "tests/validation/test__tidy.py::test_a_command_runs_outside_its_build",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_tidy",
+      "name": "tests/validation/test__tidy.py::test_each_source_comes_from_the_build_that_compiles_it",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_tidy",
+      "name": "tests/validation/test__tidy.py::test_the_sources_are_ours_alone",
       "outcome": "passed",
       "tier": "fast"
     }
