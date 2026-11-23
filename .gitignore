@@ -18,7 +18,8 @@ docs/_static/mathjax/
 docs/_static/.mathjax.*
 # The test matrix's environments, one per Python version
 .venvs/
-# Tool caches and reports
+# Tool caches and reports; DuckDB's spill directory
+/.tmp/
 .ruff_cache/
 .mypy_cache/
 .rumdl_cache/

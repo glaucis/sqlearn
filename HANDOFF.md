@@ -4,28 +4,27 @@ Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
 Updated: 2026-11-23 · Branch: `phase-1-checks` (Phase 1 step 1, in
-the worktree `../sqlearn-79`, not merged, not pushed) · Checks: `just done`
-passed on the clean tree twice (the second said already passed), and after a
-docs-only, a one-file `src/`, a runner's-own-file change and a fast-forward
-(local demo branches, deleted); `just verify` passed (67 min, "remembered"),
-at the commit named below
+the worktree `../sqlearn-79`, not merged, not pushed) · Checks: `just verify`
+passed at Task 5's commit `3d54d52` (67 min, "remembered"); after the final
+review's fix wave, `just done` is to be run on its last commit (the fix
+report, `.superpowers/sdd/`, holds its result)
 Verify with: `just done` (`just verify` is the release tier)
 
 ## In progress
 
-- [verified] **The rework's five tasks are done** on `phase-1-checks`
-  (the worktree `../sqlearn-79`), not merged: next is the controller's final
-  whole-branch review and one fix wave, then Tomas merges. The proof table
-  of Task 5 is on #79 (comment 7089619284). Why the rework: the step 1 plan
+- [verified] **The rework's five tasks and the final review's fix wave
+  are done** on `phase-1-checks` (the worktree `../sqlearn-79`), not
+  merged: the merge waits on Tomas. The proof table of Task 5 is on #79
+  (comment 7089619284). Why the rework: the step 1 plan
   (`docs/plans/2026-11-22-native-engine-phase-1-checks.md`) ran with
   pytest-testmon and three reviews kept finding tests it skipped; Tomas chose
-  per-check selection instead (spec §3.1, §3.9). The ledgers are in
-  `.superpowers/sdd/` beside the plans (git-ignored).
+  per-check selection instead (spec §3.1, §3.9). The ledgers and the fix
+  report are in `.superpowers/sdd/` beside the plans (git-ignored).
 
 ## Waiting on the user
 
-- Merge `phase-1-checks` into `main` once the rework's final review is
-  clean (the overnight session stops there). (since 2026-11-22)
+- Merge `phase-1-checks` into `main`: the final review's fix wave is done
+  (the overnight session stops there). (since 2026-11-22)
 - The FMA ADR: `-ffp-contract=off` everywhere, `std::fma` on purpose and
   validated (spec §3.9, the agent's proposal); decide before step 2's
   kernels. (since 2026-11-22)
@@ -43,6 +42,10 @@ Verify with: `just done` (`just verify` is the release tier)
   sanitizers, safety warnings, benchmarks, crash handler) and per-group
   test selection from the build's dependency lists (§3.1); then the
   workflows and the site (#4, #6), the review (spec §3.7).
+- Before the DuckDB submodules land (step 2): `_checks.digest` does not
+  hash gitlinks, so a submodule bump changes no digest and skips every
+  check. Hash the mode-160000 entries of `git ls-files -s` (the commit each
+  submodule points at) into the digests of the tasks that read them.
 - Finer validation selection: a src change reruns every runner (`import
   sqlearn` loads the package); after the port, per group as the tests are.
 - Open question: free-threaded Python, `docs/questions/free-threaded-python.md`
@@ -220,13 +223,21 @@ Verify with: `just done` (`just verify` is the release tier)
 
 ## Just finished
 
-- The rework's Task 5, the done-when shown (#79): `just done` twice, a
-  docs-only commit (`docs` alone ran), a one-line `src/` change (`format`
-  and `lint` on that file, `types` and `test` ran, every runner reran), a
-  runner's own file (that runner alone), a fast-forward of a passed tree
-  (already passed), and `just verify` (passed, remembered). A killed run
-  left `.tmp/` (DuckDB's temp directory) in the worktree, which made the
-  tree uncheckable until removed. (2026-11-23)
+- The final review's fix wave, on `phase-1-checks`: the passed-tree record
+  keeps the place (Python, platform, machine) with each tree, `just place`
+  (`a56c615`); a validation record keeps its files' hashes from before the
+  runner ran, and records no pass when one changed meanwhile; corrupt
+  record files load as none (`f7de127`); the tools' own configuration
+  files are settings (`5b09c2c`); `/.tmp/` ignored, the native-engine spec
+  points at §3.1, the empty serial pass explained (the docs commit after).
+  (2026-11-23)
+- The rework's Task 5 (`3d54d52`), the done-when shown (#79): `just done` twice,
+  a docs-only commit (`docs` alone ran), a one-line `src/` change (`format` and
+  `lint` on that file, `types` and `test` ran, every runner reran), a runner's
+  own file (that runner alone), a fast-forward of a passed tree (already
+  passed), and `just verify` (passed, remembered). A killed run left `.tmp/`
+  (DuckDB's temp directory) in the worktree, which made the tree uncheckable
+  until removed. (2026-11-23)
 
 - The rework's Tasks 1 to 4, on `phase-1-checks`, not merged: each check
   is a task in `validation/_checks.py` that runs on what changed since it

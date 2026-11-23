@@ -85,8 +85,10 @@ fails beside other tests; its docstring says why, in one line (a wall-clock
 ratio, a memory probe). The marker is never a way to hide a bug: a test that
 fails in parallel is first understood, and fixed when its cause is shared
 state (a fixed path becomes `tmp_path`, a learned store is cleared). Only the
-serial pass may select nothing (pytest's exit 5): today no test is marked,
-and an empty fast, slow or hook pass is a broken marker or path, so it fails.
+serial pass may select nothing (pytest's exit 5): today no test is marked, so
+the serial pass always collects nothing, and it is kept for a test that must
+run alone; an empty fast, slow or hook pass is a broken marker or path, so it
+fails.
 
 ### The worker count
 
