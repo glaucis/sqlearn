@@ -7,24 +7,40 @@ rebuilds only what changed), lists the tests and runs each label whose
 identity no kept record passed, printing ``<label>: unchanged since a passed
 run`` for the rest.
 
-A label's identity is the SHA-256 of the place (``validation._checks``'s,
-then the preset's compiler id and version), the label, and for each of its
-tests its CTest entry (name, command, properties) and the bytes of each file
-its command names: a group's program, whose bytes stand for its sources,
-since Ninja relinks it only when an object changed and ``sq_stable_link``
-makes a relink of the same objects the same bytes. A test with no program of
-its own, one that builds a target (``cmake --build ... --target <t>``, the
-must-not-compile tests), adds that target's compile commands, its sources'
-bytes and every header under the directories its commands include with
-``-I``; with no compile command to show what builds it, it runs every time
-and is never recorded.
+A label's identity is the SHA-256 of the place, the label, and for each of
+its tests:
+
+- its CTest entry (name, command, properties);
+- the bytes of each file its command names: a group's program, whose bytes
+  stand for its sources, since Ninja relinks it only when an object changed
+  and ``sq_stable_link`` makes a relink of the same objects the same bytes;
+- for a program of the build, the bytes of every shared library it loads
+  outside the system's (``/usr/lib/``, ``/System/``, ``/lib/``): the
+  sanitizers' runtime, another libc++, a library of the build;
+- the bytes of the files it reads at run time (CTest's ``REQUIRED_FILES``,
+  ``sq_test_data``);
+- for a test that builds a target (``cmake --build ... --target <t>``, the
+  must-not-compile tests, which have no program): that target's compile
+  commands, the bytes of every file the compiler reads for them (its own
+  ``-M`` list: the source, every header however found) and of every
+  response file. With no compile command, or one the compiler cannot list,
+  it runs every time and is never recorded.
+
+The place is ``validation._checks``'s, then the compiler as it is now (the
+path the build was configured with, its ``--version``, the bytes of the real
+compiler behind it, and on macOS of the linker), then the variables of the
+environment that change what a test checks (``SANITIZER_ENVIRONMENT``). A
+compiler changed in place since the build was configured configures it
+afresh.
 
 The records follow ``validation._checks``'s rules: the file
 ``ctest-<preset>.json`` in ``sqlearn-checks/`` of git's common directory, the
 newest ``KEPT`` records, written to a temporary file then moved into place,
-an unreadable one counting as absent. A record names every label passed in a
-run or found unchanged; a failed label is not in it. The identity taken
-before a label runs is the one recorded, and only when it is unchanged after.
+an unreadable one counting as absent. A run records the labels that passed in
+it or were found unchanged, never a label that failed; a label that fails
+also takes its identity out of every kept record, so a failure just seen is
+not skipped next time. The identity taken before a label runs is the one
+recorded, and only when it is unchanged after.
 """
 
 import argparse
@@ -36,24 +52,76 @@ import shlex
 import shutil
 import subprocess
 import sys
-from collections.abc import Iterable, Sequence
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
 from validation import _checks
 
-HEADERS = frozenset({".h", ".hh", ".hpp", ".hxx", ".inc", ".ipp"})
-"""The suffixes of the headers a target's include directories hold."""
-
 TOOLS = ("cmake", "ctest", "ninja")
 """The programs a run needs on ``PATH``."""
+
+SANITIZER_ENVIRONMENT = re.compile(r"^(ASAN|UBSAN|LSAN|TSAN|MSAN|RC|CATCH)_")
+"""The variables whose values change what a test checks: part of the place."""
+
+SYSTEM = ("/usr/lib/", "/System/", "/lib/", "/lib64/", "/usr/lib64/")
+"""The system's libraries: an OS update changes the place (its platform)."""
+
+STAMP = "sqlearn-compiler.txt"
+"""The file, in a build directory, naming the compiler it was configured with."""
 
 Test = dict[str, Any]
 """One test of ``ctest --show-only=json-v1``."""
 
+Entry = dict[str, Any]
+"""One compile command of ``compile_commands.json``."""
+
+
+def _sha(path: Path) -> str:
+    """Return the SHA-256 of `path`'s bytes."""
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def _output(argv: Sequence[str], cwd: Path | None = None) -> str | None:
+    """Return the standard output of `argv`, or None when it fails or is absent."""
+    try:
+        done = subprocess.run(
+            list(argv), cwd=cwd, check=False, capture_output=True, text=True
+        )
+    except OSError:
+        return None
+    return done.stdout if done.returncode == 0 else None
+
+
+def _configured_compiler(build: Path) -> str | None:
+    """Return the C++ compiler `build` was configured with, None before."""
+    for found in sorted(build.glob("CMakeFiles/*/CMakeCXXCompiler.cmake")):
+        for line in found.read_text(encoding="utf-8").splitlines():
+            matched = re.fullmatch(r'set\(CMAKE_CXX_COMPILER "(.*)"\)', line)
+            if matched:
+                return matched.group(1)
+    return None
+
+
+def _behind(path: Path) -> Path:
+    """Return the real program behind `path`: through xcrun's shims, symlinks."""
+    if sys.platform == "darwin" and path.parent == Path("/usr/bin"):
+        found = _output(["xcrun", "--find", path.name])
+        if found and found.strip():
+            path = Path(found.strip())
+    return path.resolve()
+
 
 def compiler(build: Path) -> str:
-    """Return the C++ compiler's id and version, as `build`'s CMake found them.
+    """Return the C++ compiler of `build` as it is now, not as CMake found it.
+
+    CMake detects a compiler once, so the same path updated in place (an
+    Xcode or Command Line Tools update behind ``/usr/bin/c++``, ``brew upgrade
+    llvm`` behind its symlink) leaves its cache as it was; this looks again.
 
     Parameters
     ----------
@@ -63,34 +131,73 @@ def compiler(build: Path) -> str:
     Returns
     -------
     str
-        Each ``CMAKE_CXX_COMPILER_ID`` and ``CMAKE_CXX_COMPILER_VERSION`` line
-        of its ``CMakeCXXCompiler.cmake``, one per line; empty when none.
+        The configured path, its ``--version``, the real compiler's path and
+        the SHA-256 of its bytes, and on macOS the linker's; empty before the
+        build was configured.
     """
-    keys = ("set(CMAKE_CXX_COMPILER_ID ", "set(CMAKE_CXX_COMPILER_VERSION ")
+    path = _configured_compiler(build)
+    if path is None:
+        return ""
+    parts = [path, _output([path, "--version"]) or "no --version"]
+    programs = [_behind(Path(path))]
+    if sys.platform == "darwin":
+        linker = _output(["xcrun", "--find", "ld"])
+        if linker and linker.strip():
+            programs.append(Path(linker.strip()).resolve())
+    parts.extend(f"{p}\0{_sha(p) if p.is_file() else 'absent'}" for p in programs)
+    return "\n".join(parts)
+
+
+def _environment() -> str:
+    """Return the variables matching ``SANITIZER_ENVIRONMENT``, sorted."""
     return "\n".join(
-        line
-        for found in sorted(build.glob("CMakeFiles/*/CMakeCXXCompiler.cmake"))
-        for line in found.read_text(encoding="utf-8").splitlines()
-        if line.startswith(keys)
+        f"{name}={value}"
+        for name, value in sorted(os.environ.items())
+        if SANITIZER_ENVIRONMENT.match(name)
     )
 
 
-def _place(build: Path) -> str:
-    """Return the SHA-256 of the checks' place and the preset's compiler."""
-    where = _checks.place() + "\0" + compiler(build)
+def _place(live: str) -> str:
+    """Return the SHA-256 of the checks' place, the compiler `live`, the variables."""
+    where = "\0".join((_checks.place(), live, _environment()))
     return hashlib.sha256(where.encode()).hexdigest()
 
 
-def _build(preset: str, engine: Path) -> int:
-    """Configure and build `preset` in `engine`; return the first failing code."""
-    for argv in (
-        ["cmake", "--preset", preset],
-        ["cmake", "--build", "--preset", preset, "--parallel"],
-    ):
-        code = subprocess.run(argv, cwd=engine, check=False).returncode
+def _cmake(argv: Sequence[str], engine: Path) -> int:
+    """Run a CMake command in `engine`; return its exit code."""
+    return subprocess.run(list(argv), cwd=engine, check=False).returncode
+
+
+def _build(preset: str, engine: Path, build: Path) -> tuple[int, str]:
+    """Configure and build `preset`; return the first failing code and the compiler.
+
+    A build directory configured with another compiler than today's (its
+    stamp, ``STAMP``, differs) is configured afresh.
+    """
+    new = not (build / "CMakeCache.txt").exists()
+    code = _cmake(["cmake", "--preset", preset], engine)
+    if code != 0:
+        return code, ""
+    live = compiler(build)
+    stamp = build / STAMP
+    digest = hashlib.sha256(live.encode()).hexdigest()
+    try:
+        before = stamp.read_text(encoding="utf-8")
+    except OSError:
+        before = None
+    if not new and before != digest:
+        _say(
+            f"C++ tests: the compiler changed since {preset} was configured: "
+            "configuring afresh"
+        )
+        code = _cmake(["cmake", "--fresh", "--preset", preset], engine)
         if code != 0:
-            return code
-    return 0
+            return code, ""
+        live = compiler(build)
+        digest = hashlib.sha256(live.encode()).hexdigest()
+    stamp.write_text(digest, encoding="utf-8")
+    code = _cmake(["cmake", "--build", "--preset", preset, "--parallel"], engine)
+    return code, live
 
 
 def _tests(build: Path) -> list[Test]:
@@ -105,11 +212,12 @@ def _tests(build: Path) -> list[Test]:
     return tests
 
 
-def _labels(test: Test) -> list[str]:
-    """Return the labels of `test`, empty for none."""
+def _property(test: Test, name: str) -> list[str]:
+    """Return the values of `test`'s property `name`, empty without it."""
     for prop in test.get("properties", []):
-        if prop.get("name") == "LABELS":
-            return [str(label) for label in prop.get("value", [])]
+        if prop.get("name") == name:
+            value = prop.get("value", [])
+            return [str(v) for v in (value if isinstance(value, list) else [value])]
     return []
 
 
@@ -122,85 +230,166 @@ def _targets(command: Sequence[str]) -> list[str]:
     ]
 
 
-def _arguments(entry: dict[str, Any]) -> list[str]:
+def _arguments(entry: Entry) -> list[str]:
     """Return a compile command's argv, from ``arguments`` or ``command``."""
     if "arguments" in entry:
         return [str(a) for a in entry["arguments"]]
     return shlex.split(str(entry.get("command", "")))
 
 
-def _includes(entry: dict[str, Any]) -> list[Path]:
-    """Return the directories a compile command includes with ``-I``."""
-    argv = _arguments(entry)
+_DROP = frozenset({"-c", "-MD", "-MMD"})
+"""The flags of a compile command left out of its ``-M`` listing."""
+
+_DROP_WITH_VALUE = frozenset({"-o", "-MF", "-MT", "-MQ"})
+"""The flags left out with the value after them."""
+
+
+def _read_by_compiler(entry: Entry) -> list[Path] | None:
+    """Return every file the compiler reads for `entry`, by its own ``-M``.
+
+    The source and each header, however found (its own directory, ``-I``,
+    ``-isystem``, ``-iquote``, ``-include``); None when it cannot list them.
+    """
+    argv = []
+    skip = False
+    for arg in _arguments(entry):
+        if skip:
+            skip = False
+        elif arg in _DROP_WITH_VALUE:
+            skip = True
+        elif arg not in _DROP:
+            argv.append(arg)
     here = Path(str(entry.get("directory", ".")))
-    found = []
-    for i, arg in enumerate(argv):
-        if arg == "-I" and i + 1 < len(argv):
-            found.append(argv[i + 1])
-        elif arg.startswith("-I") and len(arg) > 2:
-            found.append(arg[2:])
-    return [here / d for d in found]
+    listing = _output([*argv, "-M"], cwd=here)
+    if listing is None:
+        return None
+    _, _, files = listing.replace("\\\n", " ").partition(": ")
+    names = [n.replace("\\ ", " ") for n in re.split(r"(?<!\\)\s+", files) if n]
+    return [here / n for n in names]
 
 
-class _Hasher:
-    """The SHA-256 of files, each read once per identity."""
-
-    def __init__(self) -> None:
-        self._seen: dict[Path, str] = {}
-
-    def file(self, path: Path) -> str:
-        """Return the SHA-256 of `path`'s bytes."""
-        if path not in self._seen:
-            digest = hashlib.sha256()
-            with path.open("rb") as handle:
-                for block in iter(lambda: handle.read(1 << 20), b""):
-                    digest.update(block)
-            self._seen[path] = digest.hexdigest()
-        return self._seen[path]
-
-
-def _compile_entries(build: Path) -> list[dict[str, Any]]:
-    """Return `build`'s compile commands, none when it has no such file."""
-    path = build / "compile_commands.json"
-    if not path.exists():
-        return []
-    entries: list[dict[str, Any]] = json.loads(path.read_text(encoding="utf-8"))
-    return entries
-
-
-def _target_parts(
-    target: str, entries: Iterable[dict[str, Any]], hasher: _Hasher
-) -> list[str]:
-    """Return what builds `target`: its compile commands, sources and headers."""
+def _target_parts(target: str, entries: list[Entry]) -> list[str]:
+    """Return what builds `target`: its compile commands and what they read."""
     parts = []
-    headers: set[Path] = set()
     marker = f"/CMakeFiles/{target}.dir/"
     for entry in entries:
         if marker not in str(entry.get("output", "")):
             continue
-        source = Path(str(entry["directory"])) / str(entry["file"])
-        parts.append(shlex.join(_arguments(entry)))
-        parts.append(f"{source}\0{hasher.file(source)}")
-        for directory in _includes(entry):
-            if directory.is_dir():
-                headers.update(
-                    p
-                    for p in directory.rglob("*")
-                    if p.suffix in HEADERS and p.is_file()
-                )
+        argv = _arguments(entry)
+        parts.append(shlex.join(argv))
+        read = _read_by_compiler(entry)
+        if read is None:
+            parts.append(f"unknown\0{os.urandom(16).hex()}")
+            continue
+        here = Path(str(entry.get("directory", ".")))
+        response = [here / a[1:] for a in argv if a.startswith("@")]
+        parts.extend(f"{p}\0{_file_part(p)}" for p in sorted({*read, *response}))
     if not parts:
         # Nothing says what builds it (no compile_commands.json, or a target
         # of no source): an identity of its own each time, so it always runs.
         parts.append(f"unknown\0{os.urandom(16).hex()}")
-    parts.extend(f"{h}\0{hasher.file(h)}" for h in sorted(headers))
     return parts
 
 
-def _identities(units: dict[str, list[Test]], build: Path) -> dict[str, str]:
+def _file_part(path: Path) -> str:
+    """Return the SHA-256 of `path`'s bytes, or ``absent``."""
+    return _sha(path) if path.is_file() else "absent"
+
+
+def _macho(binary: Path, *, library: bool) -> tuple[list[str], list[str]]:
+    """Return the libraries a Mach-O file names and its run-path directories.
+
+    A `library`'s own install name, which ``otool -L`` lists first, is left out.
+    """
+    names = []
+    listing = (_output(["otool", "-L", str(binary)]) or "").splitlines()
+    for line in listing[2 if library else 1 :]:
+        name = line.strip().split(" (")[0]
+        if name:
+            names.append(name)
+    rpaths = []
+    lines = (_output(["otool", "-l", str(binary)]) or "").splitlines()
+    for i, line in enumerate(lines):
+        if line.strip() == "cmd LC_RPATH":
+            for after in lines[i + 1 : i + 4]:
+                found = re.match(r"\s*path (.*) \(offset \d+\)", after)
+                if found:
+                    rpaths.append(found.group(1))
+                    break
+    return names, rpaths
+
+
+def _resolve(name: str, loader: Path, program: Path, rpaths: list[str]) -> Path | None:
+    """Return the file the dynamic loader would load for `name`, None if none."""
+
+    def place(text: str) -> str:
+        return text.replace("@executable_path", str(program.parent)).replace(
+            "@loader_path", str(loader.parent)
+        )
+
+    if name.startswith("@rpath/"):
+        rest = name.removeprefix("@rpath/")
+        for rpath in rpaths:
+            candidate = Path(place(rpath)) / rest
+            if candidate.is_file():
+                return candidate.resolve()
+        return None
+    candidate = Path(place(name))
+    return candidate.resolve() if candidate.is_file() else None
+
+
+def _libraries(program: Path) -> list[str]:
+    """Return each non-system shared library `program` loads, with its digest.
+
+    On macOS through ``otool`` (its names, resolved through each file's
+    run-path directories); elsewhere through ``ldd`` when present. A library
+    that cannot be found is named as such.
+    """
+    found: list[str] = []
+    if sys.platform == "darwin" and shutil.which("otool"):
+        seen = {program.resolve()}
+        queue = [program.resolve()]
+        while queue:
+            binary = queue.pop()
+            names, rpaths = _macho(binary, library=binary != program.resolve())
+            for name in names:
+                if name.startswith(SYSTEM):
+                    continue
+                path = _resolve(name, binary, program, rpaths)
+                if path is None:
+                    found.append(f"{name}\0unresolved")
+                elif path not in seen:
+                    seen.add(path)
+                    queue.append(path)
+                    found.append(f"{path}\0{_sha(path)}")
+    elif shutil.which("ldd"):
+        for line in (_output(["ldd", str(program)]) or "").splitlines():
+            name, arrow, rest = line.strip().partition("=> ")
+            target = rest.split(" (")[0].strip() if arrow else ""
+            if not arrow or target.startswith(SYSTEM):
+                continue
+            path = Path(target)
+            found.append(
+                f"{path}\0{_sha(path)}" if path.is_file() else f"{name}\0unresolved"
+            )
+    return sorted(found)
+
+
+def _compile_entries(build: Path) -> list[Entry]:
+    """Return `build`'s compile commands, none when it has no such file."""
+    path = build / "compile_commands.json"
+    if not path.exists():
+        return []
+    entries: list[Entry] = json.loads(path.read_text(encoding="utf-8"))
+    return entries
+
+
+def _identities(
+    units: dict[str, list[Test]], build: Path, place: str
+) -> dict[str, str]:
     """Return each label of `units` with the SHA-256 of what its tests run."""
-    hasher = _Hasher()
     entries = _compile_entries(build)
-    place = _place(build)
+    inside = build.resolve()
     found = {}
     for label, tests in units.items():
         sha = hashlib.sha256(f"{place}\0{label}\0".encode())
@@ -210,10 +399,16 @@ def _identities(units: dict[str, list[Test]], build: Path) -> dict[str, str]:
             command = [str(a) for a in test.get("command") or []]
             for arg in command:
                 path = Path(arg)
-                if path.is_absolute() and path.is_file():
-                    sha.update(f"{arg}\0{hasher.file(path)}\0".encode())
+                if not (path.is_absolute() and path.is_file()):
+                    continue
+                sha.update(f"{arg}\0{_sha(path)}\0".encode())
+                if path.resolve().is_relative_to(inside):
+                    for library in _libraries(path):
+                        sha.update(library.encode() + b"\0")
+            for data in _property(test, "REQUIRED_FILES"):
+                sha.update(f"{data}\0{_file_part(Path(data))}\0".encode())
             for target in _targets(command):
-                for part in _target_parts(target, entries, hasher):
+                for part in _target_parts(target, entries):
                     sha.update(part.encode() + b"\0")
         found[label] = sha.hexdigest()
     return found
@@ -224,7 +419,7 @@ def _units(tests: list[Test]) -> tuple[dict[str, list[Test]], list[str]]:
     units: dict[str, list[Test]] = {}
     loose = []
     for test in tests:
-        labels = _labels(test)
+        labels = _property(test, "LABELS")
         if not labels:
             loose.append(str(test.get("name")))
         for label in labels:
@@ -248,6 +443,21 @@ def _run_label(build: Path, label: str) -> int:
         "--output-on-failure",
     ]
     return subprocess.run(argv, check=False).returncode
+
+
+def _forget(directory: Path, key: str, failed: dict[str, str]) -> None:
+    """Take each failed label's identity out of every kept record of `key`."""
+    records = _checks.load(directory, key)
+    kept = [
+        _checks.Record(
+            digest=r["digest"],
+            config=r["config"],
+            files={k: v for k, v in r["files"].items() if failed.get(k) != v},
+        )
+        for r in records
+    ]
+    if kept != records:
+        _checks.write(directory, key, kept)
 
 
 def run(preset: str, root: Path, *, everything: bool = False) -> int:
@@ -280,7 +490,7 @@ def run(preset: str, root: Path, *, everything: bool = False) -> int:
             "Fix: run `just doctor`, then install what it names"
         )
         return 1
-    code = _build(preset, engine)
+    code, live = _build(preset, engine, build)
     if code != 0:
         _say(f"C++ tests: the {preset} build failed; no test ran, none recorded")
         return code
@@ -300,8 +510,10 @@ def run(preset: str, root: Path, *, everything: bool = False) -> int:
         for record in _checks.load(directory, key)
         for label, sha in record["files"].items()
     }
-    before = _identities(units, build)
+    place = _place(live)
+    before = _identities(units, build, place)
     good: dict[str, str] = {}
+    failed: dict[str, str] = {}
     ran = []
     first = 0
     for label in sorted(units):
@@ -312,9 +524,12 @@ def run(preset: str, root: Path, *, everything: bool = False) -> int:
         code = _run_label(build, label)
         if code != 0:
             first = first or code
+            failed[label] = before[label]
             continue
         ran.append(label)
-    after = _identities(units, build) if ran else {}
+    if failed:
+        _forget(directory, key, failed)
+    after = _identities(units, build, place) if ran else {}
     recorded = False
     for label in ran:
         if after[label] != before[label]:
@@ -330,7 +545,7 @@ def run(preset: str, root: Path, *, everything: bool = False) -> int:
         _checks.save(
             directory,
             key,
-            _checks.Record(digest=whole, config=_place(build), files=good),
+            _checks.Record(digest=whole, config=place, files=good),
         )
     return first
 

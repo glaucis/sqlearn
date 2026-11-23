@@ -177,24 +177,47 @@ dev` (`validation/_ctest.py`), builds the `dev` preset (Ninja rebuilds only
 what changed) and runs, with `ctest -L ^<group>$`, each group whose identity
 no kept record passed, printing `<group>: unchanged since a passed run` for
 the rest. Each CTest label is one unit: a group's (its program `test_<group>`)
-or `must_not_compile`, which every must-not-compile test carries. A group's
-identity is the hash of its program's bytes, with its CTest entry (command,
-properties) and the place: the checks' place and the preset's compiler id and
-version. Ninja relinks a program only when one of its objects changed, and
-`sq_stable_link` (`engine/cmake/groups.cmake`) sets `ZERO_AR_DATE` for the
-link on macOS, so a relink of the same objects gives the same bytes (Apple's
-linker otherwise writes each object's modification time into the debug map).
+or `must_not_compile`, which every must-not-compile test carries.
+
+A group's identity is the hash of:
+
+- its program's bytes. Ninja relinks a program only when one of its objects
+  changed, and `sq_stable_link` (`engine/cmake/groups.cmake`) sets
+  `ZERO_AR_DATE` for the link on macOS, so a relink of the same objects gives
+  the same bytes (Apple's linker otherwise writes each object's modification
+  time into the debug map);
+- the bytes of each shared library the program loads outside the system's
+  (`/usr/lib/`, `/System/`, `/lib/`): the sanitizers' runtime, another libc++,
+  a library of the build, found with `otool` and the run-path directories on
+  macOS, `ldd` elsewhere;
+- the files the tests read at run time: `sq_add_group`'s `DATA` (CTest's
+  `REQUIRED_FILES`, through `sq_test_data`);
+- its CTest entry (command, properties);
+- the place: the checks' place; the compiler as it is now (the path the build
+  was configured with, its `--version`, the bytes of the real compiler behind
+  it, through `xcrun` for `/usr/bin/c++`, and on macOS of the linker); and the
+  variables that change what a test checks, `ASAN_`, `UBSAN_`, `LSAN_`,
+  `TSAN_`, `MSAN_`, `RC_` and `CATCH_` ones. A compiler updated in place
+  since the build was configured (an Xcode or Command Line Tools update, `brew
+  upgrade llvm`) also configures the build afresh, since CMake would not look
+  again.
+
 A must-not-compile test has no program: its identity is the compile commands
-of the target it builds (from `compile_commands.json`), its source and every
-header under the directories those commands include with `-I`. The records
-are `ctest-<preset>.json` in `sqlearn-checks/`, under the same rules as the
-tasks'; a record names every group passed or found unchanged in a run, a
-failed group is not in it, and a build that fails runs and records nothing. A
-test with no label is refused with a `Fix:` line, since no group would run
-it. The step runs even when the `test` task is unchanged since a passed run,
-before it prints so: what its records name and no input of the task does (the
-compiler) still reruns a group. `just full test` passes `--all`, which runs
-every group.
+of the target it builds (from `compile_commands.json`) and the bytes of every
+file the compiler reads for them, as its own `-M` lists them (the source and
+each header, however found), and of any response file. Ninja keeps no
+dependency record of a compile that fails, so the compiler's list is used.
+
+The records are `ctest-<preset>.json` in `sqlearn-checks/`, under the same
+rules as the tasks'. A run records the groups that passed in it or were found
+unchanged, never a group that failed; a group that fails also takes its
+identity out of every kept record, `--all` included, so a failure just seen is
+never skipped next time. A build that fails runs and records nothing. A test
+with no label is refused with a `Fix:` line, since no group would run it. The
+step runs even when the `test` task is unchanged since a passed run, before it
+prints so: what its records name and no input of the task does (the compiler,
+the environment) still reruns a group. `just full test` passes `--all`, which
+runs every group.
 
 ## The validation runners
 

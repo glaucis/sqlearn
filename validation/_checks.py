@@ -447,8 +447,26 @@ def save(directory: Path, task: str, record: Record) -> None:
     Written to a temporary file and moved into place, so a reader (another
     worktree's run) never sees half a file; a write that fails removes it.
     """
+    write(directory, task, [*load(directory, task), record])
+
+
+def write(directory: Path, task: str, records: list[Record]) -> None:
+    """Write `records` as `task`'s file, the newest ``KEPT`` of them.
+
+    Written to a temporary file and moved into place, so a reader (another
+    worktree's run) never sees half a file; a write that fails removes it.
+
+    Parameters
+    ----------
+    directory : Path
+        The records' directory, made when absent.
+    task : str
+        The name of the file, without ``.json``.
+    records : list of Record
+        Oldest first.
+    """
     directory.mkdir(parents=True, exist_ok=True)
-    records = [*load(directory, task), record][-KEPT:]
+    records = records[-KEPT:]
     handle, temporary = tempfile.mkstemp(dir=directory, suffix=".tmp")
     try:
         with os.fdopen(handle, "w", encoding="utf-8") as out:

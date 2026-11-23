@@ -36,12 +36,17 @@ def test_a_must_not_compile_test_reruns_when_a_header_changes(engine_scratch, ca
     scratch.program("core", text="core, edited")
     _passes(scratch)
     assert "must_not_compile: unchanged" in capsys.readouterr().out
-    header = scratch.root / "engine" / "src" / "common.hpp"
-    header.write_text("#define SQ_FINE 0 // edited\n")
-    assert _passes(scratch) == []
-    out = capsys.readouterr().out
-    assert "must_not_compile: unchanged" not in out
-    assert "core: unchanged since a passed run" in out
+    engine = scratch.root / "engine"
+    # Found in the source's own directory, then through -isystem: no -I.
+    for header in (
+        engine / "src" / "common.hpp",
+        engine / "include" / "sys_common.hpp",
+    ):
+        header.write_text(header.read_text() + "// edited\n")
+        assert _passes(scratch) == []
+        out = capsys.readouterr().out
+        assert "must_not_compile: unchanged" not in out
+        assert "core: unchanged since a passed run" in out
 
 
 def test_an_unreadable_record_counts_as_absent(engine_scratch):
@@ -97,3 +102,61 @@ def test_the_command_line_takes_the_preset_and_all(engine_scratch, monkeypatch):
     assert scratch.runs() == []
     assert _ctest.cli(["dev", "--all"]) == 0
     assert sorted(scratch.runs()) == ["core", "raw"]
+
+
+def test_a_compiler_updated_in_place_reruns_every_group(engine_scratch, capsys):
+    """The same compiler path with new bytes: a fresh configure, every group."""
+    scratch = engine_scratch
+    _passes(scratch)
+    capsys.readouterr()
+    scratch.compiler.write_text(scratch.compiler.read_text() + "# updated\n")
+    assert _passes(scratch) == ["core", "raw"]
+    out = capsys.readouterr().out
+    assert "must_not_compile: unchanged" not in out
+    assert "configuring afresh" in out
+
+
+def test_a_changed_shared_library_reruns_the_group_that_loads_it(
+    engine_scratch, capsys
+):
+    """``core`` loads ``extra``: a new ``extra`` reruns ``core``, not ``raw``."""
+    scratch = engine_scratch
+    _passes(scratch)
+    capsys.readouterr()
+    library = scratch.root / "engine" / "src" / "extra.cpp"
+    library.write_text(
+        "static volatile int three = 3;\n"
+        '__attribute__((visibility("default"))) int extra() { return three - 3; }\n'
+    )
+    assert _passes(scratch) == ["core"]
+    assert "raw: unchanged since a passed run" in capsys.readouterr().out
+
+
+def test_the_sanitizers_options_rerun_every_group(engine_scratch, monkeypatch):
+    """``ASAN_OPTIONS`` changes what a test checks with the same program."""
+    scratch = engine_scratch
+    _passes(scratch)
+    monkeypatch.setenv("ASAN_OPTIONS", "detect_stack_use_after_return=1")
+    assert _passes(scratch) == ["core", "raw"]
+
+
+def test_a_groups_data_file_reruns_that_group(engine_scratch, capsys):
+    """A file ``sq_test_data`` names for ``raw`` reruns ``raw`` alone."""
+    scratch = engine_scratch
+    _passes(scratch)
+    capsys.readouterr()
+    (scratch.root / "engine" / "data" / "raw.txt").write_text("other data\n")
+    assert _passes(scratch) == ["raw"]
+    assert "core: unchanged since a passed run" in capsys.readouterr().out
+
+
+def test_a_failure_cancels_a_pass_of_the_same_identity(engine_scratch):
+    """Failed under ``--all`` with the same programs: next time they run again."""
+    scratch = engine_scratch
+    _passes(scratch)
+    fail = scratch.log.with_name(scratch.log.name + ".fail")
+    fail.touch()
+    assert _ctest.run("dev", scratch.root, everything=True) != 0
+    scratch.runs()
+    fail.unlink()
+    assert _passes(scratch) == ["core", "raw"]

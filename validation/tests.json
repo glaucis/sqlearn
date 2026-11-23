@@ -8,7 +8,7 @@
     },
     {
       "area": "checks/engine_groups",
-      "name": "tests/checks/test_engine_groups.py::test_a_failed_group_records_nothing",
+      "name": "tests/checks/test_engine_groups.py::test_a_run_records_the_groups_that_passed_never_the_failed_one",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -20360,6 +20360,30 @@
     },
     {
       "area": "validation/_ctest",
+      "name": "tests/validation/test__ctest.py::test_a_changed_shared_library_reruns_the_group_that_loads_it",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_ctest",
+      "name": "tests/validation/test__ctest.py::test_a_compiler_updated_in_place_reruns_every_group",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_ctest",
+      "name": "tests/validation/test__ctest.py::test_a_failure_cancels_a_pass_of_the_same_identity",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_ctest",
+      "name": "tests/validation/test__ctest.py::test_a_groups_data_file_reruns_that_group",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_ctest",
       "name": "tests/validation/test__ctest.py::test_a_must_not_compile_test_reruns_when_a_header_changes",
       "outcome": "passed",
       "tier": "fast"
@@ -20391,6 +20415,12 @@
     {
       "area": "validation/_ctest",
       "name": "tests/validation/test__ctest.py::test_the_command_line_takes_the_preset_and_all",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_ctest",
+      "name": "tests/validation/test__ctest.py::test_the_sanitizers_options_rerun_every_group",
       "outcome": "passed",
       "tier": "fast"
     },

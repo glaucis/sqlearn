@@ -22,7 +22,9 @@ def test_a_change_to_one_groups_file_runs_that_group_only(engine_scratch, capsys
     assert "raw: unchanged" not in out
 
 
-def test_a_failed_group_records_nothing(engine_scratch, capsys):
+def test_a_run_records_the_groups_that_passed_never_the_failed_one(
+    engine_scratch, capsys
+):
     """A failing ``raw`` runs again next time; ``core``, which passed, does not."""
     scratch = engine_scratch
     scratch.program("raw", code=1)
