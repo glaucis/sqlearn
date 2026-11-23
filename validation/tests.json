@@ -20144,6 +20144,24 @@
     },
     {
       "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_a_formatter_setting_rechecks_every_file[engine/.clang-format]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_a_formatter_setting_rechecks_every_file[engine/cmake/x.cmake]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_a_formatter_setting_rechecks_every_file[engine/src/.clang-format]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
       "name": "tests/validation/test__checks.py::test_a_malformed_record_file_counts_as_absent[[1]]",
       "outcome": "passed",
       "tier": "fast"

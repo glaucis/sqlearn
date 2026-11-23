@@ -178,6 +178,9 @@ TIDY_INPUTS = (
     "engine/.clang-tidy",
     "engine/src/raw/.clang-tidy",
     "engine/iwyu.imp",
+    # What the tools check and how: the sources and their exclusions, the
+    # build each comes from, IWYU's flags and mapping files.
+    "validation/_tidy.py",
     "engine/cmake",
     "engine/CMakeLists.txt",
     "engine/CMakePresets.json",
@@ -222,7 +225,15 @@ def _table() -> dict[str, Task]:
         Task(
             name="format",
             inputs=(*PYTHON, *MARKDOWN, *CXX, *CMAKE),
-            config=(*SETTINGS, "engine/.clang-format", ".gersemirc"),
+            config=(
+                *SETTINGS,
+                # clang-format reads the nearest one, at any depth.
+                ":(glob)**/.clang-format",
+                ".gersemirc",
+                # gersemi lays out calls by the signatures defined here
+                # (.gersemirc's definitions).
+                "engine/cmake",
+            ),
             steps=(
                 Step(("ruff", "format", "--check", "--force-exclude"), PYTHON),
                 # rumdl applies its configured excludes to named files itself.

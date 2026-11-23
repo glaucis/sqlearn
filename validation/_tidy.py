@@ -274,7 +274,8 @@ def iwyu(root: Path) -> int:
     tool = shutil.which("iwyu_tool.py")
     if tool is None:
         print(  # noqa: T201
-            "include-what-you-use is missing.\nFix: brew install include-what-you-use"
+            "include-what-you-use is missing.\nFix: brew install include-what-you-use",
+            file=sys.stderr,
         )
         return 1
     # The mappings include-what-you-use ships beside it: Python's C API.

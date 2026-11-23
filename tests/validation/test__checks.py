@@ -653,5 +653,28 @@ def test_the_tidy_task_reads_our_cxx_and_not_the_submodules():
         "engine/.clang-tidy",
         "engine/src/raw/.clang-tidy",
         "engine/iwyu.imp",
+        # What it checks and how: the sources, their builds, IWYU's flags.
+        "validation/_tidy.py",
     ):
         assert path in tidy.inputs, path
+
+
+@pytest.mark.parametrize(
+    "config",
+    ["engine/.clang-format", "engine/src/.clang-format", "engine/cmake/x.cmake"],
+)
+def test_a_formatter_setting_rechecks_every_file(scratch, config):
+    """clang-format reads the nearest .clang-format at any depth, and gersemi
+    lays out calls by the signatures in engine/cmake: a new one of either
+    checks every file of the real format task again."""
+    fmt = _checks._table()["format"]
+    files = _checks._hashes(_checks._listed(fmt.inputs, scratch), scratch)
+    _checks.save(
+        _checks.record_dir(scratch),
+        "format",
+        _checks.Record(digest="", config=_checks._config(fmt, scratch), files=files),
+    )
+    assert changed_files(fmt, scratch) == []
+    (scratch / config).parent.mkdir(parents=True, exist_ok=True)
+    (scratch / config).write_text("# changed\n")
+    assert set(changed_files(fmt, scratch)) >= {Path(n) for n in files}
