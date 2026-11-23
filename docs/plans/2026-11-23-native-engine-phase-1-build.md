@@ -51,9 +51,17 @@ clang-format, gersemi, gitleaks, uv, just.
   libraries carry only OSI-approved permissive licences, each in the
   third-party file (ADR 0066). Test-only libraries (Catch2, RapidCheck,
   nanobench) never ship.
-- No download at build or run time by default: `ENABLE_EXTENSION_AUTOINSTALL`
-  OFF; an extension the user installs still loads (ADR 0006, 0061). Submodules
-  are fetched by `git`, never by CMake `FetchContent` at configure time.
+- No download by default: DuckDB 2.0 has no build switch for it, so the
+  `sqlearn` extension sets `autoinstall_known_extensions` to false at load,
+  never overriding a user who set it. An extension the user installs still
+  loads (ADR 0006, 0061). Submodules are fetched by `git`, never by CMake
+  `FetchContent` at configure time.
+- One package: the wheel `sqlearn` holds `sqlearn/`, `duckdb/` (with a
+  generated `_version.py`, spec §3.3) and the `_duckdb` binary with
+  sqlearn's C++ inside (Tomas, 2026-11-23).
+- Toolchain from Homebrew: `cmake`, `ninja`, `ccache`, `llvm`,
+  `include-what-you-use`, `gitleaks`; `just doctor` checks each and prints a
+  `Fix:` line for a missing one (Task 1).
 - C++23 on every compiler, `-std=c++23`; feature tests by `__cpp_*` macros,
   never by the flag (HANDOFF trap). Our sources only get the strict flags and
   clang-tidy (spec §3.2).
@@ -70,8 +78,10 @@ clang-format, gersemi, gitleaks, uv, just.
 - Every function has a Doxygen comment (`///`), checked by
   `-Wdocumentation` for form (spec §3.2).
 - Preconditions go through one macro, `SQ_EXPECTS(cond)` (spec §3.8).
-- C++ errors reach Python as `sq.errors.InternalError` with `Why:` and
-  `Fix:` lines; nothing crashes the interpreter (ADR 0065).
+- sqlearn's own C++ errors reach Python as `sq.errors.InternalError` with
+  `Why:` and `Fix:` lines. Errors DuckDB raises stay DuckDB's own
+  exceptions, as users know them. Nothing crashes the interpreter (ADR
+  0065).
 - Public API: only `sq.version()` is added (spec §2); no other public test
   changes (ADR 0067).
 - SQL functions start with `sqlearn_` (native-engine.md §3.1).
@@ -96,28 +106,18 @@ clang-format, gersemi, gitleaks, uv, just.
    gitlink and every `engine/` source are digest inputs), and `uv run`
    rebuilds the module. Tests in Tasks 1 and 6.
 4. **A user's connection crossing into C++** while the user still holds an
-   unfinished result on it, or after closing it. Expected: an
-   `sq.errors.InternalError` with `Why:`/`Fix:`, never a crash. Test in
-   Task 3.
+   unfinished result on it, or after closing it. Expected: DuckDB's own
+   error for what DuckDB refuses, `sq.errors.InternalError` with
+   `Why:`/`Fix:` for sqlearn's, never a crash. Tests in Task 3.
 5. **An extension the user installed by hand** (`INSTALL x` then `LOAD x`
-   with a local file) still works, while nothing downloads by itself.
-   Test in Task 2.
+   with a local file) still works, nothing downloads by itself, and a user
+   who turns downloads on keeps them. Tests in Task 3.
 
 ## Status
 
-Draft, not approved (2026-11-23). Tomas chose one package with DuckDB
-inside; Tasks 2 and 3 are still written for the first idea and must be
-rewritten before review:
-
-- **Task 2:** the wheel ships `duckdb/` with a generated `_version.py`.
-  The build copies theirs, replaces the one line that reads the `duckdb`
-  distribution's version with the pinned version, and fails if that line is
-  not found exactly once.
-- **Task 3:** gains the `sqlearn` static extension with
-  `sqlearn_version()`, and sets "no downloads" at run time, without
-  overriding a user who asks for downloads.
-- **A new task:** sqllogictest through DuckDB's `unittest` program.
-- **The toolchain:** setup installs `cmake`, `ninja` and `ccache`.
+Ready for Tomas's review (2026-11-23). Tasks 2 and 3 are written for one
+package with DuckDB inside (Tomas, 2026-11-23; spec §3.3), and Task 12 adds
+the SQL tests.
 
 ## Spike results
 
@@ -191,9 +191,11 @@ scratch CMake project, editing none of their files:
 - **The module name** is `sqlearn._native`, an `NB_MODULE(_native, m)` in
   the `_duckdb` binary, loaded with `importlib.machinery.ExtensionFileLoader`
   from `_duckdb.__file__` (spec §5 leaves the name to the builder).
-- **C++ errors** use the existing `sq.errors.InternalError`; the start-up
-  refusal is an `ImportError` (what Python raises for a failed import). No
-  new public class.
+- **C++ errors:** sqlearn's own become the existing
+  `sq.errors.InternalError`; DuckDB's stay DuckDB's (the spike: its
+  translators already serve our module); the start-up refusal is an
+  `ImportError`, what Python raises for a failed import. No new public
+  class.
 - **Test libraries and cpptrace are git submodules** under
   `engine/third_party/`, pinned to tags; no configure-time downloads.
 - **The C++ test programs of step 2 do not link DuckDB** (no group uses it
@@ -232,10 +234,11 @@ scratch CMake project, editing none of their files:
   `engine/third_party/{catch2,rapidcheck,nanobench,cpptrace}` (submodules),
   `engine/cmake/pins.cmake`, `codegraph.json`,
   `tests/engine/test_pins.py`
-- Modify: `justfile` (`setup` runs `git submodule update --init
-  --recursive`), `.gitignore` (`/engine/build/`, `/build/`,
-  `/compile_commands.json`), `validation/_checks.py` (gitlinks in the
-  digest), `tests/validation/test__checks.py`
+- Modify: `justfile` (`setup` runs `just doctor`, then
+  `git submodule update --init --recursive`; a new `doctor` recipe),
+  `.gitignore` (`/engine/build/`, `/build/`, `/compile_commands.json`),
+  `validation/_checks.py` (gitlinks in the digest),
+  `tests/validation/test__checks.py`
 
 **Interfaces:**
 
@@ -245,6 +248,9 @@ scratch CMake project, editing none of their files:
   `sq_check_pins()` that compares each pin with the submodule's checked-out
   commit and fails configure with a `Fix: git submodule update --init
   --recursive` line when a submodule is missing or differs.
+- Produces: `just doctor` checks each tool of the Global Constraints'
+  toolchain line, with its version, and for a missing one prints `Fix: brew
+  install <formula>`, then exits non-zero.
 - Produces: `_checks.digest` covers each gitlink (mode 160000 entry of `git
   ls-files -s`): path and commit.
 
@@ -280,141 +286,215 @@ third-party file (Task 11).
 - [ ] **Step 5: Commit:** `build: add duckdb 2.0.1 and the c++ libraries as
   submodules`.
 
-### Task 2: one package, sqlearn's DuckDB
+### Task 2: one package, sqlearn's DuckDB inside
 
 **Files:**
 
-- Create: `engine/CMakeLists.txt`, `engine/cmake/build_info.cmake`,
+- Create: `engine/CMakeLists.txt`, `engine/cmake/duckdb_package.cmake`,
   `tests/engine/test_build.py`
-- Modify: `pyproject.toml` (build system, packages, defines, cache keys,
-  `duckdb` dependency removed), `uv.lock`, `justfile` (`build-package`),
-  `validation/_checks.py` (`engine/` in the `test` inputs, minus the
-  submodules), `validation/_record.py` (the module's build identity in each
-  record's environment)
+- Modify: `pyproject.toml` (the build system, the packages, the defines, the
+  cache keys; the `duckdb` dependency removed), `uv.lock`, `justfile`
+  (`build-package`), `validation/_checks.py` (`engine/` in the `test`
+  inputs; the submodules enter only as their gitlinks, Task 1),
+  `validation/_record.py` (the module's build identity in each record's
+  environment, so a rebuilt engine reruns every runner)
 
 **Interfaces:**
 
-- Consumes: Task 1's `pins.cmake`, `sq_check_pins()`.
-- Produces: `engine/CMakeLists.txt` (C++23 for our targets), calling
-  `add_subdirectory(duckdb-python)` and adding our object libraries to
-  `_duckdb` (the spike's mechanism). It generates `duckdb/_build_info.py`
-  in the build tree (as duckdb-python's backend writes it) and installs it
-  into `${SKBUILD_PLATLIB_DIR}/duckdb/`, and passes DuckDB's version and
-  commit from the pins (`OVERRIDE_GIT_DESCRIBE`, `GIT_COMMIT_HASH`).
-- Produces: `pyproject.toml`: `build-backend = "scikit_build_core.build"`;
-  `cmake.source-dir = "engine"`; `build-dir = "build/{cache_tag}"`;
-  `wheel.py-api = "cp312"`; `wheel.packages` = `src/sqlearn`,
-  `engine/duckdb-python/duckdb`, `engine/duckdb-python/adbc_driver_duckdb`,
-  `engine/duckdb-python/_duckdb-stubs`; version from git
-  (`scikit_build_core.metadata.setuptools_scm`, the same numbers as
-  hatch-vcs gives today); `cmake.define`: `BUILD_EXTENSIONS =
-  "core_functions;json;parquet;icu"`, `ENABLE_EXTENSION_AUTOINSTALL =
-  "OFF"`, `ENABLE_EXTENSION_AUTOLOADING = "ON"`; `tool.uv.cache-keys`: the
-  current two plus `engine/CMakeLists.txt`, `engine/cmake/**`,
-  `engine/src/**`, `.gitmodules`.
+- Consumes: Task 1's `pins.cmake` and `sq_check_pins()`.
+- Produces: `engine/CMakeLists.txt` (C++23 for our targets;
+  `CMAKE_EXPORT_COMPILE_COMMANDS ON`). It calls `sq_check_pins()`, then
+  `add_subdirectory(duckdb-python)` with `OVERRIDE_GIT_DESCRIBE=v2.0.1` and
+  `GIT_COMMIT_HASH` taken from the pins. It then adds our object libraries
+  to `_duckdb` (`target_sources(_duckdb PRIVATE $<TARGET_OBJECTS:...>)`, the
+  spike's mechanism).
+- Produces: `engine/cmake/duckdb_package.cmake`, which installs DuckDB's
+  Python packages into the wheel:
+  - `engine/duckdb-python/duckdb/` goes to `${SKBUILD_PLATLIB_DIR}/duckdb/`,
+    except `_version.py`.
+  - A generated `_version.py` takes its place. It is their file with the one
+    line `__version__: str = _dist_version("duckdb")` replaced by
+    `__version__: str = "2.0.1"` (the pinned tag without `v`). Configure
+    fails with the message "duckdb/_version.py changed upstream: review the
+    substitution in engine/cmake/duckdb_package.cmake" unless that line
+    occurs exactly once.
+  - A generated `_build_info.py` carries the same names duckdb-python's
+    backend writes: the package and DuckDB versions and commits, from the
+    pins.
+  - `adbc_driver_duckdb/` and `_duckdb-stubs/` are copied unchanged.
+  - Their own install rule places `_duckdb` at `${SKBUILD_PLATLIB_DIR}`.
+- Produces: `pyproject.toml`:
+  - `build-backend = "scikit_build_core.build"`; `cmake.source-dir =
+    "engine"`; `build-dir = "build/{cache_tag}"`; `wheel.py-api = "cp312"`.
+  - `wheel.packages = ["src/sqlearn"]`; the `duckdb` packages come from
+    CMake's install, above.
+  - The version comes from git through
+    `scikit_build_core.metadata.setuptools_scm`, the same numbers hatch-vcs
+    gives today.
+  - `cmake.define`: `BUILD_EXTENSIONS = "core_functions;json;parquet;icu"`
+    (Task 3 adds `sqlearn` and `LINK_EXTENSIONS`).
+  - `tool.uv.cache-keys`: today's two, plus `engine/CMakeLists.txt`,
+    `engine/cmake/**`, `engine/src/**`, `engine/extension/**` and
+    `.gitmodules`.
+  - The runtime `dependencies` keep numpy and lose `duckdb`.
 
 - [ ] **Step 1: Write the failing tests** in `tests/engine/test_build.py`:
-  - `test_duckdb_is_sqlearns_build`: `duckdb.__version__ == "2.0.1"`, and
-    `duckdb._build_info` names DuckDB commit `8d78114e90`.
-  - `test_the_official_extensions_are_compiled_in`: for `core_functions`,
-    `json`, `parquet`, `icu`, `duckdb_extensions()` reports `loaded` and
-    `installed_from` = `'statically_linked'` (or the column DuckDB 2.0 uses;
-    check), and a query each: `SELECT json_extract('{"a":1}', '$.a')`,
-    a Parquet round trip through `COPY ... TO ... (FORMAT parquet)` and
-    `read_parquet` in `tmp_path`, `SELECT now() AT TIME ZONE 'Europe/London'`.
-  - `test_nothing_downloads_by_itself`:
-    `current_setting('autoinstall_known_extensions')` is false.
-  - `test_an_extension_the_user_installed_loads`: with
-    `extension_directory` set to `tmp_path`, `LOAD` of a local extension file
-    works if DuckDB 2.0 can build one cheaply (the `demo` or `quack` test
-    extension from the DuckDB tree); else the test asserts only that `LOAD
-    'missing'` fails with a message naming the path, not a network error, and
-    the report says why.
-- [ ] **Step 2: Run them:** FAIL (official DuckDB 2.0.0 installed).
-- [ ] **Step 3: Write `engine/CMakeLists.txt`** and the `pyproject.toml`
-  changes; `uv lock`; `uv sync --locked` builds the wheel's module (first
-  build: time it with `time`; record it in the report).
-- [ ] **Step 4: Run them:** PASS; then `just full test` once (every existing
-  test unchanged, on our DuckDB 2.0.1): PASS, every failure named. A test
-  that fails only because DuckDB 2.0.0 → 2.0.1 changed an answer is reported
-  to the controller, never edited (ADR 0067).
-- [ ] **Step 5: Measure** the rebuild after one commit (`git commit
-  --allow-empty`, then `uv run --locked python -c 'import sqlearn'`): the
-  time goes in the report; above 60 s, report it as a concern.
-- [ ] **Step 6: Commit:** `build: build sqlearn and its duckdb as one
+  - `test_duckdb_is_sqlearns_build`: `duckdb.__version__ == "2.0.1"`;
+    `duckdb.build_info()["duckdb_commit"]` starts with `8d78114e90`; and
+    `importlib.metadata.distribution("sqlearn")` lists `duckdb/__init__.py`
+    among its files (no `duckdb` distribution is installed).
+  - `test_the_official_extensions_are_compiled_in`:
+    - for `core_functions`, `json`, `parquet` and `icu`,
+      `duckdb_extensions()` reports `loaded`, with the install mode DuckDB
+      2.0 reports for a statically linked extension (`STATICALLY_LINKED` in
+      the spike);
+    - one query each: `SELECT json_extract('{"a":1}', '$.a')`, a Parquet
+      round trip (`COPY ... TO ... (FORMAT parquet)`, then `read_parquet`, in
+      `tmp_path`), and `SELECT now() AT TIME ZONE 'Europe/London'`.
+  - `test_the_version_substitution_refuses_a_changed_file`: `cmake -P` on
+    the substitution with a stand-in `_version.py` that lacks the line fails
+    with the message above; with the line twice it fails too.
+- [ ] **Step 2: Run them:** FAIL (the official DuckDB 2.0.0 is installed).
+- [ ] **Step 3: Write** `engine/CMakeLists.txt`, `duckdb_package.cmake` and
+  the `pyproject.toml` changes. Then `uv lock` and `uv sync --locked`, which
+  builds the module; time the first build with `time` and put it in the
+  report.
+- [ ] **Step 4: Run them:** PASS. Then `just full test` once: every
+  existing test passes unchanged on our DuckDB 2.0.1, and every failure is
+  named. A test that fails only because DuckDB 2.0.0 → 2.0.1 changed an
+  answer is reported to the controller, never edited (ADR 0067).
+- [ ] **Step 5: Measure** the rebuild after one commit: `git commit
+  --allow-empty`, then `uv run --locked python -c 'import sqlearn'`. Put the
+  time in the report; above 60 s, report it as a concern.
+- [ ] **Step 6: Commit:** `build: build sqlearn with its duckdb inside, one
   package`.
 
-### Task 3: the native module, `sq.version()` and the start-up check
+### Task 3: the native module, the `sqlearn` extension, `sq.version()`
 
 **Files:**
 
-- Create: `engine/src/core/version.hpp`, `engine/src/core/version.cpp`,
-  `engine/src/core/expects.hpp`, `engine/src/core/error.hpp`,
-  `engine/src/bindings/module.cpp`, `engine/src/bindings/connection.cpp`,
-  `src/sqlearn/_native.py`, `src/sqlearn/_native.pyi` (generated),
-  `tests/src/sqlearn/test__native.py`, `tests/engine/test_bindings.py`
-- Modify: `src/sqlearn/__init__.py` (`version`, the start-up check at
-  import), `docs/reference/` (the page that lists top-level functions),
-  `justfile` (`stubs`, `check-stubs`)
+- Create:
+  - `engine/src/core/version.{hpp,cpp}`, `engine/src/core/expects.hpp`,
+    `engine/src/core/error.hpp`;
+  - `engine/src/bindings/module.cpp`, `engine/src/bindings/connection.cpp`;
+  - `engine/extension/sqlearn_config.cmake`,
+    `engine/extension/CMakeLists.txt`,
+    `engine/extension/src/sqlearn_extension.cpp`;
+  - `src/sqlearn/_native.py`, `src/sqlearn/_native.pyi` (generated);
+  - `tests/src/sqlearn/test__native.py`, `tests/engine/test_bindings.py`,
+    `tests/engine/test_extension.py`, `tests/public_api.txt`.
+- Modify: `engine/CMakeLists.txt` (`DUCKDB_EXTENSION_CONFIGS`,
+  `LINK_EXTENSIONS`), `pyproject.toml` (`LINK_EXTENSIONS =
+  "core_functions;json;parquet;icu;sqlearn"`), `src/sqlearn/__init__.py`
+  (`version`; the start-up check at import), the reference page that lists
+  top-level functions, `justfile` (`stubs`, `check-stubs`,
+  `api-snapshot`).
 
 **Interfaces:**
 
-- Produces (C++, namespace `sq`): `struct core::BuildIdentity {
-  std::string sqlearn_version, duckdb_version, duckdb_commit, compiler,
-  build_type; }`; `core::BuildIdentity core::build_identity() noexcept`;
-  `SQ_EXPECTS(cond)` (throws `core::PreconditionError` with the condition's
-  text and `std::source_location`); `class core::Error :
-  std::runtime_error` carrying `why` and `fix` strings.
-- Produces (Python, `sqlearn._native`): `build_identity() -> dict[str,
-  str]`; `count_rows(con: duckdb.DuckDBPyConnection, table: str) -> int`
-  (runs `SELECT count(*)` through DuckDB's C++ API on the connection
-  behind `con`); `roundtrip(con) -> duckdb.DuckDBPyConnection` (the same
-  object). Every C++ exception is translated to
-  `sqlearn.errors.InternalError` with its `Why:`/`Fix:` lines.
-- Produces (public): `sq.version() -> str`, one line: `sqlearn <version>,
-  DuckDB <duckdb_version> (<commit[:10]>), <compiler>, <build_type>`, with a
-  numpydoc docstring and a doctest example using `...`.
-- Produces: `sqlearn._native.load(path: str) -> ModuleType` used at import;
-  a file without `PyInit__native` raises `ImportError` whose message has
-  `Why: duckdb is not sqlearn's build (<path>)` and `Fix: uv sync
-  --reinstall-package sqlearn` lines, plus the sentence that a package
-  needing the official `duckdb` needs an environment of its own (ADR 0061).
+- Produces (C++, namespace `sq`):
+  - `struct core::BuildIdentity { std::string sqlearn_version,
+    duckdb_version, duckdb_commit, compiler, build_type; }`;
+  - `core::BuildIdentity core::build_identity() noexcept`;
+  - `std::string core::describe(const core::BuildIdentity&)`, the one line
+    `sqlearn <version>, DuckDB <duckdb_version> (<commit[:10]>), <compiler>,
+    <build_type>`;
+  - `SQ_EXPECTS(cond)`, which throws `core::PreconditionError` carrying the
+    condition's text and `std::source_location`;
+  - `class core::Error : public std::runtime_error`, carrying `why()` and
+    `fix()`.
+- Produces (the `sqlearn` extension, statically linked, in every
+  database):
+  - The SQL function `sqlearn_version()` returns `core::describe(...)`.
+  - At load, the extension sets `autoinstall_known_extensions` to false
+    unless the user set it when opening the database. Find in DuckDB 2.0's
+    `DBConfig` how a value the user gave is told from a default (the user's
+    options map, or whatever 2.0 has); if no way exists, report
+    `NEEDS_CONTEXT` rather than override the user.
+- Produces (Python, `sqlearn._native`):
+  - `build_identity() -> dict[str, str]`;
+  - `count_rows(con: duckdb.DuckDBPyConnection, table: str) -> int`, which
+    runs `SELECT count(*)` through DuckDB's C++ API on the connection behind
+    `con`, under `ConnectionLockGuard`, with `SQ_EXPECTS(!table.empty())`;
+  - `roundtrip(con) -> duckdb.DuckDBPyConnection`, returning the same object;
+  - `load(path: str) -> ModuleType`, used at import.
+- Errors:
+  - Errors DuckDB raises stay DuckDB's own exceptions, through its
+    translators: a closed connection is `duckdb.ConnectionException`.
+  - `core::Error` and `core::PreconditionError` become
+    `sqlearn.errors.InternalError`, with `Why:` and `Fix:` lines.
+  - Any other C++ exception becomes an `InternalError` naming it.
+  - Nothing crashes the interpreter.
+- Produces (public): `sq.version() -> str`, returning `core::describe`'s
+  line, with a numpydoc docstring and a doctest example using `...`.
+- Produces: the start-up check. `import sqlearn` imports `_duckdb`, then
+  calls `_native.load(_duckdb.__file__)`. A file without `PyInit__native`
+  raises `ImportError`, chained from the loader's error, whose message has:
+  - `Why: the duckdb module is not sqlearn's build (<path>)`;
+  - `Fix: uv sync --reinstall-package sqlearn`;
+  - the sentence that a package needing the official `duckdb` needs an
+    environment of its own (ADR 0061).
 
 - [ ] **Step 1: Write the failing tests:**
   - `test_version_answers_from_cpp`: `sq.version()` contains
-    `sq.__version__`, `duckdb.__version__` and the pinned commit's first ten
-    digits, and equals the string built from
-    `sqlearn._native.build_identity()`.
+    `sq.__version__`, `duckdb.__version__` and the pinned commit's first
+    ten digits, and equals `SELECT sqlearn_version()`'s answer on a new
+    connection.
+  - `test_every_database_has_the_sqlearn_extension`: `duckdb.connect()`,
+    `duckdb.connect("<tmp_path>/a.db")` and `duckdb.sql(...)` each answer
+    `SELECT sqlearn_version()` with no `LOAD`; `duckdb_extensions()` lists
+    `sqlearn` as loaded.
+  - `test_nothing_downloads_by_itself`:
+    `current_setting('autoinstall_known_extensions')` is false on a new
+    connection.
+  - `test_a_user_who_asks_for_downloads_keeps_them`:
+    `duckdb.connect(config={"autoinstall_known_extensions": True})` reads
+    true, and `SET autoinstall_known_extensions = true` on a default
+    connection reads true.
+  - `test_an_extension_the_user_installed_loads`: with
+    `extension_directory` set to `tmp_path`, `LOAD` of a missing extension
+    fails with a message naming the local path, not a download attempt.
   - `test_a_users_connection_reaches_cpp_and_back`: `con =
     duckdb.connect(); con.execute("CREATE TABLE t AS SELECT * FROM
-    range(5)")`; `count_rows(con, "t") == 5`; `roundtrip(con) is con`.
-  - `test_a_closed_connection_is_an_internal_error`: `con.close()` then
-    `count_rows(con, "t")` raises `sq.errors.InternalError` whose message
-    contains `Why:` and `Fix:`; the interpreter survives.
-  - `test_a_busy_connection_is_an_internal_error`: an unfinished
-    `con.execute("SELECT * FROM range(10)")` result held, then
-    `count_rows(con, "t")` raises `InternalError` (or works, if DuckDB
-    allows it; the test pins whichever DuckDB 2.0.1 does, and never a
-    crash).
-  - `test_the_official_duckdb_is_refused`: in a subprocess, `import sqlearn`
-    with `_duckdb` replaced in `sys.modules` by a module whose `__file__` is
-    numpy's `_multiarray_umath` extension: exit non-zero, stderr has
-    `ImportError`, `Why:` and `Fix:`.
+    range(5)")`; then `count_rows(con, "t") == 5` (also through a cursor),
+    and `roundtrip(con) is con`.
+  - `test_a_connection_to_another_database_sees_its_own_tables`:
+    `count_rows` on a second `duckdb.connect()` raises DuckDB's catalog
+    error for `t`.
+  - `test_a_closed_connection_raises_duckdbs_error`: `con.close()`, then
+    `count_rows(con, "t")` raises `duckdb.ConnectionException`, and the
+    interpreter survives.
+  - `test_a_precondition_is_an_internal_error`: `count_rows(con, "")`
+    raises `sq.errors.InternalError` whose message contains `Why:`, `Fix:`
+    and the condition's text.
+  - `test_a_busy_connection_never_crashes`: hold an unfinished
+    `con.execute("SELECT * FROM range(10)")`, then call `count_rows(con,
+    "t")`. The test pins whichever DuckDB 2.0.1 does, a count or a DuckDB
+    error, and it is never a crash.
+  - `test_the_official_duckdb_is_refused`: in a subprocess, `import
+    sqlearn` with `_duckdb` replaced in `sys.modules` by a module whose
+    `__file__` is numpy's `_multiarray_umath` extension. It exits non-zero,
+    and stderr has `ImportError`, `Why:` and `Fix:`.
   - `test_the_stubs_match_the_module`: `just check-stubs` (nanobind's
-    `stubgen` into a temp file equals the committed `_native.pyi`).
+    `stubgen` into a temp file) equals the committed `_native.pyi`.
   - `test_the_public_api_is_the_recorded_one` (spec §3.9): every name in
-    `sq.__all__` and each submodule's `__all__`, with `inspect.signature`,
-    written one per line, equals `tests/public_api.txt`; the file is
-    generated once by `just api-snapshot` and gains exactly `version()`
-    in this task. A later change fails until the file is regenerated and
-    the commit says why (ADR 0003, 0067).
+    `sq.__all__` and in each submodule's `__all__`, with its
+    `inspect.signature`, one per line, equals `tests/public_api.txt`.
+    `just api-snapshot` writes the file once, before `version` is added,
+    and it gains exactly `version()` in this task. A later change fails
+    until the file is regenerated and the commit says why (ADR 0003, 0067).
 - [ ] **Step 2: Run them:** FAIL.
-- [ ] **Step 3: Implement** the C++ (version strings from CMake definitions:
-  `SQLEARN_VERSION` from `SKBUILD_PROJECT_VERSION_FULL`, the DuckDB ones
-  from the pins, the compiler from `CMAKE_CXX_COMPILER_ID` and version,
-  the build type), the bindings (`NB_MODULE(_native, m)`, same
-  `NB_DOMAIN` as `_duckdb`), `_native.load`, and `sq.version`.
-- [ ] **Step 4: Run them:** PASS; `just full test`: PASS.
+- [ ] **Step 3: Implement:**
+  - the C++ version strings from CMake definitions: `SQLEARN_VERSION` from
+    `SKBUILD_PROJECT_VERSION_FULL`, the DuckDB ones from the pins, the
+    compiler from `CMAKE_CXX_COMPILER_ID` and its version, and the build
+    type;
+  - the extension, as the spike did: `build_static_extension` and
+    `DUCKDB_CPP_EXTENSION_ENTRY(sqlearn, loader)`, with hidden visibility;
+  - the bindings: `NB_MODULE(_native, m)` through `_duckdb_dependencies`
+    (the same `NB_DOMAIN`);
+  - `_native.load`, the start-up check and `sq.version`.
+- [ ] **Step 4: Run them:** PASS; then `just full test`: PASS.
 - [ ] **Step 5: Commit:** `feat: sq.version answers from the engine`.
 
 ### Task 4: presets, compilers and the group targets
@@ -709,7 +789,44 @@ third-party file (Task 11).
 - [ ] **Step 5: Commit:** `feat: a local crash report and the third-party
   file`.
 
-### Task 12: the editor tools, the tiers and the docs
+### Task 12: SQL tests with DuckDB's sqllogictest
+
+**Files:**
+
+- Create: `engine/sqllogic/CMakeLists.txt`,
+  `engine/extension/test/sql/sqlearn_version.test`
+- Modify: `engine/CMakePresets.json` (preset `sqllogic`),
+  `engine/extension/sqlearn_config.cmake` (`LOAD_TESTS`), `validation/_ctest.py`
+  (label `sql`), `justfile` (`test-sql`)
+
+**Interfaces:**
+
+- Consumes: Task 3's extension, Task 6's `_ctest.run`.
+- Produces: `engine/sqllogic/CMakeLists.txt`, a CMake project of ours that
+  `add_subdirectory`s DuckDB itself (`engine/duckdb-python/external/duckdb`,
+  not duckdb-python). It sets `BUILD_UNITTESTS=ON` and
+  `DUCKDB_EXTENSION_CONFIGS` to our config, as DuckDB's own extension template
+  builds an extension's SQL tests. The preset `sqllogic` builds it into
+  `engine/build/sqllogic`.
+- Produces: DuckDB's `unittest` program, registered with CTest under the label
+  `sql` and running `engine/extension/test/sql/*.test`; `_ctest` reruns it
+  when its binary changed. `just test-sql` runs it directly.
+- Produces: `sqlearn_version.test`:
+  - `require sqlearn`;
+  - `SELECT sqlearn_version() LIKE 'sqlearn %, DuckDB v2.0.1 (8d78114e90)%'`
+    answers `true`;
+  - calling it with an argument is a binder error.
+
+- [ ] **Step 1: Write the test file.**
+- [ ] **Step 2: Run** `just test-sql`: FAIL (no `sqllogic` preset).
+- [ ] **Step 3: Implement** the project and the preset. If DuckDB's `unittest`
+  cannot be built this way without editing DuckDB's files, stop and report
+  `BLOCKED`; never patch DuckDB. Record the first build's time in the report.
+- [ ] **Step 4: Run** `just test-sql`: PASS; `just test` runs it once, then
+  reports `sql: unchanged since a passed run`.
+- [ ] **Step 5: Commit:** `test: sqllogictest for the sqlearn extension`.
+
+### Task 13: the editor tools, the tiers and the docs
 
 **Files:**
 
@@ -728,8 +845,7 @@ third-party file (Task 11).
   `test`; `just verify` adds `sanitize`, `fuzz 60`, `coverage-engine`,
   `mutate-engine`, the steady-memory test, `check-licences`, `just full`
   of every task, `test-all`, `test-python-versions`. `.clangd` points at
-  `engine/build/llvm-dev/compile_commands.json`. `just doctor` checks each
-  tool from setup.md and prints a `Fix:` line for one missing.
+  `engine/build/llvm-dev/compile_commands.json`.
 
 - [ ] **Step 1:** Update the recipes; `tests/checks` PASS.
 - [ ] **Step 2:** Update the docs and the ADR lines (no reason the spec does

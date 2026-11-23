@@ -12,18 +12,17 @@ Verify with: `just done` (`just verify` is the release tier)
 
 ## In progress
 
-- [verified] **Phase 1 step 2's plan, a draft:**
-  `docs/plans/2026-11-23-native-engine-phase-1-build.md` (not approved;
-  Tomas: "we will make plan later").
-  - Its "Status" lists what is left: rewrite Tasks 2 and 3 for one package,
-    add the sqllogictest task, then review with Tomas.
-  - Its "Spike results" record the build spike of 2026-11-23: all three
-    mechanisms work with none of DuckDB's files edited.
-  - Tomas's answers (one package with DuckDB inside, full DuckDB plus
-    `sqlearn_` functions, a possible light mode later) are in the Phase 1
-    spec §3.3.
-  - The spike's scratch sources are in a temporary directory that goes
-    with this session; the findings in the plan are the record.
+- [verified] **Phase 1 step 2's plan, ready for Tomas's review:**
+  `docs/plans/2026-11-23-native-engine-phase-1-build.md`.
+  - 13 tasks: submodules and pins; one package with DuckDB inside;
+    `_native`, the `sqlearn` extension and `sq.version()`; presets and
+    groups; the skeleton's groups; C++ tests per group; tidy and format;
+    sanitizers; fuzzing; coverage and Mull; crash report and third-party
+    file; sqllogictest; tiers and docs.
+  - Its "Spike results" record the build spike of 2026-11-23. Tomas's
+    packaging answers are in the Phase 1 spec §3.3.
+  - Next: Tomas reviews it and chooses how it runs; then it executes on a
+    branch in a worktree.
 
 ## Waiting on the user
 
