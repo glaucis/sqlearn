@@ -64,6 +64,7 @@ def run_one(name: str, repo: Path) -> int:
     pass. Exit 1 when a sqlearn case failed.
     """
     before = _record.candidates(repo)
+    environment = _record.environment(_cases.environment(), repo)
     runner = importlib.import_module(name)
     cases = runner.cases()
     _cases.write_json(results_path(runner), {"rules": _cases.RULES, "cases": cases})
@@ -87,7 +88,7 @@ def run_one(name: str, repo: Path) -> int:
             _record.Record(
                 runner=name,
                 depends=depends,
-                environment=_cases.environment(),
+                environment=environment,
                 counts=counts,
                 passed=not failed,
             ),
@@ -106,7 +107,10 @@ def main(runners: Sequence[str], root: Path, *, everything: bool = False) -> int
     `everything`) runs in its own process, ``-m validation --one <name>``.
     """
     repo = root.resolve().parent
-    environment = _cases.environment()
+    base = _cases.environment()
+    # a record's environment holds the engine's digest too; environment.json
+    # is committed, so it keeps the versions alone
+    environment = _record.environment(base, repo)
     directory = _record.record_dir(repo)
     failed = False
     ran = False
@@ -121,7 +125,7 @@ def main(runners: Sequence[str], root: Path, *, everything: bool = False) -> int
         ran = True
         failed = failed or child.returncode != 0
     if ran:
-        _cases.write_json(root / "environment.json", environment)
+        _cases.write_json(root / "environment.json", base)
     return 1 if failed else 0
 
 

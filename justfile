@@ -42,13 +42,17 @@ doctor:
     check gitleaks gitleaks version
     exit "$missing"
 
-# Check the toolchain, fetch the submodules, point git at .githooks and install the locked environment
+# Point git at .githooks, check the toolchain (a missing tool is reported, and the rest still runs), fetch the submodules and build the locked environment; exits 1 when a tool is missing
 [group('setup')]
 setup:
-    just doctor
-    git submodule update --init --recursive
+    #!/usr/bin/env bash
+    set -euo pipefail
     git config core.hooksPath .githooks
+    doctor=0
+    "{{ just_executable() }}" --justfile "{{ justfile() }}" doctor || doctor=$?
+    git submodule update --init --recursive
     uv sync --locked
+    exit "$doctor"
 
 # Apply ruff's safe fixes, then format the Python
 [group('format')]
@@ -137,10 +141,10 @@ check-docstring-args *files:
     # a failure with no DOC line at all is an error, not a pass
     if [ $rc -eq 1 ] && ! grep -q 'DOC111' <<<"$out"; then printf '%s\n' "$out"; exit 1; fi
 
-# Build the sdist and the wheel into dist/
+# Build the wheel, sqlearn with its DuckDB inside, into dist/, from the git checkout whose submodules sq_check_pins() reads; the sdist is left to step 3's release work
 [group('build')]
 build-package:
-    uv build
+    uv build --wheel
 
 # Upgrade the locked dependencies, then verify
 [group('maintain')]

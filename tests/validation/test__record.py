@@ -1,6 +1,7 @@
 """A runner's record: what it imported, hashed, and whether it passed."""
 
 import importlib
+import subprocess
 import sys
 from pathlib import Path
 
@@ -137,3 +138,60 @@ def test_a_failed_save_leaves_no_temporary_file(root, tmp_path, monkeypatch):
     with pytest.raises(OSError, match="disk full"):
         save(records, _record(root))
     assert list(records.iterdir()) == []
+
+
+@pytest.fixture
+def engine_repo(tmp_path, monkeypatch):
+    """A scratch git repository with an engine source and a build table."""
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    (tmp_path / "engine").mkdir()
+    (tmp_path / "engine" / "a.cpp").write_text("int a;\n")
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "x"\n\n[tool.scikit-build]\nbuild-dir = "build"\n'
+    )
+    compiler = tmp_path / "cxx"
+    compiler.write_text("#!/bin/sh\necho 'clang version 1'\n")
+    compiler.chmod(0o755)
+    monkeypatch.setenv("CXX", str(compiler))
+    return tmp_path
+
+
+def test_the_engine_digest_follows_what_the_module_is_built_from(engine_repo):
+    """An engine source, a submodule's pin, the build table or the compiler."""
+    first = record_module.engine(engine_repo)
+    assert record_module.engine(engine_repo) == first
+    pyproject = engine_repo / "pyproject.toml"
+    pyproject.write_text(pyproject.read_text().replace('"x"', '"y"'))
+    assert record_module.engine(engine_repo) == first, "outside the build table"
+
+    source = engine_repo / "engine" / "a.cpp"
+    source.write_text("int b;\n")
+    assert record_module.engine(engine_repo) != first
+    source.write_text("int a;\n")
+
+    pyproject.write_text(pyproject.read_text().replace('"build"', '"other"'))
+    assert record_module.engine(engine_repo) != first
+    pyproject.write_text(pyproject.read_text().replace('"other"', '"build"'))
+
+    compiler = engine_repo / "cxx"
+    compiler.write_text("#!/bin/sh\necho 'clang version 2'\n")
+    assert record_module.engine(engine_repo) != first
+    compiler.write_text("#!/bin/sh\necho 'clang version 1'\n")
+    assert record_module.engine(engine_repo) == first
+
+    pin = "0123456789abcdef0123456789abcdef01234567"
+    subprocess.run(
+        ["git", "update-index", "--add", "--cacheinfo", f"160000,{pin},engine/sub"],
+        cwd=engine_repo,
+        check=True,
+    )
+    assert record_module.engine(engine_repo) != first
+
+
+def test_a_records_environment_holds_the_engine_digest(engine_repo):
+    """The environment a record keeps is the base one, with the engine's."""
+    environment = record_module.environment(dict(ENVIRONMENT), engine_repo)
+    assert environment == {
+        **ENVIRONMENT,
+        "engine": record_module.engine(engine_repo),
+    }

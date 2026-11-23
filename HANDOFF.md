@@ -47,9 +47,13 @@ Verify with: `just done` (`just verify` is the release tier)
   hash gitlinks, so a submodule bump changes no digest and skips every
   check. Hash the mode-160000 entries of `git ls-files -s` (the commit each
   submodule points at) into the digests of the tasks that read them.
-- Step 2 must declare the built native module (`.so`) as a validation
-  input: a git-ignored file a runner imports gets no record, so every
-  runner would rerun every time (safe, but slow). `just done` runs
+- The engine's rebuild costs about 24 s after any commit (step 2, Task 2):
+  uv's isolated build environment has a new random path each time, so
+  nanobind's sources and every duckdb-python binding object compile again
+  and miss ccache. Follow-up: no build isolation for sqlearn
+  (`no-build-isolation-package`) with its build requirements in a
+  dependency group, or ccache path settings.
+- `just done` runs
   `just place` before `check-lockfile`, so a stale lock fails with uv's
   error rather than the named check (fails safe; reorder if wanted).
 - Finer validation selection: a src change reruns every runner (`import
@@ -228,6 +232,12 @@ Verify with: `just done` (`just verify` is the release tier)
   (2026-11-06)
 
 ## Just finished
+
+- Step 2, Task 2: the built module enters each validation record's
+  environment as a digest of its inputs (`_record.engine`: `engine/` with
+  gitlinks, `[tool.scikit-build]`, the compiler), so a rebuilt engine
+  reruns every runner; the module itself lives in `.venv`, which records
+  never hash.
 
 - Phase 1 step 1 merged into `main` (Tomas, 2026-11-23): per-check
   selection by inputs (`validation/_checks.py`, `just full <task>`,

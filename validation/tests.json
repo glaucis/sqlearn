@@ -1855,6 +1855,30 @@
       "tier": "fast"
     },
     {
+      "area": "engine/build",
+      "name": "tests/engine/test_build.py::test_duckdb_is_sqlearns_build",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/build",
+      "name": "tests/engine/test_build.py::test_the_module_and_the_wheel_target_macos_15",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/build",
+      "name": "tests/engine/test_build.py::test_the_official_extensions_are_compiled_in",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/build",
+      "name": "tests/engine/test_build.py::test_the_version_substitution_refuses_a_changed_file",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
       "area": "engine/pins",
       "name": "tests/engine/test_pins.py::test_a_pin_is_a_full_commit_hash[SQ_CATCH2_COMMIT]",
       "outcome": "passed",
@@ -19706,7 +19730,7 @@
     },
     {
       "area": "environment",
-      "name": "tests/test_environment.py::test_the_runtime_dependencies_are_duckdb_and_numpy",
+      "name": "tests/test_environment.py::test_the_runtime_dependency_is_numpy_alone",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -19755,6 +19779,12 @@
     {
       "area": "validation/benchmarks/engine_profile",
       "name": "tests/validation/benchmarks/test_engine_profile.py::test_profiles_are_read_in_order_with_their_operators",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/__main__",
+      "name": "tests/validation/test___main__.py::test_a_changed_engine_reruns_every_runner",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -20216,6 +20246,12 @@
     },
     {
       "area": "validation/_record",
+      "name": "tests/validation/test__record.py::test_a_records_environment_holds_the_engine_digest",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_record",
       "name": "tests/validation/test__record.py::test_an_unreadable_record_file_counts_as_absent",
       "outcome": "passed",
       "tier": "fast"
@@ -20229,6 +20265,12 @@
     {
       "area": "validation/_record",
       "name": "tests/validation/test__record.py::test_save_keeps_the_twenty_newest",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_record",
+      "name": "tests/validation/test__record.py::test_the_engine_digest_follows_what_the_module_is_built_from",
       "outcome": "passed",
       "tier": "fast"
     },

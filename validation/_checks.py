@@ -143,7 +143,7 @@ TEST_INPUTS = (
     "devdata",
     # Files the tests read as data.
     "docs/architecture/engine-inventory.md",
-    # The pins file, and the submodules' commits.
+    # The engine's build files and sources, and the submodules' commits.
     "engine",
     "docs/conf.py",
     ".githooks",
