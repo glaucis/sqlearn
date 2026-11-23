@@ -3,8 +3,8 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-23 · Branch: `main` (`phase-1-checks` merged and
-pushed) · Checks: `just verify`
+Updated: 2026-11-23 (evening) · Branch: `main` (`phase-1-checks` merged
+and pushed; step 2's plan drafted) · Checks: `just verify`
 passed at Task 5's commit `3d54d52` (67 min, "remembered"); after the final
 review's fix wave, `just done` passed at `ac535f3` (47 min, every check and
 every runner ran, "remembered"; load 8 to 15)
@@ -12,7 +12,18 @@ Verify with: `just done` (`just verify` is the release tier)
 
 ## In progress
 
-Nothing in progress: Phase 1 step 2's plan comes next (Next up).
+- [verified] **Phase 1 step 2's plan, a draft:**
+  `docs/plans/2026-11-23-native-engine-phase-1-build.md` (not approved;
+  Tomas: "we will make plan later").
+  - Its "Status" lists what is left: rewrite Tasks 2 and 3 for one package,
+    add the sqllogictest task, then review with Tomas.
+  - Its "Spike results" record the build spike of 2026-11-23: all three
+    mechanisms work with none of DuckDB's files edited.
+  - Tomas's answers (one package with DuckDB inside, full DuckDB plus
+    `sqlearn_` functions, a possible light mode later) are in the Phase 1
+    spec §3.3.
+  - The spike's scratch sources are in a temporary directory that goes
+    with this session; the findings in the plan are the record.
 
 ## Waiting on the user
 

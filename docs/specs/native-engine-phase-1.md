@@ -196,6 +196,37 @@ docstring against its function's signature.
 - `sq.version()` answers from C++ with sqlearn's version and its DuckDB
   build; `sq.__version__` stays (the agent's call). A test passes a user's
   connection through to C++ and back.
+- **One package confirmed** (Tomas, 2026-11-23, after the step 2 spike):
+  `uv add sqlearn` installs one wheel with sqlearn's DuckDB compiled
+  inside; the user installs nothing else.
+  - DuckDB's `duckdb/_version.py` reads the version of an installed
+    distribution named `duckdb`, which a wheel named `sqlearn` lacks. So the
+    build generates the shipped `_version.py` from theirs. It replaces that
+    one line with the pinned version, and fails if the line is not found
+    exactly once. The submodule's file is never edited.
+  - Weighed: two distributions from one binary (`duckdb` and a pure-Python
+    `sqlearn`; standard, but our `duckdb` could not be on PyPI, so users
+    would add sqlearn's own index); one wheel carrying a second `.dist-info`
+    (uv refuses a wheel with two).
+- **The `duckdb` users get is full DuckDB 2.0.1** (Tomas, 2026-11-23). It
+  has every SQL feature, every Python method and the official build's four
+  compiled-in extensions, plus sqlearn's functions, all named `sqlearn_...`
+  (confirmed).
+  - It never downloads an extension by itself. DuckDB 2.0 removed the build
+    switch, so it is set at run time; a user who turns downloads on keeps
+    them, and `INSTALL` by hand works.
+  - The version is the one sqlearn pins.
+  - Packages requiring the official `duckdb` still overwrite it (ADR 0061's
+    accepted cost; the start-up check refuses).
+- **Later, possibly a light mode on the official DuckDB** (Tomas asked,
+  2026-11-23): sqlearn's SQL functions built as a loadable extension.
+  - It needs signing (DuckDB's community extensions, which build for the
+    latest release only) or the user's `allow_unsigned_extensions`, and one
+    build per DuckDB version.
+  - It is reachable only through SQL, so it would cover the kernels and
+    applying a trained pipeline, not the whole library.
+  - Its own ADR, if wanted. Step 2 keeps the door open by registering the SQL
+    functions as a DuckDB extension (`sqlearn`) compiled into our build.
 - Considered: two packages linking one shared DuckDB library (rpath, the
   Windows DLL search and wheel repair on three systems: fragile, for no gain
   but the separate release of a pure-Python change).
