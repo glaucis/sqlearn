@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from validation import _record as record_module
 from validation._record import Record, digest, load, loaded_files, matching, save
 
 ENVIRONMENT = {"os_release": "27.2.1", "numpy": "2.3.0"}
@@ -103,3 +104,36 @@ def test_loaded_files_names_repo_modules_and_declared_data_only(
     assert names == {"scratch_record_module.py", "uv.lock", "devdata/data/iris.csv"}
     numpy = Path(np.__file__).resolve()
     assert numpy not in loaded_files(tmp_path)
+
+
+@pytest.mark.parametrize(
+    "content", ["", '[{"runner": "validation.x', "{}", "[1]", '[{"runner": 1}]']
+)
+def test_a_corrupt_or_partial_record_file_counts_as_absent(tmp_path, content):
+    """A record file cut short or not of records loads as none, no crash."""
+    (tmp_path / "validation.x.validate_y.json").write_text(content)
+    assert load(tmp_path, "validation.x.validate_y") == []
+
+
+def test_an_unreadable_record_file_counts_as_absent(tmp_path):
+    """A record file that cannot be read loads as none, no crash."""
+    path = tmp_path / "validation.x.validate_y.json"
+    path.write_text("[]")
+    path.chmod(0)
+    try:
+        assert load(tmp_path, "validation.x.validate_y") == []
+    finally:
+        path.chmod(0o644)
+
+
+def test_a_failed_save_leaves_no_temporary_file(root, tmp_path, monkeypatch):
+    """A write that fails leaves the records' directory as it was."""
+
+    def broken(*args, **kwargs):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(record_module.json, "dump", broken)
+    records = tmp_path / "records"
+    with pytest.raises(OSError, match="disk full"):
+        save(records, _record(root))
+    assert list(records.iterdir()) == []

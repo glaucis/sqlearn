@@ -16,6 +16,33 @@ REPO = Path(__file__).resolve().parents[2]
 GOOD = "validate_standin_good"
 BAD = "validate_standin_bad"
 ODD = "validate_standin_odd"
+EDITOR = "validate_standin_editor"
+
+# A runner that imports a helper, then edits the helper's source while it runs.
+MAKER = "validate_standin_maker"
+
+# A runner that writes a module beside it while it runs, then imports it.
+MAKER_SOURCE = """\
+import importlib
+import pathlib
+
+def cases():
+    made = pathlib.Path(__file__).with_name("standin_made.py")
+    made.write_text("Y = 2\\n")
+    importlib.invalidate_caches()
+    importlib.import_module("standin_made")
+    return [{"step": "x", "reference": "sqlearn", "result": "pass"}]
+"""
+
+EDITOR_SOURCE = """\
+import pathlib
+import standin_helper
+
+def cases():
+    path = pathlib.Path(standin_helper.__file__)
+    path.write_text(path.read_text() + "# edited while the runner ran\\n")
+    return [{"step": "x", "reference": "sqlearn", "result": "pass"}]
+"""
 
 
 def _source(result: str) -> str:
@@ -35,6 +62,8 @@ def root(tmp_path, monkeypatch):
     (standins / f"{GOOD}.py").write_text(_source("pass"))
     (standins / f"{BAD}.py").write_text(_source("fail"))
     (standins / f"{ODD}.py").write_text(_source("anomaly"))
+    (standins / f"{EDITOR}.py").write_text(EDITOR_SOURCE)
+    (standins / "standin_helper.py").write_text("X = 1\n")
     # the child runs in the scratch repository: it finds the stand-ins and
     # this repository's validation package on its path
     monkeypatch.setenv("PYTHONPATH", f"{standins}{os.pathsep}{REPO}")
@@ -108,6 +137,30 @@ def test_one_runner_writes_its_results_and_its_record(root, monkeypatch):
     assert f"standins/{GOOD}.py" in record["depends"]
     assert record["counts"] == {"pass": 1}
     assert record["passed"]
+
+
+def test_a_file_edited_while_the_runner_ran_is_not_recorded(root, capfd):
+    """A module the runner imported, edited during its run: no record is saved,
+    so the next run reruns it rather than trusting results of the old code."""
+    assert entry.main([EDITOR], root) == 0
+    out = capfd.readouterr().out
+    assert f"{EDITOR}: not recorded" in out
+    assert "standins/standin_helper.py" in out
+    repo = root.parent.resolve()
+    assert _record.load(_record.record_dir(repo), EDITOR) == []
+    assert entry.main([EDITOR], root) == 0
+    assert f"{EDITOR}: {{'pass': 1}}" in capfd.readouterr().out
+
+
+def test_a_module_written_while_the_runner_ran_is_not_recorded(root, capfd):
+    """A module the runner wrote, then imported, had no hash before the run: no
+    record is saved."""
+    (root.parent / "standins" / f"{MAKER}.py").write_text(MAKER_SOURCE)
+    assert entry.main([MAKER], root) == 0
+    out = capfd.readouterr().out
+    assert f"{MAKER}: not recorded" in out
+    assert "standins/standin_made.py" in out
+    assert _record.load(_record.record_dir(root.parent.resolve()), MAKER) == []
 
 
 def test_results_path_mirrors_the_runner():

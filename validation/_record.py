@@ -3,8 +3,12 @@
 A runner reruns only when a file it depends on changed (spec §4): every
 module it imported from the repository, ``uv.lock`` (the libraries it ran
 with) and devdata's files (the data it read). A record holds their SHA-256
-hashes, the environment (``_cases.environment()``) and the counts of each
-result. A runner is skipped when the newest record whose environment is the
+hashes as they were before the runner was imported (``candidates``), the
+environment (``_cases.environment()``: the libraries, Python, the OS and its
+release, the machine, numpy's BLAS) and the counts of each result. A file
+it loaded that changed while it ran, or was not there before, saves no
+passed record, so results of the old code are never recorded as the new
+code's. A runner is skipped when the newest record whose environment is the
 same and whose every file is present with the same hash passed; a failed run
 of the same inputs cancels an earlier pass, and anything else reruns.
 
@@ -65,6 +69,68 @@ def loaded_files(root: Path) -> list[Path]:
     return sorted(files)
 
 
+def candidates(root: Path) -> dict[str, str]:
+    """Return, hashed, every file a run under `root` could depend on.
+
+    The Python files git lists under `root` (tracked, or untracked and not
+    ignored) outside its ``.venv``, ``uv.lock`` and every file under
+    ``devdata/data/``: taken before the runner is imported, the hashes a
+    record keeps for the files it then loaded.
+    """
+    root = root.resolve()
+    out = subprocess.run(
+        [
+            "git",
+            "ls-files",
+            "-z",
+            "--cached",
+            "--others",
+            "--exclude-standard",
+            "--",
+            "*.py",
+            "*.pyi",
+            ":(exclude).venv",
+        ],
+        cwd=root,
+        check=True,
+        capture_output=True,
+    ).stdout
+    files = {root / n.decode() for n in out.split(b"\0") if n}
+    lock = root / "uv.lock"
+    files.add(lock)
+    data = root / "devdata" / "data"
+    if data.is_dir():
+        files.update(data.rglob("*"))
+    return digest((p for p in files if p.is_file()), root)
+
+
+def as_before(
+    loaded: Iterable[Path], before: dict[str, str], root: Path
+) -> tuple[dict[str, str], list[str]]:
+    """Return the pre-run hashes of `loaded`, and those of it that changed.
+
+    Parameters
+    ----------
+    loaded : iterable of Path
+        The files the run loaded (``loaded_files``).
+    before : dict of str to str
+        ``candidates`` taken before the run.
+    root : Path
+        The repository.
+
+    Returns
+    -------
+    tuple of (dict of str to str, list of str)
+        Each loaded file with its hash before the run, and the sorted names
+        of those whose bytes changed during the run or that were not there
+        before it: when any, no passed record is saved.
+    """
+    now = digest(loaded, root)
+    depends = {name: before[name] for name in now if name in before}
+    moved = sorted(name for name, sha in now.items() if before.get(name) != sha)
+    return depends, moved
+
+
 def digest(paths: Iterable[Path], root: Path) -> dict[str, str]:
     """Return each path, relative to `root`, with its content's SHA-256."""
     root = root.resolve()
@@ -117,23 +183,51 @@ def _path(directory: Path, runner: str) -> Path:
     return directory / f"{runner}.json"
 
 
+def _is_record(value: object) -> bool:
+    """Return whether `value` has a record's shape, as JSON gives it."""
+    return (
+        isinstance(value, dict)
+        and isinstance(value.get("runner"), str)
+        and isinstance(value.get("passed"), bool)
+        and all(
+            isinstance(value.get(key), dict)
+            for key in ("depends", "environment", "counts")
+        )
+        and all(
+            isinstance(k, str) and isinstance(v, str)
+            for k, v in value["depends"].items()
+        )
+    )
+
+
 def load(directory: Path, runner: str) -> list[Record]:
-    """Return `runner`'s records in `directory`, oldest first; none when absent."""
-    path = _path(directory, runner)
-    if not path.is_file():
+    """Return `runner`'s records in `directory`, oldest first.
+
+    None when the file is absent, unreadable or not a list of records: that
+    costs a rerun, never a crash.
+    """
+    try:
+        records = json.loads(_path(directory, runner).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
         return []
-    return json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(records, list) or not all(_is_record(r) for r in records):
+        return []
+    return records
 
 
 def save(directory: Path, record: Record) -> None:
     """Add `record` to its runner's file, keeping the newest ``KEPT``.
 
     Written to a temporary file and moved into place, so a reader (another
-    worktree's run) never sees half a file.
+    worktree's run) never sees half a file; a write that fails removes it.
     """
     directory.mkdir(parents=True, exist_ok=True)
     records = [*load(directory, record["runner"]), record][-KEPT:]
     handle, temporary = tempfile.mkstemp(dir=directory, suffix=".tmp")
-    with os.fdopen(handle, "w", encoding="utf-8") as out:
-        json.dump(records, out, indent=1, sort_keys=True)
-    os.replace(temporary, _path(directory, record["runner"]))
+    try:
+        with os.fdopen(handle, "w", encoding="utf-8") as out:
+            json.dump(records, out, indent=1, sort_keys=True)
+        os.replace(temporary, _path(directory, record["runner"]))
+    except BaseException:
+        Path(temporary).unlink(missing_ok=True)
+        raise

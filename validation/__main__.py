@@ -58,8 +58,12 @@ def run_one(name: str, repo: Path) -> int:
     """Run the runner `name` in this process, write its results, save its record.
 
     The child's half of `main` (``--one``): what it imported is known only
-    in the process that ran it. Exit 1 when a sqlearn case failed.
+    in the process that ran it. The files it could depend on are hashed
+    before it is imported, and those hashes recorded; a file it loaded that
+    changed while it ran, or was not there before, saves no record of a
+    pass. Exit 1 when a sqlearn case failed.
     """
+    before = _record.candidates(repo)
     runner = importlib.import_module(name)
     cases = runner.cases()
     _cases.write_json(results_path(runner), {"rules": _cases.RULES, "cases": cases})
@@ -68,16 +72,26 @@ def run_one(name: str, repo: Path) -> int:
         counts[c["result"]] = counts.get(c["result"], 0) + 1
     print(f"{name}: {dict(sorted(counts.items()))}", flush=True)  # noqa: T201
     failed = [c for c in cases if c["result"] == "fail"]
-    _record.save(
-        _record.record_dir(repo),
-        _record.Record(
-            runner=name,
-            depends=_record.digest(_record.loaded_files(repo), repo),
-            environment=_cases.environment(),
-            counts=counts,
-            passed=not failed,
-        ),
-    )
+    depends, moved = _record.as_before(_record.loaded_files(repo), before, repo)
+    # a failed run is saved whatever moved: it only ever makes a runner rerun,
+    # and cancels an earlier pass of the same inputs
+    if moved and not failed:
+        print(  # noqa: T201
+            f"{name}: not recorded, these files changed while it ran or were"
+            f" not there before: {', '.join(moved)}",
+            flush=True,
+        )
+    else:
+        _record.save(
+            _record.record_dir(repo),
+            _record.Record(
+                runner=name,
+                depends=depends,
+                environment=_cases.environment(),
+                counts=counts,
+                passed=not failed,
+            ),
+        )
     for c in failed:
         print(f"FAIL: {c}", file=sys.stderr)  # noqa: T201
     return 1 if failed else 0
