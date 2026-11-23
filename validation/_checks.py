@@ -504,8 +504,24 @@ def _root() -> Path:
     return Path(top)
 
 
+def place() -> str:
+    """Return the SHA-256 of the place the checks run in, as one word.
+
+    The same place every task's digest starts with: Python, platform,
+    machine. ``just done`` remembers a passed tree with it.
+
+    Returns
+    -------
+    str
+        The hex digest.
+    """
+    return hashlib.sha256(_place()).hexdigest()
+
+
 def cli(argv: Sequence[str]) -> int:
     """Parse ``<task> [--all]`` and run it in the current working tree.
+
+    ``--place`` instead prints ``place()`` and runs nothing.
 
     Parameters
     ----------
@@ -518,11 +534,21 @@ def cli(argv: Sequence[str]) -> int:
         The task's exit code.
     """
     parser = argparse.ArgumentParser(prog="python -m validation._checks")
-    parser.add_argument("task", choices=sorted(TASKS), help="the check to run")
+    parser.add_argument(
+        "task", nargs="?", choices=sorted(TASKS), help="the check to run"
+    )
     parser.add_argument(
         "--all", action="store_true", help="run all of it, recorded or not"
     )
+    parser.add_argument(
+        "--place", action="store_true", help="print the place the checks run in"
+    )
     args = parser.parse_args(argv)
+    if args.place:
+        print(place())  # noqa: T201
+        return 0
+    if args.task is None:
+        parser.error("a task is needed, or --place")
     return run(args.task, _root(), everything=args.all)
 
 

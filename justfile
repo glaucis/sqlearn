@@ -309,31 +309,43 @@ checkable-tree:
         git rev-parse 'HEAD^{tree}'
     fi
 
-# Remember a tree the checks passed on, when it is still the checkable tree
+# Print the place the checks run in (Python, platform, machine), hashed: a tree passed in one place is checked again in another
 [group('check')]
-remember-tree tree:
+place:
+    @{{ checks }} --place
+
+# Remember a tree the checks passed on in a place, when both are still the checkable tree and today's place
+[group('check')]
+remember-tree tree place:
     #!/usr/bin/env bash
     set -euo pipefail
+    j=(just --justfile '{{ justfile() }}')
     before="{{ tree }}"
+    where="{{ place }}"
     file="$(git rev-parse --git-common-dir)/sqlearn-passed"
-    if [ -z "$before" ] || [ "$before" != "$(just --justfile '{{ justfile() }}' checkable-tree)" ]; then
+    if [ -z "$before" ] || [ "$before" != "$("${j[@]}" checkable-tree)" ]; then
         printf '\nNot remembered: a file other than an output of the checks differed from the last commit, or the commit changed, while the checks ran. Commit, then run this again.\n'
         exit 0
     fi
-    if ! grep -qx "$before" "$file" 2>/dev/null; then
-        printf '%s\n' "$before" >> "$file"
+    if [ -z "$where" ] || [ "$where" != "$("${j[@]}" place)" ]; then
+        printf '\nNot remembered: the place the checks run in (Python, platform, machine) changed while they ran. Run them again.\n'
+        exit 0
+    fi
+    if ! grep -qx "$before $where" "$file" 2>/dev/null; then
+        printf '%s %s\n' "$before" "$where" >> "$file"
         tail -n 50 "$file" > "$file.new" && mv "$file.new" "$file"
     fi
     printf '\nChecked tree %s: remembered.\n' "$before"
 
-# Run every check on what changed since it passed (the instant ones, then each task), unless this tree already passed; every one runs, a failing one included, and the first failure's code is the exit; then remember the tree
+# Run every check on what changed since it passed (the instant ones, then each task), unless this tree already passed in this place; every one runs, a failing one included, and the first failure's code is the exit; then remember the tree and the place
 [group('check')]
 done:
     #!/usr/bin/env bash
     set -euo pipefail
     j=(just --justfile '{{ justfile() }}')
     tree="$("${j[@]}" checkable-tree)"
-    if [ -n "$tree" ] && grep -qx "$tree" "$(git rev-parse --git-common-dir)/sqlearn-passed" 2>/dev/null; then
+    place="$("${j[@]}" place)"
+    if [ -n "$tree" ] && grep -qx "$tree $place" "$(git rev-parse --git-common-dir)/sqlearn-passed" 2>/dev/null; then
         echo "Tree $tree already passed: nothing to run."
         exit 0
     fi
@@ -345,7 +357,7 @@ done:
         if [ "$first" -eq 0 ]; then first=$code; fi
     done
     if [ "$first" -ne 0 ]; then exit "$first"; fi
-    "${j[@]}" remember-tree "$tree"
+    "${j[@]}" remember-tree "$tree" "$place"
 
 # Run every check all through, whatever the records say, then the tests with coverage and on every Python: the release tier, by hand before 1.0.0
 [group('check')]
@@ -354,9 +366,10 @@ verify:
     set -euo pipefail
     j=(just --justfile '{{ justfile() }}')
     tree="$("${j[@]}" checkable-tree)"
+    place="$("${j[@]}" place)"
     "${j[@]}" check-lockfile check-mirror check-no-devdata
     for task in format lint docstrings types test validate docs; do
         "${j[@]}" full "$task"
     done
     "${j[@]}" test-all test-python-versions
-    "${j[@]}" remember-tree "$tree"
+    "${j[@]}" remember-tree "$tree" "$place"

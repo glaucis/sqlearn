@@ -460,3 +460,14 @@ def test_only_the_serial_pass_may_collect_nothing():
 def test_the_lint_task_keys_its_config_to_the_python_layout():
     """Ruff's import sorting depends on which modules exist."""
     assert "*.py" in _checks.TASKS["lint"].layout
+
+
+def test_the_place_is_printed_as_one_word_that_names_python(monkeypatch, capsys):
+    """``--place`` prints one hash, another for another Python; it runs nothing."""
+    assert _checks.cli(["--place"]) == 0
+    here = capsys.readouterr().out.strip()
+    assert len(here) == 64
+    assert int(here, 16) >= 0
+    monkeypatch.setattr(sys, "version", "3.99.0 (another build)")
+    assert _checks.cli(["--place"]) == 0
+    assert capsys.readouterr().out.strip() not in {"", here}

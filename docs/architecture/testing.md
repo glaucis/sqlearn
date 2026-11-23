@@ -52,7 +52,10 @@ before work is done, and `just verify` is the release tier.
 | A release | `just verify`: the same three, each check with `just full` (`validate` as `validate-all`), then `test-all` (coverage) and `test-python-versions`, by hand before `1.0.0` |
 
 `just done` remembers each tree that passed in `sqlearn-passed`, in the git
-common directory (the 50 newest, shared by worktrees). Only a tree with
+common directory (the 50 newest, shared by worktrees), with the place it passed
+in: `just place`, a hash of the Python, the platform and the machine, as each
+task's digest starts with. The same tree after an OS update, on a new Python or
+on another machine runs again. Only a tree with
 nothing uncommitted counts, so a fast-forward or a `--no-ff` merge of a passed
 tree runs nothing. Markdown is an input like any file (`format`, `lint` and
 `docs` read it): edited and not committed, it leaves no checkable tree, and

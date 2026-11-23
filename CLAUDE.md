@@ -178,7 +178,8 @@ commit both of these into it, without being asked:
   (`format`, `lint`, `docstrings`, `types`, `test`, `validate`, `docs`) on what
   changed since it passed, every one even when another fails, and remembers the
   tree that passed (nothing uncommitted but the checks' outputs), so a passed
-  tree (after a fast-forward or a merge too) runs nothing again.
+  tree (after a fast-forward or a merge too) runs nothing again in the same
+  place (Python, platform, machine), and everything in a new one.
   `just full <task>` runs one check all through. `just verify` is the release
   tier: every check in full, coverage, every Python, run by hand before `1.0.0`.
   A reviewer's verdict says which ran and passed. How a check finds what

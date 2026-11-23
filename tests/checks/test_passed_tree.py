@@ -21,9 +21,12 @@ RUNS = (
     "docs",
 )
 
-# Stand-ins for what done runs; the real justfile is imported under them.
-OVERRIDES = "set allow-duplicate-recipes\nimport 'real.just'\n" + "".join(
-    f"\n{name}:\n    @echo {name} >> calls.log\n" for name in RUNS
+# Stand-ins for what done runs; the real justfile is imported under them. The
+# place the checks run in is the file `place`, or "here" without one.
+OVERRIDES = (
+    "set allow-duplicate-recipes\nimport 'real.just'\n"
+    + "".join(f"\n{name}:\n    @echo {name} >> calls.log\n" for name in RUNS)
+    + "\nplace:\n    @cat place 2>/dev/null || echo here\n"
 )
 
 
@@ -55,7 +58,7 @@ def make_repo(tmp_path):
     git(repo, "config", "commit.gpgsign", "false", env=env)
     shutil.copy(REPO / "justfile", repo / "real.just")
     (repo / "justfile").write_text(OVERRIDES)
-    (repo / ".gitignore").write_text("calls.log\n")
+    (repo / ".gitignore").write_text("calls.log\nplace\n")
     (repo / "a.py").write_text("a = 1\n")
     git(repo, "add", "-A", env=env)
     git(repo, "commit", "-m", "chore: start", env=env)
@@ -68,13 +71,19 @@ def calls(repo):
     return log.read_text().split() if log.exists() else []
 
 
-def passed(repo, env):
-    """Return the trees remembered for the scratch repository."""
+def remembered(repo, env):
+    """Return the (tree, place) pairs remembered for the scratch repository."""
     common = Path(
         git(repo, "rev-parse", "--path-format=absolute", "--git-common-dir", env=env)
     )
     file = common / "sqlearn-passed"
-    return file.read_text().split() if file.exists() else []
+    lines = file.read_text().splitlines() if file.exists() else []
+    return [tuple(line.split(" ", 1)) for line in lines]
+
+
+def passed(repo, env):
+    """Return the trees remembered for the scratch repository."""
+    return [tree for tree, _ in remembered(repo, env)]
 
 
 def test_a_clean_tree_that_passed_is_remembered(tmp_path):
@@ -113,6 +122,32 @@ def test_a_remembered_tree_runs_nothing(tmp_path):
     assert calls(repo) == []
 
 
+def test_a_passed_tree_in_a_new_place_runs_everything(tmp_path):
+    """The same tree on another Python, platform or machine runs every check
+    again, and both places are remembered."""
+    repo, env = make_repo(tmp_path)
+    just(repo, "done", env=env)
+    (repo / "calls.log").unlink()
+    (repo / "place").write_text("elsewhere\n")
+    out = just(repo, "done", env=env)
+    assert "already passed" not in out
+    assert calls(repo) == list(RUNS)
+    tree = git(repo, "rev-parse", "HEAD^{tree}", env=env)
+    assert remembered(repo, env) == [(tree, "here"), (tree, "elsewhere")]
+    (repo / "calls.log").unlink()
+    assert "already passed" in just(repo, "done", env=env)
+    assert calls(repo) == []
+
+
+def test_a_place_changed_while_the_checks_ran_is_not_remembered(tmp_path):
+    """A tree is remembered only for the place it was checked in."""
+    repo, env = make_repo(tmp_path)
+    tree = git(repo, "rev-parse", "HEAD^{tree}", env=env)
+    (repo / "place").write_text("elsewhere\n")
+    assert "Not remembered" in just(repo, "remember-tree", tree, "here", env=env)
+    assert passed(repo, env) == []
+
+
 def test_an_uncommitted_markdown_file_makes_the_tree_uncheckable(tmp_path):
     """Markdown is an input of format, lint and docs: edited or new, it must be
     committed before a tree can be remembered."""
@@ -135,7 +170,7 @@ def test_a_dirty_tree_is_not_remembered(tmp_path):
     tree = git(repo, "rev-parse", "HEAD^{tree}", env=env)
     (repo / "x.py").write_text("x = 1\n")
     assert just(repo, "checkable-tree", env=env) == ""
-    assert "Not remembered" in just(repo, "remember-tree", tree, env=env)
+    assert "Not remembered" in just(repo, "remember-tree", tree, "here", env=env)
     assert passed(repo, env) == []
 
 
@@ -145,7 +180,7 @@ def test_a_commit_during_the_checks_is_not_remembered(tmp_path):
     before = git(repo, "rev-parse", "HEAD^{tree}", env=env)
     (repo / "a.py").write_text("a = 2\n")
     git(repo, "commit", "-am", "fix: change", env=env)
-    assert "Not remembered" in just(repo, "remember-tree", before, env=env)
+    assert "Not remembered" in just(repo, "remember-tree", before, "here", env=env)
     assert passed(repo, env) == []
 
 
