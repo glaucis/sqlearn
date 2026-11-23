@@ -6,8 +6,8 @@ versions.
 Updated: 2026-11-23 · Branch: `phase-1-checks` (Phase 1 step 1, in
 the worktree `../sqlearn-79`, not merged, not pushed) · Checks: `just verify`
 passed at Task 5's commit `3d54d52` (67 min, "remembered"); after the final
-review's fix wave, `just done` is to be run on its last commit (the fix
-report, `.superpowers/sdd/`, holds its result)
+review's fix wave, `just done` passed at `ac535f3` (47 min, every check and
+every runner ran, "remembered"; load 8 to 15)
 Verify with: `just done` (`just verify` is the release tier)
 
 ## In progress
