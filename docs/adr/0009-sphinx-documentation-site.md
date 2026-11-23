@@ -1,9 +1,9 @@
 ---
 type: adr
-tags: [sphinx, documentation, gallery, github-pages, docs-site]
-summary: "ADR 0009 decides to build sqlearn's documentation and learning site with Sphinx, served on GitHub Pages, using specific extensions."
+tags: [sphinx, documentation, github-pages, docs-site, learning]
+summary: "Decides on one Sphinx-built documentation site (API reference, guide, examples, learning path) served from GitHub Pages."
 related: [docs/adr/0062-apple-silicon-first.md]
-mdindex: [type=0fc814, tags=812b07, summary=dd3f5e, related=0bc3d0]
+mdindex: [type=0fc814, tags=c5052f, summary=0b4b95]
 ---
 # 0009: One Sphinx site for documentation and learning
 

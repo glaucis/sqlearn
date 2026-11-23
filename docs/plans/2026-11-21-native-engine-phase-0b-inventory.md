@@ -1,9 +1,9 @@
 ---
-type: note
+type: task
 tags: [native-engine, benchmarks, profiling, duckdb, inventory]
 summary: "Implementation plan for Phase 0b of the native engine: a DuckDB profiling script, its published benchmark page, and the inventory that gives every module its phase in the port."
-related: [docs/specs/native-engine.md, docs/plans/2026-11-21-native-engine-phase-0a-decisions.md, docs/benchmarks/gram-batches.md, docs/benchmarks/index.md, docs/architecture/engine-inventory.md, docs/architecture/index.md, docs/architecture/overview.md, validation/benchmarks/engine_profile.py]
-mdindex: [type=edb465, tags=88654e, summary=75ed57, related=4de4ff]
+related: [docs/specs/native-engine.md, docs/plans/2026-11-21-native-engine-phase-0a-decisions.md, docs/benchmarks/gram-batches.md, docs/benchmarks/engine-profile.md, docs/architecture/engine-inventory.md, docs/architecture/index.md, docs/architecture/overview.md, docs/benchmarks/index.md]
+mdindex: [type=0ebb42, tags=88654e, related=38bf87]
 ---
 # Native engine, Phase 0b: the inventory — Implementation Plan
 

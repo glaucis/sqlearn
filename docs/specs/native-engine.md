@@ -1,9 +1,9 @@
 ---
 type: spec
-tags: [native-engine, c++, duckdb, python-bindings, architecture]
+tags: [native-engine, cpp, duckdb, python-bindings, phase-0]
 summary: "Spec for sqlearn becoming a C++ library embedding DuckDB with Python as nanobind bindings, recording decisions and Phase 0."
-related: [docs/architecture/overview.md, docs/questions/multi-engine-support.md, ADR 0002, ADR 0005, ADR 0006, ADR 0007, ADR 0010, ADR 0015]
-mdindex: [type=d4f02e, tags=b05f98, summary=87b2b4, related=4fa03b]
+related: [docs/architecture/overview.md, ADR 0002, ADR 0058, ADR 0060, ADR 0061, ADR 0005, ADR 0006, ADR 0057]
+mdindex: [type=d4f02e, tags=9edc37, summary=87b2b4, related=8ddc7e]
 ---
 # Native engine: the decisions, and Phase 0
 

@@ -1,9 +1,9 @@
 ---
 type: note
-tags: [glossary, terminology, domain, sqlearn, definitions]
+tags: [glossary, domain-terms, sqlearn, terminology]
 summary: "Glossary defining sqlearn domain terms: recipe, learned part, stable key, and trained model for saved pipelines."
 related: [docs/adr/0047-a-pipeline-saves-as-json.md, docs/adr/0048-the-user-saves-the-model-and-imports-its-packages.md]
-mdindex: [type=edb465, tags=48df38]
+mdindex: [type=edb465, tags=616b85]
 ---
 # Glossary
 

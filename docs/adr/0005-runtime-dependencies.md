@@ -1,9 +1,9 @@
 ---
 type: adr
-tags: [dependencies, packaging, duckdb, numpy, licensing]
+tags: [dependencies, runtime, packaging, licensing, duckdb]
 summary: "Decision record on runtime dependencies (`duckdb`, and `numpy` since ADR 0057), each justified in writing and permissively licensed; originally limited to duckdb alone."
-related: [docs/adr/0057-numpy-is-a-runtime-dependency.md, docs/adr/0002-sql-on-duckdb-execution-engine.md, docs/adr/0004-apache-2-licence.md, pyproject.toml]
-mdindex: [type=0fc814, tags=85b197, related=f6bc0a]
+related: [docs/adr/0057-numpy-is-a-runtime-dependency.md, docs/adr/0061-sqlearn-ships-its-own-duckdb-build.md, docs/adr/0002-sql-on-duckdb-execution-engine.md, docs/adr/0004-apache-2-licence.md, ADR 0057, ADR 0061, ADR 0002, ADR 0004]
+mdindex: [type=0fc814, tags=76357a, related=cb184f]
 ---
 # 0005: Runtime dependencies, each one justified
 
