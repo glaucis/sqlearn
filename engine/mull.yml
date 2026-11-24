@@ -1,0 +1,36 @@
+# Mull's configuration (`just mutate-engine`, validation/_mutate.py): its
+# plugin finds this file from the build directory upwards, and mull-runner
+# is given it through MULL_CONFIG.
+
+# Every mutator Mull has.
+mutators:
+  - cxx_all
+
+# Our groups' sources alone: never the tests, the test libraries or the
+# standard library, and never the bindings, which are built only in the
+# wheel and run from Python.
+includePaths:
+  - ".*/engine/src/.*"
+excludePaths:
+  - ".*/engine/src/bindings/.*"
+  # It returns the build's defines and has no operator or call to mutate
+  # (a dry run finds none), and Mull's junk detection cannot parse it: from
+  # the command line in the debug information it splits SQ_COMPILER's quoted
+  # value at its space, then warns on every build.
+  - ".*/engine/src/core/version\\.cpp"
+
+# The mutants that survive the tests and are kept, each with its reason. Mull
+# does not read this list; validation/_mutate.py fails on any surviving
+# mutant it does not name, and on an entry whose mutant no longer survives.
+# An entry is the mutant, as `<path under engine/>:<line>:<column>:<mutator>`
+# (as validation/_mutate.py prints a survivor), then its reason:
+#
+#   - mutant: src/core/example.cpp:12:5:cxx_add_to_sub
+#     reason: why no test can tell the mutant from the code
+survivors:
+  - mutant: src/core/parse_version.cpp:99:21:cxx_init_const
+    reason: from_chars overwrites the 0 whenever the number is read, and the value is never read when it fails; the initialiser is there for clang-tidy's init-variables
+  - mutant: src/raw/buffer.cpp:16:5:cxx_remove_void_call
+    reason: without the delete a Buffer's memory leaks, which no test can see in Mull's uninstrumented run; LeakSanitizer finds it (the lsan preset and llvm-dev's leak check, just sanitize)
+  - mutant: src/raw/buffer.hpp:53:52:cxx_remove_void_call
+    reason: without the deleter's call a Buffer's memory leaks, which no test can see in Mull's uninstrumented run; LeakSanitizer finds it (the lsan preset and llvm-dev's leak check, just sanitize)

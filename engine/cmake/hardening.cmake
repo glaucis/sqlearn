@@ -18,11 +18,11 @@ set(
   SQ_FLAVOR
   "release"
   CACHE STRING
-  "The flavour of sqlearn's own sources: dev, debug, release, profile, tsan, lsan, tysan or fuzzing"
+  "The flavour of sqlearn's own sources: dev, debug, release, profile, tsan, lsan, tysan, fuzzing, coverage or mutate"
 )
 set_property(
   CACHE SQ_FLAVOR
-  PROPERTY STRINGS dev debug release profile tsan lsan tysan fuzzing
+  PROPERTY STRINGS dev debug release profile tsan lsan tysan fuzzing coverage mutate
 )
 
 set(SQ_HARDENING_EXTENSIVE "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE")
@@ -70,10 +70,16 @@ endif()
 # then.
 set(SQ_DEBUG_OPTIONS -O1 -g -fno-omit-frame-pointer -ftrivial-auto-var-init=pattern)
 set(SQ_SANITIZERS "")
+set(SQ_FLAVOR_LINK_OPTIONS "")
 set(SQ_TEST_ENVIRONMENT "")
-if(SQ_FLAVOR MATCHES "^(lsan|tysan|fuzzing)$" AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+if(
+  SQ_FLAVOR MATCHES "^(lsan|tysan|fuzzing|coverage|mutate)$"
+  AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang"
+)
   # Apple clang has no LeakSanitizer on Apple silicon, no TypeSanitizer and no
-  # libFuzzer runtime.
+  # libFuzzer runtime. Coverage is measured with Homebrew LLVM's llvm-profdata
+  # and llvm-cov, which read the profile format of their own clang; Mull's
+  # plugin is built for LLVM 23.
   message(
     FATAL_ERROR
     "SQ_FLAVOR ${SQ_FLAVOR} needs Homebrew LLVM's clang, not ${CMAKE_CXX_COMPILER_ID}.\n"
@@ -113,6 +119,51 @@ elseif(SQ_FLAVOR STREQUAL "fuzzing")
   set(SQ_FLAVOR_OPTIONS ${SQ_DEBUG_OPTIONS})
   set(SQ_HARDENING ${SQ_HARDENING_EXTENSIVE})
   set(SQ_SANITIZERS -fsanitize=address,undefined,fuzzer-no-link -fno-sanitize-recover=all)
+elseif(SQ_FLAVOR STREQUAL "coverage")
+  # Clang's source-based coverage (`just coverage-engine`,
+  # validation/_coverage.py), at -O0 so every line keeps its own counter.
+  # A program writes its counts at exit to LLVM_PROFILE_FILE.
+  set(
+    SQ_FLAVOR_OPTIONS
+    -O0
+    -g
+    -ftrivial-auto-var-init=pattern
+    -fprofile-instr-generate
+    -fcoverage-mapping
+  )
+  set(SQ_FLAVOR_LINK_OPTIONS -fprofile-instr-generate)
+  set(SQ_HARDENING ${SQ_HARDENING_EXTENSIVE})
+elseif(SQ_FLAVOR STREQUAL "mutate")
+  # Mull's frontend (`just mutate-engine`, validation/_mutate.py) compiles
+  # every mutant of engine/mull.yml's paths into the program, each off until
+  # mull-runner turns it on; its junk detection reads the command line from
+  # the debug information. `just fetch-mull` puts the plugin where the
+  # preset says.
+  set(SQ_MULL_PLUGIN "" CACHE FILEPATH "Mull's frontend plugin for LLVM 23 (mull-ir-frontend-23)")
+  if(NOT EXISTS "${SQ_MULL_PLUGIN}")
+    message(
+      FATAL_ERROR
+      "Mull's plugin is not at \"${SQ_MULL_PLUGIN}\".\n"
+      "Fix: just fetch-mull (or just mutate-engine, which fetches it)"
+    )
+  endif()
+  # The plugin reads engine/mull.yml while it compiles, which Ninja does not
+  # know: its digest goes into every command, and an edit configures again,
+  # so a changed config recompiles everything (ccache is off in this
+  # flavour, ccache.cmake).
+  set(SQ_MULL_CONFIG "${CMAKE_CURRENT_LIST_DIR}/../mull.yml")
+  set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${SQ_MULL_CONFIG}")
+  file(SHA256 "${SQ_MULL_CONFIG}" SQ_MULL_CONFIG_SHA256)
+  set(
+    SQ_FLAVOR_OPTIONS
+    -O0
+    -g
+    -grecord-command-line
+    -ftrivial-auto-var-init=pattern
+    -fpass-plugin=${SQ_MULL_PLUGIN}
+    -DSQ_MULL_CONFIG_SHA256=${SQ_MULL_CONFIG_SHA256}
+  )
+  set(SQ_HARDENING ${SQ_HARDENING_EXTENSIVE})
 elseif(SQ_FLAVOR STREQUAL "debug")
   set(SQ_FLAVOR_OPTIONS -O0 -g -ftrivial-auto-var-init=pattern)
   set(SQ_HARDENING ${SQ_HARDENING_EXTENSIVE})
@@ -144,7 +195,7 @@ else()
   message(
     FATAL_ERROR
     "SQ_FLAVOR is \"${SQ_FLAVOR}\".\n"
-    "Fix: configure with a preset (cmake --preset dev), or set SQ_FLAVOR to dev, debug, release, profile, tsan, lsan, tysan or fuzzing"
+    "Fix: configure with a preset (cmake --preset dev), or set SQ_FLAVOR to dev, debug, release, profile, tsan, lsan, tysan, fuzzing, coverage or mutate"
   )
 endif()
 
@@ -168,11 +219,12 @@ function(sq_test_environment test)
 endfunction()
 
 # Give `target` the flavour: its compile options, the hardening mode and,
-# for a program, the sanitizers' runtime at the link.
+# for a program, the sanitizers' runtime at the link, and the coverage
+# runtime in the coverage flavour.
 function(sq_target_flavor target)
   target_compile_options(${target} PRIVATE ${SQ_FLAVOR_OPTIONS} ${SQ_SANITIZERS})
   target_compile_definitions(${target} PRIVATE ${SQ_HARDENING})
-  target_link_options(${target} PRIVATE ${SQ_SANITIZERS})
+  target_link_options(${target} PRIVATE ${SQ_SANITIZERS} ${SQ_FLAVOR_LINK_OPTIONS})
 endfunction()
 
 # In a build of our groups alone (SQ_ENGINE_ONLY), the sanitizers and the

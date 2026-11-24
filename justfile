@@ -11,6 +11,11 @@ mathjax_version := "4.1.3"
 mathjax_integrity := "sha512-BN/8Pkgn7G1pIDYJqd9md+JHsE/jydSYbyOZnSdSA0WziuVO8mRxdYiWFumkVVly/8U+hm9DpIIoWuvySverzw=="
 font_integrity := "sha512-gzAB3dFHilHX1l5x2xUqRL+1jDQt3Fyza1DkEMVXWC4E8SvsGdlgEza47HYi2WhVcgfkvf4zgUGzuhbq3Pjlew=="
 
+# Mull (mutation testing, development only), from its GitHub release for macOS arm64: the runner, and the frontend plugin for LLVM 23, with their sha256 digests
+mull_version := "0.39.1"
+mull_runner_sha256 := "2ffeb4d0d91199c4c7588b26f018e70a057b2fd784f01421bcbdea0592106e3b"
+mull_plugin_sha256 := "73521db507f6483b01cb72a263f7c3079164b34c77a771fbc873d87df7ba04bd"
+
 # List the recipes
 default:
     @just --list
@@ -213,6 +218,47 @@ sanitize:
         if [ "$first" -eq 0 ]; then first=$code; fi
     done
     exit "$first"
+
+# Build the coverage preset (Homebrew LLVM's source-based coverage), run every C++ test under it, print the line, region and branch coverage of engine/src outside bindings/, and fail below 95 % of lines (validation/_coverage.py)
+[group('test')]
+coverage-engine: (build-engine "coverage")
+    uv run --locked python -m validation._coverage
+
+# Fetch Mull's runner and its LLVM 23 plugin into engine/build/mull/<version>/, checking their digests; skipped when they are there
+[group('setup')]
+fetch-mull:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    dest="engine/build/mull/{{ mull_version }}"
+    if [ -x "$dest/bin/mull-runner" ] && [ -f "$dest/lib/mull-ir-frontend-23" ]; then
+        exit 0
+    fi
+    if [ "$(uname -s)-$(uname -m)" != Darwin-arm64 ]; then
+        echo "fetch-mull fetches Mull's macOS arm64 release; this is $(uname -s) $(uname -m)." >&2
+        echo "Fix: install Mull {{ mull_version }} for LLVM 23 from https://github.com/mull-project/mull/releases into engine/build/mull/{{ mull_version }}/" >&2
+        exit 1
+    fi
+    mkdir -p engine/build/mull
+    tmp=$(mktemp -d engine/build/mull/.fetch.XXXXXX)
+    trap 'rm -rf "$tmp"' EXIT
+    release="https://github.com/mull-project/mull/releases/download/{{ mull_version }}"
+    fetch() { # name, sha256
+        curl --fail --location --silent --show-error --output "$tmp/$1" "$release/$1"
+        actual=$(shasum -a 256 "$tmp/$1" | cut -d ' ' -f 1)
+        if [ "$actual" != "$2" ]; then
+            echo "$1: sha256 $actual does not match $2" >&2
+            exit 1
+        fi
+        unzip -q -o "$tmp/$1" -d "$tmp/out"
+    }
+    fetch "Mull-{{ mull_version }}-macOS-aarch64-26.7.2.zip" "{{ mull_runner_sha256 }}"
+    fetch "Mull-23-{{ mull_version }}-LLVM-23.1.4-macOS-aarch64-26.7.2.zip" "{{ mull_plugin_sha256 }}"
+    rm -rf "$dest" && mv "$tmp/out" "$dest"
+
+# Build the mutate preset (Mull's mutants compiled into our groups), run Mull on test_core and test_raw, and fail on a surviving mutant engine/mull.yml gives no reason for (validation/_mutate.py)
+[group('test')]
+mutate-engine: fetch-mull (build-engine "mutate")
+    uv run --locked python -m validation._mutate "engine/build/mull/{{ mull_version }}/bin"
 
 # Run clang-tidy, with the Clang static analyser, over our C++ (engine/.clang-tidy, every finding an error), from one compile database of the llvm-dev, release and wheel builds (validation/_tidy.py)
 [group('check')]

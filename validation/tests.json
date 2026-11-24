@@ -1933,6 +1933,48 @@
       "tier": "fast"
     },
     {
+      "area": "engine/coverage",
+      "name": "tests/engine/test_coverage.py::test_coverage_and_mutate_build_our_groups_with_homebrew_llvm",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/coverage",
+      "name": "tests/engine/test_coverage.py::test_just_coverage_engine_gates_on_the_coverage_preset",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/coverage",
+      "name": "tests/engine/test_coverage.py::test_just_mutate_engine_runs_mull_on_the_mutate_preset",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/coverage",
+      "name": "tests/engine/test_coverage.py::test_mull_yml_mutates_our_groups_alone",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/coverage",
+      "name": "tests/engine/test_coverage.py::test_the_coverage_flavour_instruments_with_source_based_coverage",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/coverage",
+      "name": "tests/engine/test_coverage.py::test_the_mutate_flavour_builds_without_ccache",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/coverage",
+      "name": "tests/engine/test_coverage.py::test_the_mutate_flavour_loads_mulls_plugin",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
       "area": "engine/extension",
       "name": "tests/engine/test_extension.py::test_a_user_who_asks_for_downloads_keeps_them",
       "outcome": "passed",
@@ -20563,6 +20605,36 @@
       "tier": "fast"
     },
     {
+      "area": "validation/_coverage",
+      "name": "tests/validation/test__coverage.py::test_a_source_no_program_compiles_is_unmeasured",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_coverage",
+      "name": "tests/validation/test__coverage.py::test_the_gate_fails_below_the_floor_of_lines",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_coverage",
+      "name": "tests/validation/test__coverage.py::test_the_programs_are_the_tests_that_run_a_program_of_the_build",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_coverage",
+      "name": "tests/validation/test__coverage.py::test_the_report_leaves_out_the_bindings_tests_and_libraries",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_coverage",
+      "name": "tests/validation/test__coverage.py::test_the_totals_are_lines_regions_and_branches",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
       "area": "validation/_ctest",
       "name": "tests/validation/test__ctest.py::test_a_build_failure_runs_and_records_nothing",
       "outcome": "passed",
@@ -20637,6 +20709,54 @@
     {
       "area": "validation/_ctest",
       "name": "tests/validation/test__ctest.py::test_the_sanitizers_options_rerun_every_group",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_mutate",
+      "name": "tests/validation/test__mutate.py::test_a_survivor_is_a_mutant_no_test_killed",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_mutate",
+      "name": "tests/validation/test__mutate.py::test_an_entry_without_its_reason_is_refused[empty reason]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_mutate",
+      "name": "tests/validation/test__mutate.py::test_an_entry_without_its_reason_is_refused[no list]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_mutate",
+      "name": "tests/validation/test__mutate.py::test_an_entry_without_its_reason_is_refused[no reason]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_mutate",
+      "name": "tests/validation/test__mutate.py::test_an_entry_without_its_reason_is_refused[not an entry]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_mutate",
+      "name": "tests/validation/test__mutate.py::test_an_entry_without_its_reason_is_refused[twice]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_mutate",
+      "name": "tests/validation/test__mutate.py::test_the_recorded_survivors_are_read_with_their_reasons",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_mutate",
+      "name": "tests/validation/test__mutate.py::test_the_verdict_names_unrecorded_survivors_and_stale_entries",
       "outcome": "passed",
       "tier": "fast"
     },

@@ -107,6 +107,7 @@ TEST_CASE("parse_version refuses a missing number", "[core]") {
     CHECK(refusal("1") == ParseError{ParseError::Kind::expected_number, 1});
     CHECK(refusal("1.0.dev") == ParseError{ParseError::Kind::expected_number, 7});
     CHECK(refusal("-1.0.0") == ParseError{ParseError::Kind::expected_number, 0});
+    CHECK(refusal("1.0.") == ParseError{ParseError::Kind::expected_number, 4});
 }
 
 TEST_CASE("parse_version refuses a number that overflows an int", "[core]") {
@@ -123,6 +124,7 @@ TEST_CASE("parse_version refuses a number with a leading zero", "[core]") {
 
 TEST_CASE("parse_version refuses text outside its subset of PEP 440", "[core]") {
     CHECK(refusal("v2.0.1") == ParseError{ParseError::Kind::expected_number, 0});
+    CHECK(refusal("1x") == ParseError{ParseError::Kind::unexpected_text, 1});
     CHECK(refusal("1.0.0.0") == ParseError{ParseError::Kind::unexpected_text, 5});
     CHECK(refusal("1.0.0rc1") == ParseError{ParseError::Kind::unexpected_text, 5});
     CHECK(refusal("1.0.0+local") == ParseError{ParseError::Kind::unexpected_text, 5});

@@ -12,7 +12,20 @@
 # PATH or in the directories `ARGN` names first. A launcher already set to
 # something other than ccache (distcc, sccache) is left as it is, and so is
 # a build without ccache.
+#
+# The mutate flavour goes without it: Mull's plugin reads engine/mull.yml
+# while it compiles, and ccache, which hashes a source's preprocessed text
+# and not its defines, would serve an object built under an older config.
 function(sq_ccache)
+  if(SQ_FLAVOR STREQUAL "mutate")
+    foreach(language IN ITEMS C CXX)
+      if("${CMAKE_${language}_COMPILER_LAUNCHER}" MATCHES "(^|/)ccache$")
+        set(CMAKE_${language}_COMPILER_LAUNCHER "" CACHE STRING "" FORCE)
+        set(CMAKE_${language}_COMPILER_LAUNCHER "" PARENT_SCOPE)
+      endif()
+    endforeach()
+    return()
+  endif()
   find_program(SQ_CCACHE NAMES ccache HINTS ${ARGN})
   if(NOT SQ_CCACHE)
     return()

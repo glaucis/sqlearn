@@ -266,6 +266,37 @@ sanitizer's report (`expect_finding.cmake`), so a sanitizer that is off, lets
 a finding pass, or a crash of another kind fails it. The canaries break the
 rules on purpose, so clang-tidy leaves them out.
 
+**The C++ coverage.** `just coverage-engine` builds the `coverage` preset
+(Homebrew LLVM, so its `llvm-profdata` and `llvm-cov` read the profiles its
+clang writes; `-O0`, `-fprofile-instr-generate -fcoverage-mapping` on our
+targets), runs every CTest test of it into a fresh profile directory, and
+prints llvm-cov's report of `engine/src/`: lines, regions, functions and
+branches, per file and in total (`validation/_coverage.py`). It fails below
+95 % of lines, the Python package's floor; regions and branches are printed,
+not gated. The report reads `engine/src/` alone, so tests, fuzz targets,
+benchmarks and third-party code are never in it, and leaves out
+`engine/src/bindings/`, which is built only in the wheel and runs from
+Python, uninstrumented. A `.cpp` of `engine/src/` that no test program
+compiles fails it too, named with a `Fix:` line, since its lines would be in
+no total. Below the floor, the fix is the missing tests; a line left out
+needs a comment saying why no test can reach it.
+
+**Mutation testing.** `just mutate-engine` fetches Mull 0.39.1 (its macOS
+arm64 release: the runner and the plugin for LLVM 23, checked by their
+SHA-256, into `engine/build/mull/`; `just fetch-mull` alone), builds the
+`mutate` preset (Homebrew LLVM with Mull's plugin, `-O0`, no ccache, since
+the plugin reads `engine/mull.yml` while it compiles) and runs Mull on
+`test_core` and `test_raw` (`validation/_mutate.py`). Both runs go into one
+report, so a mutant counts as killed when either program kills it; mutants on
+lines no test reaches count, and nothing is cached. `engine/mull.yml` takes
+`engine/src/` outside the bindings, and keeps a `survivors` list, each entry
+a mutant (`<path under engine/>:<line>:<column>:<mutator>`) and its reason.
+The recipe fails on a survivor the list does not name, and on an entry whose
+mutant no longer survives, so a line moved by an edit is named again. A
+survivor is fixed with the test that kills it; it is kept only when no test
+can tell it from the code (an equivalent mutant, or a leak only
+LeakSanitizer sees).
+
 `tests/engine/test_steady_memory.py` (`slow`) makes 100,000 calls of
 `count_rows` and `build_identity` in a process of its own, in 10 rounds,
 reading its resident set from `ps` twice after each: round 10's must be at

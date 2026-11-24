@@ -124,7 +124,7 @@ endif()
 sq_add_group(
   core
   SOURCES src/core/error.cpp src/core/parse_version.cpp src/core/version.cpp
-  TESTS tests/core/test_version.cpp tests/core/test_parse_version.cpp
+  TESTS tests/core/test_version.cpp tests/core/test_parse_version.cpp tests/core/test_error.cpp
 )
 # The one layer allowed raw memory (ADR 0065); its SQ_EXPECTS throws core's
 # PreconditionError.

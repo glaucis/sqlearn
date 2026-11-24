@@ -10,6 +10,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <new>
 #include <span>
 #include <string>
 #include <type_traits>
@@ -27,6 +28,18 @@ bool on_64_bytes(const void *pointer) {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast): an address as a number
     return reinterpret_cast<std::uintptr_t>(pointer) % sq::raw::buffer_alignment == 0;
 }
+
+/// Whether a sanitizer's allocator serves the program: on a request larger
+/// than it can serve it ends the program instead of throwing
+/// std::bad_alloc, so the test of that request is skipped (it runs in the
+/// debug, release, profile, coverage and mutate presets).
+constexpr bool sanitized_allocator =
+#if __has_feature(address_sanitizer) || __has_feature(thread_sanitizer) ||                         \
+    __has_feature(leak_sanitizer) || __has_feature(type_sanitizer)
+    true;
+#else
+    false;
+#endif
 
 } // namespace
 
@@ -129,4 +142,14 @@ TEST_CASE("a buffer is move-only", "[raw]") {
 TEST_CASE("a buffer too large to count in bytes is a precondition error", "[raw]") {
     const auto too_many = std::numeric_limits<std::size_t>::max() / sizeof(double) + 1;
     CHECK_THROWS_AS(Buffer<double>(too_many), sq::core::PreconditionError);
+}
+
+TEST_CASE("a buffer as large as a std::size_t counts in bytes passes the precondition", "[raw]") {
+    if (sanitized_allocator) {
+        SKIP("a sanitizer's allocator ends the program on this request");
+    }
+    // The bound itself is allowed: the request reaches the allocator, which
+    // has no such memory.
+    const auto most = std::numeric_limits<std::size_t>::max() / sizeof(double);
+    CHECK_THROWS_AS(Buffer<double>(most), std::bad_alloc);
 }
