@@ -9,6 +9,7 @@
 #include <cpptrace/basic.hpp>
 #include <cpptrace/forward.hpp>
 
+#include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -62,6 +63,8 @@ void flush_coverage() {
 constexpr int returned = 99;
 /// The exit code the test's own previous handler leaves.
 constexpr int previous_code = 7;
+/// The longest a child may take before SIGALRM ends it.
+constexpr unsigned child_seconds = 20;
 
 /// A scratch directory, removed with everything in it at the end of a test.
 class ScratchDir {
@@ -105,6 +108,10 @@ struct Ending {
 template <typename Body> Ending in_child(Body body) {
     const pid_t pid = ::fork();
     if (pid == 0) {
+        // A child that hangs (a fault inside the handler, with its signal
+        // blocked, hangs on macOS) dies by SIGALRM, failing its test,
+        // rather than stalling the run.
+        ::alarm(child_seconds);
         body();
         exit_child(returned);
     }
@@ -158,16 +165,35 @@ extern "C" void default_handler(int signo) {
     (void)::raise(signo);
 }
 
-/// Read the report a crashed child left in `dir`.
+/// Return the reports a child left in `dir`: each named
+/// sqlearn-crash-<pid>-<seconds>.txt.
 /// @param dir The directory install() was given.
 /// @param pid The child's process id.
-/// @return The report's text, empty when there is no report.
+/// @return Their paths.
+std::vector<fs::path> reports(const fs::path &dir, pid_t pid) {
+    const std::string prefix = "sqlearn-crash-" + std::to_string(pid) + "-";
+    std::vector<fs::path> found;
+    std::error_code error;
+    for (const auto &entry : fs::directory_iterator(dir, error)) {
+        const std::string name = entry.path().filename().string();
+        if (name.starts_with(prefix) && name.ends_with(".txt") &&
+            name.find_first_not_of("0123456789", prefix.size()) == name.size() - 4) {
+            found.push_back(entry.path());
+        }
+    }
+    return found;
+}
+
+/// Read the one report a crashed child left in `dir`.
+/// @param dir The directory install() was given.
+/// @param pid The child's process id.
+/// @return The report's text, empty when there is not exactly one report.
 std::string report(const fs::path &dir, pid_t pid) {
-    const auto path = dir / ("sqlearn-crash-" + std::to_string(pid) + ".txt");
-    std::ifstream in(path);
-    if (!in) {
+    const auto found = reports(dir, pid);
+    if (found.size() != 1) {
         return {};
     }
+    std::ifstream in(found.front());
     std::ostringstream text;
     text << in.rdbuf();
     return text.str();
@@ -283,6 +309,136 @@ TEST_CASE("a report directory removed after install costs the report, not the cr
     CHECK(ending.killed);
     CHECK(ending.signal == SIGABRT);
     CHECK_FALSE(fs::exists(below));
+}
+
+namespace {
+
+/// Return whether `info` is the kernel's for a memory fault: SIGSEGV's or
+/// SIGBUS's own codes, never a signal a process sent (whose code is
+/// SI_USER, SI_QUEUE or, from raise() on macOS, 0).
+/// @param signo The signal.
+/// @param info Its siginfo.
+/// @return True for a fault's.
+bool a_fault(int signo, const siginfo_t *info) {
+    const int code = info->si_code;
+    if (signo == SIGSEGV) {
+        return code == SEGV_MAPERR || code == SEGV_ACCERR;
+    }
+    return signo == SIGBUS && (code == BUS_ADRALN || code == BUS_ADRERR || code == BUS_OBJERR);
+}
+
+/// The guard page the next test faults on, and what its handler saw.
+struct Guard {
+    void *page = nullptr;              ///< The PROT_NONE page.
+    std::size_t size = 0;              ///< Its size.
+    volatile sig_atomic_t calls = 0;   ///< How often the handler ran.
+    volatile sig_atomic_t genuine = 0; ///< 1 when the kernel's siginfo came.
+};
+
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables): a signal handler's
+Guard guard;
+
+/// A runtime's guard-page handler, as a JVM's or wasm's: it opens the page
+/// the fault was on and returns, so the store runs again and succeeds. It
+/// needs the kernel's siginfo: a fault, not a signal sent, at the page.
+/// @param signo The signal.
+/// @param info What the kernel says of it.
+/// @param context Unused.
+extern "C" void guard_handler(int signo, siginfo_t *info, void *context) {
+    (void)context;
+    guard.calls = guard.calls + 1;
+    if (a_fault(signo, info) && info->si_addr == guard.page) {
+        guard.genuine = 1;
+    }
+    ::mprotect(guard.page, guard.size, PROT_READ | PROT_WRITE);
+}
+
+/// Store to `target`, past the sanitizers, so the store itself faults.
+/// @param target Where to store.
+[[gnu::noinline]] [[clang::no_sanitize("address", "undefined")]] void store_to(void *target) {
+    *static_cast<volatile int *>(target) = 1;
+}
+
+} // namespace
+
+TEST_CASE("a fault reaches a previous SA_SIGINFO handler as the kernel's, once", "[crash]") {
+    const ScratchDir dir;
+    const auto ending = in_child([&] {
+        guard.size = static_cast<std::size_t>(::getpagesize());
+        guard.page = ::mmap(nullptr, guard.size, PROT_NONE, MAP_PRIVATE | MAP_ANON, -1, 0);
+        struct sigaction action{};
+        action.sa_sigaction = guard_handler;
+        action.sa_flags = SA_SIGINFO;
+        sigemptyset(&action.sa_mask);
+        ::sigaction(SIGSEGV, &action, nullptr);
+        ::sigaction(SIGBUS, &action, nullptr);
+        if (guard.page == MAP_FAILED || !sq::crash::install(dir.path())) {
+            exit_child(3);
+        }
+        store_to(guard.page);
+        // Back here: the runtime's handler opened the page, once, with the
+        // kernel's siginfo.
+        exit_child(guard.calls == 1 && guard.genuine == 1 ? 0 : 1);
+    });
+    CHECK_FALSE(ending.killed);
+    CHECK(ending.code == 0);
+    CHECK(reports(dir.path(), ending.pid).size() == 1);
+}
+
+TEST_CASE("a null write reaches a previous SA_SIGINFO handler with address 0", "[crash]") {
+    const ScratchDir dir;
+    const auto ending = in_child([&] {
+        struct sigaction action{};
+        action.sa_sigaction = [](int signo, siginfo_t *info, void *) {
+            exit_child(a_fault(signo, info) && info->si_addr == nullptr ? 0 : 1);
+        };
+        action.sa_flags = SA_SIGINFO;
+        sigemptyset(&action.sa_mask);
+        ::sigaction(SIGSEGV, &action, nullptr);
+        ::sigaction(SIGBUS, &action, nullptr);
+        if (sq::crash::install(dir.path())) {
+            write_through_null();
+        }
+    });
+    CHECK_FALSE(ending.killed);
+    CHECK(ending.code == 0);
+    CHECK(reports(dir.path(), ending.pid).size() == 1);
+}
+
+TEST_CASE("a default previous action still ends the process by the fault", "[crash]") {
+    const ScratchDir dir;
+    const auto ending = in_child([&] {
+        set_handler(SIGSEGV, SIG_DFL);
+        set_handler(SIGBUS, SIG_DFL);
+        if (sq::crash::install(dir.path())) {
+            write_through_null();
+        }
+    });
+    CHECK(ending.killed);
+    const bool fault = ending.signal == SIGSEGV || ending.signal == SIGBUS;
+    CHECK(fault);
+    CHECK(reports(dir.path(), ending.pid).size() == 1);
+}
+
+TEST_CASE("a default action that says SA_SIGINFO still ends the process", "[crash]") {
+    // Python leaves SIGSEGV's default action with SA_SIGINFO set and no
+    // handler: the flag must not make the handler call a null function.
+    const ScratchDir dir;
+    const auto ending = in_child([&] {
+        struct sigaction action{};
+        action.sa_handler = SIG_DFL;
+        action.sa_flags = SA_SIGINFO;
+        sigemptyset(&action.sa_mask);
+        ::sigaction(SIGSEGV, &action, nullptr);
+        ::sigaction(SIGBUS, &action, nullptr);
+        if (sq::crash::install(dir.path())) {
+            write_through_null();
+        }
+    });
+    CHECK(ending.killed);
+    const bool fault = ending.signal == SIGSEGV || ending.signal == SIGBUS;
+    CHECK(fault);
+    CHECK(reports(dir.path(), ending.pid).size() == 1);
 }
 
 TEST_CASE("an abort leaves a report naming SIGABRT and still aborts", "[crash]") {

@@ -12,7 +12,9 @@ licence text and notices.
 `just check-licences` (`validation/_licences.py`) checks this file against
 the wheel's last build: every source file it compiled and every include
 directory it read lies in a library below, in sqlearn's own code or in the
-system's SDK; every licence is one ADR 0066 allows; and numpy, the one
+system's SDK; every input of `_duckdb`'s link (`build.ninja`) was built in
+that build or is the system's; every licence is one ADR 0066 allows; and
+numpy, the one
 runtime dependency, declares licences it allows too. The paths are those of
 the build's compile database (`build/<cache tag>/compile_commands.json`):
 `<build>` is that build directory, and a path holding `*` is a pattern for a
@@ -69,7 +71,7 @@ Notes:
   files under Unicode's 1991-2007 terms, whose text matches SPDX's
   Unicode-DFS-2015. That identifier is not among ADR 0066's SPDX list:
   `validation/_licences.py` names it, with this reason, as awaiting a
-  ruling.
+  ruling, for utf8proc's row alone.
 - **cpptrace** is built with its symbol back-end set to libdl (the
   system's `dladdr`) and, on macOS, its unwinding to the system's libunwind
   (`engine/cmake/cpptrace.cmake`). Its default back-end on macOS and Linux,

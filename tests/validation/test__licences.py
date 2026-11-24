@@ -53,7 +53,24 @@ def scratch(tmp_path, rows, compiled, includes=(), notice=None):
         for f in compiled
     ]
     (build / "compile_commands.json").write_text(json.dumps(entries))
+    write_link(build, ["duckdb-python/libduckdb_static.a"])
     return repo
+
+
+def write_link(build, inputs, objects=("duckdb-python/x.cpp.o",)):
+    """Write build.ninja with _duckdb's link statement: `objects` as its
+    explicit inputs, `inputs` as its LINK_LIBRARIES."""
+    (build / "build.ninja").write_text(
+        "rule CXX_MODULE_LIBRARY_LINKER___duckdb_Release\n"
+        "  command = c++ $in -o $out $LINK_LIBRARIES\n\n"
+        "build duckdb-python/_duckdb.abi3.so: "
+        "CXX_MODULE_LIBRARY_LINKER___duckdb_Release "
+        + " ".join(objects)
+        + " | duckdb-python/libduckdb_static.a || duckdb-python/other\n"
+        "  LINK_LIBRARIES = " + "  ".join(inputs) + "\n"
+        "  TARGET_FILE = duckdb-python/_duckdb.abi3.so\n\n"
+        "build _duckdb.abi3.so: phony duckdb-python/_duckdb.abi3.so\n"
+    )
 
 
 def test_a_permissive_file_passes(tmp_path):
@@ -180,6 +197,88 @@ def test_no_build_names_the_fix(tmp_path):
     found = _licences.problems(repo, "MIT")
     assert len(found) == 1
     assert "Fix: uv sync --locked" in found[0]
+
+
+def test_a_foreign_archive_linked_into_duckdb_fails(tmp_path):
+    """A link input not built in the build directory is named; the system's
+    libraries and frameworks pass."""
+    repo = scratch(tmp_path, [], ["engine/src/a.cpp"])
+    build = repo / "build" / "cpython-312"
+    write_link(
+        build,
+        [
+            "duckdb-python/libduckdb_static.a",
+            "/opt/homebrew/lib/libfoo.a",
+            "-Wl,-force_load,/elsewhere/libbar.a",
+            "-L/opt/homebrew/lib",
+            "-lbaz",
+            "/usr/lib/libz.dylib",
+            "-framework",
+            "Accelerate",
+            "-ldl",
+        ],
+    )
+    found = _licences.problems(repo, "MIT")
+    assert len(found) == 3
+    assert any("/opt/homebrew/lib/libfoo.a" in p for p in found)
+    assert any("/elsewhere/libbar.a" in p for p in found)
+    assert any("-L/opt/homebrew/lib" in p for p in found)
+    assert all("Fix:" in p for p in found)
+
+
+def test_a_build_without_the_link_statement_fails(tmp_path):
+    """No _duckdb link in build.ninja is a problem, not a pass."""
+    repo = scratch(tmp_path, [], ["engine/src/a.cpp"])
+    (repo / "build" / "cpython-312" / "build.ninja").write_text(
+        "rule x\n  command = x\n"
+    )
+    found = _licences.problems(repo, "MIT")
+    assert len(found) == 1
+    assert "_duckdb" in found[0]
+
+
+def test_an_awaiting_term_passes_only_for_its_row(tmp_path):
+    """Unicode-DFS-2015 passes for utf8proc alone, 0BSD and CC0-1.0 for numpy
+    alone; anywhere else they fail."""
+    repo = scratch(
+        tmp_path,
+        [
+            row("utf8proc", "MIT AND Unicode-DFS-2015", ["third_party/utf8proc"]),
+            row("fmt", "MIT AND 0BSD", ["third_party/fmt"]),
+        ],
+        ["third_party/utf8proc/a.c", "third_party/fmt/b.cc"],
+    )
+    found = _licences.problems(repo, "BSD-3-Clause AND 0BSD AND CC0-1.0")
+    assert len(found) == 1
+    assert "fmt" in found[0]
+    assert "0BSD" in found[0]
+    found = _licences.problems(repo, "MIT AND Unicode-DFS-2015")
+    assert any("numpy" in p and "Unicode-DFS-2015" in p for p in found)
+
+
+def test_the_awaiting_terms_are_printed_with_their_rows(tmp_path, monkeypatch, capsys):
+    """Each run prints, for each term awaiting a ruling, the row using it."""
+    repo = scratch(
+        tmp_path,
+        [row("utf8proc", "MIT AND Unicode-DFS-2015", ["third_party/utf8proc"])],
+        ["third_party/utf8proc/a.c"],
+    )
+    monkeypatch.chdir(repo)
+    monkeypatch.setattr(_licences, "_numpy_expression", lambda: "BSD-3-Clause AND 0BSD")
+    assert _licences.cli([]) == 0
+    out = capsys.readouterr().out
+    assert "Unicode-DFS-2015 passes for utf8proc" in out
+    assert "0BSD passes for numpy" in out
+    assert "CC0-1.0" not in out
+
+
+def test_numpy_without_a_license_expression_names_the_fix(tmp_path):
+    """numpy's metadata with no License-Expression is a problem with a fix."""
+    repo = scratch(tmp_path, [], ["engine/src/a.cpp"])
+    found = _licences.problems(repo, None)
+    assert len(found) == 1
+    assert "numpy" in found[0]
+    assert "Fix:" in found[0]
 
 
 def test_the_spdx_expressions_evaluate():

@@ -17,11 +17,14 @@ writes):
   each term allowed, OR one of them, and a WITH exception is refused;
 - every row's licence text, when a path, is a file of the repository, and
   ``NOTICE`` has a section (``## <library>``) for every row;
+- every input of ``_duckdb``'s link, read from the build's ``build.ninja``,
+  was built in the build directory or is the system's (:data:`SYSTEM_LINK`):
+  the compile database lists compiled sources, never a prebuilt archive;
 - numpy's ``License-Expression``, the one runtime dependency's, is allowed
   as a row's is.
 
-A licence term in :data:`AWAITING_RULING` passes, printed with its reason
-on every run, until it is ruled on.
+A licence term in :data:`AWAITING_RULING` passes for the rows it names
+alone, printed with the row on every run, until it is ruled on.
 """
 
 import fnmatch
@@ -49,23 +52,39 @@ ALLOWED = frozenset(
 )
 """ADR 0066's licences, as SPDX identifiers."""
 
-AWAITING_RULING = {
+NUMPY = "numpy"
+"""The name :data:`AWAITING_RULING` gives numpy's own licence."""
+
+AWAITING_RULING: dict[str, tuple[frozenset[str], str]] = {
     "Unicode-DFS-2015": (
+        frozenset({"utf8proc"}),
         "utf8proc's data (utf8proc_data.c) is under Unicode's 1991-2007 terms, "
         "whose text is SPDX's Unicode-DFS-2015: a Unicode licence, as ADR 0066 "
-        "allows, but not on the OSI's list nor among ADR 0066's identifiers"
+        "allows, but not on the OSI's list nor among ADR 0066's identifiers",
     ),
     "0BSD": (
+        frozenset({NUMPY}),
         "numpy declares it, for pythoncapi-compat: OSI-approved, of the BSD "
-        "family, not among ADR 0066's identifiers"
+        "family, not among ADR 0066's identifiers",
     ),
     "CC0-1.0": (
+        frozenset({NUMPY}),
         "numpy declares it, for Highway's random-inl.h: a public-domain "
-        "dedication, not an OSI-approved licence"
+        "dedication, not an OSI-approved licence",
     ),
 }
-"""Terms outside :data:`ALLOWED` that the real file meets, with why each is
-there; each passes until it is ruled on, and is printed on every run."""
+"""Terms outside :data:`ALLOWED` that the real file meets: each with the
+rows (THIRD_PARTY.md's names, or :data:`NUMPY`) it passes for and why; it
+fails for any other, and is printed with its row on every run."""
+
+SYSTEM_LINK = (
+    "/usr/lib/",
+    "/System/",
+    "/Library/Developer/",
+    "/Applications/Xcode",
+)
+"""Where a library linked into ``_duckdb`` may come from outside the build:
+the system's and the SDK's."""
 
 OURS = ("engine/src", "engine/extension", "<build>/headers_alone")
 """sqlearn's own code, and the headers-alone units the build generates."""
@@ -304,14 +323,21 @@ def _builds(repo: Path) -> list[Path]:
     return sorted(p.parent for p in (repo / "build").glob("*/compile_commands.json"))
 
 
-def _licence_problem(what: str, expression: str) -> str | None:
-    """Return the problem with `what`'s licence, or None when it is allowed."""
+def _awaiting(name: str) -> frozenset[str]:
+    """Return the terms awaiting a ruling that pass for the row `name`."""
+    return frozenset(t for t, (names, _) in AWAITING_RULING.items() if name in names)
+
+
+def _licence_problem(what: str, name: str, expression: str) -> str | None:
+    """Return the problem with `what`'s licence, or None when it is allowed;
+    `name` is the row the terms of :data:`AWAITING_RULING` are scoped to."""
+    extra = _awaiting(name)
     try:
-        if allowed_expression(expression, frozenset(AWAITING_RULING)):
+        if allowed_expression(expression, extra):
             return None
     except ValueError as error:
         return f"{what}: {error}.\nFix: write its licence as an SPDX expression"
-    refused = sorted(_terms(expression) - ALLOWED - set(AWAITING_RULING))
+    refused = sorted(_terms(expression) - ALLOWED - extra)
     return (
         f"{what} is under {expression}, and "
         f"{', '.join(refused) or 'its WITH exception'} is not a licence "
@@ -321,15 +347,118 @@ def _licence_problem(what: str, expression: str) -> str | None:
     )
 
 
-def problems(repo: Path, numpy_expression: str) -> list[str]:
+def _link_statement(build: Path) -> str | None:
+    """Return the text of ``_duckdb``'s link statement in ``build.ninja``,
+    its continued lines joined and its variables after it; None when there
+    is none."""
+    ninja = build / "build.ninja"
+    if not ninja.is_file():
+        return None
+    text = ninja.read_text(encoding="utf-8").replace("$\n", " ")
+    lines = text.splitlines()
+    for at, line in enumerate(lines):
+        head = re.match(r"build ([^:]*?_duckdb[^ :]*\.(?:so|pyd)): (\S+)", line)
+        if not head or head.group(2) == "phony":
+            continue
+        body = [line]
+        for following in lines[at + 1 :]:
+            if not following.startswith("  "):
+                break
+            body.append(following)
+        return "\n".join(body)
+    return None
+
+
+def link_inputs(build: Path) -> list[str] | None:
+    """Return the inputs of ``_duckdb``'s link: its explicit inputs and its
+    LINK_LIBRARIES, as the linker gets them; None when ``build.ninja`` has
+    no such link.
+
+    Parameters
+    ----------
+    build : Path
+        The build directory.
+
+    Returns
+    -------
+    list of str or None
+        The objects, archives, libraries and flags.
+    """
+    statement = _link_statement(build)
+    if statement is None:
+        return None
+    first, *variables = statement.splitlines()
+    # After the rule: the explicit inputs, which reach the linker, until
+    # ninja's | (implicit) and || (order-only) dependencies, which do not.
+    inputs: list[str] = []
+    for token in first.split(":", 1)[1].split()[1:]:
+        if token in ("|", "||"):
+            break
+        inputs.append(token)
+    for variable in variables:
+        name, _, value = variable.strip().partition(" = ")
+        if name == "LINK_LIBRARIES":
+            inputs += shlex.split(value)
+    return inputs
+
+
+def _system_link(path: str) -> bool:
+    """Return whether an absolute path is the system's or the SDK's."""
+    return path.startswith(SYSTEM_LINK)
+
+
+def foreign_links(build: Path) -> list[str]:
+    """Return the link inputs of ``_duckdb`` not built in `build` and not
+    the system's, each as the link names it.
+
+    Parameters
+    ----------
+    build : Path
+        The build directory.
+
+    Returns
+    -------
+    list of str
+        An archive or library outside the build, or a search directory
+        (``-L``, ``-F``) outside it; ``-l`` and ``-framework`` names are the
+        system's when no such directory is given.
+    """
+    inside = build.resolve()
+    foreign: list[str] = []
+
+    def check(path: str, shown: str) -> None:
+        resolved = (build / path).resolve()
+        if not resolved.is_relative_to(inside) and not _system_link(
+            resolved.as_posix()
+        ):
+            foreign.append(shown)
+
+    inputs = link_inputs(build) or []
+    for token in inputs:
+        if token.startswith("-Wl,"):
+            for part in token.split(",")[1:]:
+                if "/" in part:
+                    check(part, part)
+        elif token.startswith(("-L", "-F")) and len(token) > 2:
+            check(token[2:], token)
+        elif token.startswith("-") or (
+            "/" not in token and not token.endswith((".a", ".o", ".so", ".dylib"))
+        ):
+            continue
+        else:
+            check(token, token)
+    return foreign
+
+
+def problems(repo: Path, numpy_expression: str | None) -> list[str]:
     """Return every problem of THIRD_PARTY.md and NOTICE, one message each.
 
     Parameters
     ----------
     repo : Path
         The repository: its THIRD_PARTY.md, NOTICE and ``build/``.
-    numpy_expression : str
-        numpy's ``License-Expression``.
+    numpy_expression : str or None
+        numpy's ``License-Expression``; None when its metadata has none.
 
     Returns
     -------
@@ -346,7 +475,7 @@ def problems(repo: Path, numpy_expression: str) -> list[str]:
             "Fix: uv sync --locked, which builds and installs the wheel"
         ]
     for row in table:
-        problem = _licence_problem(row.name, row.spdx)
+        problem = _licence_problem(row.name, row.name, row.spdx)
         if problem:
             found.append(problem)
         if (
@@ -385,10 +514,66 @@ def problems(repo: Path, numpy_expression: str) -> list[str]:
                 "Fix: add its library's row (version, licence, licence text, path) "
                 "to THIRD_PARTY.md and its section to NOTICE"
             )
-    problem = _licence_problem("numpy (the runtime dependency)", numpy_expression)
-    if problem:
-        found.append(problem)
+        if link_inputs(build) is None:
+            found.append(
+                f"{build.name}/build.ninja has no link of _duckdb, so what it "
+                "links cannot be checked.\nFix: uv sync --locked, which configures "
+                "and builds the wheel"
+            )
+        for link in foreign_links(build):
+            found.append(
+                f"{link} is linked into _duckdb ({build.name}) but was not built "
+                "from the submodules in the build directory, nor is it the "
+                "system's.\nFix: build the library from a submodule, or leave it "
+                "out of the link"
+            )
+    if numpy_expression is None:
+        found.append(
+            "numpy (the runtime dependency) declares no License-Expression in "
+            "its metadata, so its licence cannot be checked.\nFix: pin a numpy "
+            "whose metadata declares one (numpy 2.3 and later do)"
+        )
+    else:
+        problem = _licence_problem(
+            "numpy (the runtime dependency)", NUMPY, numpy_expression
+        )
+        if problem:
+            found.append(problem)
     return found
+
+
+def _numpy_expression() -> str | None:
+    """Return numpy's ``License-Expression``, or None when it has none."""
+    return metadata.metadata("numpy").get("License-Expression")
+
+
+def awaiting_uses(table: Sequence[Row], numpy_expression: str | None) -> list[str]:
+    """Return a line for each use of a term awaiting a ruling: the term,
+    the row using it, and why it is there.
+
+    Parameters
+    ----------
+    table : sequence of Row
+        THIRD_PARTY.md's rows.
+    numpy_expression : str or None
+        numpy's ``License-Expression``.
+
+    Returns
+    -------
+    list of str
+        One line per term and row, for the terms that row may use.
+    """
+    uses = [(row.name, row.spdx) for row in table]
+    if numpy_expression is not None:
+        uses.append((NUMPY, numpy_expression))
+    lines = []
+    for name, expression in uses:
+        for term in sorted(_terms(expression) & _awaiting(name)):
+            reason = AWAITING_RULING[term][1]
+            lines.append(
+                f"licences: {term} passes for {name}, awaiting a ruling: {reason}"
+            )
+    return lines
 
 
 def cli(argv: Sequence[str]) -> int:
@@ -406,16 +591,19 @@ def cli(argv: Sequence[str]) -> int:
     """
     del argv
     repo = Path.cwd()
-    expression = metadata.metadata("numpy")["License-Expression"]
-    for term, reason in AWAITING_RULING.items():
-        print(f"licences: {term} passes, awaiting a ruling: {reason}")  # noqa: T201
+    expression = _numpy_expression()
+    table = rows((repo / "THIRD_PARTY.md").read_text(encoding="utf-8"))
+    for line in awaiting_uses(table, expression):
+        print(line)  # noqa: T201
     found = problems(repo, expression)
     for problem in found:
         print(problem, file=sys.stderr)  # noqa: T201
     if found:
         return 1
-    count = len(rows((repo / "THIRD_PARTY.md").read_text(encoding="utf-8")))
-    print(f"licences: {count} libraries compiled in, each listed, each allowed")  # noqa: T201
+    print(  # noqa: T201
+        f"licences: {len(table)} libraries compiled in, each listed, each "
+        "allowed; _duckdb links nothing from outside its build"
+    )
     return 0
 
 

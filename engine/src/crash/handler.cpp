@@ -3,7 +3,8 @@
 /// install(): the report's path up to the process id, the build's line and
 /// the images' table, each in fixed storage, so the handler allocates
 /// nothing, takes no lock and calls only async-signal-safe functions:
-/// getpid, open, write, close, sigaction, raise and cpptrace's
+/// getpid, clock_gettime, open, write, close, sigaction, pthread_sigmask,
+/// raise and cpptrace's
 /// safe_generate_raw_trace.
 #include "crash/handler.hpp"
 
@@ -33,6 +34,7 @@
 // The std::string describe() returns and path::native() gives, which
 // include-what-you-use counts as a use of <string>, misc-include-cleaner
 // does not.
+#include <ctime>
 #include <string> // IWYU pragma: keep
 #include <string_view>
 #include <system_error>
@@ -178,8 +180,14 @@ void write_report(raw::FdWriter &out, int signo, const siginfo_t *info,
 /// @param context The handler's context.
 void report(int signo, const siginfo_t *info, const void *context) noexcept {
     raw::FixedText<max_path + max_name> path;
+    // The time as well as the pid, so a pid the system reuses never writes
+    // over an earlier report. clock_gettime is async-signal-safe.
+    struct timespec now{};
+    (void)::clock_gettime(CLOCK_REALTIME, &now);
     path.append(state.prefix.view())
         .append_number(static_cast<std::uintmax_t>(::getpid()))
+        .append("-")
+        .append_number(static_cast<std::uintmax_t>(now.tv_sec < 0 ? 0 : now.tv_sec))
         .append(".txt");
     if (path.truncated()) {
         return;
@@ -213,10 +221,62 @@ void restore(int signo) noexcept {
     }
 }
 
-/// The handler: report once, restore the previous action and raise the
-/// signal again. It is blocked while this runs, so the raised signal
-/// reaches the previous action as this returns; a fault that was not sent
-/// by raise() faults again there too, as it would have without us.
+/// Run the action `signo` had before install(), with the kernel's own
+/// siginfo and context, once. Its handler is called here, as the kernel
+/// would call it, rather than through raise(): raise() would hand it a
+/// signal sent, not the fault, and a handler that returns (a runtime's
+/// guard page) would then run twice (ADR 0046). The previous action is
+/// back in place first, so what happens next is what would have happened
+/// without sqlearn: a fault whose handler returns runs its instruction
+/// again. macOS gives a signal sent a fault's si_code, so the handler
+/// cannot be told which it is; calling it covers both.
+/// @param signo The signal.
+/// @param info What the kernel says of it.
+/// @param context The interrupted context.
+void run_previous(int signo, siginfo_t *info, void *context) noexcept {
+    const Previous *found = nullptr;
+    for (const Previous &previous : state.previous) {
+        if (previous.signo == signo) {
+            found = &previous;
+        }
+    }
+    if (found == nullptr) {
+        return;
+    }
+    const struct sigaction &action = found->action;
+    const auto flags = static_cast<unsigned>(action.sa_flags);
+    const bool with_info = (flags & static_cast<unsigned>(SA_SIGINFO)) != 0;
+    // SIG_DFL and SIG_IGN whatever the flags say: Python leaves SIGSEGV's
+    // default action with SA_SIGINFO set and no handler, and a call
+    // through that null pointer, with the signal blocked, hangs on macOS.
+    if (action.sa_handler == SIG_DFL) {
+        // Blocked while this runs: the default action takes it as the
+        // handler returns, and ends the process by the signal.
+        ::raise(signo);
+        return;
+    }
+    if (action.sa_handler == SIG_IGN) {
+        return;
+    }
+    if ((flags & static_cast<unsigned>(SA_RESETHAND)) != 0) {
+        struct sigaction reset{};
+        reset.sa_handler = SIG_DFL;
+        sigemptyset(&reset.sa_mask);
+        ::sigaction(signo, &reset, nullptr);
+    }
+    // Its mask, as the kernel would apply it for the call.
+    sigset_t before{};
+    ::pthread_sigmask(SIG_BLOCK, &action.sa_mask, &before);
+    if (with_info) {
+        action.sa_sigaction(signo, info, context);
+    } else {
+        action.sa_handler(signo);
+    }
+    ::pthread_sigmask(SIG_SETMASK, &before, nullptr);
+}
+
+/// The handler: report once, restore the previous action and run it, with
+/// the kernel's siginfo (run_previous).
 /// @param signo The signal.
 /// @param info What the kernel says of it.
 /// @param context The interrupted context.
@@ -227,7 +287,7 @@ void on_signal(int signo, siginfo_t *info, void *context) {
     }
     restore(signo);
     errno = saved;
-    ::raise(signo);
+    run_previous(signo, info, context);
 }
 
 /// Make the lazily bound functions the handler calls bound now: their

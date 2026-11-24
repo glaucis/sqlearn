@@ -10,8 +10,10 @@
   # nanobind: <nanobind/nanobind.h> is the library; its type casters
   # (nanobind/stl/*.h) are included as themselves.
   { include: ["@<nanobind/nb_.*>", "private", "<nanobind/nanobind.h>", "public"] },
-  # macOS's SDK: getenv, declared in <_stdlib.h>, is <cstdlib>'s.
+  # macOS's SDK: getenv, declared in <_stdlib.h>, is <cstdlib>'s, and
+  # clock_gettime, declared in <_time.h>, <ctime>'s.
   { include: ["<_stdlib.h>", "private", "<cstdlib>", "public"] },
+  { include: ["<_time.h>", "private", "<ctime>", "public"] },
   # Python's C API, whose one header to include is <Python.h>, is mapped by
   # the python3.8.imp include-what-you-use ships (validation/_tidy.py).
 ]

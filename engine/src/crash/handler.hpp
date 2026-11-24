@@ -25,12 +25,16 @@ report_directory(std::string_view home, std::string_view xdg_state_home, bool ma
 
 /// Install the crash handler for SIGSEGV, SIGBUS, SIGILL, SIGFPE and
 /// SIGABRT, writing to `dir`, which is created when missing. On one of
-/// them it writes `<dir>/sqlearn-crash-<pid>.txt`: the signal, the faulting
-/// address, the process, sqlearn's and DuckDB's versions and build, and
-/// the stack (cpptrace's signal-safe trace, each address with the image it
-/// falls in, to symbolise later); then it restores the handler that was
-/// there before and raises the signal again, so that handler runs. The
-/// handler allocates nothing and calls only async-signal-safe functions.
+/// them it writes `<dir>/sqlearn-crash-<pid>-<seconds>.txt` (once a
+/// process): the signal, the faulting address, the process, sqlearn's and
+/// DuckDB's versions and build, and the stack (cpptrace's signal-safe
+/// trace, each address with the image it falls in, to symbolise later).
+/// Then it restores the handler that was there before and runs it once,
+/// with the kernel's own siginfo and context: a handler of the user's or a
+/// runtime's is called as the kernel would call it, the default action is
+/// raised again, so it ends the process by the signal, and an ignored
+/// signal is ignored. The handler allocates nothing and calls only
+/// async-signal-safe functions.
 ///
 /// Installing happens once in a process: a later call changes nothing.
 /// @param dir The directory for the reports.

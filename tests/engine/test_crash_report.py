@@ -30,6 +30,8 @@ def run_crash(home: Path, env_extra=None) -> subprocess.CompletedProcess[str]:
         capture_output=True,
         text=True,
         check=False,
+        # A crash that hangs in the handler fails here, never stalls the run.
+        timeout=60,
     )
 
 
@@ -83,6 +85,8 @@ def test_an_unwritable_report_directory_never_fails_the_import(tmp_path):
         capture_output=True,
         text=True,
         check=False,
+        # A crash that hangs in the handler fails here, never stalls the run.
+        timeout=60,
     )
     assert done.returncode == 0, done.stderr
     assert done.stdout.startswith("sqlearn ")
