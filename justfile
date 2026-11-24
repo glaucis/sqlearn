@@ -513,9 +513,28 @@ check-no-devdata:
 [group('check')]
 check: lint-python check-types lint-markdown check-spelling check-mirror check-docstring-args check-no-devdata
 
+# Refuse a secret (a key, a token, a password) in the files a commit holds: gitleaks over the directory when it has no .git (the hook's export of the index), else over an export of this checkout's index
+[group('check')]
+check-secrets:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ ! -e .git ]; then
+        gitleaks dir . --no-banner --no-color --redact --verbose --log-level warn
+        exit
+    fi
+    tmp=$(mktemp -d)
+    trap 'rm -rf "$tmp"' EXIT
+    git checkout-index -a --prefix="$tmp/tree/"
+    gitleaks dir "$tmp/tree" --no-banner --no-color --redact --verbose --log-level warn
+
+# Check THIRD_PARTY.md and NOTICE against the wheel's last build: every library compiled in listed, every licence one ADR 0066 allows, numpy's too (validation/_licences.py); `just test` runs it as a test, since the hook's export has no build
+[group('check')]
+check-licences:
+    uv run --locked python -m validation._licences
+
 # Run what the pre-commit hook runs
 [group('check')]
-pre-commit: check check-lockfile
+pre-commit: check check-lockfile check-secrets
 
 # Rerun each validation runner whose imported files changed since a passed run
 [group('test')]

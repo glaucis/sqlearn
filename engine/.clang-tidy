@@ -37,8 +37,11 @@ CheckOptions:
   cppcoreguidelines-avoid-do-while.IgnoreMacros: true
   # RapidCheck is one library behind <rapidcheck.h>, and Python's C API one
   # behind <Python.h>: include-what-you-use maps their parts to them
-  # (engine/iwyu.imp), which this check cannot.
-  misc-include-cleaner.IgnoreHeaders: 'rapidcheck\.h;rapidcheck/.*;python3\.[0-9]+/.*'
+  # (engine/iwyu.imp), which this check cannot. So with POSIX's names in the
+  # SDK's private headers: struct sigaction, open's O_ flags and the _t
+  # types live under sys/, which the check asks for by name while
+  # include-what-you-use asks for <csignal>, <fcntl.h> and <sys/types.h>.
+  misc-include-cleaner.IgnoreHeaders: 'rapidcheck\.h;rapidcheck/.*;python3\.[0-9]+/.*;sys/.*;signal\.h;fcntl\.h'
   # nanobind's dict, like std::map, inserts on operator[]: there is no index
   # to check.
   cppcoreguidelines-pro-bounds-avoid-unchecked-container-access.ExcludeClasses: '::std::map;::std::unordered_map;::std::flat_map;::nanobind::dict'

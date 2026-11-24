@@ -4,6 +4,7 @@
 /// DuckDB's connection type and exception translators serve it too.
 #include "bindings/guard.hpp"
 #include "core/version.hpp"
+#include "crash/handler.hpp"
 
 #include <Python.h>
 #include <nanobind/nanobind.h>
@@ -55,6 +56,10 @@ std::string describe() {
 /// The module sqlearn._native: PyInit__native, beside PyInit__duckdb.
 NB_MODULE(_native, m) {
     m.doc() = "sqlearn's engine, compiled into DuckDB's _duckdb binary.";
+    // The crash report, written on this machine only (ADR 0006). When its
+    // directory cannot be made the handler is not installed, and the
+    // import goes on.
+    (void)sq::crash::install_default();
     m.def("build_identity", &build_identity, nb::sig("def build_identity() -> dict[str, str]"),
           "Return what this engine was built as: sqlearn's and DuckDB's versions,\n"
           "DuckDB's commit, the compiler and the build type.");

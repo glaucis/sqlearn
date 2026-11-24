@@ -33,6 +33,7 @@ include(cmake/warnings.cmake)
 include(cmake/hardening.cmake)
 include(cmake/groups.cmake)
 include(cmake/headers_alone.cmake)
+include(cmake/cpptrace.cmake)
 sq_check_pins()
 sq_ccache()
 
@@ -92,6 +93,13 @@ else()
   endfunction()
 endif()
 
+# cpptrace, for the crash group's stack traces (engine/cmake/cpptrace.cmake):
+# after the flavour, so a preset's sanitizers reach it as they reach Catch2.
+sq_add_cpptrace()
+if(NOT SQ_ENGINE_ONLY)
+  target_link_libraries(_duckdb PRIVATE cpptrace::cpptrace)
+endif()
+
 if(SQ_BUILD_TESTS)
   enable_testing()
   set(CATCH_INSTALL_DOCS OFF CACHE BOOL "" FORCE)
@@ -128,7 +136,27 @@ sq_add_group(
 )
 # The one layer allowed raw memory (ADR 0065); its SQ_EXPECTS throws core's
 # PreconditionError.
-sq_add_group(raw SOURCES src/raw/buffer.cpp DEPENDS core TESTS tests/raw/test_buffer.cpp)
+sq_add_group(
+  raw
+  SOURCES src/raw/buffer.cpp src/raw/fd_writer.cpp src/raw/fixed_text.cpp src/raw/images.cpp
+  DEPENDS core
+  TESTS tests/raw/test_buffer.cpp tests/raw/test_signal_safe.cpp
+)
+# The crash report: a handler for the fatal signals, written to a local file
+# with cpptrace's signal-safe stack trace, never sent anywhere (ADR 0006).
+sq_add_group(
+  crash
+  SOURCES src/crash/handler.cpp
+  DEPENDS core raw
+  TESTS tests/crash/test_handler.cpp
+)
+target_link_libraries(sq_crash PUBLIC cpptrace::cpptrace)
+# Its tests crash forked children, which die before the coverage runtime
+# writes their profile at exit: in the coverage flavour they write it first
+# (tests/crash/test_handler.cpp).
+if(TARGET test_crash AND SQ_FLAVOR STREQUAL "coverage")
+  target_compile_definitions(test_crash PRIVATE SQ_COVERAGE)
+endif()
 # On this file alone, so a new version recompiles only it.
 set_source_files_properties(
   src/core/version.cpp

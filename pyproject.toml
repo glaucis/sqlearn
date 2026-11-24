@@ -19,7 +19,7 @@ dynamic = ["version"]
 description = "Machine learning computed inside DuckDB, on data larger than memory."
 readme = "README.md"
 license = "Apache-2.0"
-license-files = ["LICENSE"]
+license-files = ["LICENSE", "NOTICE", "THIRD_PARTY.md"]
 requires-python = ">=3.12"
 authors = [{ name = "Tomas Pecukevicius", email = "pecukevicius@gmail.com" }]
 classifiers = [
@@ -262,9 +262,10 @@ reflow = true
 # Hidden folders are read, so the hooks and Claude's settings are checked;
 # git's objects and the lockfile are not. The tools' caches are excluded
 # because typos applies .gitignore only inside a git repository, and the
-# hook runs it on an export that has none.
+# hook runs it on an export that has none. NOTICE holds other projects'
+# licence texts as they wrote them, as the submodules hold their files.
 ignore-hidden = false
-extend-exclude = [".git/", "uv.lock", ".codegraph/", ".ruff_cache/", ".rumdl_cache/", ".mypy_cache/", "engine/duckdb-python/", "engine/third_party/"]
+extend-exclude = [".git/", "uv.lock", ".codegraph/", ".ruff_cache/", ".rumdl_cache/", ".mypy_cache/", "engine/duckdb-python/", "engine/third_party/", "NOTICE"]
 
 [tool.typos.default]
 # British prose and American identifiers both pass at `en`.
