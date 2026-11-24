@@ -61,6 +61,13 @@
       "displayName": "tysan: -O1 -g, TypeSanitizer, with Homebrew LLVM",
       "toolchainFile": "${sourceDir}/cmake/toolchain-llvm.cmake",
       "cacheVariables": { "SQ_FLAVOR": "tysan", "CMAKE_BUILD_TYPE": "Debug" }
+    },
+    {
+      "name": "fuzzing",
+      "inherits": "base",
+      "displayName": "fuzzing: -O1 -g, libFuzzer with AddressSanitizer and UndefinedBehaviorSanitizer, with Homebrew LLVM",
+      "toolchainFile": "${sourceDir}/cmake/toolchain-llvm.cmake",
+      "cacheVariables": { "SQ_FLAVOR": "fuzzing", "CMAKE_BUILD_TYPE": "Debug" }
     }
   ],
   "buildPresets": [
@@ -71,7 +78,8 @@
     { "name": "llvm-dev", "configurePreset": "llvm-dev" },
     { "name": "tsan", "configurePreset": "tsan" },
     { "name": "lsan", "configurePreset": "lsan" },
-    { "name": "tysan", "configurePreset": "tysan" }
+    { "name": "tysan", "configurePreset": "tysan" },
+    { "name": "fuzzing", "configurePreset": "fuzzing" }
   ],
   "testPresets": [
     { "name": "dev", "configurePreset": "dev", "output": { "outputOnFailure": true } },
@@ -81,6 +89,7 @@
     { "name": "llvm-dev", "configurePreset": "llvm-dev", "output": { "outputOnFailure": true } },
     { "name": "tsan", "configurePreset": "tsan", "output": { "outputOnFailure": true } },
     { "name": "lsan", "configurePreset": "lsan", "output": { "outputOnFailure": true } },
-    { "name": "tysan", "configurePreset": "tysan", "output": { "outputOnFailure": true } }
+    { "name": "tysan", "configurePreset": "tysan", "output": { "outputOnFailure": true } },
+    { "name": "fuzzing", "configurePreset": "fuzzing", "output": { "outputOnFailure": true } }
   ]
 }

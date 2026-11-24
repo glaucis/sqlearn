@@ -18,11 +18,11 @@ set(
   SQ_FLAVOR
   "release"
   CACHE STRING
-  "The flavour of sqlearn's own sources: dev, debug, release, profile, tsan, lsan or tysan"
+  "The flavour of sqlearn's own sources: dev, debug, release, profile, tsan, lsan, tysan or fuzzing"
 )
 set_property(
   CACHE SQ_FLAVOR
-  PROPERTY STRINGS dev debug release profile tsan lsan tysan
+  PROPERTY STRINGS dev debug release profile tsan lsan tysan fuzzing
 )
 
 set(SQ_HARDENING_EXTENSIVE "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE")
@@ -71,8 +71,9 @@ endif()
 set(SQ_DEBUG_OPTIONS -O1 -g -fno-omit-frame-pointer -ftrivial-auto-var-init=pattern)
 set(SQ_SANITIZERS "")
 set(SQ_TEST_ENVIRONMENT "")
-if(SQ_FLAVOR MATCHES "^(lsan|tysan)$" AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-  # Apple clang has no LeakSanitizer on Apple silicon and no TypeSanitizer.
+if(SQ_FLAVOR MATCHES "^(lsan|tysan|fuzzing)$" AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  # Apple clang has no LeakSanitizer on Apple silicon, no TypeSanitizer and no
+  # libFuzzer runtime.
   message(
     FATAL_ERROR
     "SQ_FLAVOR ${SQ_FLAVOR} needs Homebrew LLVM's clang, not ${CMAKE_CXX_COMPILER_ID}.\n"
@@ -102,6 +103,16 @@ elseif(SQ_FLAVOR STREQUAL "tysan")
   set(SQ_HARDENING ${SQ_HARDENING_EXTENSIVE})
   set(SQ_SANITIZERS -fsanitize=type -fno-sanitize-recover=all)
   set(SQ_TEST_ENVIRONMENT TYSAN_OPTIONS=halt_on_error=1)
+elseif(SQ_FLAVOR STREQUAL "fuzzing")
+  # libFuzzer's target (engine/fuzz): dev's sanitizers, the coverage
+  # instrumentation on every object (fuzzer-no-link: the target alone links
+  # libFuzzer's main), and a finding stops the program so libFuzzer keeps
+  # the input. The leak check is off: libFuzzer's own thread, started in its
+  # main, is reported as a leak at exit (Homebrew LLVM 23), and no exit of
+  # the target's would pass.
+  set(SQ_FLAVOR_OPTIONS ${SQ_DEBUG_OPTIONS})
+  set(SQ_HARDENING ${SQ_HARDENING_EXTENSIVE})
+  set(SQ_SANITIZERS -fsanitize=address,undefined,fuzzer-no-link -fno-sanitize-recover=all)
 elseif(SQ_FLAVOR STREQUAL "debug")
   set(SQ_FLAVOR_OPTIONS -O0 -g -ftrivial-auto-var-init=pattern)
   set(SQ_HARDENING ${SQ_HARDENING_EXTENSIVE})
@@ -133,7 +144,7 @@ else()
   message(
     FATAL_ERROR
     "SQ_FLAVOR is \"${SQ_FLAVOR}\".\n"
-    "Fix: configure with a preset (cmake --preset dev), or set SQ_FLAVOR to dev, debug, release, profile, tsan, lsan or tysan"
+    "Fix: configure with a preset (cmake --preset dev), or set SQ_FLAVOR to dev, debug, release, profile, tsan, lsan, tysan or fuzzing"
   )
 endif()
 

@@ -226,6 +226,22 @@ prints so: what its records name and no input of the task does (the compiler,
 the environment) still reruns a group. `just full test` passes `--all`, which
 runs every group.
 
+**Fuzzing.** `just fuzz [seconds]` (60 by default) builds the `fuzzing`
+preset (Homebrew LLVM, since Apple clang has no libFuzzer runtime; libFuzzer
+with AddressSanitizer and UndefinedBehaviorSanitizer) and runs each target
+(`engine/fuzz/`; today the version parser's) for that long on a scratch copy of
+its corpus, then merges the inputs that found new coverage into
+`engine/fuzz/corpus/<target>/` (`-merge=1`). A crash leaves its input in that
+directory and fails the recipe naming it. The leak check is off in the fuzz
+run: libFuzzer's own thread is reported as a leak at exit. The target's
+property is on the version, not the text: a text that parses must parse again
+after `format`, to an equal version. Every `dev` run replays the corpus
+(`replay_parse_version`, label `core`, built in every preset without
+libFuzzer), with each corpus file an argument and a required file of the test,
+so a new file or a change to the parser reruns the `core` group. The target's
+source compiles in every preset, so clang-tidy checks it. The 1 MiB string of
+digits seed is built inside the replay, not kept as a file.
+
 **The sanitizers.** `just sanitize` runs `validation._ctest` with `--all` on
 each sanitizer preset: `dev` (AddressSanitizer and UndefinedBehaviorSanitizer,
 Apple clang), `tsan` (ThreadSanitizer, Apple clang), `lsan` (LeakSanitizer)

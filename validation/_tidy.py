@@ -41,6 +41,7 @@ SOURCES = (
     "engine/src/*.cpp",
     "engine/tests/*.cpp",
     "engine/bench/*.cpp",
+    "engine/fuzz/*.cpp",
     "engine/extension/src/*.cpp",
     ":(exclude)engine/tests/must_not_compile",
     ":(exclude)engine/tests/must_not_pass_tidy",

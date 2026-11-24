@@ -154,5 +154,6 @@ endif()
 
 if(SQ_BUILD_TESTS)
   add_subdirectory(tests)
+  add_subdirectory(fuzz)
   add_subdirectory(bench)
 endif()
