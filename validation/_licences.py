@@ -83,8 +83,23 @@ SYSTEM_LINK = (
     "/Library/Developer/",
     "/Applications/Xcode",
 )
-"""Where a library linked into ``_duckdb`` may come from outside the build:
-the system's and the SDK's."""
+"""On macOS, where a library linked into ``_duckdb`` may come from outside
+the build: the system's (its shared cache, under ``/usr/lib``) and the
+SDK's."""
+
+LINUX_RUNTIME = re.compile(
+    r"^/(?:usr/)?lib(?:64|32)?/(?:[^/]+-linux-gnu[^/]*/)?"
+    r"(?:lib(?:c|m|dl|pthread|rt|stdc\+\+|gcc_s|gcc|atomic)(?:[._-][^/]*)?|"
+    r"crt[^/]*\.o|ld-linux[^/]*)$"
+    r"|^/usr/lib/gcc/"
+)
+"""Elsewhere, where one may: libc's and the compiler runtime's files alone,
+never the rest of ``/usr/lib``."""
+
+SYSTEM_NAMES = frozenset(
+    {"dl", "m", "pthread", "c", "c++", "System", "rt", "stdc++", "gcc_s"}
+)
+"""The libraries ``_duckdb`` may link by ``-l`` name: the system's own."""
 
 OURS = ("engine/src", "engine/extension", "<build>/headers_alone")
 """sqlearn's own code, and the headers-alone units the build generates."""
@@ -403,8 +418,12 @@ def link_inputs(build: Path) -> list[str] | None:
 
 
 def _system_link(path: str) -> bool:
-    """Return whether an absolute path is the system's or the SDK's."""
-    return path.startswith(SYSTEM_LINK)
+    """Return whether an absolute path is the system's or the SDK's: on
+    macOS, under :data:`SYSTEM_LINK`; elsewhere, libc's or the compiler
+    runtime's (:data:`LINUX_RUNTIME`)."""
+    if sys.platform == "darwin":
+        return path.startswith(SYSTEM_LINK)
+    return bool(LINUX_RUNTIME.search(path))
 
 
 def foreign_links(build: Path) -> list[str]:
@@ -419,9 +438,9 @@ def foreign_links(build: Path) -> list[str]:
     Returns
     -------
     list of str
-        An archive or library outside the build, or a search directory
-        (``-L``, ``-F``) outside it; ``-l`` and ``-framework`` names are the
-        system's when no such directory is given.
+        An archive or library outside the build, a search directory
+        (``-L``, ``-F``) outside it, or a ``-l`` name not among
+        :data:`SYSTEM_NAMES`; a ``-framework`` is the SDK's.
     """
     inside = build.resolve()
     foreign: list[str] = []
@@ -441,6 +460,9 @@ def foreign_links(build: Path) -> list[str]:
                     check(part, part)
         elif token.startswith(("-L", "-F")) and len(token) > 2:
             check(token[2:], token)
+        elif token.startswith("-l") and len(token) > 2:
+            if token[2:] not in SYSTEM_NAMES:
+                foreign.append(token)
         elif token.startswith("-") or (
             "/" not in token and not token.endswith((".a", ".o", ".so", ".dylib"))
         ):

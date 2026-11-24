@@ -36,6 +36,14 @@ report_directory(std::string_view home, std::string_view xdg_state_home, bool ma
 /// signal is ignored. The handler allocates nothing and calls only
 /// async-signal-safe functions.
 ///
+/// It reports once a process and then unhooks: the previous action stays
+/// in place, so a later signal goes to it alone. The report and its line
+/// on standard error say the signal reached sqlearn's handler, since the
+/// previous handler may have handled it. Installed with SA_NODEFER, so a
+/// fault inside the report, or inside a previous handler that sets
+/// SA_NODEFER (CPython's faulthandler), ends the process instead of
+/// hanging it.
+///
 /// Installing happens once in a process: a later call changes nothing.
 /// @param dir The directory for the reports.
 /// @return True when the handler is installed (now or before); false when
@@ -47,5 +55,22 @@ report_directory(std::string_view home, std::string_view xdg_state_home, bool ma
 /// and $XDG_STATE_HOME). What the module does when it is loaded.
 /// @return What install() returns; false when there is no directory.
 [[nodiscard]] bool install_default() noexcept;
+
+#if defined(SQ_CRASH_TEST_HOOKS)
+namespace detail {
+
+/// Tests only (SQ_CRASH_TEST_HOOKS, which a preset's build sets and the
+/// wheel's never does): when set, the report calls it before it writes
+/// anything, so a test can fault inside the report.
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables): a test's hook
+extern void (*fault_in_report)();
+
+/// Tests only: when set, called just before the default action is raised,
+/// so the coverage flavour writes a dying child's profile.
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables): a test's hook
+extern void (*before_default)();
+
+} // namespace detail
+#endif
 
 } // namespace sq::crash

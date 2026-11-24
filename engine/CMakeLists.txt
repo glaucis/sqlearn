@@ -151,6 +151,11 @@ sq_add_group(
   TESTS tests/crash/test_handler.cpp
 )
 target_link_libraries(sq_crash PUBLIC cpptrace::cpptrace)
+# The tests' hook into the report (crash/handler.hpp), in a preset's build
+# alone: the wheel's module never has it.
+if(SQ_ENGINE_ONLY)
+  target_compile_definitions(sq_crash PUBLIC SQ_CRASH_TEST_HOOKS)
+endif()
 # Its tests crash forked children, which die before the coverage runtime
 # writes their profile at exit: in the coverage flavour they write it first
 # (tests/crash/test_handler.cpp).

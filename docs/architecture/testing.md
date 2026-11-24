@@ -281,6 +281,20 @@ compiles fails it too, named with a `Fix:` line, since its lines would be in
 no total. Below the floor, the fix is the missing tests; a line left out
 needs a comment saying why no test can reach it.
 
+**The crash handler's tests.** The `crash` group
+(`engine/tests/crash/test_handler.cpp`) crashes forked children, each under
+`alarm(20)`, so a child that hangs (a fault inside a handler with its signal
+blocked hangs on macOS) dies by SIGALRM and fails its test rather than
+stalling the run. The handler writes one report a process, then unhooks: it
+puts back the action that was there before, runs it with the kernel's
+siginfo, and is not called again. A previous handler may handle the signal,
+so the report and its line on standard error say the signal reached
+sqlearn's handler, not that the process crashed. A test faults inside the
+report through `sq::crash::detail::fault_in_report`, which only a preset's
+build compiles (`SQ_CRASH_TEST_HOOKS`), never the wheel's. In the coverage
+flavour (`SQ_COVERAGE`) a child writes its profile before it dies, since the
+coverage runtime writes at exit.
+
 **Mutation testing.** `just mutate-engine` fetches Mull 0.39.1 (its macOS
 arm64 release: the runner and the plugin for LLVM 23, checked by their
 SHA-256, into `engine/build/mull/`; `just fetch-mull` alone), builds the

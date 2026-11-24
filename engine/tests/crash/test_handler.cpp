@@ -112,6 +112,9 @@ template <typename Body> Ending in_child(Body body) {
         // blocked, hangs on macOS) dies by SIGALRM, failing its test,
         // rather than stalling the run.
         ::alarm(child_seconds);
+        // The default action ends a child before the coverage runtime
+        // writes its profile at exit: write it first.
+        sq::crash::detail::before_default = flush_coverage;
         body();
         exit_child(returned);
     }
@@ -438,6 +441,104 @@ TEST_CASE("a default action that says SA_SIGINFO still ends the process", "[cras
     CHECK(ending.killed);
     const bool fault = ending.signal == SIGSEGV || ending.signal == SIGBUS;
     CHECK(fault);
+    CHECK(reports(dir.path(), ending.pid).size() == 1);
+}
+
+namespace {
+
+/// A previous handler like CPython's faulthandler (SA_NODEFER): it puts
+/// the default back, then faults itself, which must end the process.
+/// @param signo The signal.
+/// @param info Unused.
+/// @param context Unused.
+extern "C" void faulting_handler(int signo, siginfo_t *info, void *context) {
+    (void)info;
+    (void)context;
+    flush_coverage();
+    set_handler(SIGSEGV, SIG_DFL);
+    set_handler(SIGBUS, SIG_DFL);
+    (void)signo;
+    write_through_null();
+}
+
+/// A previous handler installed with SA_RESETHAND: the kernel would have
+/// put the default back before calling it.
+/// @param signo The signal.
+extern "C" void resethand_handler(int signo) {
+    struct sigaction now{};
+    ::sigaction(signo, nullptr, &now);
+    exit_child(now.sa_handler == SIG_DFL ? 0 : 2);
+}
+
+} // namespace
+
+TEST_CASE("a fault in a previous SA_NODEFER handler ends the process", "[crash]") {
+    const ScratchDir dir;
+    const auto ending = in_child([&] {
+        struct sigaction action{};
+        action.sa_sigaction = faulting_handler;
+        action.sa_flags = SA_SIGINFO | SA_NODEFER;
+        sigemptyset(&action.sa_mask);
+        ::sigaction(SIGSEGV, &action, nullptr);
+        ::sigaction(SIGBUS, &action, nullptr);
+        if (sq::crash::install(dir.path())) {
+            write_through_null();
+        }
+    });
+    CHECK(ending.killed);
+    const bool fault = ending.signal == SIGSEGV || ending.signal == SIGBUS;
+    CHECK(fault);
+    CHECK(reports(dir.path(), ending.pid).size() == 1);
+}
+
+TEST_CASE("a fault inside sqlearn's report ends the process", "[crash]") {
+    const ScratchDir dir;
+    const auto ending = in_child([&] {
+        set_handler(SIGSEGV, default_handler);
+        set_handler(SIGBUS, default_handler);
+        sq::crash::detail::fault_in_report = write_through_null;
+        if (sq::crash::install(dir.path())) {
+            (void)::raise(SIGSEGV);
+        }
+    });
+    CHECK(ending.killed);
+    const bool fault = ending.signal == SIGSEGV || ending.signal == SIGBUS;
+    CHECK(fault);
+}
+
+TEST_CASE("a previous SA_RESETHAND handler runs with the default back", "[crash]") {
+    const ScratchDir dir;
+    const auto ending = in_child([&] {
+        struct sigaction action{};
+        action.sa_handler = resethand_handler;
+        action.sa_flags = SA_RESETHAND;
+        sigemptyset(&action.sa_mask);
+        ::sigaction(SIGILL, &action, nullptr);
+        if (sq::crash::install(dir.path())) {
+            (void)::raise(SIGILL);
+        }
+    });
+    CHECK_FALSE(ending.killed);
+#if defined(__APPLE__)
+    // macOS does not report SA_RESETHAND back through sigaction(2) (its
+    // sa_flags come back 0), so the handler cannot honour it there: the
+    // previous handler runs, and stays in place.
+    CHECK(ending.code == 2);
+#else
+    CHECK(ending.code == 0);
+#endif
+}
+
+TEST_CASE("an ignored signal stays ignored after the report", "[crash]") {
+    const ScratchDir dir;
+    const auto ending = in_child([&] {
+        set_handler(SIGFPE, SIG_IGN);
+        if (sq::crash::install(dir.path())) {
+            (void)::raise(SIGFPE);
+        }
+    });
+    CHECK_FALSE(ending.killed);
+    CHECK(ending.code == returned);
     CHECK(reports(dir.path(), ending.pid).size() == 1);
 }
 

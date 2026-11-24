@@ -27,6 +27,7 @@
 #include <cstddef> // IWYU pragma: keep
 #include <cstdint>
 #include <cstdlib>
+#include <ctime>
 #include <filesystem>
 #include <mutex>
 #include <optional>
@@ -34,7 +35,6 @@
 // The std::string describe() returns and path::native() gives, which
 // include-what-you-use counts as a use of <string>, misc-include-cleaner
 // does not.
-#include <ctime>
 #include <string> // IWYU pragma: keep
 #include <string_view>
 #include <system_error>
@@ -52,8 +52,10 @@ constexpr std::size_t max_frames = 128;
 constexpr std::size_t max_images = 1024;
 /// The longest directory path a report can go to, with its file's name.
 constexpr std::size_t max_path = 1024;
-/// The longest file name after that prefix: a process id and ".txt".
-constexpr std::size_t max_name = 32;
+/// Room for the file name after that prefix: a process id, "-", the
+/// seconds and ".txt", each number at most 20 digits, so the path is never
+/// cut.
+constexpr std::size_t max_name = 48;
 /// The longest build line core::describe gives that a report keeps whole.
 constexpr std::size_t max_build = 512;
 /// How many signals the handler takes: SIGSEGV, SIGBUS, SIGILL, SIGFPE and
@@ -99,16 +101,16 @@ constinit std::atomic<bool> installed{false};
 constinit std::atomic<bool> reporting{false};
 // NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
-/// Return the name of `signo`.
+/// Return the entry of `signo` among the handled signals.
 /// @param signo A signal number.
-/// @return Its name, such as "SIGSEGV".
-std::string_view signal_name(int signo) noexcept {
+/// @return Its entry, or null for a signal the handler was not set for.
+const Previous *entry_of(int signo) noexcept {
     for (const Previous &previous : state.previous) {
         if (previous.signo == signo) {
-            return previous.name;
+            return &previous;
         }
     }
-    return "a fatal signal";
+    return nullptr;
 }
 
 /// Write `address` and the image it falls in, then end the line.
@@ -154,31 +156,39 @@ void write_stack(raw::FdWriter &out, const void *context) noexcept {
     }
 }
 
-/// Write the report of `signo` to `out`.
+/// Write the report of a signal to `out`.
 /// @param out The report's file.
-/// @param signo The signal.
+/// @param signal The signal's entry.
 /// @param info What the kernel says of it, or null.
 /// @param context The handler's context, or null.
-void write_report(raw::FdWriter &out, int signo, const siginfo_t *info,
+void write_report(raw::FdWriter &out, const Previous &signal, const siginfo_t *info,
                   const void *context) noexcept {
     out.text("sqlearn crash report\n");
-    out.text("signal: ").text(signal_name(signo)).text(" (").decimal(signo).text(")\n");
+    out.text("signal: ").text(signal.name).text(" (").decimal(signal.signo).text(")\n");
     out.text("fault address: ")
         .hex(info != nullptr ? raw::address_of(info->si_addr) : 0)
         .text("\n");
     out.text("pid: ").decimal(static_cast<std::uintmax_t>(::getpid())).text("\n");
     out.text("build: ").text(state.build.view()).text("\n");
     out.text("This file stays on this machine: sqlearn sends nothing anywhere.\n");
+    out.text("The handler that was there before sqlearn's runs after this report and may\n"
+             "have handled the signal: if the process went on, this was no crash.\n"
+             "sqlearn's handler is unhooked after this, its first report.\n");
     write_stack(out, context);
     out.text("end of report\n");
 }
 
-/// Write the report to `<dir>/sqlearn-crash-<pid>.txt` and say where on
-/// standard error.
-/// @param signo The signal.
+/// Write the report to `<dir>/sqlearn-crash-<pid>-<seconds>.txt` and say
+/// where on standard error.
+/// @param signal The signal's entry.
 /// @param info What the kernel says of it.
 /// @param context The handler's context.
-void report(int signo, const siginfo_t *info, const void *context) noexcept {
+void report(const Previous &signal, const siginfo_t *info, const void *context) noexcept {
+#if defined(SQ_CRASH_TEST_HOOKS)
+    if (detail::fault_in_report != nullptr) {
+        detail::fault_in_report();
+    }
+#endif
     raw::FixedText<max_path + max_name> path;
     // The time as well as the pid, so a pid the system reuses never writes
     // over an earlier report. clock_gettime is async-signal-safe.
@@ -189,9 +199,6 @@ void report(int signo, const siginfo_t *info, const void *context) noexcept {
         .append("-")
         .append_number(static_cast<std::uintmax_t>(now.tv_sec < 0 ? 0 : now.tv_sec))
         .append(".txt");
-    if (path.truncated()) {
-        return;
-    }
     constexpr int flags = O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC | O_NOFOLLOW;
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): open(2) is variadic
     const int fd = ::open(path.c_str(), flags, report_mode);
@@ -199,29 +206,19 @@ void report(int signo, const siginfo_t *info, const void *context) noexcept {
         return;
     }
     raw::FdWriter file(fd);
-    write_report(file, signo, info, context);
+    write_report(file, signal, info, context);
     ::close(fd);
     if (file.ok()) {
         raw::FdWriter(STDERR_FILENO)
             .text("sqlearn: ")
-            .text(signal_name(signo))
-            .text("; a crash report is in ")
+            .text(signal.name)
+            .text(" reached sqlearn's handler; a report is in ")
             .text(path.view())
             .text("\n");
     }
 }
 
-/// Put back the action `signo` had before install().
-/// @param signo One of the handled signals.
-void restore(int signo) noexcept {
-    for (const Previous &previous : state.previous) {
-        if (previous.signo == signo) {
-            ::sigaction(signo, &previous.action, nullptr);
-        }
-    }
-}
-
-/// Run the action `signo` had before install(), with the kernel's own
+/// Put back the action a signal had before install(), and run it, with the kernel's own
 /// siginfo and context, once. Its handler is called here, as the kernel
 /// would call it, rather than through raise(): raise() would hand it a
 /// signal sent, not the fault, and a handler that returns (a runtime's
@@ -230,28 +227,26 @@ void restore(int signo) noexcept {
 /// without sqlearn: a fault whose handler returns runs its instruction
 /// again. macOS gives a signal sent a fault's si_code, so the handler
 /// cannot be told which it is; calling it covers both.
-/// @param signo The signal.
+/// @param signal The signal's entry.
 /// @param info What the kernel says of it.
 /// @param context The interrupted context.
-void run_previous(int signo, siginfo_t *info, void *context) noexcept {
-    const Previous *found = nullptr;
-    for (const Previous &previous : state.previous) {
-        if (previous.signo == signo) {
-            found = &previous;
-        }
-    }
-    if (found == nullptr) {
-        return;
-    }
-    const struct sigaction &action = found->action;
+void run_previous(const Previous &signal, siginfo_t *info, void *context) noexcept {
+    const int signo = signal.signo;
+    const struct sigaction &action = signal.action;
+    ::sigaction(signo, &action, nullptr);
     const auto flags = static_cast<unsigned>(action.sa_flags);
     const bool with_info = (flags & static_cast<unsigned>(SA_SIGINFO)) != 0;
     // SIG_DFL and SIG_IGN whatever the flags say: Python leaves SIGSEGV's
     // default action with SA_SIGINFO set and no handler, and a call
     // through that null pointer, with the signal blocked, hangs on macOS.
     if (action.sa_handler == SIG_DFL) {
-        // Blocked while this runs: the default action takes it as the
-        // handler returns, and ends the process by the signal.
+        // Not blocked (this handler has SA_NODEFER): the default action
+        // ends the process by the signal here.
+#if defined(SQ_CRASH_TEST_HOOKS)
+        if (detail::before_default != nullptr) {
+            detail::before_default();
+        }
+#endif
         ::raise(signo);
         return;
     }
@@ -264,9 +259,23 @@ void run_previous(int signo, siginfo_t *info, void *context) noexcept {
         sigemptyset(&reset.sa_mask);
         ::sigaction(signo, &reset, nullptr);
     }
-    // Its mask, as the kernel would apply it for the call.
+    // The mask the kernel would give the call: its sa_mask, and the signal
+    // itself blocked unless SA_NODEFER, which CPython's faulthandler sets
+    // so that a fault while it dumps ends the process. Its action is back
+    // in place, so that fault reaches it, or the default, at once.
+    sigset_t mask = action.sa_mask;
+    sigset_t self{};
+    sigemptyset(&self);
+    sigaddset(&self, signo);
+    const bool nodefer = (flags & static_cast<unsigned>(SA_NODEFER)) != 0;
+    if (!nodefer) {
+        sigaddset(&mask, signo);
+    }
     sigset_t before{};
-    ::pthread_sigmask(SIG_BLOCK, &action.sa_mask, &before);
+    ::pthread_sigmask(SIG_BLOCK, &mask, &before);
+    if (nodefer) {
+        ::pthread_sigmask(SIG_UNBLOCK, &self, nullptr);
+    }
     if (with_info) {
         action.sa_sigaction(signo, info, context);
     } else {
@@ -275,19 +284,24 @@ void run_previous(int signo, siginfo_t *info, void *context) noexcept {
     ::pthread_sigmask(SIG_SETMASK, &before, nullptr);
 }
 
-/// The handler: report once, restore the previous action and run it, with
-/// the kernel's siginfo (run_previous).
+/// The handler: report once, then put back the previous action and run it,
+/// with the kernel's siginfo (run_previous).
 /// @param signo The signal.
 /// @param info What the kernel says of it.
 /// @param context The interrupted context.
 void on_signal(int signo, siginfo_t *info, void *context) {
     const int saved = errno;
-    if (!reporting.exchange(true)) {
-        report(signo, info, context);
+    const Previous *signal = entry_of(signo);
+    // Installed with SA_NODEFER, so a fault inside the report comes back
+    // here at once: the report is skipped, and the previous action ends
+    // the process, rather than a blocked signal hanging it (macOS).
+    if (signal != nullptr && !reporting.exchange(true)) {
+        report(*signal, info, context);
     }
-    restore(signo);
     errno = saved;
-    run_previous(signo, info, context);
+    if (signal != nullptr) {
+        run_previous(*signal, info, context);
+    }
 }
 
 /// Make the lazily bound functions the handler calls bound now: their
@@ -334,7 +348,7 @@ bool prepare(const fs::path &dir) {
 bool set_handlers() noexcept {
     struct sigaction action{};
     action.sa_sigaction = on_signal;
-    action.sa_flags = SA_SIGINFO | SA_ONSTACK;
+    action.sa_flags = SA_SIGINFO | SA_ONSTACK | SA_NODEFER;
     sigemptyset(&action.sa_mask);
     bool all = true;
     for (Previous &previous : state.previous) {
@@ -344,6 +358,13 @@ bool set_handlers() noexcept {
 }
 
 } // namespace
+
+#if defined(SQ_CRASH_TEST_HOOKS)
+// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables): the tests' hooks
+void (*detail::fault_in_report)() = nullptr;
+void (*detail::before_default)() = nullptr;
+// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
+#endif
 
 std::optional<fs::path> report_directory(std::string_view home, std::string_view xdg_state_home,
                                          bool macos) {

@@ -219,11 +219,41 @@ def test_a_foreign_archive_linked_into_duckdb_fails(tmp_path):
         ],
     )
     found = _licences.problems(repo, "MIT")
-    assert len(found) == 3
+    assert len(found) == 4
+    assert any("-lbaz" in p for p in found)
     assert any("/opt/homebrew/lib/libfoo.a" in p for p in found)
     assert any("/elsewhere/libbar.a" in p for p in found)
     assert any("-L/opt/homebrew/lib" in p for p in found)
     assert all("Fix:" in p for p in found)
+
+
+def test_only_the_systems_libraries_are_linked_by_name(tmp_path):
+    """-l names pass only for the system's own libraries."""
+    repo = scratch(tmp_path, [], ["engine/src/a.cpp"])
+    names = ["dl", "m", "pthread", "c", "c++", "System", "rt", "stdc++", "gcc_s"]
+    write_link(repo / "build" / "cpython-312", [f"-l{n}" for n in names] + ["-lssl"])
+    found = _licences.problems(repo, "MIT")
+    assert len(found) == 1
+    assert "-lssl" in found[0]
+
+
+def test_on_linux_only_libc_and_the_compiler_runtime_pass(tmp_path, monkeypatch):
+    """Outside macOS, /usr/lib/ is not exempt as a whole: libc's and the
+    compiler runtime's files are, another library there is not."""
+    monkeypatch.setattr(_licences.sys, "platform", "linux")
+    repo = scratch(tmp_path, [], ["engine/src/a.cpp"])
+    write_link(
+        repo / "build" / "cpython-312",
+        [
+            "/usr/lib/x86_64-linux-gnu/libc.so.6",
+            "/lib/x86_64-linux-gnu/libm.so.6",
+            "/usr/lib/gcc/x86_64-linux-gnu/14/libgcc.a",
+            "/usr/lib/x86_64-linux-gnu/libssl.so.3",
+        ],
+    )
+    found = _licences.problems(repo, "MIT")
+    assert len(found) == 1
+    assert "libssl" in found[0]
 
 
 def test_a_build_without_the_link_statement_fails(tmp_path):
