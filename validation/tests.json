@@ -79,6 +79,12 @@
       "tier": "fast"
     },
     {
+      "area": "checks/passed_tree",
+      "name": "tests/checks/test_passed_tree.py::test_verify_runs_every_task_in_full_and_the_release_tools",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
       "area": "checks/pins_check",
       "name": "tests/checks/test_pins_check.py::test_a_configure_at_another_commit_names_the_fix",
       "outcome": "passed",
@@ -97,8 +103,20 @@
       "tier": "fast"
     },
     {
+      "area": "checks/pins_check",
+      "name": "tests/checks/test_pins_check.py::test_duckdb_checked_out_off_its_pin_inside_duckdb_python_fails_configure",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
       "area": "checks/tasks",
       "name": "tests/checks/test_tasks.py::test_a_change_to_one_python_file_lints_only_that_file",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_a_change_to_the_extension_reruns_its_sql_tests[engine/cmake/sql_tests.cmake]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -117,6 +135,12 @@
     {
       "area": "checks/tasks",
       "name": "tests/checks/test_tasks.py::test_a_change_to_the_extension_reruns_its_sql_tests[engine/extension/test/sql/sqlearn_version.test]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_a_change_to_the_extension_reruns_its_sql_tests[engine/sqllogic/CMakeLists.txt]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -165,6 +189,12 @@
     {
       "area": "checks/tasks",
       "name": "tests/checks/test_tasks.py::test_a_docs_only_change_runs_no_test",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_a_duckdb_bump_reruns_the_sql_tests",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -2096,6 +2126,12 @@
     },
     {
       "area": "engine/presets",
+      "name": "tests/engine/test_presets.py::test_clangd_reads_the_llvm_dev_compile_database",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/presets",
       "name": "tests/engine/test_presets.py::test_every_preset_builds_in_its_own_directory",
       "outcome": "passed",
       "tier": "fast"
@@ -2277,6 +2313,12 @@
     {
       "area": "engine/sqllogic",
       "name": "tests/engine/test_sqllogic.py::test_the_sqllogic_preset_builds_the_sql_tests_alone",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/sqllogic",
+      "name": "tests/engine/test_sqllogic.py::test_the_test_set_takes_every_file_the_runner_runs",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -20852,6 +20894,12 @@
     },
     {
       "area": "validation/_licences",
+      "name": "tests/validation/test__licences.py::test_a_name_or_directory_in_the_next_token_is_checked_alike",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_licences",
       "name": "tests/validation/test__licences.py::test_a_path_outside_the_repository_matches_a_pattern",
       "outcome": "passed",
       "tier": "fast"
@@ -20870,7 +20918,7 @@
     },
     {
       "area": "validation/_licences",
-      "name": "tests/validation/test__licences.py::test_an_awaiting_term_passes_only_for_its_row",
+      "name": "tests/validation/test__licences.py::test_a_term_allowed_for_one_row_passes_only_for_it",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -20912,12 +20960,6 @@
     },
     {
       "area": "validation/_licences",
-      "name": "tests/validation/test__licences.py::test_the_awaiting_terms_are_printed_with_their_rows",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "validation/_licences",
       "name": "tests/validation/test__licences.py::test_the_real_file_passes_against_the_wheels_build",
       "outcome": "passed",
       "tier": "fast"
@@ -20925,6 +20967,12 @@
     {
       "area": "validation/_licences",
       "name": "tests/validation/test__licences.py::test_the_spdx_expressions_evaluate",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_licences",
+      "name": "tests/validation/test__licences.py::test_the_terms_allowed_for_one_row_are_printed_with_it",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -20961,6 +21009,30 @@
     {
       "area": "validation/_mutate",
       "name": "tests/validation/test__mutate.py::test_an_entry_without_its_reason_is_refused[twice]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_mutate",
+      "name": "tests/validation/test__mutate.py::test_logic_added_to_the_build_identity_is_found[auto x = std::max(1, 2);-found2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_mutate",
+      "name": "tests/validation/test__mutate.py::test_logic_added_to_the_build_identity_is_found[if (identity.compiler.empty()) {}-found0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_mutate",
+      "name": "tests/validation/test__mutate.py::test_logic_added_to_the_build_identity_is_found[int n = identity.build_type.size() + 1;-found1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_mutate",
+      "name": "tests/validation/test__mutate.py::test_the_file_left_out_of_mull_holds_only_the_build_identity",
       "outcome": "passed",
       "tier": "fast"
     },

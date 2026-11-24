@@ -1,4 +1,4 @@
-"""sqlearn's engine: the C++ compiled into DuckDB's ``_duckdb`` binary.
+"""The engine: sqlearn's C++, compiled into DuckDB's ``_duckdb`` binary.
 
 The binary holds two modules, DuckDB's ``_duckdb`` and sqlearn's
 ``_native``. :func:`load` loads the second from the file of the first and
