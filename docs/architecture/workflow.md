@@ -31,7 +31,7 @@ What runs at each point:
 | A commit | the pre-commit hook: `just pre-commit` over the files committed |
 | A push | none: a push runs no suite |
 | A merge to `main` | the pre-merge-commit hook runs what the pre-commit hook runs; `just done` on `main` runs nothing for a tree that passed |
-| Work is done | `just done`: `check-lockfile`, `check-mirror`, `check-no-devdata`, then each check on what changed (`format`, `lint`, `docstrings`, `types`, `test`, `validate`, `docs`), then the tree is remembered |
+| Work is done | `just done`: `check-lockfile`, `check-mirror`, `check-no-devdata`, then each check on what changed (`format`, `lint`, `docstrings`, `types`, `test`, `sql`, `validate`, `docs`), then the tree is remembered |
 | A release | `just verify`: the same three, each check with `just full` (`validate` as `validate-all`), then `test-all` (coverage) and `test-python-versions`, by hand before `1.0.0` |
 
 `just done` remembers each tree that passed in `sqlearn-passed`, in the git

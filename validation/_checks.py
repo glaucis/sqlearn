@@ -206,6 +206,21 @@ TEST_INPUTS = (
 )
 """What the tests import or read, so a change to any of it reruns them all."""
 
+SQL_INPUTS = (
+    # The extension: its sources, its config and its .test files.
+    "engine/extension",
+    # Our C++ it links (core::describe), and the build of the runner.
+    "engine/src",
+    "engine/sqllogic",
+    "engine/cmake",
+    "engine/CMakeLists.txt",
+    "engine/CMakePresets.json",
+    # DuckDB, through duckdb-python's gitlink, which pins its own.
+    "engine/duckdb-python",
+    "validation/_ctest.py",
+)
+"""What DuckDB's unittest with the sqlearn extension, and its SQL tests, come from."""
+
 _PYTEST_PASSES = (
     ("-n", "auto", "-m", "not slow and not serial", "--ignore=tests/githooks"),
     ("-p", "no:xdist", "-m", "serial and not slow", "--ignore=tests/githooks"),
@@ -302,6 +317,26 @@ def _table() -> dict[str, Task]:
                 ),
             ),
             per_file=False,
+        ),
+        Task(
+            name="sql",
+            inputs=SQL_INPUTS,
+            config=SETTINGS,
+            steps=(
+                # The extension's sqllogictest files, on DuckDB's unittest
+                # (the sqllogic preset, validation/_ctest.py, whose records
+                # then decide). Not `always`: it runs when its inputs or the
+                # compiler changed, so a tree that never touches them never
+                # builds DuckDB's tree for it.
+                Step(("just", "test-sql"), everything=("--all",)),
+            ),
+            per_file=False,
+            tools=(
+                # The compiler behind the build (an Xcode or Command Line
+                # Tools update), and the SDK it compiles against.
+                ("c++", "--version"),
+                ("xcrun", "--show-sdk-version"),
+            ),
         ),
         Task(
             name="tidy",

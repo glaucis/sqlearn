@@ -34,15 +34,15 @@ system's OpenMP library; uv cannot provide it. uv is the only package tool
 | setup | `setup` |
 | format | `fmt`, `fmt-engine`, `fmt-markdown`, `fmt-python` |
 | check | `check`, `check-docstring-args`, `check-docstrings`, `check-lockfile`, `check-mirror`, `check-no-devdata`, `check-spelling`, `check-types`, `check-types-mypy`, `checkable-tree`, `docstrings`, `done`, `format`, `full`, `headers-alone`, `iwyu-engine`, `lint`, `lint-markdown`, `lint-python`, `place`, `pre-commit`, `remember-tree`, `tidy`, `tidy-engine`, `types`, `verify` |
-| test | `test`, `test-all`, `test-hooks`, `test-python-versions`, `validate`, `validate-all` |
+| test | `sql`, `test`, `test-all`, `test-hooks`, `test-python-versions`, `test-sql`, `validate`, `validate-all` |
 | docs | `build-docs`, `docs`, `fetch-inventories`, `fetch-mathjax` |
 | build | `build-package` |
 | maintain | `clean`, `upgrade-dependencies` |
 
 Which recipe runs when (a commit, a merge, work done, a release) is in
 [the tiers' table](testing.md). The checks `just done` runs (`format`, `lint`,
-`docstrings`, `types`, `test`, `validate`, `docs`) each run on what changed
-since they passed, and `just full <task>` runs one all through:
+`docstrings`, `types`, `test`, `sql`, `validate`, `docs`) each run on what
+changed since they passed, and `just full <task>` runs one all through:
 [testing](testing.md), "How each check finds what changed". The other `check-*`,
 `lint-*` and `test-*` recipes run on everything, unrecorded. `just fmt` and its
 three parts are the only recipes that reformat your files.

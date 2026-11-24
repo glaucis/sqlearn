@@ -178,6 +178,11 @@ test-engine preset="dev": (build-engine preset)
 test-engine-changed preset="dev" *flags:
     uv run --locked python -m validation._ctest {{ preset }} {{ flags }}
 
+# Build DuckDB's unittest with the sqlearn extension (the sqllogic preset, minutes the first time), then run engine/extension/test/sql/*.test when the program or a test file changed since they passed; --all runs them whatever the record; `just sql` runs this when its inputs changed
+[group('test')]
+test-sql *flags:
+    uv run --locked python -m validation._ctest sqllogic {{ flags }}
+
 # Fuzz each target for `seconds` (libFuzzer on the fuzzing preset, Homebrew LLVM) on a scratch copy of its corpus, then merge the new inputs into engine/fuzz/corpus/<target>/; a crash leaves its input there, and fails
 [group('test')]
 fuzz seconds="60":
@@ -574,6 +579,11 @@ types:
 test:
     {{ checks }} test
 
+# Run the sqlearn extension's SQL tests (just test-sql) when the extension, our C++, the runner's build, DuckDB's pin or the compiler changed since a passed run
+[group('test')]
+sql:
+    {{ checks }} sql
+
 # Run clang-tidy, include-what-you-use and the headers-alone build when our C++, its settings or the submodules changed since a passed run, or one of the tools was upgraded
 [group('check')]
 tidy:
@@ -648,7 +658,7 @@ done:
     fi
     # every check runs whatever the others' exit, as each task's steps do, so one failure hides no other's findings
     first=0
-    for check in check-lockfile check-mirror check-no-devdata format lint docstrings types test validate docs; do
+    for check in check-lockfile check-mirror check-no-devdata format lint docstrings types test sql validate docs; do
         code=0
         "${j[@]}" "$check" || code=$?
         if [ "$first" -eq 0 ]; then first=$code; fi

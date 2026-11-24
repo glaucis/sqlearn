@@ -49,6 +49,33 @@ else()
 endif()
 string(REGEX REPLACE "^v" "" SQ_DUCKDB_VERSION "${SQ_DUCKDB_TAG}")
 
+# The core group's sources: the groups' build (below) and the SQL tests'
+# (engine/sqllogic) compile them alike.
+set(SQ_CORE_SOURCES src/core/error.cpp src/core/parse_version.cpp src/core/version.cpp)
+
+# Give `source`, core/version.cpp, the build identity, on this file alone so
+# a new version recompiles only it. A source file's properties hold in the
+# directory that sets them, so each directory compiling it calls this.
+function(sq_build_identity source)
+  set_source_files_properties(
+    ${source}
+    PROPERTIES
+      COMPILE_DEFINITIONS
+        "SQ_SQLEARN_VERSION=\"${SQ_SQLEARN_VERSION}\";SQ_DUCKDB_VERSION=\"${SQ_DUCKDB_VERSION}\";SQ_DUCKDB_COMMIT=\"${SQ_DUCKDB_COMMIT}\";SQ_COMPILER=\"${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}\";SQ_BUILD_TYPE=\"${CMAKE_BUILD_TYPE}\""
+  )
+endfunction()
+
+# The sqllogic preset builds the SQL tests alone: DuckDB's own tree with its
+# sqllogictest runner and the sqlearn extension (engine/sqllogic), without
+# duckdb-python or our groups' test programs.
+option(SQ_SQLLOGIC "Build DuckDB's unittest with the sqlearn extension, and nothing else" OFF)
+if(SQ_SQLLOGIC)
+  # At the top level, so `ctest --test-dir engine/build/sqllogic` finds the test.
+  enable_testing()
+  add_subdirectory(sqllogic)
+  return()
+endif()
+
 if(SQ_ENGINE_ONLY)
   sq_flavor_everywhere()
 else()
@@ -131,7 +158,7 @@ endif()
 
 sq_add_group(
   core
-  SOURCES src/core/error.cpp src/core/parse_version.cpp src/core/version.cpp
+  SOURCES ${SQ_CORE_SOURCES}
   TESTS tests/core/test_version.cpp tests/core/test_parse_version.cpp tests/core/test_error.cpp
 )
 # The one layer allowed raw memory (ADR 0065); its SQ_EXPECTS throws core's
@@ -162,13 +189,7 @@ endif()
 if(TARGET test_crash AND SQ_FLAVOR STREQUAL "coverage")
   target_compile_definitions(test_crash PRIVATE SQ_COVERAGE)
 endif()
-# On this file alone, so a new version recompiles only it.
-set_source_files_properties(
-  src/core/version.cpp
-  PROPERTIES
-    COMPILE_DEFINITIONS
-      "SQ_SQLEARN_VERSION=\"${SQ_SQLEARN_VERSION}\";SQ_DUCKDB_VERSION=\"${SQ_DUCKDB_VERSION}\";SQ_DUCKDB_COMMIT=\"${SQ_DUCKDB_COMMIT}\";SQ_COMPILER=\"${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}\";SQ_BUILD_TYPE=\"${CMAKE_BUILD_TYPE}\""
-)
+sq_build_identity(src/core/version.cpp)
 
 sq_add_headers_alone()
 

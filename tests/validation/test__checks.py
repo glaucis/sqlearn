@@ -499,6 +499,7 @@ def test_the_task_table_names_every_check():
         "docstrings",
         "types",
         "test",
+        "sql",
         "docs",
         "tidy",
     }

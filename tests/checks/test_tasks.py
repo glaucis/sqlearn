@@ -28,6 +28,9 @@ validate-all:
 
 test-engine-changed *args:
     @echo '["test-engine-changed {{ args }}"]' >> "$CALLS"
+
+test-sql *args:
+    @echo '["test-sql {{ args }}"]' >> "$CALLS"
 """
 
 TOOL = """#!{python}
@@ -50,6 +53,9 @@ FILES = {
     "docs/guide/notes.md": "# Notes\n",
     "docs/conf.py": "project = 'scratch'\n",
     "docs/architecture/engine-inventory.md": "| `a.py` | 1 |\n",
+    "engine/extension/src/sqlearn_extension.cpp": "// the extension\n",
+    "engine/extension/test/sql/sqlearn_version.test": "require sqlearn\n",
+    "engine/src/core/version.cpp": "// core\n",
 }
 
 
@@ -187,6 +193,37 @@ def test_a_data_file_change_reruns_the_tests(scratch, data):
         ["test-engine-changed dev"],
         *([*report, *p] for p in passes),
     ]
+
+
+@pytest.mark.parametrize(
+    "changed",
+    [
+        "engine/extension/src/sqlearn_extension.cpp",
+        "engine/extension/test/sql/sqlearn_version.test",
+        "engine/extension/test/sql/new.test",
+        "engine/src/core/version.cpp",
+    ],
+)
+def test_a_change_to_the_extension_reruns_its_sql_tests(scratch, changed):
+    """``just sql`` runs the SQL tests once, skips them on a docs edit, and
+    runs them again when the extension, a .test file or our C++ changed."""
+    repo, env = scratch
+    just(repo, env, "sql")
+    assert calls(env) == [["test-sql "]]
+    (repo / "docs" / "guide" / "notes.md").write_text("# Notes, edited\n")
+    assert "sql: unchanged since a passed run" in just(repo, env, "sql")
+    assert calls(env) == []
+    path = repo / changed
+    path.write_text((path.read_text() if path.exists() else "") + "// changed\n")
+    just(repo, env, "sql")
+    assert calls(env) == [["test-sql "]]
+
+
+def test_full_sql_runs_every_sql_test(scratch):
+    """``just full sql`` hands ``test-sql`` its ``--all``."""
+    repo, env = scratch
+    just(repo, env, "full", "sql")
+    assert calls(env) == [["test-sql --all"]]
 
 
 def test_full_test_runs_every_cxx_group(scratch):

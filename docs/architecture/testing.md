@@ -48,7 +48,7 @@ before work is done, and `just verify` is the release tier.
 | A commit | the pre-commit hook: `just pre-commit` over the files committed |
 | A push | none: a push runs no suite |
 | A merge to `main` | the pre-merge-commit hook runs what the pre-commit hook runs; `just done` on `main` runs nothing for a tree that passed |
-| Work is done | `just done`: `check-lockfile`, `check-mirror`, `check-no-devdata`, then each check on what changed (`format`, `lint`, `docstrings`, `types`, `test`, `validate`, `docs`), then the tree is remembered |
+| Work is done | `just done`: `check-lockfile`, `check-mirror`, `check-no-devdata`, then each check on what changed (`format`, `lint`, `docstrings`, `types`, `test`, `sql`, `validate`, `docs`), then the tree is remembered |
 | A release | `just verify`: the same three, each check with `just full` (`validate` as `validate-all`), then `test-all` (coverage) and `test-python-versions`, by hand before `1.0.0` |
 
 `just done` remembers each tree that passed in `sqlearn-passed`, in the git
@@ -127,6 +127,7 @@ passed run already checked.
 | `docstrings` | the Python files under `src/` | each changed file: `numpydoc lint`, `just check-docstring-args` |
 | `types` | every `*.py` and `*.pyi` file | the whole program: `ty check`, then `mypy` |
 | `test` | `src/`, `tests/`, `validation/`, `devdata/`, `engine/` (with its submodules' commits), every `conftest.py`, `docs/conf.py`, `docs/architecture/engine-inventory.md`, `.githooks/`, `commitlint.config.mjs` | the C++ groups whose program changed (below), then every test: the four passes (above) |
+| `sql` | `engine/extension/` (its `.test` files included), `engine/src/`, `engine/sqllogic/`, `engine/cmake/`, the CMake files and presets, duckdb-python's commit, `validation/_ctest.py`; the compiler's and the SDK's versions | the extension's SQL tests: `just test-sql` (below) |
 | `tidy` | our C++ (`engine/src/`, `engine/tests/`, `engine/bench/`, `engine/extension/`), `engine/cmake/`, the CMake files and presets, `engine/.clang-tidy`, `engine/src/raw/.clang-tidy`, `engine/iwyu.imp`, the submodules' commits | the whole engine: `just tidy-engine` (clang-tidy with the static analyser), `just iwyu-engine` (include-what-you-use), `just headers-alone` |
 | `docs` | `docs/`, `src/`, `examples/` | the whole site: `just build-docs` |
 | `validate` | each runner's imported modules, `uv.lock`, `devdata/data/` | each changed runner, by its own records (below) |
@@ -225,6 +226,22 @@ step runs even when the `test` task is unchanged since a passed run, before it
 prints so: what its records name and no input of the task does (the compiler,
 the environment) still reruns a group. `just full test` passes `--all`, which
 runs every group.
+
+**The SQL tests.** Each SQL function of the `sqlearn` extension has its
+sqllogictest file in `engine/extension/test/sql/` (ADR 0065), run by DuckDB's
+own runner, which exists only in its `unittest` program. The `sqllogic` preset
+(`engine/sqllogic/`) builds DuckDB's own tree, not duckdb-python, with
+`BUILD_UNITTESTS`, `core_functions` and the extension linked in, and the
+extension's `LOAD_TESTS`; our warnings reach our sources alone. The first
+build takes minutes; later ones rebuild what changed. Its one CTest test,
+`sqllogic` with the label `sql`, runs every `.test` file there and none of
+DuckDB's suite; `--require sqlearn` fails a file whose `require sqlearn` would
+otherwise skip it, and a pattern matching no file fails. `just test-sql` runs
+it through `validation._ctest`, which reruns the label when the `unittest`
+program, the library it loads or a `.test` file (each a required file) changed
+since it passed. The `sql` task runs `just test-sql` when its inputs changed,
+so `just done` reaches it after any change to the extension; `just test` does
+not build it.
 
 **Fuzzing.** `just fuzz [seconds]` (60 by default) builds the `fuzzing`
 preset (Homebrew LLVM, since Apple clang has no libFuzzer runtime; libFuzzer

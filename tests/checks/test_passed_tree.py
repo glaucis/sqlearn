@@ -17,6 +17,7 @@ RUNS = (
     "docstrings",
     "types",
     "test",
+    "sql",
     "validate",
     "docs",
 )

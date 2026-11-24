@@ -104,6 +104,30 @@
     },
     {
       "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_a_change_to_the_extension_reruns_its_sql_tests[engine/extension/src/sqlearn_extension.cpp]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_a_change_to_the_extension_reruns_its_sql_tests[engine/extension/test/sql/new.test]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_a_change_to_the_extension_reruns_its_sql_tests[engine/extension/test/sql/sqlearn_version.test]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_a_change_to_the_extension_reruns_its_sql_tests[engine/src/core/version.cpp]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
       "name": "tests/checks/test_tasks.py::test_a_data_file_change_reruns_the_tests[.githooks/pre-commit]",
       "outcome": "passed",
       "tier": "fast"
@@ -141,6 +165,12 @@
     {
       "area": "checks/tasks",
       "name": "tests/checks/test_tasks.py::test_a_docs_only_change_runs_no_test",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_full_sql_runs_every_sql_test",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -2223,6 +2253,30 @@
     {
       "area": "engine/sanitizers",
       "name": "tests/engine/test_sanitizers.py::test_the_wheels_build_checks_the_compiler_by_version",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/sqllogic",
+      "name": "tests/engine/test_sqllogic.py::test_every_sql_test_file_is_part_of_the_labels_identity",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/sqllogic",
+      "name": "tests/engine/test_sqllogic.py::test_the_extension_carries_an_sql_test",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/sqllogic",
+      "name": "tests/engine/test_sqllogic.py::test_the_sql_label_runs_only_the_extensions_tests",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/sqllogic",
+      "name": "tests/engine/test_sqllogic.py::test_the_sqllogic_preset_builds_the_sql_tests_alone",
       "outcome": "passed",
       "tier": "fast"
     },
