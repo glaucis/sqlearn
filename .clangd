@@ -1,0 +1,5 @@
+# clangd (Homebrew LLVM's, spec §3.8) reads the compile commands of the
+# llvm-dev preset, engine/build/llvm-dev/compile_commands.json, which
+# `just build-engine llvm-dev` writes. The directory is relative to this file.
+CompileFlags:
+  CompilationDatabase: engine/build/llvm-dev

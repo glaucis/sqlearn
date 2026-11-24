@@ -202,3 +202,13 @@ def test_the_stack_clash_probe_asks_each_compiler_its_own_way(
     found, hardening = _stack_clash_probe(tmp_path, shutil.which(compiler) or "")
     assert found == takes
     assert ("-fstack-clash-protection" in hardening) == takes
+
+
+def test_clangd_reads_the_llvm_dev_compile_database() -> None:
+    """The root .clangd points clangd at llvm-dev's compile_commands.json, the
+    build of Homebrew LLVM, whose clangd it is (spec §3.8)."""
+    assert "llvm-dev" in _configure_presets()
+    text = (REPO / ".clangd").read_text()
+    found = re.search(r"^\s*CompilationDatabase:\s*(\S+)\s*$", text, re.MULTILINE)
+    assert found is not None
+    assert found.group(1) == "engine/build/llvm-dev"
