@@ -98,3 +98,16 @@ def test_a_configure_at_another_commit_names_the_fix(scratch):
     assert done.returncode != 0
     assert "engine/third_party/catch2" in done.stderr
     assert FIX in done.stderr
+
+
+def test_duckdb_checked_out_off_its_pin_inside_duckdb_python_fails_configure(scratch):
+    """DuckDB's commit, nested in duckdb-python, is checked as its own: a
+    checkout off its pin fails configure even when duckdb-python's gitlink,
+    the one the checks' digests read, is unchanged."""
+    _repin(scratch)
+    duckdb = scratch / "engine" / "duckdb-python" / "external" / "duckdb"
+    _git(duckdb, "commit", "-q", "--allow-empty", "-m", "moved")
+    done = _configure(scratch)
+    assert done.returncode != 0
+    assert "engine/duckdb-python/external/duckdb" in done.stderr
+    assert FIX in done.stderr

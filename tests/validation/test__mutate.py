@@ -1,6 +1,7 @@
 """Mutation testing of our C++: the survivors Mull reports, the ones
 engine/mull.yml keeps with a reason, and the verdict between them."""
 
+import re
 from pathlib import Path
 
 import pytest
@@ -8,6 +9,37 @@ import pytest
 from validation import _mutate
 
 ENGINE = Path("/e/engine")
+
+REPO = Path(__file__).resolve().parents[2]
+
+VERSION_CPP = REPO / "engine" / "src" / "core" / "version.cpp"
+"""Left out of Mull (engine/mull.yml): it must hold nothing Mull could mutate."""
+
+IDENTITY_CALLS = {"build_identity", "describe", "format", "substr"}
+"""The two functions version.cpp defines, and the two calls describe() makes."""
+
+
+def _logic_in(text: str) -> list[str]:
+    """Return what in C++ `text` goes beyond the build identity's definitions:
+    a branch or loop, an operator, an assignment other than a constant's, a
+    call other than those of IDENTITY_CALLS."""
+    code = re.sub(r"//[^\n]*|/\*.*?\*/", "", text, flags=re.DOTALL)
+    code = re.sub(r"^\s*#.*?(?<!\\)$", "", code, flags=re.MULTILINE | re.DOTALL)
+    code = re.sub(r'"(?:\\.|[^"\\])*"', '""', code)
+    keywords = r"if|else|for|while|do|switch|case|goto|try|catch|throw"
+    found: list[str] = re.findall(rf"\b(?:{keywords})\b", code)
+    found += re.findall(r"&&|\|\||[-+*/%<>!?|^~]", code)
+    found += [
+        m.group(0)
+        for m in re.finditer(r"=", code)
+        if not re.search(r"\bconstexpr\b[^;=]*$", code[: m.start()])
+    ]
+    found += [
+        c
+        for c in re.findall(r"(\w+)\s*\(", code)
+        if c not in IDENTITY_CALLS and not re.fullmatch(keywords, c)
+    ]
+    return found
 
 
 def _mutant(path: str, line: int, column: int, mutator: str, status: str):
@@ -90,3 +122,29 @@ def test_the_verdict_names_unrecorded_survivors_and_stale_entries():
     kept = {"b:2:2:m": "why", "c:3:3:m": "why"}
     assert _mutate.verdict(found, kept) == (["a:1:1:m"], ["c:3:3:m"])
     assert _mutate.verdict({"b:2:2:m"}, {"b:2:2:m": "why"}) == ([], [])
+
+
+def test_the_file_left_out_of_mull_holds_only_the_build_identity():
+    """engine/mull.yml leaves core/version.cpp out, since it has nothing to
+    mutate: the file keeps no branch, operator or call beyond describe()'s
+    format and substr, so the exclusion hides no logic."""
+    assert "engine/src/core/version" in (REPO / "engine" / "mull.yml").read_text()
+    assert _logic_in(VERSION_CPP.read_text()) == []
+
+
+@pytest.mark.parametrize(
+    ("added", "found"),
+    [
+        ("if (identity.compiler.empty()) {}", ["if", "empty"]),
+        ("int n = identity.build_type.size() + 1;", ["+", "=", "size"]),
+        ("auto x = std::max(1, 2);", ["=", "max"]),
+    ],
+)
+def test_logic_added_to_the_build_identity_is_found(added, found):
+    """A branch, an operator or another call added to version.cpp is found,
+    each by what it adds."""
+    text = VERSION_CPP.read_text().replace(
+        "std::string describe(const BuildIdentity &identity) {",
+        "std::string describe(const BuildIdentity &identity) {\n    " + added,
+    )
+    assert sorted(_logic_in(text)) == sorted(found)
