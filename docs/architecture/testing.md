@@ -233,22 +233,27 @@ and `tysan` (TypeSanitizer), the last two with Homebrew LLVM, since Apple
 clang has neither on Apple silicon. Each builds our groups alone
 (`SQ_ENGINE_ONLY`) with its sanitizer on every target, the test libraries
 included, and runs every group's tests under it; every preset runs, a failing
-one included. A finding stops the program (`-fno-sanitize-recover=all`, and
-`TYSAN_OPTIONS=halt_on_error=1` in the tests' environment, since
-TypeSanitizer goes on otherwise); `llvm-dev` also turns on AddressSanitizer's
-leak check (`ASAN_OPTIONS=detect_leaks=1`), which Apple's runtime refuses.
+one included. A finding fails the program: `-fno-sanitize-recover=all`, and
+`halt_on_error=1` in `TSAN_OPTIONS` and `TYSAN_OPTIONS` (TypeSanitizer goes
+on otherwise). Most sanitizers stop it at the fault; LeakSanitizer looks at
+exit and fails it then. `llvm-dev` also turns on AddressSanitizer's leak
+check (`ASAN_OPTIONS=detect_leaks=1`), which Apple's runtime refuses. These
+options come before any the user exported (CTest's
+`ENVIRONMENT_MODIFICATION`, `string_prepend`): the sanitizers read options
+left to right, so the user's win, and a group's identity hashes both the
+test's property and the user's variable.
 Each preset has a canary per sanitizer it carries (`engine/tests/canary/`,
 label `canary`): a program holding the one fault that sanitizer finds (a heap
 overflow, a signed overflow, a data race, a leak, a type-punned store). Its
-test passes only when the program was stopped and its output holds the
+test passes only when the program failed and its output holds the
 sanitizer's report (`expect_finding.cmake`), so a sanitizer that is off, lets
 a finding pass, or a crash of another kind fails it. The canaries break the
 rules on purpose, so clang-tidy leaves them out.
 
 `tests/engine/test_steady_memory.py` (`slow`) makes 100,000 calls of
 `count_rows` and `build_identity` in a process of its own, in 10 rounds,
-reading its resident set from `ps` twice after each: round 10's must lie
-within 5 % of round 2's.
+reading its resident set from `ps` twice after each: round 10's must be at
+most 5 % above round 2's (a set that shrinks is no leak).
 
 ## The validation runners
 

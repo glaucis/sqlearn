@@ -2036,6 +2036,18 @@
     },
     {
       "area": "engine/presets",
+      "name": "tests/engine/test_presets.py::test_the_stack_clash_probe_asks_each_compiler_its_own_way[c++-False]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/presets",
+      "name": "tests/engine/test_presets.py::test_the_stack_clash_probe_asks_each_compiler_its_own_way[g++-16-True]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/presets",
       "name": "tests/engine/test_presets.py::test_the_wheel_compiles_our_sources_with_the_release_hardening",
       "outcome": "passed",
       "tier": "fast"
@@ -2060,6 +2072,24 @@
     },
     {
       "area": "engine/sanitizers",
+      "name": "tests/engine/test_sanitizers.py::test_a_flavours_options_go_before_the_users[llvm-dev-ours2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/sanitizers",
+      "name": "tests/engine/test_sanitizers.py::test_a_flavours_options_go_before_the_users[tsan-ours0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/sanitizers",
+      "name": "tests/engine/test_sanitizers.py::test_a_flavours_options_go_before_the_users[tysan-ours1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/sanitizers",
       "name": "tests/engine/test_sanitizers.py::test_a_presets_build_checks_the_compiler_by_version[lsan]",
       "outcome": "passed",
       "tier": "fast"
@@ -2073,6 +2103,12 @@
     {
       "area": "engine/sanitizers",
       "name": "tests/engine/test_sanitizers.py::test_a_tests_data_directory_is_refused_with_a_fix",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/sanitizers",
+      "name": "tests/engine/test_sanitizers.py::test_a_users_option_wins_over_the_flavours",
       "outcome": "passed",
       "tier": "fast"
     },

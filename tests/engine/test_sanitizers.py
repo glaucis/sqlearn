@@ -7,6 +7,7 @@ and a test's data is files, never a directory.
 """
 
 import json
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -251,3 +252,51 @@ def test_the_wheels_build_checks_the_compiler_by_version() -> None:
                 cache,
                 language,
             )
+
+
+@pytest.mark.parametrize(
+    ("preset", "ours"),
+    [
+        ("tsan", {"TSAN_OPTIONS": "halt_on_error=1"}),
+        ("tysan", {"TYSAN_OPTIONS": "halt_on_error=1"}),
+        ("llvm-dev", {"ASAN_OPTIONS": "detect_leaks=1"}),
+    ],
+)
+def test_a_flavours_options_go_before_the_users(
+    preset: str, ours: dict[str, str]
+) -> None:
+    """Each group's test and canary prepend the flavour's options to the user's
+    own (ENVIRONMENT_MODIFICATION), never replace them: the sanitizers read
+    left to right, so an option the user exported wins, and the checks hash
+    the test's property and the user's variable both."""
+    tests = _listed(preset)
+    for name in (
+        "test_core",
+        "test_raw",
+        *[n for n in tests if n.startswith("canary.")],
+    ):
+        props = {p["name"]: p["value"] for p in tests[name].get("properties", [])}
+        assert "ENVIRONMENT" not in props, name
+        wanted = {f"{k}=string_prepend:{v}:" for k, v in ours.items()}
+        assert wanted <= set(props.get("ENVIRONMENT_MODIFICATION", [])), name
+
+
+def test_a_users_option_wins_over_the_flavours() -> None:
+    """With TYSAN_OPTIONS=halt_on_error=0 exported, TypeSanitizer lets the
+    canary run to its end, and the canary's test fails, as it should."""
+    _listed("tysan")
+    build = ENGINE / "build" / "tysan"
+
+    def run(options: str | None) -> int:
+        env = {k: v for k, v in os.environ.items() if k != "TYSAN_OPTIONS"}
+        if options is not None:
+            env["TYSAN_OPTIONS"] = options
+        return subprocess.run(
+            ["ctest", "--test-dir", str(build), "-R", "^canary\\.tysan$"],
+            capture_output=True,
+            env=env,
+            check=False,
+        ).returncode
+
+    assert run(None) == 0
+    assert run("halt_on_error=0") != 0

@@ -43,11 +43,17 @@ endif()
 # ignore it on arm64 macOS ("argument unused"), so it is left out there.
 # Branch protection (pointer authentication, branch targets) on arm64.
 include(CheckCXXCompilerFlag)
+include(CMakePushCheckState)
 set(SQ_RELEASE_HARDENING -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 -fstack-protector-strong)
-# The check compiles and links; an unused argument is only a warning there.
-set(CMAKE_REQUIRED_FLAGS -Werror=unused-command-line-argument)
+# The check compiles and links, where Clang's unused argument is only a
+# warning, so Clang is asked to make it an error; GCC refuses that option,
+# and says itself when it does not take a flag.
+cmake_push_check_state()
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  set(CMAKE_REQUIRED_FLAGS -Werror=unused-command-line-argument)
+endif()
 check_cxx_compiler_flag(-fstack-clash-protection SQ_TAKES_STACK_CLASH_PROTECTION)
-unset(CMAKE_REQUIRED_FLAGS)
+cmake_pop_check_state()
 if(SQ_TAKES_STACK_CLASH_PROTECTION)
   list(APPEND SQ_RELEASE_HARDENING -fstack-clash-protection)
 endif()
@@ -56,10 +62,12 @@ if(CMAKE_SYSTEM_PROCESSOR MATCHES "arm64|aarch64")
 endif()
 
 # The sanitizer flavours build as dev does, for the debugger's sake, with
-# their one sanitizer. Every finding stops the program, so a test cannot
-# pass over one: -fno-sanitize-recover=all, and for TypeSanitizer, which
-# reports and goes on whatever that flag says, halt_on_error in each test's
-# environment (SQ_TEST_ENVIRONMENT).
+# their one sanitizer. A finding fails the program, so a test cannot pass
+# over one: -fno-sanitize-recover=all, and halt_on_error in each test's
+# environment (SQ_TEST_ENVIRONMENT) for ThreadSanitizer and for
+# TypeSanitizer, which reports and goes on whatever that flag says. Most
+# stop at the fault; LeakSanitizer looks at exit, and fails the program
+# then.
 set(SQ_DEBUG_OPTIONS -O1 -g -fno-omit-frame-pointer -ftrivial-auto-var-init=pattern)
 set(SQ_SANITIZERS "")
 set(SQ_TEST_ENVIRONMENT "")
@@ -84,6 +92,7 @@ elseif(SQ_FLAVOR STREQUAL "tsan")
   set(SQ_FLAVOR_OPTIONS ${SQ_DEBUG_OPTIONS})
   set(SQ_HARDENING ${SQ_HARDENING_EXTENSIVE})
   set(SQ_SANITIZERS -fsanitize=thread -fno-sanitize-recover=all)
+  set(SQ_TEST_ENVIRONMENT TSAN_OPTIONS=halt_on_error=1)
 elseif(SQ_FLAVOR STREQUAL "lsan")
   set(SQ_FLAVOR_OPTIONS ${SQ_DEBUG_OPTIONS})
   set(SQ_HARDENING ${SQ_HARDENING_EXTENSIVE})
@@ -127,6 +136,25 @@ else()
     "Fix: configure with a preset (cmake --preset dev), or set SQ_FLAVOR to dev, debug, release, profile, tsan, lsan or tysan"
   )
 endif()
+
+# Give the test `test` the flavour's sanitizer options (SQ_TEST_ENVIRONMENT),
+# before any the user exported: each NAME=options becomes NAME=options:<the
+# user's>, and the sanitizers read their options left to right, so the
+# user's win. The checks hash the test's properties and the user's variables
+# both (validation/_ctest.py), so a group's identity is what it runs with.
+function(sq_test_environment test)
+  set(changes "")
+  foreach(entry IN LISTS SQ_TEST_ENVIRONMENT)
+    string(FIND "${entry}" "=" split)
+    string(SUBSTRING "${entry}" 0 ${split} name)
+    math(EXPR start "${split} + 1")
+    string(SUBSTRING "${entry}" ${start} -1 options)
+    list(APPEND changes "${name}=string_prepend:${options}:")
+  endforeach()
+  if(changes)
+    set_property(TEST ${test} APPEND PROPERTY ENVIRONMENT_MODIFICATION ${changes})
+  endif()
+endfunction()
 
 # Give `target` the flavour: its compile options, the hardening mode and,
 # for a program, the sanitizers' runtime at the link.

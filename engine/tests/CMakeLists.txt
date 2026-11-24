@@ -54,7 +54,7 @@ endforeach()
 
 # The canaries: one program per sanitizer, holding the one fault it finds,
 # built in that sanitizer's flavour. Its test passes only when the sanitizer
-# stopped it with its report (canary/expect_finding.cmake), so a preset whose
+# failed it with its report (canary/expect_finding.cmake), so a preset whose
 # sanitizer is off, or lets a finding pass, fails. They break sqlearn's
 # rules on purpose, as the must-not-compile cases do: they get the flavour
 # (its sanitizers, hardening, optimisation), not the warnings, and clang-tidy
@@ -77,9 +77,7 @@ function(sq_add_canary name report)
       "${CMAKE_CURRENT_SOURCE_DIR}/canary/expect_finding.cmake" $<TARGET_FILE:${program}>
   )
   set_tests_properties(canary.${name} PROPERTIES LABELS canary)
-  if(SQ_TEST_ENVIRONMENT)
-    set_tests_properties(canary.${name} PROPERTIES ENVIRONMENT "${SQ_TEST_ENVIRONMENT}")
-  endif()
+  sq_test_environment(canary.${name})
 endfunction()
 
 if(SQ_FLAVOR STREQUAL "dev")

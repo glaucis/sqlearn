@@ -18,7 +18,7 @@ CALLS = 10_000
 """Each round's calls, half of each function: 100,000 calls in all."""
 
 TOLERANCE = 0.05
-"""How far round 10's resident set may lie from round 2's."""
+"""How far round 10's resident set may grow past round 2's."""
 
 PROGRAM = f"""
 import json, os, subprocess
@@ -45,7 +45,7 @@ print(json.dumps(rounds))
 @pytest.mark.slow
 def test_memory_levels_off() -> None:
     """After a first round that fills the caches, the resident set stays put:
-    round 10's within 5 % of round 2's, each read twice."""
+    round 10's at most 5 % above round 2's, each read twice."""
     done = subprocess.run(
         [sys.executable, "-c", PROGRAM], capture_output=True, text=True, check=True
     )
@@ -53,4 +53,5 @@ def test_memory_levels_off() -> None:
     assert len(rounds) == ROUNDS
     second = max(rounds[1])
     last = max(rounds[-1])
-    assert abs(last - second) <= TOLERANCE * second, rounds
+    # One-sided: a set that shrinks is memory handed back, not a leak.
+    assert last - second <= TOLERANCE * second, rounds
