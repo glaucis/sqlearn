@@ -14,6 +14,14 @@ ENGINE = REPO / "engine"
 BUILD = ENGINE / "build" / "sqllogic"
 TESTS = ENGINE / "extension" / "test" / "sql"
 
+# The suffixes DuckDB's runner takes, at any depth (its test_sqllogictest.cpp).
+SUFFIXES = (".test", ".test_slow", ".test_coverage")
+
+
+def _runner_files(root: Path) -> set[Path]:
+    """Return every file under `root` the runner would run."""
+    return {p for p in root.rglob("*") if p.is_file() and p.suffix in SUFFIXES}
+
 
 def _preset() -> dict[str, Any]:
     """Return the sqllogic configure preset."""
@@ -58,7 +66,7 @@ def test_the_sqllogic_preset_builds_the_sql_tests_alone() -> None:
 
 def test_the_extension_carries_an_sql_test() -> None:
     """At least one sqllogictest file, each requiring the extension it tests."""
-    files = sorted(TESTS.glob("*.test"))
+    files = sorted(_runner_files(TESTS))
     assert files
     for path in files:
         assert "\nrequire sqlearn\n" in f"\n{path.read_text()}", path.name
@@ -78,8 +86,43 @@ def test_the_sql_label_runs_only_the_extensions_tests() -> None:
 
 
 def test_every_sql_test_file_is_part_of_the_labels_identity() -> None:
-    """Each .test file is a REQUIRED_FILES entry, which the checks hash, so an
-    edited one reruns the label."""
+    """Each file the runner takes is a REQUIRED_FILES entry, which the checks
+    hash, so an edited one reruns the label."""
     entry = _ctest_entry()
     required = {Path(p) for p in _property(entry, "REQUIRED_FILES")}
-    assert required == set(TESTS.glob("*.test"))
+    assert required == _runner_files(TESTS)
+
+
+def test_the_test_set_takes_every_file_the_runner_runs(tmp_path: Path) -> None:
+    """engine/cmake/sql_tests.cmake lists what the runner runs under a
+    directory: .test, .test_slow and .test_coverage files, in subdirectories
+    too, and nothing else."""
+    names = [
+        "a.test",
+        "b.test_slow",
+        "c.test_coverage",
+        "sub/d.test",
+        "sub/deeper/e.test_slow",
+        "notes.md",
+        "sub/data.csv",
+    ]
+    for name in names:
+        (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / name).write_text("require sqlearn\n")
+    script = tmp_path / "list.cmake"
+    script.write_text(
+        f'include("{ENGINE / "cmake" / "sql_tests.cmake"}")\n'
+        f'sq_sql_test_files(found "{tmp_path}")\n'
+        'foreach(file IN LISTS found)\n  message(STATUS "${file}")\nendforeach()\n'
+    )
+    done = subprocess.run(
+        ["cmake", "-P", str(script)], check=False, capture_output=True, text=True
+    )
+    assert done.returncode == 0, done.stderr
+    listed = {
+        Path(line.removeprefix("-- "))
+        for line in done.stdout.splitlines()
+        if line.startswith("-- ")
+    }
+    assert listed == _runner_files(tmp_path)
+    assert tmp_path / "sub" / "deeper" / "e.test_slow" in listed

@@ -57,12 +57,16 @@ sq_target_options(sq_core)
 sq_build_identity("${SQ_ENGINE_DIR}/src/core/version.cpp")
 target_sources(sqlearn_extension PRIVATE $<TARGET_OBJECTS:sq_core>)
 
-# The test: every engine/extension/test/sql/*.test, never DuckDB's own suite.
-# Each file is a REQUIRED_FILES entry (sq_test_data), so the checks hash it
-# and an edited one reruns the label (validation/_ctest.py); the glob is read
-# again at each configure, which every run of the checks does, so a new file
-# joins it.
-file(GLOB sq_sql_tests CONFIGURE_DEPENDS "${SQ_ENGINE_DIR}/extension/test/sql/*.test")
+# The test: every file the runner takes under engine/extension/test/sql
+# (.test, .test_slow, .test_coverage, at any depth; engine/cmake/
+# sql_tests.cmake), never DuckDB's own suite. Each is a REQUIRED_FILES entry
+# (sq_test_data), so the checks hash it and an edited one reruns the label
+# (validation/_ctest.py); the glob is read again at each configure, which
+# every run of the checks does, so a new file joins it. A file a .test reads
+# at run time (a CSV, a script) must be added to sq_test_data here too, or an
+# edit to it is skipped as unchanged.
+include("${SQ_ENGINE_DIR}/cmake/sql_tests.cmake")
+sq_sql_test_files(sq_sql_tests "${SQ_ENGINE_DIR}/extension/test/sql")
 if(NOT sq_sql_tests)
   message(
     FATAL_ERROR

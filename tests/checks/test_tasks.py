@@ -56,6 +56,8 @@ FILES = {
     "engine/extension/src/sqlearn_extension.cpp": "// the extension\n",
     "engine/extension/test/sql/sqlearn_version.test": "require sqlearn\n",
     "engine/src/core/version.cpp": "// core\n",
+    "engine/sqllogic/CMakeLists.txt": "# the runner's build\n",
+    "engine/cmake/sql_tests.cmake": "# a helper\n",
 }
 
 
@@ -202,6 +204,8 @@ def test_a_data_file_change_reruns_the_tests(scratch, data):
         "engine/extension/test/sql/sqlearn_version.test",
         "engine/extension/test/sql/new.test",
         "engine/src/core/version.cpp",
+        "engine/sqllogic/CMakeLists.txt",
+        "engine/cmake/sql_tests.cmake",
     ],
 )
 def test_a_change_to_the_extension_reruns_its_sql_tests(scratch, changed):
@@ -215,6 +219,30 @@ def test_a_change_to_the_extension_reruns_its_sql_tests(scratch, changed):
     assert calls(env) == []
     path = repo / changed
     path.write_text((path.read_text() if path.exists() else "") + "// changed\n")
+    just(repo, env, "sql")
+    assert calls(env) == [["test-sql "]]
+
+
+def test_a_duckdb_bump_reruns_the_sql_tests(scratch):
+    """A new commit of duckdb-python's gitlink, which pins DuckDB's, reruns
+    ``just sql``."""
+    repo, env = scratch
+
+    def pin(commit):
+        git(
+            repo,
+            "update-index",
+            "--add",
+            "--cacheinfo",
+            f"160000,{commit},engine/duckdb-python",
+            env=env,
+        )
+
+    pin("1" * 40)
+    just(repo, env, "sql")
+    assert calls(env) == [["test-sql "]]
+    assert "sql: unchanged since a passed run" in just(repo, env, "sql")
+    pin("2" * 40)
     just(repo, env, "sql")
     assert calls(env) == [["test-sql "]]
 

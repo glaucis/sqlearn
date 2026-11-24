@@ -1,5 +1,5 @@
 # name: test/sql/sqlearn_version.test
-# description: sqlearn_version() names the build, and the sqlearn extension turns automatic installs off
+# description: sqlearn_version() names the build, and takes no argument
 # group: [sqlearn]
 
 require sqlearn
@@ -15,8 +15,5 @@ SELECT sqlearn_version(1);
 ----
 Binder Error: No function matches the given name and argument types 'sqlearn_version(INTEGER_LITERAL)'
 
-# No download by default (ADR 0006, 0061): the extension sets it at load
-query I
-SELECT current_setting('autoinstall_known_extensions');
-----
-false
+# No autoinstall check: the runner presets autoinstall_known_extensions, so the
+# default is tested on the wheel instead (tests/engine/test_extension.py).

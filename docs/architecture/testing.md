@@ -232,16 +232,20 @@ sqllogictest file in `engine/extension/test/sql/` (ADR 0065), run by DuckDB's
 own runner, which exists only in its `unittest` program. The `sqllogic` preset
 (`engine/sqllogic/`) builds DuckDB's own tree, not duckdb-python, with
 `BUILD_UNITTESTS`, `core_functions` and the extension linked in, and the
-extension's `LOAD_TESTS`; our warnings reach our sources alone. The first
-build takes minutes; later ones rebuild what changed. Its one CTest test,
-`sqllogic` with the label `sql`, runs every `.test` file there and none of
-DuckDB's suite; `--require sqlearn` fails a file whose `require sqlearn` would
-otherwise skip it, and a pattern matching no file fails. `just test-sql` runs
-it through `validation._ctest`, which reruns the label when the `unittest`
-program, the library it loads or a `.test` file (each a required file) changed
-since it passed. The `sql` task runs `just test-sql` when its inputs changed,
-so `just done` reaches it after any change to the extension; `just test` does
-not build it.
+extension's `LOAD_TESTS`; our warnings reach our sources alone. The first build
+takes minutes; later ones rebuild what changed. Its one CTest test, `sqllogic`
+with the label `sql`, runs every `.test`, `.test_slow` and `.test_coverage` file
+there, at any depth, and none of DuckDB's suite; `--require sqlearn` fails a
+file whose `require sqlearn` would otherwise skip it, and a pattern matching no
+file fails. `just test-sql` runs it through `validation._ctest`, which reruns
+the label when the `unittest` program, the library it loads or one of those
+files (each a required file, `engine/cmake/sql_tests.cmake`) changed since it
+passed; a file a test reads at run time must be added to the test's required
+files too. The default of `autoinstall_known_extensions` is not checked there:
+the runner presets it, so it is tested on the wheel
+(`tests/engine/test_extension.py`). The `sql` task runs `just test-sql` when its
+inputs changed, so `just done` reaches it after any change to the extension;
+`just test` does not build it.
 
 **Fuzzing.** `just fuzz [seconds]` (60 by default) builds the `fuzzing`
 preset (Homebrew LLVM, since Apple clang has no libFuzzer runtime; libFuzzer
