@@ -667,7 +667,7 @@ done:
     fi
     # every check runs whatever the others' exit, as each task's steps do, so one failure hides no other's findings
     first=0
-    for check in check-lockfile check-mirror check-no-devdata format lint docstrings types test sql validate docs; do
+    for check in check-lockfile check-mirror check-no-devdata format lint docstrings types tidy test sql validate docs; do
         code=0
         "${j[@]}" "$check" || code=$?
         if [ "$first" -eq 0 ]; then first=$code; fi
@@ -675,7 +675,7 @@ done:
     if [ "$first" -ne 0 ]; then exit "$first"; fi
     "${j[@]}" remember-tree "$tree" "$place"
 
-# Run every check all through, whatever the records say, then the tests with coverage and on every Python: the release tier, by hand before 1.0.0
+# Run every check all through, whatever the records say (the steady-memory test in full test's slow tier), then the sanitizers, a minute of fuzzing, the C++ coverage gate, mutation testing, the licence check, and the tests with coverage and on every Python: the release tier, by hand before 1.0.0
 [group('check')]
 verify:
     #!/usr/bin/env bash
@@ -684,8 +684,11 @@ verify:
     tree="$("${j[@]}" checkable-tree)"
     place="$("${j[@]}" place)"
     "${j[@]}" check-lockfile check-mirror check-no-devdata
-    for task in format lint docstrings types test validate docs; do
+    for task in format lint docstrings types tidy test sql validate docs; do
         "${j[@]}" full "$task"
     done
+    "${j[@]}" sanitize
+    "${j[@]}" fuzz 60
+    "${j[@]}" coverage-engine mutate-engine check-licences
     "${j[@]}" test-all test-python-versions
     "${j[@]}" remember-tree "$tree" "$place"

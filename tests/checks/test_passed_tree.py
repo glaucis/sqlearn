@@ -16,10 +16,34 @@ RUNS = (
     "lint",
     "docstrings",
     "types",
+    "tidy",
     "test",
     "sql",
     "validate",
     "docs",
+)
+
+# What verify runs after the instant checks: every task in full, then the
+# C++ tools of the release tier and the tests on every Python.
+TASKS = (
+    "format",
+    "lint",
+    "docstrings",
+    "types",
+    "tidy",
+    "test",
+    "sql",
+    "validate",
+    "docs",
+)
+RELEASE = (
+    "sanitize",
+    "fuzz-60",
+    "coverage-engine",
+    "mutate-engine",
+    "check-licences",
+    "test-all",
+    "test-python-versions",
 )
 
 # Stand-ins for what done runs; the real justfile is imported under them. The
@@ -28,6 +52,13 @@ OVERRIDES = (
     "set allow-duplicate-recipes\nimport 'real.just'\n"
     + "".join(f"\n{name}:\n    @echo {name} >> calls.log\n" for name in RUNS)
     + "\nplace:\n    @cat place 2>/dev/null || echo here\n"
+    + "\nfull task:\n    @echo full-{{ task }} >> calls.log\n"
+    + "\nfuzz seconds:\n    @echo fuzz-{{ seconds }} >> calls.log\n"
+    + "".join(
+        f"\n{name}:\n    @echo {name} >> calls.log\n"
+        for name in RELEASE
+        if name != "fuzz-60"
+    )
 )
 
 
@@ -223,3 +254,20 @@ def test_a_rewritten_results_file_keeps_the_tree_checkable(tmp_path):
     tree = git(repo, "rev-parse", "HEAD^{tree}", env=env)
     just(repo, "done", env=env)
     assert passed(repo, env) == [tree]
+
+
+def test_verify_runs_every_task_in_full_and_the_release_tools(tmp_path):
+    """verify runs the instant checks, every task in full (tidy and sql among
+    them), then the sanitizers, a minute of fuzzing, coverage, mutation
+    testing, the licence check and the tests on every Python, and remembers.
+    The steady-memory test runs in ``full test``'s slow tier."""
+    repo, env = make_repo(tmp_path)
+    just(repo, "verify", env=env)
+    assert calls(repo) == [
+        "check-lockfile",
+        "check-mirror",
+        "check-no-devdata",
+        *(f"full-{task}" for task in TASKS),
+        *RELEASE,
+    ]
+    assert passed(repo, env) == [git(repo, "rev-parse", "HEAD^{tree}", env=env)]
