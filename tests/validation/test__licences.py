@@ -237,6 +237,21 @@ def test_only_the_systems_libraries_are_linked_by_name(tmp_path):
     assert "-lssl" in found[0]
 
 
+def test_a_name_or_directory_in_the_next_token_is_checked_alike(tmp_path):
+    """``-l ssl`` and ``-L /opt/homebrew/lib``, the name or directory as the
+    next token, are checked as ``-lssl`` and ``-L/opt/homebrew/lib`` are;
+    ``-l dl`` passes."""
+    repo = scratch(tmp_path, [], ["engine/src/a.cpp"])
+    write_link(
+        repo / "build" / "cpython-312",
+        ["-l", "ssl", "-l", "dl", "-L", "/opt/homebrew/lib"],
+    )
+    found = _licences.problems(repo, "MIT")
+    assert len(found) == 2
+    assert any("-lssl" in p for p in found)
+    assert any("-L/opt/homebrew/lib" in p for p in found)
+
+
 def test_on_linux_only_libc_and_the_compiler_runtime_pass(tmp_path, monkeypatch):
     """Outside macOS, /usr/lib/ is not exempt as a whole: libc's and the
     compiler runtime's files are, another library there is not."""
@@ -267,9 +282,9 @@ def test_a_build_without_the_link_statement_fails(tmp_path):
     assert "_duckdb" in found[0]
 
 
-def test_an_awaiting_term_passes_only_for_its_row(tmp_path):
-    """Unicode-DFS-2015 passes for utf8proc alone, 0BSD and CC0-1.0 for numpy
-    alone; anywhere else they fail."""
+def test_a_term_allowed_for_one_row_passes_only_for_it(tmp_path):
+    """ADR 0066's amendment allows Unicode-DFS-2015 for utf8proc alone, and
+    0BSD and CC0-1.0 for numpy alone; anywhere else they fail."""
     repo = scratch(
         tmp_path,
         [
@@ -286,8 +301,11 @@ def test_an_awaiting_term_passes_only_for_its_row(tmp_path):
     assert any("numpy" in p and "Unicode-DFS-2015" in p for p in found)
 
 
-def test_the_awaiting_terms_are_printed_with_their_rows(tmp_path, monkeypatch, capsys):
-    """Each run prints, for each term awaiting a ruling, the row using it."""
+def test_the_terms_allowed_for_one_row_are_printed_with_it(
+    tmp_path, monkeypatch, capsys
+):
+    """Each run prints, for each term allowed for its row alone, the row using
+    it and the ADR that allows it."""
     repo = scratch(
         tmp_path,
         [row("utf8proc", "MIT AND Unicode-DFS-2015", ["third_party/utf8proc"])],
@@ -297,8 +315,9 @@ def test_the_awaiting_terms_are_printed_with_their_rows(tmp_path, monkeypatch, c
     monkeypatch.setattr(_licences, "_numpy_expression", lambda: "BSD-3-Clause AND 0BSD")
     assert _licences.cli([]) == 0
     out = capsys.readouterr().out
-    assert "Unicode-DFS-2015 passes for utf8proc" in out
-    assert "0BSD passes for numpy" in out
+    assert "Unicode-DFS-2015 passes for utf8proc, by ADR 0066" in out
+    assert "0BSD passes for numpy, by ADR 0066" in out
+    assert "awaiting" not in out
     assert "CC0-1.0" not in out
 
 

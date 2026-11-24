@@ -23,8 +23,9 @@ writes):
 - numpy's ``License-Expression``, the one runtime dependency's, is allowed
   as a row's is.
 
-A licence term in :data:`AWAITING_RULING` passes for the rows it names
-alone, printed with the row on every run, until it is ruled on.
+A licence term in :data:`ALLOWED_FOR` passes for the rows it names alone,
+as ADR 0066's amendment of 2026-11-24 allows it, printed with the row on
+every run.
 """
 
 import fnmatch
@@ -53,29 +54,29 @@ ALLOWED = frozenset(
 """ADR 0066's licences, as SPDX identifiers."""
 
 NUMPY = "numpy"
-"""The name :data:`AWAITING_RULING` gives numpy's own licence."""
+"""The name :data:`ALLOWED_FOR` gives numpy's own licence."""
 
-AWAITING_RULING: dict[str, tuple[frozenset[str], str]] = {
+ALLOWED_FOR: dict[str, tuple[frozenset[str], str]] = {
     "Unicode-DFS-2015": (
         frozenset({"utf8proc"}),
-        "utf8proc's data (utf8proc_data.c) is under Unicode's 1991-2007 terms, "
-        "whose text is SPDX's Unicode-DFS-2015: a Unicode licence, as ADR 0066 "
-        "allows, but not on the OSI's list nor among ADR 0066's identifiers",
+        "Unicode's data licence counts as permissive (utf8proc's tables, "
+        "utf8proc_data.c, inside DuckDB)",
     ),
     "0BSD": (
         frozenset({NUMPY}),
-        "numpy declares it, for pythoncapi-compat: OSI-approved, of the BSD "
-        "family, not among ADR 0066's identifiers",
+        "allowed for numpy alone until numpy leaves the runtime (numpy "
+        "declares it for pythoncapi-compat)",
     ),
     "CC0-1.0": (
         frozenset({NUMPY}),
-        "numpy declares it, for Highway's random-inl.h: a public-domain "
-        "dedication, not an OSI-approved licence",
+        "allowed for numpy alone until numpy leaves the runtime (numpy "
+        "declares it for Highway's random-inl.h)",
     ),
 }
-"""Terms outside :data:`ALLOWED` that the real file meets: each with the
-rows (THIRD_PARTY.md's names, or :data:`NUMPY`) it passes for and why; it
-fails for any other, and is printed with its row on every run."""
+"""Terms outside :data:`ALLOWED` that ADR 0066's amendment (Tomas,
+2026-11-24) allows for some rows alone: each with the rows (THIRD_PARTY.md's
+names, or :data:`NUMPY`) it passes for and the ruling; it fails for any
+other, and is printed with its row on every run."""
 
 SYSTEM_LINK = (
     "/usr/lib/",
@@ -338,15 +339,15 @@ def _builds(repo: Path) -> list[Path]:
     return sorted(p.parent for p in (repo / "build").glob("*/compile_commands.json"))
 
 
-def _awaiting(name: str) -> frozenset[str]:
-    """Return the terms awaiting a ruling that pass for the row `name`."""
-    return frozenset(t for t, (names, _) in AWAITING_RULING.items() if name in names)
+def _allowed_for(name: str) -> frozenset[str]:
+    """Return the terms of :data:`ALLOWED_FOR` that pass for the row `name`."""
+    return frozenset(t for t, (names, _) in ALLOWED_FOR.items() if name in names)
 
 
 def _licence_problem(what: str, name: str, expression: str) -> str | None:
     """Return the problem with `what`'s licence, or None when it is allowed;
-    `name` is the row the terms of :data:`AWAITING_RULING` are scoped to."""
-    extra = _awaiting(name)
+    `name` is the row the terms of :data:`ALLOWED_FOR` are scoped to."""
+    extra = _allowed_for(name)
     try:
         if allowed_expression(expression, extra):
             return None
@@ -453,7 +454,15 @@ def foreign_links(build: Path) -> list[str]:
             foreign.append(shown)
 
     inputs = link_inputs(build) or []
+    # A flag whose value is the next token (`-l ssl`, `-L dir`) is read as
+    # the joined form.
+    joined: list[str] = []
     for token in inputs:
+        if joined and joined[-1] in ("-l", "-L", "-F"):
+            joined[-1] += token
+        else:
+            joined.append(token)
+    for token in joined:
         if token.startswith("-Wl,"):
             for part in token.split(",")[1:]:
                 if "/" in part:
@@ -569,9 +578,9 @@ def _numpy_expression() -> str | None:
     return metadata.metadata("numpy").get("License-Expression")
 
 
-def awaiting_uses(table: Sequence[Row], numpy_expression: str | None) -> list[str]:
-    """Return a line for each use of a term awaiting a ruling: the term,
-    the row using it, and why it is there.
+def allowed_for_uses(table: Sequence[Row], numpy_expression: str | None) -> list[str]:
+    """Return a line for each use of a term allowed for some rows alone: the
+    term, the row using it, and the ruling that allows it.
 
     Parameters
     ----------
@@ -590,10 +599,11 @@ def awaiting_uses(table: Sequence[Row], numpy_expression: str | None) -> list[st
         uses.append((NUMPY, numpy_expression))
     lines = []
     for name, expression in uses:
-        for term in sorted(_terms(expression) & _awaiting(name)):
-            reason = AWAITING_RULING[term][1]
+        for term in sorted(_terms(expression) & _allowed_for(name)):
+            ruling = ALLOWED_FOR[term][1]
             lines.append(
-                f"licences: {term} passes for {name}, awaiting a ruling: {reason}"
+                f"licences: {term} passes for {name}, by ADR 0066 "
+                f"(amended 2026-11-24): {ruling}"
             )
     return lines
 
@@ -615,7 +625,7 @@ def cli(argv: Sequence[str]) -> int:
     repo = Path.cwd()
     expression = _numpy_expression()
     table = rows((repo / "THIRD_PARTY.md").read_text(encoding="utf-8"))
-    for line in awaiting_uses(table, expression):
+    for line in allowed_for_uses(table, expression):
         print(line)  # noqa: T201
     found = problems(repo, expression)
     for problem in found:
