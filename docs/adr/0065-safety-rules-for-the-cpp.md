@@ -9,6 +9,14 @@ related: [docs/adr/0016-validation-method.md, docs/adr/0043-repeatable-within-ro
 Status: accepted (2026-11-21). Decided by Tomas on 2026-11-21 with the
 [native engine spec](../specs/native-engine.md) (§3.6). Revised before merging
 (2026-11-21), with the spec's revision: the C++ library's own tests.
+Amended by the [Phase 1 spec](../specs/native-engine-phase-1.md)
+(2026-11-21): ownership is a tree, and a pointer back up is `weak_ptr` or
+plainly non-owning, so no `shared_ptr` cycle keeps objects alive (§3.2); the
+compiler also warns with `-Wshadow`, `-Wold-style-cast`,
+`-Wnon-virtual-dtor` and `-Wdocumentation` (§3.2; the full list is in
+`engine/cmake/warnings.cmake`); no CI runs by itself before `1.0.0`, so the
+sanitizers, fuzzing and static analysis run in `just verify` and in
+workflows started by hand (§3.5).
 
 ## Context
 

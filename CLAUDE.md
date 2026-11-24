@@ -70,11 +70,16 @@ Rules from the ADRs:
 - The API follows scikit-learn conventions; any departure needs its own ADR
   (0003). The verbs are sqlearn's own: `learn`/`apply` for steps,
   `train`/`predict` for models (0013).
-- From the engine's Phase 1, sqlearn runs on its own DuckDB build: the `duckdb`
-  module, built from DuckDB's source at a pinned release, the same DuckDB the
-  C++ library runs in, shipped by default as a second package beside sqlearn.
-  With numpy it is the whole runtime; anything else needs a written reason
-  (0005, 0057, 0060, 0061).
+- sqlearn runs on its own DuckDB build: the `duckdb` module, built from
+  DuckDB's source at a pinned release (git submodules under `engine/`, never
+  edited), the same DuckDB the C++ library runs in. One package: the wheel
+  `sqlearn` holds `sqlearn/`, `duckdb/` and the one binary with sqlearn's
+  C++ inside. With numpy it is the whole runtime; anything else needs a
+  written reason (0005, 0057, 0060, 0061).
+- The C++ is C++23, built by CMake under `just`: Apple clang for the release
+  and everyday builds, Homebrew LLVM for clang-tidy, clangd, the sanitizers
+  Apple clang lacks, fuzzing, coverage and Mull (0008, spec §3.8 of
+  `docs/specs/native-engine-phase-1.md`).
 - Runtime code carries only permissive licences approved by the OSI (MIT,
   BSD, Apache-2.0, PSF, Boost, zlib, Unicode, ISC), never copyleft, each
   listed in the third-party file (0004, 0066).
@@ -90,8 +95,9 @@ Rules from the ADRs:
   `-ffast-math` (0063).
 - The C++ follows the safety rules from its first commit: RAII, no raw
   `new` or `delete`, one thin layer for raw memory, warnings as errors,
-  clang-tidy and the static analyser, sanitizers and fuzzing in CI, a
-  hardened standard library, and no crash reaching the user (0065).
+  clang-tidy and the static analyser, sanitizers and fuzzing in
+  `just verify` and in workflows started by hand, a hardened standard
+  library, and no crash reaching the user (0065).
 - The library is ported to C++ one inventory group at a time, with `main`
   green: the Python package calls the C++ for each group ported and its
   own Python for the rest. A group merges when the public API's tests and
@@ -163,10 +169,14 @@ commit both of these into it, without being asked:
 
 ## Checks
 
-- **Once per clone, run `just setup`.** It installs the git hooks and syncs
-  the environment.
+- **Once per clone, run `just setup`.** It installs the git hooks, checks the
+  C++ toolchain (`just doctor`; `brew install llvm cmake ninja ccache
+  include-what-you-use gitleaks`), fetches the submodules and syncs the
+  environment, which builds DuckDB with sqlearn's C++ (minutes the first
+  time). `docs/architecture/setup.md` has the details.
 - **Before every commit, `just check` and `just test` pass.** The pre-commit
-  hook runs `just pre-commit` (`just check` and `just check-lockfile`) over the
+  hook runs `just pre-commit` (`just check`, `just check-lockfile` and
+  `just check-secrets`, gitleaks) over the
   files going into the commit and refuses the commit when it fails; the
   commit-msg hook runs commitlint. `just test` is yours to run before you
   commit: it runs the tests when what they read changed since a passed run.
@@ -175,15 +185,17 @@ commit both of these into it, without being asked:
   three parts are the only recipes that reformat your files.
 - **Before you say any work is done, `just done` passes.** It runs
   `check-lockfile`, `check-mirror` and `check-no-devdata`, then each check
-  (`format`, `lint`, `docstrings`, `types`, `test`, `validate`, `docs`) on what
-  changed since it passed, every one even when another fails, and remembers the
-  tree that passed (nothing uncommitted but the checks' outputs), so a passed
-  tree (after a fast-forward or a merge too) runs nothing again in the same
-  place (Python, platform, machine), and everything in a new one.
-  `just full <task>` runs one check all through. `just verify` is the release
-  tier: every check in full, coverage, every Python, run by hand before `1.0.0`.
-  A reviewer's verdict says which ran and passed. How a check finds what
-  changed: `docs/architecture/testing.md`.
+  (`format`, `lint`, `docstrings`, `types`, `tidy`, `test`, `sql`, `validate`,
+  `docs`) on what changed since it passed, every one even when another fails,
+  and remembers the tree that passed (nothing uncommitted but the checks'
+  outputs), so a passed tree (after a fast-forward or a merge too) runs nothing
+  again in the same place (Python, platform, machine), and everything in a new
+  one. `just full <task>` runs one check all through. `just verify` is the
+  release tier: every check in full, then the sanitizers, a minute of fuzzing,
+  the C++ coverage gate, mutation testing, the licence check, coverage and every
+  Python, run by hand before `1.0.0` (an hour or more). A reviewer's verdict
+  says which ran and passed. How a check finds what changed:
+  `docs/architecture/testing.md`.
 - **`just --list` names every recipe.** When a composite fails, `just` names
   the recipe that failed: run that one alone.
 - **The conventions are in `docs/architecture/`**: the layout, the Python

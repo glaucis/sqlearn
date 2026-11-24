@@ -42,7 +42,9 @@ report_directory(std::string_view home, std::string_view xdg_state_home, bool ma
 /// previous handler may have handled it. Installed with SA_NODEFER, so a
 /// fault inside the report, or inside a previous handler that sets
 /// SA_NODEFER (CPython's faulthandler), ends the process instead of
-/// hanging it.
+/// hanging it. macOS's sigaction does not report SA_RESETHAND back, so it
+/// cannot be honoured: a previous handler that relies on it and returns
+/// from a hardware fault can loop.
 ///
 /// Installing happens once in a process: a later call changes nothing.
 /// @param dir The directory for the reports.

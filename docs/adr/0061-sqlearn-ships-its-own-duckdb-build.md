@@ -1,7 +1,7 @@
 ---
 type: adr
 tags: [duckdb, packaging, dependencies, one-duckdb, offline, architecture-decision]
-summary: "Records that sqlearn ships its own DuckDB build as the duckdb module, by default a second package pinned to one release, shared as one DuckDB with the C++ library, checked at start, with no extension downloaded by itself; Phase 1 decides one package or two; amends ADRs 0005, 0006 and 0057."
+summary: "Records that sqlearn ships its own DuckDB build as the duckdb module, by default a second package pinned to one release, shared as one DuckDB with the C++ library, checked at start, with no extension downloaded by itself; amended by the Phase 1 spec to one package, the wheel sqlearn holding duckdb/; amends ADRs 0005, 0006 and 0057."
 related: [docs/adr/0005-runtime-dependencies.md, docs/adr/0006-local-and-offline.md, docs/adr/0057-numpy-is-a-runtime-dependency.md, docs/adr/0060-a-native-engine-in-cpp-inside-duckdb.md, docs/specs/native-engine.md]
 ---
 # 0061: sqlearn ships its own DuckDB build
@@ -12,7 +12,11 @@ Status: accepted (2026-11-21). Decided by Tomas on 2026-11-21 with the
 [ADR 0006](0006-local-and-offline.md) and
 [ADR 0057](0057-numpy-is-a-runtime-dependency.md). Revised before merging
 (2026-11-21), with the spec's revision: one DuckDB in the process, shared
-with the C++ library.
+with the C++ library. Amended by the
+[Phase 1 spec](../specs/native-engine-phase-1.md) (§3.3, 2026-11-23): one
+package. The wheel `sqlearn` holds `sqlearn/`, `duckdb/` and the `_duckdb`
+binary with sqlearn's C++ inside; the build generates the shipped
+`duckdb/_version.py` from DuckDB's own, with the pinned version.
 
 ## Context
 

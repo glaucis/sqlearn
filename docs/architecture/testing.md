@@ -48,8 +48,8 @@ before work is done, and `just verify` is the release tier.
 | A commit | the pre-commit hook: `just pre-commit` over the files committed |
 | A push | none: a push runs no suite |
 | A merge to `main` | the pre-merge-commit hook runs what the pre-commit hook runs; `just done` on `main` runs nothing for a tree that passed |
-| Work is done | `just done`: `check-lockfile`, `check-mirror`, `check-no-devdata`, then each check on what changed (`format`, `lint`, `docstrings`, `types`, `test`, `sql`, `validate`, `docs`), then the tree is remembered |
-| A release | `just verify`: the same three, each check with `just full` (`validate` as `validate-all`), then `test-all` (coverage) and `test-python-versions`, by hand before `1.0.0` |
+| Work is done | `just done`: `check-lockfile`, `check-mirror`, `check-no-devdata`, then each check on what changed (`format`, `lint`, `docstrings`, `types`, `tidy`, `test`, `sql`, `validate`, `docs`), then the tree is remembered |
+| A release | `just verify`: the same three, each check with `just full` (`validate` as `validate-all`), then the C++ tools in full (`sanitize`, `fuzz 60`, `coverage-engine`, `mutate-engine`), `check-licences`, `test-all` (coverage) and `test-python-versions`, by hand before `1.0.0` |
 
 `just done` remembers each tree that passed in `sqlearn-passed`, in the git
 common directory (the 50 newest, shared by worktrees), with the place it passed
@@ -252,8 +252,12 @@ preset (Homebrew LLVM, since Apple clang has no libFuzzer runtime; libFuzzer
 with AddressSanitizer and UndefinedBehaviorSanitizer) and runs each target
 (`engine/fuzz/`; today the version parser's) for that long on a scratch copy of
 its corpus, then merges the inputs that found new coverage into
-`engine/fuzz/corpus/<target>/` (`-merge=1`). A crash leaves its input in that
-directory and fails the recipe naming it. The leak check is off in the fuzz
+`engine/fuzz/corpus/<target>/` (`-merge=1`). The scratch copy leaves out any
+`crash-*`, `leak-*`, `oom-*` or `timeout-*` file kept there, and libFuzzer
+writes a failing input under a scratch prefix (`-artifact_prefix`), so the
+recipe sees this run's failures alone. A failure copies its input into the
+corpus directory, names it and fails the recipe; the replay then runs it in
+every `dev` run. The leak check is off in the fuzz
 run: libFuzzer's own thread is reported as a leak at exit. The target's
 property is on the version, not the text: a text that parses must parse again
 after `format`, to an equal version. Every `dev` run replays the corpus
@@ -330,12 +334,23 @@ The recipe fails on a survivor the list does not name, and on an entry whose
 mutant no longer survives, so a line moved by an edit is named again. A
 survivor is fixed with the test that kills it; it is kept only when no test
 can tell it from the code (an equivalent mutant, or a leak only
-LeakSanitizer sees).
+LeakSanitizer sees). `engine/src/core/version.cpp` is left out: it returns the
+build's definitions and has nothing to mutate, and Mull cannot read its
+command line. A test (`tests/validation/test__mutate.py`) fails if it gains a
+branch, an operator or a call beyond `describe()`'s `format` and `substr`.
 
 `tests/engine/test_steady_memory.py` (`slow`) makes 100,000 calls of
 `count_rows` and `build_identity` in a process of its own, in 10 rounds,
 reading its resident set from `ps` twice after each: round 10's must be at
-most 5 % above round 2's (a set that shrinks is no leak).
+most 5 % above round 2's (a set that shrinks is no leak). It runs in the slow
+tier, so `just full test` and `just test-all` run it, and `just verify` with
+them.
+
+**The licence check.** `just check-licences` (`validation/_licences.py`)
+checks `THIRD_PARTY.md` and `NOTICE` against the wheel's last build: every
+file compiled in lies in a listed library, every licence is one ADR 0066
+allows, and `_duckdb` links nothing from outside its build. `just test` runs
+it as a test, and `just verify` runs it on its own.
 
 ## The validation runners
 

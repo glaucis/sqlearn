@@ -38,9 +38,25 @@ sqlearn/
                          installed
   benchmarks/            the benchmark suite and its committed results;
                          mirrors src/sqlearn/
-  engine/                sqlearn's C++ library, its kernels and its
-                         bindings (ADR 0060), and sqlearn's DuckDB
-                         build (ADR 0061), from the engine's Phase 1
+  engine/                sqlearn's C++ (ADR 0060) and its DuckDB build
+                         (ADR 0061): one CMake project, its presets
+                         in CMakePresets.json
+    src/                 our groups: core/, raw/ (the one layer for
+                         raw memory, ADR 0065), crash/, and bindings/
+                         (nanobind, built only in the wheel)
+    tests/               each group's Catch2 program, the
+                         must-not-compile tests, the canaries
+    extension/           the sqlearn DuckDB extension, its SQL tests
+                         in test/sql/
+    fuzz/  bench/        the fuzz targets with their corpus; the
+                         nanobench benchmarks
+    sqllogic/            DuckDB's unittest build, for the SQL tests
+    cmake/               our CMake helpers: pins, warnings, groups
+    duckdb-python/       submodule: DuckDB's Python package at v2.0.1,
+                         DuckDB itself in external/duckdb; never edited
+    third_party/         submodules: Catch2, RapidCheck, nanobench,
+                         cpptrace, each at a tag
+    build/               the presets' builds, ignored by git
   src/sqlearn/           the package
   tests/                 mirrors the root, dot folders without their dot
   pyproject.toml         the package, and every tool's configuration
@@ -54,7 +70,10 @@ sqlearn/
   README.md              what sqlearn is, in one screen
   CHANGELOG.md           from the first release, generated from commits
   LICENSE                Apache-2.0
-  NOTICE                 Apache's attribution file, from the first release
+  NOTICE                 the notices of the code compiled in (ADR 0066)
+  THIRD_PARTY.md         each library compiled in, its version and licence
+  .clangd                clangd reads llvm-dev's compile database
+  codegraph.json         CodeGraph leaves the submodules out
   CITATION.cff           how to cite, from the first release
   CLAUDE.md              the agents' instructions
 ```
@@ -112,9 +131,10 @@ folder when its first example lands. Today there is the root header,
   package
   ([ADR 0025](../adr/0025-results-stored-as-data-in-mirrored-folders.md)); its
   pages with 3.8. `benchmarks/` with 3.9, mirrored the same way.
-- `CHANGELOG.md`, `NOTICE` and `CITATION.cff` with the first release.
-- `.github/`: the CI workflows, with the native engine's Phase 1.
-- `engine/`: sqlearn's C++ library, its kernels and its bindings (ADR 0060),
-  and sqlearn's DuckDB build (ADR 0061), with the native engine's Phase 1.
+- `CHANGELOG.md` and `CITATION.cff` with the first release.
+- `.github/`: the workflows, started by hand, with the native engine's
+  Phase 1, step 3.
+- In `engine/src/`, a group for each part of the library as the port moves
+  it to C++ (ADR 0067), with its tests and benchmarks.
 - Guide chapters, lessons, validation pages and benchmarks: the foundation
   creates no content beyond the placeholder example.

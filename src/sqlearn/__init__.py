@@ -87,6 +87,6 @@ def version() -> str:
     --------
     >>> import sqlearn as sq
     >>> sq.version()  # doctest: +ELLIPSIS
-    'sqlearn ..., DuckDB 2.0.1 (8d78114e90), ...'
+    'sqlearn ..., DuckDB ... (...), ...'
     """
     return _native.describe()
