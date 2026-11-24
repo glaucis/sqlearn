@@ -3,8 +3,8 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-23 (evening) · Branch: `main` (`phase-1-checks` merged
-and pushed; step 2's plan drafted) · Checks: `just verify`
+Updated: 2026-11-24 · Branch: `main`; step 2 executing on
+`phase-1-build` (worktree `../sqlearn-build`) · Checks: `just verify`
 passed at Task 5's commit `3d54d52` (67 min, "remembered"); after the final
 review's fix wave, `just done` passed at `ac535f3` (47 min, every check and
 every runner ran, "remembered"; load 8 to 15)
@@ -12,20 +12,32 @@ Verify with: `just done` (`just verify` is the release tier)
 
 ## In progress
 
-- [verified] **Phase 1 step 2's plan, ready for Tomas's review:**
-  `docs/plans/2026-11-23-native-engine-phase-1-build.md`.
-  - 13 tasks: submodules and pins; one package with DuckDB inside;
-    `_native`, the `sqlearn` extension and `sq.version()`; presets and
-    groups; the skeleton's groups; C++ tests per group; tidy and format;
-    sanitizers; fuzzing; coverage and Mull; crash report and third-party
-    file; sqllogictest; tiers and docs.
-  - Its "Spike results" record the build spike of 2026-11-23. Tomas's
-    packaging answers are in the Phase 1 spec §3.3.
-  - Next: Tomas reviews it and chooses how it runs; then it executes on a
-    branch in a worktree.
+- [verified] **Phase 1 step 2, executing** (Tomas approved the plan
+  2026-11-23: "all good, use subagents") with
+  superpowers:subagent-driven-development, on the branch `phase-1-build`
+  in the worktree `../sqlearn-build`, not on `main`, not pushed.
+  - Tasks 1 to 11 are done, each reviewed and fixed (commits `789682d` to
+    `707b08a`). Task 12 (sqllogictest) was running on 2026-11-24; Task 13
+    (the tiers, the docs, `just done` and `just verify`, the proof on #79)
+    and the final whole-branch review come next. Stop before the merge.
+  - The ledger, with every ruling and deferred minor, is
+    `../sqlearn-build/.superpowers/sdd/2026-11-23-native-engine-phase-1-build/progress.md`
+    (git-ignored). A new session resumes from it (the skill's
+    `references/resuming.md`) and `git log`, never from memory.
+  - The plan's toolchain is installed (Homebrew: cmake, ninja, ccache,
+    include-what-you-use, gitleaks; Tomas's leave, 2026-11-23).
 
 ## Waiting on the user
 
+- Licence terms outside ADR 0066's list, each allowed for one row only
+  and printed by `just check-licences` as awaiting a ruling (on the
+  branch): Unicode-DFS-2015 (utf8proc's data, inside DuckDB), 0BSD and
+  CC0-1.0 (numpy's own licence expression). Rule: allow (amend ADR 0066)
+  or replace. (since 2026-11-24)
+- Confirm the crash handler's chaining (on the branch): it calls the
+  previous handler once with the kernel's siginfo and context, instead of
+  the plan's "restore and re-raise", because on macOS a re-raised signal
+  looks the same as a real fault (ADR 0046). (since 2026-11-24)
 - The FMA ADR: `-ffp-contract=off` everywhere, `std::fma` on purpose and
   validated (spec §3.9, the agent's proposal); decide before step 2's
   kernels. (since 2026-11-22)
