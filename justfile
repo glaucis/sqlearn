@@ -183,7 +183,7 @@ test-engine-changed preset="dev" *flags:
 test-sql *flags:
     uv run --locked python -m validation._ctest sqllogic {{ flags }}
 
-# Fuzz each target for `seconds` (libFuzzer on the fuzzing preset, Homebrew LLVM) on a scratch copy of its corpus, then merge the new inputs into engine/fuzz/corpus/<target>/; a crash leaves its input there, and fails
+# Fuzz each target for `seconds` (libFuzzer on the fuzzing preset, Homebrew LLVM) on a scratch copy of its corpus, then merge the new inputs into engine/fuzz/corpus/<target>/; a crash, leak, out-of-memory or timeout input is kept there, named, and fails
 [group('test')]
 fuzz seconds="60":
     #!/usr/bin/env bash
@@ -191,24 +191,33 @@ fuzz seconds="60":
     cd engine
     cmake --preset fuzzing
     cmake --build --preset fuzzing
+    scratch="$(mktemp -d)"
+    trap 'rm -rf "$scratch"' EXIT
+    kinds=(-name 'crash-*' -o -name 'leak-*' -o -name 'oom-*' -o -name 'timeout-*')
     for target in parse_version; do
         corpus="fuzz/corpus/$target"
         binary="build/fuzzing/fuzz/fuzz_$target"
-        scratch="$(mktemp -d)"
-        trap 'rm -rf "$scratch"' EXIT
-        cp "$corpus"/* "$scratch"/
+        work="$scratch/$target/corpus"
+        found="$scratch/$target/found"
+        mkdir -p "$work" "$found"
+        # the corpus's inputs, not the failures kept from an earlier run
+        find "$corpus" -maxdepth 1 -type f ! \( "${kinds[@]}" \) -exec cp {} "$work"/ \;
         code=0
         "$binary" -max_total_time={{ seconds }} -timeout=10 -detect_leaks=0 \
-            -artifact_prefix="$corpus/" "$scratch" || code=$?
-        found="$(find "$corpus" -maxdepth 1 \( -name 'crash-*' -o -name 'leak-*' \
-            -o -name 'oom-*' -o -name 'timeout-*' \) -newer "$binary")"
-        if [ "$code" -ne 0 ] || [ -n "$found" ]; then
-            echo "fuzz_$target failed (exit $code); its input is kept in $corpus:" >&2
-            echo "$found" >&2
+            -artifact_prefix="$found/" "$work" || code=$?
+        # libFuzzer writes each failing input under the prefix: this run's alone
+        inputs="$(find "$found" -maxdepth 1 -type f \( "${kinds[@]}" \))"
+        if [ "$code" -ne 0 ] || [ -n "$inputs" ]; then
+            echo "fuzz_$target failed (exit $code); its input is kept in engine/$corpus:" >&2
+            while IFS= read -r input; do
+                [ -n "$input" ] || continue
+                cp "$input" "$corpus/"
+                echo "  engine/$corpus/$(basename "$input")" >&2
+            done <<<"$inputs"
             echo "Fix: the parser, then just test-engine dev runs it again" >&2
             exit 1
         fi
-        "$binary" -merge=1 "$corpus" "$scratch"
+        "$binary" -merge=1 "$corpus" "$work"
     done
 
 # Build each sanitizer preset and run every C++ group's tests and its canaries under it: dev (AddressSanitizer, UndefinedBehaviorSanitizer), tsan, lsan, tysan (validation/_ctest.py, --all); every preset runs, a failing one included, and the first failure's code is the exit
