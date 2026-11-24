@@ -29,11 +29,6 @@ Verify with: `just done` (`just verify` is the release tier)
 
 ## Waiting on the user
 
-- Licence terms outside ADR 0066's list, each allowed for one row only
-  and printed by `just check-licences` as awaiting a ruling (on the
-  branch): Unicode-DFS-2015 (utf8proc's data, inside DuckDB), 0BSD and
-  CC0-1.0 (numpy's own licence expression). Rule: allow (amend ADR 0066)
-  or replace. (since 2026-11-24)
 - Confirm the crash handler's chaining (on the branch): it calls the
   previous handler once with the kernel's siginfo and context, instead of
   the plan's "restore and re-raise", because on macOS a re-raised signal
@@ -50,6 +45,15 @@ Verify with: `just done` (`just verify` is the release tier)
 
 ## Next up
 
+- Licences (Tomas, 2026-11-24): Unicode-DFS-2015 (utf8proc's data, in
+  DuckDB) is allowed by an amendment to ADR 0066, written in step 2's
+  Task 13. numpy's 0BSD and CC0-1.0 stay allowed for numpy alone until
+  numpy leaves the runtime.
+- numpy leaves the runtime after the port's Phase 3 (Tomas, 2026-11-24):
+  XᵀX (Phase 2) and `eigh` (Phase 3) move to C++ on Accelerate and
+  OpenBLAS (ADR 0063); then an ADR replaces 0057, with numpy optional
+  (for example `sqlearn[numpy]` for numpy output). Eigen stays out
+  (MPL-2.0, ADR 0066).
 - Phase 1 step 2 (the build) after the merge, its plan first, with
   superpowers:writing-plans: it carries spec §3.9's C++ parts (presets,
   sanitizers, safety warnings, benchmarks, crash handler) and per-group
