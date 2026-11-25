@@ -34,3 +34,15 @@ survivors:
     reason: without the delete a Buffer's memory leaks, which no test can see in Mull's uninstrumented run; LeakSanitizer finds it (the lsan preset and llvm-dev's leak check, just sanitize)
   - mutant: src/raw/buffer.hpp:53:52:cxx_remove_void_call
     reason: without the deleter's call a Buffer's memory leaks, which no test can see in Mull's uninstrumented run; LeakSanitizer finds it (the lsan preset and llvm-dev's leak check, just sanitize)
+  - mutant: src/raw/fd_writer.cpp:27:19:cxx_lt_to_le
+    reason: equivalent; the mutant differs only when write(2) returns 0, and write(2) returns 0 only for a count of 0, which put() never passes (its loop runs while size > 0)
+  - mutant: src/raw/fd_writer.cpp:30:19:cxx_le_to_lt
+    reason: equivalent; as the one above, the mutant differs only when write(2) returns 0 for a count above 0, which it never does
+  - mutant: src/raw/fixed_text.cpp:26:43:cxx_lt_to_le
+    reason: equivalent; when text.size() equals room both arms of the conditional give the same count
+  - mutant: src/raw/fixed_text.cpp:48:54:cxx_replace_scalar_call_nz
+    reason: equivalent; the mutant passes to_chars a larger end than digits.size(), but the digits of any std::uintmax_t in base 10 or 16 (20 at most) fit max_digits (24), so to_chars writes the same digits and never reaches either end
+  - mutant: src/raw/images.cpp:32:33:cxx_lt_to_le
+    reason: equivalent; the one more step asks dyld for the image at index total, which does not exist, so _dyld_get_image_header returns null and the loop skips it
+  - mutant: src/raw/images.cpp:37:30:cxx_init_const
+    reason: equivalent; getsegmentdata writes size whenever it returns the segment, and when it returns null the image is skipped, so size's first value is never read

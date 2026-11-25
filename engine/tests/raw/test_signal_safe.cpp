@@ -9,10 +9,13 @@
 #include <rapidcheck.h>
 #include <rapidcheck/catch.h>
 
+#include <fcntl.h>
 #include <sys/types.h> // IWYU pragma: keep
 #include <unistd.h>
 
+#include <algorithm>
 #include <array>
+#include <cerrno>
 #include <climits>
 #include <cstddef>
 #include <cstdint>
@@ -42,6 +45,13 @@ public:
     /// The end to write to.
     /// @return Its descriptor.
     [[nodiscard]] int write_end() const { return std::get<1>(ends_); }
+    /// Make a write to a full pipe fail with EAGAIN instead of waiting.
+    void never_block() const {
+        const int fd = std::get<1>(ends_);
+        // fcntl(2) takes varargs, and its flags are an int.
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg,bugprone-signed-bitwise)
+        REQUIRE(::fcntl(fd, F_SETFL, ::fcntl(fd, F_GETFL) | O_NONBLOCK) == 0);
+    }
     /// Close the end to write to, so a read sees the end of the data.
     void close_write() {
         if (std::get<1>(ends_) >= 0) {
@@ -153,6 +163,73 @@ TEST_CASE("an fd writer writes nothing for empty text", "[raw]") {
     CHECK(pipe.drain().empty());
 }
 
+TEST_CASE("fixed text holds exactly its size, and cuts one byte over", "[raw]") {
+    constexpr std::size_t size = 4;
+    FixedText<size> under;
+    under.append("abc");
+    CHECK(std::string(under.view()) == "abc");
+    CHECK_FALSE(under.truncated());
+    FixedText<size> exact;
+    exact.append("abcd");
+    CHECK(std::string(exact.view()) == "abcd");
+    CHECK(std::string(exact.c_str()) == "abcd");
+    CHECK_FALSE(exact.truncated());
+    FixedText<size> over;
+    over.append("abcde");
+    CHECK(std::string(over.view()) == "abcd");
+    CHECK(over.truncated());
+}
+
+TEST_CASE("an fd writer reads errno only after a failed write", "[raw]") {
+    // An errno left at EINTR by an earlier call says nothing about a write
+    // that went through: the text is written once, and the writer is ok.
+    // Were it read after a success too, the writer would write the text
+    // again until the pipe, which never blocks, refused it.
+    Pipe pipe;
+    pipe.never_block();
+    FdWriter out(pipe.write_end());
+    errno = EINTR;
+    out.text("once");
+    CHECK(out.ok());
+    CHECK(pipe.drain() == "once");
+}
+
+TEST_CASE("an fd writer goes on after a short write and fails on a full pipe", "[raw]") {
+    // More than a pipe holds: the first write is short, the writer goes on
+    // from where it stopped, and the next write, to a full pipe that never
+    // blocks, fails, so the writer is not ok and wrote a prefix of the text.
+    Pipe pipe;
+    pipe.never_block();
+    constexpr std::size_t more_than_a_pipe = 1'048'576;
+    constexpr std::string_view alphabet = "abcdefghijklmnopqrstuvwxyz";
+    std::string text;
+    while (text.size() < more_than_a_pipe) {
+        text.append(alphabet);
+    }
+    FdWriter out(pipe.write_end());
+    out.text(text);
+    CHECK_FALSE(out.ok());
+    const std::string written = pipe.drain();
+    CHECK_FALSE(written.empty());
+    CHECK(written.size() < text.size());
+    CHECK(text.starts_with(written));
+}
+
+TEST_CASE("an image holds its first code address, not its end", "[raw]") {
+    constexpr std::uintptr_t start = 0x1000;
+    constexpr std::uintptr_t end = 0x2000;
+    const std::array<sq::raw::Image, 2> images{
+        sq::raw::Image{.load = start, .start = start, .end = end, .path = "a"},
+        sq::raw::Image{.load = end, .start = end + 0x1000, .end = end + 0x2000, .path = "b"},
+    };
+    const std::span<const sq::raw::Image> table(images);
+    CHECK(sq::raw::image_of(table, start) == &std::get<0>(images));
+    CHECK(sq::raw::image_of(table, end - 1) == &std::get<0>(images));
+    CHECK(sq::raw::image_of(table, end) == nullptr);
+    CHECK(sq::raw::image_of(table, start - 1) == nullptr);
+    CHECK(sq::raw::image_of(table, end + 0x1000) == &std::get<1>(images));
+}
+
 TEST_CASE("the loaded images hold this program's code, with its path", "[raw]") {
     constexpr std::size_t room = 1024;
     std::array<sq::raw::Image, room> images{};
@@ -169,7 +246,23 @@ TEST_CASE("the loaded images hold this program's code, with its path", "[raw]") 
 #if defined(__APPLE__)
     REQUIRE(image->path != nullptr);
     CHECK(std::string_view(image->path).ends_with("test_raw"));
+    // Its load address is its Mach-O header, which starts with the 64-bit
+    // magic number (MH_MAGIC_64, 0xfeedfacf, little-endian on arm64).
+    constexpr std::array<unsigned char, 4> mh_magic_64{0xcf, 0xfa, 0xed, 0xfe};
+    std::array<unsigned char, 4> magic{};
+    // The loader's own address, read as bytes.
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast,performance-no-int-to-ptr)
+    const auto *header = reinterpret_cast<const unsigned char *>(image->load);
+    std::copy_n(header, magic.size(), magic.begin());
+    CHECK(magic == mh_magic_64);
 #endif
+    // Every image is listed, not the first alone: the program and the
+    // system's libraries it loads.
+    CHECK(count > 1);
+    CHECK(std::ranges::any_of(loaded, [](const sq::raw::Image &other) {
+        return other.path != nullptr &&
+               std::string_view(other.path).find("libc++") != std::string_view::npos;
+    }));
     CHECK(in_this_program() == 1);
 }
 
