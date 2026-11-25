@@ -53,6 +53,8 @@ OVERRIDES = (
     "set allow-duplicate-recipes\nimport 'real.just'\n"
     + "".join(f"\n{name}:\n    @echo {name} >> calls.log\n" for name in RUNS)
     + "\nplace:\n    @cat place 2>/dev/null || echo here\n"
+    # The stamp is git-ignored in the real tree; here it would dirty it.
+    + "\ncompiler-stamp:\n    @true\n"
     + "\nfull task:\n    @echo full-{{ task }} >> calls.log\n"
     + "\nfuzz seconds:\n    @echo fuzz-{{ seconds }} >> calls.log\n"
     + "".join(

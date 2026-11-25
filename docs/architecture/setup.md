@@ -38,7 +38,11 @@ build took 3 min 36 s here (2026-11-23), and `just setup` on a fresh clone
 about 10 minutes with the submodules' fetch. ccache keeps the compiled objects
 (`engine/cmake/ccache.cmake`). `uv run` builds the module again when a commit
 or a file of the engine changes (`[tool.uv] cache-keys` in `pyproject.toml`);
-after a commit that took about 24 s. A build without the submodules fails at
+after a commit that took about 24 s. A compiler update rebuilds it too: `just
+setup`, `just done` and `just verify` first run `just compiler-stamp`, which
+writes the compiler's and the SDK's versions to `engine/.compiler-stamp`
+(git-ignored, one of the cache keys) when they changed, and only then, since uv
+keys a file on its modification time. A build without the submodules fails at
 configure with the line that fixes it.
 
 `libomp` is for LightGBM, a dev dependency whose macOS wheel needs the
@@ -52,10 +56,10 @@ system's OpenMP library; uv cannot provide it. uv is the only package tool
 
 | Group | Recipes |
 |---|---|
-| setup | `doctor`, `fetch-mull`, `setup` |
+| setup | `compiler-stamp`, `doctor`, `fetch-mull`, `setup` |
 | format | `fmt`, `fmt-engine`, `fmt-markdown`, `fmt-python` |
 | check | `check`, `check-docstring-args`, `check-docstrings`, `check-licences`, `check-lockfile`, `check-mirror`, `check-no-devdata`, `check-secrets`, `check-spelling`, `check-stubs`, `check-types`, `check-types-mypy`, `checkable-tree`, `docstrings`, `done`, `format`, `full`, `headers-alone`, `iwyu-engine`, `lint`, `lint-markdown`, `lint-python`, `place`, `pre-commit`, `remember-tree`, `tidy`, `tidy-engine`, `types`, `verify` |
-| test | `bench-engine`, `coverage-engine`, `fuzz`, `mutate-engine`, `sanitize`, `sql`, `test`, `test-all`, `test-engine`, `test-engine-changed`, `test-hooks`, `test-python-versions`, `test-sql`, `validate`, `validate-all` |
+| test | `bench-engine`, `coverage-engine`, `fuzz`, `leaks-engine`, `mutate-engine`, `sanitize`, `sql`, `test`, `test-all`, `test-engine`, `test-engine-changed`, `test-hooks`, `test-python-versions`, `test-sql`, `validate`, `validate-all` |
 | docs | `build-docs`, `docs`, `fetch-inventories`, `fetch-mathjax` |
 | build | `api-snapshot`, `build-engine`, `build-package`, `stubs` |
 | maintain | `clean`, `probe-cxx26`, `upgrade-dependencies` |

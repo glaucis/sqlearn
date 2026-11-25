@@ -30,5 +30,6 @@ htmlcov/
 *.ipynb
 # What the C++ build writes
 /engine/build/
+/engine/.compiler-stamp
 /build/
 /compile_commands.json

@@ -50,11 +50,29 @@ doctor:
     check gitleaks gitleaks version
     exit "$missing"
 
+# Write engine/.compiler-stamp, the C++ compiler's --version (CXX, else c++) and the SDK's, when it changed: one of uv's cache keys (pyproject.toml), so the next uv run rebuilds the module after a compiler update; rewritten only on a change, since uv keys a file on its modification time
+[group('setup')]
+compiler-stamp:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    stamp=engine/.compiler-stamp
+    mkdir -p engine
+    new=$(mktemp)
+    trap 'rm -f "$new"' EXIT
+    ${CXX:-c++} --version > "$new" 2>&1 || echo "no compiler: ${CXX:-c++}" > "$new"
+    if command -v xcrun > /dev/null; then
+        echo "sdk $(xcrun --show-sdk-version 2>/dev/null || echo none)" >> "$new"
+    fi
+    if ! cmp -s "$new" "$stamp"; then
+        mv "$new" "$stamp"
+    fi
+
 # Point git at .githooks, check the toolchain (a missing tool is reported, and the rest still runs), fetch the submodules and build the locked environment; exits 1 when a tool is missing
 [group('setup')]
 setup:
     #!/usr/bin/env bash
     set -euo pipefail
+    "{{ just_executable() }}" --justfile "{{ justfile() }}" compiler-stamp
     git config core.hooksPath .githooks
     doctor=0
     "{{ just_executable() }}" --justfile "{{ justfile() }}" doctor || doctor=$?
@@ -710,6 +728,8 @@ done:
     #!/usr/bin/env bash
     set -euo pipefail
     j=(just --justfile '{{ justfile() }}')
+    # A compiler update rebuilds the module at the first uv run (its stamp is a cache key).
+    "${j[@]}" compiler-stamp
     tree="$("${j[@]}" checkable-tree)"
     place="$("${j[@]}" place)"
     if [ -n "$tree" ] && grep -qx "$tree $place" "$(git rev-parse --git-common-dir)/sqlearn-passed" 2>/dev/null; then
@@ -732,6 +752,8 @@ verify:
     #!/usr/bin/env bash
     set -euo pipefail
     j=(just --justfile '{{ justfile() }}')
+    # A compiler update rebuilds the module at the first uv run (its stamp is a cache key).
+    "${j[@]}" compiler-stamp
     tree="$("${j[@]}" checkable-tree)"
     place="$("${j[@]}" place)"
     "${j[@]}" check-lockfile check-mirror check-no-devdata

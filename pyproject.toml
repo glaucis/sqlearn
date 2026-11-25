@@ -97,6 +97,9 @@ cache-keys = [
     { file = "engine/src/**" },
     { file = "engine/extension/**" },
     { file = ".gitmodules" },
+    # The compiler's identity (just compiler-stamp, git-ignored): a compiler
+    # update rebuilds the module.
+    { file = "engine/.compiler-stamp" },
 ]
 
 [tool.scikit-build]

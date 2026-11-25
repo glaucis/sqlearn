@@ -1,6 +1,7 @@
 """The package's DuckDB is the one built from the submodules, inside sqlearn."""
 
 import importlib.metadata
+import os
 import re
 import shutil
 import subprocess
@@ -92,3 +93,61 @@ def test_the_module_and_the_wheel_target_macos_15():
     tags = re.findall(r"^Tag: (\S+)$", wheel, re.M)
     assert tags, wheel
     assert all(t.endswith("-macosx_15_0_arm64") for t in tags), tags
+
+
+STAMP = "engine/.compiler-stamp"
+
+
+def _stamp(tmp_path, version):
+    """Run the real compiler-stamp recipe in `tmp_path` with a c++ that prints
+    `version`; return the stamp file."""
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir(exist_ok=True)
+    (bin_dir / "c++").write_text(f"#!/bin/sh\necho '{version}'\n")
+    (bin_dir / "c++").chmod(0o755)
+    shutil.copy(REPO / "justfile", tmp_path / "justfile")
+    env = {
+        **{k: v for k, v in os.environ.items() if k != "CXX"},
+        "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}",
+    }
+    subprocess.run(
+        ["just", "compiler-stamp"], cwd=tmp_path, env=env, check=True, text=True
+    )
+    return tmp_path / STAMP
+
+
+def test_a_compiler_change_is_a_cache_key_of_the_build(tmp_path):
+    """uv rebuilds the module when the compiler changes: the stamp of its
+    identity is one of pyproject's cache keys, git ignores it, and the recipe
+    rewrites it only when the compiler changed, since uv keys a file on its
+    modification time."""
+    import tomllib
+
+    keys = tomllib.loads((REPO / "pyproject.toml").read_text())["tool"]["uv"][
+        "cache-keys"
+    ]
+    assert {"file": STAMP} in keys
+    ignored = subprocess.run(
+        ["git", "check-ignore", "-q", STAMP], cwd=REPO, check=False
+    )
+    assert ignored.returncode == 0
+    stamp = _stamp(tmp_path, "clang version 21.0.0")
+    assert "clang version 21.0.0" in stamp.read_text()
+    before = stamp.stat().st_mtime_ns
+    _stamp(tmp_path, "clang version 21.0.0")
+    assert stamp.stat().st_mtime_ns == before
+    _stamp(tmp_path, "clang version 22.0.0")
+    assert "clang version 22.0.0" in stamp.read_text()
+
+
+@pytest.mark.parametrize("recipe", ["setup", "done", "verify"])
+def test_the_compiler_is_stamped_before_anything_builds(recipe):
+    """setup, done and verify write the stamp first, so the build they start
+    sees a compiler change."""
+    justfile = (REPO / "justfile").read_text()
+    body = justfile[justfile.index(f"\n{recipe}:") + 1 :]
+    end = body.find("\n\n")
+    lines = [x.strip() for x in body[: end if end >= 0 else None].splitlines()[1:]]
+    skipped = ("#", "set ", "j=(")
+    commands = [x for x in lines if x and not x.startswith(skipped)]
+    assert "compiler-stamp" in commands[0], commands[:2]
