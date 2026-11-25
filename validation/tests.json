@@ -152,6 +152,78 @@
     },
     {
       "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_a_cxx_edit_reruns_what_runs_on_the_engine[engine/CMakeLists.txt-docs-build-docs]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_a_cxx_edit_reruns_what_runs_on_the_engine[engine/CMakeLists.txt-docstrings-numpydoc]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_a_cxx_edit_reruns_what_runs_on_the_engine[engine/CMakeLists.txt-types-ty]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_a_cxx_edit_reruns_what_runs_on_the_engine[engine/cmake/sql_tests.cmake-docs-build-docs]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_a_cxx_edit_reruns_what_runs_on_the_engine[engine/cmake/sql_tests.cmake-docstrings-numpydoc]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_a_cxx_edit_reruns_what_runs_on_the_engine[engine/cmake/sql_tests.cmake-types-ty]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_a_cxx_edit_reruns_what_runs_on_the_engine[engine/extension/src/sqlearn_extension.cpp-docs-build-docs]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_a_cxx_edit_reruns_what_runs_on_the_engine[engine/extension/src/sqlearn_extension.cpp-docstrings-numpydoc]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_a_cxx_edit_reruns_what_runs_on_the_engine[engine/extension/src/sqlearn_extension.cpp-types-ty]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_a_cxx_edit_reruns_what_runs_on_the_engine[engine/src/core/version.cpp-docs-build-docs]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_a_cxx_edit_reruns_what_runs_on_the_engine[engine/src/core/version.cpp-docstrings-numpydoc]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_a_cxx_edit_reruns_what_runs_on_the_engine[engine/src/core/version.cpp-types-ty]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
       "name": "tests/checks/test_tasks.py::test_a_data_file_change_reruns_the_tests[.githooks/pre-commit]",
       "outcome": "passed",
       "tier": "fast"
@@ -200,6 +272,24 @@
     },
     {
       "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_a_duckdb_bump_reruns_what_runs_on_the_engine[docs-build-docs]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_a_duckdb_bump_reruns_what_runs_on_the_engine[docstrings-numpydoc]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_a_duckdb_bump_reruns_what_runs_on_the_engine[types-ty]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
       "name": "tests/checks/test_tasks.py::test_full_sql_runs_every_sql_test",
       "outcome": "passed",
       "tier": "fast"
@@ -213,6 +303,12 @@
     {
       "area": "checks/tasks",
       "name": "tests/checks/test_tasks.py::test_full_validate_runs_every_runner",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_the_engine_build_inputs_are_uvs_cache_keys",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1976,7 +2072,31 @@
     },
     {
       "area": "engine/build",
+      "name": "tests/engine/test_build.py::test_a_compiler_change_is_a_cache_key_of_the_build",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/build",
       "name": "tests/engine/test_build.py::test_duckdb_is_sqlearns_build",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/build",
+      "name": "tests/engine/test_build.py::test_the_compiler_is_stamped_before_anything_builds[done]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/build",
+      "name": "tests/engine/test_build.py::test_the_compiler_is_stamped_before_anything_builds[setup]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/build",
+      "name": "tests/engine/test_build.py::test_the_compiler_is_stamped_before_anything_builds[verify]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -2060,6 +2180,12 @@
     },
     {
       "area": "engine/extension",
+      "name": "tests/engine/test_extension.py::test_a_missing_local_extension_fails_at_its_path_and_nothing_downloads",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/extension",
       "name": "tests/engine/test_extension.py::test_a_user_who_asks_for_downloads_keeps_them",
       "outcome": "passed",
       "tier": "fast"
@@ -2067,12 +2193,6 @@
     {
       "area": "engine/extension",
       "name": "tests/engine/test_extension.py::test_a_user_who_turns_downloads_off_keeps_that",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "engine/extension",
-      "name": "tests/engine/test_extension.py::test_an_extension_the_user_installed_loads",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -2175,6 +2295,12 @@
     {
       "area": "engine/presets",
       "name": "tests/engine/test_presets.py::test_the_stack_clash_probe_asks_each_compiler_its_own_way[g++-16-True]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/presets",
+      "name": "tests/engine/test_presets.py::test_the_wheel_build_has_nothing_of_the_test_builds",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -2289,6 +2415,18 @@
     {
       "area": "engine/sanitizers",
       "name": "tests/engine/test_sanitizers.py::test_just_sanitize_runs_every_sanitizer_preset",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/sanitizers",
+      "name": "tests/engine/test_sanitizers.py::test_leaks_engine_fails_when_it_finds_no_program",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/sanitizers",
+      "name": "tests/engine/test_sanitizers.py::test_leaks_engine_shows_a_failing_programs_output",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -18327,6 +18465,12 @@
     {
       "area": "sqlearn/_native",
       "name": "tests/src/sqlearn/test__native.py::test_a_file_without_the_engine_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "sqlearn/_native",
+      "name": "tests/src/sqlearn/test__native.py::test_a_missing_engine_is_refused",
       "outcome": "passed",
       "tier": "fast"
     },
