@@ -8,6 +8,7 @@ and a test's data is files, never a directory.
 
 import json
 import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -315,3 +316,12 @@ def test_a_users_option_wins_over_the_flavours() -> None:
 
     assert run(None) == 0
     assert run("halt_on_error=0") != 0
+
+
+def test_only_the_crash_group_is_left_out_of_leaks_engine() -> None:
+    """just leaks-engine runs every group's program under leaks --atExit but
+    test_crash, whose forked children hang under it."""
+    justfile = (ENGINE.parent / "justfile").read_text()
+    recipe = justfile[justfile.index("\nleaks-engine:") :]
+    recipe = recipe[: recipe.index("\n\n")]
+    assert re.findall(r"^\s*skip=\((.*)\)$", recipe, re.MULTILINE) == ["test_crash"]

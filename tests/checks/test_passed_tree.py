@@ -38,6 +38,7 @@ TASKS = (
 )
 RELEASE = (
     "sanitize",
+    "leaks-engine",
     "fuzz-60",
     "coverage-engine",
     "mutate-engine",
@@ -258,8 +259,9 @@ def test_a_rewritten_results_file_keeps_the_tree_checkable(tmp_path):
 
 def test_verify_runs_every_task_in_full_and_the_release_tools(tmp_path):
     """verify runs the instant checks, every task in full (tidy and sql among
-    them), then the sanitizers, a minute of fuzzing, coverage, mutation
-    testing, the licence check and the tests on every Python, and remembers.
+    them), then the sanitizers, the leak check of the release build, a minute
+    of fuzzing, coverage, mutation testing, the licence check and the tests on
+    every Python, and remembers.
     The steady-memory test runs in ``full test``'s slow tier."""
     repo, env = make_repo(tmp_path)
     just(repo, "verify", env=env)

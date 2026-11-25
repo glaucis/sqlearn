@@ -207,7 +207,12 @@ fuzz seconds="60":
             -artifact_prefix="$found/" "$work" || code=$?
         # libFuzzer writes each failing input under the prefix: this run's alone
         inputs="$(find "$found" -maxdepth 1 -type f \( "${kinds[@]}" \))"
-        if [ "$code" -ne 0 ] || [ -n "$inputs" ]; then
+        if [ "$code" -ne 0 ] && [ -z "$inputs" ]; then
+            echo "fuzz_$target failed (exit $code) without writing an input: libFuzzer itself failed (its output is above)" >&2
+            echo "Fix: run engine/$binary on engine/$corpus by hand to see why" >&2
+            exit 1
+        fi
+        if [ -n "$inputs" ]; then
             echo "fuzz_$target failed (exit $code); its input is kept in engine/$corpus:" >&2
             while IFS= read -r input; do
                 [ -n "$input" ] || continue
@@ -231,6 +236,43 @@ sanitize:
         uv run --locked python -m validation._ctest "$preset" --all || code=$?
         if [ "$first" -eq 0 ]; then first=$code; fi
     done
+    exit "$first"
+
+# Build the release preset (Apple clang) and run each group's test program, then again under macOS's leaks --atExit, which looks for memory no pointer reaches when the program ends; a failing program or any leak fails. test_crash is left out (below)
+[group('test')]
+leaks-engine: (build-engine "release")
+    #!/usr/bin/env bash
+    set -euo pipefail
+    build=engine/build/release
+    # test_crash forks a child for each case, and under leaks --atExit those
+    # children hang until their alarm ends them, so its cases fail for the
+    # tool's sake; its leaks are LeakSanitizer's (the lsan preset, just
+    # sanitize). tests/engine/test_sanitizers.py pins that it alone is out.
+    skip=(test_crash)
+    programs=$(ctest --test-dir "$build" --show-only=json-v1 |
+        uv run --locked python -c 'import json, sys; [print(t["command"][0]) for t in json.load(sys.stdin)["tests"] if t["name"].startswith("test_")]')
+    first=0
+    for program in $programs; do
+        name=$(basename "$program")
+        if printf '%s\n' "${skip[@]}" | grep -qx "$name"; then
+            echo "leaks-engine: $name left out (its forked children hang under leaks)"
+            continue
+        fi
+        code=0
+        # leaks' exit says whether it found a leak, not whether the tests
+        # passed: the program runs alone first.
+        "$program" > /dev/null || code=$?
+        if [ "$code" -eq 0 ]; then
+            /usr/bin/leaks --atExit -- "$program" || code=$?
+        fi
+        if [ "$code" -ne 0 ]; then
+            echo "leaks-engine: $name failed or leaked (exit $code)" >&2
+            if [ "$first" -eq 0 ]; then first=$code; fi
+        fi
+    done
+    if [ "$first" -ne 0 ]; then
+        echo "Fix: the failing tests, or free what the report names (RAII, ADR 0065), then just leaks-engine" >&2
+    fi
     exit "$first"
 
 # Build the coverage preset (Homebrew LLVM's source-based coverage), run every C++ test under it, print the line, region and branch coverage of engine/src outside bindings/, and fail below 95 % of lines (validation/_coverage.py)
@@ -675,7 +717,7 @@ done:
     if [ "$first" -ne 0 ]; then exit "$first"; fi
     "${j[@]}" remember-tree "$tree" "$place"
 
-# Run every check all through, whatever the records say (the steady-memory test in full test's slow tier), then the sanitizers, a minute of fuzzing, the C++ coverage gate, mutation testing, the licence check, and the tests with coverage and on every Python: the release tier, by hand before 1.0.0
+# Run every check all through, whatever the records say (the steady-memory test in full test's slow tier), then the sanitizers, the leak check of the release build, a minute of fuzzing, the C++ coverage gate, mutation testing, the licence check, and the tests with coverage and on every Python: the release tier, by hand before 1.0.0
 [group('check')]
 verify:
     #!/usr/bin/env bash
@@ -687,7 +729,7 @@ verify:
     for task in format lint docstrings types tidy test sql validate docs; do
         "${j[@]}" full "$task"
     done
-    "${j[@]}" sanitize
+    "${j[@]}" sanitize leaks-engine
     "${j[@]}" fuzz 60
     "${j[@]}" coverage-engine mutate-engine check-licences
     "${j[@]}" test-all test-python-versions

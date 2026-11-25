@@ -1,7 +1,7 @@
 ---
 type: adr
 tags: [cpp, safety, sanitizers, fuzzing, static-analysis, architecture-decision]
-summary: "Records the safety rules binding the engine's C++ from its first commit: Core Guidelines coding, strict compiler flags, static analysis, a hardened standard library, sanitizers and fuzzing in CI, and no crash reaching the user."
+summary: "Records the safety rules binding the engine's C++ from its first commit: Core Guidelines coding, strict compiler flags, static analysis, a hardened standard library, sanitizers and fuzzing in just verify and in workflows started by hand, and no crash reaching the user."
 related: [docs/adr/0016-validation-method.md, docs/adr/0043-repeatable-within-rounding.md, docs/adr/0060-a-native-engine-in-cpp-inside-duckdb.md, docs/specs/native-engine.md]
 ---
 # 0065: Safety rules for the C++

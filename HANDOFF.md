@@ -4,9 +4,9 @@ Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
 Updated: 2026-11-25 · Branch: `phase-1-build` (worktree `../sqlearn-build`,
-not merged, not pushed) · Checks: `just done` passed and remembered its
-tree (47 min, 2026-11-24); `just verify` ran in parts, each passing after
-the fixes it found (#79's comment of 2026-11-25)
+not merged, not pushed) · Checks: `just done` passed at `11d5d23` and
+remembered its tree (47 min, 2026-11-25); `just verify` ran in parts, each
+passing after the fixes it found (#79's comments of 2026-11-25)
 Verify with: `just done` (`just verify` is the release tier)
 
 ## In progress

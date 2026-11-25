@@ -304,6 +304,22 @@ passes only when the program failed and its output holds the sanitizer's report
 crash of another kind fails it. The canaries break the rules on purpose, so
 clang-tidy leaves them out.
 
+**The leak check of the release build.** `just leaks-engine` builds the
+`release` preset (Apple clang) and runs each group's test program alone, then
+under macOS's `leaks --atExit`, which reports memory no pointer reaches when
+the program ends; a failing program or any leak fails it. `test_crash` is left
+out: its forked children hang under `leaks` until their alarm ends them, so
+its leaks are LeakSanitizer's (`lsan`). A test pins that it alone is out.
+`just verify` runs it after `just sanitize`.
+
+**nanobind's leak report.** nanobind reports, at exit, the instances of the
+types it binds that are still alive. `engine/src/bindings` binds no type of
+its own yet (no `nb::class_`, `nb::enum_` or `nb::exception`), so there is
+nothing of sqlearn's for it to report, and duckdb-python's Release build
+silences the report for the domain they share.
+`tests/engine/test_bound_types.py` fails once a type is bound, with a `Fix:`
+line: add a leak check for it then.
+
 **The C++ coverage.** `just coverage-engine` builds the `coverage` preset
 (Homebrew LLVM, so its `llvm-profdata` and `llvm-cov` read the profiles its
 clang writes; `-O0`, `-fprofile-instr-generate -fcoverage-mapping` on our

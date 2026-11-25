@@ -1969,6 +1969,12 @@
       "tier": "fast"
     },
     {
+      "area": "engine/bound_types",
+      "name": "tests/engine/test_bound_types.py::test_the_bindings_bind_no_type_of_their_own",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
       "area": "engine/build",
       "name": "tests/engine/test_build.py::test_duckdb_is_sqlearns_build",
       "outcome": "passed",
@@ -2283,6 +2289,12 @@
     {
       "area": "engine/sanitizers",
       "name": "tests/engine/test_sanitizers.py::test_just_sanitize_runs_every_sanitizer_preset",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/sanitizers",
+      "name": "tests/engine/test_sanitizers.py::test_only_the_crash_group_is_left_out_of_leaks_engine",
       "outcome": "passed",
       "tier": "fast"
     },
