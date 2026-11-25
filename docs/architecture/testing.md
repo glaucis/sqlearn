@@ -137,7 +137,12 @@ Every task also reads the settings: `pyproject.toml`, `uv.lock`,
 any depth (`pyproject.toml`, `ruff.toml`, `.ruff.toml`, `typos.toml`,
 `_typos.toml`, `.typos.toml`, `rumdl.toml`, `.rumdl.toml`, `mypy.ini`,
 `.mypy.ini`, `ty.toml`), so one added reruns every file it governs. `format`
-also reads `engine/.clang-format` and `.gersemirc`. A tool from Homebrew, not
+also reads `engine/.clang-format` and `.gersemirc`. `docs`, `types` and
+`docstrings` also read what the built module comes from (`ENGINE_BUILD`:
+duckdb-python's commit, `engine/src/`, `engine/extension/`, `engine/cmake/` and
+`engine/CMakeLists.txt`, the files uv rebuilds the module on): the doctests run
+on it and ty and mypy read its stubs, so a DuckDB bump or a C++ edit reruns all
+of each. A tool from Homebrew, not
 `uv.lock` (clang-format, clang-tidy, include-what-you-use, and the SDK),
 counts by its version: an upgrade reruns all of the tasks that use it.
 

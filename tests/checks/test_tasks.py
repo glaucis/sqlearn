@@ -15,6 +15,8 @@ from pathlib import Path
 
 import pytest
 
+from validation import _checks
+
 REPO = Path(__file__).resolve().parents[2]
 
 OVERRIDES = """set allow-duplicate-recipes
@@ -31,6 +33,9 @@ test-engine-changed *args:
 
 test-sql *args:
     @echo '["test-sql {{ args }}"]' >> "$CALLS"
+
+check-docstring-args *files:
+    @echo '["check-docstring-args"]' >> "$CALLS"
 """
 
 TOOL = """#!{python}
@@ -245,6 +250,91 @@ def test_a_duckdb_bump_reruns_the_sql_tests(scratch):
     pin("2" * 40)
     just(repo, env, "sql")
     assert calls(env) == [["test-sql "]]
+
+
+def _pin(repo, env, commit):
+    """Pin duckdb-python's gitlink at `commit` in the scratch index."""
+    git(
+        repo,
+        "update-index",
+        "--add",
+        "--cacheinfo",
+        f"160000,{commit},engine/duckdb-python",
+        env=env,
+    )
+
+
+@pytest.mark.parametrize(
+    ("task", "first"),
+    [("docs", "build-docs"), ("types", "ty"), ("docstrings", "numpydoc")],
+)
+def test_a_duckdb_bump_reruns_what_runs_on_the_engine(scratch, task, first):
+    """The docs build runs its doctests on the built module and ty and mypy
+    read its stubs; the docstring checks are keyed the same way. A new commit
+    of duckdb-python's gitlink reruns each."""
+    repo, env = scratch
+    _pin(repo, env, "1" * 40)
+    just(repo, env, task)
+    assert calls(env)[0][0] == first
+    assert f"{task}: unchanged since a passed run" in just(repo, env, task)
+    assert calls(env) == []
+    _pin(repo, env, "2" * 40)
+    just(repo, env, task)
+    assert calls(env)[0][0] == first
+
+
+@pytest.mark.parametrize(
+    ("task", "first"),
+    [("docs", "build-docs"), ("types", "ty"), ("docstrings", "numpydoc")],
+)
+@pytest.mark.parametrize(
+    "changed",
+    [
+        "engine/src/core/version.cpp",
+        "engine/extension/src/sqlearn_extension.cpp",
+        "engine/cmake/sql_tests.cmake",
+        "engine/CMakeLists.txt",
+    ],
+)
+def test_a_cxx_edit_reruns_what_runs_on_the_engine(scratch, task, first, changed):
+    """An edit of the engine's sources or build rebuilds the module, so the
+    checks that run on it run again."""
+    repo, env = scratch
+    just(repo, env, task)
+    calls(env)
+    path = repo / changed
+    path.write_text((path.read_text() if path.exists() else "") + "# changed\n")
+    just(repo, env, task)
+    assert calls(env)[0][0] == first
+
+
+def test_the_engine_build_inputs_are_uvs_cache_keys():
+    """ENGINE_BUILD is what uv rebuilds the module on (pyproject's
+    ``tool.uv.cache-keys`` under ``engine/``), plus duckdb-python's gitlink,
+    which uv keys through the commit and ``.gitmodules``. The compiler stamp
+    is a git-ignored file no digest can see: the tasks name the compiler as
+    a tool instead."""
+    import tomllib
+
+    keys = tomllib.loads((REPO / "pyproject.toml").read_text())["tool"]["uv"][
+        "cache-keys"
+    ]
+    globs = {
+        k["file"].removesuffix("/**")
+        for k in keys
+        if "file" in k and k["file"].startswith("engine/")
+    }
+    globs.discard("engine/.compiler-stamp")
+    assert set(_checks.ENGINE_BUILD) == {*globs, "engine/duckdb-python"}
+
+    def covered(path, task):
+        specs = (*task.inputs, *task.config)
+        return any(path == s or path.startswith(f"{s}/") for s in specs)
+
+    for name in ("docs", "types", "docstrings", "test", "sql"):
+        task = _checks.TASKS[name]
+        missing = [p for p in _checks.ENGINE_BUILD if not covered(p, task)]
+        assert missing == [], name
 
 
 def test_full_sql_runs_every_sql_test(scratch):

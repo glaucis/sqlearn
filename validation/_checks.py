@@ -173,6 +173,19 @@ ENGINE_SOURCES = (
 )
 """sqlearn's own C++: the groups, their tests, the benchmarks, the extension."""
 
+ENGINE_BUILD = (
+    "engine/duckdb-python",
+    "engine/src",
+    "engine/extension",
+    "engine/CMakeLists.txt",
+    "engine/cmake",
+)
+"""What the built module comes from: pyproject's ``tool.uv.cache-keys`` under
+``engine/``, on which uv rebuilds it, and duckdb-python's gitlink, which pins
+DuckDB's. A task whose result depends on the module or on DuckDB (the
+doctests run on it, the type checkers read its stubs) has it as
+configuration, so a DuckDB bump or a C++ edit reruns all of it."""
+
 TIDY_INPUTS = (
     *ENGINE_SOURCES,
     "engine/.clang-tidy",
@@ -279,7 +292,7 @@ def _table() -> dict[str, Task]:
         Task(
             name="docstrings",
             inputs=("src/*.py",),
-            config=SETTINGS,
+            config=(*SETTINGS, *ENGINE_BUILD),
             steps=(
                 Step(("numpydoc", "lint")),
                 # pydoclint through its filter, which drops DOC111.
@@ -290,7 +303,8 @@ def _table() -> dict[str, Task]:
         Task(
             name="types",
             inputs=PYTHON,
-            config=SETTINGS,
+            # ty and mypy read the module's stubs (_duckdb-stubs).
+            config=(*SETTINGS, *ENGINE_BUILD),
             steps=(Step(("ty", "check")), Step(("mypy",))),
             per_file=False,
         ),
@@ -361,7 +375,8 @@ def _table() -> dict[str, Task]:
         Task(
             name="docs",
             inputs=("docs", "src", "examples"),
-            config=SETTINGS,
+            # The doctests run on the built module.
+            config=(*SETTINGS, *ENGINE_BUILD),
             steps=(Step(("just", "build-docs")),),
             per_file=False,
         ),
@@ -507,11 +522,12 @@ def _config(task: Task, root: Path) -> str:
     """Return the SHA-256 of the place, `task`'s configuration and its layout.
 
     The layout is the sorted names of the files under ``task.layout``, never
-    their bytes: a new or removed file changes it. The tools' versions count
-    too.
+    their bytes: a new or removed file changes it. The commit each submodule
+    under the configuration pins, and the tools' versions, count too.
     """
     layout = "\0".join(_listed(task.layout, root)).encode()
-    sha = hashlib.sha256(_combined(_listed(task.config, root), root).encode())
+    links = _gitlinks(task.config, root)
+    sha = hashlib.sha256(_combined(_listed(task.config, root), root, links).encode())
     sha.update(b"\0layout\0" + layout)
     if task.tools:
         sha.update(b"\0tools\0" + _tool_versions(task))
