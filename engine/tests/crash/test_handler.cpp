@@ -2,6 +2,11 @@
 /// The crash group's program: a fatal signal after install() leaves a local
 /// report, and the handler that was there before still runs. Each crash is
 /// a forked child's, so the test program lives on.
+///
+/// The cases tagged [signals] test how the handler chains a signal
+/// (delivery, masks, SA_NODEFER, SA_RESETHAND, re-entry); the tsan flavour
+/// runs the group with `~[signals]` (engine/CMakeLists.txt), since
+/// ThreadSanitizer intercepts signals and delivers them late.
 #include "core/version.hpp"
 #include "crash/handler.hpp"
 
@@ -63,7 +68,11 @@ void flush_coverage() {
 constexpr int returned = 99;
 /// The exit code the test's own previous handler leaves.
 constexpr int previous_code = 7;
-/// The longest a child may take before SIGALRM ends it.
+/// The longest a child may take before SIGALRM ends it. The alarm guards
+/// the ordinary builds only: ThreadSanitizer defers signals, and a child
+/// hung under it outlived the alarm. CTest's TIMEOUT on test_crash
+/// (sq_test_timeout, engine/cmake/groups.cmake) is the guard for every
+/// build.
 constexpr unsigned child_seconds = 20;
 
 /// A scratch directory, removed with everything in it at the end of a test.
@@ -284,7 +293,7 @@ TEST_CASE("a null write leaves a report and dies by its signal", "[crash]") {
     }
 }
 
-TEST_CASE("the handler that was there before runs after the report", "[crash]") {
+TEST_CASE("the handler that was there before runs after the report", "[crash][signals]") {
     const ScratchDir dir;
     const auto ending = in_child([&] {
         set_handler(SIGSEGV, previous_handler);
@@ -364,7 +373,8 @@ extern "C" void guard_handler(int signo, siginfo_t *info, void *context) {
 
 } // namespace
 
-TEST_CASE("a fault reaches a previous SA_SIGINFO handler as the kernel's, once", "[crash]") {
+TEST_CASE("a fault reaches a previous SA_SIGINFO handler as the kernel's, once",
+          "[crash][signals]") {
     const ScratchDir dir;
     const auto ending = in_child([&] {
         guard.size = static_cast<std::size_t>(::getpagesize());
@@ -388,7 +398,7 @@ TEST_CASE("a fault reaches a previous SA_SIGINFO handler as the kernel's, once",
     CHECK(reports(dir.path(), ending.pid).size() == 1);
 }
 
-TEST_CASE("a null write reaches a previous SA_SIGINFO handler with address 0", "[crash]") {
+TEST_CASE("a null write reaches a previous SA_SIGINFO handler with address 0", "[crash][signals]") {
     const ScratchDir dir;
     const auto ending = in_child([&] {
         struct sigaction action{};
@@ -408,7 +418,7 @@ TEST_CASE("a null write reaches a previous SA_SIGINFO handler with address 0", "
     CHECK(reports(dir.path(), ending.pid).size() == 1);
 }
 
-TEST_CASE("a default previous action still ends the process by the fault", "[crash]") {
+TEST_CASE("a default previous action still ends the process by the fault", "[crash][signals]") {
     const ScratchDir dir;
     const auto ending = in_child([&] {
         set_handler(SIGSEGV, SIG_DFL);
@@ -423,7 +433,7 @@ TEST_CASE("a default previous action still ends the process by the fault", "[cra
     CHECK(reports(dir.path(), ending.pid).size() == 1);
 }
 
-TEST_CASE("a default action that says SA_SIGINFO still ends the process", "[crash]") {
+TEST_CASE("a default action that says SA_SIGINFO still ends the process", "[crash][signals]") {
     // Python leaves SIGSEGV's default action with SA_SIGINFO set and no
     // handler: the flag must not make the handler call a null function.
     const ScratchDir dir;
@@ -472,7 +482,7 @@ extern "C" void resethand_handler(int signo) {
 
 } // namespace
 
-TEST_CASE("a fault in a previous SA_NODEFER handler ends the process", "[crash]") {
+TEST_CASE("a fault in a previous SA_NODEFER handler ends the process", "[crash][signals]") {
     const ScratchDir dir;
     const auto ending = in_child([&] {
         struct sigaction action{};
@@ -491,7 +501,7 @@ TEST_CASE("a fault in a previous SA_NODEFER handler ends the process", "[crash]"
     CHECK(reports(dir.path(), ending.pid).size() == 1);
 }
 
-TEST_CASE("a fault inside sqlearn's report ends the process", "[crash]") {
+TEST_CASE("a fault inside sqlearn's report ends the process", "[crash][signals]") {
     const ScratchDir dir;
     const auto ending = in_child([&] {
         set_handler(SIGSEGV, default_handler);
@@ -506,7 +516,7 @@ TEST_CASE("a fault inside sqlearn's report ends the process", "[crash]") {
     CHECK(fault);
 }
 
-TEST_CASE("a previous SA_RESETHAND handler runs with the default back", "[crash]") {
+TEST_CASE("a previous SA_RESETHAND handler runs with the default back", "[crash][signals]") {
     const ScratchDir dir;
     const auto ending = in_child([&] {
         struct sigaction action{};
@@ -529,7 +539,7 @@ TEST_CASE("a previous SA_RESETHAND handler runs with the default back", "[crash]
 #endif
 }
 
-TEST_CASE("an ignored signal stays ignored after the report", "[crash]") {
+TEST_CASE("an ignored signal stays ignored after the report", "[crash][signals]") {
     const ScratchDir dir;
     const auto ending = in_child([&] {
         set_handler(SIGFPE, SIG_IGN);

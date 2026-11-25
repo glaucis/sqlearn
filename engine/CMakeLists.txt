@@ -171,11 +171,20 @@ sq_add_group(
 )
 # The crash report: a handler for the fatal signals, written to a local file
 # with cpptrace's signal-safe stack trace, never sent anywhere (ADR 0006).
+# ThreadSanitizer intercepts signals and delivers them late, so the cases
+# tagged [signals], which test how the handler chains a signal (delivery,
+# masks, SA_NODEFER, SA_RESETHAND, re-entry), cannot be trusted under it:
+# the tsan flavour runs the rest of the group (docs/architecture/testing.md).
+set(sq_crash_args "")
+if(SQ_FLAVOR STREQUAL "tsan")
+  set(sq_crash_args "~[signals]")
+endif()
 sq_add_group(
   crash
   SOURCES src/crash/handler.cpp
   DEPENDS core raw
   TESTS tests/crash/test_handler.cpp
+  ARGS ${sq_crash_args}
 )
 target_link_libraries(sq_crash PUBLIC cpptrace::cpptrace)
 # The tests' hook into the report (crash/handler.hpp), in a preset's build

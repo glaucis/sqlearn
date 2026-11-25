@@ -44,7 +44,7 @@ foreach(group IN ITEMS core raw)
   add_executable(test_${{group}} src/${{group}}.cpp)
   sq_stable_link(test_${{group}})
   add_test(NAME test_${{group}} COMMAND test_${{group}})
-  set_tests_properties(test_${{group}} PROPERTIES LABELS ${{group}})
+  set_tests_properties(test_${{group}} PROPERTIES LABELS ${{group}} TIMEOUT 300)
 endforeach()
 target_link_libraries(test_core PRIVATE extra)
 sq_test_data(test_raw data/raw.txt)
@@ -53,7 +53,7 @@ target_include_directories(bad SYSTEM PRIVATE include)
 add_test(NAME must_not_compile.bad
          COMMAND "${{CMAKE_COMMAND}}" --build "${{CMAKE_BINARY_DIR}}" --target bad)
 set_tests_properties(must_not_compile.bad PROPERTIES WILL_FAIL TRUE
-                     LABELS must_not_compile)
+                     LABELS must_not_compile TIMEOUT 300)
 """
 
 PROGRAM = """#include <cstdio>

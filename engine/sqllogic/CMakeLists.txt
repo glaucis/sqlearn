@@ -86,4 +86,5 @@ add_test(
     "${CMAKE_CURRENT_BINARY_DIR}/unittest_tempdir" --require sqlearn "test/sql/*"
 )
 set_tests_properties(sqllogic PROPERTIES LABELS sql FAIL_REGULAR_EXPRESSION "No tests ran")
+sq_test_timeout(sqllogic)
 sq_test_data(sqllogic ${sq_sql_tests})

@@ -84,6 +84,24 @@ def test_a_test_without_a_label_is_refused_with_a_fix(engine_scratch, capsys):
     assert scratch.runs() == []
 
 
+def test_a_test_without_a_timeout_is_refused_with_a_fix(engine_scratch, capsys):
+    """A test with no TIMEOUT could hang a run for hours: the checks refuse it
+    and run nothing."""
+    scratch = engine_scratch
+    lists = scratch.root / "engine" / "CMakeLists.txt"
+    lists.write_text(
+        lists.read_text()
+        + "add_test(NAME endless COMMAND test_core)\n"
+        + "set_tests_properties(endless PROPERTIES LABELS core)\n"
+    )
+    assert _ctest.run("dev", scratch.root) != 0
+    out = capsys.readouterr().out
+    assert "endless" in out
+    assert "TIMEOUT" in out
+    assert "Fix:" in out
+    assert scratch.runs() == []
+
+
 def test_a_build_failure_runs_and_records_nothing(engine_scratch):
     """A group that does not compile: no program runs, nothing is recorded."""
     scratch = engine_scratch

@@ -488,8 +488,8 @@ def run(preset: str, root: Path, *, everything: bool = False) -> int:
     -------
     int
         The first failing code: the build's, a test's (every label runs, a
-        failing one included), or 1 for a missing tool or a test no label
-        selects; else 0.
+        failing one included), or 1 for a missing tool, a test with no
+        TIMEOUT or a test no label selects; else 0.
     """
     root = root.resolve()
     engine = root / "engine"
@@ -512,6 +512,20 @@ def run(preset: str, root: Path, *, everything: bool = False) -> int:
             "group would run them.\n"
             "Fix: add them with sq_add_group, or set_tests_properties(<test> "
             "PROPERTIES LABELS <group>)"
+        )
+        return 1
+    endless = sorted(
+        str(t.get("name"))
+        for tests in units.values()
+        for t in tests
+        if not _property(t, "TIMEOUT")
+    )
+    if endless:
+        _say(
+            f"C++ tests: {', '.join(endless)} carry no TIMEOUT, so a hang "
+            "would stall the run for good.\n"
+            "Fix: register them with sq_test_timeout(<test>) "
+            "(engine/cmake/groups.cmake)"
         )
         return 1
     key = f"ctest-{preset}"

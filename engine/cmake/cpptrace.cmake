@@ -42,4 +42,11 @@ function(sq_add_cpptrace)
   endif()
   # As system headers to ours, so our warnings cover our code only.
   set_property(TARGET cpptrace-lib PROPERTY SYSTEM TRUE)
+  # TypeSanitizer is experimental, and it finds strict aliasing broken
+  # inside cpptrace's own string_view (src/utils/string_view.hpp), which is
+  # third-party code and not ours to fix: the tysan flavour builds cpptrace
+  # without it, and our code, which calls it, stays instrumented.
+  if(SQ_FLAVOR STREQUAL "tysan")
+    target_compile_options(cpptrace-lib PRIVATE -fno-sanitize=type)
+  endif()
 endfunction()

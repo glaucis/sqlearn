@@ -66,8 +66,18 @@ function(sq_test_data test)
   endif()
 endfunction()
 
+# How long a CTest test may run before CTest ends it as failed: a hang
+# fails in minutes, never stalls a run. validation/_ctest.py refuses a test
+# without one.
+set(SQ_TEST_TIMEOUT 300)
+
+# Give each of the tests named a TIMEOUT of SQ_TEST_TIMEOUT seconds.
+function(sq_test_timeout)
+  set_tests_properties(${ARGN} PROPERTIES TIMEOUT ${SQ_TEST_TIMEOUT})
+endfunction()
+
 # sq_add_group(<name> SOURCES <file>... [DEPENDS <group>...] [TESTS <file>...]
-#              [DATA <file>...])
+#              [DATA <file>...] [ARGS <argument>...])
 #
 # The object library sq_<name> from SOURCES (engine/src/<name>/), with
 # sqlearn's options; in the wheel its objects join _duckdb. DEPENDS names
@@ -77,11 +87,12 @@ endfunction()
 # both. With TESTS,
 # and when the tests are built (SQ_BUILD_TESTS), the Catch2 program
 # test_<name>, with RapidCheck for its properties, registered with CTest as
-# test_<name> under the label <name>; DATA names the files it reads at run
-# time (sq_test_data). The group `raw` alone goes without
+# test_<name> under the label <name>, with SQ_TEST_TIMEOUT; DATA names the
+# files it reads at run time (sq_test_data), and ARGS what CTest passes the
+# program (a Catch2 test filter). The group `raw` alone goes without
 # -Wunsafe-buffer-usage.
 function(sq_add_group name)
-  cmake_parse_arguments(PARSE_ARGV 1 arg "" "" "SOURCES;DEPENDS;TESTS;DATA")
+  cmake_parse_arguments(PARSE_ARGV 1 arg "" "" "SOURCES;DEPENDS;TESTS;DATA;ARGS")
   if(NOT arg_SOURCES)
     message(FATAL_ERROR "sq_add_group(${name}) has no SOURCES")
   endif()
@@ -105,8 +116,9 @@ function(sq_add_group name)
       ${program}
       PRIVATE ${target} ${depends} Catch2::Catch2WithMain sq_rapidcheck_catch
     )
-    add_test(NAME ${program} COMMAND ${program})
+    add_test(NAME ${program} COMMAND ${program} ${arg_ARGS})
     set_tests_properties(${program} PROPERTIES LABELS ${name})
+    sq_test_timeout(${program})
     sq_test_environment(${program})
     sq_test_data(${program} ${arg_DATA})
   endif()

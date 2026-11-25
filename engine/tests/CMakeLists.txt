@@ -50,6 +50,7 @@ foreach(entry IN LISTS sq_must_not_compile)
     must_not_compile.${name}.control
     PROPERTIES LABELS must_not_compile RESOURCE_LOCK sq_build_directory
   )
+  sq_test_timeout(must_not_compile.${name} must_not_compile.${name}.control)
 endforeach()
 
 # The canaries: one program per sanitizer, holding the one fault it finds,
@@ -77,6 +78,7 @@ function(sq_add_canary name report)
       "${CMAKE_CURRENT_SOURCE_DIR}/canary/expect_finding.cmake" $<TARGET_FILE:${program}>
   )
   set_tests_properties(canary.${name} PROPERTIES LABELS canary)
+  sq_test_timeout(canary.${name})
   sq_test_environment(canary.${name})
 endfunction()
 

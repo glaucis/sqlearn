@@ -221,7 +221,9 @@ rules as the tasks'. A run records the groups that passed in it or were found
 unchanged, never a group that failed; a group that fails also takes its
 identity out of every kept record, `--all` included, so a failure just seen is
 never skipped next time. A build that fails runs and records nothing. A test
-with no label is refused with a `Fix:` line, since no group would run it. The
+with no label is refused with a `Fix:` line, since no group would run it, and
+so is a test with no `TIMEOUT`: every test gets 300 s (`sq_test_timeout`,
+`engine/cmake/groups.cmake`), so a hang fails in minutes. The
 step runs even when the `test` task is unchanged since a passed run, before it
 prints so: what its records name and no input of the task does (the compiler,
 the environment) still reruns a group. `just full test` passes `--all`, which
@@ -269,27 +271,33 @@ digits seed is built inside the replay, not kept as a file.
 
 **The sanitizers.** `just sanitize` runs `validation._ctest` with `--all` on
 each sanitizer preset: `dev` (AddressSanitizer and UndefinedBehaviorSanitizer,
-Apple clang), `tsan` (ThreadSanitizer, Apple clang), `lsan` (LeakSanitizer)
-and `tysan` (TypeSanitizer), the last two with Homebrew LLVM, since Apple
-clang has neither on Apple silicon. Each builds our groups alone
-(`SQ_ENGINE_ONLY`) with its sanitizer on every target, the test libraries
-included, and runs every group's tests under it; every preset runs, a failing
-one included. A finding fails the program: `-fno-sanitize-recover=all`, and
-`halt_on_error=1` in `TSAN_OPTIONS` and `TYSAN_OPTIONS` (TypeSanitizer goes
-on otherwise). Most sanitizers stop it at the fault; LeakSanitizer looks at
-exit and fails it then. `llvm-dev` also turns on AddressSanitizer's leak
+Apple clang), `tsan` (ThreadSanitizer, Apple clang), `lsan` (LeakSanitizer) and
+`tysan` (TypeSanitizer), the last two with Homebrew LLVM, since Apple clang has
+neither on Apple silicon. Each builds our groups alone (`SQ_ENGINE_ONLY`) with
+its sanitizer on every target, the test libraries included, and runs every
+group's tests under it; every preset runs, a failing one included. A finding
+fails the program: `-fno-sanitize-recover=all`, and `halt_on_error=1` in
+`TSAN_OPTIONS` and `TYSAN_OPTIONS` (TypeSanitizer goes on otherwise). Most
+sanitizers stop it at the fault; LeakSanitizer looks at exit and fails it then.
+Under `tsan` the crash group runs with the Catch2 filter `~[signals]`:
+ThreadSanitizer intercepts signals and delivers them late, so the cases tagged
+`[signals]`, which test how the handler chains a signal (delivery, masks,
+`SA_NODEFER`, `SA_RESETHAND`, re-entry), cannot be trusted under it; the rest of
+the group runs. Under `tysan` cpptrace is built without `-fsanitize=type`
+(`engine/cmake/cpptrace.cmake`): TypeSanitizer is experimental, and it finds
+strict aliasing broken inside cpptrace's own `string_view`, third-party code;
+our code stays instrumented. `llvm-dev` also turns on AddressSanitizer's leak
 check (`ASAN_OPTIONS=detect_leaks=1`), which Apple's runtime refuses. These
-options come before any the user exported (CTest's
-`ENVIRONMENT_MODIFICATION`, `string_prepend`): the sanitizers read options
-left to right, so the user's win, and a group's identity hashes both the
-test's property and the user's variable.
-Each preset has a canary per sanitizer it carries (`engine/tests/canary/`,
-label `canary`): a program holding the one fault that sanitizer finds (a heap
-overflow, a signed overflow, a data race, a leak, a type-punned store). Its
-test passes only when the program failed and its output holds the
-sanitizer's report (`expect_finding.cmake`), so a sanitizer that is off, lets
-a finding pass, or a crash of another kind fails it. The canaries break the
-rules on purpose, so clang-tidy leaves them out.
+options come before any the user exported (CTest's `ENVIRONMENT_MODIFICATION`,
+`string_prepend`): the sanitizers read options left to right, so the user's win,
+and a group's identity hashes both the test's property and the user's variable.
+Each preset has a canary per sanitizer it carries (`engine/tests/canary/`, label
+`canary`): a program holding the one fault that sanitizer finds (a heap
+overflow, a signed overflow, a data race, a leak, a type-punned store). Its test
+passes only when the program failed and its output holds the sanitizer's report
+(`expect_finding.cmake`), so a sanitizer that is off, lets a finding pass, or a
+crash of another kind fails it. The canaries break the rules on purpose, so
+clang-tidy leaves them out.
 
 **The C++ coverage.** `just coverage-engine` builds the `coverage` preset
 (Homebrew LLVM, so its `llvm-profdata` and `llvm-cov` read the profiles its
@@ -310,7 +318,9 @@ needs a comment saying why no test can reach it.
 (`engine/tests/crash/test_handler.cpp`) crashes forked children, each under
 `alarm(20)`, so a child that hangs (a fault inside a handler with its signal
 blocked hangs on macOS) dies by SIGALRM and fails its test rather than
-stalling the run. The handler writes one report a process, then unhooks: it
+stalling the run. The alarm guards the ordinary builds only: under
+ThreadSanitizer a hung child outlived it, and CTest's timeout is the guard for
+every build. The handler writes one report a process, then unhooks: it
 puts back the action that was there before, runs it with the kernel's
 siginfo, and is not called again. A previous handler may handle the signal,
 so the report and its line on standard error say the signal reached
