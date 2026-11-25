@@ -122,6 +122,32 @@ def test_the_wheel_compiles_our_sources_with_the_release_hardening() -> None:
             assert flags.index("-U_FORTIFY_SOURCE") < fortify, (build, command["file"])
 
 
+TEST_ONLY = re.compile(
+    r"-fsanitize\S*|-DSQ_CRASH_TEST_HOOKS\S*"
+    r"|\S*third_party/(?:catch2|rapidcheck|nanobench)\S*"
+)
+"""What only a test build has: a sanitizer, the crash group's test hooks, and
+the include paths of the test-only libraries (Catch2, RapidCheck, nanobench)."""
+
+
+def test_the_wheel_build_has_nothing_of_the_test_builds() -> None:
+    """No compile command of the wheel's build sanitizes, turns on the crash
+    group's test hooks, or reads a test-only library's headers: those never
+    ship."""
+    builds = sorted((REPO / "build").glob("*/compile_commands.json"))
+    if not builds:
+        pytest.skip("no wheel build here yet: uv sync makes one")
+    for build in builds:
+        commands = json.loads(build.read_text())
+        assert commands, build
+        found = [
+            (c["file"], m.group(0))
+            for c in commands
+            for m in TEST_ONLY.finditer(c["command"])
+        ]
+        assert found == [], (build, found[:5])
+
+
 def test_the_optimised_flavours_alone_carry_the_release_hardening() -> None:
     """release and profile take the hardening; _FORTIFY_SOURCE needs optimisation,
     so the dev, debug and sanitizer flavours go without it."""

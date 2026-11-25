@@ -48,8 +48,9 @@ def test_a_user_who_turns_downloads_off_keeps_that():
     assert con.execute(AUTOINSTALL).fetchone() == (False,)
 
 
-def test_an_extension_the_user_installed_loads(tmp_path):
-    """LOAD looks in the user's extension directory, and downloads nothing."""
+def test_a_missing_local_extension_fails_at_its_path_and_nothing_downloads(tmp_path):
+    """LOAD of an extension not in the user's extension directory fails naming
+    that directory, and downloads nothing."""
     con = duckdb.connect(config={"extension_directory": str(tmp_path)})
     with pytest.raises(duckdb.IOException) as info:
         con.execute("LOAD spatial")
