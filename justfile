@@ -238,7 +238,7 @@ sanitize:
     done
     exit "$first"
 
-# Build the release preset (Apple clang) and run each group's test program, then again under macOS's leaks --atExit, which looks for memory no pointer reaches when the program ends; a failing program or any leak fails. test_crash is left out (below)
+# Build the release preset (Apple clang) and run each group's test program, then again under macOS's leaks --atExit, which looks for memory no pointer reaches when the program ends; a failing program (its output shown), any leak, or no program found fails. test_crash is left out (below)
 [group('test')]
 leaks-engine: (build-engine "release")
     #!/usr/bin/env bash
@@ -251,6 +251,13 @@ leaks-engine: (build-engine "release")
     skip=(test_crash)
     programs=$(ctest --test-dir "$build" --show-only=json-v1 |
         uv run --locked python -c 'import json, sys; [print(t["command"][0]) for t in json.load(sys.stdin)["tests"] if t["name"].startswith("test_")]')
+    if [ -z "$programs" ]; then
+        echo "leaks-engine: no test_* program in $build: nothing was checked" >&2
+        echo "Fix: configure $build with SQ_BUILD_TESTS on (cmake --preset release -DSQ_BUILD_TESTS=ON in engine/), then just leaks-engine" >&2
+        exit 1
+    fi
+    out=$(mktemp)
+    trap 'rm -f "$out"' EXIT
     first=0
     for program in $programs; do
         name=$(basename "$program")
@@ -261,8 +268,10 @@ leaks-engine: (build-engine "release")
         code=0
         # leaks' exit says whether it found a leak, not whether the tests
         # passed: the program runs alone first.
-        "$program" > /dev/null || code=$?
-        if [ "$code" -eq 0 ]; then
+        "$program" > "$out" 2>&1 || code=$?
+        if [ "$code" -ne 0 ]; then
+            cat "$out" >&2
+        else
             /usr/bin/leaks --atExit -- "$program" || code=$?
         fi
         if [ "$code" -ne 0 ]; then

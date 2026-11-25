@@ -11,6 +11,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -325,3 +326,59 @@ def test_only_the_crash_group_is_left_out_of_leaks_engine() -> None:
     recipe = justfile[justfile.index("\nleaks-engine:") :]
     recipe = recipe[: recipe.index("\n\n")]
     assert re.findall(r"^\s*skip=\((.*)\)$", recipe, re.MULTILINE) == ["test_crash"]
+
+
+def _leaks_engine(
+    tmp_path: Path, programs: dict[str, str]
+) -> subprocess.CompletedProcess[str]:
+    """Run the real leaks-engine recipe with the build stubbed out: ctest lists
+    `programs` (name to shell body), uv runs this Python."""
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    tests = []
+    for name, body in programs.items():
+        program = tmp_path / name
+        program.write_text(f"#!/bin/sh\n{body}\n")
+        program.chmod(0o755)
+        tests.append({"name": name, "command": [str(program)]})
+    listing = tmp_path / "listing.json"
+    listing.write_text(json.dumps({"tests": tests}))
+    (bin_dir / "ctest").write_text(f"#!/bin/sh\ncat '{listing}'\n")
+    (bin_dir / "uv").write_text(
+        f"#!{sys.executable}\n"
+        "import os, sys\n"
+        "assert sys.argv[1:4] == ['run', '--locked', 'python'], sys.argv\n"
+        "os.execv(sys.executable, [sys.executable, *sys.argv[4:]])\n"
+    )
+    for tool in ("ctest", "uv"):
+        (bin_dir / tool).chmod(0o755)
+    shutil.copy(REPO / "justfile", tmp_path / "real.just")
+    (tmp_path / "justfile").write_text(
+        "set allow-duplicate-recipes\nimport 'real.just'\n\n"
+        'build-engine preset="dev":\n    @true\n'
+    )
+    env = {**os.environ, "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}"}
+    return subprocess.run(
+        ["just", "leaks-engine"],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def test_leaks_engine_fails_when_it_finds_no_program(tmp_path: Path) -> None:
+    """A build that lists no test_* program fails the check, never passes it."""
+    done = _leaks_engine(tmp_path, {"canary.x": "exit 0"})
+    assert done.returncode != 0, done.stdout + done.stderr
+    assert "no test_* program" in done.stderr
+    assert "Fix:" in done.stderr
+
+
+def test_leaks_engine_shows_a_failing_programs_output(tmp_path: Path) -> None:
+    """A program that fails fails the check, and what it printed is shown."""
+    done = _leaks_engine(tmp_path, {"test_core": "echo 'REQUIRE failed here'; exit 3"})
+    assert done.returncode == 3, done.stdout + done.stderr
+    assert "REQUIRE failed here" in done.stdout + done.stderr
+    assert "test_core failed or leaked (exit 3)" in done.stderr

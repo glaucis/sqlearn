@@ -12,9 +12,11 @@ BOUND_TYPE = re.compile(r"\bnb::(?:class_|enum_|exception)\b")
 
 def test_the_bindings_bind_no_type_of_their_own():
     """When a type is bound, its leaks need a check: this fails until then."""
+    sources = sorted(BINDINGS.rglob("*.[ch]pp"))
+    assert sources, f"no C++ file under {BINDINGS}: the test would check nothing"
     found = [
         f"{path.relative_to(BINDINGS.parents[2])}:{n}"
-        for path in sorted(BINDINGS.glob("*.[ch]pp"))
+        for path in sources
         for n, line in enumerate(path.read_text().splitlines(), 1)
         if BOUND_TYPE.search(line)
     ]
