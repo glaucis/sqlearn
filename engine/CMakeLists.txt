@@ -179,11 +179,21 @@ set(sq_crash_args "")
 if(SQ_FLAVOR STREQUAL "tsan")
   set(sq_crash_args "~[signals]")
 endif()
+# TypeSanitizer cannot see the kernel's writes of siginfo and ucontext, and
+# every crash case reads them, so its findings there are the tool's limit,
+# not our code's: the tysan flavour builds the group without its tests.
+# They run under dev, tsan (without [signals]), lsan, llvm-dev and the
+# other presets (tests/engine/test_sanitizers.py pins that crash alone is
+# left out).
+set(sq_crash_tests tests/crash/test_handler.cpp)
+if(SQ_FLAVOR STREQUAL "tysan")
+  set(sq_crash_tests "")
+endif()
 sq_add_group(
   crash
   SOURCES src/crash/handler.cpp
   DEPENDS core raw
-  TESTS tests/crash/test_handler.cpp
+  TESTS ${sq_crash_tests}
   ARGS ${sq_crash_args}
 )
 target_link_libraries(sq_crash PUBLIC cpptrace::cpptrace)

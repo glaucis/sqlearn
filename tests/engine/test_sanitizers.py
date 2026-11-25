@@ -146,6 +146,21 @@ def test_each_sanitizer_preset_has_its_canaries_alone(
     assert {"test_core", "test_raw"} <= set(tests)
 
 
+def _group_programs(tests: dict[str, dict[str, Any]]) -> set[str]:
+    """Return the groups' test programs among `tests` (test_<group>)."""
+    return {n for n in tests if n.startswith("test_")}
+
+
+def test_only_the_crash_group_is_left_out_of_tysan() -> None:
+    """TypeSanitizer cannot see the kernel's writes of siginfo and ucontext,
+    which every crash case reads, so the tysan preset leaves out test_crash:
+    every other group's program runs under it, as under dev."""
+    assert _group_programs(_listed("tysan")) == _group_programs(_listed("dev")) - {
+        "test_crash"
+    }
+    assert "test_crash" in _listed("dev")
+
+
 @needs_cmake
 def test_a_tests_data_directory_is_refused_with_a_fix(tmp_path: Path) -> None:
     """``sq_test_data`` takes files: a directory would hash as nothing."""

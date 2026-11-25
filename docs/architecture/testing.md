@@ -283,7 +283,12 @@ Under `tsan` the crash group runs with the Catch2 filter `~[signals]`:
 ThreadSanitizer intercepts signals and delivers them late, so the cases tagged
 `[signals]`, which test how the handler chains a signal (delivery, masks,
 `SA_NODEFER`, `SA_RESETHAND`, re-entry), cannot be trusted under it; the rest of
-the group runs. Under `tysan` cpptrace is built without `-fsanitize=type`
+the group runs. Under `tysan` the crash group is left out: TypeSanitizer
+cannot see the kernel's writes of siginfo and ucontext, and every crash case
+reads them, so its findings there are the tool's limit, not our code's
+(`tests/engine/test_sanitizers.py` pins that no other group is left out). The
+group still runs under `dev`, `tsan`, `lsan`, `llvm-dev` and the ordinary
+presets. Under `tysan` cpptrace is also built without `-fsanitize=type`
 (`engine/cmake/cpptrace.cmake`): TypeSanitizer is experimental, and it finds
 strict aliasing broken inside cpptrace's own `string_view`, third-party code;
 our code stays instrumented. `llvm-dev` also turns on AddressSanitizer's leak
