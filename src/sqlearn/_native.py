@@ -10,14 +10,29 @@ from importlib.machinery import ExtensionFileLoader
 from importlib.util import module_from_spec, spec_from_file_location
 from types import ModuleType
 
+_FIX = (
+    "Fix: remove the official duckdb package, then reinstall sqlearn: "
+    "uv remove duckdb, where your project lists duckdb as a dependency, "
+    "then uv sync --reinstall-package sqlearn\n"
+    "sqlearn ships its own DuckDB as the duckdb module; another package "
+    "installed the official duckdb over it, or an old official duckdb's "
+    "_duckdb.cpython-312-darwin.so is found before sqlearn's _duckdb.abi3.so. "
+    "A package that needs the official duckdb needs an environment of its "
+    "own, apart from sqlearn's (ADR 0061)."
+)
+
 _REFUSAL = (
     "sqlearn cannot start: its engine is not in the duckdb module.\n"
-    "Why: the duckdb module is not sqlearn's build ({path})\n"
-    "Fix: uv sync --reinstall-package sqlearn\n"
-    "sqlearn ships its own DuckDB as the duckdb module; another package "
-    "installed the official duckdb over it. A package that needs the official "
-    "duckdb needs an environment of its own, apart from sqlearn's (ADR 0061)."
+    "Why: the duckdb module is not sqlearn's build ({path})\n" + _FIX
 )
+
+MISSING = (
+    "sqlearn cannot start: its engine, the _duckdb module, is missing.\n"
+    "Why: no _duckdb module is installed; the official duckdb ships a file of "
+    "the same name, so installing it over sqlearn's and then uninstalling it "
+    "removes sqlearn's too\n" + _FIX
+)
+"""The refusal when ``import _duckdb`` fails: the binary is gone."""
 
 
 def load(path: str) -> ModuleType:

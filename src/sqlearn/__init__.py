@@ -9,11 +9,14 @@ True
 
 from importlib import metadata as _metadata
 
+from sqlearn import _native
+
 # The start-up check, before anything imports duckdb: the engine is compiled
 # into DuckDB's binary, and the official duckdb has none (ADR 0061).
-import _duckdb
-
-from sqlearn import _native
+try:
+    import _duckdb
+except ImportError as _exc:
+    raise ImportError(_native.MISSING) from _exc
 
 _native.load(_duckdb.__file__)
 

@@ -17,6 +17,11 @@ from sqlearn import _native
 REPO = Path(__file__).resolve().parents[3]
 DUCKDB_COMMIT = "8d78114e90"
 STUB = "src/sqlearn/_native.pyi"
+FIX = (
+    "Fix: remove the official duckdb package, then reinstall sqlearn: "
+    "uv remove duckdb, where your project lists duckdb as a dependency, "
+    "then uv sync --reinstall-package sqlearn"
+)
 
 
 def test_version_answers_from_cpp():
@@ -58,7 +63,7 @@ def test_a_file_without_the_engine_is_refused():
         _native.load(path)
     message = str(info.value)
     assert f"({path})" in message
-    assert "Fix: uv sync --reinstall-package sqlearn" in message
+    assert FIX in message
     assert "environment of its own" in message
     assert isinstance(info.value.__cause__, ImportError)
 
@@ -82,7 +87,20 @@ def test_the_official_duckdb_is_refused():
     assert done.returncode == 1, done.stderr
     assert "ImportError" in done.stderr
     assert "Why: the duckdb module is not sqlearn's build" in done.stderr
-    assert "Fix: uv sync --reinstall-package sqlearn" in done.stderr
+    assert FIX in done.stderr
+
+
+def test_a_missing_engine_is_refused():
+    """import sqlearn with no _duckdb at all (the official duckdb installed over
+    sqlearn's, then uninstalled, takes the shared file) exits with Why/Fix."""
+    script = 'import sys\nsys.modules["_duckdb"] = None\nimport sqlearn\n'
+    done = subprocess.run(
+        [sys.executable, "-c", script], capture_output=True, text=True, check=False
+    )
+    assert done.returncode == 1, done.stderr
+    assert "ImportError: sqlearn cannot start" in done.stderr
+    assert "Why: no _duckdb module is installed" in done.stderr
+    assert FIX in done.stderr
 
 
 def test_the_stubs_match_the_module(tmp_path):
