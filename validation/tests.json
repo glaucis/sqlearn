@@ -2288,6 +2288,12 @@
     },
     {
       "area": "engine/sanitizers",
+      "name": "tests/engine/test_sanitizers.py::test_only_the_crash_group_is_left_out_of_tysan",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/sanitizers",
       "name": "tests/engine/test_sanitizers.py::test_the_wheels_build_checks_the_compiler_by_version",
       "outcome": "passed",
       "tier": "fast"
@@ -20829,6 +20835,12 @@
     {
       "area": "validation/_ctest",
       "name": "tests/validation/test__ctest.py::test_a_test_without_a_label_is_refused_with_a_fix",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_ctest",
+      "name": "tests/validation/test__ctest.py::test_a_test_without_a_timeout_is_refused_with_a_fix",
       "outcome": "passed",
       "tier": "fast"
     },

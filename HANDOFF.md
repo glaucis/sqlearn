@@ -3,29 +3,27 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-23 (evening) · Branch: `main` (`phase-1-checks` merged
-and pushed; step 2's plan drafted) · Checks: `just verify`
-passed at Task 5's commit `3d54d52` (67 min, "remembered"); after the final
-review's fix wave, `just done` passed at `ac535f3` (47 min, every check and
-every runner ran, "remembered"; load 8 to 15)
+Updated: 2026-11-25 · Branch: `phase-1-build` (worktree `../sqlearn-build`,
+not merged, not pushed) · Checks: `just done` passed and remembered its
+tree (47 min, 2026-11-24); `just verify` ran in parts, each passing after
+the fixes it found (#79's comment of 2026-11-25)
 Verify with: `just done` (`just verify` is the release tier)
 
 ## In progress
 
-- [verified] **Phase 1 step 2's plan, ready for Tomas's review:**
-  `docs/plans/2026-11-23-native-engine-phase-1-build.md`.
-  - 13 tasks: submodules and pins; one package with DuckDB inside;
-    `_native`, the `sqlearn` extension and `sq.version()`; presets and
-    groups; the skeleton's groups; C++ tests per group; tidy and format;
-    sanitizers; fuzzing; coverage and Mull; crash report and third-party
-    file; sqllogictest; tiers and docs.
-  - Its "Spike results" record the build spike of 2026-11-23. Tomas's
-    packaging answers are in the Phase 1 spec §3.3.
-  - Next: Tomas reviews it and chooses how it runs; then it executes on a
-    branch in a worktree.
+- [verified] **Phase 1 step 2 (the build) is done** on `phase-1-build`:
+  Tasks 1 to 13, each reviewed and fixed. The proof for spec §6 is on #79.
+  The final whole-branch review comes next, then Tomas merges. The ledger,
+  with every ruling and deferred minor, is
+  `.superpowers/sdd/2026-11-23-native-engine-phase-1-build/progress.md`
+  (git-ignored): a new session resumes from it and `git log`.
 
 ## Waiting on the user
 
+- Confirm the crash handler's chaining: it calls the previous handler once
+  with the kernel's siginfo and context, instead of the plan's "restore and
+  re-raise", because on macOS a re-raised signal looks the same as a real
+  fault (ADR 0046). (since 2026-11-24)
 - The FMA ADR: `-ffp-contract=off` everywhere, `std::fma` on purpose and
   validated (spec §3.9, the agent's proposal); decide before step 2's
   kernels. (since 2026-11-22)
@@ -38,28 +36,31 @@ Verify with: `just done` (`just verify` is the release tier)
 
 ## Next up
 
-- Phase 1 step 2 (the build) after the merge, its plan first, with
-  superpowers:writing-plans: it carries spec §3.9's C++ parts (presets,
-  sanitizers, safety warnings, benchmarks, crash handler) and per-group
-  test selection from the build's dependency lists (§3.1); then the
-  workflows and the site (#4, #6), the review (spec §3.7).
-- Before the DuckDB submodules land (step 2): `_checks.digest` does not
-  hash gitlinks, so a submodule bump changes no digest and skips every
-  check. Hash the mode-160000 entries of `git ls-files -s` (the commit each
-  submodule points at) into the digests of the tasks that read them.
-- The engine's rebuild costs about 24 s after any commit (step 2, Task 2):
-  uv's isolated build environment has a new random path each time, so
-  nanobind's sources and every duckdb-python binding object compile again
-  and miss ccache. Follow-up: no build isolation for sqlearn
-  (`no-build-isolation-package`) with its build requirements in a
-  dependency group, or ccache path settings.
-- `just done` runs
-  `just place` before `check-lockfile`, so a stale lock fails with uv's
-  error rather than the named check (fails safe; reorder if wanted).
+- Phase 1 step 3 after the merge: the release tier's workflows, started by
+  hand, and the site's deploy (spec §3.5, §3.6; #4, #6); its plan first,
+  with superpowers:writing-plans. Then step 4, the review and the
+  measurements (spec §3.7).
+- The engine's rebuild costs about 24 s after any commit: uv's isolated
+  build environment has a new random path each time, so nanobind's sources
+  and every duckdb-python binding object compile again and miss ccache.
+  Follow-up: no build isolation for sqlearn (`no-build-isolation-package`)
+  with its build requirements in a dependency group, or ccache path
+  settings.
+- numpy leaves the runtime after the port's Phase 3 (Tomas, 2026-11-24):
+  XᵀX (Phase 2) and `eigh` (Phase 3) move to C++ on Accelerate and
+  OpenBLAS (ADR 0063); then an ADR replaces 0057, with numpy optional
+  (for example `sqlearn[numpy]` for numpy output). Eigen stays out
+  (MPL-2.0, ADR 0066). Until then numpy's 0BSD and CC0-1.0 stay allowed
+  for numpy alone (ADR 0066, amended).
+- `just done` runs `just place` before `check-lockfile`, so a stale lock
+  fails with uv's error rather than the named check (fails safe; reorder
+  if wanted).
 - Finer validation selection: a src change reruns every runner (`import
-  sqlearn` loads the package); after the port, per group as the tests are.
-- Open question: free-threaded Python, `docs/questions/free-threaded-python.md`
-  (decide in step 2).
+  sqlearn` loads the package), about 47 min a `just done`; after the port,
+  per group as the tests are.
+- Open question: free-threaded Python,
+  `docs/questions/free-threaded-python.md` (no free-threaded wheel in step
+  2: nanobind's stable ABI excludes it).
 - After the port (Phases 1–4): the rest of 3.6 (spec §8: target panel,
   outliers, normality, Kendall, sampling, time series), then the
   application; 3.3 candidates: text features, more preprocessing, truncated
@@ -72,6 +73,24 @@ Verify with: `just done` (`just verify` is the release tier)
 
 ## Dead ends and traps
 
+- ThreadSanitizer intercepts signals and delivers them late: the crash
+  group's signal-chaining cases failed under it, and one hung 20 h, past
+  its child's `alarm(20)`. TypeSanitizer cannot see the kernel's writes of
+  siginfo and ucontext, so every read of them is a finding. Every CTest
+  test now has a 300 s timeout (`sq_test_timeout`). A group added after a
+  task's sanitizer and Mull runs was never run under them: run
+  `just sanitize` and `just mutate-engine` after any new group or raw
+  file. (2026-11-25)
+- macOS drops `SA_RESETHAND` from what `sigaction` reports back, so a
+  chained handler cannot honour it (engine/src/crash/handler.hpp).
+  ccache's default `compiler_check=mtime` serves objects of an old
+  compiler behind the `xcrun` shim: the presets set a content check.
+  DuckDB 2.0.1 refuses `SELECT * FROM (t)`, which 2.0.0 accepted: never
+  wrap a bare table name in parentheses (`_compose`). uv's isolated build
+  has a new random path each time, so every rebuild misses ccache for
+  nanobind and duckdb-python (about 24 s a commit). (2026-11-24)
+- When the network drops mid-task (ENOTFOUND), resume the same agent
+  (SendMessage to its id); it had changed nothing. (2026-11-24)
 - pytest-testmon selects from the lines each test ran, so it misses code run
   at import (module constants, `__init__` re-exports, class bases,
   `__post_init__` behind module-level instances), files read as data, and
@@ -233,11 +252,21 @@ Verify with: `just done` (`just verify` is the release tier)
 
 ## Just finished
 
-- Step 2, Task 2: the built module enters each validation record's
-  environment as a digest of its inputs (`_record.engine`: `engine/` with
-  gitlinks, `[tool.scikit-build]`, the compiler), so a rebuilt engine
-  reruns every runner; the module itself lives in `.venv`, which records
-  never hash.
+- Phase 1 step 2's Task 13 (2026-11-24 to 25): `just done` runs tidy and
+  sql, `just verify` adds the sanitizers, a minute of fuzzing, the C++
+  coverage gate, Mull and the licence check (`cd90f75`); the fuzz recipe
+  keeps this run's failures alone (`d43b82c`); ADR 0066 amended (Tomas,
+  2026-11-24) and its licence terms allowed by name (`74c3cf8`); ADRs 0008,
+  0061 and 0065 amended, the docs in line (`e751ea0`); `.clangd`
+  (`a8d759e`); a timeout on every C++ test, the crash group's signal cases
+  out of tsan (`7679117`) and the group out of tysan (`32e64e9`); the raw
+  layer's surviving mutants killed or recorded (`072e99e`). Proof on #79.
+- Phase 1 step 2's Tasks 1 to 12 (`789682d` to `3268810`): DuckDB 2.0.1
+  and duckdb-python as submodules, one package with sqlearn's C++ inside,
+  `sq.version()` from C++, presets and groups, C++ tests per group,
+  clang-tidy and iwyu, the sanitizers, fuzzing, coverage and Mull, the
+  crash report and the third-party file, sqllogictest.
+
 
 - Phase 1 step 1 merged into `main` (Tomas, 2026-11-23): per-check
   selection by inputs (`validation/_checks.py`, `just full <task>`,
