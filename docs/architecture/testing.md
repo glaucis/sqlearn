@@ -49,7 +49,7 @@ before work is done, and `just verify` is the release tier.
 | A push | none: a push runs no suite |
 | A merge to `main` | the pre-merge-commit hook runs what the pre-commit hook runs; `just done` on `main` runs nothing for a tree that passed |
 | Work is done | `just done`: `check-lockfile`, `check-mirror`, `check-no-devdata`, then each check on what changed (`format`, `lint`, `docstrings`, `types`, `tidy`, `test`, `sql`, `validate`, `docs`), then the tree is remembered |
-| A release | `just verify`: the same three, each check with `just full` (`validate` as `validate-all`), then the C++ tools in full (`sanitize`, `fuzz 60`, `coverage-engine`, `mutate-engine`), `check-licences`, `test-all` (coverage) and `test-python-versions`, by hand before `1.0.0` |
+| A release | `just verify`: the same three, each check with `just full` (`validate` as `validate-all`), then the C++ tools in full (`sanitize`, `leaks-engine`, `fuzz 60`, `coverage-engine`, `mutate-engine`), `check-licences`, `test-all` (coverage) and `test-python-versions`, by hand before `1.0.0` |
 
 `just done` remembers each tree that passed in `sqlearn-passed`, in the git
 common directory (the 50 newest, shared by worktrees), with the place it passed
@@ -312,7 +312,8 @@ clang-tidy leaves them out.
 **The leak check of the release build.** `just leaks-engine` builds the
 `release` preset (Apple clang) and runs each group's test program alone, then
 under macOS's `leaks --atExit`, which reports memory no pointer reaches when
-the program ends; a failing program or any leak fails it. `test_crash` is left
+the program ends; a failing program (its output shown), any leak, or a build
+that lists no `test_*` program fails it. `test_crash` is left
 out: its forked children hang under `leaks` until their alarm ends them, so
 its leaks are LeakSanitizer's (`lsan`). A test pins that it alone is out.
 `just verify` runs it after `just sanitize`.

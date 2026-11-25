@@ -13,7 +13,8 @@ Verify with: `just done` (`just verify` is the release tier)
 
 - [verified] **Phase 1 step 2 (the build) is done** on `phase-1-build`:
   Tasks 1 to 13, each reviewed and fixed. The proof for spec §6 is on #79.
-  The final whole-branch review comes next, then Tomas merges. The ledger,
+  The final whole-branch review and its one fix wave are done; Tomas merges.
+  What the reviews deferred is on #85. The ledger,
   with every ruling and deferred minor, is
   `.superpowers/sdd/2026-11-23-native-engine-phase-1-build/progress.md`
   (git-ignored): a new session resumes from it and `git log`.
@@ -24,6 +25,16 @@ Verify with: `just done` (`just verify` is the release tier)
   with the kernel's siginfo and context, instead of the plan's "restore and
   re-raise", because on macOS a re-raised signal looks the same as a real
   fault (ADR 0046). (since 2026-11-24)
+- Confirm `version.cpp` left out of Mull's mutation testing. (since
+  2026-11-25)
+- The subject of `11d5d23` ("docs: Phase 1 step 2, the build, shown") is in
+  sentence case: commitlint warns only; reword before the merge if wanted.
+  (since 2026-11-25)
+- The validation reruns on every `engine/` edit, its tests and fuzz corpus
+  included, which over-runs it; narrowing it to the wheel's inputs is
+  Tomas's call. (since 2026-11-25)
+- Task 6's note: any `engine/` change reruns the whole Python suite
+  (`engine` is one of `TEST_INPUTS`). (since 2026-11-25)
 - The FMA ADR: `-ffp-contract=off` everywhere, `std::fma` on purpose and
   validated (spec §3.9, the agent's proposal); decide before step 2's
   kernels. (since 2026-11-22)
@@ -36,6 +47,8 @@ Verify with: `just done` (`just verify` is the release tier)
 
 ## Next up
 
+- #85: the follow-ups of Phase 1 step 2's reviews, triaged "can wait" and
+  grouped by area.
 - Phase 1 step 3 after the merge: the release tier's workflows, started by
   hand, and the site's deploy (spec §3.5, §3.6; #4, #6); its plan first,
   with superpowers:writing-plans. Then step 4, the review and the
@@ -252,6 +265,12 @@ Verify with: `just done` (`just verify` is the release tier)
 
 ## Just finished
 
+- The final review's fix wave (2026-11-25): `docs`, `types` and
+  `docstrings` rerun on a DuckDB bump or C++ edit (`ENGINE_BUILD`); `import
+  sqlearn` refuses a missing `_duckdb` with `Why:`/`Fix:`; `leaks-engine`
+  fails on finding no program and shows a failing one's output; a compiler
+  update rebuilds the module (`engine/.compiler-stamp`); a standing test that
+  the wheel has nothing of the test builds; the deferred list on #85.
 - Phase 1 step 2's Task 13 (2026-11-24 to 25): `just done` runs tidy and
   sql, `just verify` adds the sanitizers, a minute of fuzzing, the C++
   coverage gate, Mull and the licence check (`cd90f75`); the fuzz recipe

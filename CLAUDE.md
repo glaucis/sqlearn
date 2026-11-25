@@ -49,7 +49,9 @@ built.
   native engine (part 3.10: sqlearn as a C++ library embedding DuckDB, Python
   its bindings): spec `docs/specs/native-engine.md`, ADRs 0060–0068, the port's
   inventory `docs/architecture/engine-inventory.md`, milestone "Native engine"
-  (#78 to #84). Phase 0 is done; the port comes before any new area. sqlearn's
+  (#78 to #84). Phase 0 is done; Phase 1's step 1 (the checks) is merged and
+  its step 2 (the build) is built on the branch `phase-1-build`, awaiting the
+  merge; the port comes before any new area. sqlearn's
   own models are a goal, built in the engine; outside models stay supported (ADR
   0017, 0068). **Next:** chosen from `HANDOFF.md`'s "Next up".
 
@@ -191,7 +193,8 @@ commit both of these into it, without being asked:
   outputs), so a passed tree (after a fast-forward or a merge too) runs nothing
   again in the same place (Python, platform, machine), and everything in a new
   one. `just full <task>` runs one check all through. `just verify` is the
-  release tier: every check in full, then the sanitizers, a minute of fuzzing,
+  release tier: every check in full, then the sanitizers, the leak check of
+  the release build (`leaks-engine`), a minute of fuzzing,
   the C++ coverage gate, mutation testing, the licence check, coverage and every
   Python, run by hand before `1.0.0` (an hour or more). A reviewer's verdict
   says which ran and passed. How a check finds what changed:
