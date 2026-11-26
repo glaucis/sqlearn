@@ -1,0 +1,19 @@
+# name: test/sql/sqlearn_version.test
+# description: sqlearn_version() names the build, and takes no argument
+# group: [sqlearn]
+
+require sqlearn
+
+# core::describe's line: sqlearn's version, then DuckDB's from the pins
+query I
+SELECT sqlearn_version() LIKE 'sqlearn %, DuckDB 2.0.1 (8d78114e90)%';
+----
+true
+
+statement error
+SELECT sqlearn_version(1);
+----
+Binder Error: No function matches the given name and argument types 'sqlearn_version(INTEGER_LITERAL)'
+
+# No autoinstall check: the runner presets autoinstall_known_extensions, so the
+# default is tested on the wheel instead (tests/engine/test_extension.py).

@@ -54,6 +54,7 @@ def test_the_top_level_holds_only_the_builders():
         "store",
         "save",
         "load",
+        "version",
     }
     kept = {"Learned", "Output", "Model", "__version__"}
     allowed = builders | groups | others | kept
@@ -95,3 +96,14 @@ def test_the_package_holds_no_datasets() -> None:
     assert not list(package.rglob("*.csv"))
     sources = package.rglob("*.py")
     assert not [p for p in sources if "devdata" in p.read_text()]
+
+
+def test_the_public_api_is_the_recorded_one():
+    """Every public name and signature is tests/public_api.txt (spec §3.9).
+
+    A change fails until ``just api-snapshot`` writes the file again, and its
+    commit says why (ADR 0003, 0067).
+    """
+    from tests import public_api
+
+    assert public_api.render() == public_api.RECORD.read_text(encoding="utf-8")

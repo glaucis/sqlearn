@@ -48,8 +48,8 @@ before work is done, and `just verify` is the release tier.
 | A commit | the pre-commit hook: `just pre-commit` over the files committed |
 | A push | none: a push runs no suite |
 | A merge to `main` | the pre-merge-commit hook runs what the pre-commit hook runs; `just done` on `main` runs nothing for a tree that passed |
-| Work is done | `just done`: `check-lockfile`, `check-mirror`, `check-no-devdata`, then each check on what changed (`format`, `lint`, `docstrings`, `types`, `test`, `validate`, `docs`), then the tree is remembered |
-| A release | `just verify`: the same three, each check with `just full` (`validate` as `validate-all`), then `test-all` (coverage) and `test-python-versions`, by hand before `1.0.0` |
+| Work is done | `just done`: `check-lockfile`, `check-mirror`, `check-no-devdata`, then each check on what changed (`format`, `lint`, `docstrings`, `types`, `tidy`, `test`, `sql`, `validate`, `docs`), then the tree is remembered |
+| A release | `just verify`: the same three, each check with `just full` (`validate` as `validate-all`), then the C++ tools in full (`sanitize`, `leaks-engine`, `fuzz 60`, `coverage-engine`, `mutate-engine`), `check-licences`, `test-all` (coverage) and `test-python-versions`, by hand before `1.0.0` |
 
 `just done` remembers each tree that passed in `sqlearn-passed`, in the git
 common directory (the 50 newest, shared by worktrees), with the place it passed
@@ -122,11 +122,13 @@ passed run already checked.
 
 | Task | Its inputs | Runs on |
 |---|---|---|
-| `format` | every `*.py`, `*.pyi` and `*.md` file | each changed file: `ruff format --check`, `rumdl fmt --check` |
+| `format` | every `*.py`, `*.pyi`, `*.md`, `*.cpp`, `*.hpp`, `CMakeLists.txt` and `*.cmake` file (none of the submodules') | each changed file: `ruff format --check`, `rumdl fmt --check`, `clang-format --dry-run -Werror` (C++), `gersemi --check` (CMake) |
 | `lint` | every file | each changed file: `ruff check` (Python), `typos` (every file), `rumdl check` (Markdown) |
 | `docstrings` | the Python files under `src/` | each changed file: `numpydoc lint`, `just check-docstring-args` |
 | `types` | every `*.py` and `*.pyi` file | the whole program: `ty check`, then `mypy` |
-| `test` | `src/`, `tests/`, `validation/`, `devdata/`, every `conftest.py`, `docs/conf.py`, `docs/architecture/engine-inventory.md`, `.githooks/`, `commitlint.config.mjs` | every test: the four passes (above) |
+| `test` | `src/`, `tests/`, `validation/`, `devdata/`, `engine/` (with its submodules' commits), every `conftest.py`, `docs/conf.py`, `docs/architecture/engine-inventory.md`, `.githooks/`, `commitlint.config.mjs` | the C++ groups whose program changed (below), then every test: the four passes (above) |
+| `sql` | `engine/extension/` (its `.test` files included), `engine/src/`, `engine/sqllogic/`, `engine/cmake/`, the CMake files and presets, duckdb-python's commit, `validation/_ctest.py`; the compiler's and the SDK's versions | the extension's SQL tests: `just test-sql` (below) |
+| `tidy` | our C++ (`engine/src/`, `engine/tests/`, `engine/bench/`, `engine/extension/`), `engine/cmake/`, the CMake files and presets, `engine/.clang-tidy`, `engine/src/raw/.clang-tidy`, `engine/iwyu.imp`, the submodules' commits | the whole engine: `just tidy-engine` (clang-tidy with the static analyser), `just iwyu-engine` (include-what-you-use), `just headers-alone` |
 | `docs` | `docs/`, `src/`, `examples/` | the whole site: `just build-docs` |
 | `validate` | each runner's imported modules, `uv.lock`, `devdata/data/` | each changed runner, by its own records (below) |
 
@@ -134,7 +136,15 @@ Every task also reads the settings: `pyproject.toml`, `uv.lock`,
 `.python-version` and the `justfile`, and each tool's own configuration file at
 any depth (`pyproject.toml`, `ruff.toml`, `.ruff.toml`, `typos.toml`,
 `_typos.toml`, `.typos.toml`, `rumdl.toml`, `.rumdl.toml`, `mypy.ini`,
-`.mypy.ini`, `ty.toml`), so one added reruns every file it governs.
+`.mypy.ini`, `ty.toml`), so one added reruns every file it governs. `format`
+also reads `engine/.clang-format` and `.gersemirc`. `docs`, `types` and
+`docstrings` also read what the built module comes from (`ENGINE_BUILD`:
+duckdb-python's commit, `engine/src/`, `engine/extension/`, `engine/cmake/` and
+`engine/CMakeLists.txt`, the files uv rebuilds the module on): the doctests run
+on it and ty and mypy read its stubs, so a DuckDB bump or a C++ edit reruns all
+of each. A tool from Homebrew, not
+`uv.lock` (clang-format, clang-tidy, include-what-you-use, and the SDK),
+counts by its version: an upgrade reruns all of the tasks that use it.
 
 - **Per file** (`format`, `lint`, `docstrings`): a file is checked again
   unless a kept record passed it, with the same digest, under today's
@@ -142,8 +152,8 @@ any depth (`pyproject.toml`, `ruff.toml`, `.ruff.toml`, `typos.toml`,
   which Python files exist, since ruff's import sorting depends on it: a
   Python file added or removed reruns every `lint` step on every file, the
   Markdown and the spelling included.
-- **Whole** (`types`, `test`, `docs`): the task runs all of it when its digest
-  matches no kept record, and nothing otherwise.
+- **Whole** (`types`, `test`, `tidy`, `docs`): the task runs all of it when its
+  digest matches no kept record, and nothing otherwise.
 - Every step runs even when one before it fails, so one tool's failure hides
   no other's findings. A run that fails records nothing, so the next run
   checks the same again.
@@ -171,6 +181,213 @@ verify` runs every task this way.
 
 **`validate`** is not in the table of `validation/_checks.py`: it keeps a
 record for each runner (the validation runners, below).
+
+**The C++ groups.** The `test` task's first step, `just test-engine-changed
+dev` (`validation/_ctest.py`), builds the `dev` preset (Ninja rebuilds only
+what changed) and runs, with `ctest -L ^<group>$`, each group whose identity
+no kept record passed, printing `<group>: unchanged since a passed run` for
+the rest. Each CTest label is one unit: a group's (its program `test_<group>`)
+or `must_not_compile`, which every must-not-compile test carries.
+
+A group's identity is the hash of:
+
+- its program's bytes. Ninja relinks a program only when one of its objects
+  changed, and `sq_stable_link` (`engine/cmake/groups.cmake`) sets
+  `ZERO_AR_DATE` for the link on macOS, so a relink of the same objects gives
+  the same bytes (Apple's linker otherwise writes each object's modification
+  time into the debug map);
+- the bytes of each shared library the program loads outside the system's
+  (`/usr/lib/`, `/System/`, `/lib/`): the sanitizers' runtime, another libc++,
+  a library of the build, found with `otool` on macOS, an `@rpath/` name
+  through the run paths of the whole chain that loaded it as dyld searches
+  them (its own, then each loader's, back to the program's), and `ldd`
+  elsewhere;
+- the files the tests read at run time: `sq_add_group`'s `DATA` (CTest's
+  `REQUIRED_FILES`, through `sq_test_data`), each named, since a directory
+  is refused with a `Fix:` line (its bytes would be none of its files');
+- its CTest entry (command, properties);
+- the place: the checks' place; the compiler as it is now (the path the build
+  was configured with, its `--version`, the bytes of the real compiler behind
+  it, through `xcrun` for `/usr/bin/c++`, and on macOS of the linker); and the
+  variables that change what a test checks, `ASAN_`, `UBSAN_`, `LSAN_`, `TSAN_`,
+  `TYSAN_`, `MSAN_`, `RC_` and `CATCH_` ones. A compiler updated in place since
+  the build was configured (an Xcode or Command Line Tools update,
+  `brew upgrade llvm`) also configures the build afresh, since CMake would not
+  look again.
+
+A must-not-compile test has no program: its identity is the compile commands
+of the target it builds (from `compile_commands.json`) and the bytes of every
+file the compiler reads for them, as its own `-M` lists them (the source and
+each header, however found), and of any response file. Ninja keeps no
+dependency record of a compile that fails, so the compiler's list is used.
+
+The records are `ctest-<preset>.json` in `sqlearn-checks/`, under the same
+rules as the tasks'. A run records the groups that passed in it or were found
+unchanged, never a group that failed; a group that fails also takes its
+identity out of every kept record, `--all` included, so a failure just seen is
+never skipped next time. A build that fails runs and records nothing. A test
+with no label is refused with a `Fix:` line, since no group would run it, and
+so is a test with no `TIMEOUT`: every test gets 300 s (`sq_test_timeout`,
+`engine/cmake/groups.cmake`), so a hang fails in minutes. The
+step runs even when the `test` task is unchanged since a passed run, before it
+prints so: what its records name and no input of the task does (the compiler,
+the environment) still reruns a group. `just full test` passes `--all`, which
+runs every group.
+
+**The SQL tests.** Each SQL function of the `sqlearn` extension has its
+sqllogictest file in `engine/extension/test/sql/` (ADR 0065), run by DuckDB's
+own runner, which exists only in its `unittest` program. The `sqllogic` preset
+(`engine/sqllogic/`) builds DuckDB's own tree, not duckdb-python, with
+`BUILD_UNITTESTS`, `core_functions` and the extension linked in, and the
+extension's `LOAD_TESTS`; our warnings reach our sources alone. The first build
+takes minutes; later ones rebuild what changed. Its one CTest test, `sqllogic`
+with the label `sql`, runs every `.test`, `.test_slow` and `.test_coverage` file
+there, at any depth, and none of DuckDB's suite; `--require sqlearn` fails a
+file whose `require sqlearn` would otherwise skip it, and a pattern matching no
+file fails. `just test-sql` runs it through `validation._ctest`, which reruns
+the label when the `unittest` program, the library it loads or one of those
+files (each a required file, `engine/cmake/sql_tests.cmake`) changed since it
+passed; a file a test reads at run time must be added to the test's required
+files too. The default of `autoinstall_known_extensions` is not checked there:
+the runner presets it, so it is tested on the wheel
+(`tests/engine/test_extension.py`). The `sql` task runs `just test-sql` when its
+inputs changed, so `just done` reaches it after any change to the extension;
+`just test` does not build it.
+
+**Fuzzing.** `just fuzz [seconds]` (60 by default) builds the `fuzzing`
+preset (Homebrew LLVM, since Apple clang has no libFuzzer runtime; libFuzzer
+with AddressSanitizer and UndefinedBehaviorSanitizer) and runs each target
+(`engine/fuzz/`; today the version parser's) for that long on a scratch copy of
+its corpus, then merges the inputs that found new coverage into
+`engine/fuzz/corpus/<target>/` (`-merge=1`). The scratch copy leaves out any
+`crash-*`, `leak-*`, `oom-*` or `timeout-*` file kept there, and libFuzzer
+writes a failing input under a scratch prefix (`-artifact_prefix`), so the
+recipe sees this run's failures alone. A failure copies its input into the
+corpus directory, names it and fails the recipe; the replay then runs it in
+every `dev` run. The leak check is off in the fuzz
+run: libFuzzer's own thread is reported as a leak at exit. The target's
+property is on the version, not the text: a text that parses must parse again
+after `format`, to an equal version. Every `dev` run replays the corpus
+(`replay_parse_version`, label `core`, built in every preset without
+libFuzzer), with each corpus file an argument and a required file of the test,
+so a new file or a change to the parser reruns the `core` group. The target's
+source compiles in every preset, so clang-tidy checks it. The 1 MiB string of
+digits seed is built inside the replay, not kept as a file.
+
+**The sanitizers.** `just sanitize` runs `validation._ctest` with `--all` on
+each sanitizer preset: `dev` (AddressSanitizer and UndefinedBehaviorSanitizer,
+Apple clang), `tsan` (ThreadSanitizer, Apple clang), `lsan` (LeakSanitizer) and
+`tysan` (TypeSanitizer), the last two with Homebrew LLVM, since Apple clang has
+neither on Apple silicon. Each builds our groups alone (`SQ_ENGINE_ONLY`) with
+its sanitizer on every target, the test libraries included, and runs every
+group's tests under it; every preset runs, a failing one included. A finding
+fails the program: `-fno-sanitize-recover=all`, and `halt_on_error=1` in
+`TSAN_OPTIONS` and `TYSAN_OPTIONS` (TypeSanitizer goes on otherwise). Most
+sanitizers stop it at the fault; LeakSanitizer looks at exit and fails it then.
+Under `tsan` the crash group runs with the Catch2 filter `~[signals]`:
+ThreadSanitizer intercepts signals and delivers them late, so the cases tagged
+`[signals]`, which test how the handler chains a signal (delivery, masks,
+`SA_NODEFER`, `SA_RESETHAND`, re-entry), cannot be trusted under it; the rest of
+the group runs. Under `tysan` the crash group is left out: TypeSanitizer
+cannot see the kernel's writes of siginfo and ucontext, and every crash case
+reads them, so its findings there are the tool's limit, not our code's
+(`tests/engine/test_sanitizers.py` pins that no other group is left out). The
+group still runs under `dev`, `tsan`, `lsan`, `llvm-dev` and the ordinary
+presets. Under `tysan` cpptrace is also built without `-fsanitize=type`
+(`engine/cmake/cpptrace.cmake`): TypeSanitizer is experimental, and it finds
+strict aliasing broken inside cpptrace's own `string_view`, third-party code;
+our code stays instrumented. `llvm-dev` also turns on AddressSanitizer's leak
+check (`ASAN_OPTIONS=detect_leaks=1`), which Apple's runtime refuses. These
+options come before any the user exported (CTest's `ENVIRONMENT_MODIFICATION`,
+`string_prepend`): the sanitizers read options left to right, so the user's win,
+and a group's identity hashes both the test's property and the user's variable.
+Each preset has a canary per sanitizer it carries (`engine/tests/canary/`, label
+`canary`): a program holding the one fault that sanitizer finds (a heap
+overflow, a signed overflow, a data race, a leak, a type-punned store). Its test
+passes only when the program failed and its output holds the sanitizer's report
+(`expect_finding.cmake`), so a sanitizer that is off, lets a finding pass, or a
+crash of another kind fails it. The canaries break the rules on purpose, so
+clang-tidy leaves them out.
+
+**The leak check of the release build.** `just leaks-engine` builds the
+`release` preset (Apple clang) and runs each group's test program alone, then
+under macOS's `leaks --atExit`, which reports memory no pointer reaches when
+the program ends; a failing program (its output shown), any leak, or a build
+that lists no `test_*` program fails it. `test_crash` is left
+out: its forked children hang under `leaks` until their alarm ends them, so
+its leaks are LeakSanitizer's (`lsan`). A test pins that it alone is out.
+`just verify` runs it after `just sanitize`.
+
+**nanobind's leak report.** nanobind reports, at exit, the instances of the
+types it binds that are still alive. `engine/src/bindings` binds no type of
+its own yet (no `nb::class_`, `nb::enum_` or `nb::exception`), so there is
+nothing of sqlearn's for it to report, and duckdb-python's Release build
+silences the report for the domain they share.
+`tests/engine/test_bound_types.py` fails once a type is bound, with a `Fix:`
+line: add a leak check for it then.
+
+**The C++ coverage.** `just coverage-engine` builds the `coverage` preset
+(Homebrew LLVM, so its `llvm-profdata` and `llvm-cov` read the profiles its
+clang writes; `-O0`, `-fprofile-instr-generate -fcoverage-mapping` on our
+targets), runs every CTest test of it into a fresh profile directory, and
+prints llvm-cov's report of `engine/src/`: lines, regions, functions and
+branches, per file and in total (`validation/_coverage.py`). It fails below
+95 % of lines, the Python package's floor; regions and branches are printed,
+not gated. The report reads `engine/src/` alone, so tests, fuzz targets,
+benchmarks and third-party code are never in it, and leaves out
+`engine/src/bindings/`, which is built only in the wheel and runs from
+Python, uninstrumented. A `.cpp` of `engine/src/` that no test program
+compiles fails it too, named with a `Fix:` line, since its lines would be in
+no total. Below the floor, the fix is the missing tests; a line left out
+needs a comment saying why no test can reach it.
+
+**The crash handler's tests.** The `crash` group
+(`engine/tests/crash/test_handler.cpp`) crashes forked children, each under
+`alarm(20)`, so a child that hangs (a fault inside a handler with its signal
+blocked hangs on macOS) dies by SIGALRM and fails its test rather than
+stalling the run. The alarm guards the ordinary builds only: under
+ThreadSanitizer a hung child outlived it, and CTest's timeout is the guard for
+every build. The handler writes one report a process, then unhooks: it
+puts back the action that was there before, runs it with the kernel's
+siginfo, and is not called again. A previous handler may handle the signal,
+so the report and its line on standard error say the signal reached
+sqlearn's handler, not that the process crashed. A test faults inside the
+report through `sq::crash::detail::fault_in_report`, which only a preset's
+build compiles (`SQ_CRASH_TEST_HOOKS`), never the wheel's. In the coverage
+flavour (`SQ_COVERAGE`) a child writes its profile before it dies, since the
+coverage runtime writes at exit.
+
+**Mutation testing.** `just mutate-engine` fetches Mull 0.39.1 (its macOS
+arm64 release: the runner and the plugin for LLVM 23, checked by their
+SHA-256, into `engine/build/mull/`; `just fetch-mull` alone), builds the
+`mutate` preset (Homebrew LLVM with Mull's plugin, `-O0`, no ccache, since
+the plugin reads `engine/mull.yml` while it compiles) and runs Mull on
+`test_core` and `test_raw` (`validation/_mutate.py`). Both runs go into one
+report, so a mutant counts as killed when either program kills it; mutants on
+lines no test reaches count, and nothing is cached. `engine/mull.yml` takes
+`engine/src/` outside the bindings, and keeps a `survivors` list, each entry
+a mutant (`<path under engine/>:<line>:<column>:<mutator>`) and its reason.
+The recipe fails on a survivor the list does not name, and on an entry whose
+mutant no longer survives, so a line moved by an edit is named again. A
+survivor is fixed with the test that kills it; it is kept only when no test
+can tell it from the code (an equivalent mutant, or a leak only
+LeakSanitizer sees). `engine/src/core/version.cpp` is left out: it returns the
+build's definitions and has nothing to mutate, and Mull cannot read its
+command line. A test (`tests/validation/test__mutate.py`) fails if it gains a
+branch, an operator or a call beyond `describe()`'s `format` and `substr`.
+
+`tests/engine/test_steady_memory.py` (`slow`) makes 100,000 calls of
+`count_rows` and `build_identity` in a process of its own, in 10 rounds,
+reading its resident set from `ps` twice after each: round 10's must be at
+most 5 % above round 2's (a set that shrinks is no leak). It runs in the slow
+tier, so `just full test` and `just test-all` run it, and `just verify` with
+them.
+
+**The licence check.** `just check-licences` (`validation/_licences.py`)
+checks `THIRD_PARTY.md` and `NOTICE` against the wheel's last build: every
+file compiled in lies in a listed library, every licence is one ADR 0066
+allows, and `_duckdb` links nothing from outside its build. `just test` runs
+it as a test, and `just verify` runs it on its own.
 
 ## The validation runners
 

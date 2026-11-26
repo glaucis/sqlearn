@@ -15,15 +15,15 @@ def test_duckdb_answers_a_query():
     assert duckdb.execute("select sum(range) from range(1000)").fetchone() == (499500,)
 
 
-def test_the_runtime_dependencies_are_duckdb_and_numpy():
-    """The package asks for duckdb and numpy and nothing else (ADR 0057)."""
+def test_the_runtime_dependency_is_numpy_alone():
+    """The package asks for numpy and nothing else: DuckDB is built in (ADR 0057)."""
     requirements = importlib.metadata.requires("sqlearn") or []
     names = [
         re.split(r"[^A-Za-z0-9_.-]", r, maxsplit=1)[0].lower()
         for r in requirements
         if "extra ==" not in r
     ]
-    assert sorted(names) == ["duckdb", "numpy"]
+    assert names == ["numpy"]
 
 
 @pytest.mark.slow

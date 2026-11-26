@@ -561,7 +561,7 @@ def environment() -> dict:
     blas = np.show_config(mode="dicts")["Build Dependencies"]["blas"]["name"]
     return {
         "sqlearn": ".".join(release.split(".")[:2]),
-        "duckdb": version("duckdb"),
+        "duckdb": duckdb.__version__,
         "numpy": version("numpy"),
         "scikit-learn": version("scikit-learn"),
         "pandas": version("pandas"),

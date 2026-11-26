@@ -1549,9 +1549,24 @@ def _learn_ctes(stage: Stage, learn: dict[str, Expression], previous: str) -> li
     return ctes
 
 
+_NAME = re.compile(r'(?:[A-Za-z_][A-Za-z0-9_$]*|"(?:[^"]|"")+")')
+_TABLE_NAME = re.compile(rf"{_NAME.pattern}(?:\.{_NAME.pattern}){{0,2}}")
+"""A table or view name: up to three parts, each bare or double-quoted."""
+
+
+def _from(source_sql: str) -> str:
+    """Return `source_sql` as it goes after ``FROM``.
+
+    A table or view name goes as it is; a query goes in parentheses, as a
+    subquery. DuckDB 2.0.1 refuses a name in parentheses (``FROM (t)``).
+    """
+    text = source_sql.strip()
+    return text if _TABLE_NAME.fullmatch(text) else f"({source_sql})"
+
+
 def _chain(source_sql: str, stages: list[Stage], every_learn: bool) -> list[str]:
     read = {r for s in stages for r in s.reads}
-    ctes = [f"{quote(SOURCE)} AS (SELECT * FROM ({source_sql}))"]
+    ctes = [f"{quote(SOURCE)} AS (SELECT * FROM {_from(source_sql)})"]
     previous = SOURCE
     for stage in stages:
         _check(stage)
@@ -1742,7 +1757,7 @@ def number_rows(source_sql: str, name: str) -> str:
     >>> duckdb.sql(number_rows("SELECT 'a' AS c", "row")).fetchall()
     [('a', 1)]
     """
-    return f"SELECT *, row_number() OVER () AS {quote(name)} FROM ({source_sql})"
+    return f"SELECT *, row_number() OVER () AS {quote(name)} FROM {_from(source_sql)}"
 
 
 _FORMATS = ("parquet", "csv", "json")

@@ -1,6 +1,6 @@
 {
   "blas": "accelerate",
-  "duckdb": "2.0.0",
+  "duckdb": "2.0.1",
   "machine": "arm64",
   "mpmath": "1.4.1",
   "numpy": "2.5.4",

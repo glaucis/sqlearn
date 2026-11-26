@@ -1,5 +1,6 @@
 """The validation's entry point: runs what changed, records it, and gates."""
 
+import json
 import os
 import subprocess
 import sys
@@ -168,3 +169,16 @@ def test_results_path_mirrors_the_runner():
     module = types.ModuleType("x")
     module.__file__ = "/a/b/validate_scale.py"
     assert str(entry.results_path(module)) == "/a/b/scale.results.json"
+
+
+def test_a_changed_engine_reruns_every_runner(root, capfd):
+    """An edit under ``engine/`` rebuilds the module, so every runner reruns."""
+    assert entry.main([GOOD, ODD], root) == 0
+    (root.parent / "engine").mkdir()
+    (root.parent / "engine" / "a.cpp").write_text("int a;\n")
+    capfd.readouterr()
+    assert entry.main([GOOD, ODD], root) == 0
+    out = capfd.readouterr().out
+    assert f"{GOOD}: {{'pass': 1}}" in out
+    assert f"{ODD}: {{'anomaly': 1}}" in out
+    assert "engine" not in json.loads((root / "environment.json").read_text())

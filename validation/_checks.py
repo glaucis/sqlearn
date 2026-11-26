@@ -1,13 +1,16 @@
 """Each check as a task that runs only when its inputs changed.
 
-A task names its inputs and its configuration as git pathspecs, and the
-steps that check them. A whole task (``types``, ``test``) runs when the
+A task names its inputs and its configuration as git pathspecs, the tools
+from outside uv.lock whose versions are configuration too, and the steps
+that check them. A whole task (``types``, ``test``) runs when the
 digest of its inputs and configuration has no passed record; a per-file
 task (``format``, ``lint``) gives each step the files whose own digest has
 no passed record under today's configuration, and every file once the
 configuration changed. ``everything`` runs it all regardless, and records.
 Every step runs, a failing one included, so one tool's failure hides no
-other's findings.
+other's findings. A step that keeps records of its own (the C++ groups,
+``validation._ctest``) runs even when its task is unchanged, and is told
+when to run everything.
 
 The digest covers the tracked files and the untracked ones git does not
 ignore; a tracked file deleted from the working tree is absent from it, so
@@ -62,11 +65,22 @@ class Step:
     ok : tuple of int
         The exit codes that are a pass: pytest's 5, no test collected, is
         one for a pass that selects none.
+    everything : tuple of str
+        The arguments appended when the task runs all through
+        (``everything``): a step that keeps records of its own, as the C++
+        groups do, then runs all of its own too.
+    always : bool
+        Whether it runs when the task is unchanged since a passed run, the
+        other steps skipped: it keeps records of its own and decides what to
+        run, so what its records name and no input of the task does (the
+        compiler, for the C++ groups) still reruns it.
     """
 
     command: tuple[str, ...]
     files: tuple[str, ...] = ()
     ok: tuple[int, ...] = (0,)
+    everything: tuple[str, ...] = ()
+    always: bool = False
 
 
 @dataclass(frozen=True)
@@ -90,6 +104,11 @@ class Task:
         The pathspecs of files whose names, not bytes, are configuration: a
         tool that classifies by which files exist (ruff's import sorting)
         reruns on every file when one appears or goes.
+    tools : tuple of tuple of str
+        The argv of each command that names a tool from outside uv.lock
+        (Homebrew's clang-tidy): its output is configuration, so an upgraded
+        tool reruns all of the task. A tool that is not installed counts as
+        absent, and the task's own step then fails.
     """
 
     name: str
@@ -98,6 +117,7 @@ class Task:
     steps: tuple[Step, ...]
     per_file: bool
     layout: tuple[str, ...] = ()
+    tools: tuple[tuple[str, ...], ...] = ()
 
 
 class Record(TypedDict):
@@ -136,6 +156,53 @@ PYTHON = ("*.py", "*.pyi")
 MARKDOWN = ("*.md",)
 """Every Markdown file, at any depth."""
 
+LLVM = "/opt/homebrew/opt/llvm/bin"
+"""Homebrew LLVM's tools: the formula is keg-only, so they are off ``PATH``."""
+
+CXX = ("*.cpp", "*.hpp")
+"""Every C++ file of ours: git lists no file inside a submodule."""
+
+CMAKE = (":(glob)**/CMakeLists.txt", ":(glob)**/*.cmake")
+"""Every CMake file of ours, at any depth."""
+
+ENGINE_SOURCES = (
+    "engine/src",
+    "engine/tests",
+    "engine/bench",
+    "engine/extension",
+)
+"""sqlearn's own C++: the groups, their tests, the benchmarks, the extension."""
+
+ENGINE_BUILD = (
+    "engine/duckdb-python",
+    "engine/src",
+    "engine/extension",
+    "engine/CMakeLists.txt",
+    "engine/cmake",
+)
+"""What the built module comes from: pyproject's ``tool.uv.cache-keys`` under
+``engine/``, on which uv rebuilds it, and duckdb-python's gitlink, which pins
+DuckDB's. A task whose result depends on the module or on DuckDB (the
+doctests run on it, the type checkers read its stubs) has it as
+configuration, so a DuckDB bump or a C++ edit reruns all of it."""
+
+TIDY_INPUTS = (
+    *ENGINE_SOURCES,
+    "engine/.clang-tidy",
+    "engine/src/raw/.clang-tidy",
+    "engine/iwyu.imp",
+    # What the tools check and how: the sources and their exclusions, the
+    # build each comes from, IWYU's flags and mapping files.
+    "validation/_tidy.py",
+    "engine/cmake",
+    "engine/CMakeLists.txt",
+    "engine/CMakePresets.json",
+    # Their headers are what our includes resolve to: a bump reruns it.
+    "engine/duckdb-python",
+    "engine/third_party",
+)
+"""What clang-tidy, include-what-you-use and the headers-alone build read."""
+
 TEST_INPUTS = (
     "src",
     "tests",
@@ -143,12 +210,29 @@ TEST_INPUTS = (
     "devdata",
     # Files the tests read as data.
     "docs/architecture/engine-inventory.md",
+    # The engine's build files and sources, and the submodules' commits.
+    "engine",
     "docs/conf.py",
     ".githooks",
     "commitlint.config.mjs",
     ":(glob)**/conftest.py",
 )
 """What the tests import or read, so a change to any of it reruns them all."""
+
+SQL_INPUTS = (
+    # The extension: its sources, its config and its .test files.
+    "engine/extension",
+    # Our C++ it links (core::describe), and the build of the runner.
+    "engine/src",
+    "engine/sqllogic",
+    "engine/cmake",
+    "engine/CMakeLists.txt",
+    "engine/CMakePresets.json",
+    # DuckDB, through duckdb-python's gitlink, which pins its own.
+    "engine/duckdb-python",
+    "validation/_ctest.py",
+)
+"""What DuckDB's unittest with the sqlearn extension, and its SQL tests, come from."""
 
 _PYTEST_PASSES = (
     ("-n", "auto", "-m", "not slow and not serial", "--ignore=tests/githooks"),
@@ -168,14 +252,25 @@ def _table() -> dict[str, Task]:
     tasks = (
         Task(
             name="format",
-            inputs=(*PYTHON, *MARKDOWN),
-            config=SETTINGS,
+            inputs=(*PYTHON, *MARKDOWN, *CXX, *CMAKE),
+            config=(
+                *SETTINGS,
+                # clang-format reads the nearest one, at any depth.
+                ":(glob)**/.clang-format",
+                ".gersemirc",
+                # gersemi lays out calls by the signatures defined here
+                # (.gersemirc's definitions).
+                "engine/cmake",
+            ),
             steps=(
                 Step(("ruff", "format", "--check", "--force-exclude"), PYTHON),
                 # rumdl applies its configured excludes to named files itself.
                 Step(("rumdl", "fmt", "--check"), MARKDOWN),
+                Step((f"{LLVM}/clang-format", "--dry-run", "-Werror"), CXX),
+                Step(("gersemi", "--check"), CMAKE),
             ),
             per_file=True,
+            tools=((f"{LLVM}/clang-format", "--version"),),
         ),
         Task(
             name="lint",
@@ -197,7 +292,7 @@ def _table() -> dict[str, Task]:
         Task(
             name="docstrings",
             inputs=("src/*.py",),
-            config=SETTINGS,
+            config=(*SETTINGS, *ENGINE_BUILD),
             steps=(
                 Step(("numpydoc", "lint")),
                 # pydoclint through its filter, which drops DOC111.
@@ -208,7 +303,8 @@ def _table() -> dict[str, Task]:
         Task(
             name="types",
             inputs=PYTHON,
-            config=SETTINGS,
+            # ty and mypy read the module's stubs (_duckdb-stubs).
+            config=(*SETTINGS, *ENGINE_BUILD),
             steps=(Step(("ty", "check")), Step(("mypy",))),
             per_file=False,
         ),
@@ -216,21 +312,71 @@ def _table() -> dict[str, Task]:
             name="test",
             inputs=TEST_INPUTS,
             config=SETTINGS,
-            steps=tuple(
+            steps=(
+                # Each C++ group whose test program changed since it passed
+                # (validation/_ctest.py), on the sanitized dev build.
                 Step(
-                    ("pytest", "-p", "validation._tests_report", *p),
-                    # Only the serial pass may find nothing: a marker or a
-                    # testpaths broken elsewhere must fail, not pass.
-                    ok=(0, 5) if "serial and not slow" in p else (0,),
-                )
-                for p in _PYTEST_PASSES
+                    ("just", "test-engine-changed", "dev"),
+                    everything=("--all",),
+                    always=True,
+                ),
+                *(
+                    Step(
+                        ("pytest", "-p", "validation._tests_report", *p),
+                        # Only the serial pass may find nothing: a marker or a
+                        # testpaths broken elsewhere must fail, not pass.
+                        ok=(0, 5) if "serial and not slow" in p else (0,),
+                    )
+                    for p in _PYTEST_PASSES
+                ),
             ),
             per_file=False,
         ),
         Task(
+            name="sql",
+            inputs=SQL_INPUTS,
+            config=SETTINGS,
+            steps=(
+                # The extension's sqllogictest files, on DuckDB's unittest
+                # (the sqllogic preset, validation/_ctest.py, whose records
+                # then decide). Not `always`: it runs when its inputs or the
+                # compiler changed, so a tree that never touches them never
+                # builds DuckDB's tree for it.
+                Step(("just", "test-sql"), everything=("--all",)),
+            ),
+            per_file=False,
+            tools=(
+                # The compiler behind the build (an Xcode or Command Line
+                # Tools update), and the SDK it compiles against.
+                ("c++", "--version"),
+                ("xcrun", "--show-sdk-version"),
+            ),
+        ),
+        Task(
+            name="tidy",
+            inputs=TIDY_INPUTS,
+            config=SETTINGS,
+            steps=(
+                # clang-tidy, with the static analyser, then
+                # include-what-you-use, over one compile database of our
+                # sources (validation/_tidy.py); then every header alone.
+                Step(("just", "tidy-engine")),
+                Step(("just", "iwyu-engine")),
+                Step(("just", "headers-alone")),
+            ),
+            per_file=False,
+            tools=(
+                (f"{LLVM}/clang-tidy", "--version"),
+                ("include-what-you-use", "--version"),
+                # The SDK whose headers the wheel's compile commands read.
+                ("xcrun", "--show-sdk-version"),
+            ),
+        ),
+        Task(
             name="docs",
             inputs=("docs", "src", "examples"),
-            config=SETTINGS,
+            # The doctests run on the built module.
+            config=(*SETTINGS, *ENGINE_BUILD),
             steps=(Step(("just", "build-docs")),),
             per_file=False,
         ),
@@ -266,6 +412,30 @@ def _listed(pathspecs: Sequence[str], root: Path) -> list[str]:
     return sorted(n for n in names if (root / n).is_file())
 
 
+def _gitlinks(pathspecs: Sequence[str], root: Path) -> dict[str, str]:
+    """Return each submodule under `pathspecs` with the commit the tree pins.
+
+    A gitlink (mode 160000) is a directory in the working tree, so
+    ``_listed`` drops it; its commit is what a bump changes.
+    """
+    if not pathspecs:
+        return {}
+    out = subprocess.run(
+        ["git", "ls-files", "-s", "-z", "--", *pathspecs],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    links = {}
+    for entry in out.split("\0"):
+        info, _, name = entry.partition("\t")
+        mode, commit, *_ = info.split(" ") if info else ("", "", "")
+        if mode == "160000":
+            links[name] = commit
+    return links
+
+
 def _mode(path: Path) -> bytes:
     """Return ``x`` for an executable file, ``-`` for any other.
 
@@ -287,16 +457,35 @@ def _place() -> bytes:
     return "\0".join((sys.version, platform.platform(), platform.machine())).encode()
 
 
-def _combined(names: Sequence[str], root: Path) -> str:
+def _tool_versions(task: Task) -> bytes:
+    """Return what each of `task`'s tools prints, its argv first; absent when
+    it cannot run."""
+    out = b""
+    for argv in task.tools:
+        try:
+            done = subprocess.run(list(argv), capture_output=True, check=False)
+            said = done.stdout + done.stderr
+        except OSError:
+            said = b"absent"
+        out += "\0".join(argv).encode() + b"\0" + said + b"\0"
+    return out
+
+
+def _combined(
+    names: Sequence[str], root: Path, links: dict[str, str] | None = None
+) -> str:
     """Return the SHA-256 of the place, then each file's path, mode and bytes.
 
     The place leads, then, sorted, each file's path, a NUL, its mode, its
-    bytes, a NUL.
+    bytes, a NUL; then, sorted, each submodule's path, a NUL, its commit, a
+    NUL.
     """
     sha = hashlib.sha256(_place() + b"\0")
     for name in sorted(names):
         path = root / name
         sha.update(name.encode() + b"\0" + _mode(path) + path.read_bytes() + b"\0")
+    for name, commit in sorted((links or {}).items()):
+        sha.update(name.encode() + b"\0" + commit.encode() + b"\0")
     return sha.hexdigest()
 
 
@@ -313,23 +502,35 @@ def digest(task: Task, root: Path) -> str:
     Returns
     -------
     str
-        The hex digest of the place it runs in and every file under its
-        inputs and configuration.
+        The hex digest of the place it runs in, every file under its inputs
+        and configuration, the commit each submodule there pins, and its
+        tools' versions.
     """
-    return _combined(
-        sorted({*_listed(task.inputs, root), *_listed(task.config, root)}), root
-    )
+    names = sorted({*_listed(task.inputs, root), *_listed(task.config, root)})
+    links = {
+        **_gitlinks(task.inputs, root),
+        **_gitlinks(task.config, root),
+    }
+    combined = _combined(names, root, links)
+    if not task.tools:
+        return combined
+    tools = b"\0tools\0" + _tool_versions(task)
+    return hashlib.sha256(combined.encode() + tools).hexdigest()
 
 
 def _config(task: Task, root: Path) -> str:
     """Return the SHA-256 of the place, `task`'s configuration and its layout.
 
     The layout is the sorted names of the files under ``task.layout``, never
-    their bytes: a new or removed file changes it.
+    their bytes: a new or removed file changes it. The commit each submodule
+    under the configuration pins, and the tools' versions, count too.
     """
     layout = "\0".join(_listed(task.layout, root)).encode()
-    sha = hashlib.sha256(_combined(_listed(task.config, root), root).encode())
+    links = _gitlinks(task.config, root)
+    sha = hashlib.sha256(_combined(_listed(task.config, root), root, links).encode())
     sha.update(b"\0layout\0" + layout)
+    if task.tools:
+        sha.update(b"\0tools\0" + _tool_versions(task))
     return sha.hexdigest()
 
 
@@ -391,8 +592,26 @@ def save(directory: Path, task: str, record: Record) -> None:
     Written to a temporary file and moved into place, so a reader (another
     worktree's run) never sees half a file; a write that fails removes it.
     """
+    write(directory, task, [*load(directory, task), record])
+
+
+def write(directory: Path, task: str, records: list[Record]) -> None:
+    """Write `records` as `task`'s file, the newest ``KEPT`` of them.
+
+    Written to a temporary file and moved into place, so a reader (another
+    worktree's run) never sees half a file; a write that fails removes it.
+
+    Parameters
+    ----------
+    directory : Path
+        The records' directory, made when absent.
+    task : str
+        The name of the file, without ``.json``.
+    records : list of Record
+        Oldest first.
+    """
     directory.mkdir(parents=True, exist_ok=True)
-    records = [*load(directory, task), record][-KEPT:]
+    records = records[-KEPT:]
     handle, temporary = tempfile.mkstemp(dir=directory, suffix=".tmp")
     try:
         with os.fdopen(handle, "w", encoding="utf-8") as out:
@@ -434,8 +653,12 @@ def changed_files(task: Task, root: Path) -> list[Path]:
     return _changed(task, root, _config(task, root), files)
 
 
-def _run_steps(task: Task, root: Path, files: list[Path] | None) -> int:
+def _run_steps(
+    task: Task, root: Path, files: list[Path] | None, *, everything: bool = False
+) -> int:
     """Run every step of `task`, each given its share of `files` when set.
+
+    With `everything`, each step is given its ``everything`` arguments too.
 
     Returns the first failing step's exit code, else 0: a failure does not
     stop the steps after it, so their findings show too.
@@ -443,6 +666,8 @@ def _run_steps(task: Task, root: Path, files: list[Path] | None) -> int:
     first = 0
     for step in task.steps:
         argv = list(step.command)
+        if everything:
+            argv += step.everything
         if files is not None:
             taken = set(_listed(step.files or task.inputs, root))
             mine = [f.as_posix() for f in files if f.as_posix() in taken]
@@ -455,8 +680,25 @@ def _run_steps(task: Task, root: Path, files: list[Path] | None) -> int:
     return first
 
 
+def _run_always(task: Task, root: Path) -> int:
+    """Run the steps of `task` that run when it is unchanged, on all its inputs.
+
+    Returns the first failing step's exit code, else 0.
+    """
+    first = 0
+    for step in task.steps:
+        if not step.always:
+            continue
+        code = subprocess.run(list(step.command), cwd=root, check=False).returncode
+        if code not in step.ok and first == 0:
+            first = code
+    return first
+
+
 def run(task_name: str, root: Path, *, everything: bool = False) -> int:
     """Run the task `task_name` unless a passed run checked today's inputs.
+
+    A step marked ``always`` runs either way: it keeps records of its own.
 
     Parameters
     ----------
@@ -494,9 +736,15 @@ def run(task_name: str, root: Path, *, everything: bool = False) -> int:
             r["digest"] == whole for r in load(directory, task.name)
         )
     if skip:
+        code = _run_always(task, root)
         print(f"{task.name}: unchanged since a passed run", flush=True)  # noqa: T201
-        return 0
-    code = _run_steps(task, root, None if todo is None else [Path(n) for n in todo])
+        return code
+    code = _run_steps(
+        task,
+        root,
+        None if todo is None else [Path(n) for n in todo],
+        everything=everything,
+    )
     if code != 0:
         return code
     if digest(task, root) != whole:

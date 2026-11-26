@@ -251,7 +251,7 @@ def _machine() -> dict:
         "ram_bytes": sysctl("hw.memsize"),
         "os": platform.platform(),
         "python": sys.version.split()[0],
-        "duckdb": version("duckdb"),
+        "duckdb": duckdb.__version__,
         "sqlearn": version("sqlearn"),
     }
 

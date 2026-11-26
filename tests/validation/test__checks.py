@@ -1,5 +1,6 @@
 """Each check's record: the digest of its inputs when it passed, and its reruns."""
 
+import dataclasses
 import json
 import platform
 import subprocess
@@ -23,6 +24,13 @@ if (here / "fail").exists():
     sys.exit(1)
 if (here / "code").exists():
     sys.exit(int((here / "code").read_text()))
+"""
+
+# A tool outside uv.lock (Homebrew's clang-tidy): it prints the version the
+# file beside it names.
+VERSION = """\
+import pathlib
+print((pathlib.Path(__file__).parent / "version.txt").read_text(), end="")
 """
 
 
@@ -62,6 +70,32 @@ def _table(tool):
             steps=(Step((*command, "allowed"), ok=(0, 5)),),
             per_file=False,
         ),
+        "selective": Task(
+            name="selective",
+            inputs=("src",),
+            config=("settings.toml",),
+            steps=(
+                Step((*command, "selective"), everything=("--all",), always=True),
+                Step((*command, "rest")),
+            ),
+            per_file=False,
+        ),
+        "tooled": Task(
+            name="tooled",
+            inputs=("src",),
+            config=("settings.toml",),
+            steps=(Step((*command, "tooled")),),
+            per_file=False,
+            tools=((sys.executable, str(tool.parent / "version.py")),),
+        ),
+        "tooled-lint": Task(
+            name="tooled-lint",
+            inputs=("*.py",),
+            config=("settings.toml",),
+            steps=(Step((*command, "py")),),
+            per_file=True,
+            tools=((sys.executable, str(tool.parent / "version.py")),),
+        ),
         "none": Task(
             name="none",
             inputs=("*.rst",),
@@ -92,6 +126,8 @@ def scratch(tmp_path, monkeypatch):
     _git(root, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "start")
     tool = tmp_path / "tool.py"
     tool.write_text(TOOL)
+    (tmp_path / "version.py").write_text(VERSION)
+    (tmp_path / "version.txt").write_text("tool 1.0\n")
     monkeypatch.setattr(_checks, "TASKS", _table(tool))
     return root
 
@@ -336,6 +372,31 @@ def test_the_command_line_runs_a_task(scratch, monkeypatch, capsys):
     assert "whole: unchanged since a passed run" in capsys.readouterr().out
 
 
+def test_everything_hands_a_step_its_own_all_arguments(scratch):
+    """A step that selects within itself (the C++ groups) is told to run all."""
+    assert run("selective", scratch) == 0
+    assert run("selective", scratch, everything=True) == 0
+    assert _calls(scratch) == [
+        ["selective"],
+        ["rest"],
+        ["selective", "--all"],
+        ["rest"],
+    ]
+
+
+def test_a_step_that_selects_within_itself_runs_on_an_unchanged_task(scratch, capsys):
+    """It keeps records of its own, so it decides; the other steps are skipped."""
+    assert run("selective", scratch) == 0
+    _calls(scratch)
+    capsys.readouterr()
+    assert run("selective", scratch) == 0
+    assert _calls(scratch) == [["selective"]]
+    assert "selective: unchanged since a passed run" in capsys.readouterr().out
+    (scratch.parent / "code").write_text("3")
+    assert run("selective", scratch) == 3
+    assert _calls(scratch) == [["selective"]]
+
+
 def test_a_failing_step_does_not_hide_the_others(scratch):
     """Every step runs, and the task returns the first failure's exit code."""
     (scratch.parent / "fail").touch()
@@ -438,7 +499,9 @@ def test_the_task_table_names_every_check():
         "docstrings",
         "types",
         "test",
+        "sql",
         "docs",
+        "tidy",
     }
     assert all(name == task.name for name, task in _checks.TASKS.items())
 
@@ -451,7 +514,7 @@ def test_every_task_declares_the_settings_files():
 
 def test_only_the_serial_pass_may_collect_nothing():
     """Exit 5 passes the serial pass alone: a broken marker elsewhere must fail."""
-    steps = _checks.TASKS["test"].steps
+    steps = [s for s in _checks.TASKS["test"].steps if s.command[0] == "pytest"]
     passes = [s.command[s.command.index("-m") + 1] for s in steps]
     assert passes == ["not slow and not serial", "serial and not slow", "slow", ""]
     assert [s.ok for s in steps] == [(0,), (0, 5), (0,), (0,)]
@@ -489,3 +552,130 @@ def test_a_new_tool_config_file_reruns_lint_on_every_file(scratch, config):
     assert changed_files(lint, scratch) == []
     (scratch / config).write_text("line-length = 79\n")
     assert set(changed_files(lint, scratch)) >= {Path(n) for n in files}
+
+
+def test_a_submodule_bump_reruns_a_whole_task(scratch, tmp_path):
+    """A gitlink is a directory, not a file: its pinned commit still counts."""
+    sub = tmp_path / "sub"
+    sub.mkdir()
+    _git(sub, "init", "--quiet")
+    commit = ("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q")
+    _git(sub, *commit, "--allow-empty", "-m", "one")
+    _git(sub, *commit, "--allow-empty", "-m", "two")
+
+    def rev(name):
+        return subprocess.run(
+            ["git", "rev-parse", name],
+            cwd=sub,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+
+    first, second = rev("HEAD~1"), rev("HEAD")
+    _git(
+        scratch,
+        "-c",
+        "protocol.file.allow=always",
+        "submodule",
+        "add",
+        "-q",
+        str(sub),
+        "src/sub",
+    )
+    _git(scratch / "src" / "sub", "checkout", "-q", first)
+    _git(scratch, "add", "src/sub")
+    before = digest(_checks.TASKS["whole"], scratch)
+    run("whole", scratch)
+    _calls(scratch)
+    _git(scratch / "src" / "sub", "checkout", "-q", second)
+    _git(scratch, "add", "src/sub")
+    assert digest(_checks.TASKS["whole"], scratch) != before
+    assert run("whole", scratch) == 0
+    assert _calls(scratch) == [["whole"]]
+
+
+def test_the_test_task_runs_the_changed_cxx_groups_before_python():
+    """The C++ groups go first, on dev, and all of them under ``--all``."""
+    first = _checks.TASKS["test"].steps[0]
+    assert first.command == ("just", "test-engine-changed", "dev")
+    assert first.everything == ("--all",)
+
+
+def test_a_tool_upgrade_reruns_a_whole_task(scratch):
+    """A tool outside uv.lock is part of the configuration: a new version of it,
+    with no input changed, runs the task again."""
+    run("tooled", scratch)
+    _calls(scratch)
+    assert run("tooled", scratch) == 0
+    assert _calls(scratch) == []
+    (scratch.parent / "version.txt").write_text("tool 2.0\n")
+    assert run("tooled", scratch) == 0
+    assert _calls(scratch) == [["tooled"]]
+
+
+def test_a_tool_upgrade_checks_every_file_again(scratch):
+    """A per-file task checks every file again under a new version of its tool."""
+    run("tooled-lint", scratch)
+    _calls(scratch)
+    (scratch.parent / "version.txt").write_text("tool 2.0\n")
+    assert run("tooled-lint", scratch) == 0
+    assert _calls(scratch) == [["py", "src/a.py", "src/b.py"]]
+
+
+def test_a_missing_tool_is_part_of_the_configuration(scratch):
+    """A tool that is not installed hashes as absent, never a crash: its
+    task's own step then fails and names it."""
+    task = _checks.TASKS["tooled"]
+    before = _checks._config(task, scratch)
+    missing = dataclasses.replace(task, tools=(("no-such-tool-here", "--version"),))
+    assert _checks._config(missing, scratch) != before
+
+
+def test_the_engine_tasks_name_their_homebrew_tools():
+    """clang-tidy, include-what-you-use and clang-format come from Homebrew,
+    not uv.lock: their versions rerun the tasks that use them."""
+    tidy = {t[0].rsplit("/", 1)[-1] for t in _checks.TASKS["tidy"].tools}
+    fmt = {t[0].rsplit("/", 1)[-1] for t in _checks.TASKS["format"].tools}
+    assert {"clang-tidy", "include-what-you-use"} <= tidy
+    assert "clang-format" in fmt
+
+
+def test_the_tidy_task_reads_our_cxx_and_not_the_submodules():
+    """tidy's inputs are our sources, its settings and the submodules' commits."""
+    tidy = _checks.TASKS["tidy"]
+    assert not tidy.per_file
+    for path in (
+        "engine/src",
+        "engine/tests",
+        "engine/bench",
+        "engine/extension",
+        "engine/cmake",
+        "engine/.clang-tidy",
+        "engine/src/raw/.clang-tidy",
+        "engine/iwyu.imp",
+        # What it checks and how: the sources, their builds, IWYU's flags.
+        "validation/_tidy.py",
+    ):
+        assert path in tidy.inputs, path
+
+
+@pytest.mark.parametrize(
+    "config",
+    ["engine/.clang-format", "engine/src/.clang-format", "engine/cmake/x.cmake"],
+)
+def test_a_formatter_setting_rechecks_every_file(scratch, config):
+    """clang-format reads the nearest .clang-format at any depth, and gersemi
+    lays out calls by the signatures in engine/cmake: a new one of either
+    checks every file of the real format task again."""
+    fmt = _checks._table()["format"]
+    files = _checks._hashes(_checks._listed(fmt.inputs, scratch), scratch)
+    _checks.save(
+        _checks.record_dir(scratch),
+        "format",
+        _checks.Record(digest="", config=_checks._config(fmt, scratch), files=files),
+    )
+    assert changed_files(fmt, scratch) == []
+    (scratch / config).parent.mkdir(parents=True, exist_ok=True)
+    (scratch / config).write_text("# changed\n")
+    assert set(changed_files(fmt, scratch)) >= {Path(n) for n in files}

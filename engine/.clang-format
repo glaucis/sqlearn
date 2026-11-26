@@ -1,0 +1,10 @@
+---
+# How sqlearn's own C++ is laid out: `just fmt-engine` writes it, `just
+# format` checks it. LLVM's style with four-space indents and 100 columns.
+Language: Cpp
+BasedOnStyle: LLVM
+Standard: Latest
+IndentWidth: 4
+ColumnLimit: 100
+AccessModifierOffset: -4
+AllowShortFunctionsOnASingleLine: Inline

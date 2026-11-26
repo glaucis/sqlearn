@@ -7,7 +7,12 @@ mdindex: [type=0fc814, tags=dc4eae, summary=27a50e]
 # 0008: just as the task runner
 
 Status: accepted (decided 2026-10-01 in the earlier attempt; carried over
-2026-11-03)
+2026-11-03). Amended by the
+[Phase 1 spec](../specs/native-engine-phase-1.md) (2026-11-21): `just`
+stays the one entry point for the C++ too, and CMake, with Ninja, ccache and
+presets, builds it under `just` (§3.2); `just done` runs each check on what
+changed when work is done, and `just verify` runs everything in full, the
+release tier (§3.1).
 
 ## Context
 

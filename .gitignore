@@ -28,3 +28,8 @@ docs/_static/.mathjax.*
 htmlcov/
 # Notebooks are generated; lessons are stored as text
 *.ipynb
+# What the C++ build writes
+/engine/build/
+/engine/.compiler-stamp
+/build/
+/compile_commands.json

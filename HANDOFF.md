@@ -3,29 +3,17 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-26 · Branch: `phase-1-build` (worktree `../sqlearn-build`,
-not merged, not pushed) · Last commit: `ce37260 docs: the fix wave's checks in
-the handoff` · Checks: passing (`just done` at `3a90388`, 49 min, tree
-remembered; `just leaks-engine` and `just check` passed; `just verify` in
-parts, each passing, #79)
+Updated: 2026-11-26 · Branch: `main` (`phase-1-build` merged and pushed) ·
+Checks: `just done` passed on `phase-1-build` (49 min); after the merge, see
+the merge commit's `just done`
 Verify with: `just done` (`just verify` is the release tier)
 
 ## In progress
 
-- [verified] **Phase 1 step 2 (the build) is done** on `phase-1-build`:
-  Tasks 1 to 13, each reviewed and fixed. The proof for spec §6 is on #79.
-  The final whole-branch review and its one fix wave are done; Tomas merges.
-  What the reviews deferred is on #85. The ledger,
-  with every ruling and deferred minor, is
-  `.superpowers/sdd/2026-11-23-native-engine-phase-1-build/progress.md`
-  (git-ignored): a new session resumes from it and `git log`.
+Nothing in progress. Next: #85's follow-ups, then Phase 1 step 3 (Next up).
 
 ## Waiting on the user
 
-- Merge `phase-1-build` into `main`: from the main checkout, `git merge
-  phase-1-build` (not a fast-forward: the hook runs), `uv sync`, `just
-  done`; then remove the worktree, its ledger and the branch. Say "merge
-  it" to have it done. (since 2026-11-25)
 - Confirm the crash handler's chaining: it calls the previous handler once
   with the kernel's siginfo and context, instead of the plan's "restore and
   re-raise", because on macOS a re-raised signal looks the same as a real
@@ -268,6 +256,10 @@ Verify with: `just done` (`just verify` is the release tier)
 
 ## Just finished
 
+- Phase 1 step 2 merged into `main` and pushed (Tomas, 2026-11-26); the
+  worktree `../sqlearn-build`, its ledger and the branch removed. A fresh
+  checkout needs `just setup` (submodules, about 10 min) before `uv sync`
+  builds the engine (about 4 min).
 - The final review's fix wave (2026-11-25): `docs`, `types` and
   `docstrings` rerun on a DuckDB bump or C++ edit (`ENGINE_BUILD`); `import
   sqlearn` refuses a missing `_duckdb` with `Why:`/`Fix:`; `leaks-engine`

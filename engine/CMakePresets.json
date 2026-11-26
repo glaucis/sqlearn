@@ -1,0 +1,130 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": { "major": 3, "minor": 29, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "SQ_ENGINE_ONLY": "ON",
+        "SQ_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "dev",
+      "inherits": "base",
+      "displayName": "dev: -O1 -g, AddressSanitizer and UndefinedBehaviorSanitizer, libc++ extensive",
+      "cacheVariables": { "SQ_FLAVOR": "dev", "CMAKE_BUILD_TYPE": "Debug" }
+    },
+    {
+      "name": "debug",
+      "inherits": "base",
+      "displayName": "debug: -O0 -g, for the debugger",
+      "cacheVariables": { "SQ_FLAVOR": "debug", "CMAKE_BUILD_TYPE": "Debug" }
+    },
+    {
+      "name": "release",
+      "inherits": "base",
+      "displayName": "release: -O2, libc++ fast, the wheel's flags",
+      "cacheVariables": { "SQ_FLAVOR": "release", "CMAKE_BUILD_TYPE": "Release" }
+    },
+    {
+      "name": "profile",
+      "inherits": "base",
+      "displayName": "profile: release with -g and frame pointers",
+      "cacheVariables": { "SQ_FLAVOR": "profile", "CMAKE_BUILD_TYPE": "RelWithDebInfo" }
+    },
+    {
+      "name": "llvm-dev",
+      "inherits": "dev",
+      "displayName": "llvm-dev: dev with Homebrew LLVM, AddressSanitizer's leak check on",
+      "toolchainFile": "${sourceDir}/cmake/toolchain-llvm.cmake"
+    },
+    {
+      "name": "tsan",
+      "inherits": "base",
+      "displayName": "tsan: -O1 -g, ThreadSanitizer",
+      "cacheVariables": { "SQ_FLAVOR": "tsan", "CMAKE_BUILD_TYPE": "Debug" }
+    },
+    {
+      "name": "lsan",
+      "inherits": "base",
+      "displayName": "lsan: -O1 -g, LeakSanitizer, with Homebrew LLVM",
+      "toolchainFile": "${sourceDir}/cmake/toolchain-llvm.cmake",
+      "cacheVariables": { "SQ_FLAVOR": "lsan", "CMAKE_BUILD_TYPE": "Debug" }
+    },
+    {
+      "name": "tysan",
+      "inherits": "base",
+      "displayName": "tysan: -O1 -g, TypeSanitizer, with Homebrew LLVM",
+      "toolchainFile": "${sourceDir}/cmake/toolchain-llvm.cmake",
+      "cacheVariables": { "SQ_FLAVOR": "tysan", "CMAKE_BUILD_TYPE": "Debug" }
+    },
+    {
+      "name": "fuzzing",
+      "inherits": "base",
+      "displayName": "fuzzing: -O1 -g, libFuzzer with AddressSanitizer and UndefinedBehaviorSanitizer, with Homebrew LLVM",
+      "toolchainFile": "${sourceDir}/cmake/toolchain-llvm.cmake",
+      "cacheVariables": { "SQ_FLAVOR": "fuzzing", "CMAKE_BUILD_TYPE": "Debug" }
+    },
+    {
+      "name": "coverage",
+      "inherits": "base",
+      "displayName": "coverage: -O0 -g, LLVM's source-based coverage, with Homebrew LLVM",
+      "toolchainFile": "${sourceDir}/cmake/toolchain-llvm.cmake",
+      "cacheVariables": { "SQ_FLAVOR": "coverage", "CMAKE_BUILD_TYPE": "Debug" }
+    },
+    {
+      "name": "mutate",
+      "inherits": "base",
+      "displayName": "mutate: -O0 -g, Mull's mutants compiled in, with Homebrew LLVM",
+      "toolchainFile": "${sourceDir}/cmake/toolchain-llvm.cmake",
+      "cacheVariables": {
+        "SQ_FLAVOR": "mutate",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "SQ_MULL_PLUGIN": "${sourceDir}/build/mull/0.39.1/lib/mull-ir-frontend-23"
+      }
+    },
+    {
+      "name": "sqllogic",
+      "displayName": "sqllogic: DuckDB's unittest with the sqlearn extension, for its SQL tests (engine/sqllogic)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "SQ_SQLLOGIC": "ON",
+        "SQ_FLAVOR": "release",
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "dev", "configurePreset": "dev" },
+    { "name": "debug", "configurePreset": "debug" },
+    { "name": "release", "configurePreset": "release" },
+    { "name": "profile", "configurePreset": "profile" },
+    { "name": "llvm-dev", "configurePreset": "llvm-dev" },
+    { "name": "tsan", "configurePreset": "tsan" },
+    { "name": "lsan", "configurePreset": "lsan" },
+    { "name": "tysan", "configurePreset": "tysan" },
+    { "name": "fuzzing", "configurePreset": "fuzzing" },
+    { "name": "coverage", "configurePreset": "coverage" },
+    { "name": "mutate", "configurePreset": "mutate" },
+    { "name": "sqllogic", "configurePreset": "sqllogic" }
+  ],
+  "testPresets": [
+    { "name": "dev", "configurePreset": "dev", "output": { "outputOnFailure": true } },
+    { "name": "debug", "configurePreset": "debug", "output": { "outputOnFailure": true } },
+    { "name": "release", "configurePreset": "release", "output": { "outputOnFailure": true } },
+    { "name": "profile", "configurePreset": "profile", "output": { "outputOnFailure": true } },
+    { "name": "llvm-dev", "configurePreset": "llvm-dev", "output": { "outputOnFailure": true } },
+    { "name": "tsan", "configurePreset": "tsan", "output": { "outputOnFailure": true } },
+    { "name": "lsan", "configurePreset": "lsan", "output": { "outputOnFailure": true } },
+    { "name": "tysan", "configurePreset": "tysan", "output": { "outputOnFailure": true } },
+    { "name": "fuzzing", "configurePreset": "fuzzing", "output": { "outputOnFailure": true } },
+    { "name": "coverage", "configurePreset": "coverage", "output": { "outputOnFailure": true } },
+    { "name": "mutate", "configurePreset": "mutate", "output": { "outputOnFailure": true } },
+    { "name": "sqllogic", "configurePreset": "sqllogic", "output": { "outputOnFailure": true } }
+  ]
+}

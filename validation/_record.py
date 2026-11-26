@@ -5,7 +5,8 @@ module it imported from the repository, ``uv.lock`` (the libraries it ran
 with) and devdata's files (the data it read). A record holds their SHA-256
 hashes as they were before the runner was imported (``candidates``), the
 environment (``_cases.environment()``: the libraries, Python, the OS and its
-release, the machine, numpy's BLAS) and the counts of each result. A file
+release, the machine, numpy's BLAS; with ``engine``, the digest of what the
+engine module is built from) and the counts of each result. A file
 it loaded that changed while it ran, or was not there before, saves no
 passed record, so results of the old code are never recorded as the new
 code's. A runner is skipped when the newest record whose environment is the
@@ -19,12 +20,16 @@ a record is valid only while its hashes match, whichever worktree wrote it.
 import hashlib
 import json
 import os
+import shlex
 import subprocess
 import sys
 import tempfile
+import tomllib
 from collections.abc import Iterable, Sequence
 from pathlib import Path
 from typing import TypedDict
+
+from validation import _checks
 
 KEPT = 20
 """How many records of each runner are kept, the newest."""
@@ -140,6 +145,57 @@ def digest(paths: Iterable[Path], root: Path) -> dict[str, str]:
         ).hexdigest()
         for p in paths
     }
+
+
+def _compiler() -> str:
+    """Return the first line of the C++ compiler's ``--version``, or ``none``.
+
+    The compiler CMake picks: ``CXX``, else ``c++``.
+    """
+    command = shlex.split(os.environ.get("CXX") or "c++")
+    try:
+        done = subprocess.run(
+            [*command, "--version"], capture_output=True, text=True, check=False
+        )
+    except OSError:
+        return "none"
+    return (done.stdout.splitlines() or ["none"])[0]
+
+
+def engine(root: Path) -> str:
+    """Return the digest of what the engine module under `root` is built from.
+
+    Every file under ``engine/`` and the commit each submodule there pins,
+    as ``_checks`` digests a task's inputs; ``pyproject.toml``'s
+    ``[build-system]`` table (the build requirements, pinned exactly) and its
+    ``[tool.scikit-build]`` table; and the C++ compiler's version. A module
+    built from other inputs is another engine, so every runner reruns. Its
+    inputs, not the binary nor its version string: a rebuild of the same
+    inputs is the same engine, and the version stays ``2.0.1`` through any
+    edit of sqlearn's C++.
+    """
+    root = root.resolve()
+    files = _checks._listed(("engine",), root)
+    links = _checks._gitlinks(("engine",), root)
+    pyproject = root / "pyproject.toml"
+    project = (
+        tomllib.loads(pyproject.read_text(encoding="utf-8"))
+        if pyproject.is_file()
+        else {}
+    )
+    tables = {
+        "build-system": project.get("build-system", {}),
+        "scikit-build": project.get("tool", {}).get("scikit-build", {}),
+    }
+    sha = hashlib.sha256(_checks._combined(files, root, links).encode() + b"\0")
+    sha.update(json.dumps(tables, sort_keys=True).encode() + b"\0")
+    sha.update(_compiler().encode())
+    return sha.hexdigest()
+
+
+def environment(base: dict[str, str], root: Path) -> dict[str, str]:
+    """Return the environment a record keeps: `base`, with the engine's digest."""
+    return {**base, "engine": engine(root)}
 
 
 def record_dir(root: Path) -> Path:

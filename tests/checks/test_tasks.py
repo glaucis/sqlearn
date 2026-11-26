@@ -1,6 +1,8 @@
 """Tests of the task recipes (``just lint``, ``just test``) in scratch repositories.
 
-The real justfile is imported under a stand-in ``build-docs``; the tools are
+The real justfile is imported under stand-ins for ``build-docs``,
+``validate-all`` and ``test-engine-changed`` (the C++ groups, tested on a
+scratch engine in ``test_engine_groups.py``); the tools are
 stand-ins on ``PATH`` that log their arguments, so no real check runs.
 """
 
@@ -13,6 +15,8 @@ from pathlib import Path
 
 import pytest
 
+from validation import _checks
+
 REPO = Path(__file__).resolve().parents[2]
 
 OVERRIDES = """set allow-duplicate-recipes
@@ -23,6 +27,15 @@ build-docs:
 
 validate-all:
     @echo '["validate-all"]' >> "$CALLS"
+
+test-engine-changed *args:
+    @echo '["test-engine-changed {{ args }}"]' >> "$CALLS"
+
+test-sql *args:
+    @echo '["test-sql {{ args }}"]' >> "$CALLS"
+
+check-docstring-args *files:
+    @echo '["check-docstring-args"]' >> "$CALLS"
 """
 
 TOOL = """#!{python}
@@ -45,6 +58,11 @@ FILES = {
     "docs/guide/notes.md": "# Notes\n",
     "docs/conf.py": "project = 'scratch'\n",
     "docs/architecture/engine-inventory.md": "| `a.py` | 1 |\n",
+    "engine/extension/src/sqlearn_extension.cpp": "// the extension\n",
+    "engine/extension/test/sql/sqlearn_version.test": "require sqlearn\n",
+    "engine/src/core/version.cpp": "// core\n",
+    "engine/sqllogic/CMakeLists.txt": "# the runner's build\n",
+    "engine/cmake/sql_tests.cmake": "# a helper\n",
 }
 
 
@@ -115,10 +133,15 @@ def test_a_docs_only_change_runs_no_test(scratch):
     repo, env = scratch
     just(repo, env, "test")
     just(repo, env, "docs")
-    assert [c[0] for c in calls(env)] == ["pytest"] * 4 + ["build-docs"]
+    assert [c[0] for c in calls(env)] == [
+        "test-engine-changed dev",
+        *["pytest"] * 4,
+        "build-docs",
+    ]
     (repo / "docs" / "guide" / "notes.md").write_text("# Notes, edited\n")
     assert "test: unchanged since a passed run" in just(repo, env, "test")
-    assert calls(env) == []
+    # The C++ step keeps records of its own and decides for itself.
+    assert calls(env) == [["test-engine-changed dev"]]
     just(repo, env, "docs")
     assert calls(env) == [["build-docs"]]
 
@@ -173,7 +196,161 @@ def test_a_data_file_change_reruns_the_tests(scratch, data):
         ["-n", "auto", "-m", "", "tests/githooks"],
     ]
     report = ["pytest", "-p", "validation._tests_report"]
-    assert calls(env) == [[*report, *p] for p in passes]
+    assert calls(env) == [
+        ["test-engine-changed dev"],
+        *([*report, *p] for p in passes),
+    ]
+
+
+@pytest.mark.parametrize(
+    "changed",
+    [
+        "engine/extension/src/sqlearn_extension.cpp",
+        "engine/extension/test/sql/sqlearn_version.test",
+        "engine/extension/test/sql/new.test",
+        "engine/src/core/version.cpp",
+        "engine/sqllogic/CMakeLists.txt",
+        "engine/cmake/sql_tests.cmake",
+    ],
+)
+def test_a_change_to_the_extension_reruns_its_sql_tests(scratch, changed):
+    """``just sql`` runs the SQL tests once, skips them on a docs edit, and
+    runs them again when the extension, a .test file or our C++ changed."""
+    repo, env = scratch
+    just(repo, env, "sql")
+    assert calls(env) == [["test-sql "]]
+    (repo / "docs" / "guide" / "notes.md").write_text("# Notes, edited\n")
+    assert "sql: unchanged since a passed run" in just(repo, env, "sql")
+    assert calls(env) == []
+    path = repo / changed
+    path.write_text((path.read_text() if path.exists() else "") + "// changed\n")
+    just(repo, env, "sql")
+    assert calls(env) == [["test-sql "]]
+
+
+def test_a_duckdb_bump_reruns_the_sql_tests(scratch):
+    """A new commit of duckdb-python's gitlink, which pins DuckDB's, reruns
+    ``just sql``."""
+    repo, env = scratch
+
+    def pin(commit):
+        git(
+            repo,
+            "update-index",
+            "--add",
+            "--cacheinfo",
+            f"160000,{commit},engine/duckdb-python",
+            env=env,
+        )
+
+    pin("1" * 40)
+    just(repo, env, "sql")
+    assert calls(env) == [["test-sql "]]
+    assert "sql: unchanged since a passed run" in just(repo, env, "sql")
+    pin("2" * 40)
+    just(repo, env, "sql")
+    assert calls(env) == [["test-sql "]]
+
+
+def _pin(repo, env, commit):
+    """Pin duckdb-python's gitlink at `commit` in the scratch index."""
+    git(
+        repo,
+        "update-index",
+        "--add",
+        "--cacheinfo",
+        f"160000,{commit},engine/duckdb-python",
+        env=env,
+    )
+
+
+@pytest.mark.parametrize(
+    ("task", "first"),
+    [("docs", "build-docs"), ("types", "ty"), ("docstrings", "numpydoc")],
+)
+def test_a_duckdb_bump_reruns_what_runs_on_the_engine(scratch, task, first):
+    """The docs build runs its doctests on the built module and ty and mypy
+    read its stubs; the docstring checks are keyed the same way. A new commit
+    of duckdb-python's gitlink reruns each."""
+    repo, env = scratch
+    _pin(repo, env, "1" * 40)
+    just(repo, env, task)
+    assert calls(env)[0][0] == first
+    assert f"{task}: unchanged since a passed run" in just(repo, env, task)
+    assert calls(env) == []
+    _pin(repo, env, "2" * 40)
+    just(repo, env, task)
+    assert calls(env)[0][0] == first
+
+
+@pytest.mark.parametrize(
+    ("task", "first"),
+    [("docs", "build-docs"), ("types", "ty"), ("docstrings", "numpydoc")],
+)
+@pytest.mark.parametrize(
+    "changed",
+    [
+        "engine/src/core/version.cpp",
+        "engine/extension/src/sqlearn_extension.cpp",
+        "engine/cmake/sql_tests.cmake",
+        "engine/CMakeLists.txt",
+    ],
+)
+def test_a_cxx_edit_reruns_what_runs_on_the_engine(scratch, task, first, changed):
+    """An edit of the engine's sources or build rebuilds the module, so the
+    checks that run on it run again."""
+    repo, env = scratch
+    just(repo, env, task)
+    calls(env)
+    path = repo / changed
+    path.write_text((path.read_text() if path.exists() else "") + "# changed\n")
+    just(repo, env, task)
+    assert calls(env)[0][0] == first
+
+
+def test_the_engine_build_inputs_are_uvs_cache_keys():
+    """ENGINE_BUILD is what uv rebuilds the module on (pyproject's
+    ``tool.uv.cache-keys`` under ``engine/``), plus duckdb-python's gitlink,
+    which uv keys through the commit and ``.gitmodules``. The compiler stamp
+    is a git-ignored file no digest can see: the tasks name the compiler as
+    a tool instead."""
+    import tomllib
+
+    keys = tomllib.loads((REPO / "pyproject.toml").read_text())["tool"]["uv"][
+        "cache-keys"
+    ]
+    globs = {
+        k["file"].removesuffix("/**")
+        for k in keys
+        if "file" in k and k["file"].startswith("engine/")
+    }
+    globs.discard("engine/.compiler-stamp")
+    assert set(_checks.ENGINE_BUILD) == {*globs, "engine/duckdb-python"}
+
+    def covered(path, task):
+        specs = (*task.inputs, *task.config)
+        return any(path == s or path.startswith(f"{s}/") for s in specs)
+
+    for name in ("docs", "types", "docstrings", "test", "sql"):
+        task = _checks.TASKS[name]
+        missing = [p for p in _checks.ENGINE_BUILD if not covered(p, task)]
+        assert missing == [], name
+
+
+def test_full_sql_runs_every_sql_test(scratch):
+    """``just full sql`` hands ``test-sql`` its ``--all``."""
+    repo, env = scratch
+    just(repo, env, "full", "sql")
+    assert calls(env) == [["test-sql --all"]]
+
+
+def test_full_test_runs_every_cxx_group(scratch):
+    """``just full test`` hands the C++ step ``--all``; ``just test`` does not."""
+    repo, env = scratch
+    just(repo, env, "test")
+    just(repo, env, "full", "test")
+    groups = [c for c in calls(env) if c[0].startswith("test-engine-changed")]
+    assert groups == [["test-engine-changed dev"], ["test-engine-changed dev --all"]]
 
 
 def test_full_validate_runs_every_runner(scratch):

@@ -1,0 +1,10 @@
+# How sqlearn's CMake files are laid out: `just fmt-engine` writes them,
+# `just format` checks them (gersemi). Two-space indents, 100 columns, and
+# our own functions (engine/cmake) formatted by their signatures. DuckDB's
+# commands (build_static_extension, duckdb_extension_load) are defined in
+# the submodule, which gersemi never reads, so an unknown command is laid
+# out as a plain one, without a warning.
+definitions: [engine/cmake]
+indent: 2
+line_length: 100
+warn_about_unknown_commands: false

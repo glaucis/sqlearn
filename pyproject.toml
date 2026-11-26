@@ -1,6 +1,17 @@
 [build-system]
-requires = ["hatchling>=1.33.0", "hatch-vcs>=0.5.0"]
-build-backend = "hatchling.build"
+# scikit-build-core runs engine/CMakeLists.txt, which builds DuckDB's module
+# from the submodules; nanobind and numpy's headers are what that build needs.
+# Pinned exactly: uv.lock does not hold build requirements, so a release of
+# one would otherwise change the module unseen. A bump is by hand, and it
+# changes the engine's digest (validation/_record.py), so every runner reruns.
+# numpy is the version uv.lock gives the runtime.
+requires = [
+    "scikit-build-core==1.1.2",
+    "nanobind==3.1.0",
+    "numpy==2.5.4",
+    "setuptools-scm==10.3.4",
+]
+build-backend = "scikit_build_core.build"
 
 [project]
 name = "sqlearn"
@@ -8,7 +19,7 @@ dynamic = ["version"]
 description = "Machine learning computed inside DuckDB, on data larger than memory."
 readme = "README.md"
 license = "Apache-2.0"
-license-files = ["LICENSE"]
+license-files = ["LICENSE", "NOTICE", "THIRD_PARTY.md"]
 requires-python = ">=3.12"
 authors = [{ name = "Tomas Pecukevicius", email = "pecukevicius@gmail.com" }]
 classifiers = [
@@ -20,9 +31,9 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Typing :: Typed",
 ]
+# DuckDB, the engine every computation runs in, is built into the wheel
+# (engine/), not a dependency.
 dependencies = [
-    # The engine every computation runs in.
-    "duckdb>=2.0.0",
     # The small matrix a Gram step learns from: DuckDB has no eigen or solve
     # function (ADR 0057).
     "numpy>=2.5.4",
@@ -45,7 +56,12 @@ test = [
     "scikit-learn>=1.9.1",
 ]
 lint = [
+    # The CMake formatter (just fmt-engine, just format). Its licence is
+    # MPL-2.0: allowed, as it is for development only, never shipped or
+    # compiled in (ADR 0066's rule is for runtime code).
+    "gersemi>=0.29.2",
     "mypy>=2.4.1",
+    "nanobind==3.1.0",
     "pydoclint>=0.12.0",
     "ruff>=0.17.3",
     "rumdl>=0.3.2",
@@ -71,18 +87,62 @@ default-groups = ["test", "lint", "docs"]
 # The series that wrote the lockfile; an older uv is refused.
 required-version = ">=0.13"
 # The version comes from git, so the installed package is rebuilt when the
-# commit or the tags change.
-cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true } }]
+# commit or the tags change; and when the engine's build files or sources do,
+# or a submodule moves.
+cache-keys = [
+    { file = "pyproject.toml" },
+    { git = { commit = true, tags = true } },
+    { file = "engine/CMakeLists.txt" },
+    { file = "engine/cmake/**" },
+    { file = "engine/src/**" },
+    { file = "engine/extension/**" },
+    { file = ".gitmodules" },
+    # The compiler's identity (just compiler-stamp, git-ignored): a compiler
+    # update rebuilds the module.
+    { file = "engine/.compiler-stamp" },
+]
 
-[tool.hatch.version]
-source = "vcs"
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+cmake.version = ">=3.29"
+cmake.source-dir = "engine"
+ninja.version = ">=1.10"
+ninja.make-fallback = false
+# A stable build directory, so ccache and ninja reuse the last build: only
+# what changed compiles again.
+build-dir = "build/{cache_tag}"
+# One stable ABI wheel for CPython 3.12 and up.
+wheel.py-api = "cp312"
+# sqlearn/ from src/; duckdb/, adbc_driver_duckdb/, _duckdb-stubs/ and the
+# _duckdb module come from CMake's install (engine/cmake/duckdb_package.cmake).
+wheel.packages = ["src/sqlearn"]
 
-[tool.hatch.build.targets.sdist]
-# The package's source; hatchling adds pyproject.toml, README.md and LICENSE.
-only-include = ["src"]
+[tool.scikit-build.cmake.define]
+# DuckDB's official extensions, compiled in.
+BUILD_EXTENSIONS = "core_functions;json;parquet;icu"
+# The extensions linked into the module: the official four, repeated since
+# this replaces duckdb-python's default list, and sqlearn's own
+# (engine/extension/).
+LINK_EXTENSIONS = "core_functions;json;parquet;icu;sqlearn"
+
+# macOS 15 is the floor (ADR 0062): the module is built for it, and
+# scikit-build-core tags the wheel macosx_15_0 from this define.
+[[tool.scikit-build.overrides]]
+if.platform-system = "^darwin$"
+inherit.cmake.define = "append"
+cmake.define.CMAKE_OSX_DEPLOYMENT_TARGET = "15.0"
+
+# The version from git, the numbers hatch-vcs gave.
+[[tool.dynamic-metadata]]
+provider = "scikit_build_core.metadata.setuptools_scm"
+
+# setuptools-scm reads its settings here: its defaults.
+[tool.setuptools_scm]
 
 [tool.ruff]
 line-length = 88
+# The submodules are other projects' code, never ours to lint or format.
+extend-exclude = ["engine/duckdb-python", "engine/third_party"]
 
 [tool.ruff.lint]
 select = [
@@ -119,6 +179,9 @@ convention = "numpy"
 "docs/**" = ["ANN", "D"]
 # Validations against the references: written like tests.
 "validation/**" = ["ANN", "D2", "D3", "D4"]
+# The start-up check runs before the package's imports, since they import
+# duckdb, which the check is about (ADR 0061).
+"src/sqlearn/__init__.py" = ["E402"]
 
 [tool.ruff.format]
 docstring-code-format = true
@@ -183,6 +246,8 @@ checks = ["all", "ES01", "SA01"]
 exclude = ['\._']
 
 [tool.rumdl]
+# The submodules are other projects' files, never ours to wrap.
+exclude = ["engine/duckdb-python/**", "engine/third_party/**"]
 # MD013 alone: prose wraps at 80 columns. Another rule joins with its reason.
 enable = ["MD013"]
 
@@ -200,9 +265,10 @@ reflow = true
 # Hidden folders are read, so the hooks and Claude's settings are checked;
 # git's objects and the lockfile are not. The tools' caches are excluded
 # because typos applies .gitignore only inside a git repository, and the
-# hook runs it on an export that has none.
+# hook runs it on an export that has none. NOTICE holds other projects'
+# licence texts as they wrote them, as the submodules hold their files.
 ignore-hidden = false
-extend-exclude = [".git/", "uv.lock", ".codegraph/", ".ruff_cache/", ".rumdl_cache/", ".mypy_cache/"]
+extend-exclude = [".git/", "uv.lock", ".codegraph/", ".ruff_cache/", ".rumdl_cache/", ".mypy_cache/", "engine/duckdb-python/", "engine/third_party/", "NOTICE"]
 
 [tool.typos.default]
 # British prose and American identifiers both pass at `en`.
