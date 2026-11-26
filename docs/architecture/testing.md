@@ -1,9 +1,9 @@
 ---
-type: guide
+type: architecture
 tags: [testing, pytest, coverage, hooks, tiers, checks]
 summary: "Explains how tests are written, split into fast and slow tiers, how each check finds what changed and keeps its records, the hook tests, and coverage reporting in this project."
-related: [docs/architecture/layout.md, tests/githooks/test_pre_commit.py, tests/githooks/test_pre_merge_commit.py, tests/githooks/test_commit_msg.py, pyproject.toml]
-mdindex: [type=83ca68, tags=683dc4, summary=ca8286, related=ec2e81]
+related: [docs/architecture/layout.md, pyproject.toml, validation/_checks.py, validation/_record.py, validation/tests.json, validation/environment.json, tests/githooks/test_pre_commit.py, tests/githooks/test_pre_merge_commit.py]
+mdindex: [type=4ca303, related=1375d8]
 ---
 # Testing
 

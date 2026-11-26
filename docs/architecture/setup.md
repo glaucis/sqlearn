@@ -1,9 +1,9 @@
 ---
 type: architecture
 tags: [setup, git-hooks, just, uv, commitlint]
-summary: "Explains how to set up a clone, the just recipes by group, and what the pre-commit, pre-merge-commit and commit-msg hooks check."
-related: [docs/adr/0001-uv-for-python-packaging.md, docs/adr/0008-just-task-runner.md, docs/adr/0062-apple-silicon-first.md, docs/specs/foundation.md, commitlint.config.mjs, ADR 0062]
-mdindex: [type=4ca303, tags=191ee2, summary=74a9d4, related=58b62f]
+summary: "Explains setting up a clone, the just recipes, and what the pre-commit, pre-merge-commit and commit-msg git hooks check."
+related: [docs/adr/0001-uv-for-python-packaging.md, docs/adr/0008-just-task-runner.md, docs/adr/0062-apple-silicon-first.md, docs/specs/foundation.md, testing.md, commitlint.config.mjs, ADR 0001, ADR 0008]
+mdindex: [type=4ca303, tags=191ee2, summary=b6ec20, related=1e9903]
 ---
 # Setting up
 
