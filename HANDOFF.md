@@ -3,11 +3,11 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-25 · Branch: `phase-1-build` (worktree `../sqlearn-build`,
-not merged, not pushed), the fix wave's last commit `cd20807` · Checks: `just
-done` passed at `3a90388` and remembered its tree (49 min, load 45 to 15),
-`just leaks-engine` passed (0 leaks), `just check` passed; `just verify` ran in
-parts before the fix wave, each passing (#79's comments of 2026-11-25)
+Updated: 2026-11-26 · Branch: `phase-1-build` (worktree `../sqlearn-build`,
+not merged, not pushed) · Last commit: `ce37260 docs: the fix wave's checks in
+the handoff` · Checks: passing (`just done` at `3a90388`, 49 min, tree
+remembered; `just leaks-engine` and `just check` passed; `just verify` in
+parts, each passing, #79)
 Verify with: `just done` (`just verify` is the release tier)
 
 ## In progress
@@ -22,6 +22,10 @@ Verify with: `just done` (`just verify` is the release tier)
 
 ## Waiting on the user
 
+- Merge `phase-1-build` into `main`: from the main checkout, `git merge
+  phase-1-build` (not a fast-forward: the hook runs), `uv sync`, `just
+  done`; then remove the worktree, its ledger and the branch. Say "merge
+  it" to have it done. (since 2026-11-25)
 - Confirm the crash handler's chaining: it calls the previous handler once
   with the kernel's siginfo and context, instead of the plan's "restore and
   re-raise", because on macOS a re-raised signal looks the same as a real
@@ -37,10 +41,8 @@ Verify with: `just done` (`just verify` is the release tier)
 - Task 6's note: any `engine/` change reruns the whole Python suite
   (`engine` is one of `TEST_INPUTS`). (since 2026-11-25)
 - The FMA ADR: `-ffp-contract=off` everywhere, `std::fma` on purpose and
-  validated (spec §3.9, the agent's proposal); decide before step 2's
+  validated (spec §3.9, the agent's proposal); decide before Phase 2's
   kernels. (since 2026-11-22)
-- The CLion MCP stays (its debugger, for step 2 on); no other tool or skill
-  needed. Told Tomas; nothing to do.
 - Benchmarks run on a loaded machine, to rerun on a quiet one if wanted:
   `generators-on-many-threads.md` (#46), `gram-batches.md`, both
   `explore-*.md` pages (load up to 145) and `engine-profile.md` (load 10 to
@@ -286,65 +288,3 @@ Verify with: `just done` (`just verify` is the release tier)
   `sq.version()` from C++, presets and groups, C++ tests per group,
   clang-tidy and iwyu, the sanitizers, fuzzing, coverage and Mull, the
   crash report and the third-party file, sqllogictest.
-
-
-- Phase 1 step 1 merged into `main` (Tomas, 2026-11-23): per-check
-  selection by inputs (`validation/_checks.py`, `just full <task>`,
-  `just done`, `just verify`), testmon dropped; the rework plan's five
-  tasks, the final review and its fix wave (I1 the place kept with each
-  passed tree, I2 a runner's files hashed before it runs). Proof on #79.
-  The worktree `../sqlearn-79`, its ledgers and the branch (local and
-  remote) are removed.
-
-- The final review's fix wave, on `phase-1-checks`: the passed-tree record
-  keeps the place (Python, platform, machine) with each tree, `just place`
-  (`a56c615`); a validation record keeps its files' hashes from before the
-  runner ran, and records no pass when one changed meanwhile; corrupt
-  record files load as none (`f7de127`); the tools' own configuration
-  files are settings (`5b09c2c`); `/.tmp/` ignored, the native-engine spec
-  points at §3.1, the empty serial pass explained (the docs commit after).
-  (2026-11-23)
-- The rework's Task 5 (`3d54d52`), the done-when shown (#79): `just done` twice,
-  a docs-only commit (`docs` alone ran), a one-line `src/` change (`format` and
-  `lint` on that file, `types` and `test` ran, every runner reran), a runner's
-  own file (that runner alone), a fast-forward of a passed tree (already
-  passed), and `just verify` (passed, remembered). A killed run left `.tmp/`
-  (DuckDB's temp directory) in the worktree, which made the tree uncheckable
-  until removed. (2026-11-23)
-
-- The rework's Tasks 1 to 4, on `phase-1-checks`, not merged: each check
-  is a task in `validation/_checks.py` that runs on what changed since it
-  passed, its records in `sqlearn-checks/` in git's common directory
-  (`eb9c992`); `just format`, `lint`, `docstrings`, `types`, `test`, `docs`
-  and `just full <task>` (`f49d879`); pytest-testmon removed (`00900f0`);
-  `just done` runs every task, `just verify` every task in full, and the
-  docs say so (`edab18e`, `98f08de`); `checkable-tree` exempts only the
-  checks' outputs, and `done` runs every check past a failure (the commit
-  after). (2026-11-22)
-- Phase 1 step 1 was first built with pytest-testmon, then replaced by the
-  rework above; the first run's results are on #79. (2026-11-22)
-
-- The branch `read-busy-connection` merged into `main`: #76's fix (closed),
-  #75's deferral, spec §4, the approved Phase 1 spec, PCA's bounds after
-  the macOS upgrade, `environment.json`'s OS release and BLAS.
-  (2026-11-22)
-
-- The C++ standard and compilers: C++23 for now (Tomas), C++26 by ADR once
-  Apple clang has reflection and contracts; each compiler's job; LeakSanitizer
-  and libFuzzer from Homebrew LLVM; written into the Phase 1 spec, §3.8. The
-  probe on macOS 27.2.1: Apple clang 21 and LLVM 23.1.6 have neither
-  reflection nor contracts, GCC 16.2 has both, experimental; none has
-  `std::linalg`. CodeGraph: a root `codegraph.json` in step 2 excludes the
-  DuckDB submodules, for this project only (Tomas). (2026-11-21)
-
-- The `profile` fix (`b135f1b`, on `main`, not pushed): skewness and
-  kurtosis divide each sum by its power of the variance first, so `[0, 0,
-  0, 6e102]` gives 2.0, not inf; `_SCAN_COLUMNS`' docstring says 1,986 MB.
-  (2026-11-21)
-- #76 (`52e17d3`, on the branch): `read` probes with `SELECT 1` and refuses
-  a connection busy with the user's unfinished `execute` result with a
-  `Fix:`, for every kind of input. (2026-11-21)
-- #75 deferred to the port (`1ec69e4`, options on the issue); spec §4: a
-  test reruns only when what it depends on changed, full runs at a release
-  (`7d44141`). (2026-11-21)
-- The merged remote branch `engine-phase-0` is deleted. (2026-11-21)
