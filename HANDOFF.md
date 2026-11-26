@@ -3,14 +3,14 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-26 · Branch: `main` (`phase-1-build` merged and pushed) ·
-Checks: `just done` passed on `phase-1-build` (49 min); after the merge, see
-the merge commit's `just done`
+Updated: 2026-11-26 · Branch: `main` · Last commit: `84e674d Merge branch
+'phase-1-build'` · Checks: passing (`just done` on the merged `main`, tree
+remembered)
 Verify with: `just done` (`just verify` is the release tier)
 
 ## In progress
 
-Nothing in progress. Next: #85's follow-ups, then Phase 1 step 3 (Next up).
+None.
 
 ## Waiting on the user
 
@@ -20,9 +20,6 @@ Nothing in progress. Next: #85's follow-ups, then Phase 1 step 3 (Next up).
   fault (ADR 0046). (since 2026-11-24)
 - Confirm `version.cpp` left out of Mull's mutation testing. (since
   2026-11-25)
-- The subject of `11d5d23` ("docs: Phase 1 step 2, the build, shown") is in
-  sentence case: commitlint warns only; reword before the merge if wanted.
-  (since 2026-11-25)
 - The validation reruns on every `engine/` edit, its tests and fuzz corpus
   included, which over-runs it; narrowing it to the wheel's inputs is
   Tomas's call. (since 2026-11-25)
@@ -40,7 +37,7 @@ Nothing in progress. Next: #85's follow-ups, then Phase 1 step 3 (Next up).
 
 - #85: the follow-ups of Phase 1 step 2's reviews, triaged "can wait" and
   grouped by area.
-- Phase 1 step 3 after the merge: the release tier's workflows, started by
+- Phase 1 step 3: the release tier's workflows, started by
   hand, and the site's deploy (spec §3.5, §3.6; #4, #6); its plan first,
   with superpowers:writing-plans. Then step 4, the review and the
   measurements (spec §3.7).
@@ -260,23 +257,3 @@ Nothing in progress. Next: #85's follow-ups, then Phase 1 step 3 (Next up).
   worktree `../sqlearn-build`, its ledger and the branch removed. A fresh
   checkout needs `just setup` (submodules, about 10 min) before `uv sync`
   builds the engine (about 4 min).
-- The final review's fix wave (2026-11-25): `docs`, `types` and
-  `docstrings` rerun on a DuckDB bump or C++ edit (`ENGINE_BUILD`); `import
-  sqlearn` refuses a missing `_duckdb` with `Why:`/`Fix:`; `leaks-engine`
-  fails on finding no program and shows a failing one's output; a compiler
-  update rebuilds the module (`engine/.compiler-stamp`); a standing test that
-  the wheel has nothing of the test builds; the deferred list on #85.
-- Phase 1 step 2's Task 13 (2026-11-24 to 25): `just done` runs tidy and
-  sql, `just verify` adds the sanitizers, a minute of fuzzing, the C++
-  coverage gate, Mull and the licence check (`cd90f75`); the fuzz recipe
-  keeps this run's failures alone (`d43b82c`); ADR 0066 amended (Tomas,
-  2026-11-24) and its licence terms allowed by name (`74c3cf8`); ADRs 0008,
-  0061 and 0065 amended, the docs in line (`e751ea0`); `.clangd`
-  (`a8d759e`); a timeout on every C++ test, the crash group's signal cases
-  out of tsan (`7679117`) and the group out of tysan (`32e64e9`); the raw
-  layer's surviving mutants killed or recorded (`072e99e`). Proof on #79.
-- Phase 1 step 2's Tasks 1 to 12 (`789682d` to `3268810`): DuckDB 2.0.1
-  and duckdb-python as submodules, one package with sqlearn's C++ inside,
-  `sq.version()` from C++, presets and groups, C++ tests per group,
-  clang-tidy and iwyu, the sanitizers, fuzzing, coverage and Mull, the
-  crash report and the third-party file, sqllogictest.
