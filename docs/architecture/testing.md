@@ -371,10 +371,12 @@ The recipe fails on a survivor the list does not name, and on an entry whose
 mutant no longer survives, so a line moved by an edit is named again. A
 survivor is fixed with the test that kills it; it is kept only when no test
 can tell it from the code (an equivalent mutant, or a leak only
-LeakSanitizer sees). `engine/src/core/version.cpp` is left out: it returns the
-build's definitions and has nothing to mutate, and Mull cannot read its
-command line. A test (`tests/validation/test__mutate.py`) fails if it gains a
-branch, an operator or a call beyond `describe()`'s `format` and `substr`.
+LeakSanitizer sees). Nothing else is left out, and a test
+(`tests/validation/test__mutate.py`) fails if `mull.yml` excludes more than
+the bindings. Mull re-reads each file's command line and cannot parse a
+quoted definition with a space in it, so the build identity reaches
+`core/version.cpp` as a header CMake writes into the build directory
+(`engine/cmake/build_identity.hpp.in`), not as definitions.
 
 `tests/engine/test_steady_memory.py` (`slow`) makes 100,000 calls of
 `count_rows` and `build_identity` in a process of its own, in 10 rounds,

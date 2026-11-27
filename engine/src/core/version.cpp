@@ -1,16 +1,14 @@
 /// @file
-/// The build identity, from the definitions engine/CMakeLists.txt sets on
-/// this file alone, so a new version recompiles only it.
+/// The build identity, from the header engine/CMakeLists.txt writes into
+/// the build directory for this file alone (sq_build_identity), so a new
+/// version recompiles only it.
 #include "core/version.hpp"
+
+#include "build_identity.hpp"
 
 #include <cstddef>
 #include <format>
 #include <string>
-
-#if !defined(SQ_SQLEARN_VERSION) || !defined(SQ_DUCKDB_VERSION) || !defined(SQ_DUCKDB_COMMIT) ||   \
-    !defined(SQ_COMPILER) || !defined(SQ_BUILD_TYPE)
-#error "engine/CMakeLists.txt defines the build identity on this file"
-#endif
 
 namespace sq::core {
 

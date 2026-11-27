@@ -14,8 +14,6 @@ None.
 
 ## Waiting on the user
 
-- Confirm `version.cpp` left out of Mull's mutation testing. (since
-  2026-11-25)
 - The validation reruns on every `engine/` edit, its tests and fuzz corpus
   included, which over-runs it; narrowing it to the wheel's inputs is
   Tomas's call. (since 2026-11-25)
@@ -252,6 +250,12 @@ None.
 
 ## Just finished
 
+- `version.cpp` is back in Mull's mutation testing (Tomas, 2026-11-26:
+  test everything, cut no corners): the build identity is a header CMake
+  writes (`engine/cmake/build_identity.hpp.in`) instead of definitions
+  Mull could not parse, and a test fails if `mull.yml` excludes more than
+  the bindings. `just mutate-engine`: 186 mutants, 177 killed, the same 9
+  kept survivors.
 - The crash handler's chaining confirmed (Tomas, 2026-11-26): it hands the
   fault to the previous handler with the kernel's siginfo, on macOS and
   Linux; Mach exception ports left out. ADR 0069 records it with the macOS

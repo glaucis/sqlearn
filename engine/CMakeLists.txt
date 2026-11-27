@@ -53,16 +53,32 @@ string(REGEX REPLACE "^v" "" SQ_DUCKDB_VERSION "${SQ_DUCKDB_TAG}")
 # (engine/sqllogic) compile them alike.
 set(SQ_CORE_SOURCES src/core/error.cpp src/core/parse_version.cpp src/core/version.cpp)
 
-# Give `source`, core/version.cpp, the build identity, on this file alone so
-# a new version recompiles only it. A source file's properties hold in the
-# directory that sets them, so each directory compiling it calls this.
+# Give `source`, core/version.cpp, the build identity: a header written into
+# this build directory (from cmake/build_identity.hpp.in), on its include
+# path alone. configure_file rewrites it only when a value changes, so a new
+# version recompiles only that file. A header rather than definitions on the
+# command line, which Mull cannot parse when a value has a space (the
+# compiler's). A source file's properties hold in the directory that sets
+# them, so each directory compiling it calls this.
 function(sq_build_identity source)
-  set_source_files_properties(
-    ${source}
-    PROPERTIES
-      COMPILE_DEFINITIONS
-        "SQ_SQLEARN_VERSION=\"${SQ_SQLEARN_VERSION}\";SQ_DUCKDB_VERSION=\"${SQ_DUCKDB_VERSION}\";SQ_DUCKDB_COMMIT=\"${SQ_DUCKDB_COMMIT}\";SQ_COMPILER=\"${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}\";SQ_BUILD_TYPE=\"${CMAKE_BUILD_TYPE}\""
+  set(SQ_COMPILER "${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
+  set(SQ_BUILD_TYPE "${CMAKE_BUILD_TYPE}")
+  foreach(
+    name
+    IN
+    ITEMS SQ_SQLEARN_VERSION SQ_DUCKDB_VERSION SQ_DUCKDB_COMMIT SQ_COMPILER SQ_BUILD_TYPE
   )
+    if("${${name}}" MATCHES "[\"\\\\\n]")
+      message(
+        FATAL_ERROR
+        "${name} is \"${${name}}\", which a C++ string literal cannot "
+        "hold as it is.\nFix: give it no quote, backslash or new line"
+      )
+    endif()
+  endforeach()
+  set(dir "${CMAKE_BINARY_DIR}/generated")
+  configure_file("${SQ_ENGINE_DIR}/cmake/build_identity.hpp.in" "${dir}/build_identity.hpp" @ONLY)
+  set_source_files_properties(${source} PROPERTIES INCLUDE_DIRECTORIES "${dir}")
 endfunction()
 
 # The sqllogic preset builds the SQL tests alone: DuckDB's own tree with its

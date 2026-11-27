@@ -13,11 +13,6 @@ includePaths:
   - ".*/engine/src/.*"
 excludePaths:
   - ".*/engine/src/bindings/.*"
-  # It returns the build's defines and has no operator or call to mutate
-  # (a dry run finds none), and Mull's junk detection cannot parse it: from
-  # the command line in the debug information it splits SQ_COMPILER's quoted
-  # value at its space, then warns on every build.
-  - ".*/engine/src/core/version\\.cpp"
 
 # The mutants that survive the tests and are kept, each with its reason. Mull
 # does not read this list; validation/_mutate.py fails on any surviving

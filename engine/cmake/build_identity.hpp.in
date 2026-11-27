@@ -1,0 +1,14 @@
+/// @file
+/// The build identity, written by CMake (sq_build_identity in
+/// engine/CMakeLists.txt) into the build directory, and included by
+/// core/version.cpp alone. A header rather than definitions on the command
+/// line: Mull re-reads a file's command line from its debug information,
+/// cannot parse a quoted value with a space in it (the compiler's), and
+/// would warn on every build of the mutate preset.
+#pragma once
+
+#define SQ_SQLEARN_VERSION "@SQ_SQLEARN_VERSION@"
+#define SQ_DUCKDB_VERSION "@SQ_DUCKDB_VERSION@"
+#define SQ_DUCKDB_COMMIT "@SQ_DUCKDB_COMMIT@"
+#define SQ_COMPILER "@SQ_COMPILER@"
+#define SQ_BUILD_TYPE "@SQ_BUILD_TYPE@"

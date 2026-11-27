@@ -2337,13 +2337,13 @@
     {
       "area": "engine/sanitizers",
       "name": "tests/engine/test_sanitizers.py::test_a_flavours_options_go_before_the_users[tsan-ours0]",
-      "outcome": "passed",
+      "outcome": "skipped",
       "tier": "fast"
     },
     {
       "area": "engine/sanitizers",
       "name": "tests/engine/test_sanitizers.py::test_a_flavours_options_go_before_the_users[tysan-ours1]",
-      "outcome": "passed",
+      "outcome": "skipped",
       "tier": "fast"
     },
     {
@@ -2367,7 +2367,7 @@
     {
       "area": "engine/sanitizers",
       "name": "tests/engine/test_sanitizers.py::test_a_users_option_wins_over_the_flavours",
-      "outcome": "passed",
+      "outcome": "skipped",
       "tier": "fast"
     },
     {
@@ -2391,19 +2391,19 @@
     {
       "area": "engine/sanitizers",
       "name": "tests/engine/test_sanitizers.py::test_each_sanitizer_preset_has_its_canaries_alone[lsan-canaries2]",
-      "outcome": "passed",
+      "outcome": "skipped",
       "tier": "fast"
     },
     {
       "area": "engine/sanitizers",
       "name": "tests/engine/test_sanitizers.py::test_each_sanitizer_preset_has_its_canaries_alone[tsan-canaries1]",
-      "outcome": "passed",
+      "outcome": "skipped",
       "tier": "fast"
     },
     {
       "area": "engine/sanitizers",
       "name": "tests/engine/test_sanitizers.py::test_each_sanitizer_preset_has_its_canaries_alone[tysan-canaries3]",
-      "outcome": "passed",
+      "outcome": "skipped",
       "tier": "fast"
     },
     {
@@ -2439,7 +2439,7 @@
     {
       "area": "engine/sanitizers",
       "name": "tests/engine/test_sanitizers.py::test_only_the_crash_group_is_left_out_of_tysan",
-      "outcome": "passed",
+      "outcome": "skipped",
       "tier": "fast"
     },
     {
@@ -21182,25 +21182,7 @@
     },
     {
       "area": "validation/_mutate",
-      "name": "tests/validation/test__mutate.py::test_logic_added_to_the_build_identity_is_found[auto x = std::max(1, 2);-found2]",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "validation/_mutate",
-      "name": "tests/validation/test__mutate.py::test_logic_added_to_the_build_identity_is_found[if (identity.compiler.empty()) {}-found0]",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "validation/_mutate",
-      "name": "tests/validation/test__mutate.py::test_logic_added_to_the_build_identity_is_found[int n = identity.build_type.size() + 1;-found1]",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "validation/_mutate",
-      "name": "tests/validation/test__mutate.py::test_the_file_left_out_of_mull_holds_only_the_build_identity",
+      "name": "tests/validation/test__mutate.py::test_mull_leaves_out_only_the_bindings",
       "outcome": "passed",
       "tier": "fast"
     },

@@ -102,8 +102,9 @@ SYSTEM_NAMES = frozenset(
 )
 """The libraries ``_duckdb`` may link by ``-l`` name: the system's own."""
 
-OURS = ("engine/src", "engine/extension", "<build>/headers_alone")
-"""sqlearn's own code, and the headers-alone units the build generates."""
+OURS = ("engine/src", "engine/extension", "<build>/headers_alone", "<build>/generated")
+"""sqlearn's own code, the headers-alone units the build generates, and the
+headers it writes (the build identity, engine/cmake/build_identity.hpp.in)."""
 
 SYSTEM = (
     "/Library/Developer/",
