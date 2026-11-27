@@ -1,0 +1,552 @@
+"""The module's fingerprints: one per C++ group, and a shared part.
+
+The wheel's binary holds every C++ group, so what a Python test or runner
+reads of it is the groups it uses and what every group runs with. A
+**group's fingerprint** is the SHA-256 of, sorted:
+
+- the compile entry of each of its sources (``compile_commands.json`` of the
+  wheel's build), its argv with the checkout's place taken out, so a flag
+  that changes reruns it and a CMake comment does not;
+- ``stripped()`` of every C++ file under its directory, and of every file
+  its compile entries read inside the build directory (generated headers
+  such as ``build_identity.hpp``): its code without comments but with its
+  line numbers, since a line reaches users (a ``PreconditionError`` names
+  its file and line), so a comment that adds a line reruns it and one
+  edited within its lines does not;
+- ``stripped()`` of a header its sources read under ``engine/src`` in no
+  group's nor shared directory, fail safe;
+- the fingerprints of the groups it depends on: those the manifest names,
+  and any whose header its sources read. A header under another group's
+  directory counts for that group only, and reaches this one through it.
+
+The **shared part** is the SHA-256 of ``stripped()`` of every C++ file under
+the shared directories (the bindings, the extension), the submodules' pins
+under ``engine/``, ``pyproject.toml``'s ``[build-system]`` and
+``[tool.scikit-build]`` tables, the compiler as it is now
+(``_ctest.compiler``) and the module's link command, which carries the flags
+of no source. CMake files are never read: what they say reaches the
+fingerprint only through what they make the build do.
+
+Whatever cannot be read (no manifest, no ``compile_commands.json``, no link
+command, a listed file missing, a source no compile entry builds, no clang)
+raises ``Unreadable``, whose message is printed as the reason everything
+reruns.
+"""
+
+import hashlib
+import json
+import re
+import shlex
+import shutil
+import subprocess
+import sys
+import tomllib
+from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+from validation import _checks, _ctest
+
+WHEEL_BUILD = Path("build/cpython-312")
+"""The wheel's build directory, relative to the repository's root."""
+
+MANIFEST = "sq_groups.json"
+"""The manifest CMake writes in a build directory: the groups and their claims."""
+
+MODULE = "_duckdb"
+"""The Ninja target of the module, whose link command is part of the shared part."""
+
+LLVM_CLANG = Path("/opt/homebrew/opt/llvm/bin/clang")
+"""Homebrew LLVM's clang, preferred to strip comments (keg-only, off PATH)."""
+
+CPP_SUFFIXES = frozenset(
+    {".c", ".cc", ".cpp", ".cxx", ".mm", ".h", ".hh", ".hpp", ".hxx", ".inc", ".ipp"}
+)
+"""The suffixes of the C++ files under a directory, sources and headers."""
+
+SOURCE_SUFFIXES = frozenset({".c", ".cc", ".cpp", ".cxx", ".mm"})
+"""The suffixes of the files a compile entry must list."""
+
+_BUILD_ENVIRONMENT = re.compile(r"[^\s:=@]*/builds-v0/\.tmp[^/\s]+")
+"""uv's isolated build environment, at a new random path each build.
+
+What it holds is pinned by ``[build-system]``, which the shared part hashes.
+"""
+
+_TOKEN = (
+    r"^(\w+) +'(.*?)'[\t ]+(?:\[.*?\][\t ]*)*"
+    r"Loc=<{name}:(\d+):\d+>(?=[\t ]*(?:\[|$))"
+)
+"""One token of clang's ``-dump-raw-tokens``: its kind, its text and its line.
+
+Homebrew LLVM prints the flags after the location and escapes a newline in
+a token's text; Apple's clang prints them before it, the newline as it is.
+The location names the file lexed, ``{name}``, so a token's text holding
+something like a location is read whole.
+"""
+
+_SPACE = re.compile(r"(?:\s|\\[ntrvf])*")
+"""The text of a whitespace token, escaped or not."""
+
+_GAP = re.compile(r"(?:\s+|\[UnClean='.*?'\]|\[\w+\])*", re.DOTALL)
+"""What may lie between two tokens of the dump: the flags after a location.
+
+``UnClean`` holds a token's spelling before a backslash-newline is removed.
+"""
+
+
+class Unreadable(Exception):  # noqa: N818  (the name Tasks 3 to 7 use)
+    """What the fingerprints need could not be read; its message says what."""
+
+
+@dataclass(frozen=True)
+class Group:
+    """One C++ group of the manifest, and the Python it claims.
+
+    Attributes
+    ----------
+    name : str
+        The group's name, as ``sq_add_group`` has it.
+    dir : str
+        Its directory, relative to the root (``engine/src/<name>``).
+    depends : tuple of str
+        The groups it is built on.
+    python_tests, validation, bench : tuple of str
+        The Python tests, validation runners and benchmarks that use it.
+    """
+
+    name: str
+    dir: str
+    depends: tuple[str, ...]
+    python_tests: tuple[str, ...]
+    validation: tuple[str, ...]
+    bench: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class Fingerprints:
+    """The module's fingerprints.
+
+    Attributes
+    ----------
+    shared : str
+        The SHA-256 of what every group runs with.
+    groups : dict of str to str
+        Each group's name with its fingerprint.
+    """
+
+    shared: str
+    groups: dict[str, str]
+
+
+def _strings(value: Any, what: str) -> tuple[str, ...]:
+    """Return `value` as strings, raising ``Unreadable`` when it is not a list."""
+    if not isinstance(value, list) or not all(isinstance(v, str) for v in value):
+        raise Unreadable(f"{what} is not a list of strings")
+    return tuple(value)
+
+
+def load(build: Path) -> tuple[dict[str, Group], tuple[str, ...]]:
+    """Return the groups of `build`'s manifest and its shared directories.
+
+    Parameters
+    ----------
+    build : Path
+        A configured build directory, holding ``MANIFEST``.
+
+    Returns
+    -------
+    tuple
+        Each group by its name, and the shared directories relative to the
+        root.
+
+    Raises
+    ------
+    Unreadable
+        The manifest is missing, is not JSON, or does not hold groups whose
+        ``depends`` name groups of it.
+    """
+    path = build / MANIFEST
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        raise Unreadable(f"{path} could not be read: {error}") from error
+    if not isinstance(data, dict) or not isinstance(data.get("groups"), list):
+        raise Unreadable(f"{path} holds no list of groups")
+    groups: dict[str, Group] = {}
+    for item in data["groups"]:
+        if not isinstance(item, dict) or not isinstance(item.get("name"), str):
+            raise Unreadable(f"{path}: a group with no name")
+        name = item["name"]
+        if not isinstance(item.get("dir"), str):
+            raise Unreadable(f"{path}: group {name} has no directory")
+        if name in groups:
+            raise Unreadable(f"{path}: group {name} appears twice")
+        groups[name] = Group(
+            name=name,
+            dir=item["dir"],
+            **{
+                key: _strings(item.get(key), f"{path}: group {name}'s {key}")
+                for key in ("depends", "python_tests", "validation", "bench")
+            },
+        )
+    for group in groups.values():
+        unknown = sorted(set(group.depends) - set(groups))
+        if unknown:
+            raise Unreadable(
+                f"{path}: group {group.name} depends on unknown {', '.join(unknown)}"
+            )
+    return groups, _strings(data.get("shared"), f"{path}'s shared directories")
+
+
+def _clang() -> list[str]:
+    """Return the argv of the clang that strips comments."""
+    if LLVM_CLANG.is_file():
+        return [str(LLVM_CLANG)]
+    if sys.platform == "darwin" and shutil.which("xcrun"):
+        return ["xcrun", "clang"]
+    found = shutil.which("clang")
+    if found is None:
+        raise Unreadable("no clang to strip the C++ files' comments: just doctor")
+    return [found]
+
+
+def stripped(path: Path) -> str:
+    """Return the C++ file `path` without its comments, its line numbers kept.
+
+    Through clang's raw lexer (``-dump-raw-tokens``: no macro expanded, no
+    include followed), one line per token: its line, its kind and its text.
+    A comment counts as whitespace, and a run of whitespace as one space, so
+    a comment edited within its lines leaves the result as it was, while one
+    that adds or removes a line moves the tokens after it. Never given a
+    CMake file.
+
+    Parameters
+    ----------
+    path : Path
+        A C++ source or header.
+
+    Returns
+    -------
+    str
+        The tokens, each as ``<line> <kind> <text>``, and ``space`` where
+        whitespace or a comment separates two of them.
+
+    Raises
+    ------
+    Unreadable
+        The file is missing, or clang is absent or cannot lex it.
+    """
+    if not path.is_file():
+        raise Unreadable(f"{path} is missing")
+    argv = [*_clang(), "-x", "c++", "-fsyntax-only", "-Xclang", "-dump-raw-tokens"]
+    try:
+        done = subprocess.run(
+            [*argv, path.name], cwd=path.parent, check=False, capture_output=True
+        )
+    except OSError as error:
+        raise Unreadable(f"clang could not run on {path}: {error}") from error
+    dump = done.stderr.decode("utf-8", errors="backslashreplace")
+    if done.returncode != 0:
+        raise Unreadable(f"clang could not lex {path}: {dump.strip()[:200]}")
+    lines = []
+    spaced = False
+    end = 0
+    tokens = re.compile(
+        _TOKEN.format(name=re.escape(path.name)), re.MULTILINE | re.DOTALL
+    )
+    for token in tokens.finditer(dump):
+        if not _GAP.fullmatch(dump, end, token.start()):
+            raise Unreadable(f"clang's tokens of {path} could not be read")
+        end = token.end()
+        kind, text, line = token.groups()
+        if kind == "comment" or (kind == "unknown" and _SPACE.fullmatch(text)):
+            spaced = True
+            continue
+        if spaced and lines:
+            lines.append("space")
+        spaced = False
+        lines.append(f"{line} {kind} {text}")
+    if not _GAP.fullmatch(dump, end):
+        raise Unreadable(f"clang's tokens of {path} could not be read")
+    return "\n".join(lines)
+
+
+def _normalised(argv: Sequence[str], root: Path) -> str:
+    """Return `argv` joined, with the checkout's and uv's places taken out."""
+    text = shlex.join(argv).replace(str(root), "<root>")
+    return _BUILD_ENVIRONMENT.sub("<build-environment>", text)
+
+
+def _files(directory: Path) -> list[Path]:
+    """Return the C++ files under `directory`, which must exist."""
+    if not directory.is_dir():
+        raise Unreadable(f"{directory} is missing")
+    return sorted(
+        p.resolve()
+        for p in directory.rglob("*")
+        if p.is_file() and p.suffix in CPP_SUFFIXES
+    )
+
+
+def _link_command(build: Path) -> list[str]:
+    """Return the module's link command: the last line Ninja prints for it."""
+    listing = _ctest._output(["ninja", "-C", str(build), "-t", "commands", MODULE])
+    lines = [line for line in (listing or "").splitlines() if line.strip()]
+    if not lines:
+        raise Unreadable(f"ninja gives no link command of {MODULE} in {build}")
+    return shlex.split(lines[-1])
+
+
+def _build_tables(root: Path) -> str:
+    """Return ``pyproject.toml``'s build tables as sorted JSON."""
+    path = root / "pyproject.toml"
+    try:
+        data = tomllib.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        raise Unreadable(f"{path} could not be read: {error}") from error
+    tables = {
+        "build-system": data.get("build-system"),
+        "tool.scikit-build": data.get("tool", {}).get("scikit-build"),
+    }
+    return json.dumps(tables, sort_keys=True)
+
+
+def _pins(root: Path) -> str:
+    """Return each submodule under ``engine/`` with the commit the tree pins."""
+    try:
+        links = _checks._gitlinks(["engine"], root)
+    except (OSError, subprocess.CalledProcessError) as error:
+        raise Unreadable(
+            f"git could not list the pins under engine/: {error}"
+        ) from error
+    return "\n".join(f"{name}\0{commit}" for name, commit in sorted(links.items()))
+
+
+def _digest(parts: Iterable[str]) -> str:
+    """Return the SHA-256 of `parts`, each ended by a NUL."""
+    sha = hashlib.sha256()
+    for part in parts:
+        sha.update(part.encode("utf-8", errors="surrogateescape") + b"\0")
+    return sha.hexdigest()
+
+
+class _Fingerprinter:
+    """The fingerprints of one build, each file stripped once."""
+
+    def __init__(
+        self,
+        root: Path,
+        build: Path,
+        groups: dict[str, Group],
+        shared: Sequence[str],
+    ) -> None:
+        self.root = root
+        self.build = build
+        self.groups = groups
+        self.shared_dirs = [(root / d).resolve() for d in shared]
+        self.engine_src = (root / "engine" / "src").resolve()
+        self.dirs = {name: (root / g.dir).resolve() for name, g in groups.items()}
+        self.texts: dict[Path, str] = {}
+        self.done: dict[str, str] = {}
+        self.entries = self._entries()
+
+    def _entries(self) -> list[_ctest.Entry]:
+        path = self.build / "compile_commands.json"
+        if not path.is_file():
+            raise Unreadable(f"{path} is missing")
+        try:
+            return _ctest._compile_entries(self.build)
+        except ValueError as error:
+            raise Unreadable(f"{path} could not be read: {error}") from error
+
+    def name(self, path: Path) -> str:
+        """Return `path` relative to the root, or to the build as ``<build>``."""
+        if path.is_relative_to(self.build):
+            return f"<build>/{path.relative_to(self.build).as_posix()}"
+        if path.is_relative_to(self.root):
+            return path.relative_to(self.root).as_posix()
+        return path.as_posix()
+
+    def text(self, path: Path) -> str:
+        """Return ``stripped(path)``, read once a run."""
+        if path not in self.texts:
+            self.texts[path] = stripped(path)
+        return self.texts[path]
+
+    def owner(self, path: Path) -> str | None:
+        """Return the group whose directory holds `path`, None for none."""
+        for name, directory in self.dirs.items():
+            if path.is_relative_to(directory):
+                return name
+        return None
+
+    def loose(self, path: Path) -> bool:
+        """Return whether `path` is under ``engine/src`` but in no directory.
+
+        No group nor shared directory holds it, so it counts, fail safe, for
+        each group that reads it.
+        """
+        return path.is_relative_to(self.engine_src) and not any(
+            path.is_relative_to(d) for d in self.shared_dirs
+        )
+
+    def group(self, name: str, seen: tuple[str, ...] = ()) -> str:
+        """Return the fingerprint of the group `name`."""
+        if name in self.done:
+            return self.done[name]
+        if name in seen:
+            raise Unreadable(f"the groups depend on each other: {' -> '.join(seen)}")
+        directory = self.dirs[name]
+        files = set(_files(directory))
+        depends = set(self.groups[name].depends)
+        parts = []
+        built = set()
+        for entry in self.entries:
+            here = Path(str(entry.get("directory", ".")))
+            source = (here / str(entry.get("file", ""))).resolve()
+            if not source.is_relative_to(directory):
+                continue
+            built.add(source)
+            parts.append(
+                f"entry\0{self.name(source)}\0"
+                f"{_normalised(_ctest._arguments(entry), self.root)}"
+            )
+            read = _ctest._read_by_compiler(entry)
+            if read is None:
+                raise Unreadable(f"the compiler cannot list what {source} reads")
+            for found in (p.resolve() for p in read):
+                owner = self.owner(found)
+                if owner is not None and owner != name:
+                    depends.add(owner)
+                elif (
+                    owner == name
+                    or found.is_relative_to(self.build)
+                    or self.loose(found)
+                ):
+                    files.add(found)
+        unbuilt = sorted(
+            p
+            for p in files - built
+            if p.suffix in SOURCE_SUFFIXES and p.is_relative_to(directory)
+        )
+        if unbuilt:
+            raise Unreadable(
+                f"{', '.join(self.name(p) for p in unbuilt)}: no compile entry of "
+                f"{self.build / 'compile_commands.json'} builds it"
+            )
+        parts.sort()
+        parts.extend(f"file\0{self.name(p)}\0{self.text(p)}" for p in sorted(files))
+        depends.discard(name)
+        parts.extend(
+            f"depends\0{d}\0{self.group(d, (*seen, name))}" for d in sorted(depends)
+        )
+        self.done[name] = _digest(parts)
+        return self.done[name]
+
+    def shared(self, directories: Sequence[str]) -> str:
+        """Return the SHA-256 of what every group runs with."""
+        parts = []
+        for directory in sorted(directories):
+            parts.extend(
+                f"file\0{self.name(p)}\0{self.text(p)}"
+                for p in _files((self.root / directory).resolve())
+            )
+        parts.append(f"pins\0{_pins(self.root)}")
+        parts.append(f"build tables\0{_build_tables(self.root)}")
+        parts.append(f"compiler\0{_ctest.compiler(self.build)}")
+        parts.append(f"link\0{_normalised(_link_command(self.build), self.root)}")
+        return _digest(parts)
+
+
+def fingerprints(root: Path, build: Path) -> Fingerprints:
+    """Return the module's fingerprints as `build` builds it from `root`.
+
+    Parameters
+    ----------
+    root : Path
+        The repository's working tree.
+    build : Path
+        The module's build directory, relative to `root` or absolute
+        (``WHEEL_BUILD``).
+
+    Returns
+    -------
+    Fingerprints
+        The shared part and each group's fingerprint.
+
+    Raises
+    ------
+    Unreadable
+        The manifest, ``compile_commands.json``, the link command or a listed
+        file is missing, or a source no compile entry builds.
+    """
+    root = root.resolve()
+    build = (root / build).resolve()
+    groups, shared = load(build)
+    making = _Fingerprinter(root, build, groups, shared)
+    prints = {name: making.group(name) for name in sorted(groups)}
+    return Fingerprints(shared=making.shared(shared), groups=prints)
+
+
+def closure(groups: dict[str, Group], names: Iterable[str]) -> set[str]:
+    """Return the groups `names` and every group they depend on, transitively.
+
+    Parameters
+    ----------
+    groups : dict of str to Group
+        The manifest's groups.
+    names : iterable of str
+        The groups used.
+
+    Returns
+    -------
+    set of str
+        The names, with their dependencies.
+
+    Raises
+    ------
+    Unreadable
+        A name is no group of the manifest.
+    """
+    found: set[str] = set()
+    pending = list(names)
+    while pending:
+        name = pending.pop()
+        if name in found:
+            continue
+        if name not in groups:
+            raise Unreadable(f"no C++ group {name} in the manifest")
+        found.add(name)
+        pending.extend(groups[name].depends)
+    return found
+
+
+def identity(
+    prints: Fingerprints, groups: dict[str, Group], uses: Iterable[str] | None
+) -> str:
+    """Return the SHA-256 of the module as what uses `uses` reads it.
+
+    Parameters
+    ----------
+    prints : Fingerprints
+        The module's fingerprints.
+    groups : dict of str to Group
+        The manifest's groups.
+    uses : iterable of str or None
+        The groups used; None for every group (what no group claims).
+
+    Returns
+    -------
+    str
+        The SHA-256 of the shared part and the fingerprints of the groups'
+        closure.
+    """
+    chosen = set(groups) if uses is None else closure(groups, uses)
+    missing = sorted(chosen - set(prints.groups))
+    if missing:
+        raise Unreadable(f"no fingerprint of the group {', '.join(missing)}")
+    parts = [f"shared\0{prints.shared}"]
+    parts.extend(f"group\0{name}\0{prints.groups[name]}" for name in sorted(chosen))
+    return _digest(parts)

@@ -2209,6 +2209,18 @@
       "tier": "fast"
     },
     {
+      "area": "engine/groups_manifest",
+      "name": "tests/engine/test_groups_manifest.py::test_every_source_directory_is_a_group_or_shared",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/groups_manifest",
+      "name": "tests/engine/test_groups_manifest.py::test_the_manifest_names_every_group",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
       "area": "engine/pins",
       "name": "tests/engine/test_pins.py::test_a_pin_is_a_full_commit_hash[SQ_CATCH2_COMMIT]",
       "outcome": "passed",
@@ -21021,6 +21033,102 @@
     {
       "area": "validation/_ctest",
       "name": "tests/validation/test__ctest.py::test_the_sanitizers_options_rerun_every_group",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_groups",
+      "name": "tests/validation/test__groups.py::test_a_code_change_in_b_leaves_a_alone",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_groups",
+      "name": "tests/validation/test__groups.py::test_a_comment_edited_within_its_line_keeps_every_fingerprint",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_groups",
+      "name": "tests/validation/test__groups.py::test_a_comment_inside_a_string_is_code",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_groups",
+      "name": "tests/validation/test__groups.py::test_a_comment_line_added_changes_its_group_and_those_built_on_it",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_groups",
+      "name": "tests/validation/test__groups.py::test_a_compile_flag_changes_the_group",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_groups",
+      "name": "tests/validation/test__groups.py::test_a_header_in_no_group_counts_for_each_group_reading_it",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_groups",
+      "name": "tests/validation/test__groups.py::test_a_header_of_a_group_not_depended_on_still_reaches_its_reader",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_groups",
+      "name": "tests/validation/test__groups.py::test_a_header_of_a_read_by_b_changes_both_once",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_groups",
+      "name": "tests/validation/test__groups.py::test_a_missing_manifest_or_compile_database_is_unreadable",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_groups",
+      "name": "tests/validation/test__groups.py::test_a_pin_build_table_or_compiler_changes_the_shared_part",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_groups",
+      "name": "tests/validation/test__groups.py::test_a_project_table_left_out_keeps_the_shared_part",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_groups",
+      "name": "tests/validation/test__groups.py::test_a_source_no_compile_entry_lists_is_unreadable",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_groups",
+      "name": "tests/validation/test__groups.py::test_closure_follows_depends",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_groups",
+      "name": "tests/validation/test__groups.py::test_identity_of_no_uses_covers_every_group",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_groups",
+      "name": "tests/validation/test__groups.py::test_the_link_command_changes_the_shared_part",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_groups",
+      "name": "tests/validation/test__groups.py::test_the_manifest_loads_as_groups",
       "outcome": "passed",
       "tier": "fast"
     },
