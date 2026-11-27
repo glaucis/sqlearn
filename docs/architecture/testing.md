@@ -126,11 +126,11 @@ passed run already checked.
 | `lint` | every file | each changed file: `ruff check` (Python), `typos` (every file), `rumdl check` (Markdown) |
 | `docstrings` | the Python files under `src/` | each changed file: `numpydoc lint`, `just check-docstring-args` |
 | `types` | every `*.py` and `*.pyi` file | the whole program: `ty check`, then `mypy` |
-| `test` | `src/`, `tests/`, `validation/`, `devdata/`, `engine/` (with its submodules' commits), every `conftest.py`, `docs/conf.py`, `docs/architecture/engine-inventory.md`, `.githooks/`, `commitlint.config.mjs` | the C++ groups whose program changed (below), then every test: the four passes (above) |
-| `sql` | `engine/extension/` (its `.test` files included), `engine/src/`, `engine/sqllogic/`, `engine/cmake/`, the CMake files and presets, duckdb-python's and `engine/third_party/`'s commits, `validation/_ctest.py`; the compiler's and the SDK's versions | the extension's SQL tests: `just test-sql` (below) |
+| `test` | the C++ groups' own identities, then each Python set's (see "Selecting by group", below) | the C++ groups whose program changed, then each Python set whose identity has no passed record |
+| `sql` | `engine/extension/` (its `.test` files included), `engine/sqllogic/`, `validation/_ctest.py`, the module's shared fingerprint and `core`'s; the compiler's and the SDK's versions | the extension's SQL tests: `just test-sql` (below) |
 | `tidy` | our C++ (`engine/src/`, `engine/tests/`, `engine/bench/`, `engine/extension/`), `engine/cmake/`, the CMake files and presets, `engine/.clang-tidy`, `engine/src/raw/.clang-tidy`, `engine/iwyu.imp`, the submodules' commits | the whole engine: `just tidy-engine` (clang-tidy with the static analyser), `just iwyu-engine` (include-what-you-use), `just headers-alone` |
-| `docs` | `docs/`, `src/`, `examples/` | the whole site: `just build-docs` |
-| `validate` | each runner's imported modules, `uv.lock`, `devdata/data/` | each changed runner, by its own records (below) |
+| `docs` | `docs/`, `src/`, `examples/`, the module's shared fingerprint and every group's | the whole site: `just build-docs` |
+| `validate` | each runner's imported modules, `uv.lock`, `devdata/data/`, its groups' fingerprints and the shared part | each changed runner, by its own records (below) |
 
 Every task also reads the settings: `pyproject.toml`, `uv.lock`,
 `.python-version` and the `justfile`, and each tool's own configuration file at
@@ -138,14 +138,14 @@ any depth (`pyproject.toml`, `ruff.toml`, `.ruff.toml`, `typos.toml`,
 `_typos.toml`, `.typos.toml`, `rumdl.toml`, `.rumdl.toml`, `mypy.ini`,
 `.mypy.ini`, `ty.toml`), so one added reruns every file it governs. `format`
 also reads `engine/.clang-format` and `.gersemirc`. `docs`, `types` and
-`docstrings` also read what the built module comes from (`ENGINE_BUILD`:
-`engine/src/`, `engine/extension/`, `engine/cmake/` and `engine/CMakeLists.txt`,
-the files uv rebuilds the module on, and the commit of every submodule under
-`engine/`: duckdb-python's and `third_party/`'s, cpptrace among them): the
-doctests run on it and ty and mypy read its stubs, so a DuckDB or cpptrace bump
-or a C++ edit reruns all of each. A test (`tests/checks/test_tasks.py`) fails
-when `ENGINE_BUILD` and uv's `cache-keys` disagree, or a submodule under
-`engine/` lies outside it. A tool from Homebrew, not `uv.lock` (clang-format,
+`docstrings` read what the built module comes from through its fingerprints
+(next section), not through the text of `engine/`: the doctests run on the
+module and ty and mypy read its stubs, so a change that alters the module reruns
+them, and a comment or a CMake comment does not. `docs`, `types` and
+`docstrings` take the module's whole identity (the shared part and every group);
+`sql` takes the shared part and `core`'s. This is `Task.module` in
+`validation/_checks.py`. A check records no pass when the module's fingerprints
+moved while it ran. A tool from Homebrew, not `uv.lock` (clang-format,
 clang-tidy, include-what-you-use, and the SDK), counts by its version: an
 upgrade reruns all of the tasks that use it.
 
@@ -394,6 +394,108 @@ file compiled in lies in a listed library, every licence is one ADR 0066
 allows, and `_duckdb` links nothing from outside its build. `just test` runs
 it as a test, and `just verify` runs it on its own.
 
+## Selecting by group
+
+A check reruns only what a change affects. The grain is the C++ **group**, an
+`sq_add_group(...)` in `engine/cmake/` (`core`, `raw`, `crash`, and each group
+the port adds). The spec is `docs/specs/selection-by-group.md`.
+
+### The manifest and the claims
+
+`sq_add_group` takes, besides its sources and `DEPENDS`, three lists of claims:
+`PYTHON_TESTS` (test directories or files), `VALIDATION` (runner names) and
+`BENCH` (benchmark names). The build writes them to `<build>/sq_groups.json`,
+the manifest, with each group's sources and links. A Python test, a runner or a
+benchmark that no group claims depends on every group: unknown means affected.
+Today only `core`, `raw` and `crash` exist, and the module loads `core` and
+installs `crash`'s handler at import, so every Python test and runner still
+depends on them all. The saving now is comments, docs and CMake text, and it
+grows with each group the port adds. `just audit-groups` (below) checks the
+claims.
+
+### The fingerprints
+
+`validation/_groups.py` computes, from the manifest and the build's
+`compile_commands.json`:
+
+- **One fingerprint per group**: its sources and every file its compile
+  entries read in the tree outside the submodules (a header of
+  `engine/include`, a generated one such as `build_identity.hpp`), each **with
+  its comments removed but its line numbers kept**, then its compile entries
+  with the checkout's place taken out, then the fingerprints of the groups it
+  depends on (closed over `DEPENDS` and the headers it reads). Comments are
+  stripped with clang's raw token dump (`-Xclang -dump-raw-tokens`; clang has
+  no `-fpreprocessed`). A line reaches users (a `PreconditionError` names its
+  file and line), so a comment edited within its line changes nothing, and a
+  comment that adds or removes a line reruns its group.
+- **The shared part**: every compile entry outside the groups (DuckDB's,
+  cpptrace's, nanobind's, the bindings', the extension's), the generated files
+  of the build directory, the submodules' pins, the build tables of
+  `pyproject.toml`, the compiler, the module's link line, and the closure of
+  the groups the bindings read. A change here reruns everything that uses the
+  module. sqlearn's version is cut to its release wherever it appears, so a
+  commit does not change it. When `-M` cannot list a source's headers, Ninja's
+  deps record is used; when neither can be read, or `compile_commands.json` is
+  missing, everything reruns, with a line saying why.
+
+A CMake comment reaches no fingerprint, because CMake files matter only
+through the compile entries, the link graph and the generated files they
+produce.
+
+### The Python sets
+
+The `test` task runs the C++ groups first, then the Python tests in **sets**
+(`validation/_pytest_sets.py`), each with its own identity and record:
+
+- **tooling**: `tests/checks`, `tests/githooks`, `tests/validation`,
+  `tests/engine`, `tests/docs`, `tests/devdata` and `tests/test_environment.py`.
+  It reads `src/sqlearn`, all of `engine/` as text (comments included: some
+  tests scan the C++ and the CMake files line by line, so a comment reruns it,
+  about a minute), `.clangd` and the module's whole fingerprint.
+- **`group:<name>`**: the tests a group claims, depending on that group's
+  fingerprint, the shared part and `src/`.
+- **unclaimed**: the tests no group claims, depending on every group.
+
+A pass that collects nothing is not a failure, unless all three collect
+nothing. `-n auto` and the slow tier work as in "The passes".
+
+### The other checks
+
+`Task.module` names the fingerprints a check reads: `docs`, `types` and
+`docstrings` the whole module's, `sql` the shared part and `core`'s. `tidy`,
+`format` and `lint` read source text, comments included (`NOLINT` is a comment).
+
+### What reruns for a change
+
+| Change | Reruns |
+|---|---|
+| a comment in `engine/cmake/warnings.cmake` | the tooling set only |
+| a comment edited within its line in `engine/src/core/error.cpp` | no Python set, no runner, no docs, no `sql` (`core`'s C++ tests and `tidy` read the text and may rerun) |
+| a comment line added to a `core` source | `core`'s tests and every Python set and runner (all use `core`) |
+| a compile flag, a pin, a build table, the compiler | everything that uses the module |
+
+### The audit
+
+`just audit-groups` (run by `just verify` after `validate-all`) builds a wheel
+whose C++ is instrumented with source-based coverage (`SQLEARN_AUDIT_COVERAGE`;
+DuckDB is not instrumented; the build has its own uv cache key), runs each
+declared test set and runner on it, and fails when one ran code of a group
+outside its declared groups and their links, naming the group to add. Code that
+runs when the module loads belongs to the shared part. It is the check that a
+claim is not too small; its first real run awaits Tomas's go-ahead.
+
+### Benchmarks
+
+`validation/_bench.py` gives each benchmark (an `engine/bench/` program, and a
+page's script under `validation/benchmarks/`) an identity of its claimed
+groups, its own files and the shared part. `just benchmarks-due` lists the
+benchmarks whose identity has no recorded run, with the time, cores and peak
+memory of the last run, and runs nothing. `just bench <name>` runs one, after
+Tomas's go-ahead (ADR 0072), builds the release preset only for a `bench_`
+program, and records the identity, the numbers and the load; the page is
+written by hand. The pages `explore-correlations`, `explore-larger-than-memory`
+and `generators-on-many-threads` have no script, so nothing lists them.
+
 ## The validation runners
 
 `just validate` (`python -m validation`) reruns a runner only when a file it
@@ -401,22 +503,23 @@ depends on changed since it last passed. Each runner runs in its own process,
 writes its `*.results.json` as before, and then saves a record: the SHA-256 of
 every module it imported from the repository (outside `.venv`), of `uv.lock` and
 of every file under `devdata/data/`, with the environment (`environment.json`'s
-fields: library versions, Python, the OS and its release, the machine, BLAS;
-and the digest of `ENGINE_BUILD`, the build tables of `pyproject.toml` and the
-compiler's version, so a module built from other inputs reruns every runner),
-the count of each result and whether every sqlearn case passed. The hashes are
-taken before the runner is imported: a file it loaded that changed while it ran,
-or was not there before, saves no passed record, printing `not recorded` and the
-files, so results of the old code are never recorded as the new code's. A record
-file that cannot be read or parsed counts as absent. The next run skips a
-runner, printing `unchanged since a passed run` and leaving its results file
-alone, when the newest record with the same environment and every file it names
-present with the same hash passed. A run with a failing case reruns every time,
-and it cancels any earlier pass of the same inputs. `environment.json` is
-written when any runner ran. The code is `validation/_record.py`. A file
-under `engine/` the module is not built from (a C++ test, a fuzz input, a
-benchmark, `engine/sqllogic/`, `mull.yml`, a tool's settings, the presets)
-keeps every record.
+fields: library versions, Python, the OS and its release, the machine, BLAS) and
+the key `groups`: the fingerprints of the groups the runner claims, or of all
+when no group claims it, and the shared part (an old record keyed `engine`
+reruns once), the count of each result and whether every sqlearn case passed.
+The hashes are taken before the runner is imported: a file it loaded that
+changed while it ran, or was not there before, saves no passed record, printing
+`not recorded` and the files, so results of the old code are never recorded as
+the new code's. A record file that cannot be read or parsed counts as absent.
+The next run skips a runner, printing `unchanged since a passed run` and leaving
+its results file alone, when the newest record with the same environment and
+every file it names present with the same hash passed. A run with a failing case
+reruns every time, and it cancels any earlier pass of the same inputs.
+`environment.json` is written when any runner ran. A runner records no pass if
+its groups' fingerprints moved while it ran. The code is
+`validation/_record.py`. A change to a comment or to anything the module is not
+built from (a C++ test, a fuzz input, a benchmark, `engine/sqllogic/`,
+`mull.yml`, a tool's settings, the presets, a CMake comment) keeps every record.
 
 The records live in `sqlearn-validation/` in git's common directory (`git
 rev-parse --git-common-dir`), one JSON file per runner holding its 20 newest.
