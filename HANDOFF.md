@@ -27,6 +27,25 @@ None.
 
 ## Next up
 
+- Follow-ups of selecting by group (Tomas, 2026-11-27: after it merges,
+  before Phase 1 step 3 or beside it):
+  - Move `release()` (the version rule) out of `validation/_groups.py`
+    into a file of its own that `_cases.py` and `_groups.py` both import:
+    every runner imports `_groups` only for it, so an edit of the
+    fingerprint code reruns all 21 runners (about 47 min).
+  - `engine/sqllogic/CMakeLists.txt` gives `sq_test_data(sqllogic ...)`
+    only the `.test` files: add every file under `engine/extension/test`
+    (a `GLOB_RECURSE`), or a data file beside a `.test` reruns the `sql`
+    task while `_ctest` skips the label. Latent: one `.test` file today;
+    before the first data file lands.
+  - Record each validation runner's wall time (and the split between the
+    exact maths, the references and sqlearn) in its record, to see where
+    the 47 minutes go.
+  - Then move as much of the validation as can go to C++ (the exact
+    maths, for example with Boost.Multiprecision, the runner code, the
+    case generation), keeping Python only where it calls scikit-learn,
+    numpy, scipy or pandas to compare; the heaviest runners first, by the
+    timing.
 - Windows needs its own crash handler (no POSIX signals there; the
   current one calls `sigaction`): write it when the Windows build starts
   (ADR 0069). For now macOS and Linux only (Tomas, 2026-11-26).
