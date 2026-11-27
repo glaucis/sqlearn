@@ -376,6 +376,16 @@ headers-alone:
 bench-engine: (build-engine "release")
     engine/build/release/bench/bench_buffer
 
+# List the benchmarks out of date (script or measured C++ groups changed since the last run) with their last time, cores and memory; runs none (ADR 0072)
+[group('test')]
+benchmarks-due:
+    uv run --locked python -m validation._bench due
+
+# Run one benchmark and record its time, cores, memory and load: only after Tomas's go-ahead, which names it, its time and its weight (ADR 0072)
+[group('test')]
+bench name:
+    uv run --locked python -m validation._bench run {{name}}
+
 # Print which C++26 features each compiler on this machine has, by its __cpp_* macros (spec §3.8's table); rerun after each Xcode or compiler update
 [group('maintain')]
 probe-cxx26:

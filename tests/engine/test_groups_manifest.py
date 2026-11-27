@@ -19,7 +19,7 @@ def _manifest() -> dict[str, Any]:
 
 
 def test_the_manifest_names_every_group() -> None:
-    """Each group is listed in definition order, with its dependencies."""
+    """Each group is listed in definition order, with its dependencies and claims."""
     groups = _manifest()["groups"]
     assert [g["name"] for g in groups] == ["core", "raw", "crash"]
     by_name = {g["name"]: g for g in groups}
@@ -28,8 +28,9 @@ def test_the_manifest_names_every_group() -> None:
     assert by_name["crash"]["depends"] == ["core", "raw"]
     for group in groups:
         assert group["dir"] == f"engine/src/{group['name']}"
-        for claim in ("python_tests", "validation", "bench"):
+        for claim in ("python_tests", "validation"):
             assert group[claim] == []
+        assert group["bench"] == (["buffer"] if group["name"] == "raw" else [])
 
 
 def test_every_source_directory_is_a_group_or_shared() -> None:

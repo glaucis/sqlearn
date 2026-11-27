@@ -36,6 +36,11 @@ from validation.benchmarks.category_lookup import _machine
 from validation.benchmarks.gram_batches import _write
 from validation.benchmarks.gram_reach import _peak
 
+PAGE = "docs/benchmarks/engine-profile.md"
+"""The page of ``docs/benchmarks`` this script's numbers feed."""
+GROUPS: tuple[str, ...] | None = None
+"""The C++ groups it measures; None for every group (ADR 0072)."""
+
 ROWS = 1_000_000
 """The rows of every case."""
 

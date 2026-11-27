@@ -33,6 +33,11 @@ import sqlearn as sq
 from sqlearn._store import STORE
 from validation.benchmarks.category_lookup import _machine
 
+PAGE = "docs/benchmarks/median-reach.md"
+"""The page of ``docs/benchmarks`` this script's numbers feed."""
+GROUPS: tuple[str, ...] | None = None
+"""The C++ groups it measures; None for every group (ADR 0072)."""
+
 ROWS = 20_000_000
 """Rows read from Parquet in each learn."""
 

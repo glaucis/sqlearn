@@ -189,6 +189,7 @@ sq_add_group(
   SOURCES src/raw/buffer.cpp src/raw/fd_writer.cpp src/raw/fixed_text.cpp src/raw/images.cpp
   DEPENDS core
   TESTS tests/raw/test_buffer.cpp tests/raw/test_signal_safe.cpp
+  BENCH buffer
 )
 # The crash report: a handler for the fatal signals, written to a local file
 # with cpptrace's signal-safe stack trace, never sent anywhere (ADR 0006).

@@ -32,6 +32,11 @@ import sqlearn as sq
 from sqlearn._store import STORE
 from sqlearn.preprocessing._lookup import perfect_hash, position
 
+PAGE = "docs/benchmarks/category-lookup.md"
+"""The page of ``docs/benchmarks`` this script's numbers feed."""
+GROUPS: tuple[str, ...] | None = None
+"""The C++ groups it measures; None for every group (ADR 0072)."""
+
 SEED = 0
 """Every dataset comes from this seed: generated, never downloaded."""
 

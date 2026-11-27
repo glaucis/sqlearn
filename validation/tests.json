@@ -20623,6 +20623,42 @@
       "tier": "fast"
     },
     {
+      "area": "validation/_bench",
+      "name": "tests/validation/test__bench.py::test_a_changed_script_is_due_again",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_bench",
+      "name": "tests/validation/test__bench.py::test_a_program_a_group_claims_is_listed_by_its_group",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_bench",
+      "name": "tests/validation/test__bench.py::test_a_recorded_benchmark_is_not_due_until_its_group_changes",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_bench",
+      "name": "tests/validation/test__bench.py::test_due_lists_a_benchmark_never_run",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_bench",
+      "name": "tests/validation/test__bench.py::test_due_runs_nothing",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_bench",
+      "name": "tests/validation/test__bench.py::test_run_records_time_cores_memory_and_load",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
       "area": "validation/_cases",
       "name": "tests/validation/test__cases.py::test_a_case_records_every_field",
       "outcome": "passed",

@@ -37,6 +37,11 @@ from sqlearn._expr import quote
 from sqlearn._gram import batch_rows, gram_matrix
 from validation.benchmarks.category_lookup import _machine
 
+PAGE = "docs/benchmarks/gram-batches.md"
+"""The page of ``docs/benchmarks`` this script's numbers feed."""
+GROUPS: tuple[str, ...] | None = None
+"""The C++ groups it measures; None for every group (ADR 0072)."""
+
 SEED = 0
 """Every dataset comes from this seed: generated, never downloaded."""
 
