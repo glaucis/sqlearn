@@ -225,6 +225,7 @@ if(TARGET test_crash AND SQ_FLAVOR STREQUAL "coverage")
   target_compile_definitions(test_crash PRIVATE SQ_COVERAGE)
 endif()
 sq_build_identity(src/core/version.cpp)
+sq_write_groups_manifest()
 
 sq_add_headers_alone()
 
