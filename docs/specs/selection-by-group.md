@@ -67,7 +67,7 @@ every day, so this must land before its first group.
   `engine` digest of `ENGINE_BUILD`'s files and pins, the build tables and
   the compiler. Every runner imports `sqlearn`, which imports the whole
   package, so any change under `src/` or any input of the module reruns all
-  21 runners.
+  24 runners.
 - **Benchmarks**: none runs in a check; `just bench-engine` and the pages'
   scripts run by hand (ADR 0072).
 
@@ -217,7 +217,7 @@ reruns, and a fresh clone runs everything once anyway (spec's call).
 
 | Change | Reruns today | Reruns after |
 |---|---|---|
-| A comment in `engine/cmake/warnings.cmake` | the C++ groups, every Python test, all 21 runners | the tooling group (about a minute) |
+| A comment in `engine/cmake/warnings.cmake` | the C++ groups, every Python test, all 24 runners | the tooling group (about a minute) |
 | A comment edited within its line in `engine/src/core/error.cpp` | the same | nothing |
 | A comment line added to `engine/src/core/error.cpp` | the same | `core`'s C++ tests and every Python test and runner (all use `core`) |
 | A real change in `core` | the same | `core`'s C++ tests, every Python test and runner (all use `core`) |

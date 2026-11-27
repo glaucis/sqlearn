@@ -34,7 +34,7 @@ None. [verified]
   - Move `release()` (the version rule) out of `validation/_groups.py`
     into a file of its own that `_cases.py` and `_groups.py` both import:
     every runner imports `_groups` only for it, so an edit of the
-    fingerprint code reruns all 21 runners (about 47 min).
+    fingerprint code reruns all 24 runners (about 47 min).
   - `engine/sqllogic/CMakeLists.txt` gives `sq_test_data(sqllogic ...)`
     only the `.test` files: add every file under `engine/extension/test`
     (a `GLOB_RECURSE`), or a data file beside a `.test` reruns the `sql`
@@ -88,7 +88,7 @@ None. [verified]
 ## Dead ends and traps
 
 - Selecting by group (2026-11-27). Any edit of `validation/__main__.py`,
-  `_cases.py` or `_groups.py` reruns all 21 runners (about 47 min): group
+  `_cases.py` or `_groups.py` reruns all 24 runners (about 47 min): group
   edits to them into one commit. The first `just done` after a record's
   key changes reruns everything once. sqlearn's version carries the
   commit hash in `build_identity.hpp`, the extension's

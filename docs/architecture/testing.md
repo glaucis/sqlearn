@@ -1,9 +1,9 @@
 ---
-type: architecture
+type: guide
 tags: [testing, pytest, coverage, hooks, tiers, checks]
-summary: "Explains how tests are written, split into fast and slow tiers, how each check finds what changed and keeps its records, the hook tests, and coverage reporting in this project."
-related: [docs/architecture/layout.md, pyproject.toml, validation/_checks.py, validation/_record.py, validation/tests.json, validation/environment.json, tests/githooks/test_pre_commit.py, tests/githooks/test_pre_merge_commit.py]
-mdindex: [type=4ca303, related=1375d8]
+summary: "Explains how tests are written, split into fast and slow tiers, how each check finds what changed and keeps its records, selecting by group (the manifest, the fingerprints, the Python sets, the audit, the benchmarks due), the validation runners' records, the hook tests, and coverage reporting."
+related: [docs/architecture/layout.md, docs/architecture/validation.md, docs/specs/selection-by-group.md, pyproject.toml, validation/_checks.py, validation/_ctest.py, validation/_groups.py, validation/_pytest_sets.py, validation/_record.py, validation/_audit.py, validation/_bench.py, validation/tests.json, engine/cmake/groups.cmake, engine/.clang-format, ".gersemirc"]
+mdindex: [type=83ca68, related=7531b2]
 ---
 # Testing
 
@@ -505,6 +505,9 @@ written by hand. The pages `explore-correlations`, `explore-larger-than-memory`
 and `generators-on-many-threads` have no script, so nothing lists them.
 
 ## The validation runners
+
+What the validation checks, its results, runners and data:
+[Validation](validation.md). Here, how a runner is selected.
 
 `just validate` (`python -m validation`) reruns a runner only when a file it
 depends on changed since it last passed. Each runner runs in its own process,
