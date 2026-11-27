@@ -821,7 +821,8 @@ def run(task_name: str, root: Path, *, everything: bool = False) -> int:
     )
     if code != 0:
         return code
-    if digest(task, root, module) != whole:
+    # A fresh module identity: the first is cached, but C++ may have moved.
+    if digest(task, root) != whole:
         print(  # noqa: T201
             f"{task.name}: not recorded, its inputs changed while it ran", flush=True
         )

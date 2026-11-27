@@ -472,3 +472,30 @@ def test_full_validate_runs_every_runner(scratch):
     repo, env = scratch
     just(repo, env, "full", "validate")
     assert calls(env) == [["validate-all"]]
+
+
+def test_a_cpp_code_edit_while_a_check_runs_is_not_recorded(
+    scratch, monkeypatch, capsys
+):
+    """A step that edits a core code line mid-run: the module moved, so the
+    pass is not recorded and the next run runs again."""
+    repo, env = scratch
+    monkeypatch.setenv("PATH", env["PATH"])
+    source = repo / "engine" / "src" / "core" / "version.cpp"
+    edit = (
+        f"import pathlib; p = pathlib.Path({str(source)!r}); "
+        "p.write_text(p.read_text() + 'int moved;\\n')"
+    )
+    task = _checks.Task(
+        name="moves",
+        inputs=("docs",),
+        config=(),
+        steps=(_checks.Step((sys.executable, "-c", edit)),),
+        per_file=False,
+        module=None,
+    )
+    monkeypatch.setitem(_checks.TASKS, "moves", task)
+    capsys.readouterr()
+    assert _checks.run("moves", repo) == 0
+    assert "moves: not recorded" in capsys.readouterr().out
+    assert _checks.load(_checks.record_dir(repo), "moves") == []
