@@ -1,7 +1,7 @@
 """A runner's record: what it imported, hashed, and whether it passed."""
 
 import importlib
-import subprocess
+import json
 import sys
 from pathlib import Path
 
@@ -140,98 +140,86 @@ def test_a_failed_save_leaves_no_temporary_file(root, tmp_path, monkeypatch):
     assert list(records.iterdir()) == []
 
 
-@pytest.fixture
-def engine_repo(tmp_path, monkeypatch):
-    """A scratch git repository with an engine source and a build table."""
-    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
-    (tmp_path / "engine" / "src").mkdir(parents=True)
-    (tmp_path / "engine" / "src" / "a.cpp").write_text("int a;\n")
-    (tmp_path / "pyproject.toml").write_text(
-        '[build-system]\nrequires = ["nanobind==3.1.0"]\n\n'
-        '[project]\nname = "x"\n\n[tool.scikit-build]\nbuild-dir = "build"\n'
+def _claim(scratch, claims):
+    """Rewrite the manifest so each group of `claims` has these runners."""
+    path = scratch.build / "sq_groups.json"
+    data = json.loads(path.read_text())
+    for group in data["groups"]:
+        group["validation"] = claims.get(group["name"], [])
+    path.write_text(json.dumps(data))
+
+
+def test_a_comment_edit_keeps_every_runners_record(scratch):
+    """``// x`` becoming ``// y`` in a group moves no fingerprint."""
+    first = record_module.engine(scratch.root, "validate_x")
+    scratch.write("a/one.cpp", '#include "a/one.hpp"\n// y\nint one() { return 1; }\n')
+    assert record_module.engine(scratch.root, "validate_x") == first
+
+
+def test_a_claimed_runner_reruns_for_its_group_alone(scratch):
+    """``b`` claims GOOD, which also reads ``a`` (``b`` depends on it); ODD,
+    claimed by none, reads every group; ``a``'s own runner ignores ``b``."""
+    _claim(scratch, {"b": ["validate_good"], "a": ["validate_alone"]})
+    good, odd, alone = (
+        record_module.engine(scratch.root, name)
+        for name in ("validate_good", "validate_odd", "validate_alone")
     )
-    compiler = tmp_path / "cxx"
-    compiler.write_text("#!/bin/sh\necho 'clang version 1'\n")
-    compiler.chmod(0o755)
-    monkeypatch.setenv("CXX", str(compiler))
-    return tmp_path
+    scratch.write("b/two.cpp", '#include "a/one.hpp"\nint two() { return 2; }\n')
+    assert record_module.engine(scratch.root, "validate_good") != good
+    assert record_module.engine(scratch.root, "validate_odd") != odd
+    assert record_module.engine(scratch.root, "validate_alone") == alone
+    scratch.write("a/one.hpp", "#pragma once\nint one();\nint other();\n")
+    assert record_module.engine(scratch.root, "validate_good") != good
+    assert record_module.engine(scratch.root, "validate_alone") != alone
 
 
-def test_the_engine_digest_follows_what_the_module_is_built_from(engine_repo):
-    """An engine source, a submodule's pin, the build table or the compiler."""
-    first = record_module.engine(engine_repo)
-    assert record_module.engine(engine_repo) == first
-    pyproject = engine_repo / "pyproject.toml"
-    pyproject.write_text(pyproject.read_text().replace('"x"', '"y"'))
-    assert record_module.engine(engine_repo) == first, "outside the build table"
+def test_a_runner_is_named_by_its_modules_last_part(scratch):
+    """The manifest names ``validate_pca``, the runner is its dotted module."""
+    _claim(scratch, {"a": ["validate_pca"]})
+    name = "validation.sqlearn.decomposition.validate_pca"
+    first = record_module.engine(scratch.root, name)
+    scratch.write("b/two.cpp", '#include "a/one.hpp"\nint two() { return 2; }\n')
+    assert record_module.engine(scratch.root, name) == first
 
-    source = engine_repo / "engine" / "src" / "a.cpp"
-    source.write_text("int b;\n")
-    assert record_module.engine(engine_repo) != first
-    source.write_text("int a;\n")
 
-    pyproject.write_text(pyproject.read_text().replace('"build"', '"other"'))
-    assert record_module.engine(engine_repo) != first
-    pyproject.write_text(pyproject.read_text().replace('"other"', '"build"'))
-
-    compiler = engine_repo / "cxx"
-    compiler.write_text("#!/bin/sh\necho 'clang version 2'\n")
-    assert record_module.engine(engine_repo) != first
-    compiler.write_text("#!/bin/sh\necho 'clang version 1'\n")
-    assert record_module.engine(engine_repo) == first
-
-    pin = "0123456789abcdef0123456789abcdef01234567"
-    subprocess.run(
-        [
-            "git",
-            "update-index",
-            "--add",
-            "--cacheinfo",
-            f"160000,{pin},engine/third_party/sub",
-        ],
-        cwd=engine_repo,
-        check=True,
+def test_an_unreadable_build_reruns_every_runner(scratch, capsys):
+    """No manifest: the reason is printed, and no record matches."""
+    (scratch.build / "sq_groups.json").unlink()
+    environment = record_module.environment(dict(ENVIRONMENT), scratch.root, "x")
+    assert environment["groups"] == "unreadable"
+    assert "sq_groups.json" in capsys.readouterr().out
+    record = Record(
+        runner="x",
+        depends={},
+        environment=environment,
+        counts={"pass": 1},
+        passed=True,
     )
-    assert record_module.engine(engine_repo) != first
+    assert matching([record], scratch.root, environment) is None
 
 
-@pytest.mark.parametrize(
-    "outside",
-    [
-        "engine/tests/core/test_a.cpp",
-        "engine/fuzz/corpus/parse_version/seed",
-        "engine/bench/bench_a.cpp",
-        "engine/sqllogic/CMakeLists.txt",
-        "engine/mull.yml",
-        "engine/.clang-tidy",
-        "engine/CMakePresets.json",
-    ],
-)
-def test_a_file_the_module_is_not_built_from_is_the_same_engine(engine_repo, outside):
-    """A C++ test, a fuzz input, a benchmark, the SQL tests' build or a
-    tool's settings under engine/ builds no part of the module, so the
-    runners keep their records (only ENGINE_BUILD is digested)."""
-    first = record_module.engine(engine_repo)
-    path = engine_repo / outside
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("changed\n")
-    assert record_module.engine(engine_repo) == first
+def test_a_record_from_before_the_groups_is_rerun_once(scratch):
+    """A record keeping the old ``engine`` digest is no match; once the runner
+    ran again, its new record is."""
+    environment = record_module.environment(dict(ENVIRONMENT), scratch.root, "x")
+    old = Record(
+        runner="x",
+        depends={},
+        environment={**ENVIRONMENT, "engine": "0" * 64},
+        counts={"pass": 1},
+        passed=True,
+    )
+    assert matching([old], scratch.root, environment) is None
+    new = Record(
+        runner="x", depends={}, environment=environment, counts={"pass": 1}, passed=True
+    )
+    assert matching([old, new], scratch.root, environment) == new
 
 
-def test_a_build_requirement_bump_is_another_engine(engine_repo):
-    """A pinned build requirement is an input: its bump changes the digest."""
-    first = record_module.engine(engine_repo)
-    pyproject = engine_repo / "pyproject.toml"
-    pyproject.write_text(pyproject.read_text().replace("3.1.0", "3.1.1"))
-    assert record_module.engine(engine_repo) != first
-    pyproject.write_text(pyproject.read_text().replace("3.1.1", "3.1.0"))
-    assert record_module.engine(engine_repo) == first
-
-
-def test_a_records_environment_holds_the_engine_digest(engine_repo):
-    """The environment a record keeps is the base one, with the engine's."""
-    environment = record_module.environment(dict(ENVIRONMENT), engine_repo)
+def test_a_records_environment_holds_the_groups_identity(scratch):
+    """The environment a record keeps is the base one, with the identity."""
+    environment = record_module.environment(dict(ENVIRONMENT), scratch.root, "x")
     assert environment == {
         **ENVIRONMENT,
-        "engine": record_module.engine(engine_repo),
+        "groups": record_module.engine(scratch.root, "x"),
     }

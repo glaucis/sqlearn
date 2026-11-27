@@ -20468,7 +20468,13 @@
     },
     {
       "area": "validation/__main__",
-      "name": "tests/validation/test___main__.py::test_a_changed_engine_reruns_every_runner",
+      "name": "tests/validation/test___main__.py::test_a_change_outside_a_runners_groups_keeps_its_record",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/__main__",
+      "name": "tests/validation/test___main__.py::test_a_changed_group_reruns_every_runner_that_uses_it",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -20510,6 +20516,12 @@
     },
     {
       "area": "validation/__main__",
+      "name": "tests/validation/test___main__.py::test_an_unreadable_build_reruns_every_runner",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/__main__",
       "name": "tests/validation/test___main__.py::test_everything_reruns_every_runner",
       "outcome": "passed",
       "tier": "fast"
@@ -20523,6 +20535,12 @@
     {
       "area": "validation/__main__",
       "name": "tests/validation/test___main__.py::test_results_path_mirrors_the_runner",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/__main__",
+      "name": "tests/validation/test___main__.py::test_the_fingerprints_are_computed_once_a_run",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -21362,12 +21380,6 @@
     },
     {
       "area": "validation/_record",
-      "name": "tests/validation/test__record.py::test_a_build_requirement_bump_is_another_engine",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "validation/_record",
       "name": "tests/validation/test__record.py::test_a_changed_environment_breaks_the_match",
       "outcome": "passed",
       "tier": "fast"
@@ -21375,6 +21387,18 @@
     {
       "area": "validation/_record",
       "name": "tests/validation/test__record.py::test_a_changed_file_breaks_the_match",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_record",
+      "name": "tests/validation/test__record.py::test_a_claimed_runner_reruns_for_its_group_alone",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_record",
+      "name": "tests/validation/test__record.py::test_a_comment_edit_keeps_every_runners_record",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -21434,43 +21458,7 @@
     },
     {
       "area": "validation/_record",
-      "name": "tests/validation/test__record.py::test_a_file_the_module_is_not_built_from_is_the_same_engine[engine/.clang-tidy]",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "validation/_record",
-      "name": "tests/validation/test__record.py::test_a_file_the_module_is_not_built_from_is_the_same_engine[engine/CMakePresets.json]",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "validation/_record",
-      "name": "tests/validation/test__record.py::test_a_file_the_module_is_not_built_from_is_the_same_engine[engine/bench/bench_a.cpp]",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "validation/_record",
-      "name": "tests/validation/test__record.py::test_a_file_the_module_is_not_built_from_is_the_same_engine[engine/fuzz/corpus/parse_version/seed]",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "validation/_record",
-      "name": "tests/validation/test__record.py::test_a_file_the_module_is_not_built_from_is_the_same_engine[engine/mull.yml]",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "validation/_record",
-      "name": "tests/validation/test__record.py::test_a_file_the_module_is_not_built_from_is_the_same_engine[engine/sqllogic/CMakeLists.txt]",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "validation/_record",
-      "name": "tests/validation/test__record.py::test_a_file_the_module_is_not_built_from_is_the_same_engine[engine/tests/core/test_a.cpp]",
+      "name": "tests/validation/test__record.py::test_a_record_from_before_the_groups_is_rerun_once",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -21482,7 +21470,19 @@
     },
     {
       "area": "validation/_record",
-      "name": "tests/validation/test__record.py::test_a_records_environment_holds_the_engine_digest",
+      "name": "tests/validation/test__record.py::test_a_records_environment_holds_the_groups_identity",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_record",
+      "name": "tests/validation/test__record.py::test_a_runner_is_named_by_its_modules_last_part",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_record",
+      "name": "tests/validation/test__record.py::test_an_unreadable_build_reruns_every_runner",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -21501,12 +21501,6 @@
     {
       "area": "validation/_record",
       "name": "tests/validation/test__record.py::test_save_keeps_the_twenty_newest",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "validation/_record",
-      "name": "tests/validation/test__record.py::test_the_engine_digest_follows_what_the_module_is_built_from",
       "outcome": "passed",
       "tier": "fast"
     },

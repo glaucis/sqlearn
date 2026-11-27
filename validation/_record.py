@@ -5,8 +5,8 @@ module it imported from the repository, ``uv.lock`` (the libraries it ran
 with) and devdata's files (the data it read). A record holds their SHA-256
 hashes as they were before the runner was imported (``candidates``), the
 environment (``_cases.environment()``: the libraries, Python, the OS and its
-release, the machine, numpy's BLAS; with ``engine``, the digest of what the
-engine module is built from) and the counts of each result. A file
+release, the machine, numpy's BLAS; with ``groups``, the identity of the C++
+groups the runner uses, ``_groups.identity``) and the counts of each result. A file
 it loaded that changed while it ran, or was not there before, saves no
 passed record, so results of the old code are never recorded as the new
 code's. A runner is skipped when the newest record whose environment is the
@@ -20,16 +20,14 @@ a record is valid only while its hashes match, whichever worktree wrote it.
 import hashlib
 import json
 import os
-import shlex
 import subprocess
 import sys
 import tempfile
-import tomllib
 from collections.abc import Iterable, Sequence
 from pathlib import Path
 from typing import TypedDict
 
-from validation import _checks
+from validation import _groups
 
 KEPT = 20
 """How many records of each runner are kept, the newest."""
@@ -147,57 +145,56 @@ def digest(paths: Iterable[Path], root: Path) -> dict[str, str]:
     }
 
 
-def _compiler() -> str:
-    """Return the first line of the C++ compiler's ``--version``, or ``none``.
+UNREADABLE = "unreadable"
+"""The identity of a build that could not be read: no record matches it."""
 
-    The compiler CMake picks: ``CXX``, else ``c++``.
+
+def engine(root: Path, runner: str, prints: _groups.Fingerprints | None = None) -> str:
+    """Return the digest of the C++ groups `runner` runs with.
+
+    The identity (``_groups.identity``) of the groups whose ``validation``
+    names `runner` (the last part of its module name, ``validate_pca``) and
+    those they depend on; every group when none does. A change to a comment
+    or to a group it does not use leaves it, and so the runner's record,
+    alone. When the build cannot be read, the reason is printed and the
+    result is ``UNREADABLE``, which no record matches.
+
+    Parameters
+    ----------
+    root : Path
+        The repository.
+    runner : str
+        The runner's module name, or its last part.
+    prints : Fingerprints, optional
+        The module's fingerprints when already taken: they cost about 8 s,
+        so a caller asking for several runners takes them once.
+
+    Returns
+    -------
+    str
+        The identity, or ``UNREADABLE``.
     """
-    command = shlex.split(os.environ.get("CXX") or "c++")
+    name = runner.rsplit(".", 1)[-1]
+    build = _groups.WHEEL_BUILD
     try:
-        done = subprocess.run(
-            [*command, "--version"], capture_output=True, text=True, check=False
-        )
-    except OSError:
-        return "none"
-    return (done.stdout.splitlines() or ["none"])[0]
+        groups, _ = _groups.load(root.resolve() / build)
+        if prints is None:
+            prints = _groups.fingerprints(root, build)
+        claimed = [g.name for g in groups.values() if name in g.validation]
+        return _groups.identity(prints, groups, claimed or None)
+    except _groups.Unreadable as error:
+        print(f"{runner}: the C++ groups are unreadable: {error}", flush=True)  # noqa: T201
+        return UNREADABLE
 
 
-def engine(root: Path) -> str:
-    """Return the digest of what the engine module under `root` is built from.
-
-    The files of ``_checks.ENGINE_BUILD`` (what uv rebuilds the module on)
-    and the commit each submodule under it pins, as ``_checks`` digests a
-    task's inputs, so a C++ test, a fuzz input, a benchmark or a tool's
-    settings under ``engine/`` keeps every record; ``pyproject.toml``'s
-    ``[build-system]`` table (the build requirements, pinned exactly) and its
-    ``[tool.scikit-build]`` table; and the C++ compiler's version. A module
-    built from other inputs is another engine, so every runner reruns. Its
-    inputs, not the binary nor its version string: a rebuild of the same
-    inputs is the same engine, and the version stays ``2.0.1`` through any
-    edit of sqlearn's C++.
-    """
-    root = root.resolve()
-    files = _checks._listed(_checks.ENGINE_BUILD, root)
-    links = _checks._gitlinks(_checks.ENGINE_BUILD, root)
-    pyproject = root / "pyproject.toml"
-    project = (
-        tomllib.loads(pyproject.read_text(encoding="utf-8"))
-        if pyproject.is_file()
-        else {}
-    )
-    tables = {
-        "build-system": project.get("build-system", {}),
-        "scikit-build": project.get("tool", {}).get("scikit-build", {}),
-    }
-    sha = hashlib.sha256(_checks._combined(files, root, links).encode() + b"\0")
-    sha.update(json.dumps(tables, sort_keys=True).encode() + b"\0")
-    sha.update(_compiler().encode())
-    return sha.hexdigest()
-
-
-def environment(base: dict[str, str], root: Path) -> dict[str, str]:
-    """Return the environment a record keeps: `base`, with the engine's digest."""
-    return {**base, "engine": engine(root)}
+def environment(
+    base: dict[str, str],
+    root: Path,
+    runner: str,
+    prints: _groups.Fingerprints | None = None,
+) -> dict[str, str]:
+    """Return the environment a record keeps: `base`, with the groups' identity."""
+    return {**base, "groups": engine(root, runner, prints)}
 
 
 def record_dir(root: Path) -> Path:
@@ -228,8 +225,11 @@ def matching(
 
     Among the records whose environment equals `environment` and whose every
     file is present with the same hash, the newest decides: a failed run
-    cancels an earlier pass of the same inputs, so the runner reruns.
+    cancels an earlier pass of the same inputs, so the runner reruns. An
+    environment whose groups could not be read (``UNREADABLE``) matches none.
     """
+    if environment.get("groups") == UNREADABLE:
+        return None
     for record in reversed(records):
         if record["environment"] == environment and _unchanged(record["depends"], root):
             return record if record["passed"] else None
