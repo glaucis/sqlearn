@@ -1,5 +1,5 @@
 /// @file
-/// The messages of the C++ errors in sqlearn.
+/// The messages of sqlearn's C++ errors.
 #include "core/error.hpp"
 
 #include <format>
