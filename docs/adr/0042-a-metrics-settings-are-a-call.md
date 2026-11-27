@@ -2,12 +2,12 @@
 type: adr
 tags: [metrics, precision, recall, f1, averaging, api]
 summary: "Records that a metric's settings are given by calling it, which returns a configured copy (sq.metrics.f1(average=\"macro\")), and that the classification metrics count per class in one grouped DuckDB query and average those few counts in Python."
-related: [docs/specs/library-metrics.md, docs/adr/0003-scikit-learn-style-api.md, docs/adr/0022-one-search-with-pluggable-methods.md]
+related: [docs/specs/archived/library-metrics.md, docs/adr/0003-scikit-learn-style-api.md, docs/adr/0022-one-search-with-pluggable-methods.md]
 ---
 # 0042: A metric's settings are a call
 
 Status: accepted (2026-11-09). Written with the plan for the metrics area
-([spec](../specs/library-metrics.md) §3 and §5).
+([spec](../specs/archived/library-metrics.md) §3 and §5).
 
 ## Context
 

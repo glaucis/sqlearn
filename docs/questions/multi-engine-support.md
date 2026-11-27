@@ -3,7 +3,7 @@ type: question
 tags: [multi-engine, duckdb, sqlglot, polars, portability]
 summary: "Open question on running sqlearn on engines other than DuckDB, via transpiling SQL, sqlglot, or a second engine like Polars."
 mdindex: [type=1f5087, tags=97c05b, summary=a0b50b, related=5ec135]
-related: [docs/adr/0015-duckdb-expressions-no-sqlglot.md, docs/questions/earlier-attempts/README.md, docs/benchmarks/median-reach.md, docs/adr/0002-sql-on-duckdb-execution-engine.md, docs/adr/0005-runtime-dependencies.md, docs/adr/0057-numpy-is-a-runtime-dependency.md]
+related: [docs/adr/0015-duckdb-expressions-no-sqlglot.md, docs/questions/archived/earlier-attempts/README.md, docs/benchmarks/median-reach.md, docs/adr/0002-sql-on-duckdb-execution-engine.md, docs/adr/0005-runtime-dependencies.md, docs/adr/0057-numpy-is-a-runtime-dependency.md]
 ---
 # Should sqlearn run on engines other than DuckDB?
 
@@ -27,8 +27,8 @@ open until other engines are requested.
 
 ## What the earlier attempts show
 
-Evidence from the ten earlier attempts ([the map](earlier-attempts/README.md));
-the decision is still open.
+Evidence from the ten earlier attempts
+([the map](archived/earlier-attempts/README.md)); the decision is still open.
 
 - **sqlglot was used by most attempts and cost more than it gave:** version
   pins after a release produced 292 type errors, relaxed type checking, AST

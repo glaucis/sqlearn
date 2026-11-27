@@ -2,7 +2,7 @@
 type: spec
 tags: [exploration, eda, profiling, missing-values, correlations, cardinality]
 summary: "Spec for the first exploratory data analysis module (overview 3.6): sq.explore functions that run now on a dataset inside DuckDB (profile, histogram, top values, missing patterns, correlations) and return relations, checked against pandas and numpy."
-related: [docs/architecture/overview.md, docs/questions/earlier-attempts/sqlearn-v04/exploration-helpers.md, docs/adr/0002-sql-on-duckdb-execution-engine.md, docs/adr/0046-sqlearn-warns-the-user-chooses.md, docs/adr/0058-a-gram-step-builds-xtx-in-numpy.md]
+related: [docs/architecture/overview.md, docs/questions/archived/earlier-attempts/sqlearn-v04/exploration-helpers.md, docs/adr/0002-sql-on-duckdb-execution-engine.md, docs/adr/0046-sqlearn-warns-the-user-chooses.md, docs/adr/0058-a-gram-step-builds-xtx-in-numpy.md]
 ---
 # Exploratory data analysis: the module (`sq.explore`)
 

@@ -2,7 +2,7 @@
 type: adr
 tags: [search, folds, sql, cross-validation]
 summary: "Records that a fold scheme is an interface of SQL over the rows (splits, a stable key, numbered, training and held predicates), that value-dealt folds keep identical rows together, and that ADR 0038's row-position folds stay inside the target encoder."
-related: [docs/adr/0039-the-search-names-as-groups.md, docs/adr/0038-the-target-encoders-inner-folds-follow-row-position.md, docs/specs/library-model-selection.md]
+related: [docs/adr/0039-the-search-names-as-groups.md, docs/adr/0038-the-target-encoders-inner-folds-follow-row-position.md, docs/specs/archived/library-model-selection.md]
 ---
 # 0040: Fold schemes as SQL over rows
 

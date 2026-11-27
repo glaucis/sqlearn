@@ -2,7 +2,7 @@
 type: adr
 tags: [fit, learn, pipeline, sql, static, dynamic]
 summary: "Records how learning runs: every step is static or dynamic, and learn chains static steps into one SQL tree, running once per dynamic step."
-related: [docs/questions/fit-execution-model.md, docs/questions/earlier-attempts/README.md, docs/adr/0002-sql-on-duckdb-execution-engine.md]
+related: [docs/questions/archived/fit-execution-model.md, docs/questions/archived/earlier-attempts/README.md, docs/adr/0002-sql-on-duckdb-execution-engine.md]
 ---
 # 0012: Static and dynamic steps decide how learning runs
 
@@ -20,9 +20,9 @@ from the imputed values.
 Every earlier attempt that designed this computed the learning steps' values
 side by side over the raw input, so `Impute` then `Scale` scaled un-imputed
 data, and no test caught it
-([earlier attempts](../questions/earlier-attempts/README.md)). They used
-"static" and "dynamic" in two incompatible senses
-([how the terms were used](../questions/earlier-attempts/static-dynamic.md)).
+([earlier attempts](../questions/archived/earlier-attempts/README.md)). They
+used "static" and "dynamic" in two incompatible senses
+([how the terms were used](../questions/archived/earlier-attempts/static-dynamic.md)).
 Checked on DuckDB 2.0.0: a chain of stages in one `WITH` query gives
 scikit-learn's answer and stays fast (24 stages in 0.01 s), because DuckDB
 materialises a stage read more than once.

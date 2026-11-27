@@ -2,7 +2,7 @@
 type: adr
 tags: [compute-libraries, accelerate, openblas, metal, float64, gpu, architecture-decision]
 summary: "Records that float64 runs on the CPU (Accelerate on macOS, OpenBLAS elsewhere), that MLX is left out, that GPU kernels are written in Metal and compiled ahead of time, and that -ffast-math is never used."
-related: [docs/adr/0060-a-native-engine-in-cpp-inside-duckdb.md, docs/adr/0061-sqlearn-ships-its-own-duckdb-build.md, docs/adr/0062-apple-silicon-first.md, docs/specs/native-engine.md, docs/questions/engine-compute-libraries.md]
+related: [docs/adr/0060-a-native-engine-in-cpp-inside-duckdb.md, docs/adr/0061-sqlearn-ships-its-own-duckdb-build.md, docs/adr/0062-apple-silicon-first.md, docs/specs/native-engine.md, docs/questions/archived/engine-compute-libraries.md]
 ---
 # 0063: The engine's compute libraries: Accelerate, OpenBLAS and Metal
 
@@ -15,7 +15,7 @@ Status: accepted (2026-11-21). Decided by Tomas on 2026-11-21 with the
 The engine needs matrix and special-function routines. Results are checked
 in float64. Metal has no float64, so nothing on Apple's GPU has it. The
 research is in [the compute libraries
-question](../questions/engine-compute-libraries.md).
+question](../questions/archived/engine-compute-libraries.md).
 
 Measured on the M3:
 

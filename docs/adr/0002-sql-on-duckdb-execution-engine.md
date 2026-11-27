@@ -2,7 +2,7 @@
 type: adr
 tags: [sql, duckdb, execution-engine, sqlearn, preprocessing]
 summary: "Decides that every sqlearn step is expressed as SQL and executed by DuckDB, noting amendments by ADR 0058 and ADR 0060."
-related: [docs/adr/0058-a-gram-step-builds-xtx-in-numpy.md, docs/adr/0060-a-native-engine-in-cpp-inside-duckdb.md, docs/questions/multi-engine-support.md, docs/questions/fit-execution-model.md]
+related: [docs/adr/0058-a-gram-step-builds-xtx-in-numpy.md, docs/adr/0060-a-native-engine-in-cpp-inside-duckdb.md, docs/questions/multi-engine-support.md, docs/questions/archived/fit-execution-model.md]
 mdindex: [type=0fc814, tags=ef3cdd, summary=20c5df, related=8171d4]
 ---
 # 0002: SQL on DuckDB as the execution engine
@@ -40,4 +40,4 @@ is an open question:
 - The generated SQL is a first-class output that users can inspect and run.
 - Learning statistics (`fit`) and applying them (`transform`) are both SQL,
   but they may need separate queries. See
-  [questions/fit-execution-model.md](../questions/fit-execution-model.md).
+  [questions/fit-execution-model.md](../questions/archived/fit-execution-model.md).

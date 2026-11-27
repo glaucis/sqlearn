@@ -2,7 +2,7 @@
 type: adr
 tags: [search, folds, groups, api, naming]
 summary: "Records that the search's names move into two groups, sq.search (callable, with grid, range and later random and optuna) and sq.folds (kfold and later the other schemes), as ADR 0034 did for the steps; sq.Model stays at the top level."
-related: [docs/adr/0034-a-grouped-api.md, docs/adr/0022-one-search-with-pluggable-methods.md, docs/specs/library-model-selection.md]
+related: [docs/adr/0034-a-grouped-api.md, docs/adr/0022-one-search-with-pluggable-methods.md, docs/specs/archived/library-model-selection.md]
 ---
 # 0039: The search's names as groups
 

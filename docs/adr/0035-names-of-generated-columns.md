@@ -2,7 +2,7 @@
 type: adr
 tags: [columns, naming, encoders, onehot, duckdb, api]
 summary: "Records how steps name the columns they create: column_label, clashes numbered rather than refused, NULL as the missing category, case unified only by its own step, suffix= only where one column comes out per input."
-related: [docs/adr/0020-column-selectors.md, docs/adr/0034-a-grouped-api.md, docs/specs/library-preprocessing.md]
+related: [docs/adr/0020-column-selectors.md, docs/adr/0034-a-grouped-api.md, docs/specs/archived/library-preprocessing.md]
 ---
 # 0035: Names of generated columns
 

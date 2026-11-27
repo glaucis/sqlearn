@@ -2,13 +2,13 @@
 type: adr
 tags: [step-contract, target, cross-fitting, feature-selection, scikit-learn]
 summary: "Records that a step learning from the target need not cross-fit: 'learns from the target' and 'cross-fits' become two declarations, sq.encode.target keeps both, and the feature selectors of sq.select learn from the target once, as scikit-learn's SelectKBest.fit does."
-related: [docs/specs/library-feature-selection.md, docs/specs/library-preprocessing.md, docs/adr/0003-scikit-learn-style-api.md, docs/adr/0037-four-additions-to-the-step-contract.md]
+related: [docs/specs/archived/library-feature-selection.md, docs/specs/archived/library-preprocessing.md, docs/adr/0003-scikit-learn-style-api.md, docs/adr/0037-four-additions-to-the-step-contract.md]
 ---
 # 0055: A target step need not cross-fit
 
 Status: accepted (2026-11-19), with the
-[feature selection spec](../specs/library-feature-selection.md). Chosen by
-Tomas as option A on 2026-11-19; the alternatives are kept in
+[feature selection spec](../specs/archived/library-feature-selection.md). Chosen
+by Tomas as option A on 2026-11-19; the alternatives are kept in
 [#64](https://github.com/glaucis/sqlearn/issues/64).
 
 ## Context

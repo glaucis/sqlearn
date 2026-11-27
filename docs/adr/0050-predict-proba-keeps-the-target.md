@@ -2,12 +2,12 @@
 type: adr
 tags: [pipeline, predict-proba, api, metrics, scikit-learn]
 summary: "Records that Pipeline.predict_proba hands back the target beside one __sqlearn_proba_<i> column per class when the data holds it, unlike scikit-learn's predict_proba and sqlearn's own predict, so the probability metrics and curves read its result directly."
-related: [docs/specs/pipeline-predict-proba.md, docs/adr/0003-scikit-learn-style-api.md, docs/adr/0049-table-metrics-are-relations.md, docs/adr/0023-lazy-results-out-and-feed.md]
+related: [docs/specs/archived/pipeline-predict-proba.md, docs/adr/0003-scikit-learn-style-api.md, docs/adr/0049-table-metrics-are-relations.md, docs/adr/0023-lazy-results-out-and-feed.md]
 ---
 # 0050: predict_proba keeps the target
 
 Status: accepted (2026-11-14). Written with
-[the predict_proba spec](../specs/pipeline-predict-proba.md) (#59).
+[the predict_proba spec](../specs/archived/pipeline-predict-proba.md) (#59).
 
 ## Context
 

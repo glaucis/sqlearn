@@ -2,23 +2,23 @@
 type: adr
 tags: [migration, port, rewrite, tests, bindings, api, architecture-decision]
 summary: "Records that sqlearn is rewritten in C++ group by group rather than ported under its Python tests: the Python library is frozen and each group's Python and its tests are deleted once the C++ passes the validation and is not slower, and the sq. API may be improved freely before 1.0."
-related: [docs/adr/0067-how-computation-moves-to-the-engine.md, docs/adr/0060-a-native-engine-in-cpp-inside-duckdb.md, docs/adr/0016-validation-method.md, docs/adr/0003-scikit-learn-style-api.md, docs/specs/native-engine.md, docs/architecture/engine-inventory.md]
+related: [docs/adr/archived/0067-how-computation-moves-to-the-engine.md, docs/adr/0060-a-native-engine-in-cpp-inside-duckdb.md, docs/adr/0016-validation-method.md, docs/adr/0003-scikit-learn-style-api.md, docs/specs/native-engine.md, docs/architecture/engine-inventory.md]
 ---
 # 0070: sqlearn is rewritten in C++
 
 Status: accepted (2026-11-27). Decided by Tomas on 2026-11-27: he is happy
 to rewrite the whole library in C++, make new bindings and remove all the
 Python that is not needed, and left the rules to the agent. Supersedes
-[ADR 0067](0067-how-computation-moves-to-the-engine.md). Amended by
+[ADR 0067](archived/0067-how-computation-moves-to-the-engine.md). Amended by
 [ADR 0073](0073-the-old-python-moves-to-old-python.md) (2026-11-27): the old
 Python moves to `old_python/` at once, never run.
 
 ## Context
 
-[ADR 0067](0067-how-computation-moves-to-the-engine.md) ported the library
-under its Python: each piece of C++ had to pass the Python package's tests
-unchanged, a test of the public API could change only with an ADR, each test
-of a Python internal was rewritten before that internal was deleted, and
+[ADR 0067](archived/0067-how-computation-moves-to-the-engine.md) ported the
+library under its Python: each piece of C++ had to pass the Python package's
+tests unchanged, a test of the public API could change only with an ADR, each
+test of a Python internal was rewritten before that internal was deleted, and
 files saved before the port had to load after it. The Python stayed as the
 contract and the reference.
 

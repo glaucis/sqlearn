@@ -616,7 +616,7 @@ call). The numbers go on a benchmark page
 
 ### 5.4 The research
 
-[`docs/questions/engine-compute-libraries.md`](../questions/engine-compute-libraries.md):
+[`docs/questions/archived/engine-compute-libraries.md`](../questions/archived/engine-compute-libraries.md):
 the three research reports of 2026-11-21 merged, with their sources and the
 measurements on the M3. It is committed as ADR 0063's evidence and marked as
 answered by it.

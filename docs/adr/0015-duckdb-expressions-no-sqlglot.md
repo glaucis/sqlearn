@@ -14,14 +14,14 @@ Every step contributes a piece of SQL, and sqlearn stacks the pieces into one
 query of `WITH` stages ([ADR 0012](0012-static-and-dynamic-steps.md)). The
 pieces need a representation: something steps build and sqlearn composes.
 
-Most earlier attempts used sqlglot, chosen for "multi-database from day one".
-It cost version pins (one release produced 292 type errors), relaxed type
-checking, and SQL trees corrupted by reused nodes; its translation to other
-engines is syntax, not meaning (`STDDEV` is the sample form in DuckDB and the
-population form in MySQL), and no attempt ever ran on a second engine
-([earlier attempts](../questions/earlier-attempts/README.md)). Plain SQL text
-leaves quoting, number literals and NaN to every step, and hand-written rules
-for them drifted.
+Most earlier attempts used sqlglot, chosen for "multi-database from day one". It
+cost version pins (one release produced 292 type errors), relaxed type checking,
+and SQL trees corrupted by reused nodes; its translation to other engines is
+syntax, not meaning (`STDDEV` is the sample form in DuckDB and the population
+form in MySQL), and no attempt ever ran on a second engine
+([earlier attempts](../questions/archived/earlier-attempts/README.md)). Plain
+SQL text leaves quoting, number literals and NaN to every step, and hand-written
+rules for them drifted.
 
 DuckDB 2.0's Python package has its own expression objects (columns,
 constants, functions, `CASE`, `COALESCE`, arithmetic). They print as DuckDB

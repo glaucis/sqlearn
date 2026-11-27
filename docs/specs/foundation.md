@@ -2,7 +2,7 @@
 type: spec
 tags: [foundation, repository-layout, tooling, packaging, git-hooks, docs-site]
 summary: "Spec for sqlearn's repository skeleton: layout, packaging and versioning, quality gates, git hooks, docs toolchain, and conventions."
-related: [docs/architecture/overview.md, docs/plans/2026-11-03-foundation.md, docs/adr/README.md, docs/adr/0004-apache-2-licence.md, docs/adr/0011-curriculum-levels.md, docs/adr/0062-apple-silicon-first.md]
+related: [docs/architecture/overview.md, docs/plans/archived/2026-11-03-foundation.md, docs/adr/README.md, docs/adr/0004-apache-2-licence.md, docs/adr/0011-curriculum-levels.md, docs/adr/0062-apple-silicon-first.md]
 mdindex: [type=d4f02e, tags=c03d83, summary=e1a158]
 ---
 # Foundation
@@ -15,7 +15,7 @@ attempt's foundation spec, which Tomas approved section by section on
 2026-10-01. Everything that spec decided carries over unless §19 says
 otherwise; this file is complete on its own, and nothing here depends on the
 earlier repository. Plan:
-[plans/2026-11-03-foundation.md](../plans/2026-11-03-foundation.md).
+[plans/2026-11-03-foundation.md](../plans/archived/2026-11-03-foundation.md).
 
 How to read it:
 

@@ -117,7 +117,7 @@ None. [verified]
   `-std=c++26` is accepted with almost no C++26: test by `__cpp_*` macro.
   In zsh, `$flags` holding several flags is one word. (2026-11-21)
 - MLX was weighed and left out: float64 only on its CPU, `exp` and `erf`
-  in float32 there (`docs/questions/engine-compute-libraries.md`).
+  in float32 there (`docs/questions/archived/engine-compute-libraries.md`).
   (2026-11-21)
 - pytest-testmon misses code run at import, files read as data and
   compiled code: dropped for selection by group. A `-p` pytest plugin loads

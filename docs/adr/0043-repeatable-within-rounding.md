@@ -2,13 +2,13 @@
 type: adr
 tags: [search, repeatability, rounding, duckdb, threads, ties]
 summary: "Records that a seeded search is repeatable within rounding, not byte for byte: the same settings and best, each score within a measured bound of ULPs, because DuckDB's parallel sums of doubles round by thread order; scores within 16 ULPs of the best tie, the first tried winning."
-related: [docs/specs/library-model-selection.md, docs/adr/0016-validation-method.md, docs/adr/0022-one-search-with-pluggable-methods.md]
+related: [docs/specs/archived/library-model-selection.md, docs/adr/0016-validation-method.md, docs/adr/0022-one-search-with-pluggable-methods.md]
 ---
 # 0043: Repeatable within rounding
 
-Status: accepted (2026-11-09). Changes the model-selection spec's
-"Repeatable" line ([spec](../specs/library-model-selection.md) §9). Found
-as [#36](https://github.com/glaucis/sqlearn/issues/36).
+Status: accepted (2026-11-09). Changes the model-selection spec's "Repeatable"
+line ([spec](../specs/archived/library-model-selection.md) §9). Found as
+[#36](https://github.com/glaucis/sqlearn/issues/36).
 
 ## Context
 

@@ -2,7 +2,7 @@
 type: adr
 tags: [api, warnings, opt-in, defaults, refusals, principles]
 summary: "Records that sqlearn never changes on its own what the user asked for or the method a step uses: it keeps the default, raises a SqlearnWarning in the house form naming the better choice, and the user opts in; an explicit choice is never warned about."
-related: [docs/adr/0003-scikit-learn-style-api.md, docs/adr/0019-custom-steps-and-failure-feedback.md, docs/adr/0032-the-median-is-exact-by-sorting.md, docs/adr/0045-datasets-are-relations-built-in-sql.md]
+related: [docs/adr/0003-scikit-learn-style-api.md, docs/adr/0019-custom-steps-and-failure-feedback.md, docs/adr/0032-the-median-is-exact-by-sorting.md, docs/adr/archived/0045-datasets-are-relations-built-in-sql.md]
 ---
 # 0046: sqlearn warns, the user chooses
 

@@ -1,9 +1,9 @@
 ---
-type: note
-tags: [decision-records, adr, index, sqlearn, architecture]
-summary: "Index of sqlearn decision records (ADRs), grouped by topic such as tooling, execution in DuckDB, the API, and validation."
-mdindex: [type=edb465, tags=af7fe9, summary=e1bff3, related=14668e]
-related: [docs/adr/0001-uv-for-python-packaging.md, docs/adr/0004-apache-2-licence.md, docs/adr/0005-runtime-dependencies.md, docs/adr/0006-local-and-offline.md, docs/adr/0007-python-3-12-floor.md, docs/adr/0008-just-task-runner.md, docs/adr/0010-british-prose-american-identifiers.md, docs/adr/0025-results-stored-as-data-in-mirrored-folders.md]
+type: architecture
+tags: [adr, decisions, index, sqlearn, catalogue]
+summary: "Index of sqlearn architecture decision records, grouped by topic such as tooling, DuckDB execution, the native C++ engine, the API, and numerics."
+mdindex: [type=4ca303, tags=5eb697, summary=d97c88, related=3d970d]
+related: [docs/adr/0001-uv-for-python-packaging.md, docs/adr/0002-sql-on-duckdb-execution-engine.md, docs/adr/0003-scikit-learn-style-api.md, docs/adr/0060-a-native-engine-in-cpp-inside-duckdb.md, docs/adr/0070-sqlearn-is-rewritten-in-cpp.md, docs/adr/archived/0067-how-computation-moves-to-the-engine.md, docs/adr/0073-the-old-python-moves-to-old-python.md]
 ---
 
 # Decision records
@@ -40,7 +40,6 @@ Computation as SQL, and how a pipeline becomes runs.
 - [0018: Runs follow the chains between steps](0018-runs-follow-the-chains-between-steps.md)
 - [0058: A Gram step builds XᵀX in numpy](0058-a-gram-step-builds-xtx-in-numpy.md)
 - [0023: Lazy results, `out=` and `feed=`](0023-lazy-results-out-and-feed.md)
-- [0052: sqlearn's own tables live in `meta_sqlearn`](0052-meta-sqlearn.md)
 
 ## The native engine
 
@@ -53,8 +52,6 @@ sqlearn's computation in C++, inside its own DuckDB build.
 - [0064: The GPU runs by itself only when the answer is the same](0064-the-gpu-runs-by-itself-only-when-the-answer-is-the-same.md)
 - [0065: Safety rules for the C++](0065-safety-rules-for-the-cpp.md)
 - [0066: Permissive licences, never copyleft](0066-permissive-licences-never-copyleft.md)
-- [0067: The library is ported to C++ piece by piece](0067-how-computation-moves-to-the-engine.md)
-  (superseded by 0070)
 - [0068: sqlearn's own models, in the engine](0068-sqlearns-own-models.md)
 - [0069: The crash handler hands the fault on](0069-the-crash-handler-hands-the-fault-on.md)
 - [0070: sqlearn is rewritten in C++](0070-sqlearn-is-rewritten-in-cpp.md)
@@ -72,7 +69,6 @@ The verbs and conventions users write against.
 - [0026: A step without `cols=` works on every column](0026-a-step-without-cols-works-on-every-column.md)
 - [0034: A grouped API](0034-a-grouped-api.md)
 - [0035: Names of generated columns](0035-names-of-generated-columns.md)
-- [0045: Datasets are relations built in SQL](0045-datasets-are-relations-built-in-sql.md)
 - [0046: sqlearn warns, the user chooses](0046-sqlearn-warns-the-user-chooses.md)
 - [0053: sqlearn ships no datasets](0053-sqlearn-ships-no-datasets.md)
 - [0047: A pipeline saves as JSON](0047-a-pipeline-saves-as-json.md)
@@ -123,9 +119,22 @@ Accuracy, and how it is measured.
 - [0038: The target encoder's inner folds follow row position](0038-the-target-encoders-inner-folds-follow-row-position.md)
 - [0044: The standard deviation in two staged passes](0044-the-standard-deviation-in-two-staged-passes.md)
 
+## Archived
+
+Records that no longer hold: superseded, or about only the old Python. Each
+keeps its number; its status line says why it was archived.
+
+- [0045: Datasets are relations built in SQL](archived/0045-datasets-are-relations-built-in-sql.md):
+  `sq.datasets` was replaced by ADR 0053, and the code is in `old_python/`.
+- [0052: sqlearn's own tables live in `meta_sqlearn`](archived/0052-meta-sqlearn.md):
+  its tables were the dataset generators', now in `old_python/devdata/`.
+- [0067: The library is ported to C++ piece by piece](archived/0067-how-computation-moves-to-the-engine.md):
+  superseded by ADR 0070.
+
 ```{toctree}
 :hidden:
 :glob:
 
 0*
+archived/0*
 ```

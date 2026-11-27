@@ -2,7 +2,7 @@
 type: adr
 tags: [steps, step-contract, apply, apply_row, learned, keeps_inputs, labels]
 summary: "Records four additions the preprocessing build made to the step contract: label pairs from apply, the row values argument of apply_row, the Step.learned hook, and the keeps_inputs declaration."
-related: [docs/adr/0012-static-and-dynamic-steps.md, docs/adr/0019-custom-steps-and-failure-feedback.md, docs/adr/0028-a-step-returning-a-mapping-counts-as-dynamic.md, docs/adr/0035-names-of-generated-columns.md, docs/specs/library-preprocessing.md]
+related: [docs/adr/0012-static-and-dynamic-steps.md, docs/adr/0019-custom-steps-and-failure-feedback.md, docs/adr/0028-a-step-returning-a-mapping-counts-as-dynamic.md, docs/adr/0035-names-of-generated-columns.md, docs/specs/archived/library-preprocessing.md]
 ---
 # 0037: Four additions to the step contract
 

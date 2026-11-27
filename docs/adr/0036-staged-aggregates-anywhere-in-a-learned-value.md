@@ -2,7 +2,7 @@
 type: adr
 tags: [aggregates, median, quantile, mode, learn, compositor, larger-than-memory]
 summary: "Records that sq.agg's staged aggregates (quantiles, median, mode) may appear anywhere in a learned value, including inside another aggregate, which supersedes the part of ADR 0032 requiring a median marker to be a whole learned value."
-related: [docs/adr/0032-the-median-is-exact-by-sorting.md, docs/adr/0033-the-mean-is-summed-with-compensation.md, docs/specs/library-preprocessing.md]
+related: [docs/adr/0032-the-median-is-exact-by-sorting.md, docs/adr/0033-the-mean-is-summed-with-compensation.md, docs/specs/archived/library-preprocessing.md]
 ---
 # 0036: Staged aggregates anywhere in a learned value
 
@@ -60,4 +60,4 @@ a larger value reads are cross-joined into the learn stage's scan, and the
 standard deviation's passes cross-join only the stages their expressions read.
 Before, every source row carried every staged result: the target encoder's
 learning at 10,000 categories on 1,000,000 rows went from 46.8 s to 4.0 s
-(`docs/benchmarks/category-lookup.md`).
+(`docs/benchmarks/archived/category-lookup.md`).

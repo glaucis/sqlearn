@@ -2,7 +2,7 @@
 type: spec
 tags: [native-engine, phase-1, checks, duckdb-build, ci]
 summary: "Spec for the native engine's Phase 1: faster checks, sqlearn's DuckDB build with the C++ skeleton and bindings in one package, the C++ safety tools, workflows started by hand, the site on Pages, and the tool review."
-related: [docs/specs/native-engine.md, docs/architecture/workflow.md, docs/adr/0008-just-task-runner.md, docs/adr/0060-a-native-engine-in-cpp-inside-duckdb.md, docs/adr/0061-sqlearn-ships-its-own-duckdb-build.md, docs/adr/0062-apple-silicon-first.md, docs/adr/0065-safety-rules-for-the-cpp.md, docs/adr/0067-how-computation-moves-to-the-engine.md]
+related: [docs/specs/native-engine.md, docs/architecture/workflow.md, docs/adr/0008-just-task-runner.md, docs/adr/0060-a-native-engine-in-cpp-inside-duckdb.md, docs/adr/0061-sqlearn-ships-its-own-duckdb-build.md, docs/adr/0062-apple-silicon-first.md, docs/adr/0065-safety-rules-for-the-cpp.md, docs/adr/archived/0067-how-computation-moves-to-the-engine.md]
 ---
 # Native engine, Phase 1: the checks, the build, the tools
 

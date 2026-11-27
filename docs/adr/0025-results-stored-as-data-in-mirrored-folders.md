@@ -2,7 +2,7 @@
 type: adr
 tags: [validation, tests, benchmarks, results, layout, publishing]
 summary: "Records that every validation, test and benchmark result is stored as committed JSON with fixed names, in folders that mirror the package, so pages can publish all of it later."
-related: [docs/adr/0016-validation-method.md, docs/architecture/layout.md, docs/architecture/testing.md, docs/specs/library-core.md]
+related: [docs/adr/0016-validation-method.md, docs/architecture/layout.md, docs/architecture/testing.md, docs/specs/archived/library-core.md]
 ---
 # 0025: Results stored as data, in folders that mirror the package
 

@@ -22,8 +22,8 @@ generated from the runs. Two points stay open:
 
 ## What the earlier attempts show
 
-Evidence from the ten earlier attempts ([the map](earlier-attempts/README.md)),
-behind ADR 0016.
+Evidence from the ten earlier attempts
+([the map](archived/earlier-attempts/README.md)), behind ADR 0016.
 
 - **Precision:** the strongest designs used exact references at 50 digits
   (`mpmath`, `Decimal`) or `Fraction` for order statistics, compared every

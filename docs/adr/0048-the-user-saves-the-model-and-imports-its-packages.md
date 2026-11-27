@@ -2,7 +2,7 @@
 type: adr
 tags: [saving, loading, security, models, imports, api]
 summary: "Amends ADR 0047: the user saves and opens the trained model in any format and puts it back with use_model; sq.save writes only sqlearn's part; sq.load imports nothing and builds only steps, models and fold schemes from packages the user has imported; allow=, trust_model= and model='pickle' are removed."
-related: [docs/adr/0047-a-pipeline-saves-as-json.md, docs/adr/0003-scikit-learn-style-api.md, docs/adr/0004-apache-2-licence.md, docs/adr/0005-runtime-dependencies.md, docs/adr/0046-sqlearn-warns-the-user-chooses.md, docs/specs/library-saving.md]
+related: [docs/adr/0047-a-pipeline-saves-as-json.md, docs/adr/0003-scikit-learn-style-api.md, docs/adr/0004-apache-2-licence.md, docs/adr/0005-runtime-dependencies.md, docs/adr/0046-sqlearn-warns-the-user-chooses.md, docs/specs/archived/library-saving.md]
 ---
 # 0048: The user saves the model and imports its packages
 

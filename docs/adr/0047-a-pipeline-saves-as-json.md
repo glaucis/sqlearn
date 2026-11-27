@@ -2,7 +2,7 @@
 type: adr
 tags: [saving, json, serialisation, security, pickle, learning-store, api]
 summary: "Records that sq.save and sq.load write a pipeline's recipe and learned values as one JSON file with tagged values, never pickle, import only classes from allowed packages, key learned values by the store's stable key, and save a trained model only on request, by pickle in its own file with room for other formats."
-related: [docs/specs/library-saving.md, docs/adr/0003-scikit-learn-style-api.md, docs/adr/0005-runtime-dependencies.md, docs/adr/0006-local-and-offline.md, docs/adr/0014-learning-store.md, docs/adr/0021-inputs-and-how-the-store-knows-them.md, docs/adr/0046-sqlearn-warns-the-user-chooses.md]
+related: [docs/specs/archived/library-saving.md, docs/adr/0003-scikit-learn-style-api.md, docs/adr/0005-runtime-dependencies.md, docs/adr/0006-local-and-offline.md, docs/adr/0014-learning-store.md, docs/adr/0021-inputs-and-how-the-store-knows-them.md, docs/adr/0046-sqlearn-warns-the-user-chooses.md]
 ---
 # 0047: A pipeline saves as JSON
 
@@ -10,7 +10,7 @@ Status: accepted (2026-11-11); amended by
 [ADR 0048](0048-the-user-saves-the-model-and-imports-its-packages.md): the
 user saves the model and imports its packages, and `allow=`, `trust_model=`
 and `model=` are removed. Spec:
-[library saving](../specs/library-saving.md), sections 3, 5, 7 and 8.
+[library saving](../specs/archived/library-saving.md), sections 3, 5, 7 and 8.
 
 ## Context
 

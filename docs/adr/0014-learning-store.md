@@ -2,7 +2,7 @@
 type: adr
 tags: [learned-state, learn, apply, cross-validation, cache, pipeline]
 summary: "Records where learned values live: a store kept while the program runs, keyed by data, fold and steps, so nothing is learned twice and nothing is overwritten."
-related: [docs/adr/0012-static-and-dynamic-steps.md, docs/adr/0013-learn-apply-train-predict.md, docs/adr/0003-scikit-learn-style-api.md, docs/questions/earlier-attempts/README.md]
+related: [docs/adr/0012-static-and-dynamic-steps.md, docs/adr/0013-learn-apply-train-predict.md, docs/adr/0003-scikit-learn-style-api.md, docs/questions/archived/earlier-attempts/README.md]
 ---
 # 0014: Learned values live in a store while the program runs
 
@@ -20,7 +20,7 @@ values only on the step objects. Learning the same pipeline again, as
 cross-validation does for each fold, overwrote them; a fold's values could be
 applied to another fold; and every trial of a hyperparameter search learned
 the same preparation steps again
-([earlier attempts](../questions/earlier-attempts/README.md)).
+([earlier attempts](../questions/archived/earlier-attempts/README.md)).
 
 ## Decision
 

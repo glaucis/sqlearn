@@ -2,7 +2,7 @@
 type: question
 tags: [scikit-learn, api-design, survey, sqlearn, preprocessing]
 summary: "Open question on which parts of scikit-learn's API sqlearn should copy, adapt, or skip, based on earlier attempts."
-related: [docs/specs, docs/questions/earlier-attempts/README.md]
+related: [docs/specs, docs/questions/archived/earlier-attempts/README.md]
 mdindex: [type=1f5087, tags=0866c9, summary=fef2c5, related=d5023e]
 ---
 # Which parts of scikit-learn's API do we copy, and where do we improve it?
@@ -24,8 +24,9 @@ turn the results into specs in `docs/specs/` and ADRs for any departures.
 
 ## What the earlier attempts show
 
-Evidence from the ten earlier attempts ([the map](earlier-attempts/README.md));
-the survey itself is still to be done.
+Evidence from the ten earlier attempts
+([the map](archived/earlier-attempts/README.md)); the survey itself is still to
+be done.
 
 - **Renaming did not survive contact with use.** v0.4, the April repo,
   `sqlearn_000` and the war room used `learn`/`apply` and dropped

@@ -54,8 +54,8 @@ The rules bind from the first commit.
   empty and huge inputs), in CI.
 - **C++ tests** of the C++ library's internals, beside the Python tests that
   check its behaviour
-  ([ADR 0067](0067-how-computation-moves-to-the-engine.md)); the framework
-  is Phase 1's choice (a permissive one,
+  ([ADR 0067](archived/0067-how-computation-moves-to-the-engine.md)); the
+  framework is Phase 1's choice (a permissive one,
   [ADR 0066](0066-permissive-licences-never-copyleft.md)).
 - **SQL-level tests:** DuckDB sqllogictest files for every function.
 - **Numerics:** the [ADR 0016](0016-validation-method.md) method (exact

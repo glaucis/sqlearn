@@ -2,7 +2,7 @@
 type: question
 tags: [python, threading, free-threaded, gil, nanobind, bindings]
 summary: "Open question on whether sqlearn should support free-threaded Python (3.14t, no GIL): what it would change, what it would cost, and what it depends on."
-related: [docs/specs/native-engine-phase-1.md, docs/specs/native-engine.md, docs/adr/0060-a-native-engine-in-cpp-inside-duckdb.md, docs/adr/0067-how-computation-moves-to-the-engine.md]
+related: [docs/specs/native-engine-phase-1.md, docs/specs/native-engine.md, docs/adr/0060-a-native-engine-in-cpp-inside-duckdb.md, docs/adr/archived/0067-how-computation-moves-to-the-engine.md]
 ---
 # Should sqlearn support free-threaded Python?
 

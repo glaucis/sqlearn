@@ -2,12 +2,12 @@
 type: adr
 tags: [aggregates, nested, compositor, median, std, learn, larger-than-memory]
 summary: "Records that an aggregate inside another is learned in levels: each aggregate's level is one more than the deepest inside its argument, each level is the staged machinery over the learn stage's input cross-joined with the levels below, in one WITH query; it amends ADR 0036 and 0044, whose refusals of nesting go."
-related: [docs/specs/learn-nested-aggregates.md, docs/adr/0036-staged-aggregates-anywhere-in-a-learned-value.md, docs/adr/0044-the-standard-deviation-in-two-staged-passes.md, docs/adr/0032-the-median-is-exact-by-sorting.md, docs/adr/0012-static-and-dynamic-steps.md]
+related: [docs/specs/archived/learn-nested-aggregates.md, docs/adr/0036-staged-aggregates-anywhere-in-a-learned-value.md, docs/adr/0044-the-standard-deviation-in-two-staged-passes.md, docs/adr/0032-the-median-is-exact-by-sorting.md, docs/adr/0012-static-and-dynamic-steps.md]
 ---
 # 0051: Aggregates learn in levels
 
 Status: accepted (2026-11-17). Issue #49,
-[spec](../specs/learn-nested-aggregates.md). Amends
+[spec](../specs/archived/learn-nested-aggregates.md). Amends
 [ADR 0036](0036-staged-aggregates-anywhere-in-a-learned-value.md) and
 [ADR 0044](0044-the-standard-deviation-in-two-staged-passes.md).
 

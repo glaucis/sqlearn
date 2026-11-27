@@ -2,7 +2,7 @@
 type: adr
 tags: [metrics, regression, d2-score, scikit-learn, departure]
 summary: "Records that sq.metrics.d2_tweedie scores a constant target 1 when predicted exactly and 0 otherwise, where scikit-learn 1.9.1's d2_tweedie_score raises ZeroDivisionError; a target is constant when its minimum equals its maximum."
-related: [docs/specs/library-regression-metrics.md, docs/adr/0003-scikit-learn-style-api.md, docs/adr/0046-sqlearn-warns-the-user-chooses.md]
+related: [docs/specs/archived/library-regression-metrics.md, docs/adr/0003-scikit-learn-style-api.md, docs/adr/0046-sqlearn-warns-the-user-chooses.md]
 ---
 # 0054: D² Tweedie on a constant target
 

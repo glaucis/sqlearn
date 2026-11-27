@@ -19,9 +19,9 @@ wants each verb to say what it does.
 
 Four earlier attempts used `learn` and `apply` and later added bridges back to
 scikit-learn's names
-([earlier attempts](../questions/earlier-attempts/README.md)). sqlearn accepts
-that risk: scikit-learn's names can be added later as thin aliases if ever
-needed.
+([earlier attempts](../questions/archived/earlier-attempts/README.md)). sqlearn
+accepts that risk: scikit-learn's names can be added later as thin aliases if
+ever needed.
 
 ## Decision
 

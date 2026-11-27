@@ -2,7 +2,7 @@
 type: adr
 tags: [api, namespaces, steps, aggregates, scikit-learn, usability]
 summary: "Records that sqlearn's public names live in groups named for what they hold (sq.impute, sq.scale, sq.agg, sq.cols...), each step group callable with shortcuts, instead of scikit-learn's class names and module map."
-related: [docs/adr/0003-scikit-learn-style-api.md, docs/adr/0013-learn-apply-train-predict.md, docs/specs/library-preprocessing.md]
+related: [docs/adr/0003-scikit-learn-style-api.md, docs/adr/0013-learn-apply-train-predict.md, docs/specs/archived/library-preprocessing.md]
 ---
 # 0034: A grouped API
 

@@ -17,7 +17,7 @@ references, bounds from measurement) and never enforced them: validators sat
 outside the checks, parity tests skipped when data was missing, tolerances
 were hand-picked or loosened to hide mismatches, and no attempt compared a
 whole pipeline, which let a fit defect survive in every one of them
-([earlier attempts](../questions/earlier-attempts/README.md)).
+([earlier attempts](../questions/archived/earlier-attempts/README.md)).
 
 ## Decision
 

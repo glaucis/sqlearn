@@ -2,7 +2,7 @@
 type: adr
 tags: [models, feed, pandas, polars, arrow, stream, memory]
 summary: "Records the forms a model is handed data in (numpy by default, pandas, Polars, Arrow, and a stream through partial_fit), that text columns reach pandas, Polars and Arrow as categories with NULL kept missing, and that a fold too large for memory is refused, never swapped."
-related: [docs/adr/0017-models-from-other-libraries.md, docs/adr/0023-lazy-results-out-and-feed.md, docs/specs/library-model-selection.md]
+related: [docs/adr/0017-models-from-other-libraries.md, docs/adr/0023-lazy-results-out-and-feed.md, docs/specs/archived/library-model-selection.md]
 ---
 # 0041: The hand-over
 

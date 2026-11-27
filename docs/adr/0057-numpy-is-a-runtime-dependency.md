@@ -2,13 +2,13 @@
 type: adr
 tags: [dependencies, runtime, numpy, linear-algebra, packaging]
 summary: "Records that numpy joins duckdb as a runtime dependency, for the small matrices steps learn from (eigenvectors, solves), which DuckDB cannot compute; amends ADR 0005."
-related: [docs/adr/0005-runtime-dependencies.md, docs/adr/0058-a-gram-step-builds-xtx-in-numpy.md, docs/specs/library-decomposition.md]
+related: [docs/adr/0005-runtime-dependencies.md, docs/adr/0058-a-gram-step-builds-xtx-in-numpy.md, docs/specs/archived/library-decomposition.md]
 ---
 # 0057: numpy is a runtime dependency
 
 Status: accepted (2026-11-20), with the
-[decomposition spec](../specs/library-decomposition.md). Chosen by Tomas on
-2026-11-20. Amends [ADR 0005](0005-runtime-dependencies.md). Amended by
+[decomposition spec](../specs/archived/library-decomposition.md). Chosen by
+Tomas on 2026-11-20. Amends [ADR 0005](0005-runtime-dependencies.md). Amended by
 [ADR 0061](0061-sqlearn-ships-its-own-duckdb-build.md) (2026-11-21): numpy stays
 until the engine's linear algebra (Phase 3), when this is decided again.
 

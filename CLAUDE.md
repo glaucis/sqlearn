@@ -11,44 +11,47 @@ built.
 - **The map:** `docs/architecture/overview.md` (the parts and their order).
   **How work runs:** `docs/architecture/workflow.md`. **Decisions:**
   `docs/adr/`. **Done:** the library core (part 3.2): spec
-  `docs/specs/library-core.md`, decisions ADRs 0012–0033, summary and deferred
-  findings in issue #8. The library breadth (part 3.3) goes one spec per area.
-  Its first area, preprocessing, is built: spec
-  `docs/specs/library-preprocessing.md`, plan
-  `docs/plans/2026-11-06-library-preprocessing.md`, ADRs 0034–0038, summary in
-  issue #30. Its second, model selection, is built: spec
-  `docs/specs/library-model-selection.md`, plan
-  `docs/plans/2026-11-07-library-model-selection.md`, ADRs 0039–0041, summary in
-  issue #33. Its third, metrics (precision, recall, F1), is built: spec
-  `docs/specs/library-metrics.md`, plan
-  `docs/plans/2026-11-09-library-metrics.md`, ADR 0042, summary in issue #34.
-  Its fourth, datasets, was built and then moved out of the package: sqlearn
-  ships none, and `devdata/` kept them for development only (ADR 0053,
+  `docs/specs/archived/library-core.md`, decisions ADRs 0012–0033, summary and
+  deferred findings in issue #8. The library breadth (part 3.3) goes one spec
+  per area. Its first area, preprocessing, is built: spec
+  `docs/specs/archived/library-preprocessing.md`, plan
+  `docs/plans/archived/2026-11-06-library-preprocessing.md`, ADRs 0034–0038,
+  summary in issue #30. Its second, model selection, is built: spec
+  `docs/specs/archived/library-model-selection.md`, plan
+  `docs/plans/archived/2026-11-07-library-model-selection.md`, ADRs 0039–0041,
+  summary in issue #33. Its third, metrics (precision, recall, F1), is built:
+  spec `docs/specs/archived/library-metrics.md`, plan
+  `docs/plans/archived/2026-11-09-library-metrics.md`, ADR 0042, summary in
+  issue #34. Its fourth, datasets, was built and then moved out of the package:
+  sqlearn ships none, and `devdata/` kept them for development only (ADR 0053,
   issue #61; now in `old_python/devdata/`, ADR 0073). Its fifth, saving a
   pipeline (`sq.save`, `sq.load`), is built: spec
-  `docs/specs/library-saving.md`, plan
-  `docs/plans/2026-11-11-library-saving.md`, ADR 0047, summary in issue #57. Its
-  sixth, more metrics (`fbeta`, `average_precision`, `confusion_matrix`,
-  `classification_report`, `roc_curve`, `precision_recall_curve`), is built:
-  spec `docs/specs/library-more-metrics.md`, plan
-  `docs/plans/2026-11-13-library-more-metrics.md`, ADR 0049, summary in
+  `docs/specs/archived/library-saving.md`, plan
+  `docs/plans/archived/2026-11-11-library-saving.md`, ADR 0047, summary in
+  issue #57. Its sixth, more metrics (`fbeta`, `average_precision`,
+  `confusion_matrix`, `classification_report`, `roc_curve`,
+  `precision_recall_curve`), is built: spec
+  `docs/specs/archived/library-more-metrics.md`, plan
+  `docs/plans/archived/2026-11-13-library-more-metrics.md`, ADR 0049, summary in
   issue #58. Its seventh, balanced scores (`balanced_accuracy`, `mcc`, `brier`),
-  is built: spec `docs/specs/library-balanced-scores.md`, plan
-  `docs/plans/2026-11-19-library-balanced-scores.md`, issue #62. Its eighth,
-  regression metrics, is built: spec `docs/specs/library-regression-metrics.md`,
-  plan `docs/plans/2026-11-19-library-regression-metrics.md`, ADR 0054, summary
-  in issue #63. Its ninth, feature selection (`sq.select.variance`, `best`,
-  `percentile`), is built: spec `docs/specs/library-feature-selection.md`, plan
-  `docs/plans/2026-11-19-library-feature-selection.md`, ADRs 0055–0056, summary
-  in issue #65. Its tenth, decomposition (PCA, `sq.decompose.pca`), is built:
-  spec `docs/specs/library-decomposition.md`, plan
-  `docs/plans/2026-11-20-library-decomposition.md`, ADRs 0057–0058, summary in
-  issue #66. Part 3.6's first piece, the exploration module (`sq.explore`:
-  `profile`, `histogram`, `top`, `missing`, `correlations`), is built: spec
-  `docs/specs/library-exploration.md`, plan
-  `docs/plans/2026-11-20-library-exploration.md`, ADR 0059, issue #74. The
-  native engine (part 3.10: sqlearn as a C++ library embedding DuckDB, Python
-  its bindings): spec `docs/specs/native-engine.md`, ADRs 0060–0072, the
+  is built: spec `docs/specs/archived/library-balanced-scores.md`, plan
+  `docs/plans/archived/2026-11-19-library-balanced-scores.md`, issue #62. Its
+  eighth, regression metrics, is built: spec
+  `docs/specs/archived/library-regression-metrics.md`, plan
+  `docs/plans/archived/2026-11-19-library-regression-metrics.md`, ADR 0054,
+  summary in issue #63. Its ninth, feature selection (`sq.select.variance`,
+  `best`, `percentile`), is built: spec
+  `docs/specs/archived/library-feature-selection.md`, plan
+  `docs/plans/archived/2026-11-19-library-feature-selection.md`, ADRs 0055–0056,
+  summary in issue #65. Its tenth, decomposition (PCA, `sq.decompose.pca`), is
+  built: spec `docs/specs/archived/library-decomposition.md`, plan
+  `docs/plans/archived/2026-11-20-library-decomposition.md`, ADRs 0057–0058,
+  summary in issue #66. Part 3.6's first piece, the exploration module
+  (`sq.explore`: `profile`, `histogram`, `top`, `missing`, `correlations`), is
+  built: spec `docs/specs/library-exploration.md`, plan
+  `docs/plans/archived/2026-11-20-library-exploration.md`, ADR 0059, issue #74.
+  The native engine (part 3.10: sqlearn as a C++ library embedding DuckDB,
+  Python its bindings): spec `docs/specs/native-engine.md`, ADRs 0060–0072, the
   rewrite's inventory `docs/architecture/engine-inventory.md`, milestone "Native
   engine" (#78 to #84). Phase 0 is done; Phase 1's steps 1 (the checks) and 2
   (the build) are merged. The library is rewritten in C++ (ADR 0070, superseding

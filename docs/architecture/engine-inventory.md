@@ -2,7 +2,7 @@
 type: architecture
 tags: [native-engine, migration, inventory, dependencies, port-order]
 summary: "The port's map: every module of src/sqlearn with the phase that ports it to C++, what stays in the bindings, what it imports, and the profiling numbers that order Phase 4's groups."
-related: [docs/specs/native-engine.md, docs/adr/0067-how-computation-moves-to-the-engine.md, docs/adr/0060-a-native-engine-in-cpp-inside-duckdb.md, docs/benchmarks/engine-profile.md]
+related: [docs/specs/native-engine.md, docs/adr/archived/0067-how-computation-moves-to-the-engine.md, docs/adr/0060-a-native-engine-in-cpp-inside-duckdb.md, docs/benchmarks/engine-profile.md]
 ---
 # The native engine's inventory
 

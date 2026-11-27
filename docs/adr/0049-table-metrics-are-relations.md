@@ -2,12 +2,12 @@
 type: adr
 tags: [metrics, confusion-matrix, relation, api, out]
 summary: "Records that the table metrics (confusion_matrix, classification_report, roc_curve, precision_recall_curve) are functions that hand back a lazy DuckDB relation, convertible with out=, not arrays or a string, and that they are not Metrics, so a search refuses them."
-related: [docs/specs/library-more-metrics.md, docs/adr/0003-scikit-learn-style-api.md, docs/adr/0023-lazy-results-out-and-feed.md, docs/adr/0042-a-metrics-settings-are-a-call.md]
+related: [docs/specs/archived/library-more-metrics.md, docs/adr/0003-scikit-learn-style-api.md, docs/adr/0023-lazy-results-out-and-feed.md, docs/adr/0042-a-metrics-settings-are-a-call.md]
 ---
 # 0049: Table metrics are relations
 
 Status: accepted (2026-11-13). Written with the second metrics slice
-([spec](../specs/library-more-metrics.md) §4 and §8).
+([spec](../specs/archived/library-more-metrics.md) §4 and §8).
 
 ## Context
 
