@@ -7,8 +7,10 @@ mdindex: [type=0fc814, tags=295a48, summary=9a79dc, related=51574e]
 ---
 # 0074: How a pipeline learns: static and dynamic steps, and its runs
 
-Status: accepted (2026-11-27). Decided by Tomas on 2026-11-27, in the docs
-cleanup. Supersedes [ADR 0012](archived/0012-static-and-dynamic-steps.md),
+Status: accepted (2026-11-27). Written on Tomas's decision of 2026-11-27, in the
+docs cleanup, to consolidate the records below: it states their rules as they
+stand and takes no new decision. Supersedes
+[ADR 0012](archived/0012-static-and-dynamic-steps.md),
 [ADR 0018](archived/0018-runs-follow-the-chains-between-steps.md) and
 [ADR 0026](archived/0026-a-step-without-cols-works-on-every-column.md).
 

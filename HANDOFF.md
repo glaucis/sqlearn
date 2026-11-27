@@ -22,14 +22,6 @@ None. [verified]
 - Benchmark reruns, `just benchmarks-due` then `just bench <name>` (ADR
   0072): awaits your go-ahead. Only the `engine/bench` programs are listed;
   the page scripts are in `old_python/`. (since 2026-11-27)
-- A read of ADRs 0074 to 0079, the six consolidating records the docs
-  cleanup wrote on your answer: each restates rules written for the old
-  Python, and its writer was unsure of some points, among them whether a
-  user's step is still inspected with placeholders (0075), whether one shared
-  sort for every quantile binds the C++ (0078), and whether the saved file's
-  Python-named value tags (`tuple`, `decimal`, `uuid`) are format or
-  mechanics (0079). Each file's own "Mechanics" bullet leaves the mechanics
-  to its C++ group (ADR 0070). (since 2026-11-27)
 
 ## Next up
 
@@ -173,6 +165,13 @@ None. [verified]
 
 ## Just finished
 
+- The review of ADRs 0074 to 0079 (2026-11-27; Tomas left it to the
+  session): each restates the records it supersedes faithfully. Their status
+  lines now say they were written on Tomas's decision to consolidate and take
+  no new decision; 0075 leaves how an undeclared step is inspected
+  (placeholders in the old Python) to the C++ group; 0079 lets the C++ saving
+  group rename or extend the value tags. 0078's shared sort was already
+  mechanics.
 - The docs cleanup (2026-11-27, plan and list now in
   `docs/plans/archived/`): `305f313` and `4d2fa4c` the link check and the
   `related:` paths it named; `4811972` and `0f8a393` the list and your

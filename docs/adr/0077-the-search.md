@@ -7,8 +7,9 @@ mdindex: [type=0fc814, tags=a3a22f, summary=9b1253, related=baf3a3]
 ---
 # 0077: The search: one function, pluggable methods, defaults and the defaults warning
 
-Status: accepted (2026-11-27). Decided by Tomas on 2026-11-27, in the docs
-cleanup. Supersedes
+Status: accepted (2026-11-27). Written on Tomas's decision of 2026-11-27, in the
+docs cleanup, to consolidate the records below: it states their rules as they
+stand and takes no new decision. Supersedes
 [ADR 0022](archived/0022-one-search-with-pluggable-methods.md) and
 [ADR 0031](archived/0031-the-defaults-warning-is-about-what-to-search.md).
 Takes over the search half of

@@ -7,8 +7,9 @@ mdindex: [type=0fc814, tags=e19eff, summary=d1ced5, related=7a2183]
 ---
 # 0075: The contract of a user's own step
 
-Status: accepted (2026-11-27). Decided by Tomas on 2026-11-27, in the docs
-cleanup. Supersedes
+Status: accepted (2026-11-27). Written on Tomas's decision of 2026-11-27, in the
+docs cleanup, to consolidate the records below: it states their rules as they
+stand and takes no new decision. Supersedes
 [ADR 0019](archived/0019-custom-steps-and-failure-feedback.md),
 [ADR 0027](archived/0027-a-user-step-may-declare-itself-dynamic.md),
 [ADR 0028](archived/0028-a-step-returning-a-mapping-counts-as-dynamic.md) and
@@ -43,12 +44,13 @@ runs follow from them, is
   is trusted:** sqlearn does not inspect it. Declaring it not static means
   the same as declaring it dynamic. Declaring it both static and dynamic is
   refused with a `StepError` (ADR 0019, ADR 0027).
-- **A user's step that declares nothing is inspected:** sqlearn calls its
-  apply with placeholders in place of learned values, each a reference to
-  that value of the learn stage. If the SQL builds, the step is static; if
-  the step needs a real value (a loop over learned categories), the
-  placeholder raises and the step is dynamic. Anything else unexpected counts
-  as dynamic (ADR 0019).
+- **A user's step that declares nothing is inspected,** and whatever the
+  inspection cannot prove static counts as dynamic (ADR 0019). How it is
+  inspected is the C++ group's design (ADR 0070). The old Python called the
+  step's apply with placeholders in place of learned values, each a
+  reference to that value of the learn stage: if the SQL built, the step was
+  static; if it needed a real value (a loop over learned categories), the
+  placeholder raised and the step was dynamic (ADR 0019).
 - **An undeclared step whose apply returns a mapping of named columns is
   dynamic**, whether its names are fixed or come from what it learned:
   telling the two apart from placeholders is not reliable, and a step wrongly

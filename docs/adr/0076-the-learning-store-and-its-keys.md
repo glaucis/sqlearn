@@ -7,8 +7,10 @@ mdindex: [type=0fc814, tags=0fb0b4, summary=b24880, related=e4688f]
 ---
 # 0076: The learning store and its keys
 
-Status: accepted (2026-11-27). Decided by Tomas on 2026-11-27, in the docs
-cleanup. Supersedes [ADR 0014](archived/0014-learning-store.md),
+Status: accepted (2026-11-27). Written on Tomas's decision of 2026-11-27, in the
+docs cleanup, to consolidate the records below: it states their rules as they
+stand and takes no new decision. Supersedes
+[ADR 0014](archived/0014-learning-store.md),
 [ADR 0021](archived/0021-inputs-and-how-the-store-knows-them.md),
 [ADR 0024](archived/0024-store-keys-follow-what-a-step-reads.md) and
 [ADR 0056](archived/0056-settings-that-only-choose-the-output-stay-out-of-the-learn-key.md).

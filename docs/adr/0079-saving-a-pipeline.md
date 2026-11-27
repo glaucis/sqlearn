@@ -7,8 +7,10 @@ mdindex: [type=0fc814, tags=30e998, summary=91d4dc, related=54dd0f]
 ---
 # 0079: Saving a pipeline: JSON, sqlearn's part only, nothing imported
 
-Status: accepted (2026-11-27). Decided by Tomas on 2026-11-27, in the docs
-cleanup. Supersedes [ADR 0047](archived/0047-a-pipeline-saves-as-json.md) and
+Status: accepted (2026-11-27). Written on Tomas's decision of 2026-11-27, in the
+docs cleanup, to consolidate the records below: it states their rules as they
+stand and takes no new decision. Supersedes
+[ADR 0047](archived/0047-a-pipeline-saves-as-json.md) and
 [ADR 0048](archived/0048-the-user-saves-the-model-and-imports-its-packages.md).
 Restates the saving rule of [ADR 0070](0070-sqlearn-is-rewritten-in-cpp.md).
 Specs: [library saving](../specs/archived/library-saving.md),
@@ -54,7 +56,10 @@ C++.
   model's estimator by class path and parameters). A finite float is written
   as text that reads back as the same double. A value with no tag is refused
   at save, naming the step, the setting and the type, never written as its
-  string form (ADR 0047).
+  string form (ADR 0047). The tags are the file format's, though several
+  are named after Python types: since files saved before the C++ rewrite
+  need not load after it (ADR 0070), the C++ saving group may rename or
+  extend them, and records the set it settles on.
 - **The trained model is the user's.** After `train`, `pipe.model_` is the
   trained model, the model library's own object. The user saves and opens
   it, in any format, as without sqlearn. `pipe.use_model(model)` puts a

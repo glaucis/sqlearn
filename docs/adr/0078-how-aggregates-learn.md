@@ -7,8 +7,9 @@ mdindex: [type=0fc814, tags=35edfe, summary=bae3e2, related=44eab5]
 ---
 # 0078: How aggregates learn: exact quantiles by sorting, compensated sums, levels
 
-Status: accepted (2026-11-27). Decided by Tomas on 2026-11-27, in the docs
-cleanup. Supersedes
+Status: accepted (2026-11-27). Written on Tomas's decision of 2026-11-27, in the
+docs cleanup, to consolidate the records below: it states their rules as they
+stand and takes no new decision. Supersedes
 [ADR 0032](archived/0032-the-median-is-exact-by-sorting.md),
 [ADR 0033](archived/0033-the-mean-is-summed-with-compensation.md),
 [ADR 0036](archived/0036-staged-aggregates-anywhere-in-a-learned-value.md),
