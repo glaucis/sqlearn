@@ -273,3 +273,10 @@ def test_an_unreadable_build_records_no_pass(root):
     assert entry.main([GOOD], root) == 0
     repo = root.parent.resolve()
     assert _record.load(_record.record_dir(repo), GOOD) == []
+
+
+def test_no_runners_passes_and_says_so(tmp_path, capfd):
+    """With every runner in old_python/, a validation run passes, naming why."""
+    assert entry.main((), tmp_path / "validation") == 0
+    assert "no validation runners" in capfd.readouterr().out
+    assert not (tmp_path / "validation" / "environment.json").exists()

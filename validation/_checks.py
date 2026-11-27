@@ -205,7 +205,6 @@ TOOLING = (
     "tests/validation",
     "tests/engine",
     "tests/docs",
-    "tests/devdata",
     "tests/test_environment.py",
 )
 """The tooling tests: of the checks, the hooks, the engine's build, the docs."""
@@ -213,14 +212,11 @@ TOOLING = (
 TOOLING_INPUTS = (
     *TOOLING,
     "validation",
-    "devdata",
     # Files the tests read as data: the licence check's real-file test
     # reads THIRD_PARTY.md and NOTICE.
-    "docs/architecture/engine-inventory.md",
     "THIRD_PARTY.md",
     "NOTICE",
-    # The package's modules, which the docs tests check against the
-    # inventory.
+    # The package: the engine's tests import it.
     "src/sqlearn",
     # The whole engine as text: its build files and other files (presets,
     # mull.yml, the fuzz corpus, the CMake files), and its C++, which the
@@ -402,7 +398,7 @@ def _table() -> dict[str, Task]:
         ),
         Task(
             name="docs",
-            inputs=("docs", "src", "examples"),
+            inputs=("docs", "src"),
             # The doctests run on the built module: its identity is part of
             # the configuration (``module``).
             config=SETTINGS,

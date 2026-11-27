@@ -21,7 +21,6 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx.ext.mathjax",
     "numpydoc",
-    "sphinx_gallery.gen_gallery",
     "myst_nb",
     "sphinxcontrib.bibtex",
 ]
@@ -106,21 +105,6 @@ mathjax4_config = {
             },
         },
     },
-}
-
-sphinx_gallery_conf = {
-    "examples_dirs": "../examples",
-    "gallery_dirs": "examples",
-    "filename_pattern": ".",
-    "doc_module": ("sqlearn",),
-    "backreferences_dir": "reference/generated/backreferences",
-    # The class `Search` is found as ``sqlearn.Search``, which differs from the
-    # group ``sqlearn.search`` only by case, and the two backreference files
-    # are one file on a case-insensitive file system.
-    "exclude_implicit_doc": {r"sqlearn\.Search(\..*)?"},
-    "image_scrapers": (),
-    "reset_modules": (),
-    "write_computation_times": False,
 }
 
 myst_enable_extensions = ["dollarmath", "amsmath", "colon_fence"]

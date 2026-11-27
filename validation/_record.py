@@ -1,8 +1,8 @@
 """Each runner's record: the files it imported, hashed, and its verdict.
 
 A runner reruns only when a file it depends on changed (spec §4): every
-module it imported from the repository, ``uv.lock`` (the libraries it ran
-with) and devdata's files (the data it read). A record holds their SHA-256
+module it imported from the repository and ``uv.lock`` (the libraries it
+ran with). A record holds their SHA-256
 hashes as they were before the runner was imported (``candidates``), the
 environment (``_cases.environment()``: the libraries, Python, the OS and its
 release, the machine, numpy's BLAS; with ``groups``, the identity of the C++
@@ -47,7 +47,7 @@ def loaded_files(root: Path) -> list[Path]:
     """Return the files a run under `root` depended on, resolved and sorted.
 
     The source of every imported module under `root` and outside its
-    ``.venv``, ``uv.lock``, and every file under ``devdata/data/``.
+    ``.venv``, and ``uv.lock``.
     """
     root = root.resolve()
     venv = root / ".venv"
@@ -66,9 +66,6 @@ def loaded_files(root: Path) -> list[Path]:
     lock = root / "uv.lock"
     if lock.is_file():
         files.add(lock)
-    data = root / "devdata" / "data"
-    if data.is_dir():
-        files.update(p for p in data.rglob("*") if p.is_file())
     return sorted(files)
 
 
@@ -76,9 +73,8 @@ def candidates(root: Path) -> dict[str, str]:
     """Return, hashed, every file a run under `root` could depend on.
 
     The Python files git lists under `root` (tracked, or untracked and not
-    ignored) outside its ``.venv``, ``uv.lock`` and every file under
-    ``devdata/data/``: taken before the runner is imported, the hashes a
-    record keeps for the files it then loaded.
+    ignored) outside its ``.venv``, and ``uv.lock``: taken before the runner
+    is imported, the hashes a record keeps for the files it then loaded.
     """
     root = root.resolve()
     out = subprocess.run(
@@ -101,9 +97,6 @@ def candidates(root: Path) -> dict[str, str]:
     files = {root / n.decode() for n in out.split(b"\0") if n}
     lock = root / "uv.lock"
     files.add(lock)
-    data = root / "devdata" / "data"
-    if data.is_dir():
-        files.update(data.rglob("*"))
     return digest((p for p in files if p.is_file()), root)
 
 

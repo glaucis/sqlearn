@@ -186,14 +186,12 @@ EVERY = {"tooling", "group:a", "group:b", "unclaimed"}
 @pytest.mark.parametrize(
     ("data", "reran"),
     [
-        ("docs/architecture/engine-inventory.md", {"tooling"}),
         ("docs/conf.py", {"tooling"}),
         (".githooks/pre-commit", {"tooling"}),
         ("commitlint.config.mjs", {"tooling"}),
         (".clangd", {"tooling"}),
         ("THIRD_PARTY.md", {"tooling"}),
         ("NOTICE", {"tooling"}),
-        ("devdata/data/iris.csv", EVERY),
         ("validation/_cases.py", EVERY),
         ("tests/conftest.py", EVERY),
         ("tests/src/helpers.py", LIBRARY_SETS),

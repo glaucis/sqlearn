@@ -92,17 +92,13 @@ def scratch_module(tmp_path, monkeypatch):
     sys.modules.pop("scratch_record_module", None)
 
 
-def test_loaded_files_names_repo_modules_and_declared_data_only(
-    tmp_path, scratch_module
-):
-    """Modules under the root, uv.lock and devdata's files; never numpy's."""
+def test_loaded_files_names_repo_modules_and_the_lock_only(tmp_path, scratch_module):
+    """Modules under the root and uv.lock; never numpy's."""
     (tmp_path / "uv.lock").write_text("lock\n")
-    (tmp_path / "devdata" / "data").mkdir(parents=True)
-    (tmp_path / "devdata" / "data" / "iris.csv").write_text("a\n1\n")
     names = {
         p.relative_to(tmp_path.resolve()).as_posix() for p in loaded_files(tmp_path)
     }
-    assert names == {"scratch_record_module.py", "uv.lock", "devdata/data/iris.csv"}
+    assert names == {"scratch_record_module.py", "uv.lock"}
     numpy = Path(np.__file__).resolve()
     assert numpy not in loaded_files(tmp_path)
 

@@ -62,7 +62,6 @@ FILES = {
     "src/sqlearn/a.py": "a = 1\n",
     "src/sqlearn/b.py": "b = 2\n",
     "tests/test_a.py": "def test_a():\n    pass\n",
-    "devdata/data/iris.csv": "x\n1\n",
     "docs/guide/notes.md": "# Notes\n",
     "docs/conf.py": "project = 'scratch'\n",
     "docs/architecture/engine-inventory.md": "| `a.py` | 1 |\n",

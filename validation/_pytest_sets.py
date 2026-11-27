@@ -51,11 +51,8 @@ TOOLING_INPUTS = _checks.TOOLING_INPUTS
 
 LIBRARY_INPUTS = (
     "src",
-    # What the library tests import beside sqlearn: the validation's cases
-    # and runners (agg/test_aggregates, the pipeline scripts), and the
-    # datasets of development.
+    # What the library tests import beside sqlearn: the validation's cases.
     "validation",
-    "devdata",
 )
 """What every library set imports or reads, its own test files aside."""
 

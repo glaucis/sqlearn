@@ -20,32 +20,9 @@ from validation import _cases, _groups, _record
 
 ROOT = Path(__file__).parent
 
-RUNNERS = (
-    "validation.sqlearn.agg.validate_aggregates",
-    "validation.sqlearn.preprocessing.validate_impute",
-    "validation.sqlearn.preprocessing.validate_scale",
-    "validation.sqlearn.preprocessing.validate_onehot",
-    "validation.sqlearn.preprocessing.validate_ordinal",
-    "validation.sqlearn.preprocessing.validate_target",
-    "validation.sqlearn.preprocessing.validate_bin",
-    "validation.sqlearn.preprocessing.validate_transform",
-    "validation.sqlearn.preprocessing.validate_features",
-    "validation.sqlearn.metrics.validate_accuracy",
-    "validation.sqlearn.metrics.validate_regression",
-    "validation.sqlearn.metrics.validate_probability",
-    "validation.sqlearn.metrics.validate_classification",
-    "validation.sqlearn.metrics.validate_balanced",
-    "validation.sqlearn.metrics.validate_tables",
-    "validation.sqlearn.metrics.validate_curves",
-    "validation.sqlearn.feature_selection.validate_select",
-    "validation.sqlearn.decomposition.validate_pca",
-    "validation.sqlearn.explore.validate_explore",
-    "validation.pipelines.validate_slice",
-    "validation.pipelines.validate_preprocessing",
-    "validation.pipelines.validate_model_selection",
-    "validation.devdata.validate_bundled",
-    "validation.devdata.validate_generated",
-)
+RUNNERS: tuple[str, ...] = ()
+"""The runners, by module. None today: the old Python's runners are in
+``old_python/validation/``, and the C++'s are written group by group."""
 
 
 def results_path(runner: ModuleType) -> Path:
@@ -121,6 +98,9 @@ def main(runners: Sequence[str], root: Path, *, everything: bool = False) -> int
     its results file left alone; every other one (all of them with
     `everything`) runs in its own process, ``-m validation --one <name>``.
     """
+    if not runners:
+        print("no validation runners: nothing to validate", flush=True)  # noqa: T201
+        return 0
     repo = root.resolve().parent
     base = _cases.environment()
     directory = _record.record_dir(repo)

@@ -233,8 +233,8 @@ application, from code and from notebooks.
 
 The module's first spec is built: `sq.explore` (`profile`, `histogram`, `top`,
 `missing`, `correlations`;
-[specs/library-exploration.md](../specs/library-exploration.md), guide
-[exploring-data](../guide/exploring-data.md)). Left: association with a target,
+[specs/library-exploration.md](../specs/library-exploration.md); its Python is
+in `old_python/`, to be rebuilt in C++). Left: association with a target,
 outliers, normality screens, Kendall's tau, sampling, time-series views, and the
 application.
 

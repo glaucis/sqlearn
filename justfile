@@ -560,49 +560,10 @@ build-docs: fetch-mathjax
 # Remove build output, the matrix environments and tool caches
 [group('maintain')]
 clean:
-    rm -rf dist docs/_build docs/examples docs/reference/generated docs/_static/mathjax
+    rm -rf dist docs/_build docs/_static/mathjax
     rm -rf .venvs .ruff_cache .mypy_cache .rumdl_cache .coverage .coverage.* htmlcov
 
-# Check that every module has its test, and every step and metric its validation
-[group('check')]
-check-mirror:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    missing=0
-    while IFS= read -r f; do
-        rel=${f#src/sqlearn/}
-        dir=$(dirname "$rel")
-        name=$(basename "$rel" .py)
-        [ "$name" = "__init__" ] && continue
-        [ "$dir" = "." ] && sub="" || sub="$dir/"
-        test="tests/src/sqlearn/${sub}test_${name}.py"
-        if [ ! -f "$test" ]; then
-            echo "missing: $test (for $f)"
-            missing=1
-        fi
-        case "$dir" in
-            agg|agg/*|preprocessing|preprocessing/*|metrics|metrics/*|decomposition|decomposition/*)
-                case "$name" in _*) continue ;; esac
-                val="validation/sqlearn/${sub}validate_${name}.py"
-                if [ ! -f "$val" ]; then
-                    echo "missing: $val (for $f)"
-                    missing=1
-                fi
-                ;;
-            feature_selection|feature_selection/*)
-                # One runner validates every selector of sq.select.
-                case "$name" in _*) continue ;; esac
-                val="validation/sqlearn/feature_selection/validate_select.py"
-                if [ ! -f "$val" ]; then
-                    echo "missing: $val (for $f)"
-                    missing=1
-                fi
-                ;;
-        esac
-    done < <(find src/sqlearn -name '*.py' | sort)
-    exit $missing
-
-# Refuse "devdata" in any module of the package (ADR 0053), test_the_package_holds_no_datasets's rule on every commit
+# Refuse "devdata" in any module of the package (ADR 0053), on every commit
 [group('check')]
 check-no-devdata:
     #!/usr/bin/env bash
@@ -619,7 +580,7 @@ check-no-devdata:
 
 # Run the checks that run on every commit
 [group('check')]
-check: lint-python check-types lint-markdown check-spelling check-mirror check-docstring-args check-no-devdata
+check: lint-python check-types lint-markdown check-spelling check-docstring-args check-no-devdata
 
 # Refuse a secret (a key, a token, a password) in the files a commit holds: gitleaks over the directory when it has no .git (the hook's export of the index), else over an export of this checkout's index
 [group('check')]
@@ -763,7 +724,7 @@ done:
     fi
     # every check runs whatever the others' exit, as each task's steps do, so one failure hides no other's findings
     first=0
-    for check in check-lockfile check-mirror check-no-devdata format lint docstrings types tidy test sql validate docs; do
+    for check in check-lockfile check-no-devdata format lint docstrings types tidy test sql validate docs; do
         code=0
         "${j[@]}" "$check" || code=$?
         if [ "$first" -eq 0 ]; then first=$code; fi
@@ -781,7 +742,7 @@ verify:
     "${j[@]}" compiler-stamp
     tree="$("${j[@]}" checkable-tree)"
     place="$("${j[@]}" place)"
-    "${j[@]}" check-lockfile check-mirror check-no-devdata
+    "${j[@]}" check-lockfile check-no-devdata
     for task in format lint docstrings types tidy test sql validate docs; do
         "${j[@]}" full "$task"
     done

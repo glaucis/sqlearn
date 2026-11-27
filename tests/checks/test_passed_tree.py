@@ -10,7 +10,6 @@ REPO = Path(__file__).resolve().parents[2]
 # What done runs, in order: the instant checks, then every task.
 RUNS = (
     "check-lockfile",
-    "check-mirror",
     "check-no-devdata",
     "format",
     "lint",
@@ -270,7 +269,6 @@ def test_verify_runs_every_task_in_full_and_the_release_tools(tmp_path):
     just(repo, "verify", env=env)
     assert calls(repo) == [
         "check-lockfile",
-        "check-mirror",
         "check-no-devdata",
         *(f"full-{task}" for task in TASKS),
         *RELEASE,
