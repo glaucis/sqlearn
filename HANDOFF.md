@@ -3,10 +3,9 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-27 · Branch: `main` (pushed) · Last commit:
-`78f3ea6 docs: record the merge of the old Python's move in the handoff` ·
-Checks: passing (`just done`) Verify with: `just done` (`just verify` is the
-release tier)
+Updated: 2026-11-27 · Branch: `main` · Last commit: the docs cleanup's
+plan and this handoff · Checks: passing (`just check`) · Verify with:
+`just done` (`just verify` is the release tier)
 
 ## In progress
 
@@ -35,9 +34,16 @@ None. [verified]
   `engine/bench/` needs `just tidy-engine` before clangd has its compile
   flags: only the tidy database lists those directories (Tomas, 2026-11-27).
 
-- The Bazel prototype, after the merge (Tomas, 2026-11-27: one plan at a
-  time): `docs/plans/2026-11-27-bazel-prototype.md`, in its own worktree;
-  ask before installing bazelisk and before any timing.
+- **Next: the docs cleanup**, in a fresh session (Tomas, 2026-11-27): plan
+  `docs/plans/2026-11-27-docs-cleanup.md`, approved to start. Every
+  implemented plan, built or old-Python spec, answered question and
+  superseded ADR moves to an `archived/` folder beside it; ADR numbers never
+  change; nothing is deleted. Task 1 adds a link check first. Task 2 stops
+  after the classification list: show Tomas the counts and every
+  "consolidate" row, and move nothing until he says go.
+- Then the Bazel prototype (Tomas, 2026-11-27: one plan at a time):
+  `docs/plans/2026-11-27-bazel-prototype.md`, in its own worktree; ask
+  before installing bazelisk and before any timing.
 - Ideas from the research (`docs/questions/test-selection.md`), none
   decided: a check that `DEPENDS` matches the headers a group includes, rules
   for which group may depend on which, `just affected` (what a change reruns
