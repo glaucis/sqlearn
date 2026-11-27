@@ -180,10 +180,14 @@ class Fingerprints:
         The SHA-256 of what every group runs with.
     groups : dict of str to str
         Each group's name with its fingerprint.
+    shared_groups : frozenset of str
+        The groups in the shared part: the closure of those whose files the
+        shared entries read (the bindings, the extension).
     """
 
     shared: str
     groups: dict[str, str]
+    shared_groups: frozenset[str] = frozenset()
 
 
 def _strings(value: Any, what: str) -> tuple[str, ...]:
@@ -456,6 +460,8 @@ class _Fingerprinter:
         self.submodules = [(root / name).resolve() for name in self.pins]
         self.texts: dict[Path, str] = {}
         self.done: dict[str, str] = {}
+        # Set by ``shared``: the groups in the shared part.
+        self.shared_groups: frozenset[str] = frozenset()
         self.compiled = [self._compiled(e) for e in self._entries()]
         # A file under a group's directory counts for that group, whoever
         # reads it, so a file of any suffix its own sources never read is
@@ -634,6 +640,7 @@ class _Fingerprinter:
             f"group\0{name}\0{self.group(name)}"
             for name in sorted(closure(self.groups, read_groups))
         )
+        self.shared_groups = frozenset(closure(self.groups, read_groups))
         pins = "\n".join(f"{n}\0{c}" for n, c in sorted(self.pins.items()))
         parts.append(f"pins\0{pins}")
         parts.append(f"build tables\0{_build_tables(self.root)}")
@@ -669,7 +676,10 @@ def fingerprints(root: Path, build: Path) -> Fingerprints:
     groups, shared = load(build)
     making = _Fingerprinter(root, build, groups, shared)
     prints = {name: making.group(name) for name in sorted(groups)}
-    return Fingerprints(shared=making.shared(), groups=prints)
+    shared_part = making.shared()
+    return Fingerprints(
+        shared=shared_part, groups=prints, shared_groups=making.shared_groups
+    )
 
 
 def closure(groups: dict[str, Group], names: Iterable[str]) -> set[str]:

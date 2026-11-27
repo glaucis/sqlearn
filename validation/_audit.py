@@ -11,8 +11,13 @@ built in ``COVERAGE_BUILD``), and fails when one ran C++ of a group outside
 its declared groups and those they are built on.
 
 ``run`` measures a bare ``import sqlearn`` first: what it runs (``core``'s
-start-up, the ``crash`` handler) belongs to the shared part, not to any
-declaration (``startup``). Then each Python test set (``_pytest_sets.sets``),
+start-up, the ``crash`` handler) must be in the shared part, the closure of
+the groups the bindings and the extension read
+(``_groups.Fingerprints.shared_groups``), since a change to it reruns
+everything; a group that runs at import outside it is a finding
+(``startup``). Any set may run the shared groups. A set declares every group
+whose claimed paths overlap its own (``declarations``). Then each Python
+test set (``_pytest_sets.sets``),
 its passes of ``_pytest_sets.PASSES``, and each validation runner a group
 claims, each in its own processes with ``LLVM_PROFILE_FILE`` in a directory of
 its own; llvm-profdata merges each one's profiles and ``llvm-cov export
@@ -94,8 +99,8 @@ def ran(export: dict[str, Any], groups: dict[str, _groups.Group]) -> set[str]:
 def startup(profile: dict[str, Any], groups: dict[str, _groups.Group]) -> set[str]:
     """Return the groups a bare ``import sqlearn`` runs.
 
-    They belong to the shared part (spec §5.2): every test and runner runs
-    them, so running them is no finding.
+    They must belong to the shared part (spec §5.2): every test and runner
+    runs them, so a change to one must rerun everything (``findings``).
 
     Parameters
     ----------
@@ -124,6 +129,7 @@ def findings(
     declared: dict[str, set[str] | None],
     seen: dict[str, set[str]],
     start: set[str],
+    shared: set[str],
     groups: dict[str, _groups.Group],
 ) -> list[str]:
     """Return each group a set or runner ran outside what it declares.
@@ -138,29 +144,82 @@ def findings(
         Each one's groups that ran (``ran``).
     start : set of str
         The groups the bare import ran (``startup``).
+    shared : set of str
+        The groups in the shared part (``Fingerprints.shared_groups``): any
+        set may run them, as a change to one reruns everything.
     groups : dict of str to Group
         The manifest's groups.
 
     Returns
     -------
     list of str
-        ``"<set> ran <group>: Fix: ..."`` for each, sorted by set then group.
+        First ``"<group> runs at import but is not shared: Fix: ..."`` for
+        each group of `start` outside `shared` (a change to it would rerun
+        nothing), then ``"<set> ran <group>: Fix: ..."`` for each, sorted by
+        set then group.
 
     Raises
     ------
     Unreadable
         A declaration names no group of the manifest.
     """
-    found = []
+    found = [
+        f"{group} runs at import but is not shared: Fix: include its header in "
+        "the bindings (engine/src/bindings/), so it is in the shared part, or "
+        "keep it from running at import"
+        for group in sorted(start - shared)
+    ]
     for name in sorted(seen):
         uses = declared.get(name)
         if uses is None:
             continue
-        allowed = _groups.closure(groups, uses) | start
+        allowed = _groups.closure(groups, uses) | shared
         found.extend(
             f"{name} ran {group}: Fix: add it to {_fix(name, group, groups)}"
             for group in sorted(seen[name] - allowed)
         )
+    return found
+
+
+def _overlap(one: str, other: str) -> bool:
+    """Return whether the paths `one` and `other` are equal or one holds the other."""
+    one, other = one.rstrip("/"), other.rstrip("/")
+    return one == other or one.startswith(f"{other}/") or other.startswith(f"{one}/")
+
+
+def declarations(
+    sets: _pytest_sets.Sets, groups: dict[str, _groups.Group]
+) -> dict[str, set[str] | None]:
+    """Return what each Python test set declares, for the audit.
+
+    A set's tests can be claimed by several groups: two groups claiming one
+    path run the same tests, and a group claiming a directory runs the tests
+    another claims under it. So a set declares every group claiming a path
+    equal to one of its own, above it or below it; the claims that exist then
+    clear what it runs.
+
+    Parameters
+    ----------
+    sets : dict
+        ``_pytest_sets.sets``' result: each set's paths and groups.
+    groups : dict of str to Group
+        The manifest's groups.
+
+    Returns
+    -------
+    dict of str to set of str or None
+        Each set with the groups it declares; None for every group.
+    """
+    found: dict[str, set[str] | None] = {}
+    for name, (paths, uses) in sets.items():
+        if uses is None:
+            found[name] = None
+            continue
+        found[name] = set(uses) | {
+            g.name
+            for g in groups.values()
+            if any(_overlap(p, c) for p in paths for c in g.python_tests)
+        }
     return found
 
 
@@ -229,6 +288,7 @@ def run(root: Path) -> int:
     root = root.resolve()
     try:
         groups, _ = _groups.load(root / COVERAGE_BUILD)
+        shared = set(_groups.fingerprints(root, COVERAGE_BUILD).shared_groups)
         module = _module()
     except _groups.Unreadable as error:
         _say(f"The audit cannot read the coverage build: {error}")
@@ -247,8 +307,9 @@ def run(root: Path) -> int:
         start = startup(profile, groups)
         _say(f"{STARTUP}: ran {', '.join(sorted(start)) or 'no group'}")
         measures: dict[str, list[list[str]]] = {}
-        for name, (paths, uses) in _pytest_sets.sets(groups, root).items():
-            declared[name] = uses
+        sets = _pytest_sets.sets(groups, root)
+        declared.update(declarations(sets, groups))
+        for name, (paths, _) in sets.items():
             measures[name] = [
                 [python, "-m", "pytest", *options, *paths]
                 for options in _pytest_sets.PASSES
@@ -268,7 +329,7 @@ def run(root: Path) -> int:
             if code:
                 failed.append(name)
             seen[name] = ran(export, groups)
-        found = findings(declared, seen, start, groups)
+        found = findings(declared, seen, start, shared, groups)
     except (_groups.Unreadable, ValueError, subprocess.CalledProcessError) as error:
         _say(f"The audit could not measure the groups: {error}")
         return 1

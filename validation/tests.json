@@ -20600,7 +20600,19 @@
     },
     {
       "area": "validation/_audit",
+      "name": "tests/validation/test__audit.py::test_a_startup_group_outside_the_shared_part_is_a_finding",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_audit",
       "name": "tests/validation/test__audit.py::test_an_unclaimed_set_is_never_a_finding",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_audit",
+      "name": "tests/validation/test__audit.py::test_groups_claiming_one_path_declare_its_set_jointly",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -21267,6 +21279,12 @@
     {
       "area": "validation/_groups",
       "name": "tests/validation/test__groups.py::test_the_manifest_loads_as_groups",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_groups",
+      "name": "tests/validation/test__groups.py::test_the_shared_groups_are_the_closure_of_those_shared_entries_read",
       "outcome": "passed",
       "tier": "fast"
     },

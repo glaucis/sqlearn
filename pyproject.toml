@@ -100,6 +100,9 @@ cache-keys = [
     # The compiler's identity (just compiler-stamp, git-ignored): a compiler
     # update rebuilds the module.
     { file = "engine/.compiler-stamp" },
+    # The coverage wheel of just audit-groups (its override in
+    # [tool.scikit-build]): never taken for the normal build's cache.
+    { env = "SQLEARN_AUDIT_COVERAGE" },
 ]
 
 [tool.scikit-build]

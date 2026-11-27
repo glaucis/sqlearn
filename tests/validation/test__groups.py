@@ -212,6 +212,15 @@ def test_a_group_a_shared_entry_reads_is_part_of_the_shared_part(scratch):
     assert _changed(before, scratch.prints()) == {"a", "b", "shared"}
 
 
+def test_the_shared_groups_are_the_closure_of_those_shared_entries_read(scratch):
+    """The bindings read ``b``'s header: ``b`` and ``a`` under it are shared;
+    with no such read, no group is."""
+    assert scratch.prints().shared_groups == frozenset()
+    scratch.write("b/two.hpp", "#pragma once\nint two();\n")
+    scratch.write("bindings/module.cpp", '#include "b/two.hpp"\nint m();\n')
+    assert scratch.prints().shared_groups == {"a", "b"}
+
+
 IDENTITY = """#pragma once
 
 #define SQ_SQLEARN_VERSION "{version}"
