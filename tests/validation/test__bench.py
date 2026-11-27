@@ -98,3 +98,50 @@ def test_a_program_a_group_claims_is_listed_by_its_group(scratch):
     (bench / "bench_thing.cpp").write_text("int main() {}\n")
     names = [item.name for item in _bench.due(scratch.root)]
     assert names == ["standin", "bench_thing"]
+
+
+def _program(scratch):
+    manifest = scratch.build / "sq_groups.json"
+    text = manifest.read_text().replace('"bench": []', '"bench": ["thing"]', 1)
+    manifest.write_text(text)
+    bench = scratch.root / "engine" / "bench"
+    bench.mkdir(parents=True)
+    (bench / "bench_thing.cpp").write_text("int main() {}\n")
+    binary = scratch.root / "engine" / "build" / "release" / "bench" / "bench_thing"
+    binary.parent.mkdir(parents=True)
+    binary.write_text("#!/bin/sh\nexit 0\n")
+    binary.chmod(0o755)
+    return binary
+
+
+def test_a_library_edit_makes_a_recorded_script_due(scratch):
+    """Editing a module under src/ makes the script that times it due."""
+    _install(scratch)
+    module = scratch.root / "src" / "sqlearn" / "mod.py"
+    module.parent.mkdir(parents=True)
+    module.write_text("X = 1\n")
+    _bench.run(scratch.root, "standin")
+    assert _bench.due(scratch.root) == []
+    module.write_text("X = 2\n")
+    assert [item.name for item in _bench.due(scratch.root)] == ["standin"]
+
+
+def test_a_helper_edit_makes_a_recorded_script_due(scratch):
+    """Editing a helper under validation/ makes the script that imports it due."""
+    _install(scratch)
+    helper = scratch.root / "validation" / "helper.py"
+    helper.write_text("X = 1\n")
+    _bench.run(scratch.root, "standin")
+    assert _bench.due(scratch.root) == []
+    helper.write_text("X = 2\n")
+    assert [item.name for item in _bench.due(scratch.root)] == ["standin"]
+
+
+def test_a_program_is_due_again_when_its_binary_changes(scratch):
+    """A record of a C++ program holds its binary: a rebuilt one is due."""
+    _install(scratch)
+    binary = _program(scratch)
+    _bench.run(scratch.root, "bench_thing")
+    assert "bench_thing" not in [i.name for i in _bench.due(scratch.root)]
+    binary.write_text("#!/bin/sh\nexit 0\n# rebuilt\n")
+    assert "bench_thing" in [i.name for i in _bench.due(scratch.root)]

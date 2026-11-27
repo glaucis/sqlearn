@@ -20630,7 +20630,25 @@
     },
     {
       "area": "validation/_bench",
+      "name": "tests/validation/test__bench.py::test_a_helper_edit_makes_a_recorded_script_due",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_bench",
+      "name": "tests/validation/test__bench.py::test_a_library_edit_makes_a_recorded_script_due",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_bench",
       "name": "tests/validation/test__bench.py::test_a_program_a_group_claims_is_listed_by_its_group",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_bench",
+      "name": "tests/validation/test__bench.py::test_a_program_is_due_again_when_its_binary_changes",
       "outcome": "passed",
       "tier": "fast"
     },

@@ -4,8 +4,10 @@ No check runs a benchmark (ADR 0072): ``due`` only lists, and ``run`` is what
 ``just bench <name>`` calls after Tomas's go-ahead. A benchmark is a page
 script in ``validation/benchmarks`` or a C++ program a group claims
 (``BENCH`` of ``sq_add_group``). Its identity is the bytes of its script (or
-the source of its program) and the identity of the C++ groups it measures
-(``_groups.identity``) in this place; it is due when no record has it. A
+the source of its program), the identity of the C++ groups it measures
+(``_groups.identity``), the Python it times (``src``, ``validation``,
+``devdata`` and the settings, hashed as the library's tests are; a program's
+binary instead) in this place; it is due when no record has it. A
 script names its page and its groups in two module constants, ``PAGE`` and
 ``GROUPS`` (None for every group), read here without running the script.
 
@@ -26,7 +28,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 
-from validation import _checks, _groups
+from validation import _checks, _groups, _pytest_sets
 
 SCRIPTS = Path("validation/benchmarks")
 """Where the page scripts are, relative to the root."""
@@ -70,6 +72,7 @@ class _Benchmark:
     groups: tuple[str, ...] | None
     source: Path
     argv: tuple[str, ...]
+    program: bool = False
 
 
 def _constants(script: Path) -> tuple[str, tuple[str, ...] | None]:
@@ -133,23 +136,52 @@ def _benchmarks(root: Path, groups: dict[str, _groups.Group]) -> list[_Benchmark
                 (owner,),
                 root / PROGRAMS / f"{name}.cpp",
                 (str(root / PROGRAM_BINARIES / name),),
+                program=True,
             )
         )
     return found
 
 
+def _library(root: Path) -> str:
+    """Return the SHA-256 of the Python a script times: what the library's tests read.
+
+    The library, the validation (every helper a script imports, and the
+    cases), the data of development and the settings, as the library test
+    sets hash them (``_pytest_sets``).
+    """
+    files = set(_checks._listed(_pytest_sets.LIBRARY_INPUTS, root))
+    files |= set(_checks._listed(_checks.SETTINGS, root))
+    return _checks._combined(sorted(files), root, {})
+
+
 def _identity(
-    item: _Benchmark, prints: _groups.Fingerprints, groups: dict[str, _groups.Group]
+    item: _Benchmark,
+    prints: _groups.Fingerprints,
+    groups: dict[str, _groups.Group],
+    library: str,
 ) -> str:
-    """Return the SHA-256 of what `item` measured: its bytes, groups and place."""
+    """Return the SHA-256 of what `item` measured.
+
+    Its bytes, its groups, the place, and the Python it times (`library`);
+    for a program, the binary's bytes instead of the Python, as the one that
+    runs is the one measured.
+    """
     try:
         source = item.source.read_bytes()
     except OSError as error:
         raise _groups.Unreadable(f"{item.source} could not be read: {error}") from error
+    if item.program:
+        try:
+            measured = hashlib.sha256(Path(item.argv[0]).read_bytes()).hexdigest()
+        except OSError:
+            measured = "no binary"
+    else:
+        measured = library
     parts = [
         item.name.encode(),
         hashlib.sha256(source).hexdigest().encode(),
         _groups.identity(prints, groups, item.groups).encode(),
+        measured.encode(),
         _checks.place().encode(),
     ]
     return hashlib.sha256(b"\0".join(parts)).hexdigest()
@@ -182,10 +214,13 @@ def due(root: Path) -> list[Due]:
     groups, _ = _groups.load(root / _groups.WHEEL_BUILD)
     benchmarks = _benchmarks(root, groups)
     prints = _groups.fingerprints(root, _groups.WHEEL_BUILD)
+    library = _library(root)
     out: list[Due] = []
     for item in benchmarks:
         records = _records(root, item.name)
-        if any(r["digest"] == _identity(item, prints, groups) for r in records):
+        if any(
+            r["digest"] == _identity(item, prints, groups, library) for r in records
+        ):
             continue
         last = records[-1] if records else None
         out.append(
@@ -230,7 +265,12 @@ def run(root: Path, name: str) -> int:
         print(f"no benchmark {name}: `just benchmarks-due` lists them")  # noqa: T201
         return 2
     item = chosen[0]
-    identity = _identity(item, _groups.fingerprints(root, _groups.WHEEL_BUILD), groups)
+    identity = _identity(
+        item,
+        _groups.fingerprints(root, _groups.WHEEL_BUILD),
+        groups,
+        _library(root),
+    )
     before = _uptime()
     start = time.perf_counter()
     try:
