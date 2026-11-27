@@ -32,6 +32,7 @@ import hashlib
 import json
 import os
 import platform
+import secrets
 import subprocess
 import sys
 import tempfile
@@ -109,6 +110,12 @@ class Task:
         (Homebrew's clang-tidy): its output is configuration, so an upgraded
         tool reruns all of the task. A tool that is not installed counts as
         absent, and the task's own step then fails.
+    module : tuple of str or None
+        The C++ groups whose fingerprint (``validation._groups``) is part of
+        the task's inputs and configuration, with the shared part: ``()``
+        for none, None for every group. A comment in C++ or CMake text
+        changes no fingerprint. Unreadable fingerprints print their reason
+        and make a digest no record matches, so the task runs.
     """
 
     name: str
@@ -118,6 +125,7 @@ class Task:
     per_file: bool
     layout: tuple[str, ...] = ()
     tools: tuple[tuple[str, ...], ...] = ()
+    module: tuple[str, ...] | None = ()
 
 
 class Record(TypedDict):
@@ -173,23 +181,6 @@ ENGINE_SOURCES = (
 )
 """sqlearn's own C++: the groups, their tests, the benchmarks, the extension."""
 
-ENGINE_BUILD = (
-    "engine/duckdb-python",
-    "engine/src",
-    "engine/extension",
-    "engine/CMakeLists.txt",
-    "engine/cmake",
-    "engine/third_party",
-)
-"""What the built module comes from: pyproject's ``tool.uv.cache-keys`` under
-``engine/``, on which uv rebuilds it, and every submodule pinned under
-``engine/``: duckdb-python's gitlink, which pins DuckDB's, and
-``third_party``'s (cpptrace is linked into the module; the test libraries
-are counted too, which only ever reruns). A task whose result depends on the
-module or on DuckDB (the doctests run on it, the type checkers read its
-stubs, the validation's records hold its digest) has it as configuration,
-so a DuckDB or cpptrace bump or a C++ edit reruns all of it."""
-
 TIDY_INPUTS = (
     *ENGINE_SOURCES,
     "engine/.clang-tidy",
@@ -242,16 +233,20 @@ TOOLING_INPUTS = (
 """What the tooling tests import or read, every file as text."""
 
 SQL_INPUTS = (
-    # The extension: its sources, its config and its .test files.
-    "engine/extension",
-    # Our C++ it links (core::describe), and the build of the runner.
-    "engine/src",
+    # The extension's .test files, its CMake files and its config, as text;
+    # its C++ and our own (core::describe) reach the task through the
+    # module's fingerprint (``Task.module``), which a comment leaves alone.
+    ":(glob)engine/extension/**/*.test",
+    ":(glob)engine/extension/**/*.cmake",
+    ":(glob)engine/extension/**/CMakeLists.txt",
+    # The runner's build: the sqllogic preset's own flags are not in the
+    # wheel's compile entries, so these stay text.
     "engine/sqllogic",
     "engine/cmake",
     "engine/CMakeLists.txt",
     "engine/CMakePresets.json",
     # DuckDB, through duckdb-python's gitlink, which pins its own, and the
-    # other submodules ENGINE_BUILD names, should our C++ ever link one.
+    # other submodules under engine/, should our C++ ever link one.
     "engine/duckdb-python",
     "engine/third_party",
     "validation/_ctest.py",
@@ -308,21 +303,24 @@ def _table() -> dict[str, Task]:
         Task(
             name="docstrings",
             inputs=("src/*.py",),
-            config=(*SETTINGS, *ENGINE_BUILD),
+            config=SETTINGS,
             steps=(
                 Step(("numpydoc", "lint")),
                 # pydoclint through its filter, which drops DOC111.
                 Step(("just", "check-docstring-args")),
             ),
             per_file=True,
+            module=None,
         ),
         Task(
             name="types",
             inputs=PYTHON,
-            # ty and mypy read the module's stubs (_duckdb-stubs).
-            config=(*SETTINGS, *ENGINE_BUILD),
+            # ty and mypy read the module's stubs (_duckdb-stubs): its
+            # identity is part of the configuration (``module``).
+            config=SETTINGS,
             steps=(Step(("ty", "check")), Step(("mypy",))),
             per_file=False,
+            module=None,
         ),
         Task(
             name="test",
@@ -366,6 +364,9 @@ def _table() -> dict[str, Task]:
                 Step(("just", "test-sql"), everything=("--all",)),
             ),
             per_file=False,
+            # The extension's code is the module's shared part, which every
+            # identity holds; ``core`` is what it links (core::describe).
+            module=("core",),
             tools=(
                 # The compiler behind the build (an Xcode or Command Line
                 # Tools update), and the SDK it compiles against.
@@ -396,10 +397,12 @@ def _table() -> dict[str, Task]:
         Task(
             name="docs",
             inputs=("docs", "src", "examples"),
-            # The doctests run on the built module.
-            config=(*SETTINGS, *ENGINE_BUILD),
+            # The doctests run on the built module: its identity is part of
+            # the configuration (``module``).
+            config=SETTINGS,
             steps=(Step(("just", "build-docs")),),
             per_file=False,
+            module=None,
         ),
     )
     return {t.name: t for t in tasks}
@@ -510,7 +513,45 @@ def _combined(
     return sha.hexdigest()
 
 
-def digest(task: Task, root: Path) -> str:
+def module_identity(task: Task, root: Path) -> str:
+    """Return the module's identity as `task` reads it, empty for none.
+
+    Taken once a run (the fingerprints cost seconds). When they cannot be
+    read, the reason is printed and the result is one no record holds, so
+    the task runs and records nothing a later run matches.
+
+    Parameters
+    ----------
+    task : Task
+        The task, by its ``module``.
+    root : Path
+        The repository's working tree.
+
+    Returns
+    -------
+    str
+        The empty string for ``module == ()``, else the SHA-256 of the
+        shared part and the chosen groups' fingerprints.
+    """
+    if task.module == ():
+        return ""
+    from validation import _groups
+
+    build = root / _groups.WHEEL_BUILD
+    try:
+        groups, _ = _groups.load(build)
+        prints = _groups.fingerprints(root, _groups.WHEEL_BUILD)
+        return _groups.identity(prints, groups, task.module)
+    except _groups.Unreadable as error:
+        print(  # noqa: T201
+            f"{task.name}: the C++ groups are unreadable: {error}\n"
+            f"{task.name}: it runs, and no later run matches its record",
+            flush=True,
+        )
+        return f"unreadable\0{secrets.token_hex(16)}"
+
+
+def digest(task: Task, root: Path, module: str | None = None) -> str:
     """Return the SHA-256 of `task`'s inputs and configuration under `root`.
 
     Parameters
@@ -519,13 +560,15 @@ def digest(task: Task, root: Path) -> str:
         The task whose files are hashed.
     root : Path
         The repository's working tree.
+    module : str, optional
+        The ``module_identity`` already taken; taken here when omitted.
 
     Returns
     -------
     str
         The hex digest of the place it runs in, every file under its inputs
-        and configuration, the commit each submodule there pins, and its
-        tools' versions.
+        and configuration, the commit each submodule there pins, its
+        tools' versions, and the module's identity when the task has one.
     """
     names = sorted({*_listed(task.inputs, root), *_listed(task.config, root)})
     links = {
@@ -533,23 +576,32 @@ def digest(task: Task, root: Path) -> str:
         **_gitlinks(task.config, root),
     }
     combined = _combined(names, root, links)
-    if not task.tools:
+    extra = b""
+    if task.module != ():
+        found = module_identity(task, root) if module is None else module
+        extra += b"\0module\0" + found.encode()
+    if task.tools:
+        extra += b"\0tools\0" + _tool_versions(task)
+    if not extra:
         return combined
-    tools = b"\0tools\0" + _tool_versions(task)
-    return hashlib.sha256(combined.encode() + tools).hexdigest()
+    return hashlib.sha256(combined.encode() + extra).hexdigest()
 
 
-def _config(task: Task, root: Path) -> str:
+def _config(task: Task, root: Path, module: str | None = None) -> str:
     """Return the SHA-256 of the place, `task`'s configuration and its layout.
 
     The layout is the sorted names of the files under ``task.layout``, never
     their bytes: a new or removed file changes it. The commit each submodule
-    under the configuration pins, and the tools' versions, count too.
+    under the configuration pins, the tools' versions and the module's
+    identity (`module`, taken here when omitted) count too.
     """
     layout = "\0".join(_listed(task.layout, root)).encode()
     links = _gitlinks(task.config, root)
     sha = hashlib.sha256(_combined(_listed(task.config, root), root, links).encode())
     sha.update(b"\0layout\0" + layout)
+    if task.module != ():
+        found = module_identity(task, root) if module is None else module
+        sha.update(b"\0module\0" + found.encode())
     if task.tools:
         sha.update(b"\0tools\0" + _tool_versions(task))
     return sha.hexdigest()
@@ -737,8 +789,9 @@ def run(task_name: str, root: Path, *, everything: bool = False) -> int:
     """
     task = TASKS[task_name]
     root = root.resolve()
-    whole = digest(task, root)
-    config = _config(task, root)
+    module = module_identity(task, root)
+    whole = digest(task, root, module)
+    config = _config(task, root, module)
     files = _hashes(_listed(task.inputs, root), root)
     directory = record_dir(root)
     if task.per_file and not files:
@@ -768,7 +821,7 @@ def run(task_name: str, root: Path, *, everything: bool = False) -> int:
     )
     if code != 0:
         return code
-    if digest(task, root) != whole:
+    if digest(task, root, module) != whole:
         print(  # noqa: T201
             f"{task.name}: not recorded, its inputs changed while it ran", flush=True
         )

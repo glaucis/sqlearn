@@ -152,73 +152,109 @@
     },
     {
       "area": "checks/tasks",
-      "name": "tests/checks/test_tasks.py::test_a_cxx_edit_reruns_what_runs_on_the_engine[engine/CMakeLists.txt-docs-build-docs]",
+      "name": "tests/checks/test_tasks.py::test_a_cmake_text_edit_keeps_what_runs_on_the_module[docs]",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "checks/tasks",
-      "name": "tests/checks/test_tasks.py::test_a_cxx_edit_reruns_what_runs_on_the_engine[engine/CMakeLists.txt-docstrings-numpydoc]",
+      "name": "tests/checks/test_tasks.py::test_a_cmake_text_edit_keeps_what_runs_on_the_module[docstrings]",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "checks/tasks",
-      "name": "tests/checks/test_tasks.py::test_a_cxx_edit_reruns_what_runs_on_the_engine[engine/CMakeLists.txt-types-ty]",
+      "name": "tests/checks/test_tasks.py::test_a_cmake_text_edit_keeps_what_runs_on_the_module[types]",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "checks/tasks",
-      "name": "tests/checks/test_tasks.py::test_a_cxx_edit_reruns_what_runs_on_the_engine[engine/cmake/sql_tests.cmake-docs-build-docs]",
+      "name": "tests/checks/test_tasks.py::test_a_core_change_reruns_sql_and_docs[engine/extension/src/sqlearn_extension.cpp-docs-build-docs]",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "checks/tasks",
-      "name": "tests/checks/test_tasks.py::test_a_cxx_edit_reruns_what_runs_on_the_engine[engine/cmake/sql_tests.cmake-docstrings-numpydoc]",
+      "name": "tests/checks/test_tasks.py::test_a_core_change_reruns_sql_and_docs[engine/extension/src/sqlearn_extension.cpp-docstrings-numpydoc]",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "checks/tasks",
-      "name": "tests/checks/test_tasks.py::test_a_cxx_edit_reruns_what_runs_on_the_engine[engine/cmake/sql_tests.cmake-types-ty]",
+      "name": "tests/checks/test_tasks.py::test_a_core_change_reruns_sql_and_docs[engine/extension/src/sqlearn_extension.cpp-types-ty]",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "checks/tasks",
-      "name": "tests/checks/test_tasks.py::test_a_cxx_edit_reruns_what_runs_on_the_engine[engine/extension/src/sqlearn_extension.cpp-docs-build-docs]",
+      "name": "tests/checks/test_tasks.py::test_a_core_change_reruns_sql_and_docs[engine/src/core/version.cpp-docs-build-docs]",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "checks/tasks",
-      "name": "tests/checks/test_tasks.py::test_a_cxx_edit_reruns_what_runs_on_the_engine[engine/extension/src/sqlearn_extension.cpp-docstrings-numpydoc]",
+      "name": "tests/checks/test_tasks.py::test_a_core_change_reruns_sql_and_docs[engine/src/core/version.cpp-docstrings-numpydoc]",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "checks/tasks",
-      "name": "tests/checks/test_tasks.py::test_a_cxx_edit_reruns_what_runs_on_the_engine[engine/extension/src/sqlearn_extension.cpp-types-ty]",
+      "name": "tests/checks/test_tasks.py::test_a_core_change_reruns_sql_and_docs[engine/src/core/version.cpp-types-ty]",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "checks/tasks",
-      "name": "tests/checks/test_tasks.py::test_a_cxx_edit_reruns_what_runs_on_the_engine[engine/src/core/version.cpp-docs-build-docs]",
+      "name": "tests/checks/test_tasks.py::test_a_cpp_comment_edit_keeps_the_docs_record[engine/extension/src/sqlearn_extension.cpp-docs-build-docs]",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "checks/tasks",
-      "name": "tests/checks/test_tasks.py::test_a_cxx_edit_reruns_what_runs_on_the_engine[engine/src/core/version.cpp-docstrings-numpydoc]",
+      "name": "tests/checks/test_tasks.py::test_a_cpp_comment_edit_keeps_the_docs_record[engine/extension/src/sqlearn_extension.cpp-docstrings-numpydoc]",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "checks/tasks",
-      "name": "tests/checks/test_tasks.py::test_a_cxx_edit_reruns_what_runs_on_the_engine[engine/src/core/version.cpp-types-ty]",
+      "name": "tests/checks/test_tasks.py::test_a_cpp_comment_edit_keeps_the_docs_record[engine/extension/src/sqlearn_extension.cpp-sql-test-sql ]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_a_cpp_comment_edit_keeps_the_docs_record[engine/extension/src/sqlearn_extension.cpp-types-ty]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_a_cpp_comment_edit_keeps_the_docs_record[engine/src/core/version.cpp-docs-build-docs]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_a_cpp_comment_edit_keeps_the_docs_record[engine/src/core/version.cpp-docstrings-numpydoc]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_a_cpp_comment_edit_keeps_the_docs_record[engine/src/core/version.cpp-sql-test-sql ]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_a_cpp_comment_edit_keeps_the_docs_record[engine/src/core/version.cpp-types-ty]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_a_cpp_comment_under_engine_src_keeps_the_sql_digest",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -254,6 +290,12 @@
     },
     {
       "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_every_cache_key_under_engine_reaches_a_fingerprint",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
       "name": "tests/checks/test_tasks.py::test_full_sql_runs_every_sql_test",
       "outcome": "passed",
       "tier": "fast"
@@ -272,13 +314,31 @@
     },
     {
       "area": "checks/tasks",
-      "name": "tests/checks/test_tasks.py::test_the_engine_build_inputs_are_uvs_cache_keys",
+      "name": "tests/checks/test_tasks.py::test_the_test_task_is_the_cxx_groups_then_the_python_sets",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "checks/tasks",
-      "name": "tests/checks/test_tasks.py::test_the_test_task_is_the_cxx_groups_then_the_python_sets",
+      "name": "tests/checks/test_tasks.py::test_unreadable_fingerprints_rerun_the_task_and_record_nothing_matching[docs]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_unreadable_fingerprints_rerun_the_task_and_record_nothing_matching[docstrings]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_unreadable_fingerprints_rerun_the_task_and_record_nothing_matching[sql]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_unreadable_fingerprints_rerun_the_task_and_record_nothing_matching[types]",
       "outcome": "passed",
       "tier": "fast"
     },

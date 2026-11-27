@@ -8,6 +8,7 @@ stand-ins on ``PATH`` that log their arguments, so no real check runs.
 
 import json
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -44,8 +45,15 @@ with open(os.environ["CALLS"], "a") as log:
     log.write(json.dumps([os.path.basename(sys.argv[0]), *sys.argv[1:]]) + "\\n")
 """
 
+NINJA = """#!/bin/sh
+# Called as: ninja -C <build> -t commands _duckdb, or -t deps <object>.
+[ "$4" = deps ] && exit 1
+printf 'echo first\\n'
+cat "$2/link.txt"
+"""
+
 FILES = {
-    ".gitignore": "calls.log\n",
+    ".gitignore": "calls.log\nbuild/\n",
     ".python-version": "3.12\n",
     "pyproject.toml": "[project]\nname = 'scratch'\n",
     "uv.lock": "lock\n",
@@ -66,6 +74,43 @@ FILES = {
 }
 
 
+def build(repo):
+    """Write the wheel's build of the scratch engine: group ``core``.
+
+    ``sq_groups.json``, ``compile_commands.json`` naming the real compiler
+    and ``link.txt``, which the ``ninja`` stand-in prints (git-ignored).
+    """
+    compiler = shutil.which("c++")
+    if compiler is None:
+        pytest.skip("c++ is needed: just doctor")
+    out = repo / "build" / "cpython-312"
+    out.mkdir(parents=True)
+    source = repo / "engine" / "src" / "core" / "version.cpp"
+    manifest = {
+        "groups": [
+            {
+                "name": "core",
+                "dir": "engine/src/core",
+                "depends": [],
+                "python_tests": [],
+                "validation": [],
+                "bench": [],
+            }
+        ],
+        "shared": ["engine/extension"],
+    }
+    (out / "sq_groups.json").write_text(json.dumps(manifest))
+    argv = [compiler, "-std=c++23", "-o", "version.o", "-c", str(source)]
+    entry = {
+        "directory": str(out),
+        "command": shlex.join(argv),
+        "file": str(source),
+        "output": str(out / "version.o"),
+    }
+    (out / "compile_commands.json").write_text(json.dumps([entry]))
+    (out / "link.txt").write_text(f"{compiler} -bundle -o _duckdb.so version.o\n")
+
+
 def git(cwd, *args, env):
     """Run git in cwd."""
     subprocess.run(["git", *args], cwd=cwd, env=env, check=True, capture_output=True)
@@ -82,6 +127,9 @@ def scratch(tmp_path):
     (repo / "justfile").write_text(OVERRIDES)
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
+    (bin_dir / "ninja").write_text(NINJA)
+    (bin_dir / "ninja").chmod(0o755)
+    build(repo)
     for tool in ("ruff", "typos", "rumdl", "numpydoc", "ty", "mypy", "uv"):
         (bin_dir / tool).write_text(TOOL.format(python=sys.executable))
         (bin_dir / tool).chmod(0o755)
@@ -193,7 +241,8 @@ def test_the_test_task_is_the_cxx_groups_then_the_python_sets():
 )
 def test_a_change_to_the_extension_reruns_its_sql_tests(scratch, changed):
     """``just sql`` runs the SQL tests once, skips them on a docs edit, and
-    runs them again when the extension, a .test file or our C++ changed."""
+    runs them again when the extension's or our C++ code, a .test file or the
+    runner's build changed (a C++ comment alone does not: see below)."""
     repo, env = scratch
     just(repo, env, "sql")
     assert calls(env) == [["test-sql "]]
@@ -201,7 +250,8 @@ def test_a_change_to_the_extension_reruns_its_sql_tests(scratch, changed):
     assert "sql: unchanged since a passed run" in just(repo, env, "sql")
     assert calls(env) == []
     path = repo / changed
-    path.write_text((path.read_text() if path.exists() else "") + "// changed\n")
+    added = "int changed;\n" if path.suffix == ".cpp" else "// changed\n"
+    path.write_text((path.read_text() if path.exists() else "") + added)
     just(repo, env, "sql")
     assert calls(env) == [["test-sql "]]
 
@@ -270,62 +320,131 @@ def test_a_duckdb_bump_reruns_what_runs_on_the_engine(scratch, task, first):
     [
         "engine/src/core/version.cpp",
         "engine/extension/src/sqlearn_extension.cpp",
-        "engine/cmake/sql_tests.cmake",
-        "engine/CMakeLists.txt",
     ],
 )
-def test_a_cxx_edit_reruns_what_runs_on_the_engine(scratch, task, first, changed):
-    """An edit of the engine's sources or build rebuilds the module, so the
-    checks that run on it run again."""
+def test_a_core_change_reruns_sql_and_docs(scratch, task, first, changed):
+    """A code change in the engine rebuilds the module, so the checks that
+    run on it run again; the SQL tests too (below)."""
     repo, env = scratch
     just(repo, env, task)
     calls(env)
     path = repo / changed
-    path.write_text((path.read_text() if path.exists() else "") + "# changed\n")
+    path.write_text(path.read_text() + "int changed;\n")
     just(repo, env, task)
     assert calls(env)[0][0] == first
 
 
-def test_the_engine_build_inputs_are_uvs_cache_keys():
-    """ENGINE_BUILD is what uv rebuilds the module on (pyproject's
-    ``tool.uv.cache-keys`` under ``engine/``), plus every submodule pinned
-    under ``engine/`` (duckdb-python and ``third_party``), which uv keys
-    through the commit and ``.gitmodules``. The compiler stamp
-    is a git-ignored file no digest can see: the tasks name the compiler as
-    a tool instead."""
+@pytest.mark.parametrize(
+    ("task", "first"),
+    [
+        ("docs", "build-docs"),
+        ("types", "ty"),
+        ("docstrings", "numpydoc"),
+        ("sql", "test-sql "),
+    ],
+)
+@pytest.mark.parametrize(
+    "changed",
+    [
+        "engine/src/core/version.cpp",
+        "engine/extension/src/sqlearn_extension.cpp",
+    ],
+)
+def test_a_cpp_comment_edit_keeps_the_docs_record(scratch, task, first, changed):
+    """A comment edited within its line changes no fingerprint: the docs
+    build, the type checks, the docstring checks and the SQL tests stay
+    unchanged since a passed run."""
+    repo, env = scratch
+    just(repo, env, task)
+    calls(env)
+    path = repo / changed
+    path.write_text(path.read_text().replace("//", "// edited"))
+    assert f"{task}: unchanged since a passed run" in just(repo, env, task)
+    assert calls(env) == []
+
+
+@pytest.mark.parametrize("task", ["docs", "types", "docstrings"])
+def test_a_cmake_text_edit_keeps_what_runs_on_the_module(scratch, task):
+    """CMake text reaches the module only through what it makes the build do
+    (the compile entries, the link command), so a comment there reruns
+    none of them."""
+    repo, env = scratch
+    just(repo, env, task)
+    calls(env)
+    path = repo / "engine" / "cmake" / "sql_tests.cmake"
+    path.write_text(path.read_text() + "# changed\n")
+    assert f"{task}: unchanged since a passed run" in just(repo, env, task)
+
+
+def test_a_cpp_comment_under_engine_src_keeps_the_sql_digest(scratch, monkeypatch):
+    """``sql`` reads the C++ through the module's fingerprint: a comment
+    changes no digest, a code change in ``core`` changes it."""
+    repo, env = scratch
+    monkeypatch.setenv("PATH", env["PATH"])
+    sql = _checks.TASKS["sql"]
+    before = _checks.digest(sql, repo)
+    path = repo / "engine" / "src" / "core" / "version.cpp"
+    path.write_text(path.read_text().replace("//", "// edited"))
+    assert _checks.digest(sql, repo) == before
+    path.write_text(path.read_text() + "int changed;\n")
+    assert _checks.digest(sql, repo) != before
+
+
+@pytest.mark.parametrize("task", ["docs", "types", "docstrings", "sql"])
+def test_unreadable_fingerprints_rerun_the_task_and_record_nothing_matching(
+    scratch, task
+):
+    """No manifest: the reason is printed and the task runs each time."""
+    repo, env = scratch
+    (repo / "build" / "cpython-312" / "sq_groups.json").unlink()
+    out = just(repo, env, task)
+    assert "sq_groups.json" in out
+    assert calls(env)
+    assert f"{task}: unchanged" not in just(repo, env, task)
+    assert calls(env)
+
+
+def test_every_cache_key_under_engine_reaches_a_fingerprint():
+    """pyproject's ``tool.uv.cache-keys`` under ``engine/`` is what uv
+    rebuilds the module on. Each reaches a fingerprint: a group's directory
+    or a shared one (the real manifest), or the CMake files, which reach it
+    through the compile entries and the link command. The pins are the
+    shared part's. The compiler stamp is a git-ignored file no digest can
+    see: the tasks name the compiler as a tool instead."""
     import tomllib
+
+    from validation import _groups
 
     keys = tomllib.loads((REPO / "pyproject.toml").read_text())["tool"]["uv"][
         "cache-keys"
     ]
-    globs = {
+    paths = {
         k["file"].removesuffix("/**")
         for k in keys
         if "file" in k and k["file"].startswith("engine/")
     }
-    globs.discard("engine/.compiler-stamp")
-    pins = {"engine/duckdb-python", "engine/third_party"}
-    assert set(_checks.ENGINE_BUILD) == {*globs, *pins}
-    # Every submodule under engine/ (DuckDB, cpptrace linked into the
-    # module, the test libraries) is under ENGINE_BUILD, so a bump of any
-    # reruns what depends on the module.
+    paths.discard("engine/.compiler-stamp")
+    groups, shared = _groups.load(REPO / _groups.WHEEL_BUILD)
+    held = {g.dir for g in groups.values()} | set(shared)
+    cmake = {"engine/CMakeLists.txt", "engine/cmake"}
+
+    def reached(path):
+        """Whether the fingerprint holds `path`: it is, or sits under, a
+        group's or a shared directory, or every directory under it is."""
+        if any(path == h or path.startswith(f"{h}/") for h in held):
+            return True
+        below = [h for h in held if h.startswith(f"{path}/")]
+        subdirs = {
+            d.relative_to(REPO).as_posix()
+            for d in (REPO / path).iterdir()
+            if d.is_dir() and any(d.rglob("*.[ch]pp"))
+        }
+        return bool(below) and subdirs <= held
+
+    assert [p for p in paths - cmake if not reached(p)] == []
+    assert cmake <= paths
     links = _checks._gitlinks(("engine",), REPO)
     assert links, "the engine pins its submodules"
-    loose = [
-        name
-        for name in links
-        if not any(name.startswith(f"{p}/") or name == p for p in pins)
-    ]
-    assert loose == []
-
-    def covered(path, task):
-        specs = (*task.inputs, *task.config)
-        return any(path == s or path.startswith(f"{s}/") for s in specs)
-
-    for name in ("docs", "types", "docstrings", "sql"):
-        task = _checks.TASKS[name]
-        missing = [p for p in _checks.ENGINE_BUILD if not covered(p, task)]
-        assert missing == [], name
 
 
 def test_full_sql_runs_every_sql_test(scratch):
