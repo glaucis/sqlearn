@@ -3,9 +3,9 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-27 · Branch: `main` (ahead of `origin/main`, not pushed) ·
-Last commit: `docs: archive work when it is done` · Checks: passing
-(`just done`)
+Updated: 2026-11-27 · Branch: `main` (pushed, level with `origin/main`) ·
+Last commit: `docs: refresh the docs index frontmatter` (`af459f8`) ·
+Checks: passing (`just done`)
 Verify with: `just done` (`just verify` is the release tier)
 
 ## In progress
