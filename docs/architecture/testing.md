@@ -127,7 +127,7 @@ passed run already checked.
 | `docstrings` | the Python files under `src/` | each changed file: `numpydoc lint`, `just check-docstring-args` |
 | `types` | every `*.py` and `*.pyi` file | the whole program: `ty check`, then `mypy` |
 | `test` | the C++ groups' own identities, then each Python set's (see "Selecting by group", below) | the C++ groups whose program changed, then each Python set whose identity has no passed record |
-| `sql` | `engine/extension/` (its `.test` files included), `engine/sqllogic/`, `validation/_ctest.py`, the module's shared fingerprint and `core`'s; the compiler's and the SDK's versions | the extension's SQL tests: `just test-sql` (below) |
+| `sql` | `engine/extension/test/` whole (the `.test`, `.test_slow` and `.test_coverage` files and any data file beside them), the extension's CMake files and config, `engine/sqllogic/`, `validation/_ctest.py`, the module's shared fingerprint and `core`'s; the compiler's and the SDK's versions | the extension's SQL tests: `just test-sql` (below) |
 | `tidy` | our C++ (`engine/src/`, `engine/tests/`, `engine/bench/`, `engine/extension/`), `engine/cmake/`, the CMake files and presets, `engine/.clang-tidy`, `engine/src/raw/.clang-tidy`, `engine/iwyu.imp`, the submodules' commits | the whole engine: `just tidy-engine` (clang-tidy with the static analyser), `just iwyu-engine` (include-what-you-use), `just headers-alone` |
 | `docs` | `docs/`, `src/`, `examples/`, the module's shared fingerprint and every group's | the whole site: `just build-docs` |
 | `validate` | each runner's imported modules, `uv.lock`, `devdata/data/`, its groups' fingerprints and the shared part | each changed runner, by its own records (below) |
@@ -454,9 +454,14 @@ The `test` task runs the C++ groups first, then the Python tests in **sets**
   `tests/engine`, `tests/docs`, `tests/devdata` and `tests/test_environment.py`.
   It reads `src/sqlearn`, all of `engine/` as text (comments included: some
   tests scan the C++ and the CMake files line by line, so a comment reruns it,
-  about a minute), `.clangd` and the module's whole fingerprint.
+  about a minute), `.clangd`, `THIRD_PARTY.md`, `NOTICE` and the module's whole
+  fingerprint. The list (`TOOLING_INPUTS`) is kept by hand; a test scans the
+  tooling tests, and the validation modules they hand the repository to, for
+  every repository path they join as a literal, and fails on one the list and
+  the settings leave out.
 - **`group:<name>`**: the tests a group claims, depending on that group's
-  fingerprint, the shared part and `src/`.
+  fingerprint, the shared part, `src/` and every file under `tests/src/`, the
+  other sets' tests included, since one test module may import another's.
 - **unclaimed**: the tests no group claims, depending on every group.
 
 A pass that collects nothing is not a failure, unless all three collect
@@ -518,6 +523,8 @@ The next run skips a runner, printing `unchanged since a passed run` and leaving
 its results file alone, when the newest record with the same environment and
 every file it names present with the same hash passed. A run with a failing case
 reruns every time, and it cancels any earlier pass of the same inputs.
+When the groups cannot be read (no build, or no manifest), every runner runs and
+none is recorded; a check run then records nothing either.
 `environment.json` is written when any runner ran. A runner records no pass if
 its groups' fingerprints moved while it ran. The code is
 `validation/_record.py`. A change to a comment or to anything the module is not

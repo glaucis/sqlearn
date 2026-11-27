@@ -13,8 +13,9 @@ The tests fall into sets (``sets``):
   the manifest), whose identity is the SHA-256 of its own test files, every
   file of ``LIBRARY_INPUTS`` (``src/``, since ``import sqlearn`` loads the
   whole package, and what the tests import beside it), the shared test
-  files (the helpers and ``conftest.py`` files under ``tests/src/``, the
-  ``conftest.py`` files above its paths, ``tests/public_api.*``) and the
+  files (every file under ``tests/src/``, the other sets' tests included,
+  since a test module may import another's, the ``conftest.py`` files
+  above its paths, ``tests/public_api.*``) and the
   module as the group's closure reads it (``validation._groups.identity``).
 - ``unclaimed``: every test under ``tests/src/`` no group claims, the same
   way, with every group, as what no group claims depends on all of them.
@@ -171,14 +172,14 @@ def sets(groups: dict[str, _groups.Group], root: Path) -> Sets:
 def _shared(paths: Sequence[str]) -> list[str]:
     """Return the pathspecs of the test files a library set shares with others.
 
-    Every file under ``tests/src/`` but its tests (the helpers, the
-    ``conftest.py`` files), the public API's lists, and each ``conftest.py``
-    from the root down to each of `paths`.
+    Every file under ``tests/src/``, the other sets' tests included (a test
+    module may import another's: ``_saving/test_learned`` imports
+    ``test_recipe``; any ``src/`` edit reruns them all anyway), the public
+    API's lists, and each ``conftest.py`` from the root down to each of
+    `paths`.
     """
     specs = {
         LIBRARY,
-        f":(exclude,glob){LIBRARY}/**/test_*.py",
-        f":(exclude,glob){LIBRARY}/**/*_test.py",
         ":(glob)tests/public_api.*",
         "conftest.py",
     }

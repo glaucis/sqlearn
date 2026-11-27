@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from validation import _licences
+from validation import _groups, _licences
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -31,7 +31,7 @@ def scratch(tmp_path, rows, compiled, includes=(), notice=None):
     file, and a build whose compile database compiles `compiled` with the
     include directories `includes` (made, so they exist)."""
     repo = tmp_path / "repo"
-    build = repo / "build" / "cpython-312"
+    build = repo / _groups.WHEEL_BUILD
     build.mkdir(parents=True)
     (repo / "LICENSE").write_text("licence\n")
     (repo / "THIRD_PARTY.md").write_text(
@@ -134,7 +134,7 @@ def test_a_path_outside_the_repository_matches_a_pattern(tmp_path):
         [row("nanobind", "BSD-3-Clause", ["*/site-packages/nanobind"])],
         ["engine/src/a.cpp"],
     )
-    db = repo / "build" / "cpython-312" / "compile_commands.json"
+    db = repo / _groups.WHEEL_BUILD / "compile_commands.json"
     entries = json.loads(db.read_text())
     gone = "/gone/lib/python3.12/site-packages"
     entries[0]["command"] += f" -isystem {gone}/nanobind/include -I{gone}/other"
@@ -148,7 +148,7 @@ def test_a_stale_include_inside_the_repository_is_ignored(tmp_path):
     """An include directory of the repository that does not exist holds
     nothing the build could read."""
     repo = scratch(tmp_path, [], ["engine/src/a.cpp"])
-    db = repo / "build" / "cpython-312" / "compile_commands.json"
+    db = repo / _groups.WHEEL_BUILD / "compile_commands.json"
     entries = json.loads(db.read_text())
     entries[0]["command"] += f" -I{repo / 'third_party/none/include'}"
     db.write_text(json.dumps(entries))
@@ -203,7 +203,7 @@ def test_a_foreign_archive_linked_into_duckdb_fails(tmp_path):
     """A link input not built in the build directory is named; the system's
     libraries and frameworks pass."""
     repo = scratch(tmp_path, [], ["engine/src/a.cpp"])
-    build = repo / "build" / "cpython-312"
+    build = repo / _groups.WHEEL_BUILD
     write_link(
         build,
         [
@@ -231,7 +231,7 @@ def test_only_the_systems_libraries_are_linked_by_name(tmp_path):
     """-l names pass only for the system's own libraries."""
     repo = scratch(tmp_path, [], ["engine/src/a.cpp"])
     names = ["dl", "m", "pthread", "c", "c++", "System", "rt", "stdc++", "gcc_s"]
-    write_link(repo / "build" / "cpython-312", [f"-l{n}" for n in names] + ["-lssl"])
+    write_link(repo / _groups.WHEEL_BUILD, [f"-l{n}" for n in names] + ["-lssl"])
     found = _licences.problems(repo, "MIT")
     assert len(found) == 1
     assert "-lssl" in found[0]
@@ -243,7 +243,7 @@ def test_a_name_or_directory_in_the_next_token_is_checked_alike(tmp_path):
     ``-l dl`` passes."""
     repo = scratch(tmp_path, [], ["engine/src/a.cpp"])
     write_link(
-        repo / "build" / "cpython-312",
+        repo / _groups.WHEEL_BUILD,
         ["-l", "ssl", "-l", "dl", "-L", "/opt/homebrew/lib"],
     )
     found = _licences.problems(repo, "MIT")
@@ -258,7 +258,7 @@ def test_on_linux_only_libc_and_the_compiler_runtime_pass(tmp_path, monkeypatch)
     monkeypatch.setattr(_licences.sys, "platform", "linux")
     repo = scratch(tmp_path, [], ["engine/src/a.cpp"])
     write_link(
-        repo / "build" / "cpython-312",
+        repo / _groups.WHEEL_BUILD,
         [
             "/usr/lib/x86_64-linux-gnu/libc.so.6",
             "/lib/x86_64-linux-gnu/libm.so.6",
@@ -274,9 +274,7 @@ def test_on_linux_only_libc_and_the_compiler_runtime_pass(tmp_path, monkeypatch)
 def test_a_build_without_the_link_statement_fails(tmp_path):
     """No _duckdb link in build.ninja is a problem, not a pass."""
     repo = scratch(tmp_path, [], ["engine/src/a.cpp"])
-    (repo / "build" / "cpython-312" / "build.ninja").write_text(
-        "rule x\n  command = x\n"
-    )
+    (repo / _groups.WHEEL_BUILD / "build.ninja").write_text("rule x\n  command = x\n")
     found = _licences.problems(repo, "MIT")
     assert len(found) == 1
     assert "_duckdb" in found[0]

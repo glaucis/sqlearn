@@ -9,8 +9,10 @@ import json
 from pathlib import Path
 from typing import Any
 
+from validation import _groups
+
 REPO = Path(__file__).resolve().parents[2]
-MANIFEST = REPO / "build" / "cpython-312" / "sq_groups.json"
+MANIFEST = REPO / _groups.WHEEL_BUILD / "sq_groups.json"
 
 
 def _manifest() -> dict[str, Any]:

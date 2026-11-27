@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from validation import __main__ as entry
-from validation import _record
+from validation import _groups, _record
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -204,7 +204,7 @@ def test_a_changed_group_reruns_every_runner_that_uses_it(root, capfd):
 def test_a_change_outside_a_runners_groups_keeps_its_record(root, capfd):
     """ODD claims ``a`` alone: an edit of ``b``, which depends on ``a`` and
     not the other way round, reruns nothing."""
-    manifest = root.parent / "build" / "cpython-312" / "sq_groups.json"
+    manifest = root.parent / _groups.WHEEL_BUILD / "sq_groups.json"
     data = json.loads(manifest.read_text())
     data["groups"][0]["validation"] = [ODD]
     data["groups"][1]["validation"] = []
@@ -220,7 +220,7 @@ def test_a_change_outside_a_runners_groups_keeps_its_record(root, capfd):
 
 def test_an_unreadable_build_reruns_every_runner(root, capfd):
     """No manifest: every runner reruns, each time, with the reason printed."""
-    (root.parent / "build" / "cpython-312" / "sq_groups.json").unlink()
+    (root.parent / _groups.WHEEL_BUILD / "sq_groups.json").unlink()
     for _ in range(2):
         assert entry.main([GOOD, ODD], root) == 0
         out = capfd.readouterr().out
@@ -247,7 +247,7 @@ def test_a_group_edited_while_the_runner_ran_is_not_recorded(root, capfd):
     """The group a runner uses changing during its run (a rebuild under it)
     saves no pass: the record would stand for code it did not run against."""
     (root.parent / "standins" / f"{GROUP_EDITOR}.py").write_text(GROUP_EDITOR_SOURCE)
-    manifest = root.parent / "build" / "cpython-312" / "sq_groups.json"
+    manifest = root.parent / _groups.WHEEL_BUILD / "sq_groups.json"
     data = json.loads(manifest.read_text())
     data["groups"][1]["validation"] = [GROUP_EDITOR]
     manifest.write_text(json.dumps(data))
@@ -257,3 +257,19 @@ def test_a_group_edited_while_the_runner_ran_is_not_recorded(root, capfd):
     assert "C++ groups" in out
     repo = root.parent.resolve()
     assert _record.load(_record.record_dir(repo), GROUP_EDITOR) == []
+
+
+def test_each_runner_is_named_by_a_last_part_no_other_has():
+    """A group claims a runner by the last part of its module name
+    (``validate_pca``): two runners sharing one would share its claims."""
+    last = [name.rsplit(".", 1)[-1] for name in entry.RUNNERS]
+    assert len(set(last)) == len(last)
+
+
+def test_an_unreadable_build_records_no_pass(root):
+    """A runner run while the groups cannot be read saves no record: one
+    under an unreadable identity stands for no build."""
+    (root.parent / _groups.WHEEL_BUILD / "sq_groups.json").unlink()
+    assert entry.main([GOOD], root) == 0
+    repo = root.parent.resolve()
+    assert _record.load(_record.record_dir(repo), GOOD) == []

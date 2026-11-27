@@ -62,9 +62,10 @@ def run_one(name: str, repo: Path, groups: str | None = None) -> int:
     before it is imported, and those hashes recorded; a file it loaded that
     changed while it ran, or was not there before, or a C++ group it uses that
     changed (its identity taken again after the run), saves no record of a
-    pass. Exit 1 when a sqlearn case failed. `groups` is the identity of the
-    C++ groups the runner uses, which `main` took once for every runner; it is
-    computed here when None.
+    pass; nor does a run under groups that could not be read
+    (``_record.UNREADABLE``). Exit 1 when a sqlearn case failed. `groups` is
+    the identity of the C++ groups the runner uses, which `main` took once
+    for every runner; it is computed here when None.
     """
     before = _record.candidates(repo)
     environment = _cases.environment()
@@ -83,8 +84,14 @@ def run_one(name: str, repo: Path, groups: str | None = None) -> int:
     if _record.engine(repo, name) != environment["groups"]:
         moved.append("the C++ groups it uses")
     # a failed run is saved whatever moved: it only ever makes a runner rerun,
-    # and cancels an earlier pass of the same inputs
-    if moved and not failed:
+    # and cancels an earlier pass of the same inputs. Under groups that could
+    # not be read nothing is saved: such a record stands for no build, and a
+    # failure under it cancels no pass (``matching`` compares environments)
+    if environment["groups"] == _record.UNREADABLE:
+        print(  # noqa: T201
+            f"{name}: not recorded, the C++ groups are unreadable", flush=True
+        )
+    elif moved and not failed:
         print(  # noqa: T201
             f"{name}: not recorded, these files or groups changed while it ran or"
             f" were not there before: {', '.join(moved)}",

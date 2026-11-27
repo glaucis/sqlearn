@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from validation import _checks
+from validation import _checks, _groups
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -83,7 +83,7 @@ def build(repo):
     compiler = shutil.which("c++")
     if compiler is None:
         pytest.skip("c++ is needed: just doctor")
-    out = repo / "build" / "cpython-312"
+    out = repo / _groups.WHEEL_BUILD
     out.mkdir(parents=True)
     source = repo / "engine" / "src" / "core" / "version.cpp"
     manifest = {
@@ -396,7 +396,7 @@ def test_unreadable_fingerprints_rerun_the_task_and_record_nothing_matching(
 ):
     """No manifest: the reason is printed and the task runs each time."""
     repo, env = scratch
-    (repo / "build" / "cpython-312" / "sq_groups.json").unlink()
+    (repo / _groups.WHEEL_BUILD / "sq_groups.json").unlink()
     out = just(repo, env, task)
     assert "sq_groups.json" in out
     assert calls(env)

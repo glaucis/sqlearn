@@ -115,7 +115,8 @@ class Task:
         the task's inputs and configuration, with the shared part: ``()``
         for none, None for every group. A comment in C++ or CMake text
         changes no fingerprint. Unreadable fingerprints print their reason
-        and make a digest no record matches, so the task runs.
+        and make a digest no record matches, so the task runs and is not
+        recorded.
     """
 
     name: str
@@ -213,8 +214,11 @@ TOOLING_INPUTS = (
     *TOOLING,
     "validation",
     "devdata",
-    # Files the tests read as data.
+    # Files the tests read as data: the licence check's real-file test
+    # reads THIRD_PARTY.md and NOTICE.
     "docs/architecture/engine-inventory.md",
+    "THIRD_PARTY.md",
+    "NOTICE",
     # The package's modules, which the docs tests check against the
     # inventory.
     "src/sqlearn",
@@ -233,10 +237,12 @@ TOOLING_INPUTS = (
 """What the tooling tests import or read, every file as text."""
 
 SQL_INPUTS = (
-    # The extension's .test files, its CMake files and its config, as text;
-    # its C++ and our own (core::describe) reach the task through the
-    # module's fingerprint (``Task.module``), which a comment leaves alone.
-    ":(glob)engine/extension/**/*.test",
+    # The extension's tests whole (DuckDB's runner reads the .test,
+    # .test_slow and .test_coverage files and any data file beside them),
+    # its CMake files and its config, as text; its C++ and our own
+    # (core::describe) reach the task through the module's fingerprint
+    # (``Task.module``), which a comment leaves alone.
+    "engine/extension/test",
     ":(glob)engine/extension/**/*.cmake",
     ":(glob)engine/extension/**/CMakeLists.txt",
     # The runner's build: the sqllogic preset's own flags are not in the
@@ -513,12 +519,17 @@ def _combined(
     return sha.hexdigest()
 
 
+UNREADABLE = "unreadable"
+"""How a module identity whose fingerprints could not be read begins: a task
+run under one saves no record."""
+
+
 def module_identity(task: Task, root: Path) -> str:
     """Return the module's identity as `task` reads it, empty for none.
 
     Taken once a run (the fingerprints cost seconds). When they cannot be
     read, the reason is printed and the result is one no record holds, so
-    the task runs and records nothing a later run matches.
+    the task runs and records nothing (it begins with ``UNREADABLE``).
 
     Parameters
     ----------
@@ -545,10 +556,10 @@ def module_identity(task: Task, root: Path) -> str:
     except _groups.Unreadable as error:
         print(  # noqa: T201
             f"{task.name}: the C++ groups are unreadable: {error}\n"
-            f"{task.name}: it runs, and no later run matches its record",
+            f"{task.name}: it runs, and is not recorded",
             flush=True,
         )
-        return f"unreadable\0{secrets.token_hex(16)}"
+        return f"{UNREADABLE}\0{secrets.token_hex(16)}"
 
 
 def digest(task: Task, root: Path, module: str | None = None) -> str:
@@ -821,6 +832,11 @@ def run(task_name: str, root: Path, *, everything: bool = False) -> int:
     )
     if code != 0:
         return code
+    if module.startswith(f"{UNREADABLE}\0"):
+        print(  # noqa: T201
+            f"{task.name}: not recorded, the C++ groups are unreadable", flush=True
+        )
+        return 0
     # A fresh module identity: the first is cached, but C++ may have moved.
     if digest(task, root) != whole:
         print(  # noqa: T201

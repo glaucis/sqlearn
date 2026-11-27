@@ -43,7 +43,7 @@ class Scratch:
 
     def __init__(self, root, compiler):
         self.root = root
-        self.build = root / "build" / "cpython-312"
+        self.build = root / _groups.WHEEL_BUILD
         self.src = root / "engine" / "src"
         self.compiler = compiler
         self.flags = {"a/one.cpp": [], "b/two.cpp": [], "bindings/module.cpp": []}

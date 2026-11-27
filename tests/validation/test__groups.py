@@ -426,3 +426,27 @@ def test_identity_of_no_uses_covers_every_group():
     assert _groups.identity(shared_changed, groups, ["b"]) != _groups.identity(
         prints, groups, ["b"]
     )
+
+
+def test_the_build_directories_follow_the_pythons_cache_tag(tmp_path):
+    """scikit-build-core builds in ``build/{cache_tag}`` (pyproject's
+    ``build-dir``): another Python's fingerprints, and the audit's, read its
+    own build, never 3.12's."""
+    import sys
+    from pathlib import Path
+
+    script = (
+        "import sys\n"
+        "sys.implementation.cache_tag = 'cpython-399'\n"
+        "from validation import _audit, _groups\n"
+        "print(_groups.WHEEL_BUILD, _audit.COVERAGE_BUILD)\n"
+    )
+    repo = Path(__file__).resolve().parents[2]
+    out = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.split()
+    assert out == ["build/cpython-399", "build/coverage-cpython-399"]

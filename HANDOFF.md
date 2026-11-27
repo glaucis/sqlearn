@@ -15,7 +15,10 @@ None.
 ## Waiting on the user
 
 - The audit's first real run, `just audit-groups` (a coverage-instrumented
-  wheel; minutes to build): awaits your go-ahead. (since 2026-11-27)
+  wheel; minutes to build): awaits your go-ahead. It must pass before the
+  first group claims Python tests (`PYTHON_TESTS`) or a runner
+  (`VALIDATION`) lands, since it is the only check that a claim is not too
+  small; the first claim's plan carries that step. (since 2026-11-27)
 - The first benchmark reruns, `just benchmarks-due` then `just bench
   <name>` for each due one (ADR 0072): awaits your go-ahead. The pages
   `explore-correlations`, `explore-larger-than-memory` and

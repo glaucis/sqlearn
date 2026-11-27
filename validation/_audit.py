@@ -42,9 +42,10 @@ from typing import Any
 from validation import _coverage, _groups, _pytest_sets
 from validation.__main__ import RUNNERS
 
-COVERAGE_BUILD = Path("build/coverage-cpython-312")
+COVERAGE_BUILD = Path("build") / f"coverage-{sys.implementation.cache_tag}"
 """The coverage wheel's build directory, relative to the root (the override's
-``build-dir``), whose manifest the audit reads."""
+``build-dir``, ``build/coverage-{cache_tag}``), whose manifest the audit
+reads."""
 
 OUT = Path("build/audit")
 """Where the profiles go, relative to the root, emptied at each run."""

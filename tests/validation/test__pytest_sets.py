@@ -145,19 +145,32 @@ def test_a_group_change_reruns_its_set_and_the_unclaimed_one(repo):
     assert repo.ran() == {"tooling", "group:b", "unclaimed"}
 
 
+LIBRARY_SETS = {"group:a", "group:b", "unclaimed"}
+
+
 @pytest.mark.parametrize(
     ("edited", "reran"),
     [
-        ("tests/src/b/test_b.py", "group:b"),
-        ("tests/src/sqlearn/test_lib.py", "unclaimed"),
-        ("tests/checks/test_tool.py", "tooling"),
+        ("tests/src/b/test_b.py", LIBRARY_SETS),
+        ("tests/src/sqlearn/test_lib.py", LIBRARY_SETS),
+        ("tests/checks/test_tool.py", {"tooling"}),
     ],
 )
-def test_an_edited_test_file_reruns_its_set_alone(repo, edited, reran):
-    """A test file is its own set's input, no other's."""
+def test_an_edited_test_file_reruns_the_sets_that_may_import_it(repo, edited, reran):
+    """A library test file is every library set's input, since one test
+    module may import another's; a tooling test file is the tooling set's."""
     repo.edit(edited)
     assert repo.run() == 0
-    assert repo.ran() == {reran}
+    assert repo.ran() == reran
+
+
+def test_a_test_module_another_directory_imports_reruns_a_set(repo):
+    """A test module may import another's (``_saving/test_learned`` imports
+    ``test_recipe``): an edit to one under ``tests/src/b`` reruns ``a``'s set
+    too."""
+    repo.edit("tests/src/b/test_b.py")
+    assert repo.run() == 0
+    assert "group:a" in repo.ran()
 
 
 def test_a_tooling_input_reruns_the_tooling_set_alone(repo):
@@ -178,10 +191,12 @@ EVERY = {"tooling", "group:a", "group:b", "unclaimed"}
         (".githooks/pre-commit", {"tooling"}),
         ("commitlint.config.mjs", {"tooling"}),
         (".clangd", {"tooling"}),
+        ("THIRD_PARTY.md", {"tooling"}),
+        ("NOTICE", {"tooling"}),
         ("devdata/data/iris.csv", EVERY),
         ("validation/_cases.py", EVERY),
         ("tests/conftest.py", EVERY),
-        ("tests/src/helpers.py", {"group:a", "group:b", "unclaimed"}),
+        ("tests/src/helpers.py", LIBRARY_SETS),
         ("uv.lock", EVERY),
     ],
 )
@@ -238,7 +253,7 @@ def test_a_failing_set_reruns_and_the_others_keep_their_pass(repo):
     repo.edit("tests/src/a/test_a.py")
     repo.rule("tests/src/b", 1)
     assert repo.run() == 1
-    assert repo.ran() == {"group:a", "group:b"}
+    assert repo.ran() == LIBRARY_SETS
     assert repo.run() == 1
     assert repo.ran() == {"group:b"}
 
@@ -261,7 +276,7 @@ def test_a_pass_may_collect_nothing(repo, empty):
     repo.edit("tests/src/b/test_b.py")
     repo.rule(empty, 5)
     assert repo.run() == 0
-    assert repo.ran() == {"group:b"}
+    assert repo.ran() == LIBRARY_SETS
     assert repo.run() == 0
     assert repo.ran() == set()
 
@@ -271,7 +286,7 @@ def test_a_set_whose_passes_all_collect_nothing_fails(repo):
     repo.edit("tests/src/b/test_b.py")
     repo.rule("tests/src/b", 5)
     assert repo.run() == 5
-    assert repo.ran() == {"group:b"}
+    assert repo.ran() == LIBRARY_SETS
     assert repo.run() == 5
     assert repo.ran() == {"group:b"}
 
@@ -280,7 +295,8 @@ def test_each_set_runs_the_three_passes_on_its_paths(repo):
     """The fast tests in parallel, the serial ones alone, then the slow tier."""
     repo.edit("tests/src/b/test_b.py")
     assert repo.run() == 0
-    calls = [json.loads(line) for line in repo.calls.read_text().splitlines()]
+    lines = repo.calls.read_text().splitlines()
+    calls = [c for c in map(json.loads, lines) if c[-1] == "tests/src/b"]
     report = ["-p", "validation._tests_report"]
     assert calls == [
         [*report, "-n", "auto", "-m", "not slow and not serial", "tests/src/b"],
@@ -298,8 +314,9 @@ def test_a_set_whose_inputs_changed_while_it_ran_is_not_recorded(repo, capsys):
     assert "group:b: not recorded" in capsys.readouterr().out
     Path(f"{repo.calls}.rules").unlink()
     repo.ran()
+    # every library set read the edited test file, so none was recorded
     assert repo.run() == 0
-    assert repo.ran() == {"group:b"}
+    assert repo.ran() == LIBRARY_SETS
 
 
 def test_unreadable_fingerprints_run_every_set_and_record_none(repo, capsys):

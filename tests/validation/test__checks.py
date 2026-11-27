@@ -1,6 +1,8 @@
 """Each check's record: the digest of its inputs when it passed, and its reruns."""
 
+import ast
 import dataclasses
+import fnmatch
 import json
 import platform
 import subprocess
@@ -671,3 +673,152 @@ def test_a_formatter_setting_rechecks_every_file(scratch, config):
     (scratch / config).parent.mkdir(parents=True, exist_ok=True)
     (scratch / config).write_text("# changed\n")
     assert set(changed_files(fmt, scratch)) >= {Path(n) for n in files}
+
+
+@pytest.mark.parametrize(
+    "added",
+    [
+        "engine/extension/test/sql/data/rows.csv",
+        "engine/extension/test/sql/x.test_slow",
+        "engine/extension/test/sql/x.test_coverage",
+    ],
+)
+def test_a_new_sql_test_file_reruns_the_sql_task(scratch, added):
+    """DuckDB's runner reads every file under the extension's tests: the slow
+    and coverage tiers (``.test_slow``, ``.test_coverage``) and the data
+    files the tests load, not the ``.test`` files alone."""
+    sql = _checks._table()["sql"]
+    before = digest(sql, scratch, "module")
+    (scratch / added).parent.mkdir(parents=True, exist_ok=True)
+    (scratch / added).write_text("1,2\n")
+    assert digest(sql, scratch, "module") != before
+
+
+REPO = Path(__file__).resolve().parents[2]
+
+READ_AS_OUTPUT = {
+    # The wheel's build: its manifest, compile database and link commands,
+    # which the tests read after a build, never as a checked-in input.
+    "build",
+    # The environment the validation's records look into.
+    ".venv",
+    # ``validation.__main__`` writes it at ``root``, which is validation/.
+    "environment.json",
+}
+"""Paths the scan finds that are outputs, not files the tooling tests read."""
+
+
+def _joined(node):
+    """Return the base and string parts of ``base / "a" / "b"``, or None."""
+    parts = []
+    while isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
+        if not (
+            isinstance(node.right, ast.Constant) and isinstance(node.right.value, str)
+        ):
+            return None
+        parts.insert(0, node.right.value)
+        node = node.left
+    return (node, parts) if parts else None
+
+
+def _this_file_parent(node, source):
+    """Return the directory ``Path(__file__).resolve().parents[n]`` names, or None."""
+    bases = {"Path(__file__).resolve().parents", "Path(__file__).parents"}
+    if (
+        isinstance(node, ast.Subscript)
+        and isinstance(node.slice, ast.Constant)
+        and ast.unparse(node.value) in bases
+    ):
+        return source.resolve().parents[node.slice.value]
+    return None
+
+
+def _paths_read(source, names):
+    """Return the repository paths `source` joins as literals.
+
+    To a module constant built from ``Path(__file__)`` (``REPO``), and to a
+    variable of `names` (a function's ``repo`` or ``root``), which a tooling
+    test hands the repository itself.
+    """
+    tree = ast.parse(source.read_text(encoding="utf-8"))
+    known = {}
+    for statement in tree.body:
+        if isinstance(statement, ast.Assign) and len(statement.targets) == 1:
+            target = statement.targets[0]
+            found = _joined(statement.value)
+            base, parts = found or (statement.value, [])
+            directory = _this_file_parent(base, source)
+            if isinstance(target, ast.Name) and directory is not None:
+                known[target.id] = directory.joinpath(*parts)
+    paths = {p for p in known.values() if p != REPO}
+    inner = {
+        id(n.left)
+        for n in ast.walk(tree)
+        if isinstance(n, ast.BinOp) and isinstance(n.op, ast.Div)
+    }
+    for node in ast.walk(tree):
+        found = _joined(node) if id(node) not in inner else None
+        if found is None or not isinstance(found[0], ast.Name):
+            continue
+        base, parts = found
+        if base.id in known:
+            paths.add(known[base.id].joinpath(*parts))
+        elif base.id in names:
+            paths.add(REPO.joinpath(*parts))
+    return {p.relative_to(REPO).as_posix() for p in paths if p.is_relative_to(REPO)}
+
+
+def _covered(path, pathspecs):
+    """Return whether `path` lies under one of `pathspecs` (plain or glob)."""
+    for spec in pathspecs:
+        if spec.startswith(":(glob)"):
+            pattern = spec.removeprefix(":(glob)")
+            if fnmatch.fnmatch(path, pattern) or fnmatch.fnmatch(path, pattern[3:]):
+                return True
+        elif not spec.startswith(":") and (
+            spec == "." or path == spec or path.startswith(f"{spec}/")
+        ):
+            return True
+    return False
+
+
+def test_every_file_the_tooling_tests_read_is_a_tooling_input():
+    """The tooling set's identity is ``TOOLING_INPUTS``, kept by hand: each
+    repository path a tooling test joins to the repository, or a validation
+    module joins to the ``repo`` or ``root`` a test hands it, lies under it
+    or the settings, so no file they read can change while the set is
+    skipped."""
+    from validation import _pytest_sets
+
+    tests = [
+        REPO / n
+        for n in _checks._listed(_pytest_sets.TOOLING, REPO)
+        if n.endswith(".py")
+    ]
+    read = set().union(*(_paths_read(t, ()) for t in tests))
+    for module in sorted((REPO / "validation").glob("*.py")):
+        read |= _paths_read(module, {"repo", "root"})
+    missing = sorted(
+        p
+        for p in read
+        if p.split("/", 1)[0] not in READ_AS_OUTPUT
+        and not _covered(p, (*_checks.TOOLING_INPUTS, *_checks.SETTINGS))
+    )
+    assert missing == []
+
+
+def test_a_task_run_while_the_groups_are_unreadable_records_no_pass(
+    scratch, monkeypatch, capsys
+):
+    """No build to read the C++ groups from: the task runs, says why, and
+    saves no record, which would stand for no build; it is never taken for
+    an input that changed while it ran."""
+    tasks = dict(_checks.TASKS)
+    tasks["grouped"] = dataclasses.replace(tasks["whole"], name="grouped", module=None)
+    monkeypatch.setattr(_checks, "TASKS", tasks)
+    assert run("grouped", scratch) == 0
+    out = capsys.readouterr().out
+    assert "the C++ groups are unreadable" in out
+    assert "grouped: not recorded, the C++ groups are unreadable" in out
+    assert "changed while it ran" not in out
+    assert _checks.load(_checks.record_dir(scratch), "grouped") == []

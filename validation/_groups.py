@@ -63,8 +63,9 @@ from typing import Any
 
 from validation import _checks, _ctest
 
-WHEEL_BUILD = Path("build/cpython-312")
-"""The wheel's build directory, relative to the repository's root."""
+WHEEL_BUILD = Path("build") / sys.implementation.cache_tag
+"""The wheel's build directory, relative to the repository's root: this
+Python's, as pyproject's ``build-dir = "build/{cache_tag}"`` names it."""
 
 AUDIT_ENV = "SQLEARN_AUDIT_COVERAGE"
 """The variable that selects the coverage wheel's override of ``pyproject.toml``
