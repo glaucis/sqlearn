@@ -48,8 +48,8 @@ before work is done, and `just verify` is the release tier.
 | A commit | the pre-commit hook: `just pre-commit` over the files committed |
 | A push | none: a push runs no suite |
 | A merge to `main` | the pre-merge-commit hook runs what the pre-commit hook runs; `just done` on `main` runs nothing for a tree that passed |
-| Work is done | `just done`: `check-lockfile`, `check-mirror`, `check-no-devdata`, then each check on what changed (`format`, `lint`, `docstrings`, `types`, `tidy`, `test`, `sql`, `validate`, `docs`), then the tree is remembered |
-| A release | `just verify`: the same three, each check with `just full` (`validate` as `validate-all`), then the C++ tools in full (`sanitize`, `leaks-engine`, `fuzz 60`, `coverage-engine`, `mutate-engine`), `check-licences`, `test-all` (coverage) and `test-python-versions`, by hand before `1.0.0` |
+| Work is done | `just done`: `check-lockfile`, `check-no-devdata`, then each check on what changed (`format`, `lint`, `docstrings`, `types`, `tidy`, `test`, `sql`, `validate`, `docs`), then the tree is remembered |
+| A release | `just verify`: the same two, each check with `just full` (`validate` as `validate-all`), then the C++ tools in full (`sanitize`, `leaks-engine`, `fuzz 60`, `coverage-engine`, `mutate-engine`), `check-licences`, `test-all` (coverage) and `test-python-versions`, by hand before `1.0.0` |
 
 `just done` remembers each tree that passed in `sqlearn-passed`, in the git
 common directory (the 50 newest, shared by worktrees), with the place it passed
@@ -129,8 +129,8 @@ passed run already checked.
 | `test` | the C++ groups' own identities, then each Python set's (see "Selecting by group", below) | the C++ groups whose program changed, then each Python set whose identity has no passed record |
 | `sql` | `engine/extension/test/` whole (the `.test`, `.test_slow` and `.test_coverage` files and any data file beside them), the extension's CMake files and config, `engine/sqllogic/`, `validation/_ctest.py`, the module's shared fingerprint and `core`'s; the compiler's and the SDK's versions | the extension's SQL tests: `just test-sql` (below) |
 | `tidy` | our C++ (`engine/src/`, `engine/tests/`, `engine/bench/`, `engine/extension/`), `engine/cmake/`, the CMake files and presets, `engine/.clang-tidy`, `engine/src/raw/.clang-tidy`, `engine/iwyu.imp`, the submodules' commits | the whole engine: `just tidy-engine` (clang-tidy with the static analyser), `just iwyu-engine` (include-what-you-use), `just headers-alone` |
-| `docs` | `docs/`, `src/`, `examples/`, the module's shared fingerprint and every group's | the whole site: `just build-docs` |
-| `validate` | each runner's imported modules, `uv.lock`, `devdata/data/`, its groups' fingerprints and the shared part | each changed runner, by its own records (below) |
+| `docs` | `docs/`, `src/`, the module's shared fingerprint and every group's | the whole site: `just build-docs` |
+| `validate` | each runner's imported modules, `uv.lock`, its groups' fingerprints and the shared part | each changed runner, by its own records (below) |
 
 Every task also reads the settings: `pyproject.toml`, `uv.lock`,
 `.python-version` and the `justfile`, and each tool's own configuration file at
@@ -451,7 +451,7 @@ The `test` task runs the C++ groups first, then the Python tests in **sets**
 (`validation/_pytest_sets.py`), each with its own identity and record:
 
 - **tooling**: `tests/checks`, `tests/githooks`, `tests/validation`,
-  `tests/engine`, `tests/docs`, `tests/devdata` and `tests/test_environment.py`.
+  `tests/engine`, `tests/docs` and `tests/test_environment.py`.
   It reads `src/sqlearn`, all of `engine/` as text (comments included: some
   tests scan the C++ and the CMake files line by line, so a comment reruns it,
   about a minute), `.clangd`, `THIRD_PARTY.md`, `NOTICE` and the module's whole
@@ -463,6 +463,10 @@ The `test` task runs the C++ groups first, then the Python tests in **sets**
   fingerprint, the shared part, `src/` and every file under `tests/src/`, the
   other sets' tests included, since one test module may import another's.
 - **unclaimed**: the tests no group claims, depending on every group.
+
+`tests/src/` is empty today: the old Python library's tests are in
+`old_python/tests/src/`, never run. A test of the package through `sq.` goes
+there again as the C++ brings the API back.
 
 A pass that collects nothing is not a failure, unless all three collect
 nothing. `-n auto` and the slow tier work as in "The passes".
@@ -495,7 +499,8 @@ claim is not too small; its first real run awaits Tomas's go-ahead.
 ### Benchmarks
 
 `validation/_bench.py` gives each benchmark (an `engine/bench/` program, and a
-page's script under `validation/benchmarks/`) an identity of its claimed
+page's script under `validation/benchmarks/`, none today: the old Python's
+are in `old_python/validation/benchmarks/`) an identity of its claimed
 groups, its own files and the shared part. `just benchmarks-due` lists the
 benchmarks whose identity has no recorded run, with the time, cores and peak
 memory of the last run, and runs nothing. `just bench <name>` runs one, after
@@ -512,8 +517,8 @@ What the validation checks, its results, runners and data:
 `just validate` (`python -m validation`) reruns a runner only when a file it
 depends on changed since it last passed. Each runner runs in its own process,
 writes its `*.results.json` as before, and then saves a record: the SHA-256 of
-every module it imported from the repository (outside `.venv`), of `uv.lock` and
-of every file under `devdata/data/`, with the environment (`environment.json`'s
+every module it imported from the repository (outside `.venv`) and of
+`uv.lock`, with the environment (`environment.json`'s
 fields: library versions, Python, the OS and its release, the machine, BLAS) and
 the key `groups`: the fingerprints of the groups the runner claims, or of all
 when no group claims it, and the shared part (an old record keyed `engine`

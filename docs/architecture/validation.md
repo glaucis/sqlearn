@@ -58,28 +58,19 @@ Every dataset is generated from seed 0 (`SEED`), never downloaded
 (1,000), `large` (100,000), and the awkward ones, `null`, `nan`, `empty`,
 `single` and `reserved` (column names that are SQL words). The numbers sit
 around 1,000, far from zero, so a carelessly computed mean or variance shows.
-The `devdata` runners check the development datasets themselves.
 
 ## The runners
 
-24 runners, listed in `RUNNERS` (`validation/__main__.py`), one module each:
-
-- **Aggregates**: `validation/sqlearn/agg/validate_aggregates.py`.
-- **Preprocessing** (`validation/sqlearn/preprocessing/`): impute, scale,
-  one-hot, ordinal, target encoding, binning, transforms, features.
-- **Metrics** (`validation/sqlearn/metrics/`): accuracy, regression,
-  probability, classification, balanced, tables, curves.
-- **Feature selection, decomposition (PCA), exploration**: one each.
-- **Whole pipelines** (`validation/pipelines/`): slicing, a preprocessing
-  pipeline against scikit-learn's step for step, and model selection against
-  scikit-learn's search.
-- **Development data** (`validation/devdata/`): the bundled and the generated
-  datasets.
-
-Each runner's `cases()` returns its cases, and its results go to the
-`*.results.json` beside it, with the rules at the top. `environment.json`
-records what they were measured with: the libraries, Python, the OS and its
-release, the machine and numpy's BLAS.
+None today. The old Python library's 24 runners are in `old_python/validation/`
+([ADR 0073](../adr/0073-the-old-python-moves-to-old-python.md)), never run:
+aggregates, preprocessing, metrics, feature selection, PCA, exploration, whole
+pipelines and the development data. They stay as reference for what each
+group's validation must check. A group's runners are written for its C++ when
+it is rebuilt, each listed in `RUNNERS` (`validation/__main__.py`) and claimed
+by its group (`VALIDATION` in `sq_add_group`). Each runner's `cases()` returns
+its cases, and its results go to the `*.results.json` beside it, with the rules
+at the top. `environment.json` records what they were measured with: the
+libraries, Python, the OS and its release, the machine and numpy's BLAS.
 
 ## Running it
 
@@ -93,32 +84,32 @@ release, the machine and numpy's BLAS.
   import main, ROOT; main(['validation.sqlearn.decomposition.validate_pca'],
   ROOT)"` (`main` takes `validation/` as its root, never `.`).
 
-A full run takes about 47 minutes on this machine: each case is computed
-several ways, the exact side in Python's `Fraction` and `mpmath`, over every
-dataset. A rerun's numbers differ from the last only in their last digits
-(DuckDB sums in thread-finish order, ADR 0043): discard those changes to the
-results files, and check that no `result` moved between `pass` and `fail`.
+With no runner, `just validate` prints
+`no validation runners: nothing to validate` and passes. The old runners' full
+run took about 47 minutes: each case is computed several ways, the exact side in
+Python's `Fraction` and `mpmath`, over every dataset. A rerun's numbers differ
+from the last only in their last digits (DuckDB sums in thread-finish order, ADR
+0043): discard those changes to the results files, and check that no `result`
+moved between `pass` and `fail`.
 
 ## When a runner reruns
 
 Each runner keeps records of its passed runs (`validation/_record.py`, in git's
-common directory, shared by every worktree). A record holds the SHA-256 of
-every repository file the runner imported, of `uv.lock` and of
-`devdata/data/`, the environment, and the key `groups`: the fingerprints of
-the C++ groups the runner uses and of the module's shared part
-(`validation/_groups.py`). A runner is skipped, printing `unchanged since a
-passed run`, while the newest record matching all of that passed. The full
-description is in [Testing](testing.md) ("Selecting by group" and "The
-validation runners"); the design is the
+common directory, shared by every worktree). A record holds the SHA-256 of every
+repository file the runner imported and of `uv.lock`, the environment, and the
+key `groups`: the fingerprints of the C++ groups the runner uses and of the
+module's shared part (`validation/_groups.py`). A runner is skipped, printing
+`unchanged since a passed run`, while the newest record matching all of that
+passed. The full description is in [Testing](testing.md) ("Selecting by group"
+and "The validation runners"); the design is the
 [selecting by group spec](../specs/selection-by-group.md).
 
-What reruns, today:
+What reruns:
 
 | Change | Runners rerun |
 |---|---|
 | a docs page, a comment, CMake text, a C++ test or fuzz input | none |
-| a real change in the C++ | every runner: all of today's C++ (`core`, `raw`, `crash`) runs when the module loads. After the rewrite (ADR 0070), only the runners the changed group claims (`VALIDATION` in `sq_add_group`) |
-| any file under `src/sqlearn` | every runner: `import sqlearn` loads the whole package, which is frozen during the rewrite |
+| a real change in a group's C++ | the runners that group claims, and those no group claims |
 | `validation/__main__.py`, `_cases.py`, `_groups.py`, `uv.lock` | every runner: every runner imports them |
 | one runner's own module | that runner |
 
@@ -129,9 +120,8 @@ records no pass; a failing run reruns every time.
 
 The validation is development tooling: it never ships. It stays in Python
 where it calls a reference library (scikit-learn, numpy, scipy and pandas are
-Python). The rest is planned to move to C++ (`HANDOFF.md`, "Next up"):
-first each runner's wall time in its record, to see where the 47 minutes go;
-then the exact arithmetic (for example with Boost.Multiprecision), the runner
-code and the case generation, the heaviest runners first. ADR 0016's step
-pages, generated from the runs, are still to be built: the published page
-[Validation](../validation/index.md) is a placeholder until then.
+Python); the exact arithmetic, the runner code and the case generation may be
+C++ (for example with Boost.Multiprecision) when the new runners are written.
+ADR 0016's step pages, generated from the runs, are still to be built: the
+published page [Validation](../validation/index.md) is a placeholder until
+then.

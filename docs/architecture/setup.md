@@ -58,7 +58,7 @@ system's OpenMP library; uv cannot provide it. uv is the only package tool
 |---|---|
 | setup | `compiler-stamp`, `doctor`, `fetch-mull`, `setup` |
 | format | `fmt`, `fmt-engine`, `fmt-markdown`, `fmt-python` |
-| check | `check`, `check-docstring-args`, `check-docstrings`, `check-licences`, `check-lockfile`, `check-mirror`, `check-no-devdata`, `check-secrets`, `check-spelling`, `check-stubs`, `check-types`, `check-types-mypy`, `checkable-tree`, `docstrings`, `done`, `format`, `full`, `headers-alone`, `iwyu-engine`, `lint`, `lint-markdown`, `lint-python`, `place`, `pre-commit`, `remember-tree`, `tidy`, `tidy-engine`, `types`, `verify` |
+| check | `check`, `check-docstring-args`, `check-docstrings`, `check-licences`, `check-lockfile`, `check-no-devdata`, `check-secrets`, `check-spelling`, `check-stubs`, `check-types`, `check-types-mypy`, `checkable-tree`, `docstrings`, `done`, `format`, `full`, `headers-alone`, `iwyu-engine`, `lint`, `lint-markdown`, `lint-python`, `place`, `pre-commit`, `remember-tree`, `tidy`, `tidy-engine`, `types`, `verify` |
 | test | `bench-engine`, `coverage-engine`, `fuzz`, `leaks-engine`, `mutate-engine`, `sanitize`, `sql`, `test`, `test-all`, `test-engine`, `test-engine-changed`, `test-hooks`, `test-python-versions`, `test-sql`, `validate`, `validate-all` |
 | docs | `build-docs`, `docs`, `fetch-inventories`, `fetch-mathjax` |
 | build | `api-snapshot`, `build-engine`, `build-package`, `stubs` |

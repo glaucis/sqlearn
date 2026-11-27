@@ -24,18 +24,11 @@ sqlearn/
     specs/  plans/       specs and plans; in git, not on the site
     questions/  agents/  open questions and agent configuration;
                          in git, not on the site
-    guide/               the user guide
-    reference/           API reference configuration; pages generated
-    learn/               the tutorials: beginner/, intermediate/,
-                         advanced/
     validation/          the validation pages, 3.8, rendered from data
     benchmarks/          the benchmark pages, 3.9, rendered from data
-  examples/              sphinx-gallery's sources; the gallery is
-                         generated into docs/ and ignored by git
-  validation/            the reference implementations and runners,
-                         3.8, and their committed results; mirrors
-                         src/sqlearn/; imported by tests/, never
-                         installed
+  validation/            the checks' tooling and the validation
+                         runners, 3.8, with their committed results;
+                         never installed
   benchmarks/            the benchmark suite and its committed results;
                          mirrors src/sqlearn/
   engine/                sqlearn's C++ (ADR 0060) and its DuckDB build
@@ -57,7 +50,12 @@ sqlearn/
     third_party/         submodules: Catch2, RapidCheck, nanobench,
                          cpptrace, each at a tag
     build/               the presets' builds, ignored by git
-  src/sqlearn/           the package
+  src/sqlearn/           the package: today the bindings, version()
+                         and errors
+  old_python/            the frozen Python library, its tests,
+                         runners, devdata/, examples and API docs,
+                         each under its old path: reference only,
+                         never run (ADR 0073)
   tests/                 mirrors the root, dot folders without their dot
   pyproject.toml         the package, and every tool's configuration
   uv.lock                the lockfile
@@ -89,14 +87,13 @@ arrive with their parts.
   the tests run against what users install.
 - **`docs/` holds everything the site shows.** One site, one build, one
   deploy.
-- **`examples/`, `validation/` and `benchmarks/` at the root.** They are code a
-  user reads, found without opening `docs/`, as scikit-learn keeps its
-  examples.
-
-- **`devdata/` at the root.** Datasets for developing sqlearn: tests,
-  validation and benchmarks use them. It sits outside `src/`, so neither the
-  wheel nor the sdist holds it, and the package never imports it
-  ([ADR 0053](../adr/0053-sqlearn-ships-no-datasets.md)).
+- **`validation/` and `benchmarks/` at the root.** They are code a user
+  reads, found without opening `docs/`.
+- **`old_python/` at the root.** sqlearn is rebuilt from scratch in C++, and
+  the Python library it replaces is kept beside it as reference, outside
+  `src/`, `tests/` and every tool's reach; each piece is deleted when what
+  replaces it lands
+  ([ADR 0073](../adr/0073-the-old-python-moves-to-old-python.md)).
 
 ## What never enters the repository
 
@@ -116,15 +113,6 @@ top of `tests/`, outside the mirror, because it tests the environment as a
 whole, not a file of the tree. Tests need no `conftest.py` and no
 `__init__.py`, since pytest imports them in `importlib` mode.
 
-## Examples by area
-
-`examples/` holds the gallery's sources, and sphinx-gallery generates the
-Examples section from them into `docs/examples/`, which git ignores. Examples
-are grouped in subfolders by library area, each with a header file of its own
-that sphinx-gallery renders as a titled section. Each area's part creates its
-folder when its first example lands. Today there is the root header,
-`examples/GALLERY_HEADER.rst`, and one placeholder, `examples/show_version.py`.
-
 ## What arrives later
 
 - `validation/` with the core's slice: its runners and results, mirroring the
@@ -136,5 +124,5 @@ folder when its first example lands. Today there is the root header,
   Phase 1, step 3.
 - In `engine/src/`, a group for each part of the library as the port moves
   it to C++ (ADR 0070), with its tests and benchmarks.
-- Guide chapters, lessons, validation pages and benchmarks: the foundation
-  creates no content beyond the placeholder example.
+- `examples/`, the guide, the lessons and the API reference, again, as the
+  rebuild brings the API back.

@@ -31,11 +31,11 @@ Terms of sqlearn's domain, in the sense the code and the docs use them.
   pipeline never holds it, and `use_model` puts it back.
   _Avoid_: model file.
 - **Work ticket:** one row of a ticket table in `meta_sqlearn`: a number that
-  stands for one block of row numbers. The generators in `devdata/` widen
-  tickets into row numbers, so that DuckDB can share the work between threads.
-  Ticket tables are never changed once made.
-- **meta_sqlearn:** the in-memory database `devdata/` attaches beside the
-  connection's own, to hold its ticket tables
+  stands for one block of row numbers. The generators in `old_python/devdata/`
+  widen tickets into row numbers, so that DuckDB can share the work between
+  threads. Ticket tables are never changed once made.
+- **meta_sqlearn:** the in-memory database `old_python/devdata/` attaches beside
+  the connection's own, to hold its ticket tables
   (`meta_sqlearn.main.tickets_<groups>`). Written only through a cursor, gone
   when the connection closes, and never trusted unless it holds only these
   tables. Not part of the sqlearn package.

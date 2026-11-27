@@ -6,7 +6,9 @@ related: [docs/adr/0045-datasets-are-relations-built-in-sql.md, docs/adr/0052-me
 ---
 # 0053: sqlearn ships no datasets
 
-Status: accepted (2026-11-18). Issue #61. Replaces the public `sq.datasets` of
+Status: accepted (2026-11-18). Issue #61. Amended by
+[ADR 0073](0073-the-old-python-moves-to-old-python.md) (2026-11-27): `devdata/`
+is now `old_python/devdata/`. Replaces the public `sq.datasets` of
 [ADR 0045](0045-datasets-are-relations-built-in-sql.md), moves
 [ADR 0052](0052-meta-sqlearn.md)'s `meta_sqlearn` out of the package, and
 replaces the line on example datasets in

@@ -3,9 +3,9 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-27 · Branch: `main` · Last commit: `3a2a54a docs: refresh
-the docs index frontmatter` · Checks: passing (`just check`, `just test`;
-nothing uncommitted)
+Updated: 2026-11-27 · Branch: `old-python` (not merged) · Last commit:
+`d4f7d3b refactor: move the frozen Python library to old_python/` · Checks:
+passing (`just check`, `just test`, `just build-docs`)
 Verify with: `just done` (`just verify` is the release tier)
 
 ## In progress
@@ -14,17 +14,17 @@ None. [verified]
 
 ## Waiting on the user
 
+- Merging `old-python` into `main`: the old Python moved to `old_python/`
+  (ADR 0073, plan `docs/plans/2026-11-27-old-python.md`). (since 2026-11-27)
 - The audit's first real run, `just audit-groups` (builds a second,
-  coverage-instrumented wheel with DuckDB, then runs every test set and runner
-  on it: an hour or more on all cores): awaits your go-ahead. It must pass
-  before the first group claims Python tests (`PYTHON_TESTS`) or a runner
-  (`VALIDATION`) lands, since it is the only check that a claim is not too
-  small; the first claim's plan carries that step. (since 2026-11-27)
-- The first benchmark reruns, `just benchmarks-due` then `just bench
-  <name>` for each due one (ADR 0072): awaits your go-ahead. The pages
-  `explore-correlations`, `explore-larger-than-memory` and
-  `generators-on-many-threads` have no script, so nothing lists them.
+  coverage-instrumented wheel with DuckDB): awaits your go-ahead. With the
+  old runners and tests in `old_python/` nothing claims anything yet, so it
+  is due before the first group claims Python tests (`PYTHON_TESTS`) or a
+  runner (`VALIDATION`); the first claim's plan carries that step.
   (since 2026-11-27)
+- Benchmark reruns, `just benchmarks-due` then `just bench <name>` (ADR
+  0072): awaits your go-ahead. The page scripts moved to `old_python/`, so
+  only the `engine/bench` programs are listed. (since 2026-11-27)
 
 ## Next up
 
@@ -37,28 +37,23 @@ None. [verified]
   `engine/bench/` needs `just tidy-engine` before clangd has its compile
   flags: only the tidy database lists those directories (Tomas, 2026-11-27).
 
-- Follow-ups of selecting by group (Tomas, 2026-11-27: next, in a fresh
-  session; Phase 1 step 3 after them or beside them):
-  - Move `release()` (the version rule) out of `validation/_groups.py`
-    into a file of its own that `_cases.py` and `_groups.py` both import:
-    every runner imports `_groups` only for it, so an edit of the
-    fingerprint code reruns all 24 runners (about 47 min).
-  - `engine/sqllogic/CMakeLists.txt` gives `sq_test_data(sqllogic ...)`
-    only the `.test` files: add every file under `engine/extension/test`
-    (a `GLOB_RECURSE`), or a data file beside a `.test` reruns the `sql`
-    task while `_ctest` skips the label. Latent: one `.test` file today;
-    before the first data file lands.
-  - Record each validation runner's wall time (and the split between the
-    exact maths, the references and sqlearn) in its record, to see where
-    the 47 minutes go.
-  - Then move as much of the validation as can go to C++ (the exact
-    maths, for example with Boost.Multiprecision, the runner code, the
-    case generation), keeping Python only where it calls scikit-learn,
-    numpy, scipy or pandas to compare; the heaviest runners first, by the
-    timing.
+- The Bazel prototype, after the merge (Tomas, 2026-11-27: one plan at a
+  time): `docs/plans/2026-11-27-bazel-prototype.md`, in its own worktree;
+  ask before installing bazelisk and before any timing.
+- Ideas from the research (`docs/questions/test-selection.md`), none
+  decided: a check that `DEPENDS` matches the headers a group includes, rules
+  for which group may depend on which, `just affected` (what a change reruns
+  and why), a full run at a set cadence compared with the selection.
+- `engine/sqllogic/CMakeLists.txt` gives `sq_test_data(sqllogic ...)` only
+  the `.test` files: add every file under `engine/extension/test` (a
+  `GLOB_RECURSE`), or a data file beside a `.test` reruns the `sql` task
+  while `_ctest` skips the label. Latent: one `.test` file today.
 - #86: the follow-ups of selecting by group that its reviews rated "can
-  wait" (all fail safe today), grouped by kind; the two above that matter
-  most are also in this list.
+  wait" (all fail safe today), grouped by kind.
+- The old Python's dependencies: `numpy` (runtime) and the test group's
+  scikit-learn, pandas, polars, optuna, catboost, lightgbm, hypothesis and
+  mpmath served the old library; trim them when nothing active uses them
+  (the validation's `_cases.py` still imports numpy, pandas and mpmath).
 - The published validation pages: ADR 0016 has each step's page generated
   from the runs' `*.results.json`; `docs/validation/index.md` is a
   placeholder until then (`docs/architecture/validation.md` says so).
@@ -110,15 +105,15 @@ None. [verified]
   read the `E[` lines before taking a count as diagnostics.
 
 - Selecting by group (2026-11-27). Any edit of `validation/__main__.py`,
-  `_cases.py` or `_groups.py` reruns all 24 runners (about 47 min): group edits
-  to them into one commit. The first `just done` after a record's key changes
-  reruns everything once. sqlearn's version carries the commit hash in
-  `build_identity.hpp`, the extension's `-DEXT_VERSION_SQLEARN` and the
-  generated `sqlearn_describe.c`: anything that fingerprints the build cuts it
-  with `_groups.release()`, or every commit reruns everything. clang has no
-  `-fpreprocessed` (GCC only): `_groups.stripped()` uses
-  `-Xclang -dump-raw-tokens`. The docs tagger's frontmatter edits are committed
-  too (Tomas, 2026-11-27), in their own commit
+  `_cases.py` or `_groups.py` reruns every runner: group edits to them into one
+  commit (the old 24 took about 47 min; none is active since ADR 0073). The
+  first `just done` after a record's key changes reruns everything once.
+  sqlearn's version carries the commit hash in `build_identity.hpp`, the
+  extension's `-DEXT_VERSION_SQLEARN` and the generated `sqlearn_describe.c`:
+  anything that fingerprints the build cuts it with `_groups.release()`, or
+  every commit reruns everything. clang has no `-fpreprocessed` (GCC only):
+  `_groups.stripped()` uses `-Xclang -dump-raw-tokens`. The docs tagger's
+  frontmatter edits are committed too (Tomas, 2026-11-27), in their own commit
   `docs: refresh the docs index frontmatter`, after checking every `related:`
   path exists; left uncommitted they block `git checkout main` when a branch
   changed the same file. A `just check` under `cargo` in `ps` belongs to another
@@ -301,6 +296,13 @@ None. [verified]
   (2026-11-06)
 
 ## Just finished
+
+- The old Python moved to `old_python/` (2026-11-27, branch `old-python`,
+  `d4f7d3b`; ADR 0073): the library but the bindings, its tests, the 24
+  runners, `devdata/`, the examples, the guide, lessons and API reference.
+  Nothing there runs; `just validate` has no runner, `check-mirror` is gone,
+  `tests/src/` is empty until the C++ brings `sq.` back. Research behind it:
+  `docs/questions/test-selection.md`; plans in `docs/plans/2026-11-27-*`.
 
 - clangd for the whole engine (`b85959f`), verified live through Claude
   Code's `clangd-lsp` plugin (2026-11-27): Homebrew clangd 23 runs (linked

@@ -23,9 +23,10 @@ built.
   `docs/specs/library-metrics.md`, plan
   `docs/plans/2026-11-09-library-metrics.md`, ADR 0042, summary in issue #34.
   Its fourth, datasets, was built and then moved out of the package: sqlearn
-  ships none, and `devdata/` keeps them for development only (ADR 0053,
-  issue #61). Its fifth, saving a pipeline (`sq.save`, `sq.load`), is built:
-  spec `docs/specs/library-saving.md`, plan
+  ships none, and `devdata/` kept them for development only (ADR 0053,
+  issue #61; now in `old_python/devdata/`, ADR 0073). Its fifth, saving a
+  pipeline (`sq.save`, `sq.load`), is built: spec
+  `docs/specs/library-saving.md`, plan
   `docs/plans/2026-11-11-library-saving.md`, ADR 0047, summary in issue #57. Its
   sixth, more metrics (`fbeta`, `average_precision`, `confusion_matrix`,
   `classification_report`, `roc_curve`, `precision_recall_curve`), is built:
@@ -48,13 +49,14 @@ built.
   `docs/plans/2026-11-20-library-exploration.md`, ADR 0059, issue #74. The
   native engine (part 3.10: sqlearn as a C++ library embedding DuckDB, Python
   its bindings): spec `docs/specs/native-engine.md`, ADRs 0060–0072, the
-  rewrite's inventory `docs/architecture/engine-inventory.md`, milestone
-  "Native engine" (#78 to #84). Phase 0 is done; Phase 1's steps 1 (the
-  checks) and 2 (the build) are merged. The library is rewritten in C++
-  (ADR 0070, superseding 0067), and the rewrite comes before any new
-  area. sqlearn's
-  own models are a goal, built in the engine; outside models stay supported (ADR
-  0017, 0068). **Next:** chosen from `HANDOFF.md`'s "Next up".
+  rewrite's inventory `docs/architecture/engine-inventory.md`, milestone "Native
+  engine" (#78 to #84). Phase 0 is done; Phase 1's steps 1 (the checks) and 2
+  (the build) are merged. The library is rewritten in C++ (ADR 0070, superseding
+  0067), from scratch: the old Python, its tests and runners are in
+  `old_python/`, never run (ADR 0073), and the rewrite comes before any new
+  area. sqlearn's own models are a goal, built in the engine; outside models
+  stay supported (ADR 0017, 0068). **Next:** chosen from `HANDOFF.md`'s "Next
+  up".
 
 Rules from the ADRs:
 
@@ -104,14 +106,14 @@ Rules from the ADRs:
   clang-tidy and the static analyser, sanitizers and fuzzing in
   `just verify` and in workflows started by hand, a hardened standard
   library, and no crash reaching the user (0065).
-- The library is rewritten in C++ one inventory group at a time, with
-  `main` green, each group designed for C++, not translated from the
-  Python. The Python library is frozen: no new features, fixes only where
-  a bug blocks the work. A group merges when its C++ tests and the
-  validation runners it touches pass and its benchmark is not slower than
-  the Python it replaces; in the same merge its Python is deleted with
-  every test of it. Behaviour inside the library is tested in C++,
-  behaviour seen through `sq.` in Python. Before `1.0.0` the `sq.` API
+- The library is rewritten from scratch in C++ one inventory group at a
+  time, with `main` green, each group designed for C++, not translated
+  from the Python; Python only where C++ cannot do it. The old Python, its
+  tests, runners, `devdata/`, examples and API docs are in `old_python/`:
+  reference only, never run, imported or checked, each piece deleted when
+  what replaces it lands (0073). A group merges when its C++ tests and its
+  own validation runners pass. Behaviour inside the library is tested in
+  C++, behaviour seen through `sq.` in Python. Before `1.0.0` the `sq.` API
   may change in the commit that needs it, recorded in
   `tests/public_api.txt`; only a departure from scikit-learn's
   conventions needs an ADR. Files saved before the rewrite need not load
@@ -124,8 +126,9 @@ Rules from the ADRs:
 - Python 3.12 is the floor (0007). Every task runs through `just` (0008).
 - British English in prose, American spelling in identifiers (0010).
 - sqlearn ships, generates and fetches no datasets: the user brings their
-  own. `devdata/` at the root is for developing sqlearn: it never ships,
-  `src/` never imports it, and published docs do not use it (0053).
+  own. Development data never ships, `src/` never imports it, and
+  published docs do not use it (0053; the old `devdata/` is in
+  `old_python/`, 0073).
 - sqlearn never changes on its own what the user asked for: it keeps the
   default, warns with a `Fix:` line, and the user opts in (0046). The one
   exception: on Apple silicon a kernel runs on the GPU by itself when its
@@ -200,7 +203,7 @@ commit both of these into it, without being asked:
   at 80 columns and formats the Python, the C++ and the CMake files, and its
   three parts are the only recipes that reformat your files.
 - **Before you say any work is done, `just done` passes.** It runs
-  `check-lockfile`, `check-mirror` and `check-no-devdata`, then each check
+  `check-lockfile` and `check-no-devdata`, then each check
   (`format`, `lint`, `docstrings`, `types`, `tidy`, `test`, `sql`, `validate`,
   `docs`) on what changed since it passed (by group: a comment, a CMake
   comment or a docs edit reruns almost nothing), every one even when another

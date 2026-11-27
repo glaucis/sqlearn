@@ -5,8 +5,8 @@ No check runs a benchmark (ADR 0072): ``due`` only lists, and ``run`` is what
 script in ``validation/benchmarks`` or a C++ program a group claims
 (``BENCH`` of ``sq_add_group``). Its identity is the bytes of its script (or
 the source of its program), the identity of the C++ groups it measures
-(``_groups.identity``), the Python it times (``src``, ``validation``,
-``devdata`` and the settings, hashed as the library's tests are; a program's
+(``_groups.identity``), the Python it times (``src``, ``validation`` and the
+settings, hashed as the library's tests are; a program's
 binary instead) in this place; it is due when no record has it. A
 script names its page and its groups in two module constants, ``PAGE`` and
 ``GROUPS`` (None for every group), read here without running the script.
