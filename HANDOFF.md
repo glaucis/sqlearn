@@ -3,10 +3,9 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-27 · Branch: `main` · Last commit: `dff16a7 docs: update
-the handoff` · Checks: passing (`just done` on the merged code; "not
-remembered" only because the docs tagger's uncommitted frontmatter edits
-sit in the tree: leave them out of commits)
+Updated: 2026-11-27 · Branch: `main` · Last commit: `8df448a docs: refresh
+the docs index frontmatter` · Checks: passing (`just done`, tree remembered;
+nothing uncommitted)
 Verify with: `just done` (`just verify` is the release tier)
 
 ## In progress
@@ -48,6 +47,12 @@ None. [verified]
     case generation), keeping Python only where it calls scikit-learn,
     numpy, scipy or pandas to compare; the heaviest runners first, by the
     timing.
+- #86: the follow-ups of selecting by group that its reviews rated "can
+  wait" (all fail safe today), grouped by kind; the two above that matter
+  most are also in this list.
+- The published validation pages: ADR 0016 has each step's page generated
+  from the runs' `*.results.json`; `docs/validation/index.md` is a
+  placeholder until then (`docs/architecture/validation.md` says so).
 - Windows needs its own crash handler (no POSIX signals there; the
   current one calls `sigaction`): write it when the Windows build starts
   (ADR 0069). For now macOS and Linux only (Tomas, 2026-11-26).
@@ -88,22 +93,21 @@ None. [verified]
 ## Dead ends and traps
 
 - Selecting by group (2026-11-27). Any edit of `validation/__main__.py`,
-  `_cases.py` or `_groups.py` reruns all 24 runners (about 47 min): group
-  edits to them into one commit. The first `just done` after a record's
-  key changes reruns everything once. sqlearn's version carries the
-  commit hash in `build_identity.hpp`, the extension's
-  `-DEXT_VERSION_SQLEARN` and the generated `sqlearn_describe.c`:
-  anything that fingerprints the build cuts it with `_groups.release()`,
-  or every commit reruns everything. clang has no `-fpreprocessed` (GCC
-  only): `_groups.stripped()` uses `-Xclang -dump-raw-tokens`. The docs
-  tagger's uncommitted frontmatter blocks `git checkout main` when the
-  branch changed the same file: `git diff > patch`, check the files out,
-  switch and merge, `git apply` the patch; commit a tagger-edited doc by
-  staging HEAD's frontmatter with the new body (`git hash-object -w`,
-  `git update-index --cacheinfo`). A `just check` under `cargo` in `ps`
-  belongs to another project: leave it. commitlint reads a body line
-  that starts `word:` as a footer and warns. Subagents doing TDD skip
-  watching the test fail unless the dispatch asks for the RED output.
+  `_cases.py` or `_groups.py` reruns all 24 runners (about 47 min): group edits
+  to them into one commit. The first `just done` after a record's key changes
+  reruns everything once. sqlearn's version carries the commit hash in
+  `build_identity.hpp`, the extension's `-DEXT_VERSION_SQLEARN` and the
+  generated `sqlearn_describe.c`: anything that fingerprints the build cuts it
+  with `_groups.release()`, or every commit reruns everything. clang has no
+  `-fpreprocessed` (GCC only): `_groups.stripped()` uses
+  `-Xclang -dump-raw-tokens`. The docs tagger's frontmatter edits are committed
+  too (Tomas, 2026-11-27), in their own commit
+  `docs: refresh the docs index frontmatter`, after checking every `related:`
+  path exists; left uncommitted they block `git checkout main` when a branch
+  changed the same file. A `just check` under `cargo` in `ps` belongs to another
+  project: leave it. commitlint reads a body line that starts `word:` as a
+  footer and warns. Subagents doing TDD skip watching the test fail unless the
+  dispatch asks for the RED output.
 - ThreadSanitizer intercepts signals and delivers them late: the crash
   group's signal-chaining cases failed under it, and one hung 20 h, past
   its child's `alarm(20)`. TypeSanitizer cannot see the kernel's writes of
@@ -220,10 +224,7 @@ None. [verified]
 - DuckDB 2.0 has no `log1p`: `_log1p` in `metrics/regression.py`.
   scikit-learn's D² pinball baseline is `_weighted_percentile(average=True)`.
   The full validation takes about 47 minutes under load; one runner runs
-  alone through `validation.__main__.main([module], ROOT)`. The docs
-  tagger's uncommitted frontmatter edits can block a merge: save them as a
-  patch, `git checkout` the files, merge, `git apply` (a file the branch
-  changed no longer takes it). (2026-11-20)
+  alone through `validation.__main__.main([module], ROOT)`. (2026-11-20)
 - `meta_sqlearn` (ADR 0052): one transaction writes one attached database,
   so it is written through a cursor. With DuckDB 2.0 a user's unfinished
   `execute` result is kept and any other statement on that connection is
@@ -253,7 +254,8 @@ None. [verified]
   to its id). Never kill a stray test run: wait on its PID. (2026-11-14)
 - DuckDB hands `TIMESTAMP WITH TIME ZONE` to Python only through pytz (not
   installed): fetch zoned output as text. `just fmt` can pick up the
-  tagger's frontmatter edits: leave them out of commits. (2026-11-11)
+  tagger's frontmatter edits: commit them on their own (2026-11-27).
+  (2026-11-11)
 - `gh-board status` can fail for one issue now and then: rerun it, then
   `GH_BOARD=glaucis/6 gh-board audit`. (2026-11-11)
 - `sq.load` security: whole-branch reviews found what per-task ones missed
@@ -283,6 +285,11 @@ None. [verified]
 
 ## Just finished
 
+- The validation documented, `docs/architecture/validation.md`
+  (`c1811e8`): what it checks, the results, the data, the 24 runners
+  (not 21, as the handoff and the spec had it), running it, when each
+  reruns, what is planned. The tagger's frontmatter committed
+  (`8df448a`); the "can wait" follow-ups filed as #86 (2026-11-27).
 - Selecting by group (2026-11-27), merged into `main` as `d1a32ed` and pushed:
   the checks rerun only what a change affects. Spec
   `docs/specs/selection-by-group.md`, plan
