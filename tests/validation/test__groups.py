@@ -18,7 +18,12 @@ import pytest
 from validation import _ctest, _groups
 
 NINJA = """#!/bin/sh
-# Called as: ninja -C <build> -t commands _duckdb
+# Called as: ninja -C <build> -t commands _duckdb, or -t deps <object>.
+if [ "$4" = deps ]; then
+    [ -f "$2/deps.txt" ] || exit 1
+    cat "$2/deps.txt"
+    exit 0
+fi
 printf 'echo first\\n'
 cat "$2/link.txt"
 """
@@ -42,7 +47,7 @@ class Scratch:
         self.build = root / "build" / "cpython-312"
         self.src = root / "engine" / "src"
         self.compiler = compiler
-        self.flags = {"a/one.cpp": [], "b/two.cpp": []}
+        self.flags = {"a/one.cpp": [], "b/two.cpp": [], "bindings/module.cpp": []}
 
     def write(self, relative, text):
         """Write `text` to `relative`, a path under ``engine/src``."""
@@ -51,7 +56,10 @@ class Scratch:
         path.write_text(text)
 
     def entries(self):
-        """Write ``compile_commands.json`` for the sources of ``self.flags``."""
+        """Write ``compile_commands.json`` for the sources of ``self.flags``.
+
+        A source is under ``engine/src``, or absolute (a generated one).
+        """
         entries = []
         for source, extra in self.flags.items():
             path = self.src / source
@@ -59,9 +67,10 @@ class Scratch:
                 self.compiler,
                 "-std=c++23",
                 f"-I{self.src}",
+                f"-I{self.root / 'engine' / 'include'}",
                 *extra,
                 "-o",
-                f"CMakeFiles/sq.dir/{source}.o",
+                f"CMakeFiles/sq.dir/{path.name}.o",
                 "-c",
                 str(path),
             ]
@@ -70,7 +79,7 @@ class Scratch:
                     "directory": str(self.build),
                     "command": shlex.join(argv),
                     "file": str(path),
-                    "output": str(self.build / f"CMakeFiles/sq.dir/{source}.o"),
+                    "output": str(self.build / f"CMakeFiles/sq.dir/{path.name}.o"),
                 }
             )
         (self.build / "compile_commands.json").write_text(json.dumps(entries))
@@ -210,6 +219,115 @@ def test_a_header_in_no_group_counts_for_each_group_reading_it(scratch):
     before = scratch.prints()
     scratch.write("loose.hpp", "int loose();\nint more();\n")
     assert _changed(before, scratch.prints()) == {"b"}
+
+
+def test_a_header_outside_engine_src_counts_for_its_reader(scratch):
+    """A header the compiler reads anywhere in the tree, outside a submodule."""
+    include = scratch.root / "engine" / "include" / "sq"
+    include.mkdir(parents=True)
+    (include / "x.hpp").write_text("int x();\n")
+    scratch.write("b/two.cpp", '#include "sq/x.hpp"\nint two() { return 2; }\n')
+    before = scratch.prints()
+    (include / "x.hpp").write_text("int x();\nint y();\n")
+    assert _changed(before, scratch.prints()) == {"b"}
+
+
+def test_a_header_in_a_submodule_is_left_to_its_pin(scratch):
+    """A submodule's files change with its pin, which the shared part holds."""
+    subprocess.run(
+        [
+            "git",
+            "update-index",
+            "--add",
+            "--cacheinfo",
+            f"160000,{'1' * 40},engine/include",
+        ],
+        cwd=scratch.root,
+        check=True,
+    )
+    include = scratch.root / "engine" / "include"
+    include.mkdir()
+    (include / "dep.hpp").write_text("int dep();\n")
+    scratch.write("b/two.cpp", '#include "dep.hpp"\nint two() { return 2; }\n')
+    before = scratch.prints()
+    (include / "dep.hpp").write_text("int dep();\nint other();\n")
+    assert scratch.prints() == before
+
+
+def test_a_file_of_any_suffix_another_group_holds_counts_for_its_reader(scratch):
+    """``b`` reads ``a/table.def``, which none of ``a``'s sources read."""
+    scratch.write("a/table.def", "X(1)\n")
+    scratch.write(
+        "b/two.cpp",
+        '#define X(n) int f##n();\n#include "a/table.def"\nint two() { return 2; }\n',
+    )
+    before = scratch.prints()
+    scratch.write("a/table.def", "X(1)\nX(2)\n")
+    assert "b" in _changed(before, scratch.prints())
+
+
+def test_a_file_of_any_suffix_a_shared_entry_reads_changes_the_shared_part(scratch):
+    """A shared directory's file counts when the compiler reads it."""
+    scratch.write("bindings/table.def", "X(1)\n")
+    scratch.write(
+        "bindings/module.cpp",
+        '#define X(n) int f##n();\n#include "bindings/table.def"\n',
+    )
+    before = scratch.prints()
+    scratch.write("bindings/table.def", "X(1)\nX(2)\n")
+    assert _changed(before, scratch.prints()) == {"shared"}
+
+
+def test_a_flag_of_an_entry_in_no_group_changes_the_shared_part(scratch):
+    """Spec 5.1: every compile flag that is not a group's is shared."""
+    before = scratch.prints()
+    scratch.flags["bindings/module.cpp"] = ["-DSQ_EXTRA=1"]
+    scratch.entries()
+    assert _changed(before, scratch.prints()) == {"shared"}
+
+
+def test_a_generated_source_or_its_flags_change_the_shared_part(scratch):
+    """A source the build writes (a unity file, say), outside every group."""
+    unity = scratch.build / "unity" / "unity.cpp"
+    unity.parent.mkdir()
+    unity.write_text("int unity() { return 0; }\n")
+    scratch.flags[str(unity)] = []
+    scratch.entries()
+    first = scratch.prints()
+    unity.write_text("int unity() { return 1; }\n")
+    second = scratch.prints()
+    assert _changed(first, second) == {"shared"}
+    scratch.flags[str(unity)] = ["-O3"]
+    scratch.entries()
+    assert _changed(second, scratch.prints()) == {"shared"}
+
+
+def test_a_header_of_a_vanished_build_environment_is_left_to_the_pins(scratch):
+    """uv deletes its build environment (nanobind's headers) after a build.
+
+    ``-M`` then fails, so what Ninja recorded at the build is read instead;
+    without a record, the entry is unreadable.
+    """
+    gone = scratch.root.parent / "builds-v0" / ".tmpGone" / "include"
+    scratch.flags["bindings/module.cpp"] = ["-isystem", str(gone)]
+    module = scratch.src / "bindings" / "module.cpp"
+    helper = scratch.root / "engine" / "include" / "helper.hpp"
+    helper.parent.mkdir()
+    helper.write_text("int helper();\n")
+    module.write_text('#include <nanobind/nanobind.h>\n#include "helper.hpp"\n')
+    scratch.entries()
+    with pytest.raises(_groups.Unreadable, match=re.escape("module.cpp")):
+        scratch.prints()
+    (scratch.build / "deps.txt").write_text(
+        "CMakeFiles/sq.dir/module.cpp.o: #deps 3, deps mtime 1 (VALID)\n"
+        f"    {module}\n    {gone}/nanobind/nanobind.h\n    {helper}\n\n"
+    )
+    before = scratch.prints()
+    module.write_text(module.read_text() + "int m();\n")
+    second = scratch.prints()
+    assert _changed(before, second) == {"shared"}
+    helper.write_text("int helper();\nint more();\n")
+    assert _changed(second, scratch.prints()) == {"shared"}
 
 
 def test_a_compile_flag_changes_the_group(scratch):

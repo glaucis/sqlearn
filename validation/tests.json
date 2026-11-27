@@ -21068,6 +21068,36 @@
     },
     {
       "area": "validation/_groups",
+      "name": "tests/validation/test__groups.py::test_a_file_of_any_suffix_a_shared_entry_reads_changes_the_shared_part",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_groups",
+      "name": "tests/validation/test__groups.py::test_a_file_of_any_suffix_another_group_holds_counts_for_its_reader",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_groups",
+      "name": "tests/validation/test__groups.py::test_a_flag_of_an_entry_in_no_group_changes_the_shared_part",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_groups",
+      "name": "tests/validation/test__groups.py::test_a_generated_source_or_its_flags_change_the_shared_part",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_groups",
+      "name": "tests/validation/test__groups.py::test_a_header_in_a_submodule_is_left_to_its_pin",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_groups",
       "name": "tests/validation/test__groups.py::test_a_header_in_no_group_counts_for_each_group_reading_it",
       "outcome": "passed",
       "tier": "fast"
@@ -21081,6 +21111,18 @@
     {
       "area": "validation/_groups",
       "name": "tests/validation/test__groups.py::test_a_header_of_a_read_by_b_changes_both_once",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_groups",
+      "name": "tests/validation/test__groups.py::test_a_header_of_a_vanished_build_environment_is_left_to_the_pins",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_groups",
+      "name": "tests/validation/test__groups.py::test_a_header_outside_engine_src_counts_for_its_reader",
       "outcome": "passed",
       "tier": "fast"
     },

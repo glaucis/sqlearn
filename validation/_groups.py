@@ -7,25 +7,36 @@ reads of it is the groups it uses and what every group runs with. A
 - the compile entry of each of its sources (``compile_commands.json`` of the
   wheel's build), its argv with the checkout's place taken out, so a flag
   that changes reruns it and a CMake comment does not;
-- ``stripped()`` of every C++ file under its directory, and of every file
-  its compile entries read inside the build directory (generated headers
-  such as ``build_identity.hpp``): its code without comments but with its
-  line numbers, since a line reaches users (a ``PreconditionError`` names
-  its file and line), so a comment that adds a line reruns it and one
+- ``stripped()`` of every C++ file under its directory, of every file of
+  any suffix under it that any compile entry reads, and of every file its
+  own entries read in the tree outside every group's directory and every
+  submodule (a header of ``engine/include``, a generated one of the build
+  directory such as ``build_identity.hpp``): its code without comments but
+  with its line numbers, since a line reaches users (a ``PreconditionError``
+  names its file and line), so a comment that adds a line reruns it and one
   edited within its lines does not;
-- ``stripped()`` of a header its sources read under ``engine/src`` in no
-  group's nor shared directory, fail safe;
 - the fingerprints of the groups it depends on: those the manifest names,
-  and any whose header its sources read. A header under another group's
-  directory counts for that group only, and reaches this one through it.
+  and any whose file its sources read. A file under another group's
+  directory counts for that group, and reaches this one through it.
 
-The **shared part** is the SHA-256 of ``stripped()`` of every C++ file under
-the shared directories (the bindings, the extension), the submodules' pins
-under ``engine/``, ``pyproject.toml``'s ``[build-system]`` and
-``[tool.scikit-build]`` tables, the compiler as it is now
-(``_ctest.compiler``) and the module's link command, which carries the flags
-of no source. CMake files are never read: what they say reaches the
-fingerprint only through what they make the build do.
+The **shared part** is the SHA-256 of:
+
+- every compile entry of no group, its argv normalised: DuckDB's,
+  cpptrace's, nanobind's, the bindings', the extension's, so every compile
+  flag that is not a group's counts (spec §5.1);
+- the text of each generated source and header of the build directory (a
+  unity file, say), its places taken out;
+- ``stripped()`` of every C++ file under the shared directories (the
+  bindings, the extension) and of every file their entries read in the tree
+  outside the groups' directories and the submodules;
+- the submodules' pins under ``engine/``, which stand for their files;
+- ``pyproject.toml``'s ``[build-system]`` and ``[tool.scikit-build]``
+  tables, which pin uv's build environment;
+- the compiler as it is now (``_ctest.compiler``);
+- the module's link command.
+
+CMake files are never read: what they say reaches the fingerprint only
+through what they make the build do.
 
 Whatever cannot be read (no manifest, no ``compile_commands.json``, no link
 command, a listed file missing, a source no compile entry builds, no clang)
@@ -275,8 +286,7 @@ def stripped(path: Path) -> str:
 
 def _normalised(argv: Sequence[str], root: Path) -> str:
     """Return `argv` joined, with the checkout's and uv's places taken out."""
-    text = shlex.join(argv).replace(str(root), "<root>")
-    return _BUILD_ENVIRONMENT.sub("<build-environment>", text)
+    return _normal(shlex.join(argv), root)
 
 
 def _files(directory: Path) -> list[Path]:
@@ -299,6 +309,26 @@ def _link_command(build: Path) -> list[str]:
     return shlex.split(lines[-1])
 
 
+def _recorded(build: Path, entry: _ctest.Entry) -> list[Path] | None:
+    """Return what Ninja recorded the compiler read for `entry`, None for none.
+
+    ``ninja -t deps`` keeps the compiler's own depfile of the last build: it
+    lists a source whose ``-M`` fails today because a header it needs is
+    gone (nanobind's, in uv's build environment, which uv deletes after the
+    build). Only a ``VALID`` record counts.
+    """
+    output = Path(str(entry.get("output", "")))
+    if output.is_absolute():
+        if not output.is_relative_to(build):
+            return None
+        output = output.relative_to(build)
+    listing = _ctest._output(["ninja", "-C", str(build), "-t", "deps", str(output)])
+    lines = (listing or "").splitlines()
+    if not lines or not lines[0].rstrip().endswith("(VALID)"):
+        return None
+    return [build / line.strip() for line in lines[1:] if line.strip()]
+
+
 def _build_tables(root: Path) -> str:
     """Return ``pyproject.toml``'s build tables as sorted JSON."""
     path = root / "pyproject.toml"
@@ -313,15 +343,29 @@ def _build_tables(root: Path) -> str:
     return json.dumps(tables, sort_keys=True)
 
 
-def _pins(root: Path) -> str:
+def _pins(root: Path) -> dict[str, str]:
     """Return each submodule under ``engine/`` with the commit the tree pins."""
     try:
-        links = _checks._gitlinks(["engine"], root)
+        return _checks._gitlinks(["engine"], root)
     except (OSError, subprocess.CalledProcessError) as error:
         raise Unreadable(
             f"git could not list the pins under engine/: {error}"
         ) from error
-    return "\n".join(f"{name}\0{commit}" for name, commit in sorted(links.items()))
+
+
+def _normal(text: str, root: Path) -> str:
+    """Return `text` with the checkout's and uv's places taken out."""
+    text = text.replace(str(root), "<root>")
+    return _BUILD_ENVIRONMENT.sub("<build-environment>", text)
+
+
+def _bytes(path: Path, root: Path) -> str:
+    """Return a generated file's text, its places taken out (``_normal``)."""
+    try:
+        data = path.read_bytes()
+    except OSError as error:
+        raise Unreadable(f"{path} could not be read: {error}") from error
+    return _normal(data.decode("utf-8", errors="surrogateescape"), root)
 
 
 def _digest(parts: Iterable[str]) -> str:
@@ -330,6 +374,16 @@ def _digest(parts: Iterable[str]) -> str:
     for part in parts:
         sha.update(part.encode("utf-8", errors="surrogateescape") + b"\0")
     return sha.hexdigest()
+
+
+@dataclass(frozen=True)
+class _Compiled:
+    """One compile entry: its source, the group holding it, what it reads."""
+
+    entry: _ctest.Entry
+    source: Path
+    owner: str | None
+    reads: tuple[Path, ...]
 
 
 class _Fingerprinter:
@@ -345,12 +399,22 @@ class _Fingerprinter:
         self.root = root
         self.build = build
         self.groups = groups
-        self.shared_dirs = [(root / d).resolve() for d in shared]
-        self.engine_src = (root / "engine" / "src").resolve()
+        self.shared_dirs = sorted(shared)
         self.dirs = {name: (root / g.dir).resolve() for name, g in groups.items()}
+        self.pins = _pins(root)
+        self.submodules = [(root / name).resolve() for name in self.pins]
         self.texts: dict[Path, str] = {}
         self.done: dict[str, str] = {}
-        self.entries = self._entries()
+        self.compiled = [self._compiled(e) for e in self._entries()]
+        # A file under a group's directory counts for that group, whoever
+        # reads it, so a file of any suffix its own sources never read is
+        # still hashed, and its readers reach it through ``depends``.
+        self.held: dict[str, set[Path]] = {name: set() for name in groups}
+        for compiled in self.compiled:
+            for found in compiled.reads:
+                holder = self.owner(found)
+                if holder is not None:
+                    self.held[holder].add(found)
 
     def _entries(self) -> list[_ctest.Entry]:
         path = self.build / "compile_commands.json"
@@ -361,13 +425,34 @@ class _Fingerprinter:
         except ValueError as error:
             raise Unreadable(f"{path} could not be read: {error}") from error
 
+    def _compiled(self, entry: _ctest.Entry) -> _Compiled:
+        """Return `entry` with its source, and what it reads when ours.
+
+        The compiler lists what an entry reads only for a source of the
+        tree outside the build and the submodules: a submodule's files
+        change with its pin, a generated source is hashed as it is.
+        """
+        here = Path(str(entry.get("directory", ".")))
+        source = (here / str(entry.get("file", ""))).resolve()
+        reads: tuple[Path, ...] = ()
+        if self.counted(source) and not source.is_relative_to(self.build):
+            listed = _ctest._read_by_compiler(entry) or _recorded(self.build, entry)
+            if listed is None:
+                raise Unreadable(f"the compiler cannot list what {source} reads")
+            # What Ninja recorded may name uv's build environment, deleted
+            # after the build and pinned by [build-system]. A file of the
+            # tree removed since leaves the set it was in, so it still
+            # changes a fingerprint.
+            reads = tuple(sorted({p.resolve() for p in listed if p.is_file()}))
+        return _Compiled(entry, source, self.owner(source), reads)
+
     def name(self, path: Path) -> str:
         """Return `path` relative to the root, or to the build as ``<build>``."""
         if path.is_relative_to(self.build):
             return f"<build>/{path.relative_to(self.build).as_posix()}"
         if path.is_relative_to(self.root):
             return path.relative_to(self.root).as_posix()
-        return path.as_posix()
+        return _normal(path.as_posix(), self.root)
 
     def text(self, path: Path) -> str:
         """Return ``stripped(path)``, read once a run."""
@@ -382,15 +467,22 @@ class _Fingerprinter:
                 return name
         return None
 
-    def loose(self, path: Path) -> bool:
-        """Return whether `path` is under ``engine/src`` but in no directory.
+    def counted(self, path: Path) -> bool:
+        """Return whether `path` is hashed as read: in the tree, no submodule's.
 
-        No group nor shared directory holds it, so it counts, fail safe, for
-        each group that reads it.
+        The build directory's files count (generated headers); a
+        submodule's change with its pin; the system's with the compiler.
         """
-        return path.is_relative_to(self.engine_src) and not any(
-            path.is_relative_to(d) for d in self.shared_dirs
+        if path.is_relative_to(self.build):
+            return True
+        return path.is_relative_to(self.root) and not any(
+            path.is_relative_to(s) for s in self.submodules
         )
+
+    def entry(self, compiled: _Compiled) -> str:
+        """Return the part of a compile entry: its source and its argv."""
+        argv = _normalised(_ctest._arguments(compiled.entry), self.root)
+        return f"entry\0{self.name(compiled.source)}\0{argv}"
 
     def group(self, name: str, seen: tuple[str, ...] = ()) -> str:
         """Return the fingerprint of the group `name`."""
@@ -399,32 +491,20 @@ class _Fingerprinter:
         if name in seen:
             raise Unreadable(f"the groups depend on each other: {' -> '.join(seen)}")
         directory = self.dirs[name]
-        files = set(_files(directory))
+        files = set(_files(directory)) | self.held[name]
         depends = set(self.groups[name].depends)
         parts = []
         built = set()
-        for entry in self.entries:
-            here = Path(str(entry.get("directory", ".")))
-            source = (here / str(entry.get("file", ""))).resolve()
-            if not source.is_relative_to(directory):
+        for compiled in self.compiled:
+            if compiled.owner != name:
                 continue
-            built.add(source)
-            parts.append(
-                f"entry\0{self.name(source)}\0"
-                f"{_normalised(_ctest._arguments(entry), self.root)}"
-            )
-            read = _ctest._read_by_compiler(entry)
-            if read is None:
-                raise Unreadable(f"the compiler cannot list what {source} reads")
-            for found in (p.resolve() for p in read):
-                owner = self.owner(found)
-                if owner is not None and owner != name:
-                    depends.add(owner)
-                elif (
-                    owner == name
-                    or found.is_relative_to(self.build)
-                    or self.loose(found)
-                ):
+            built.add(compiled.source)
+            parts.append(self.entry(compiled))
+            for found in compiled.reads:
+                holder = self.owner(found)
+                if holder is not None:
+                    depends.add(holder)
+                elif self.counted(found):
                     files.add(found)
         unbuilt = sorted(
             p
@@ -445,15 +525,44 @@ class _Fingerprinter:
         self.done[name] = _digest(parts)
         return self.done[name]
 
-    def shared(self, directories: Sequence[str]) -> str:
-        """Return the SHA-256 of what every group runs with."""
-        parts = []
-        for directory in sorted(directories):
-            parts.extend(
-                f"file\0{self.name(p)}\0{self.text(p)}"
-                for p in _files((self.root / directory).resolve())
+    def shared(self) -> str:
+        """Return the SHA-256 of what every group runs with.
+
+        Every compile entry of no group (DuckDB's, cpptrace's, nanobind's,
+        the bindings', the extension's, generated ones), a generated
+        source's text, and every file such an entry reads in the tree
+        outside a group's directory, which its group holds.
+        """
+        files: set[Path] = set()
+        for directory in self.shared_dirs:
+            files.update(_files((self.root / directory).resolve()))
+        entries = []
+        generated = set()
+        for compiled in self.compiled:
+            if compiled.owner is not None:
+                continue
+            entries.append(self.entry(compiled))
+            if compiled.source.is_relative_to(self.build):
+                generated.add(compiled.source)
+            files.update(
+                p for p in compiled.reads if self.owner(p) is None and self.counted(p)
             )
-        parts.append(f"pins\0{_pins(self.root)}")
+        generated.update(
+            p
+            for p in self.build.rglob("*")
+            if p.suffix in CPP_SUFFIXES - SOURCE_SUFFIXES
+            and "CMakeFiles" not in p.relative_to(self.build).parts
+            and p.is_file()
+        )
+        files -= generated
+        parts = sorted(entries)
+        parts.extend(
+            f"generated\0{self.name(p)}\0{_bytes(p, self.root)}"
+            for p in sorted(generated)
+        )
+        parts.extend(f"file\0{self.name(p)}\0{self.text(p)}" for p in sorted(files))
+        pins = "\n".join(f"{n}\0{c}" for n, c in sorted(self.pins.items()))
+        parts.append(f"pins\0{pins}")
         parts.append(f"build tables\0{_build_tables(self.root)}")
         parts.append(f"compiler\0{_ctest.compiler(self.build)}")
         parts.append(f"link\0{_normalised(_link_command(self.build), self.root)}")
@@ -487,7 +596,7 @@ def fingerprints(root: Path, build: Path) -> Fingerprints:
     groups, shared = load(build)
     making = _Fingerprinter(root, build, groups, shared)
     prints = {name: making.group(name) for name in sorted(groups)}
-    return Fingerprints(shared=making.shared(shared), groups=prints)
+    return Fingerprints(shared=making.shared(), groups=prints)
 
 
 def closure(groups: dict[str, Group], names: Iterable[str]) -> set[str]:
