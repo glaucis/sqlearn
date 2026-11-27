@@ -361,6 +361,24 @@
       "tier": "fast"
     },
     {
+      "area": "docs/links",
+      "name": "tests/docs/test_links.py::test_a_broken_link_is_found",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "docs/links",
+      "name": "tests/docs/test_links.py::test_every_related_path_exists",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "docs/links",
+      "name": "tests/docs/test_links.py::test_every_relative_link_resolves",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
       "area": "engine/bindings",
       "name": "tests/engine/test_bindings.py::test_a_busy_connection_never_crashes",
       "outcome": "passed",

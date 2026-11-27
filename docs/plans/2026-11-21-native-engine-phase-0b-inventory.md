@@ -249,7 +249,7 @@ the same branch, `engine-phase-0`; this plan continues in its worktree.
 - [ ] **Step 3: Link it.** In `docs/architecture/index.md`'s toctree, put
   `engine-inventory` after `overview`. In the overview's 3.10, turn "the
   inventory of every module" into a link to
-  [engine-inventory](engine-inventory.md).
+  [engine-inventory](../architecture/engine-inventory.md).
 - [ ] **Step 4:** Run the test; expected PASS. `just fmt`, `just check`,
   `just test`, `just build-docs` pass. Commit
   `docs: the native engine's inventory of sqlearn's modules (#78)`.

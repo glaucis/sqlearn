@@ -126,8 +126,9 @@ one on the same branch and closes Phase 0.
     says it needs sqlearn's DuckDB; the compositor stays the one renderer
     (ADR 0015); each DuckDB release costs an upgrade branch (ADR 0061).
 - [ ] **Step 2: Amend ADR 0002.** Add to its Status paragraph: "Amended by
-  [ADR 0060](0060-a-native-engine-in-cpp-inside-duckdb.md) (2026-11-21): the
-  native engine's C++ functions join DuckDB's own, reached only through SQL."
+      [ADR 0060](../adr/0060-a-native-engine-in-cpp-inside-duckdb.md)
+      (2026-11-21): the native engine's C++ functions join DuckDB's own, reached
+      only through SQL."
 - [ ] **Step 3: The index.** In `docs/adr/index.md`, after the section
   "Execution in DuckDB", add:
 
@@ -187,14 +188,17 @@ one on the same branch and closes Phase 0.
     0066).
 - [ ] **Step 2: Amend three ADRs**, one sentence each at the end of the
   Status paragraph:
-  - 0005: "Amended by [ADR 0061](0061-sqlearn-ships-its-own-duckdb-build.md)
-    (2026-11-21): sqlearn's own DuckDB build replaces `duckdb` from PyPI."
-  - 0006: "Amended by [ADR 0061](0061-sqlearn-ships-its-own-duckdb-build.md)
-    (2026-11-21): sqlearn's DuckDB never downloads an extension by itself;
-    one the user installs works."
-  - 0057: "Amended by [ADR 0061](0061-sqlearn-ships-its-own-duckdb-build.md)
-    (2026-11-21): numpy stays until the engine's linear algebra (Phase 3),
-    when this is decided again."
+  - 0005: "Amended by
+    [ADR 0061](../adr/0061-sqlearn-ships-its-own-duckdb-build.md) (2026-11-21):
+    sqlearn's own DuckDB build replaces `duckdb` from PyPI."
+  - 0006: "Amended by
+    [ADR 0061](../adr/0061-sqlearn-ships-its-own-duckdb-build.md) (2026-11-21):
+    sqlearn's DuckDB never downloads an extension by itself; one the user
+    installs works."
+  - 0057: "Amended by
+    [ADR 0061](../adr/0061-sqlearn-ships-its-own-duckdb-build.md) (2026-11-21):
+    numpy stays until the engine's linear algebra (Phase 3), when this is
+    decided again."
 - [ ] **Step 3:** Append `- [0061: sqlearn ships its own DuckDB
   build](0061-sqlearn-ships-its-own-duckdb-build.md)` to the index's "The
   native engine".
@@ -246,24 +250,25 @@ one on the same branch and closes Phase 0.
     and the tests back them; #4 and #6 follow Phase 1's CI.
 - [ ] **Step 2: Amend ADR 0009.**
   - Add to its Status paragraph: "Amended by
-    [ADR 0062](0062-apple-silicon-first.md) (2026-11-21): the repository is
-    public, and the site is served by GitHub Pages from it."
-  - Replace its Consequences bullet "Hosting while the repository is private
-    is open: [questions/site-hosting.md](../questions/site-hosting.md)." with
-    "Hosting while the repository was private was open; [ADR
-    0062](0062-apple-silicon-first.md) settles it: the repository is public."
+    [ADR 0062](../adr/0062-apple-silicon-first.md) (2026-11-21): the repository
+    is public, and the site is served by GitHub Pages from it."
+  - Replace its Consequences bullet "Hosting while the repository is private is
+    open: [questions/site-hosting.md](../adr/0062-apple-silicon-first.md)." with
+    "Hosting while the repository was private was open;
+    [ADR 0062](../adr/0062-apple-silicon-first.md) settles it: the repository is
+    public."
   - In its frontmatter, replace `docs/questions/site-hosting.md` in `related`
     with `docs/adr/0062-apple-silicon-first.md`.
 - [ ] **Step 3: Move the answer, delete the question** (the questions
   folder's rule).
-  - In the overview's §2 bullet "One static site", replace "The repository
-    is private, and GitHub Pages serves a private repository only on a paid
-    plan. Open: [questions/site-hosting.md](../questions/site-hosting.md)."
-    with "The repository is public (2026-11-21), and Pages serves the site
-    from it, deployed with the CI the native engine's Phase 1 sets up ([ADR
-    0062](../adr/0062-apple-silicon-first.md); #4, #6)."
+  - In the overview's §2 bullet "One static site", replace "The repository is
+    private, and GitHub Pages serves a private repository only on a paid plan.
+    Open: [questions/site-hosting.md](../adr/0062-apple-silicon-first.md)." with
+    "The repository is public (2026-11-21), and Pages serves the site from it,
+    deployed with the CI the native engine's Phase 1 sets up
+    ([ADR 0062](../adr/0062-apple-silicon-first.md); #4, #6)."
   - In `docs/specs/foundation.md`, replace
-    "([questions/site-hosting.md](../questions/site-hosting.md))" with
+    "([questions/site-hosting.md](../adr/0062-apple-silicon-first.md))" with
     "(settled since by [ADR 0062](../adr/0062-apple-silicon-first.md): the
     repository is public)", and in its frontmatter `related` replace
     `docs/questions/site-hosting.md` with
@@ -346,7 +351,7 @@ one on the same branch and closes Phase 0.
     sets the thresholds; a float32 GPU version needs the user's choice and its
     own bounds (ADR 0016).
 - [ ] **Step 2: Amend ADR 0046.** Add to its Status paragraph: "Amended by
-  [ADR 0064](0064-the-gpu-runs-by-itself-only-when-the-answer-is-the-same.md)
+  [ADR 0064](../adr/0064-the-gpu-runs-by-itself-only-when-the-answer-is-the-same.md)
   (2026-11-21): on Apple silicon the GPU runs by itself when its answer is bit
   for bit the CPU's."
 - [ ] **Step 3:** Append `- [0064: The GPU runs by itself only when the
@@ -415,8 +420,9 @@ one on the same branch and closes Phase 0.
     in DuckDB's spatial extension, is never compiled in; a user may still
     install such an extension (ADR 0061).
 - [ ] **Step 2: Amend ADR 0004.** Add to its Status paragraph: "Amended by
-  [ADR 0066](0066-permissive-licences-never-copyleft.md) (2026-11-21): runtime
-  code may carry any permissive licence the OSI approves, never copyleft."
+      [ADR 0066](../adr/0066-permissive-licences-never-copyleft.md)
+      (2026-11-21): runtime code may carry any permissive licence the OSI
+      approves, never copyleft."
 - [ ] **Step 3:** Append `- [0066: Permissive licences, never
   copyleft](0066-permissive-licences-never-copyleft.md)` to the index's "The
   native engine".
@@ -484,8 +490,8 @@ one on the same branch and closes Phase 0.
     benchmarked against scikit-learn; outside models and the hand-over stay
     supported.
 - [ ] **Step 2: Amend ADR 0017.** Add to its Status paragraph: "Amended by
-  [ADR 0068](0068-sqlearns-own-models.md) (2026-11-21): sqlearn's own models
-  become a goal; outside models stay supported."
+      [ADR 0068](../adr/0068-sqlearns-own-models.md) (2026-11-21): sqlearn's own
+      models become a goal; outside models stay supported."
 - [ ] **Step 3:** Append `- [0068: sqlearn's own models, in the
   engine](0068-sqlearns-own-models.md)` to the index's "The native engine".
 - [ ] **Step 4: `CLAUDE.md`.** In the opening paragraph, replace "Models stay
