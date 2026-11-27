@@ -1,9 +1,9 @@
 ---
 type: architecture
-tags: [development, design, toc, adr, sqlearn]
-summary: "Index page for sqlearn's development docs, linking design overviews, build workflow, testing, and decision records."
+tags: [sqlearn, design, development, decision-records, toctree]
+summary: "Index page for sqlearn's development docs, listing design, build, setup, testing, and decision-record documents."
 related: [overview, engine-inventory, workflow, setup, layout, python-versions, writing, testing]
-mdindex: [type=4ca303, tags=7d27cb, summary=dc4a3c, related=9dcacd]
+mdindex: [type=4ca303, tags=d5d4bd, summary=dd9340, related=9dcacd]
 ---
 # Development
 

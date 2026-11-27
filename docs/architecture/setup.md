@@ -1,9 +1,9 @@
 ---
 type: guide
-tags: [setup, git-hooks, just, uv, toolchain, pre-commit]
-summary: "How to set up a clone, the just recipes they provide, what the pre-commit and commit-msg git hooks check, and the editor tools."
-related: [docs/adr/0001-uv-for-python-packaging.md, docs/adr/0008-just-task-runner.md, docs/adr/0062-apple-silicon-first.md, docs/architecture/testing.md, docs/specs/native-engine-phase-1.md, docs/specs/foundation.md, engine/cmake/ccache.cmake, engine/CMakePresets.json]
-mdindex: [type=83ca68, tags=735b92, summary=9e9d86, related=76aa34]
+tags: [setup, git-hooks, just, toolchain, clangd]
+summary: "How to set up a sqlearn clone: installing tools, the just recipes, the pre-commit and commit-msg hooks, and editor tooling."
+related: [docs/adr/0001-uv-for-python-packaging.md, docs/adr/0008-just-task-runner.md, docs/architecture/testing.md, engine/CMakePresets.json, engine/cmake/ccache.cmake, pyproject.toml, commitlint.config.mjs]
+mdindex: [type=83ca68, tags=a22284, summary=0f2e40, related=08a0b1]
 ---
 # Setting up
 
