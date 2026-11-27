@@ -60,7 +60,8 @@ def run_one(name: str, repo: Path, groups: str | None = None) -> int:
     The child's half of `main` (``--one``): what it imported is known only
     in the process that ran it. The files it could depend on are hashed
     before it is imported, and those hashes recorded; a file it loaded that
-    changed while it ran, or was not there before, saves no record of a
+    changed while it ran, or was not there before, or a C++ group it uses that
+    changed (its identity taken again after the run), saves no record of a
     pass. Exit 1 when a sqlearn case failed. `groups` is the identity of the
     C++ groups the runner uses, which `main` took once for every runner; it is
     computed here when None.
@@ -77,12 +78,16 @@ def run_one(name: str, repo: Path, groups: str | None = None) -> int:
     print(f"{name}: {dict(sorted(counts.items()))}", flush=True)  # noqa: T201
     failed = [c for c in cases if c["result"] == "fail"]
     depends, moved = _record.as_before(_record.loaded_files(repo), before, repo)
+    # the identity was taken before the run (by `main`, possibly long before):
+    # take it again, so a pass is never recorded for groups that changed since
+    if _record.engine(repo, name) != environment["groups"]:
+        moved.append("the C++ groups it uses")
     # a failed run is saved whatever moved: it only ever makes a runner rerun,
     # and cancels an earlier pass of the same inputs
     if moved and not failed:
         print(  # noqa: T201
-            f"{name}: not recorded, these files changed while it ran or were"
-            f" not there before: {', '.join(moved)}",
+            f"{name}: not recorded, these files or groups changed while it ran or"
+            f" were not there before: {', '.join(moved)}",
             flush=True,
         )
     else:

@@ -45,6 +45,18 @@ def cases():
 """
 
 
+# A runner that edits a C++ group's source while it runs.
+GROUP_EDITOR = "validate_standin_group_editor"
+GROUP_EDITOR_SOURCE = """\
+import pathlib
+
+def cases():
+    source = pathlib.Path(__file__).parents[1] / "engine" / "src" / "b" / "two.cpp"
+    source.write_text(source.read_text() + "int moved();\\n")
+    return [{"step": "x", "reference": "sqlearn", "result": "pass"}]
+"""
+
+
 def _source(result: str) -> str:
     """A runner whose one case has the given result."""
     return (
@@ -229,3 +241,19 @@ def test_the_fingerprints_are_computed_once_a_run(root, monkeypatch):
     monkeypatch.setattr(entry._groups, "fingerprints", counted)
     assert entry.main([GOOD, ODD], root) == 0
     assert len(calls) == 1
+
+
+def test_a_group_edited_while_the_runner_ran_is_not_recorded(root, capfd):
+    """The group a runner uses changing during its run (a rebuild under it)
+    saves no pass: the record would stand for code it did not run against."""
+    (root.parent / "standins" / f"{GROUP_EDITOR}.py").write_text(GROUP_EDITOR_SOURCE)
+    manifest = root.parent / "build" / "cpython-312" / "sq_groups.json"
+    data = json.loads(manifest.read_text())
+    data["groups"][1]["validation"] = [GROUP_EDITOR]
+    manifest.write_text(json.dumps(data))
+    assert entry.main([GROUP_EDITOR], root) == 0
+    out = capfd.readouterr().out
+    assert f"{GROUP_EDITOR}: not recorded" in out
+    assert "C++ groups" in out
+    repo = root.parent.resolve()
+    assert _record.load(_record.record_dir(repo), GROUP_EDITOR) == []
