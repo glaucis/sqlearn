@@ -3,15 +3,15 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-27 · Branch: `main` · Last commit: `d1a32ed Merge branch
-'selection-by-group'` (pushed) · Checks: passing (`just done` on the
-branch's last code commit; not remembered only because the docs tagger's
-uncommitted frontmatter edits sit in the tree)
+Updated: 2026-11-27 · Branch: `main` · Last commit: `dff16a7 docs: update
+the handoff` · Checks: passing (`just done` on the merged code; "not
+remembered" only because the docs tagger's uncommitted frontmatter edits
+sit in the tree: leave them out of commits)
 Verify with: `just done` (`just verify` is the release tier)
 
 ## In progress
 
-None.
+None. [verified]
 
 ## Waiting on the user
 
@@ -292,41 +292,11 @@ None.
   each reran no library set, no runner, no docs and no sql (the tooling set
   reran for both: it reads the text). Probe commits and their reverts stay in
   the history.
-- ADR 0072, benchmarks on Tomas's go-ahead (2026-11-27): no check runs
-  one; ask first with its time and weight, small batches, only what the
-  change touches, load recorded. The loaded pages are rerun with their
-  group: `gram-batches.md` at Phase 2's start, `engine-profile.md` before
-  Phase 4's order, `explore-*` with explore; `generators-on-many-threads.md`
-  waits for #46.
-- ADR 0071, FMA only on purpose (Tomas, 2026-11-27): contraction off
-  everywhere, `std::fma` (Metal's `fma()`) where a kernel wants it,
-  validated; turned on per target or kernel only with a benchmark's gain
-  and a passing validation. On x86_64's safe build `std::fma` is software
-  without the FMA instruction: such a kernel takes ADR 0062's run-time
-  dispatch.
-- ADR 0070 supersedes 0067 (Tomas, 2026-11-27: rewrite everything in
-  C++, new bindings, delete the Python not needed; he left the rules to
-  the agent): the Python library is frozen; each group's Python and
-  its tests go once its C++ tests and validation pass and it is not
-  slower; the `sq.` API may change before `1.0.0`; old saved files need
-  not load. `CLAUDE.md`, the spec (§3.8, §4), the overview, the layout,
-  the inventory, ADRs 0060 and 0065 (amended) and issues #79 to #82
-  follow it. Task 6's note (any `engine/` change reruns the whole Python
-  suite) is dropped: the suite is redrawn as the groups are rewritten.
-- The validation's engine digest narrowed (Tomas, 2026-11-27,
-  `bb09f4e`), then replaced by selecting by group's per-group
-  fingerprints; `ENGINE_BUILD` is gone.
-- `version.cpp` is back in Mull's mutation testing (Tomas, 2026-11-26:
-  test everything, cut no corners): the build identity is a header CMake
-  writes (`engine/cmake/build_identity.hpp.in`) instead of definitions
-  Mull could not parse, and a test fails if `mull.yml` excludes more than
-  the bindings. `just mutate-engine`: 186 mutants, 177 killed, the same 9
-  kept survivors.
-- The crash handler's chaining confirmed (Tomas, 2026-11-26): it hands the
-  fault to the previous handler with the kernel's siginfo, on macOS and
-  Linux; Mach exception ports left out. ADR 0069 records it with the macOS
-  probe (a null write and a kill arrive with the same siginfo).
-- Phase 1 step 2 merged into `main` and pushed (Tomas, 2026-11-26); the
-  worktree `../sqlearn-build`, its ledger and the branch removed. A fresh
-  checkout needs `just setup` (submodules, about 10 min) before `uv sync`
-  builds the engine (about 4 min).
+- ADR 0072, benchmarks on Tomas's go-ahead (2026-11-27); the loaded pages
+  rerun with their group (`gram-batches.md` at Phase 2's start).
+- ADR 0071, FMA only on purpose (Tomas, 2026-11-27).
+- ADR 0070 supersedes 0067 (Tomas, 2026-11-27): sqlearn is rewritten in
+  C++, the Python library frozen and deleted group by group; `CLAUDE.md`,
+  the spec, the docs and issues #79 to #82 follow it.
+- `version.cpp` back in Mull's mutation testing (2026-11-26, `1302e68`).
+- The crash handler's chaining confirmed, ADR 0069 (2026-11-26).
