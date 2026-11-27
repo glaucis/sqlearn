@@ -14,13 +14,18 @@ None.
 
 ## Waiting on the user
 
-- Benchmarks run on a loaded machine, to rerun on a quiet one if wanted:
-  `generators-on-many-threads.md` (#46), `gram-batches.md`, both
-  `explore-*.md` pages (load up to 145) and `engine-profile.md` (load 10 to
-  17, 2026-11-21). (since 2026-11-18)
+None.
 
 ## Next up
 
+- Coverage-based selection, its spec first: each test, validation runner
+  and benchmark records the code it ran (C++ by source-based coverage,
+  fingerprinted without comments; flags by the compile commands, not the
+  CMake text), so a comment or docs change reruns nothing and a C++ change
+  only what used it. Today any input of the module reruns every runner
+  (about 47 min) and any `engine/` change the whole Python suite.
+  Benchmarks are a separate kind, still run only on Tomas's go-ahead (ADR
+  0072). Before the rewrite's first group (Tomas, 2026-11-27).
 - Windows needs its own crash handler (no POSIX signals there; the
   current one calls `sigaction`): write it when the Windows build starts
   (ADR 0069). For now macOS and Linux only (Tomas, 2026-11-26).
@@ -45,9 +50,6 @@ None.
 - `just done` runs `just place` before `check-lockfile`, so a stale lock
   fails with uv's error rather than the named check (fails safe; reorder
   if wanted).
-- Finer validation selection: a src change reruns every runner (`import
-  sqlearn` loads the package), about 47 min a `just done`; after the port,
-  per group as the tests are.
 - Open question: free-threaded Python,
   `docs/questions/free-threaded-python.md` (no free-threaded wheel in step
   2: nanobind's stable ABI excludes it).
@@ -242,6 +244,12 @@ None.
 
 ## Just finished
 
+- ADR 0072, benchmarks on Tomas's go-ahead (2026-11-27): no check runs
+  one; ask first with its time and weight, small batches, only what the
+  change touches, load recorded. The loaded pages are rerun with their
+  group: `gram-batches.md` at Phase 2's start, `engine-profile.md` before
+  Phase 4's order, `explore-*` with explore; `generators-on-many-threads.md`
+  waits for #46.
 - ADR 0071, FMA only on purpose (Tomas, 2026-11-27): contraction off
   everywhere, `std::fma` (Metal's `fma()`) where a kernel wants it,
   validated; turned on per target or kernel only with a benchmark's gain

@@ -22,7 +22,15 @@ that, learned over the sessions so far.
   your own additions as yours. Twice his terms were muddled by mapping them
   onto earlier attempts' meanings.
 - Measure before claiming a cost or a speed-up, and say when a number is an
-  estimate or the machine was loaded.
+  estimate or the machine was loaded. Never start a benchmark without his
+  go-ahead: his machine runs other projects (ADR 0072).
+- Explain as to a child when he asks: a plain analogy, a concrete example,
+  then the options with their costs. Say plainly what is built and what is
+  only planned; he once believed coverage-based selection was done because
+  it was not said.
+- Do not anchor on the code that exists: he would rather rewrite than keep
+  something for its own sake (ADR 0070). When a rule only protects today's
+  code, say so and propose dropping it.
 
 ## Keep track in one place
 

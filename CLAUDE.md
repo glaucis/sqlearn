@@ -47,7 +47,7 @@ built.
   `docs/specs/library-exploration.md`, plan
   `docs/plans/2026-11-20-library-exploration.md`, ADR 0059, issue #74. The
   native engine (part 3.10: sqlearn as a C++ library embedding DuckDB, Python
-  its bindings): spec `docs/specs/native-engine.md`, ADRs 0060–0071, the
+  its bindings): spec `docs/specs/native-engine.md`, ADRs 0060–0072, the
   rewrite's inventory `docs/architecture/engine-inventory.md`, milestone
   "Native engine" (#78 to #84). Phase 0 is done; Phase 1's steps 1 (the
   checks) and 2 (the build) are merged. The library is rewritten in C++
@@ -116,6 +116,11 @@ Rules from the ADRs:
   `tests/public_api.txt`; only a departure from scikit-learn's
   conventions needs an ADR. Files saved before the rewrite need not load
   after it; `sq.load`'s security rules hold (0070).
+- No check runs a benchmark. Ask Tomas before any benchmark: which one,
+  about how long, how heavy; run it only on his go-ahead, one page or
+  group at a time, only those the change touches, with the load recorded.
+  Pages measured under load are rerun when their group is rewritten
+  (0072).
 - Python 3.12 is the floor (0007). Every task runs through `just` (0008).
 - British English in prose, American spelling in identifiers (0010).
 - sqlearn ships, generates and fetches no datasets: the user brings their

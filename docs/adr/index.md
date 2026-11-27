@@ -59,6 +59,7 @@ sqlearn's computation in C++, inside its own DuckDB build.
 - [0069: The crash handler hands the fault on](0069-the-crash-handler-hands-the-fault-on.md)
 - [0070: sqlearn is rewritten in C++](0070-sqlearn-is-rewritten-in-cpp.md)
 - [0071: Fused multiply-add only on purpose](0071-fused-multiply-add-only-on-purpose.md)
+- [0072: Benchmarks run on Tomas's go-ahead](0072-benchmarks-run-on-tomass-go-ahead.md)
 
 ## The API
 
