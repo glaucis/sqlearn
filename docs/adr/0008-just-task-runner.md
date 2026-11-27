@@ -1,8 +1,9 @@
 ---
 type: adr
-tags: [just, task-runner, justfile, tooling, build]
-summary: "ADR accepting just as the root task runner, with a justfile of one-tool recipes and composite check and verify targets."
-mdindex: [type=0fc814, tags=dc4eae, summary=27a50e]
+tags: [just, task-runner, build, tooling, cmake]
+summary: "ADR accepting just as the single root task runner for formatting, checks, tests and docs, amended by the Phase 1 spec for C++ builds."
+mdindex: [type=0fc814, tags=085efd, summary=dab5b2, related=3d2e17]
+related: [docs/specs/native-engine-phase-1.md, docs/specs/foundation.md]
 ---
 # 0008: just as the task runner
 

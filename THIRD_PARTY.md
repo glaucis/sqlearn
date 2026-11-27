@@ -1,3 +1,10 @@
+---
+type: note
+tags: [licences, third-party, dependencies, compliance, duckdb]
+summary: "Lists every third-party library compiled into sqlearn's wheel with its version, SPDX licence, licence text and source paths, plus development-only libraries."
+related: [ADR 0066, NOTICE, validation/_licences.py, uv.lock, engine/CMakeLists.txt, engine/cmake/cpptrace.cmake, engine/duckdb-python/external/duckdb/extension/icu/README.md]
+mdindex: [type=edb465, tags=0c9b92, summary=0ad6f9, related=9914e3]
+---
 # Third-party code
 
 sqlearn's wheel compiles other projects' code into its one binary, `_duckdb`

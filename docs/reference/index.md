@@ -1,8 +1,8 @@
 ---
 type: note
-tags: [api-reference, sqlearn, autosummary, docstrings, index]
-summary: "Index page for the sqlearn package API reference, listing autosummary entries for its modules, classes, and functions generated from docstrings."
-mdindex: [type=edb465, tags=ec9c2e, summary=0609f3]
+tags: [api-reference, sqlearn, autosummary, docstrings, python]
+summary: "Auto-generated API reference index for the sqlearn package, listing its public classes and functions via autosummary."
+mdindex: [type=edb465, tags=a2f83d, summary=72a7c8]
 ---
 # Reference
 

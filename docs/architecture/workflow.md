@@ -1,9 +1,9 @@
 ---
 type: architecture
-tags: [workflow, process, specs, plans, agents, skills]
-summary: "Describes how sqlearn work moves from spec to merge, where each document type lives, which checks run when, and which agents and skills are used."
-mdindex: [type=4ca303, tags=bd451a, summary=9e8242, related=10d1c2]
-related: [docs/architecture/overview.md, docs/architecture/testing.md, docs/agents/issue-tracker.md, docs/agents/domain.md, docs/agents/, GLOSSARY.md, CLAUDE.md, docs/questions/agents-and-skills.md]
+tags: [workflow, process, tooling, agents, skills, docs-layout]
+summary: "Describes how sqlearn work moves from spec to plan to branch to merge, which checks run when, where each doc kind lives, and the agents and skills used."
+mdindex: [type=4ca303, tags=a1f7f4, summary=38aa26, related=be7d6b]
+related: [docs/architecture/overview.md, docs/architecture/testing.md, docs/agents/issue-tracker.md, docs/agents/domain.md, docs/questions/agents-and-skills.md, docs/agents/, docs/specs/, docs/plans/]
 ---
 # How work runs
 

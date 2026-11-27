@@ -1,9 +1,9 @@
 ---
 type: architecture
-tags: [repository-layout, project-structure, docs, tests, examples]
-summary: "Describes the sqlearn repository tree, what each top-level folder holds, why it is organized that way, and what arrives later."
-related: [docs/specs/foundation.md, docs/adr/0053-sqlearn-ships-no-datasets.md, docs/adr/0025-results-stored-as-data-in-mirrored-folders.md, ADR 0060, ADR 0061, ADR 0062]
-mdindex: [type=4ca303, tags=6e4706, summary=feeb1c, related=003f1a]
+tags: [repository-layout, directory-structure, docs, tests, engine, project-structure]
+summary: "Describes the sqlearn repository's directory tree, the reasons for its layout, what stays out of git, and what arrives in later phases."
+related: [docs/specs/foundation.md, docs/adr/0053-sqlearn-ships-no-datasets.md, docs/adr/0025-results-stored-as-data-in-mirrored-folders.md, ADR 0060, ADR 0061, ADR 0062, ADR 0065, ADR 0066]
+mdindex: [type=4ca303, tags=ea4e88, summary=5a17c0, related=1c5841]
 ---
 # The repository's layout
 
