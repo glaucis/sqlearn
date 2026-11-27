@@ -1,5 +1,50 @@
 # clangd (Homebrew LLVM's, spec §3.8) reads the compile commands of the
 # llvm-dev preset, engine/build/llvm-dev/compile_commands.json, which
 # `just build-engine llvm-dev` writes. The directory is relative to this file.
+# Each fragment below applies where its PathMatch does; later ones win.
 CompileFlags:
   CompilationDatabase: engine/build/llvm-dev
+Diagnostics:
+  ClangTidy:
+    # clangd's own include cleaner does this job; tidy's would repeat it.
+    Remove: misc-include-cleaner
+  Includes:
+    # The headers engine/.clang-tidy tells misc-include-cleaner to ignore.
+    IgnoreHeader:
+      - 'rapidcheck\.h'
+      - 'rapidcheck/.*'
+      - 'python3\.[0-9]+/.*'
+      - 'sys/.*'
+      - 'signal\.h'
+      - 'fcntl\.h'
+      - '_time\.h'
+      - 'pthread/.*'
+InlayHints:
+  Enabled: false
+---
+# The bindings, the extension and the benchmarks are not in the llvm-dev
+# database: only the one `just tidy-engine` merges has their commands.
+If:
+  PathMatch: engine/(src/bindings|extension/src|bench)/.*
+CompileFlags:
+  CompilationDatabase: engine/build/tidy
+---
+# DuckDB, the other submodules and the build's outputs: read, not checked.
+If:
+  PathMatch: engine/(duckdb-python|third_party|build)/.*|build/.*
+Index:
+  Background: Skip
+Diagnostics:
+  Suppress: '*'
+  ClangTidy:
+    Remove: '*'
+  UnusedIncludes: None
+---
+# The tests that fail on purpose.
+If:
+  PathMatch: engine/tests/(must_not_compile|must_not_pass_tidy|canary)/.*
+Diagnostics:
+  Suppress: '*'
+  ClangTidy:
+    Remove: '*'
+  UnusedIncludes: None

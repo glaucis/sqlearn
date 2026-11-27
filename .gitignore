@@ -33,3 +33,5 @@ htmlcov/
 /engine/.compiler-stamp
 /build/
 /compile_commands.json
+# clangd's index
+.cache/

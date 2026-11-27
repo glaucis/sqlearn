@@ -127,7 +127,16 @@ Never skip either hook with `--no-verify`.
 clangd, Homebrew LLVM's, is the language server for the C++. The root
 `.clangd` points it at the `llvm-dev` preset's compile database
 (`engine/build/llvm-dev/compile_commands.json`), which
-`just build-engine llvm-dev` writes. CodeGraph indexes sqlearn's own code,
+`just build-engine llvm-dev` writes. That build lacks the bindings, the
+extension and the benchmarks, so for `engine/src/bindings/`,
+`engine/extension/src/` and `engine/bench/` it reads the database
+`just tidy-engine` merges (`engine/build/tidy/`). It does not index or check
+the submodules or the build's outputs, nor the tests that fail on purpose
+(`must_not_compile`, `must_not_pass_tidy`, `canary`). Its index goes in a
+`.cache/` beside the database it reads. Claude Code's `clangd-lsp` plugin
+starts the `clangd` first on the PATH, so link Homebrew's there once per
+machine (`ln -s /opt/homebrew/opt/llvm/bin/clangd ~/.local/bin/clangd`),
+leaving the rest of Homebrew LLVM off it. CodeGraph indexes sqlearn's own code,
 `engine/` included; the root `codegraph.json` leaves out the submodules
 (`engine/duckdb-python/`, `engine/third_party/`).
 
