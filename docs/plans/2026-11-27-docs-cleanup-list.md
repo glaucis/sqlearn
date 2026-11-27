@@ -79,6 +79,21 @@ Six new ADRs, each superseding the records on one subject:
    status lines. Fix these pages in this cleanup, or leave them as a
    follow-up?
 
+## Tomas's answers (2026-11-27)
+
+Given after the list was committed; the work follows them.
+
+1. **The consolidations:** write all six now (A to F, ADRs 0074 to 0079);
+   the twenty ADRs they supersede are archived.
+2. **The four built documents:** kept, all four.
+3. **Benchmarks:** `docs/benchmarks/archived/` is added, and the two archive
+   pages move there.
+4. **ADR 0058:** the rule in CLAUDE.md stays; 0058 is amend.
+5. **The amend rows outside `docs/adr/`:** fixed in this cleanup.
+6. **The link check:** asked separately (`just test` does not rerun it after
+   a docs-only edit): it gets its own task, whose inputs are the tracked
+   Markdown, so only it reruns on a docs edit.
+
 ## The rows
 
 ### docs/adr/
