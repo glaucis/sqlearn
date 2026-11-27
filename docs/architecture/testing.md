@@ -155,8 +155,11 @@ upgrade reruns all of the tasks that use it.
   which Python files exist, since ruff's import sorting depends on it: a
   Python file added or removed reruns every `lint` step on every file, the
   Markdown and the spelling included.
-- **Whole** (`types`, `test`, `tidy`, `docs`): the task runs all of it when its
-  digest matches no kept record, and nothing otherwise.
+- **Whole** (`types`, `tidy`, `docs`): the task runs all of it when its digest
+  matches no kept record, and nothing otherwise.
+- **By group** (`test`, `validate`): each C++ group, Python set and runner has
+  its own identity and record, and only those whose identity has no passed
+  record run (see "Selecting by group").
 - Every step runs even when one before it fails, so one tool's failure hides
   no other's findings. A run that fails records nothing, so the next run
   checks the same again.
@@ -470,7 +473,7 @@ nothing. `-n auto` and the slow tier work as in "The passes".
 | Change | Reruns |
 |---|---|
 | a comment in `engine/cmake/warnings.cmake` | the tooling set only |
-| a comment edited within its line in `engine/src/core/error.cpp` | no Python set, no runner, no docs, no `sql` (`core`'s C++ tests and `tidy` read the text and may rerun) |
+| a comment edited within its line in `engine/src/core/error.cpp` | no library or unclaimed Python set, no runner, no docs, no `sql` (the tooling set, `core`'s C++ tests and `tidy` read the text and rerun) |
 | a comment line added to a `core` source | `core`'s tests and every Python set and runner (all use `core`) |
 | a compile flag, a pin, a build table, the compiler | everything that uses the module |
 
