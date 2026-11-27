@@ -82,7 +82,7 @@ def scratch(tmp_path):
     (repo / "justfile").write_text(OVERRIDES)
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
-    for tool in ("ruff", "typos", "rumdl", "numpydoc", "ty", "mypy", "pytest"):
+    for tool in ("ruff", "typos", "rumdl", "numpydoc", "ty", "mypy", "uv"):
         (bin_dir / tool).write_text(TOOL.format(python=sys.executable))
         (bin_dir / tool).chmod(0o755)
     home = tmp_path / "home"
@@ -128,20 +128,20 @@ def calls(env):
     return [json.loads(line) for line in lines]
 
 
+SETS = ["uv", "run", "--locked", "python", "-m", "validation._pytest_sets"]
+"""The Python tests' step: it keeps records of each set and decides itself."""
+
+
 def test_a_docs_only_change_runs_no_test(scratch):
-    """An edited guide page rebuilds the docs and runs no test."""
+    """An edited guide page rebuilds the docs; the test task is unchanged, and
+    only its two steps that keep records of their own run."""
     repo, env = scratch
     just(repo, env, "test")
     just(repo, env, "docs")
-    assert [c[0] for c in calls(env)] == [
-        "test-engine-changed dev",
-        *["pytest"] * 4,
-        "build-docs",
-    ]
+    assert calls(env) == [["test-engine-changed dev"], SETS, ["build-docs"]]
     (repo / "docs" / "guide" / "notes.md").write_text("# Notes, edited\n")
     assert "test: unchanged since a passed run" in just(repo, env, "test")
-    # The C++ step keeps records of its own and decides for itself.
-    assert calls(env) == [["test-engine-changed dev"]]
+    assert calls(env) == [["test-engine-changed dev"], SETS]
     just(repo, env, "docs")
     assert calls(env) == [["build-docs"]]
 
@@ -170,36 +170,14 @@ def test_a_change_to_one_python_file_lints_only_that_file(scratch):
     ]
 
 
-@pytest.mark.parametrize(
-    "data",
-    [
-        "devdata/data/iris.csv",
-        "docs/architecture/engine-inventory.md",
-        "docs/conf.py",
-        ".githooks/pre-commit",
-        "commitlint.config.mjs",
-        "tests/conftest.py",
-    ],
-)
-def test_a_data_file_change_reruns_the_tests(scratch, data):
-    """A file the tests read as data, changed or new, reruns every test pass."""
-    repo, env = scratch
-    just(repo, env, "test")
-    calls(env)
-    path = repo / data
-    path.write_text((path.read_text() if path.exists() else "") + "# changed\n")
-    just(repo, env, "test")
-    passes = [
-        ["-n", "auto", "-m", "not slow and not serial", "--ignore=tests/githooks"],
-        ["-p", "no:xdist", "-m", "serial and not slow", "--ignore=tests/githooks"],
-        ["-p", "no:xdist", "-m", "slow", "--ignore=tests/githooks"],
-        ["-n", "auto", "-m", "", "tests/githooks"],
+def test_the_test_task_is_the_cxx_groups_then_the_python_sets():
+    """Both steps keep records of their own, so both run every time."""
+    steps = _checks.TASKS["test"].steps
+    assert [s.command for s in steps] == [
+        ("just", "test-engine-changed", "dev"),
+        tuple(SETS),
     ]
-    report = ["pytest", "-p", "validation._tests_report"]
-    assert calls(env) == [
-        ["test-engine-changed dev"],
-        *([*report, *p] for p in passes),
-    ]
+    assert all(s.always and s.everything == ("--all",) for s in steps)
 
 
 @pytest.mark.parametrize(
@@ -344,7 +322,7 @@ def test_the_engine_build_inputs_are_uvs_cache_keys():
         specs = (*task.inputs, *task.config)
         return any(path == s or path.startswith(f"{s}/") for s in specs)
 
-    for name in ("docs", "types", "docstrings", "test", "sql"):
+    for name in ("docs", "types", "docstrings", "sql"):
         task = _checks.TASKS[name]
         missing = [p for p in _checks.ENGINE_BUILD if not covered(p, task)]
         assert missing == [], name
@@ -357,13 +335,17 @@ def test_full_sql_runs_every_sql_test(scratch):
     assert calls(env) == [["test-sql --all"]]
 
 
-def test_full_test_runs_every_cxx_group(scratch):
-    """``just full test`` hands the C++ step ``--all``; ``just test`` does not."""
+def test_full_test_runs_every_cxx_group_and_python_set(scratch):
+    """``just full test`` hands both steps ``--all``; ``just test`` does not."""
     repo, env = scratch
     just(repo, env, "test")
     just(repo, env, "full", "test")
-    groups = [c for c in calls(env) if c[0].startswith("test-engine-changed")]
-    assert groups == [["test-engine-changed dev"], ["test-engine-changed dev --all"]]
+    assert calls(env) == [
+        ["test-engine-changed dev"],
+        SETS,
+        ["test-engine-changed dev --all"],
+        [*SETS, "--all"],
+    ]
 
 
 def test_full_validate_runs_every_runner(scratch):

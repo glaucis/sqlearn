@@ -512,14 +512,6 @@ def test_every_task_declares_the_settings_files():
         assert set(task.config) >= SETTINGS, task.name
 
 
-def test_only_the_serial_pass_may_collect_nothing():
-    """Exit 5 passes the serial pass alone: a broken marker elsewhere must fail."""
-    steps = [s for s in _checks.TASKS["test"].steps if s.command[0] == "pytest"]
-    passes = [s.command[s.command.index("-m") + 1] for s in steps]
-    assert passes == ["not slow and not serial", "serial and not slow", "slow", ""]
-    assert [s.ok for s in steps] == [(0,), (0, 5), (0,), (0,)]
-
-
 def test_the_lint_task_keys_its_config_to_the_python_layout():
     """Ruff's import sorting depends on which modules exist."""
     assert "*.py" in _checks.TASKS["lint"].layout

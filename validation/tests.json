@@ -224,42 +224,6 @@
     },
     {
       "area": "checks/tasks",
-      "name": "tests/checks/test_tasks.py::test_a_data_file_change_reruns_the_tests[.githooks/pre-commit]",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "checks/tasks",
-      "name": "tests/checks/test_tasks.py::test_a_data_file_change_reruns_the_tests[commitlint.config.mjs]",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "checks/tasks",
-      "name": "tests/checks/test_tasks.py::test_a_data_file_change_reruns_the_tests[devdata/data/iris.csv]",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "checks/tasks",
-      "name": "tests/checks/test_tasks.py::test_a_data_file_change_reruns_the_tests[docs/architecture/engine-inventory.md]",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "checks/tasks",
-      "name": "tests/checks/test_tasks.py::test_a_data_file_change_reruns_the_tests[docs/conf.py]",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "checks/tasks",
-      "name": "tests/checks/test_tasks.py::test_a_data_file_change_reruns_the_tests[tests/conftest.py]",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "checks/tasks",
       "name": "tests/checks/test_tasks.py::test_a_docs_only_change_runs_no_test",
       "outcome": "passed",
       "tier": "fast"
@@ -296,7 +260,7 @@
     },
     {
       "area": "checks/tasks",
-      "name": "tests/checks/test_tasks.py::test_full_test_runs_every_cxx_group",
+      "name": "tests/checks/test_tasks.py::test_full_test_runs_every_cxx_group_and_python_set",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -309,6 +273,12 @@
     {
       "area": "checks/tasks",
       "name": "tests/checks/test_tasks.py::test_the_engine_build_inputs_are_uvs_cache_keys",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_the_test_task_is_the_cxx_groups_then_the_python_sets",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -20888,12 +20858,6 @@
     },
     {
       "area": "validation/_checks",
-      "name": "tests/validation/test__checks.py::test_only_the_serial_pass_may_collect_nothing",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "validation/_checks",
       "name": "tests/validation/test__checks.py::test_records_are_kept_twenty_and_replaced_atomically",
       "outcome": "passed",
       "tier": "fast"
@@ -21381,6 +21345,168 @@
     {
       "area": "validation/_mutate",
       "name": "tests/validation/test__mutate.py::test_the_verdict_names_unrecorded_survivors_and_stale_entries",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_pytest_sets",
+      "name": "tests/validation/test__pytest_sets.py::test_a_change_under_src_reruns_every_library_set",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_pytest_sets",
+      "name": "tests/validation/test__pytest_sets.py::test_a_cmake_comment_reruns_the_tooling_set_alone[engine/CMakeLists.txt]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_pytest_sets",
+      "name": "tests/validation/test__pytest_sets.py::test_a_cmake_comment_reruns_the_tooling_set_alone[engine/extension/CMakeLists.txt]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_pytest_sets",
+      "name": "tests/validation/test__pytest_sets.py::test_a_data_file_reruns_the_sets_that_read_it[.githooks/pre-commit-reran2]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_pytest_sets",
+      "name": "tests/validation/test__pytest_sets.py::test_a_data_file_reruns_the_sets_that_read_it[commitlint.config.mjs-reran3]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_pytest_sets",
+      "name": "tests/validation/test__pytest_sets.py::test_a_data_file_reruns_the_sets_that_read_it[devdata/data/iris.csv-reran4]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_pytest_sets",
+      "name": "tests/validation/test__pytest_sets.py::test_a_data_file_reruns_the_sets_that_read_it[docs/architecture/engine-inventory.md-reran0]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_pytest_sets",
+      "name": "tests/validation/test__pytest_sets.py::test_a_data_file_reruns_the_sets_that_read_it[docs/conf.py-reran1]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_pytest_sets",
+      "name": "tests/validation/test__pytest_sets.py::test_a_data_file_reruns_the_sets_that_read_it[tests/conftest.py-reran6]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_pytest_sets",
+      "name": "tests/validation/test__pytest_sets.py::test_a_data_file_reruns_the_sets_that_read_it[tests/src/helpers.py-reran7]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_pytest_sets",
+      "name": "tests/validation/test__pytest_sets.py::test_a_data_file_reruns_the_sets_that_read_it[uv.lock-reran8]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_pytest_sets",
+      "name": "tests/validation/test__pytest_sets.py::test_a_data_file_reruns_the_sets_that_read_it[validation/_cases.py-reran5]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_pytest_sets",
+      "name": "tests/validation/test__pytest_sets.py::test_a_failing_set_reruns_and_the_others_keep_their_pass",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_pytest_sets",
+      "name": "tests/validation/test__pytest_sets.py::test_a_failure_cancels_the_pass_of_the_same_identity",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_pytest_sets",
+      "name": "tests/validation/test__pytest_sets.py::test_a_group_change_reruns_its_set_and_the_unclaimed_one",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_pytest_sets",
+      "name": "tests/validation/test__pytest_sets.py::test_a_new_package_under_tests_src_is_unclaimed",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_pytest_sets",
+      "name": "tests/validation/test__pytest_sets.py::test_a_set_whose_inputs_changed_while_it_ran_is_not_recorded",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_pytest_sets",
+      "name": "tests/validation/test__pytest_sets.py::test_a_test_file_in_no_set_is_refused_with_a_fix",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_pytest_sets",
+      "name": "tests/validation/test__pytest_sets.py::test_a_tooling_input_reruns_the_tooling_set_alone",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_pytest_sets",
+      "name": "tests/validation/test__pytest_sets.py::test_all_runs_every_set",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_pytest_sets",
+      "name": "tests/validation/test__pytest_sets.py::test_an_edited_test_file_reruns_its_set_alone[tests/checks/test_tool.py-tooling]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_pytest_sets",
+      "name": "tests/validation/test__pytest_sets.py::test_an_edited_test_file_reruns_its_set_alone[tests/src/b/test_b.py-group:b]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_pytest_sets",
+      "name": "tests/validation/test__pytest_sets.py::test_an_edited_test_file_reruns_its_set_alone[tests/src/sqlearn/test_lib.py-unclaimed]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_pytest_sets",
+      "name": "tests/validation/test__pytest_sets.py::test_an_unchanged_tree_runs_no_set",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_pytest_sets",
+      "name": "tests/validation/test__pytest_sets.py::test_each_set_runs_the_three_passes_on_its_paths",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_pytest_sets",
+      "name": "tests/validation/test__pytest_sets.py::test_only_the_serial_pass_may_collect_nothing",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_pytest_sets",
+      "name": "tests/validation/test__pytest_sets.py::test_unreadable_fingerprints_run_every_set_and_record_none",
       "outcome": "passed",
       "tier": "fast"
     },

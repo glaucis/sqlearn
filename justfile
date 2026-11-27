@@ -652,7 +652,7 @@ docstrings:
 types:
     {{ checks }} types
 
-# Run the tests when what they read changed since a passed run: the C++ groups whose program changed (dev), then the fast ones in parallel, the serial ones, the slow tier, the hooks; tests.json is merged
+# Run the tests that changed since a passed run: the C++ groups whose program changed (dev), then each Python test set whose identity changed (validation/_pytest_sets.py: the tooling tests, each group's, the unclaimed ones), its fast tests in parallel, the serial ones, the slow tier; tests.json is merged
 [group('test')]
 test:
     {{ checks }} test

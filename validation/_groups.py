@@ -75,9 +75,7 @@ MODULE = "_duckdb"
 LLVM_CLANG = Path("/opt/homebrew/opt/llvm/bin/clang")
 """Homebrew LLVM's clang, preferred to strip comments (keg-only, off PATH)."""
 
-CPP_SUFFIXES = frozenset(
-    {".c", ".cc", ".cpp", ".cxx", ".mm", ".h", ".hh", ".hpp", ".hxx", ".inc", ".ipp"}
-)
+CPP_SUFFIXES = frozenset(_checks.CXX_SUFFIXES)
 """The suffixes of the C++ files under a directory, sources and headers."""
 
 SOURCE_SUFFIXES = frozenset({".c", ".cc", ".cpp", ".cxx", ".mm"})

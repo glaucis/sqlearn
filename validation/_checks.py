@@ -207,21 +207,56 @@ TIDY_INPUTS = (
 )
 """What clang-tidy, include-what-you-use and the headers-alone build read."""
 
-TEST_INPUTS = (
-    "src",
-    "tests",
+TOOLING = (
+    "tests/checks",
+    "tests/githooks",
+    "tests/validation",
+    "tests/engine",
+    "tests/docs",
+    "tests/devdata",
+    "tests/test_environment.py",
+)
+"""The tooling tests: of the checks, the hooks, the engine's build, the docs."""
+
+CXX_SUFFIXES = (
+    ".c",
+    ".cc",
+    ".cpp",
+    ".cxx",
+    ".mm",
+    ".h",
+    ".hh",
+    ".hpp",
+    ".hxx",
+    ".inc",
+    ".ipp",
+)
+"""The suffixes of the C++ files, sources and headers: the tooling set leaves
+those of the module out, and ``validation._groups`` hashes them."""
+
+TOOLING_INPUTS = (
+    *TOOLING,
     "validation",
     "devdata",
     # Files the tests read as data.
     "docs/architecture/engine-inventory.md",
-    # The engine's build files and sources, and the submodules' commits.
+    # The engine's build files and its other files (presets, mull.yml, the
+    # fuzz corpus, the CMake files, read as text), the C++ tests, fuzz
+    # targets and benchmarks, and the submodules' commits. The C++ of the
+    # groups and the shared directories reaches the tooling set through the
+    # module's fingerprints instead (validation._pytest_sets).
     "engine",
+    *(
+        f":(exclude,glob){d}/**/*{suffix}"
+        for d in ("engine/src", "engine/extension")
+        for suffix in CXX_SUFFIXES
+    ),
     "docs/conf.py",
     ".githooks",
     "commitlint.config.mjs",
     ":(glob)**/conftest.py",
 )
-"""What the tests import or read, so a change to any of it reruns them all."""
+"""What the tooling tests import or read, the module's C++ aside."""
 
 SQL_INPUTS = (
     # The extension: its sources, its config and its .test files.
@@ -239,14 +274,6 @@ SQL_INPUTS = (
     "validation/_ctest.py",
 )
 """What DuckDB's unittest with the sqlearn extension, and its SQL tests, come from."""
-
-_PYTEST_PASSES = (
-    ("-n", "auto", "-m", "not slow and not serial", "--ignore=tests/githooks"),
-    ("-p", "no:xdist", "-m", "serial and not slow", "--ignore=tests/githooks"),
-    ("-p", "no:xdist", "-m", "slow", "--ignore=tests/githooks"),
-    ("-n", "auto", "-m", "", "tests/githooks"),
-)
-"""The fast tests in parallel, the serial ones alone, the slow tier, the hooks."""
 
 
 def _table() -> dict[str, Task]:
@@ -316,7 +343,7 @@ def _table() -> dict[str, Task]:
         ),
         Task(
             name="test",
-            inputs=TEST_INPUTS,
+            inputs=TOOLING_INPUTS,
             config=SETTINGS,
             steps=(
                 # Each C++ group whose test program changed since it passed
@@ -326,14 +353,19 @@ def _table() -> dict[str, Task]:
                     everything=("--all",),
                     always=True,
                 ),
-                *(
-                    Step(
-                        ("pytest", "-p", "validation._tests_report", *p),
-                        # Only the serial pass may find nothing: a marker or a
-                        # testpaths broken elsewhere must fail, not pass.
-                        ok=(0, 5) if "serial and not slow" in p else (0,),
-                    )
-                    for p in _PYTEST_PASSES
+                # Each Python test set whose identity changed since it
+                # passed (validation/_pytest_sets.py).
+                Step(
+                    (
+                        "uv",
+                        "run",
+                        "--locked",
+                        "python",
+                        "-m",
+                        "validation._pytest_sets",
+                    ),
+                    everything=("--all",),
+                    always=True,
                 ),
             ),
             per_file=False,
