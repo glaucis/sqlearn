@@ -2,7 +2,6 @@
 # floating-point rule they keep. DuckDB's, duckdb-python's, nanobind's and
 # the test libraries' sources keep their own flags; their headers reach ours
 # as system headers, so these cover our code only.
-# (A probe comment line.)
 
 # Spec §3.2 and §3.9. -Wunsafe-buffer-usage is kept apart: it is on
 # everywhere but engine/src/raw/, the one layer for raw memory (ADR 0065).
