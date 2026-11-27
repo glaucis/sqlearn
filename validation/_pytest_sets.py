@@ -4,10 +4,11 @@ The tests fall into sets (``sets``):
 
 - ``tooling``: the tests of the checks, the hooks, the engine's build, the
   docs and the datasets of development (``TOOLING``). They read the
-  engine's files other than its C++ as data (presets, ``mull.yml``, the fuzz
-  corpus, the CMake files as text), and some load the module, so their
-  identity is the SHA-256 of ``TOOLING_INPUTS``' files and the module's
-  whole identity: any engine change reruns them, a minute at most.
+  engine's files as text (presets, ``mull.yml``, the fuzz corpus, the CMake
+  files, the C++ comments included), the package's modules and
+  ``.clangd``, and some load the module, so their identity is the SHA-256
+  of ``TOOLING_INPUTS``' files and the module's whole identity: any engine
+  or ``src/`` edit reruns them, a minute at most.
 - ``group:<name>``: the tests a C++ group claims (its ``PYTHON_TESTS`` in
   the manifest), whose identity is the SHA-256 of its own test files, every
   file of ``LIBRARY_INPUTS`` (``src/``, since ``import sqlearn`` loads the
@@ -22,7 +23,8 @@ Each identity also holds the settings every task reads
 (``validation._checks.SETTINGS``: the locked versions, pytest's
 configuration) and the place it runs in. A set whose identity a kept record
 passed prints ``<set>: unchanged since a passed run``; each other set runs
-the passes of ``PASSES`` on its paths. The records follow
+the passes of ``PASSES`` on its paths; a pass that finds no test passes, a
+set none of whose passes finds one fails. The records follow
 ``validation._ctest``'s rules, under the key ``pytest-sets``: a set that
 fails takes its identity out of every kept record, and a set whose identity
 moved while it ran (taken again after the run) is not recorded. When the
@@ -44,7 +46,7 @@ TOOLING = _checks.TOOLING
 """The tooling tests' paths."""
 
 TOOLING_INPUTS = _checks.TOOLING_INPUTS
-"""What the tooling tests import or read, the module's C++ aside."""
+"""What the tooling tests import or read, every file as text."""
 
 LIBRARY_INPUTS = (
     "src",
@@ -60,14 +62,16 @@ LIBRARY = "tests/src"
 """Where the library tests live: each in a group's set or the unclaimed one."""
 
 PASSES = (
-    (("-n", "auto", "-m", "not slow and not serial"), (0,)),
-    # Only the serial pass may find nothing: a marker or a path broken
-    # elsewhere must fail, not pass.
-    (("-p", "no:xdist", "-m", "serial and not slow"), (0, 5)),
-    (("-p", "no:xdist", "-m", "slow"), (0,)),
+    ("-n", "auto", "-m", "not slow and not serial"),
+    ("-p", "no:xdist", "-m", "serial and not slow"),
+    ("-p", "no:xdist", "-m", "slow"),
 )
-"""The fast tests in parallel, the serial ones alone, the slow tier; each with
-the exit codes that are a pass (pytest's 5: no test collected)."""
+"""The fast tests in parallel, the serial ones alone, the slow tier."""
+
+NO_TESTS = 5
+"""pytest's exit code when it collects no test: a pass of a set may find none
+(a set need not hold every tier), but a set none of whose passes finds a test
+fails, since a path or a marker is broken."""
 
 KEY = "pytest-sets"
 """The records' file in ``sqlearn-checks/``, without ``.json``."""
@@ -227,14 +231,18 @@ def _identities(
 
 
 def _run_set(paths: Sequence[str], root: Path) -> int:
-    """Run every pass of ``PASSES`` on `paths`; return the first failing code."""
-    first = 0
-    for options, ok in PASSES:
+    """Run every pass of ``PASSES`` on `paths`; return the first failing code.
+
+    A pass that collects nothing (``NO_TESTS``) passes, unless every pass
+    does: then the set fails with ``NO_TESTS``.
+    """
+    codes = []
+    for options in PASSES:
         argv = ["pytest", "-p", "validation._tests_report", *options, *paths]
-        code = subprocess.run(argv, cwd=root, check=False).returncode
-        if code not in ok and first == 0:
-            first = code
-    return first
+        codes.append(subprocess.run(argv, cwd=root, check=False).returncode)
+    if all(code == NO_TESTS for code in codes):
+        return NO_TESTS
+    return next((c for c in codes if c not in {0, NO_TESTS}), 0)
 
 
 def run(root: Path, *, everything: bool = False) -> int:

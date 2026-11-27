@@ -218,45 +218,28 @@ TOOLING = (
 )
 """The tooling tests: of the checks, the hooks, the engine's build, the docs."""
 
-CXX_SUFFIXES = (
-    ".c",
-    ".cc",
-    ".cpp",
-    ".cxx",
-    ".mm",
-    ".h",
-    ".hh",
-    ".hpp",
-    ".hxx",
-    ".inc",
-    ".ipp",
-)
-"""The suffixes of the C++ files, sources and headers: the tooling set leaves
-those of the module out, and ``validation._groups`` hashes them."""
-
 TOOLING_INPUTS = (
     *TOOLING,
     "validation",
     "devdata",
     # Files the tests read as data.
     "docs/architecture/engine-inventory.md",
-    # The engine's build files and its other files (presets, mull.yml, the
-    # fuzz corpus, the CMake files, read as text), the C++ tests, fuzz
-    # targets and benchmarks, and the submodules' commits. The C++ of the
-    # groups and the shared directories reaches the tooling set through the
-    # module's fingerprints instead (validation._pytest_sets).
+    # The package's modules, which the docs tests check against the
+    # inventory.
+    "src/sqlearn",
+    # The whole engine as text: its build files and other files (presets,
+    # mull.yml, the fuzz corpus, the CMake files), and its C++, which the
+    # engine tests scan line by line, comments included (the raw layer's
+    # calls, the bindings' types); the submodules' commits.
     "engine",
-    *(
-        f":(exclude,glob){d}/**/*{suffix}"
-        for d in ("engine/src", "engine/extension")
-        for suffix in CXX_SUFFIXES
-    ),
+    # clangd's settings, which the presets' tests read.
+    ".clangd",
     "docs/conf.py",
     ".githooks",
     "commitlint.config.mjs",
     ":(glob)**/conftest.py",
 )
-"""What the tooling tests import or read, the module's C++ aside."""
+"""What the tooling tests import or read, every file as text."""
 
 SQL_INPUTS = (
     # The extension: its sources, its config and its .test files.

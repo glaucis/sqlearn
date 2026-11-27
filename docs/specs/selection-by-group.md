@@ -155,11 +155,16 @@ call):
   it.
 - **Tooling tests** (`tests/checks`, `tests/githooks`, `tests/validation`,
   `tests/engine`, `tests/docs`, `tests/devdata`, `tests/test_environment.py`):
-  one group whose inputs are today's `TEST_INPUTS` without `src/` and without
-  the C++ sources under `engine/` (they read `engine/`'s other files as data:
-  presets, `mull.yml`, the fuzz corpus, CMake files), plus the module's
-  whole fingerprint, since some load the module. They take seconds to a
-  minute, so they rerun on any engine change (spec's call).
+  one group whose inputs are every file they read as text: today's
+  `TEST_INPUTS` with only `src/sqlearn` of `src/` (the docs tests check its
+  modules against the inventory), the whole of `engine/` (presets,
+  `mull.yml`, the fuzz corpus, CMake files, and the C++ itself, comments
+  included, which the engine tests scan line by line) and `.clangd`, plus
+  the module's whole fingerprint, since some load the module. They take
+  seconds to a minute, so they rerun on any engine or `src/` edit, a C++
+  comment included: the price of no silent skip (the ruling at Task 4's
+  review, replacing the spec's first call, which left `src/` and the C++
+  sources out).
 - **Python tests are split into these groups** in `validation/_checks.py`:
   the `test` task becomes the C++ groups (as now), the tooling group, and
   **one library group per declared test set** (each C++ group's

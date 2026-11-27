@@ -21368,6 +21368,18 @@
     },
     {
       "area": "validation/_pytest_sets",
+      "name": "tests/validation/test__pytest_sets.py::test_a_cxx_comment_reruns_the_tooling_set_alone",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_pytest_sets",
+      "name": "tests/validation/test__pytest_sets.py::test_a_data_file_reruns_the_sets_that_read_it[.clangd-reran4]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_pytest_sets",
       "name": "tests/validation/test__pytest_sets.py::test_a_data_file_reruns_the_sets_that_read_it[.githooks/pre-commit-reran2]",
       "outcome": "passed",
       "tier": "fast"
@@ -21380,7 +21392,7 @@
     },
     {
       "area": "validation/_pytest_sets",
-      "name": "tests/validation/test__pytest_sets.py::test_a_data_file_reruns_the_sets_that_read_it[devdata/data/iris.csv-reran4]",
+      "name": "tests/validation/test__pytest_sets.py::test_a_data_file_reruns_the_sets_that_read_it[devdata/data/iris.csv-reran5]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -21398,25 +21410,25 @@
     },
     {
       "area": "validation/_pytest_sets",
-      "name": "tests/validation/test__pytest_sets.py::test_a_data_file_reruns_the_sets_that_read_it[tests/conftest.py-reran6]",
+      "name": "tests/validation/test__pytest_sets.py::test_a_data_file_reruns_the_sets_that_read_it[tests/conftest.py-reran7]",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "validation/_pytest_sets",
-      "name": "tests/validation/test__pytest_sets.py::test_a_data_file_reruns_the_sets_that_read_it[tests/src/helpers.py-reran7]",
+      "name": "tests/validation/test__pytest_sets.py::test_a_data_file_reruns_the_sets_that_read_it[tests/src/helpers.py-reran8]",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "validation/_pytest_sets",
-      "name": "tests/validation/test__pytest_sets.py::test_a_data_file_reruns_the_sets_that_read_it[uv.lock-reran8]",
+      "name": "tests/validation/test__pytest_sets.py::test_a_data_file_reruns_the_sets_that_read_it[uv.lock-reran9]",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "validation/_pytest_sets",
-      "name": "tests/validation/test__pytest_sets.py::test_a_data_file_reruns_the_sets_that_read_it[validation/_cases.py-reran5]",
+      "name": "tests/validation/test__pytest_sets.py::test_a_data_file_reruns_the_sets_that_read_it[validation/_cases.py-reran6]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -21446,7 +21458,31 @@
     },
     {
       "area": "validation/_pytest_sets",
+      "name": "tests/validation/test__pytest_sets.py::test_a_pass_may_collect_nothing[-m slow]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_pytest_sets",
+      "name": "tests/validation/test__pytest_sets.py::test_a_pass_may_collect_nothing[not slow and not serial]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_pytest_sets",
+      "name": "tests/validation/test__pytest_sets.py::test_a_pass_may_collect_nothing[serial and not slow]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_pytest_sets",
       "name": "tests/validation/test__pytest_sets.py::test_a_set_whose_inputs_changed_while_it_ran_is_not_recorded",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_pytest_sets",
+      "name": "tests/validation/test__pytest_sets.py::test_a_set_whose_passes_all_collect_nothing_fails",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -21495,12 +21531,6 @@
     {
       "area": "validation/_pytest_sets",
       "name": "tests/validation/test__pytest_sets.py::test_each_set_runs_the_three_passes_on_its_paths",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "validation/_pytest_sets",
-      "name": "tests/validation/test__pytest_sets.py::test_only_the_serial_pass_may_collect_nothing",
       "outcome": "passed",
       "tier": "fast"
     },

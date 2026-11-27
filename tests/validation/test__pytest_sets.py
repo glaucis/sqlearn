@@ -118,10 +118,22 @@ def test_an_unchanged_tree_runs_no_set(repo, capsys):
 
 
 def test_a_change_under_src_reruns_every_library_set(repo):
-    """``import sqlearn`` loads the whole package: every library set reruns."""
+    """``import sqlearn`` loads the whole package: every library set reruns,
+    and the tooling set, whose docs tests read the package's modules."""
     repo.edit("src/sqlearn/__init__.py")
     assert repo.run() == 0
-    assert repo.ran() == {"group:a", "group:b", "unclaimed"}
+    assert repo.ran() == {"tooling", "group:a", "group:b", "unclaimed"}
+
+
+def test_a_cxx_comment_reruns_the_tooling_set_alone(repo):
+    """A comment edited within its line changes no fingerprint, but the
+    tooling tests read the C++ as text (the raw layer's and the bindings'
+    scans), so they rerun."""
+    repo.scratch.write(
+        "a/one.cpp", '#include "a/one.hpp"\n// y\nint one() { return 1; }\n'
+    )
+    assert repo.run() == 0
+    assert repo.ran() == {"tooling"}
 
 
 def test_a_group_change_reruns_its_set_and_the_unclaimed_one(repo):
@@ -165,6 +177,7 @@ EVERY = {"tooling", "group:a", "group:b", "unclaimed"}
         ("docs/conf.py", {"tooling"}),
         (".githooks/pre-commit", {"tooling"}),
         ("commitlint.config.mjs", {"tooling"}),
+        (".clangd", {"tooling"}),
         ("devdata/data/iris.csv", EVERY),
         ("validation/_cases.py", EVERY),
         ("tests/conftest.py", EVERY),
@@ -239,14 +252,28 @@ def test_a_failure_cancels_the_pass_of_the_same_identity(repo):
     assert repo.ran() == {"group:b"}
 
 
-def test_only_the_serial_pass_may_collect_nothing(repo):
-    """Exit 5 passes the serial pass alone: a broken marker elsewhere must fail."""
+@pytest.mark.parametrize(
+    "empty",
+    ["not slow and not serial", "serial and not slow", "-m slow"],
+)
+def test_a_pass_may_collect_nothing(repo, empty):
+    """A set need not hold tests of every tier: one pass finding none passes."""
     repo.edit("tests/src/b/test_b.py")
-    repo.rule("serial and not slow", 5)
+    repo.rule(empty, 5)
     assert repo.run() == 0
+    assert repo.ran() == {"group:b"}
+    assert repo.run() == 0
+    assert repo.ran() == set()
+
+
+def test_a_set_whose_passes_all_collect_nothing_fails(repo):
+    """A set none of whose passes finds a test (a path or marker broken) fails."""
     repo.edit("tests/src/b/test_b.py")
-    repo.rule("-m slow", 5)
+    repo.rule("tests/src/b", 5)
     assert repo.run() == 5
+    assert repo.ran() == {"group:b"}
+    assert repo.run() == 5
+    assert repo.ran() == {"group:b"}
 
 
 def test_each_set_runs_the_three_passes_on_its_paths(repo):
