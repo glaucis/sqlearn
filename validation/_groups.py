@@ -66,6 +66,11 @@ from validation import _checks, _ctest
 WHEEL_BUILD = Path("build/cpython-312")
 """The wheel's build directory, relative to the repository's root."""
 
+AUDIT_ENV = "SQLEARN_AUDIT_COVERAGE"
+"""The variable that selects the coverage wheel's override of ``pyproject.toml``
+(``just audit-groups``): an override taken only under it is no setting of the
+normal wheel, so ``_build_tables`` leaves it out."""
+
 MANIFEST = "sq_groups.json"
 """The manifest CMake writes in a build directory: the groups and their claims."""
 
@@ -360,15 +365,31 @@ def _recorded(build: Path, entry: _ctest.Entry) -> list[Path] | None:
 
 
 def _build_tables(root: Path) -> str:
-    """Return ``pyproject.toml``'s build tables as sorted JSON."""
+    """Return ``pyproject.toml``'s build tables as sorted JSON.
+
+    An override taken only under ``AUDIT_ENV`` (the coverage wheel's) is left
+    out, and the overrides list with it when none remains: the normal wheel
+    never takes it, so its tables read as they would without it.
+    """
     path = root / "pyproject.toml"
     try:
         data = tomllib.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as error:
         raise Unreadable(f"{path} could not be read: {error}") from error
+    build = data.get("tool", {}).get("scikit-build")
+    if isinstance(build, dict) and isinstance(build.get("overrides"), list):
+        audit = {"env": {AUDIT_ENV: True}}
+        kept = [
+            o
+            for o in build["overrides"]
+            if not (isinstance(o, dict) and o.get("if") == audit)
+        ]
+        build = {k: v for k, v in build.items() if k != "overrides"}
+        if kept:
+            build["overrides"] = kept
     tables = {
         "build-system": data.get("build-system"),
-        "tool.scikit-build": data.get("tool", {}).get("scikit-build"),
+        "tool.scikit-build": build,
     }
     return json.dumps(tables, sort_keys=True)
 

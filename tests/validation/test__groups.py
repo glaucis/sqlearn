@@ -295,6 +295,27 @@ def test_a_project_table_left_out_keeps_the_shared_part(scratch):
     assert scratch.prints() == before
 
 
+def test_the_coverage_wheels_override_keeps_the_shared_part(scratch):
+    """The audit's override, taken only under ``AUDIT_ENV``, is no setting of
+    the normal wheel; an override taken otherwise is."""
+    before = scratch.prints()
+    pyproject = scratch.root / "pyproject.toml"
+    plain = pyproject.read_text()
+    pyproject.write_text(
+        plain + "\n[[tool.scikit-build.overrides]]\n"
+        f"if.env.{_groups.AUDIT_ENV} = true\n"
+        'build-dir = "build/coverage-{cache_tag}"\n'
+        'cmake.define.SQ_FLAVOR = "coverage"\n'
+    )
+    assert scratch.prints() == before
+    pyproject.write_text(
+        plain + "\n[[tool.scikit-build.overrides]]\n"
+        'if.platform-system = "^darwin$"\n'
+        'cmake.define.SQ_FLAVOR = "coverage"\n'
+    )
+    assert scratch.prints().shared != before.shared
+
+
 def test_a_source_no_compile_entry_lists_is_unreadable(scratch):
     """A source the build does not compile cannot be fingerprinted: refused."""
     scratch.write("a/three.cpp", "int three() { return 3; }\n")

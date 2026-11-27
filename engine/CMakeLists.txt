@@ -116,6 +116,11 @@ else()
 
   add_subdirectory(duckdb-python)
 
+  # The flavour's link options reach the module our objects are compiled
+  # into: in the coverage wheel (just audit-groups), the coverage runtime
+  # that writes their counts. The release flavour has none.
+  target_link_options(_duckdb PRIVATE ${SQ_FLAVOR_LINK_OPTIONS})
+
   # Their headers are system headers to our targets, so our warnings (as
   # errors) cover our code and not theirs. Setting a property of their
   # targets edits none of their files.

@@ -20587,6 +20587,30 @@
       "tier": "fast"
     },
     {
+      "area": "validation/_audit",
+      "name": "tests/validation/test__audit.py::test_a_dependency_of_a_declared_group_is_no_finding",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_audit",
+      "name": "tests/validation/test__audit.py::test_a_set_running_an_undeclared_group_is_a_finding",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_audit",
+      "name": "tests/validation/test__audit.py::test_an_unclaimed_set_is_never_a_finding",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_audit",
+      "name": "tests/validation/test__audit.py::test_startup_groups_are_no_finding",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
       "area": "validation/_cases",
       "name": "tests/validation/test__cases.py::test_a_case_records_every_field",
       "outcome": "passed",
@@ -21225,6 +21249,12 @@
     {
       "area": "validation/_groups",
       "name": "tests/validation/test__groups.py::test_identity_of_no_uses_covers_every_group",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_groups",
+      "name": "tests/validation/test__groups.py::test_the_coverage_wheels_override_keeps_the_shared_part",
       "outcome": "passed",
       "tier": "fast"
     },

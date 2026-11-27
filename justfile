@@ -307,6 +307,18 @@ leaks-engine: (build-engine "release")
 coverage-engine: (build-engine "coverage")
     uv run --locked python -m validation._coverage
 
+# Audit the C++ groups' claims (validation/_audit.py): build the coverage wheel (sqlearn's C++ with source-based coverage, DuckDB not) into .venvs/coverage, measure a bare import, then each Python test set and validation runner a group claims, and fail when one ran a group outside its declared groups; a second DuckDB build, then up to an hour on every core
+[group('test')]
+audit-groups:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    export UV_PROJECT_ENVIRONMENT=.venvs/coverage SQLEARN_AUDIT_COVERAGE=1
+    uv sync --locked --reinstall-package sqlearn
+    # The audit's own process loads the module too: its profile goes apart,
+    # never measured.
+    rm -rf build/audit-self && mkdir -p build/audit-self
+    LLVM_PROFILE_FILE="$PWD/build/audit-self/%p.profraw" uv run --locked python -m validation._audit
+
 # Fetch Mull's runner and its LLVM 23 plugin into engine/build/mull/<version>/, checking their digests; skipped when they are there
 [group('setup')]
 fetch-mull:
@@ -746,7 +758,7 @@ done:
     if [ "$first" -ne 0 ]; then exit "$first"; fi
     "${j[@]}" remember-tree "$tree" "$place"
 
-# Run every check all through, whatever the records say (the steady-memory test in full test's slow tier), then the sanitizers, the leak check of the release build, a minute of fuzzing, the C++ coverage gate, mutation testing, the licence check, and the tests with coverage and on every Python: the release tier, by hand before 1.0.0
+# Run every check all through, whatever the records say (the steady-memory test in full test's slow tier), then the audit of the groups' claims, the sanitizers, the leak check of the release build, a minute of fuzzing, the C++ coverage gate, mutation testing, the licence check, and the tests with coverage and on every Python: the release tier, by hand before 1.0.0
 [group('check')]
 verify:
     #!/usr/bin/env bash
@@ -760,6 +772,8 @@ verify:
     for task in format lint docstrings types tidy test sql validate docs; do
         "${j[@]}" full "$task"
     done
+    # After validate-all (full validate): the groups' claims, by coverage.
+    "${j[@]}" audit-groups
     "${j[@]}" sanitize leaks-engine
     "${j[@]}" fuzz 60
     "${j[@]}" coverage-engine mutate-engine check-licences
