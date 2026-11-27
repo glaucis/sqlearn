@@ -2,11 +2,14 @@
 type: adr
 tags: [custom-steps, static, dynamic, classification, runs]
 summary: "Records that an undeclared user step whose apply returns a mapping of new columns is classed dynamic even when its names are fixed, at the cost of one extra run."
-related: [docs/adr/0012-static-and-dynamic-steps.md, docs/adr/0019-custom-steps-and-failure-feedback.md, docs/adr/0027-a-user-step-may-declare-itself-dynamic.md]
+related: [docs/adr/archived/0012-static-and-dynamic-steps.md, docs/adr/archived/0019-custom-steps-and-failure-feedback.md, docs/adr/archived/0027-a-user-step-may-declare-itself-dynamic.md]
 ---
 # 0028: A step returning a mapping counts as dynamic
 
 Status: accepted (2026-11-05). Made during the core build, reviewed after it.
+Archived (2026-11-27): superseded by
+[ADR 0075](../0075-the-contract-of-a-users-own-step.md), which states the
+contract of a user's own step in full.
 
 ## Context
 

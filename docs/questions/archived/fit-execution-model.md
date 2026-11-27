@@ -3,19 +3,19 @@ type: question
 tags: [learning, fit, execution-model, static-steps, dynamic-steps, learned-state]
 summary: "Answered: how learning runs (ADR 0012), the verbs (ADR 0013) and where learned state lives (ADR 0014); kept for its evidence until the earlier-attempt reviews are retired."
 mdindex: [type=1f5087, tags=a75939, related=fa6ef0]
-related: [docs/adr/0012-static-and-dynamic-steps.md, docs/adr/0013-learn-apply-train-predict.md, docs/adr/0014-learning-store.md, docs/questions/archived/earlier-attempts/README.md]
+related: [docs/adr/archived/0012-static-and-dynamic-steps.md, docs/adr/0013-learn-apply-train-predict.md, docs/adr/archived/0014-learning-store.md, docs/questions/archived/earlier-attempts/README.md]
 ---
 # How does learning run? (answered)
 
 Answered on 2026-11-04:
 
 - how learning runs, and what static and dynamic steps are:
-  [ADR 0012](../../adr/0012-static-and-dynamic-steps.md);
+  [ADR 0012](../../adr/archived/0012-static-and-dynamic-steps.md);
 - the verbs `learn`, `apply`, `train` and `predict`:
   [ADR 0013](../../adr/0013-learn-apply-train-predict.md);
 - where learned values live, and when they are reused:
-  [ADR 0014](../../adr/0014-learning-store.md). Saving them to a file is a later
-  idea ([issue #20](https://github.com/glaucis/sqlearn/issues/20)).
+  [ADR 0014](../../adr/archived/0014-learning-store.md). Saving them to a file
+  is a later idea ([issue #20](https://github.com/glaucis/sqlearn/issues/20)).
 
 The evidence below stays until the earlier-attempt reviews are retired; this
 file is deleted with them ([the plan](earlier-attempts/README.md)).

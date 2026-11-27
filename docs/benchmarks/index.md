@@ -7,7 +7,11 @@ related: [docs/benchmarks/onehot-second-run.md, docs/benchmarks/archived/categor
 ---
 # Benchmarks
 
-How fast sqlearn runs, measured against the libraries it imitates.
+How fast sqlearn runs, measured against the libraries it imitates. The pages
+measured the old Python, now in `old_python/`
+([ADR 0073](../adr/0073-the-old-python-moves-to-old-python.md)), and those
+[ADR 0072](../adr/0072-benchmarks-run-on-tomass-go-ahead.md) names are rerun
+when their group is rewritten in C++.
 
 ```{toctree}
 :maxdepth: 1

@@ -2,22 +2,24 @@
 type: adr
 tags: [saving, loading, security, models, imports, api]
 summary: "Amends ADR 0047: the user saves and opens the trained model in any format and puts it back with use_model; sq.save writes only sqlearn's part; sq.load imports nothing and builds only steps, models and fold schemes from packages the user has imported; allow=, trust_model= and model='pickle' are removed."
-related: [docs/adr/0047-a-pipeline-saves-as-json.md, docs/adr/0003-scikit-learn-style-api.md, docs/adr/0004-apache-2-licence.md, docs/adr/0005-runtime-dependencies.md, docs/adr/0046-sqlearn-warns-the-user-chooses.md, docs/specs/archived/library-saving.md]
+related: [docs/adr/archived/0047-a-pipeline-saves-as-json.md, docs/adr/0003-scikit-learn-style-api.md, docs/adr/0004-apache-2-licence.md, docs/adr/0005-runtime-dependencies.md, docs/adr/0046-sqlearn-warns-the-user-chooses.md, docs/specs/archived/library-saving.md]
 ---
 # 0048: The user saves the model and imports its packages
 
 Status: accepted (2026-11-11). Amends
-[ADR 0047](0047-a-pipeline-saves-as-json.md). Issue: #55.
+[ADR 0047](0047-a-pipeline-saves-as-json.md). Issue: #55. Archived (2026-11-27):
+superseded by [ADR 0079](../0079-saving-a-pipeline.md), which states saving a
+pipeline in full.
 
 ## Context
 
-ADR 0047 saved the trained model only by pickle, written by sqlearn. Opening
-a pickle can run code, so loading it needed `trust_model=True`, and the
-classes a saved file names were imported only as `allow=` permitted. #55
-asked for formats that cannot run code. Each of them (CatBoost's `.cbm`,
-LightGBM's text model, XGBoost's JSON, skops for scikit-learn) belongs to a
-library the user installs, never sqlearn ([ADR 0004](0004-apache-2-licence.md),
-[ADR 0005](0005-runtime-dependencies.md)), and each library already saves
+ADR 0047 saved the trained model only by pickle, written by sqlearn. Opening a
+pickle can run code, so loading it needed `trust_model=True`, and the classes a
+saved file names were imported only as `allow=` permitted. #55 asked for formats
+that cannot run code. Each of them (CatBoost's `.cbm`, LightGBM's text model,
+XGBoost's JSON, skops for scikit-learn) belongs to a library the user installs,
+never sqlearn ([ADR 0004](../0004-apache-2-licence.md),
+[ADR 0005](../0005-runtime-dependencies.md)), and each library already saves
 itself. Building them into sqlearn would make sqlearn choose, wrap and test
 every library's format, and keep two switches users found confusing.
 

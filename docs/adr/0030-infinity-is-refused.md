@@ -2,7 +2,7 @@
 type: adr
 tags: [impute, scale, infinity, errors, numerics]
 summary: "Records that Impute and Scale refuse a column holding infinity with a StepError naming it, as scikit-learn does, instead of giving NaN output silently."
-related: [docs/adr/0019-custom-steps-and-failure-feedback.md, docs/adr/0016-validation-method.md]
+related: [docs/adr/archived/0019-custom-steps-and-failure-feedback.md, docs/adr/0016-validation-method.md]
 ---
 # 0030: Infinity is refused
 

@@ -2,15 +2,18 @@
 type: adr
 tags: [columns, selectors, steps, planner, custom-steps]
 summary: "Records that a step given no cols= works on every column reaching it, and that the planner then counts it as reading every earlier step."
-related: [docs/adr/0020-column-selectors.md, docs/adr/0018-runs-follow-the-chains-between-steps.md, docs/adr/0024-store-keys-follow-what-a-step-reads.md]
+related: [docs/adr/0020-column-selectors.md, docs/adr/archived/0018-runs-follow-the-chains-between-steps.md, docs/adr/archived/0024-store-keys-follow-what-a-step-reads.md]
 ---
 # 0026: A step without `cols=` works on every column
 
 Status: accepted (2026-11-05). Made during the core build, reviewed after it.
+Archived (2026-11-27): superseded by
+[ADR 0074](../0074-how-a-pipeline-learns.md), which states how a pipeline learns
+in full.
 
 ## Context
 
-[ADR 0020](0020-column-selectors.md) says what `cols=` takes, not what a step
+[ADR 0020](../0020-column-selectors.md) says what `cols=` takes, not what a step
 does when it is left out. The built-in steps give a default (`Scale` and
 `Impute` default to `sq.numeric()`), but `sq.Step` and a user's subclass
 default to `cols=None`:

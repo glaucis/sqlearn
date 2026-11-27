@@ -2,7 +2,7 @@
 type: task
 tags: [library-core, pipeline, steps, learn, apply, search, validation]
 summary: "Implementation plan for sqlearn's library core (overview 3.2): the step contract, run planner, compositor, learning store, selectors, pipeline, models, search, metric, validation results and docs, in 17 tasks."
-related: [docs/specs/archived/library-core.md, docs/architecture/overview.md, docs/adr/0018-runs-follow-the-chains-between-steps.md, docs/adr/0019-custom-steps-and-failure-feedback.md, docs/adr/0024-store-keys-follow-what-a-step-reads.md, docs/adr/0025-results-stored-as-data-in-mirrored-folders.md]
+related: [docs/specs/archived/library-core.md, docs/architecture/overview.md, docs/adr/archived/0018-runs-follow-the-chains-between-steps.md, docs/adr/archived/0019-custom-steps-and-failure-feedback.md, docs/adr/archived/0024-store-keys-follow-what-a-step-reads.md, docs/adr/0025-results-stored-as-data-in-mirrored-folders.md]
 ---
 # Library Core Implementation Plan
 

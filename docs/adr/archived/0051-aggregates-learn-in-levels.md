@@ -2,14 +2,16 @@
 type: adr
 tags: [aggregates, nested, compositor, median, std, learn, larger-than-memory]
 summary: "Records that an aggregate inside another is learned in levels: each aggregate's level is one more than the deepest inside its argument, each level is the staged machinery over the learn stage's input cross-joined with the levels below, in one WITH query; it amends ADR 0036 and 0044, whose refusals of nesting go."
-related: [docs/specs/archived/learn-nested-aggregates.md, docs/adr/0036-staged-aggregates-anywhere-in-a-learned-value.md, docs/adr/0044-the-standard-deviation-in-two-staged-passes.md, docs/adr/0032-the-median-is-exact-by-sorting.md, docs/adr/0012-static-and-dynamic-steps.md]
+related: [docs/specs/archived/learn-nested-aggregates.md, docs/adr/archived/0036-staged-aggregates-anywhere-in-a-learned-value.md, docs/adr/archived/0044-the-standard-deviation-in-two-staged-passes.md, docs/adr/archived/0032-the-median-is-exact-by-sorting.md, docs/adr/archived/0012-static-and-dynamic-steps.md]
 ---
 # 0051: Aggregates learn in levels
 
 Status: accepted (2026-11-17). Issue #49,
-[spec](../specs/archived/learn-nested-aggregates.md). Amends
+[spec](../../specs/archived/learn-nested-aggregates.md). Amends
 [ADR 0036](0036-staged-aggregates-anywhere-in-a-learned-value.md) and
-[ADR 0044](0044-the-standard-deviation-in-two-staged-passes.md).
+[ADR 0044](0044-the-standard-deviation-in-two-staged-passes.md). Archived
+(2026-11-27): superseded by [ADR 0078](../0078-how-aggregates-learn.md), which
+states how aggregates learn in full.
 
 ## Context
 
@@ -76,7 +78,7 @@ the engine. DuckDB 2.0 has no rule merging the two.
   compensated pass and the input materialized).
 - Reach: the median absolute deviation learns 85% to 92% of the rows one
   median does under 32, 64 and 128 MB on one thread (100,000,000 rows under
-  128 MB; [the measurement](../benchmarks/median-reach.md)). The two sorts
+  128 MB; [the measurement](../../benchmarks/median-reach.md)). The two sorts
   share the limit.
 - Validated: 0 ULPs from the exact value on every dataset, as DuckDB's `mad`,
   numpy and scipy are (bound 1).

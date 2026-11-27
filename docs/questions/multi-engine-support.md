@@ -73,7 +73,8 @@ What would carry over:
   (`pl.col("age").fill_null(pl.col("age").median())`).
 - **Lazy until the end.** A run becomes one optimised, multi-threaded
   `LazyFrame` plan, collected when a model needs the data, as one SQL query
-  is today. Learning still reads the data once per run with either engine.
+  was in the old Python. Learning still reads the data once per run with
+  either engine.
 
 What stands in the way:
 
@@ -82,17 +83,21 @@ What stands in the way:
   (`docs/benchmarks/median-reach.md`). Whether Polars' streaming engine runs
   an exact median or quantile out of core is to be checked against the
   current Polars release, not assumed.
-- **Persistence.** The learning store, kept preparations in a `.duckdb` file
-  and the table-edit detection by storage block ids (#50) rely on DuckDB
-  being a database; Polars has no equivalent.
+- **Persistence.** The old Python's learning store, kept preparations in a
+  `.duckdb` file and the table-edit detection by storage block ids (#50)
+  relied on DuckDB being a database; Polars has no equivalent.
 - **The decisions rest on DuckDB:** ADR 0002 (SQL on DuckDB) and ADR 0005
   (`duckdb`, and `numpy` since ADR 0057, the runtime dependencies), the
   compositor, the validation suite and every benchmark. A second engine is a
   second renderer plus a parity test per step, and the earlier attempts found
   translations break on medians, NULLs and large values (above).
 
-Polars already sits at the edges: frames can be passed in, and
-`feed="polars"` hands data to a model as a Polars frame.
+In the old Python, Polars sat at the edges: frames could be passed in, and
+`feed="polars"` handed data to a model as a Polars frame. That code, and the
+learning store above, is in `old_python/`, never run
+([ADR 0073](../adr/0073-the-old-python-moves-to-old-python.md)); the C++
+rewrite brings them back group by group
+([ADR 0070](../adr/0070-sqlearn-is-rewritten-in-cpp.md)).
 
 **First step, when revisited:** a throwaway prototype — impute (exact
 median), scale and one-hot on Parquet larger than RAM, in Polars' streaming

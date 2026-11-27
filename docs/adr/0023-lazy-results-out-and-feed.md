@@ -2,12 +2,16 @@
 type: adr
 tags: [api, apply, output, lazy, numpy, arrow, pandas, models]
 summary: "Records that results are lazy by default: apply returns a DuckDB relation, out= turns it into what the user wants to see or save, and feed= sets the form handed to a model, numpy by default."
-related: [docs/adr/0005-runtime-dependencies.md, docs/adr/0013-learn-apply-train-predict.md, docs/adr/0017-models-from-other-libraries.md, docs/adr/0022-one-search-with-pluggable-methods.md]
+related: [docs/adr/0005-runtime-dependencies.md, docs/adr/0013-learn-apply-train-predict.md, docs/adr/0017-models-from-other-libraries.md, docs/adr/archived/0022-one-search-with-pluggable-methods.md]
 ---
 # 0023: Lazy results, `out=` and `feed=`
 
 Status: accepted (2026-11-04). Departs from scikit-learn, whose `transform`
 returns a numpy array by default ([ADR 0003](0003-scikit-learn-style-api.md)).
+Amended by [ADR 0034](0034-a-grouped-api.md): `sq.out_parquet` and its kin
+are now `sq.out.parquet`, `sq.out.csv` and `sq.out.json`. Amended by
+[ADR 0057](0057-numpy-is-a-runtime-dependency.md): numpy is a runtime
+dependency beside `duckdb`.
 
 ## Context
 

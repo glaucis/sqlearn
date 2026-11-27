@@ -2,7 +2,7 @@
 type: adr
 tags: [inputs, relations, connection, duckdb, store]
 summary: "Records that a DuckDB relation is read through a temporary view on sqlearn's connection, and that a relation belonging to another connection is refused rather than re-run there."
-related: [docs/adr/0021-inputs-and-how-the-store-knows-them.md, docs/adr/0019-custom-steps-and-failure-feedback.md]
+related: [docs/adr/archived/0021-inputs-and-how-the-store-knows-them.md, docs/adr/archived/0019-custom-steps-and-failure-feedback.md]
 ---
 # 0029: Relations from another connection are refused
 
@@ -31,7 +31,7 @@ pipe.learn(con.sql("FROM customers"))  # sqlearn's connection has its own "custo
   refused with a message naming the fix: `sq.set_config(connection=con)`, or
   pass a table name, a file or a pandas frame.
 - The store key of a relation holds the connection as well as its SQL text
-  ([ADR 0021](0021-inputs-and-how-the-store-knows-them.md)).
+  ([ADR 0021](archived/0021-inputs-and-how-the-store-knows-them.md)).
 
 ## Consequences
 

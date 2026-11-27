@@ -11,6 +11,12 @@ Status: accepted (2026-11-20), with the
 Tomas on 2026-11-20. Amends [ADR 0005](0005-runtime-dependencies.md). Amended by
 [ADR 0061](0061-sqlearn-ships-its-own-duckdb-build.md) (2026-11-21): numpy stays
 until the engine's linear algebra (Phase 3), when this is decided again.
+Amended by [ADR 0066](0066-permissive-licences-never-copyleft.md): numpy's
+0BSD and CC0-1.0 licences are allowed for numpy alone until it leaves the
+runtime. Amended by
+[ADR 0060](0060-a-native-engine-in-cpp-inside-duckdb.md): Python is
+bindings without logic, so no library code in Python imports numpy; the
+bindings hand numpy arrays over without copying.
 
 ## Context
 

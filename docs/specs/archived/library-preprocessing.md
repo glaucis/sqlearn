@@ -2,7 +2,7 @@
 type: spec
 tags: [preprocessing, library-breadth, api, aggregates, impute, scale, encode, transform, bin, features]
 summary: "Spec for the first area of sqlearn's library breadth (overview 3.3): the grouped API, the aggregates group, and the first preprocessing steps chosen to exercise every part of the step contract, validated against scikit-learn."
-related: [docs/architecture/overview.md, docs/specs/archived/library-core.md, docs/adr/0034-a-grouped-api.md, docs/adr/0035-names-of-generated-columns.md, docs/adr/0016-validation-method.md, docs/adr/0032-the-median-is-exact-by-sorting.md, docs/adr/0033-the-mean-is-summed-with-compensation.md]
+related: [docs/architecture/overview.md, docs/specs/archived/library-core.md, docs/adr/0034-a-grouped-api.md, docs/adr/0035-names-of-generated-columns.md, docs/adr/0016-validation-method.md, docs/adr/archived/0032-the-median-is-exact-by-sorting.md, docs/adr/archived/0033-the-mean-is-summed-with-compensation.md]
 ---
 # Library breadth: preprocessing
 
@@ -218,7 +218,7 @@ sq.Step(
   `approx_quantile(0.5)` is the approximate median.
 - `std` is two compensated passes since
   [#28](https://github.com/glaucis/sqlearn/issues/28)
-  ([ADR 0044](../../adr/0044-the-standard-deviation-in-two-staged-passes.md)),
+  ([ADR 0044](../../adr/archived/0044-the-standard-deviation-in-two-staged-passes.md)),
   and every step using it improved at once; `var` has been the same two staged
   passes since [#42](https://github.com/glaucis/sqlearn/issues/42), not DuckDB's
   `var_pop`.

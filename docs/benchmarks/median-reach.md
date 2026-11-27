@@ -8,8 +8,8 @@ related: [docs/benchmarks/index.md, docs/benchmarks/standard-deviation.md, docs/
 
 [Issue #27](https://github.com/glaucis/sqlearn/issues/27) asks how far beyond
 DuckDB's memory limit the exact median learns. `sq.agg.median` is computed by
-sorting ([ADR 0032](../adr/0032-the-median-is-exact-by-sorting.md)), and the
-sort spills to disk, but it has a reach. This page states that reach. It
+sorting ([ADR 0032](../adr/archived/0032-the-median-is-exact-by-sorting.md)),
+and the sort spills to disk, but it has a reach. This page states that reach. It
 recommends nothing: whether to offer an approximate median is Tomas's call.
 
 ## What was measured
@@ -68,7 +68,7 @@ about 4 times a 64 MB limit.
 
 [Issue #49](https://github.com/glaucis/sqlearn/issues/49) learns an aggregate
 inside another in levels
-([ADR 0051](../adr/0051-aggregates-learn-in-levels.md)):
+([ADR 0051](../adr/archived/0051-aggregates-learn-in-levels.md)):
 `sq.agg.median(sq.fn.abs(x - sq.agg.median(x)))` is two sorts, one per level, in
 one query. The same method and data, learning that instead
 (`uv run python -m validation.benchmarks.median_reach mad`), sqlearn

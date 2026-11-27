@@ -6,10 +6,13 @@ related: [docs/specs/archived/datasets-many-threads.md, docs/adr/archived/0045-d
 ---
 # 0052: sqlearn's own tables live in `meta_sqlearn`
 
-Status: accepted (2026-11-18); moved out of the package with the generators
-by [ADR 0053](../0053-sqlearn-ships-no-datasets.md). Issue #46,
+Status: accepted (2026-11-18); moved out of the package with the generators by
+[ADR 0053](../0053-sqlearn-ships-no-datasets.md). Issue #46,
 [spec](../../specs/archived/datasets-many-threads.md). Amends
-[ADR 0045](0045-datasets-are-relations-built-in-sql.md).
+[ADR 0045](0045-datasets-are-relations-built-in-sql.md). Archived (2026-11-27):
+its tables were the dataset generators', moved out of the package by ADR 0053
+and into `old_python/devdata/` by ADR 0073; see
+[ADR 0053](../0053-sqlearn-ships-no-datasets.md).
 
 ## Context
 

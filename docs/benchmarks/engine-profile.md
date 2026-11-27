@@ -49,8 +49,12 @@ runs), so `DuckDB s` can exceed the timing runs' `s`. Operator times are
 summed across threads, so they exceed wall time too. Compare them with each
 other, not with the clock.
 
-Reproduce with `uv run python -m validation.benchmarks.engine_profile --json
-PATH`; it took about 25 minutes here.
+The script was `uv run python -m validation.benchmarks.engine_profile --json
+PATH`; it took about 25 minutes here. It is now
+`old_python/validation/benchmarks/engine_profile.py`, never run
+([ADR 0073](../adr/0073-the-old-python-moves-to-old-python.md)). The page
+is rerun before Phase 4's order is fixed
+([ADR 0072](../adr/0072-benchmarks-run-on-tomass-go-ahead.md)).
 
 ## Environment
 

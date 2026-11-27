@@ -2,13 +2,16 @@
 type: adr
 tags: [custom-steps, static, dynamic, errors, feedback, performance]
 summary: "Records how a user's own step is classified static or dynamic (declared and trusted, or inspected with placeholders), and that diagnosis runs only after a failure, with a message naming the step, the cause and the fix."
-related: [docs/adr/0012-static-and-dynamic-steps.md, docs/adr/0018-runs-follow-the-chains-between-steps.md, docs/adr/0014-learning-store.md]
+related: [docs/adr/archived/0012-static-and-dynamic-steps.md, docs/adr/archived/0018-runs-follow-the-chains-between-steps.md, docs/adr/archived/0014-learning-store.md]
 ---
 # 0019: Custom steps, and feedback when a run fails
 
 Status: accepted (2026-11-04). Adds to
 [ADR 0012](0012-static-and-dynamic-steps.md), which says built-in steps declare
-their class and does not say how a user's step is classified.
+their class and does not say how a user's step is classified. Archived
+(2026-11-27): superseded by
+[ADR 0075](../0075-the-contract-of-a-users-own-step.md), which states the
+contract of a user's own step in full.
 
 ## Context
 

@@ -2,7 +2,7 @@
 type: adr
 tags: [models, scope, hand-over, numpy, arrow, model-selection]
 summary: "Records that, for now, sqlearn builds everything except the models: it prepares data in DuckDB and hands it to any model library the user installs."
-related: [docs/architecture/overview.md, docs/adr/0013-learn-apply-train-predict.md, docs/adr/0014-learning-store.md, docs/adr/0005-runtime-dependencies.md]
+related: [docs/architecture/overview.md, docs/adr/0013-learn-apply-train-predict.md, docs/adr/archived/0014-learning-store.md, docs/adr/0005-runtime-dependencies.md]
 ---
 # 0017: Models come from other libraries, for now
 
@@ -18,7 +18,7 @@ libraries already exist that users trust and know: scikit-learn, XGBoost,
 CatBoost, LightGBM. What sqlearn uniquely offers is the preparation in DuckDB,
 on data larger than memory, and fast model selection on top of it: each fold's
 preparation learned once, however many trials follow
-([ADR 0014](0014-learning-store.md)).
+([ADR 0014](archived/0014-learning-store.md)).
 
 ## Decision
 

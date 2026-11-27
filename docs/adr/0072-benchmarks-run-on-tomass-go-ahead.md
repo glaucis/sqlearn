@@ -6,7 +6,10 @@ related: [docs/adr/0070-sqlearn-is-rewritten-in-cpp.md, docs/benchmarks/index.md
 ---
 # 0072: Benchmarks run on Tomas's go-ahead
 
-Status: accepted (2026-11-27). Decided by Tomas on 2026-11-27.
+Status: accepted (2026-11-27). Decided by Tomas on 2026-11-27. Amended by
+[ADR 0073](0073-the-old-python-moves-to-old-python.md): no group is
+benchmarked against the old Python, and the page scripts are in
+`old_python/`.
 
 ## Context
 

@@ -11,6 +11,9 @@ Status: accepted (2026-11-10); `sq.datasets` is replaced by
 `devdata/`, for development only. Amended 2026-11-18 by
 [ADR 0052](0052-meta-sqlearn.md). Spec:
 [library datasets](../../specs/archived/library-datasets.md), sections 3 and 4.
+Archived (2026-11-27): `sq.datasets` was replaced by ADR 0053, and its code is
+in `old_python/` (ADR 0073); see
+[ADR 0053](../0053-sqlearn-ships-no-datasets.md).
 
 ## Context
 

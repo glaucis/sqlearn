@@ -2,7 +2,7 @@
 type: spec
 tags: [feature-selection, library-breadth, select, variance-threshold, select-k-best, target]
 summary: "Spec for feature selection in sqlearn (overview 3.3): sq.select.variance, sq.select.best and sq.select.percentile with the f_classif, f_regression and chi2 scores, as scikit-learn 1.9.1's VarianceThreshold, SelectKBest and SelectPercentile, computed in SQL, with a target step that does not cross-fit (ADR 0055)."
-related: [docs/architecture/overview.md, docs/specs/archived/library-preprocessing.md, docs/adr/0055-a-target-step-need-not-cross-fit.md, docs/adr/0056-settings-that-only-choose-the-output-stay-out-of-the-learn-key.md, docs/adr/0003-scikit-learn-style-api.md, docs/adr/0034-a-grouped-api.md, docs/adr/0046-sqlearn-warns-the-user-chooses.md, docs/adr/0016-validation-method.md]
+related: [docs/architecture/overview.md, docs/specs/archived/library-preprocessing.md, docs/adr/0055-a-target-step-need-not-cross-fit.md, docs/adr/archived/0056-settings-that-only-choose-the-output-stay-out-of-the-learn-key.md, docs/adr/0003-scikit-learn-style-api.md, docs/adr/0034-a-grouped-api.md, docs/adr/0046-sqlearn-warns-the-user-chooses.md, docs/adr/0016-validation-method.md]
 ---
 # Library breadth: feature selection
 
@@ -12,7 +12,7 @@ after the [regression metrics](library-regression-metrics.md).
 Status: approved by Tomas on 2026-11-19.
 The decisions it rests on are
 [ADR 0055](../../adr/0055-a-target-step-need-not-cross-fit.md) and
-[ADR 0056](../../adr/0056-settings-that-only-choose-the-output-stay-out-of-the-learn-key.md).
+[ADR 0056](../../adr/archived/0056-settings-that-only-choose-the-output-stay-out-of-the-learn-key.md).
 The cross-fitted alternatives are kept as an idea in
 [#64](https://github.com/glaucis/sqlearn/issues/64).
 
@@ -207,7 +207,7 @@ the number of columns, not with columns times classes (spec's call,
 
 ### 5.2 Learned once per fold
 
-[ADR 0056](../../adr/0056-settings-that-only-choose-the-output-stay-out-of-the-learn-key.md)
+[ADR 0056](../../adr/archived/0056-settings-that-only-choose-the-output-stay-out-of-the-learn-key.md)
 (Tomas, 2026-11-19): `k`, `percentile` and `threshold` change only which
 columns are kept, never what is learned, so they stay out of the key of what
 the step learns. A search over `best__k` with five folds learns each fold's

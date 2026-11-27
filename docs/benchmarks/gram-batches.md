@@ -35,8 +35,12 @@ one `gram_matrix` uses. It is an estimate: the machine was loaded.
   `fetch_record_batch` (pyarrow, which sqlearn does not depend on). None
   streams numpy arrays. The ways above are all there are.
 
-Reproduce with `uv run python -m validation.benchmarks.gram_batches`; it
-takes about four minutes.
+The script was `uv run python -m validation.benchmarks.gram_batches`; it
+took about four minutes. It is now
+`old_python/validation/benchmarks/gram_batches.py`, never run
+([ADR 0073](../adr/0073-the-old-python-moves-to-old-python.md)). The page
+is rerun at the start of Phase 2
+([ADR 0072](../adr/0072-benchmarks-run-on-tomass-go-ahead.md)).
 
 ## Environment
 

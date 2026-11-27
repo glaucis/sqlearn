@@ -20,7 +20,8 @@ operations.
   [the overview](../architecture/overview.md): `3.1 Foundation` and `3.2
   Library core` (closed), `3.3 Library breadth`, `3.4 Documentation`, `3.5
   Learning site`, `3.6 Exploratory data analysis`, `3.7 Workflow editor`, `3.8
-  Validation`, `3.9 Benchmarks`, `Later: other database engines`.
+  Validation`, `3.9 Benchmarks`, `Native engine` (3.10, #78 to #84),
+  `Later: other database engines`.
 - **Every new issue** gets the milestone of the part it belongs to and goes on
   the board: `gh issue create ... --milestone "<title>" --project sqlearn`.
 

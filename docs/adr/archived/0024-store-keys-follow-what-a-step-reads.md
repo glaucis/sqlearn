@@ -2,13 +2,15 @@
 type: adr
 tags: [learned-state, cache, store, dependencies, search, folds]
 summary: "Records that a store entry's key holds only the steps whose output that step reads, so changing a step relearns only the steps that depend on it, and that a grid search prepares each fold once."
-related: [docs/adr/0014-learning-store.md, docs/adr/0018-runs-follow-the-chains-between-steps.md, docs/adr/0022-one-search-with-pluggable-methods.md]
+related: [docs/adr/archived/0014-learning-store.md, docs/adr/archived/0018-runs-follow-the-chains-between-steps.md, docs/adr/archived/0022-one-search-with-pluggable-methods.md]
 ---
 # 0024: Store keys follow what a step reads
 
 Status: accepted (2026-11-04). Supersedes the "steps up to and including that
 step" part of the key in [ADR 0014](0014-learning-store.md); the rest of 0014
-stands.
+stands. Archived (2026-11-27): superseded by
+[ADR 0076](../0076-the-learning-store-and-its-keys.md), which states the
+learning store and its keys in full.
 
 ## Context
 

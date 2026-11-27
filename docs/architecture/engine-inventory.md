@@ -1,7 +1,7 @@
 ---
 type: architecture
 tags: [native-engine, migration, inventory, dependencies, port-order]
-summary: "The port's map: every module of src/sqlearn with the phase that ports it to C++, what stays in the bindings, what it imports, and the profiling numbers that order Phase 4's groups."
+summary: "The port's map: every module of the old Python's src/sqlearn (now in old_python/) with the phase that ports it to C++, what stays in the bindings, what it imports, and the profiling numbers that order Phase 4's groups."
 related: [docs/specs/native-engine.md, docs/adr/archived/0067-how-computation-moves-to-the-engine.md, docs/adr/0060-a-native-engine-in-cpp-inside-duckdb.md, docs/benchmarks/engine-profile.md]
 ---
 # The native engine's inventory
@@ -9,7 +9,10 @@ related: [docs/specs/native-engine.md, docs/adr/archived/0067-how-computation-mo
 sqlearn is rewritten as a C++ library one group at a time, with `main` green
 ([ADR 0070](../adr/0070-sqlearn-is-rewritten-in-cpp.md), which supersedes
 0067). This page is
-the port's map. It gives every module of `src/sqlearn` the phase that ports it,
+the port's map. It gives every module of the old Python's `src/sqlearn` (now
+`old_python/src/sqlearn/`:
+[ADR 0073](../adr/0073-the-old-python-moves-to-old-python.md)) the phase that
+ports it,
 the C++ that replaces it, what stays in the Python bindings, and what it imports
 from the other modules. It then puts Phase 4's groups in order, from those
 imports and from the [profiling page](../benchmarks/engine-profile.md). The
@@ -18,16 +21,19 @@ confirms is its §5.3.
 
 ## How to read it
 
-- **Phase** is the phase whose merge deletes the module's Python: `2`, `3` or
-  `4`. Some modules gain C++ earlier than that; the row says so.
+- **Phase** is the phase whose C++ replaces the module: `2`, `3` or `4`. The
+  Python is already out of the package; each piece in `old_python/` is
+  deleted when what replaces it lands (ADR 0073). Some modules gain C++
+  earlier than that; the row says so.
 - **The C++** starts with the module's Phase 4 group, **G1** to **G12**, which
   "The groups of Phase 4" below puts in order.
 - **Stays in the bindings** is what the bindings keep: `sq.`'s names and
   docstrings, and the bridge to Python objects (outside models, Optuna, users'
   own steps, data frames). The bindings hold no logic (spec §3.1).
-- **Depends on** lists every other module of `src/sqlearn` the module imports,
-  read from its `import` lines. "(in a function)" marks an import made inside
-  a function, "(types only)" one under `TYPE_CHECKING`, which is not run.
+- **Depends on** lists every other module of the old `src/sqlearn` the module
+  imports, read from its `import` lines. "(in a function)" marks an import
+  made inside a function, "(types only)" one under `TYPE_CHECKING`, which is
+  not run.
 - **Evidence** cites the profiling page's rows, where there is a number. All
   its numbers were measured under a load of 10 to 17 on 8 cores, so they are
   estimates. A module with no row there was not profiled.
@@ -185,8 +191,8 @@ the groups into numbered phases; that is theirs to decide.
     the store, the step contract and the models, and `codec.py` imports
     `model_selection/folds.py` and `preprocessing/impute.py` inside functions,
     so saving comes after every group whose objects it encodes. Files saved
-    before the port still load, and the group gets a whole-branch security
-    review of its own (spec §3.8).
+    before the rewrite need not load after it (ADR 0070), and the group gets
+    a whole-branch security review of its own (spec §3.8).
 12. **G12, the package:** `__init__.py`, which imports from every group. It
     has no C++; when every name it gives comes from the C++, it is the
     bindings' module and Phase 4 is done.

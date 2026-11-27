@@ -2,7 +2,7 @@
 type: plan
 tags: [feature-selection, library-breadth, select, plan]
 summary: "Implementation plan for feature selection (sq.select.variance, best, percentile with f_classif, f_regression and chi2), the target step that does not cross-fit (ADR 0055) and settings kept out of the learn key (ADR 0056)."
-related: [docs/specs/archived/library-feature-selection.md, docs/adr/0055-a-target-step-need-not-cross-fit.md, docs/adr/0056-settings-that-only-choose-the-output-stay-out-of-the-learn-key.md]
+related: [docs/specs/archived/library-feature-selection.md, docs/adr/0055-a-target-step-need-not-cross-fit.md, docs/adr/archived/0056-settings-that-only-choose-the-output-stay-out-of-the-learn-key.md]
 ---
 # Feature Selection Implementation Plan
 

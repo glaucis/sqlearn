@@ -7,7 +7,10 @@ related: [docs/adr/0016-validation-method.md, docs/architecture/layout.md, docs/
 # 0025: Results stored as data, in folders that mirror the package
 
 Status: accepted (2026-11-04). Adds to [ADR 0016](0016-validation-method.md),
-which asks for validation pages generated from the runs.
+which asks for validation pages generated from the runs. Amended by
+[ADR 0073](0073-the-old-python-moves-to-old-python.md): the Python modules,
+tests and runners its folders mirror are in `old_python/`, never run,
+imported or checked.
 
 ## Context
 

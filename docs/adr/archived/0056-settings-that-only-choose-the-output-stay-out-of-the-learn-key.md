@@ -2,13 +2,15 @@
 type: adr
 tags: [learned-state, store, search, feature-selection, step-contract]
 summary: "Records that a step may declare settings that change only which output it gives from what it learned (sq.select's k, percentile, threshold): they stay out of the key of what it learns, so a search over them learns each fold once and only applies per setting."
-related: [docs/adr/0014-learning-store.md, docs/adr/0024-store-keys-follow-what-a-step-reads.md, docs/specs/archived/library-feature-selection.md]
+related: [docs/adr/archived/0014-learning-store.md, docs/adr/archived/0024-store-keys-follow-what-a-step-reads.md, docs/specs/archived/library-feature-selection.md]
 ---
 # 0056: Settings that only choose the output stay out of the learn key
 
 Status: accepted (2026-11-19), with the
-[feature selection spec](../specs/archived/library-feature-selection.md). Chosen
-by Tomas on 2026-11-19.
+[feature selection spec](../../specs/archived/library-feature-selection.md).
+Chosen by Tomas on 2026-11-19. Archived (2026-11-27): superseded by
+[ADR 0076](../0076-the-learning-store-and-its-keys.md), which states the
+learning store and its keys in full.
 
 ## Context
 

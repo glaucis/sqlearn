@@ -2,7 +2,7 @@
 type: plan
 tags: [saving, loading, models, imports, security, library-breadth]
 summary: "Builds #55 under ADR 0048: sq.load imports nothing and builds only steps, models, nested estimators and fold schemes from modules already imported; a pipeline keeps its training record apart from whether its model is trained; pipe.model_ and pipe.use_model, with or without the training data; sq.save writes a trained key and no model file; allow=, trust_model=, model= and the pickle format are removed."
-related: [docs/specs/archived/library-saving-the-model.md, docs/adr/0048-the-user-saves-the-model-and-imports-its-packages.md, docs/specs/archived/library-saving.md, docs/plans/archived/2026-11-11-library-saving.md]
+related: [docs/specs/archived/library-saving-the-model.md, docs/adr/archived/0048-the-user-saves-the-model-and-imports-its-packages.md, docs/specs/archived/library-saving.md, docs/plans/archived/2026-11-11-library-saving.md]
 ---
 # Library saving the model: implementation plan
 

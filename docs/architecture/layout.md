@@ -26,11 +26,10 @@ sqlearn/
                          in git, not on the site
     validation/          the validation pages, 3.8, rendered from data
     benchmarks/          the benchmark pages, 3.9, rendered from data
-  validation/            the checks' tooling and the validation
-                         runners, 3.8, with their committed results;
-                         never installed
-  benchmarks/            the benchmark suite and its committed results;
-                         mirrors src/sqlearn/
+  validation/            the checks' tooling, with its committed
+                         records; no validation runner yet (the old
+                         ones are in old_python/, ADR 0073); never
+                         installed
   engine/                sqlearn's C++ (ADR 0060) and its DuckDB build
                          (ADR 0061): one CMake project, its presets
                          in CMakePresets.json
@@ -78,8 +77,8 @@ sqlearn/
 
 `.github/workflows/` arrives with the native engine's Phase 1; the
 repository is public (ADR 0062).
-`validation/` and `benchmarks/` at the root, and the first release's files,
-arrive with their parts.
+The validation runners, `benchmarks/` at the root, and the first release's
+files arrive with their parts.
 
 ## Why
 
@@ -110,13 +109,15 @@ mirror, so the package's tests are in `tests/src/sqlearn/`. A hidden folder
 loses its dot, since pytest skips hidden folders by default: the tests of
 `.githooks/` sit in `tests/githooks/`. `tests/test_environment.py` stays at the
 top of `tests/`, outside the mirror, because it tests the environment as a
-whole, not a file of the tree. Tests need no `conftest.py` and no
-`__init__.py`, since pytest imports them in `importlib` mode.
+whole, not a file of the tree. Tests need no `__init__.py`, since pytest
+imports them in `importlib` mode. A `conftest.py` holds only shared fixtures:
+`tests/conftest.py` and `tests/validation/conftest.py` build scratch projects
+for the checks' tests.
 
 ## What arrives later
 
-- `validation/` with the core's slice: its runners and results, mirroring the
-  package
+- `validation/`'s runners and results with each C++ group (ADR 0073),
+  mirroring the package
   ([ADR 0025](../adr/0025-results-stored-as-data-in-mirrored-folders.md)); its
   pages with 3.8. `benchmarks/` with 3.9, mirrored the same way.
 - `CHANGELOG.md` and `CITATION.cff` with the first release.

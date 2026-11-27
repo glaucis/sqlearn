@@ -2,7 +2,7 @@
 type: plan
 tags: [decomposition, pca, library-breadth, gram-matrix, numpy, plan]
 summary: "Implementation plan for PCA (sq.decompose.pca) as scikit-learn 1.9.1's PCA with svd_solver='covariance_eigh': numpy as a runtime dependency (ADR 0057), a Gram learn in the core that streams centred batches into numpy (ADR 0058), the step, validation, a larger-than-memory benchmark and the docs."
-related: [docs/specs/archived/library-decomposition.md, docs/adr/0002-sql-on-duckdb-execution-engine.md, docs/adr/0005-runtime-dependencies.md, docs/adr/0056-settings-that-only-choose-the-output-stay-out-of-the-learn-key.md]
+related: [docs/specs/archived/library-decomposition.md, docs/adr/0002-sql-on-duckdb-execution-engine.md, docs/adr/0005-runtime-dependencies.md, docs/adr/archived/0056-settings-that-only-choose-the-output-stay-out-of-the-learn-key.md]
 ---
 # Decomposition (PCA) Implementation Plan
 

@@ -2,7 +2,7 @@
 type: adr
 tags: [api, naming, learn, apply, train, predict, scikit-learn]
 summary: "Records sqlearn's own verbs, one per task: learn and apply for steps that prepare data, train and predict for models; a departure from scikit-learn's fit and transform."
-related: [docs/adr/0003-scikit-learn-style-api.md, docs/adr/0012-static-and-dynamic-steps.md, docs/questions/scikit-learn-api-survey.md]
+related: [docs/adr/0003-scikit-learn-style-api.md, docs/adr/archived/0012-static-and-dynamic-steps.md, docs/questions/scikit-learn-api-survey.md]
 ---
 # 0013: learn, apply, train and predict
 

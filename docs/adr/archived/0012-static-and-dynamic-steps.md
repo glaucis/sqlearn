@@ -8,7 +8,9 @@ related: [docs/questions/archived/fit-execution-model.md, docs/questions/archive
 
 Status: accepted (2026-11-04). The run count is superseded by
 [ADR 0018](0018-runs-follow-the-chains-between-steps.md); how a user's step is
-classified is in [ADR 0019](0019-custom-steps-and-failure-feedback.md).
+classified is in [ADR 0019](0019-custom-steps-and-failure-feedback.md). Archived
+(2026-11-27): superseded by [ADR 0074](../0074-how-a-pipeline-learns.md), which
+states how a pipeline learns in full.
 
 ## Context
 
@@ -20,9 +22,9 @@ from the imputed values.
 Every earlier attempt that designed this computed the learning steps' values
 side by side over the raw input, so `Impute` then `Scale` scaled un-imputed
 data, and no test caught it
-([earlier attempts](../questions/archived/earlier-attempts/README.md)). They
+([earlier attempts](../../questions/archived/earlier-attempts/README.md)). They
 used "static" and "dynamic" in two incompatible senses
-([how the terms were used](../questions/archived/earlier-attempts/static-dynamic.md)).
+([how the terms were used](../../questions/archived/earlier-attempts/static-dynamic.md)).
 Checked on DuckDB 2.0.0: a chain of stages in one `WITH` query gives
 scikit-learn's answer and stays fast (24 stages in 0.01 s), because DuckDB
 materialises a stage read more than once.

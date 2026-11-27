@@ -2,13 +2,17 @@
 type: adr
 tags: [search, folds, groups, api, naming]
 summary: "Records that the search's names move into two groups, sq.search (callable, with grid, range and later random and optuna) and sq.folds (kfold and later the other schemes), as ADR 0034 did for the steps; sq.Model stays at the top level."
-related: [docs/adr/0034-a-grouped-api.md, docs/adr/0022-one-search-with-pluggable-methods.md, docs/specs/archived/library-model-selection.md]
+related: [docs/adr/0034-a-grouped-api.md, docs/adr/archived/0022-one-search-with-pluggable-methods.md, docs/specs/archived/library-model-selection.md]
 ---
 # 0039: The search's names as groups
 
 Status: accepted (2026-11-07). Made during the model-selection build.
 Extends [ADR 0034](0034-a-grouped-api.md) to the search and amends the names
-in [ADR 0022](0022-one-search-with-pluggable-methods.md).
+in [ADR 0022](archived/0022-one-search-with-pluggable-methods.md). Amended by
+[ADR 0073](0073-the-old-python-moves-to-old-python.md): its classes, built on
+`sqlearn._group.Group`, are in `old_python/`, never run. Its search names are
+restated in [ADR 0077](0077-the-search.md), which supersedes the rest of the
+search's records.
 
 ## Context
 

@@ -2,7 +2,7 @@
 type: plan
 tags: [aggregates, nested, compositor, median, std, learn]
 summary: "Implementation plan for learning nested aggregates in levels (#49): a planner by level in the compositor, slice by slice (staged in staged, std in std, plain in staged, plain in plain, sharing and depth), then validation, reach, cost and docs."
-related: [docs/specs/archived/learn-nested-aggregates.md, docs/adr/0051-aggregates-learn-in-levels.md]
+related: [docs/specs/archived/learn-nested-aggregates.md, docs/adr/archived/0051-aggregates-learn-in-levels.md]
 ---
 # Learning nested aggregates Implementation Plan
 

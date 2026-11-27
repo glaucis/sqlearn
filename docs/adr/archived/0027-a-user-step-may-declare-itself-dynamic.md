@@ -2,11 +2,14 @@
 type: adr
 tags: [custom-steps, static, dynamic, classification, api]
 summary: "Records that a user's step may declare dynamic = True as well as static = True, that the declaration is trusted, and that declaring both is refused."
-related: [docs/adr/0012-static-and-dynamic-steps.md, docs/adr/0019-custom-steps-and-failure-feedback.md, docs/adr/0028-a-step-returning-a-mapping-counts-as-dynamic.md]
+related: [docs/adr/archived/0012-static-and-dynamic-steps.md, docs/adr/archived/0019-custom-steps-and-failure-feedback.md, docs/adr/archived/0028-a-step-returning-a-mapping-counts-as-dynamic.md]
 ---
 # 0027: A user's step may declare itself dynamic
 
 Status: accepted (2026-11-05). Made during the core build, reviewed after it.
+Archived (2026-11-27): superseded by
+[ADR 0075](../0075-the-contract-of-a-users-own-step.md), which states the
+contract of a user's own step in full.
 
 ## Context
 

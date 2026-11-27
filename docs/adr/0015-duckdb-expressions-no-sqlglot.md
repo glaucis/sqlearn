@@ -2,17 +2,23 @@
 type: adr
 tags: [sql, representation, duckdb, sqlglot, expressions, multi-engine]
 summary: "Records that steps build their SQL from DuckDB's own expression objects, assembled by sqlearn into one query; no sqlglot, DuckDB only until other engines are requested."
-related: [docs/adr/0002-sql-on-duckdb-execution-engine.md, docs/adr/0005-runtime-dependencies.md, docs/adr/0012-static-and-dynamic-steps.md, docs/questions/multi-engine-support.md]
+related: [docs/adr/0002-sql-on-duckdb-execution-engine.md, docs/adr/0005-runtime-dependencies.md, docs/adr/archived/0012-static-and-dynamic-steps.md, docs/questions/multi-engine-support.md]
 ---
 # 0015: DuckDB's expression objects, no sqlglot
 
-Status: accepted (2026-11-04)
+Status: accepted (2026-11-04). Amended by
+[ADR 0060](0060-a-native-engine-in-cpp-inside-duckdb.md): sqlearn's own
+steps and the compositor are C++, and only a user's Python step still hands
+over DuckDB's expression objects. Amended by
+[ADR 0070](0070-sqlearn-is-rewritten-in-cpp.md): each group is designed for
+C++, so how a step holds its SQL pieces is decided there; DuckDB only and no
+sqlglot still hold.
 
 ## Context
 
 Every step contributes a piece of SQL, and sqlearn stacks the pieces into one
-query of `WITH` stages ([ADR 0012](0012-static-and-dynamic-steps.md)). The
-pieces need a representation: something steps build and sqlearn composes.
+query of `WITH` stages ([ADR 0012](archived/0012-static-and-dynamic-steps.md)).
+The pieces need a representation: something steps build and sqlearn composes.
 
 Most earlier attempts used sqlglot, chosen for "multi-database from day one". It
 cost version pins (one release produced 292 type errors), relaxed type checking,

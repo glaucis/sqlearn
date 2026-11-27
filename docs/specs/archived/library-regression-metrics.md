@@ -2,7 +2,7 @@
 type: spec
 tags: [metrics, regression, deviance, pinball-loss, d2-score, library-breadth]
 summary: "Spec for the regression metrics in sq.metrics: mse, msle, rmsle, median absolute error, max error, MAPE, explained variance, the Poisson, gamma and Tweedie deviances, the pinball loss and the D² scores, computed in SQL and matching scikit-learn 1.9.1, usable in a search."
-related: [docs/specs/archived/library-metrics.md, docs/specs/archived/library-balanced-scores.md, docs/adr/0042-a-metrics-settings-are-a-call.md, docs/adr/0046-sqlearn-warns-the-user-chooses.md, docs/adr/0033-the-mean-is-summed-with-compensation.md, docs/adr/0016-validation-method.md, docs/adr/0054-d2-tweedie-on-a-constant-target.md]
+related: [docs/specs/archived/library-metrics.md, docs/specs/archived/library-balanced-scores.md, docs/adr/0042-a-metrics-settings-are-a-call.md, docs/adr/0046-sqlearn-warns-the-user-chooses.md, docs/adr/archived/0033-the-mean-is-summed-with-compensation.md, docs/adr/0016-validation-method.md, docs/adr/0054-d2-tweedie-on-a-constant-target.md]
 ---
 # Library breadth: regression metrics
 
@@ -69,8 +69,8 @@ The rules of the earlier metrics hold:
    a metric's range is refused the same way, with the count of rows outside
    it, in the same query as the score.
 5. **Sums are compensated** where a sum of many rows is taken
-   ([ADR 0033](../../adr/0033-the-mean-is-summed-with-compensation.md)): `favg`
-   and `fsum`, as `mae` and `r2` use.
+   ([ADR 0033](../../adr/archived/0033-the-mean-is-summed-with-compensation.md)):
+   `favg` and `fsum`, as `mae` and `r2` use.
 
 ## 5. The scores
 

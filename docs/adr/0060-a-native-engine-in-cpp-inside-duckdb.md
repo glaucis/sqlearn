@@ -12,7 +12,9 @@ Status: accepted (2026-11-21). Decided by Tomas on 2026-11-21 with the
 (2026-11-21), with the spec's revision: sqlearn becomes a C++ library
 embedding DuckDB, and Python its bindings. Amended by
 [ADR 0070](0070-sqlearn-is-rewritten-in-cpp.md) (2026-11-27): the library's
-logic is rewritten in C++, not ported under ADR 0067's rules.
+logic is rewritten in C++, not ported under ADR 0067's rules. Amended by
+[ADR 0073](0073-the-old-python-moves-to-old-python.md): the old Python is in
+`old_python/`, never run, so no built-in step stays Python during the rewrite.
 
 ## Context
 

@@ -2,7 +2,7 @@
 type: spec
 tags: [aggregates, nested, compositor, median, std, learn, larger-than-memory]
 summary: "Spec for learning an aggregate inside another (#49): every aggregate gets a level, one more than the deepest inside its argument, and each level is today's staged machinery over the learn stage's input cross-joined with the levels below, all in one WITH query; the refusals of ADR 0036 and 0044 go, but for what sq.agg did not build."
-related: [docs/adr/0051-aggregates-learn-in-levels.md, docs/adr/0036-staged-aggregates-anywhere-in-a-learned-value.md, docs/adr/0044-the-standard-deviation-in-two-staged-passes.md, docs/adr/0032-the-median-is-exact-by-sorting.md, docs/adr/0012-static-and-dynamic-steps.md]
+related: [docs/adr/archived/0051-aggregates-learn-in-levels.md, docs/adr/archived/0036-staged-aggregates-anywhere-in-a-learned-value.md, docs/adr/archived/0044-the-standard-deviation-in-two-staged-passes.md, docs/adr/archived/0032-the-median-is-exact-by-sorting.md, docs/adr/archived/0012-static-and-dynamic-steps.md]
 ---
 # Learning nested aggregates
 

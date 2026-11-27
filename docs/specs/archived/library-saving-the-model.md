@@ -2,13 +2,13 @@
 type: spec
 tags: [saving, loading, models, imports, security, library-breadth]
 summary: "Spec for #55 under ADR 0048: the user saves and opens the trained model in any format, pipe.model_ hands it out and pipe.use_model puts it back; sq.save writes only sqlearn's part, sq.load imports nothing and builds only steps, models and fold schemes from modules already imported; allow=, trust_model= and model= are removed."
-related: [docs/adr/0048-the-user-saves-the-model-and-imports-its-packages.md, docs/adr/0047-a-pipeline-saves-as-json.md, docs/specs/archived/library-saving.md, old_python/docs/guide/saving-a-pipeline.md, docs/adr/0046-sqlearn-warns-the-user-chooses.md]
+related: [docs/adr/archived/0048-the-user-saves-the-model-and-imports-its-packages.md, docs/adr/archived/0047-a-pipeline-saves-as-json.md, docs/specs/archived/library-saving.md, old_python/docs/guide/saving-a-pipeline.md, docs/adr/0046-sqlearn-warns-the-user-chooses.md]
 ---
 # Library breadth: saving the model
 
 A change to the saving area ([its spec](library-saving.md)), for issue
 [#55](https://github.com/glaucis/sqlearn/issues/55), under
-[ADR 0048](../../adr/0048-the-user-saves-the-model-and-imports-its-packages.md).
+[ADR 0048](../../adr/archived/0048-the-user-saves-the-model-and-imports-its-packages.md).
 Where this spec amends the saving spec, this one wins.
 
 Status: written on 2026-11-11 from the design talk of the same day, and checked

@@ -2,7 +2,7 @@
 type: task
 tags: [metrics, precision, recall, f1, averaging, search, validation, library-breadth]
 summary: "Implementation plan for the metrics area of sqlearn's library breadth: precision, recall and F1 with scikit-learn's average, pos_label and zero_division, counted per class in DuckDB, NaN scores in the search, validation against scikit-learn, and the docs, in 6 tasks."
-related: [docs/specs/archived/library-metrics.md, docs/adr/0042-a-metrics-settings-are-a-call.md, docs/adr/0016-validation-method.md, docs/adr/0019-custom-steps-and-failure-feedback.md]
+related: [docs/specs/archived/library-metrics.md, docs/adr/0042-a-metrics-settings-are-a-call.md, docs/adr/0016-validation-method.md, docs/adr/archived/0019-custom-steps-and-failure-feedback.md]
 ---
 # Library Breadth: Metrics Implementation Plan
 

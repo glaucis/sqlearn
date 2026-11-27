@@ -7,7 +7,11 @@ related: [docs/adr/0003-scikit-learn-style-api.md, docs/adr/0013-learn-apply-tra
 # 0034: A grouped API
 
 Status: accepted (2026-11-05). A departure from
-[ADR 0003](0003-scikit-learn-style-api.md), as that ADR requires.
+[ADR 0003](0003-scikit-learn-style-api.md), as that ADR requires. Amended by
+[ADR 0039](0039-the-search-names-as-groups.md): `sq.Search` leaves the top
+level, which gains the groups `sq.search` and `sq.folds`. Amended by
+[ADR 0047](archived/0047-a-pipeline-saves-as-json.md): `sq.save` and
+`sq.load` join the top level.
 
 ## Context
 

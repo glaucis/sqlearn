@@ -23,13 +23,17 @@ The rule:
 
 > Docstrings are reStructuredText, in numpydoc's format, because autosummary
 > and numpydoc read them so. Every page written by hand in `docs/` is
-> Markdown, as MyST: a chapter, a lesson, a page of this section. Two kinds of
-> file are reStructuredText because the tool that reads them reads nothing
-> else: the text blocks of a gallery example and the gallery's header, which
-> sphinx-gallery reads, and the autosummary templates the reference will
-> grow. A construct only reStructuredText has goes, inside a Markdown page,
-> in an `{eval-rst}` block, as the reference index's `autosummary` does.
-> Lessons are MyST-NB's Markdown notebooks, never `.ipynb` files.
+> Markdown, as MyST: a chapter, a lesson, a page of this section. One kind of
+> file is reStructuredText because the tool that reads it reads nothing
+> else: the autosummary templates the reference will grow. A construct only
+> reStructuredText has goes, inside a Markdown page, in an `{eval-rst}`
+> block. Lessons are MyST-NB's Markdown notebooks, never `.ipynb` files.
+
+The gallery (its examples and `GALLERY_HEADER.rst`, which sphinx-gallery
+read) and the reference index, whose `autosummary` sat in such a block, went
+with the old Python to `old_python/`
+([ADR 0073](../adr/0073-the-old-python-moves-to-old-python.md)); `docs/conf.py`
+no longer loads sphinx-gallery.
 
 ## English
 

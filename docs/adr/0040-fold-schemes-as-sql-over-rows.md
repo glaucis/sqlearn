@@ -7,6 +7,9 @@ related: [docs/adr/0039-the-search-names-as-groups.md, docs/adr/0038-the-target-
 # 0040: Fold schemes as SQL over rows
 
 Status: accepted (2026-11-07). Made during the model-selection build.
+Amended by [ADR 0073](0073-the-old-python-moves-to-old-python.md): the
+`sqlearn.model_selection.Folds` protocol it defines is in `old_python/`,
+never run.
 
 ## Context
 

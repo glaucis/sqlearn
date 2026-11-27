@@ -2,15 +2,17 @@
 type: adr
 tags: [aggregates, median, quantile, mode, learn, compositor, larger-than-memory]
 summary: "Records that sq.agg's staged aggregates (quantiles, median, mode) may appear anywhere in a learned value, including inside another aggregate, which supersedes the part of ADR 0032 requiring a median marker to be a whole learned value."
-related: [docs/adr/0032-the-median-is-exact-by-sorting.md, docs/adr/0033-the-mean-is-summed-with-compensation.md, docs/specs/archived/library-preprocessing.md]
+related: [docs/adr/archived/0032-the-median-is-exact-by-sorting.md, docs/adr/archived/0033-the-mean-is-summed-with-compensation.md, docs/specs/archived/library-preprocessing.md]
 ---
 # 0036: Staged aggregates anywhere in a learned value
 
-Status: accepted (2026-11-06). Made during the preprocessing build.
-Extended by [ADR 0044](0044-the-standard-deviation-in-two-staged-passes.md):
-the standard deviation is staged too, with two orderings refused.
-Supersedes the part of [ADR 0032](0032-the-median-is-exact-by-sorting.md) that
-says a median marker must be a whole learned value.
+Status: accepted (2026-11-06). Made during the preprocessing build. Extended by
+[ADR 0044](0044-the-standard-deviation-in-two-staged-passes.md): the standard
+deviation is staged too, with two orderings refused. Supersedes the part of
+[ADR 0032](0032-the-median-is-exact-by-sorting.md) that says a median marker
+must be a whole learned value. Archived (2026-11-27): superseded by
+[ADR 0078](../0078-how-aggregates-learn.md), which states how aggregates learn
+in full.
 
 ## Context
 

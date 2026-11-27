@@ -2,15 +2,18 @@
 type: adr
 tags: [saving, json, serialisation, security, pickle, learning-store, api]
 summary: "Records that sq.save and sq.load write a pipeline's recipe and learned values as one JSON file with tagged values, never pickle, import only classes from allowed packages, key learned values by the store's stable key, and save a trained model only on request, by pickle in its own file with room for other formats."
-related: [docs/specs/archived/library-saving.md, docs/adr/0003-scikit-learn-style-api.md, docs/adr/0005-runtime-dependencies.md, docs/adr/0006-local-and-offline.md, docs/adr/0014-learning-store.md, docs/adr/0021-inputs-and-how-the-store-knows-them.md, docs/adr/0046-sqlearn-warns-the-user-chooses.md]
+related: [docs/specs/archived/library-saving.md, docs/adr/0003-scikit-learn-style-api.md, docs/adr/0005-runtime-dependencies.md, docs/adr/0006-local-and-offline.md, docs/adr/archived/0014-learning-store.md, docs/adr/archived/0021-inputs-and-how-the-store-knows-them.md, docs/adr/0046-sqlearn-warns-the-user-chooses.md]
 ---
 # 0047: A pipeline saves as JSON
 
 Status: accepted (2026-11-11); amended by
-[ADR 0048](0048-the-user-saves-the-model-and-imports-its-packages.md): the
-user saves the model and imports its packages, and `allow=`, `trust_model=`
-and `model=` are removed. Spec:
-[library saving](../specs/archived/library-saving.md), sections 3, 5, 7 and 8.
+[ADR 0048](0048-the-user-saves-the-model-and-imports-its-packages.md): the user
+saves the model and imports its packages, and `allow=`, `trust_model=` and
+`model=` are removed. Spec:
+[library saving](../../specs/archived/library-saving.md), sections 3, 5, 7 and
+8. Archived (2026-11-27): superseded by
+[ADR 0079](../0079-saving-a-pipeline.md), which states saving a pipeline in
+full.
 
 ## Context
 
@@ -24,7 +27,7 @@ learned values, that is safe to open and readable in a diff.
 
 - **Two functions, `sq.save(pipe, path)` and `sq.load(path, allow=())`**, as
   `joblib.dump` and `joblib.load` take an object and a path
-  ([ADR 0003](0003-scikit-learn-style-api.md)). No method on `Pipeline`.
+  ([ADR 0003](../0003-scikit-learn-style-api.md)). No method on `Pipeline`.
 - **One file for both parts**: the recipe (steps, order, settings, the model
   by class and parameters), and, when learned, each step's learned values.
   `learned=False` saves the recipe alone, to share it.
@@ -75,7 +78,7 @@ learned values, that is safe to open and readable in a diff.
   the JSON.
 - **sqlearn does not adjust what it cannot honour**: it refuses, or loads
   with a warning in the house form
-  ([ADR 0046](0046-sqlearn-warns-the-user-chooses.md)).
+  ([ADR 0046](../0046-sqlearn-warns-the-user-chooses.md)).
 
 ## Consequences
 
@@ -86,7 +89,7 @@ learned values, that is safe to open and readable in a diff.
 - A callable, a numpy array or a lambda cannot be saved; the user gives a plain
   value or a step class in an importable module.
 - No new dependency: `json`, `pickle`, `hashlib` are the standard library
-  ([ADR 0005](0005-runtime-dependencies.md)). Nothing leaves the machine
-  ([ADR 0006](0006-local-and-offline.md)).
+  ([ADR 0005](../0005-runtime-dependencies.md)). Nothing leaves the machine
+  ([ADR 0006](../0006-local-and-offline.md)).
 - The pickle of a trained model remains code to be trusted; the docs say so
   where `trust_model` is described.

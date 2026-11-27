@@ -2,7 +2,7 @@
 type: task
 tags: [model-selection, search, folds, hand-over, feed, stream, optuna, metrics, library-breadth, validation]
 summary: "Implementation plan for the model-selection area of sqlearn's library breadth: grouped search names, fold schemes, prepared folds in tables, streamed prediction, the hand-over forms and streaming, the memory budget, kept preparations, random and Optuna search, and the metrics a search needs, in 15 tasks."
-related: [docs/specs/archived/library-model-selection.md, docs/specs/archived/library-core.md, docs/adr/0022-one-search-with-pluggable-methods.md, docs/adr/0023-lazy-results-out-and-feed.md, docs/adr/0034-a-grouped-api.md]
+related: [docs/specs/archived/library-model-selection.md, docs/specs/archived/library-core.md, docs/adr/archived/0022-one-search-with-pluggable-methods.md, docs/adr/0023-lazy-results-out-and-feed.md, docs/adr/0034-a-grouped-api.md]
 ---
 # Library Breadth: Model Selection Implementation Plan
 

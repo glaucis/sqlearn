@@ -7,6 +7,9 @@ related: [docs/adr/0015-duckdb-expressions-no-sqlglot.md, docs/adr/0016-validati
 # 0032: The median is exact, by sorting
 
 Status: accepted (2026-11-05). Made during the core build, reviewed after it.
+Archived (2026-11-27): superseded by
+[ADR 0078](../0078-how-aggregates-learn.md), which states how aggregates learn
+in full.
 
 ## Context
 

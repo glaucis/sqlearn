@@ -2,7 +2,7 @@
 type: adr
 tags: [target-encoding, cross-fitting, folds, row-order, preprocessing]
 summary: "Records that the target encoder's inner folds are dealt by each row's position in the pipeline's fixed row order, hashed with the seed, not by the row's values, so identical rows can fall in different folds."
-related: [docs/adr/0021-inputs-and-how-the-store-knows-them.md, docs/adr/0022-one-search-with-pluggable-methods.md, docs/specs/archived/library-preprocessing.md]
+related: [docs/adr/archived/0021-inputs-and-how-the-store-knows-them.md, docs/adr/archived/0022-one-search-with-pluggable-methods.md, docs/specs/archived/library-preprocessing.md]
 ---
 # 0038: The target encoder's inner folds follow row position
 
@@ -30,6 +30,6 @@ by position. Rows that are alike get folds of their own.
   other inner folds, and so slightly other encodings of the training rows.
   The core already relies on a fixed row order for predictions, and the store
   recognises a frame by its values and their order
-  ([ADR 0021](0021-inputs-and-how-the-store-knows-them.md)).
+  ([ADR 0021](archived/0021-inputs-and-how-the-store-knows-them.md)).
 - `apply` on new data is unaffected: it uses the values learned from all rows.
 - The outer folds of a search (`sq.KFold`) are unchanged.

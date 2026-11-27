@@ -11,7 +11,10 @@ to rewrite the whole library in C++, make new bindings and remove all the
 Python that is not needed, and left the rules to the agent. Supersedes
 [ADR 0067](archived/0067-how-computation-moves-to-the-engine.md). Amended by
 [ADR 0073](0073-the-old-python-moves-to-old-python.md) (2026-11-27): the old
-Python moves to `old_python/` at once, never run.
+Python moves to `old_python/` at once, never run. Amended by
+[ADR 0073](0073-the-old-python-moves-to-old-python.md): a group's Python is
+not deleted in its merge, and its benchmark is not compared with that Python.
+Its saving rule is restated in [ADR 0079](0079-saving-a-pipeline.md).
 
 ## Context
 

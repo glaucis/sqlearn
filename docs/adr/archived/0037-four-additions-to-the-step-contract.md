@@ -2,14 +2,16 @@
 type: adr
 tags: [steps, step-contract, apply, apply_row, learned, keeps_inputs, labels]
 summary: "Records four additions the preprocessing build made to the step contract: label pairs from apply, the row values argument of apply_row, the Step.learned hook, and the keeps_inputs declaration."
-related: [docs/adr/0012-static-and-dynamic-steps.md, docs/adr/0019-custom-steps-and-failure-feedback.md, docs/adr/0028-a-step-returning-a-mapping-counts-as-dynamic.md, docs/adr/0035-names-of-generated-columns.md, docs/specs/archived/library-preprocessing.md]
+related: [docs/adr/archived/0012-static-and-dynamic-steps.md, docs/adr/archived/0019-custom-steps-and-failure-feedback.md, docs/adr/archived/0028-a-step-returning-a-mapping-counts-as-dynamic.md, docs/adr/0035-names-of-generated-columns.md, docs/specs/archived/library-preprocessing.md]
 ---
 # 0037: Four additions to the step contract
 
-Status: accepted (2026-11-07). Made during the preprocessing build (rulings
-T5a, T8c, T11c and F2 in its build ledger). Extended by #32: a fifth
-declaration, `copies_inputs`, for a step with `keep` whose copy of each
-input keeps the input's own type while `creates` types its other columns.
+Status: accepted (2026-11-07). Made during the preprocessing build (rulings T5a,
+T8c, T11c and F2 in its build ledger). Extended by #32: a fifth declaration,
+`copies_inputs`, for a step with `keep` whose copy of each input keeps the
+input's own type while `creates` types its other columns. Archived (2026-11-27):
+superseded by [ADR 0075](../0075-the-contract-of-a-users-own-step.md), which
+states the contract of a user's own step in full.
 
 ## Context
 

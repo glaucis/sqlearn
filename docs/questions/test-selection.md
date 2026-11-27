@@ -565,6 +565,11 @@ I read only its search summary.
 
 ### 9. What this means for sqlearn
 
+Note (2026-11-27): since
+[ADR 0073](../adr/0073-the-old-python-moves-to-old-python.md), the old Python
+library, its tests, the runners and `devdata/` are in `old_python/`, and
+nothing runs them; the baseline below is the state before that move.
+
 What sqlearn has today, from `docs/specs/selection-by-group.md` and
 `docs/architecture/testing.md`: three hand-declared C++ groups (`core`, `raw`,
 `crash`) growing with the port; a fingerprint per group of comment-stripped
@@ -696,6 +701,11 @@ Researched 2026-11-27. No build, test or benchmark of sqlearn was run (only
 reading `engine/build/dev/Testing/Temporary/CTestCostData.txt`).
 
 ### 0. What sqlearn does now (the baseline every option is compared with)
+
+Note (2026-11-27): since
+[ADR 0073](../adr/0073-the-old-python-moves-to-old-python.md), the old Python
+library, its tests, the runners and `devdata/` are in `old_python/`, and
+nothing runs them; the baseline below is the state before that move.
 
 From `docs/specs/selection-by-group.md`, `docs/architecture/testing.md`
 ("Selecting by group", "The validation runners"), `engine/cmake/groups.cmake`,

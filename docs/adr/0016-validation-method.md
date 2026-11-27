@@ -2,7 +2,7 @@
 type: adr
 tags: [validation, precision, references, testing, gate, upstream]
 summary: "Records how sqlearn validates its SQL: against an exact canonical value and every comparable library, locating each drift, enforced as a gate, published as generated pages."
-related: [docs/questions/validation-method.md, docs/architecture/overview.md, docs/adr/0006-local-and-offline.md, docs/adr/0012-static-and-dynamic-steps.md]
+related: [docs/questions/validation-method.md, docs/architecture/overview.md, docs/adr/0006-local-and-offline.md, docs/adr/archived/0012-static-and-dynamic-steps.md]
 ---
 # 0016: Validation against the mathematics and every comparable library
 

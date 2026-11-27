@@ -2,7 +2,7 @@
 type: plan
 tags: [saving, serialisation, json, learned-state, store, pickle, library-breadth]
 summary: "Builds the saving area: sq.save and sq.load over one JSON file holding a pipeline's recipe and learned values with their data's fingerprint, a second store key so loaded values are found in a new process, the changed-data warning, and the trained model opt-in by pickle in a file of its own."
-related: [docs/specs/archived/library-saving.md, docs/adr/0014-learning-store.md, docs/adr/0021-inputs-and-how-the-store-knows-them.md, docs/adr/0024-store-keys-follow-what-a-step-reads.md, docs/adr/0046-sqlearn-warns-the-user-chooses.md]
+related: [docs/specs/archived/library-saving.md, docs/adr/archived/0014-learning-store.md, docs/adr/archived/0021-inputs-and-how-the-store-knows-them.md, docs/adr/archived/0024-store-keys-follow-what-a-step-reads.md, docs/adr/0046-sqlearn-warns-the-user-chooses.md]
 ---
 # Library saving: implementation plan
 

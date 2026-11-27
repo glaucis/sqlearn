@@ -2,13 +2,15 @@
 type: adr
 tags: [execution, gram-matrix, streaming, numpy, step-contract, pca]
 summary: "Records that a Gram step (PCA, later linear regression) learns from XᵀX of its centred columns, which the core builds in numpy from batches DuckDB streams, because XᵀX in SQL alone fails past a few hundred columns; amends ADR 0002."
-related: [docs/adr/0002-sql-on-duckdb-execution-engine.md, docs/adr/0057-numpy-is-a-runtime-dependency.md, docs/adr/0012-static-and-dynamic-steps.md, docs/specs/archived/library-decomposition.md]
+related: [docs/adr/0002-sql-on-duckdb-execution-engine.md, docs/adr/0057-numpy-is-a-runtime-dependency.md, docs/adr/archived/0012-static-and-dynamic-steps.md, docs/specs/archived/library-decomposition.md]
 ---
 # 0058: A Gram step builds XᵀX in numpy
 
 Status: accepted (2026-11-20), with the
 [decomposition spec](../specs/archived/library-decomposition.md). Chosen by
 Tomas on 2026-11-20. Amends [ADR 0002](0002-sql-on-duckdb-execution-engine.md).
+Amended by [ADR 0073](0073-the-old-python-moves-to-old-python.md): the Gram
+step it names, in the old Python, is in `old_python/`, never run.
 
 ## Context
 

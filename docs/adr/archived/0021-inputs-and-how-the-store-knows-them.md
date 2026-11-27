@@ -2,12 +2,15 @@
 type: adr
 tags: [inputs, learned-state, cache, fingerprint, pandas, polars, memory]
 summary: "Records that sqlearn accepts any input DuckDB reads, and how the learning store recognises each kind: file and table metadata, the object for immutable tables, a content fingerprint for pandas and numpy."
-related: [docs/adr/0014-learning-store.md, docs/adr/0005-runtime-dependencies.md, docs/adr/0019-custom-steps-and-failure-feedback.md]
+related: [docs/adr/archived/0014-learning-store.md, docs/adr/0005-runtime-dependencies.md, docs/adr/archived/0019-custom-steps-and-failure-feedback.md]
 ---
 # 0021: Inputs, and how the store recognises them
 
 Status: accepted (2026-11-04). Extends the data part of the store's key in
-[ADR 0014](0014-learning-store.md), which covers files and tables only.
+[ADR 0014](0014-learning-store.md), which covers files and tables only. Archived
+(2026-11-27): superseded by
+[ADR 0076](../0076-the-learning-store-and-its-keys.md), which states the
+learning store and its keys in full.
 
 ## Context
 
@@ -33,7 +36,7 @@ hashes the whole input on every call.
 JSON, globs such as `data/*.csv`), DuckDB tables and relations, and pandas,
 Polars and Arrow tables in memory. DuckDB reads the in-memory ones itself, so
 sqlearn still depends only on `duckdb`
-([ADR 0005](0005-runtime-dependencies.md)).
+([ADR 0005](../0005-runtime-dependencies.md)).
 
 The store recognises each kind as cheaply as is safe:
 

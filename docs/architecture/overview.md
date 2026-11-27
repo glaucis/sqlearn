@@ -11,7 +11,11 @@ The map of the whole project, written before the first line of product code.
 It says what the parts are, how they relate, and in what order they are
 built. Each part gets its own spec in `docs/specs/` when its turn comes.
 
-Status, 2026-11-03: the foundation (3.1) is built; everything else is the plan.
+Status, 2026-11-27: the foundation (3.1) is built. The library core (3.2),
+the breadth areas of 3.3 and the exploration module (3.6) were built in the
+old Python, now in `old_python/`
+([ADR 0073](../adr/0073-the-old-python-moves-to-old-python.md)), and are
+rebuilt in C++ by the native engine (3.10). Everything else is the plan.
 
 Three kinds of statement, marked where it matters:
 
@@ -79,9 +83,9 @@ the building.
   (PCA) learns from XᵀX, which numpy sums from batches DuckDB streams, and data
   passes through Python in no other learn.
 - **Two runtime dependencies.** The installed package depends on `duckdb`
-  (from the engine's Phase 1, sqlearn's own DuckDB build: [ADR
-  0061](../adr/0061-sqlearn-ships-its-own-duckdb-build.md); until then, the
-  one from PyPI) and `numpy` (the
+  (sqlearn's own DuckDB build, built into the wheel since the engine's
+  Phase 1: [ADR 0061](../adr/0061-sqlearn-ships-its-own-duckdb-build.md))
+  and `numpy` (the
   small matrices some steps learn from: [ADR
   0057](../adr/0057-numpy-is-a-runtime-dependency.md)), and as little else as
   possible; every runtime dependency is justified in writing
@@ -154,11 +158,10 @@ The user writes steps in order and sees results when asked, as in
 scikit-learn; how much of a pipeline runs as one query is the library's
 concern, never the user's: everything goes in one query, split only where
 a step needs columns a dynamic step has not yet learned
-([ADR 0012](../adr/0012-static-and-dynamic-steps.md),
-[ADR 0018](../adr/0018-runs-follow-the-chains-between-steps.md)), and learned
+([ADR 0074](../adr/0074-how-a-pipeline-learns.md)), and learned
 values are kept in a store while the program runs, so nothing is learned twice
-([ADR 0014](../adr/0014-learning-store.md)). One kind of step learns
-differently: a **Gram step** learns from the matrix XᵀX of its centred
+([ADR 0076](../adr/0076-the-learning-store-and-its-keys.md)). One kind of step
+learns differently: a **Gram step** learns from the matrix XᵀX of its centred
 columns. SQL finds the means in the ordinary learn; the core then streams the
 step's centred rows from DuckDB in batches, numpy sums their XᵀX, and the step
 finishes from that small matrix ([ADR
@@ -179,6 +182,10 @@ come from other libraries for now
 implementation (dev-only dependencies are allowed in tests), and the contract
 is documented.
 
+Built in the old Python, now in `old_python/` and never run (ADR 0073); the
+core is rebuilt in C++
+([ADR 0070](../adr/0070-sqlearn-is-rewritten-in-cpp.md)).
+
 **Depends on:** 3.1.
 
 ### 3.3 Library breadth
@@ -186,9 +193,8 @@ is documented.
 **What:** the areas, each its own spec: preprocessing, model selection (a search
 over hyperparameters and folds, with sqlearn's folds or an outside optimiser
 such as Optuna), metrics, saving a pipeline to a JSON file (`sq.save`,
-`sq.load`; [ADR 0047](../adr/0047-a-pipeline-saves-as-json.md)), where the user
-saves the trained model and `sq.load` imports nothing
-([ADR 0048](../adr/0048-the-user-saves-the-model-and-imports-its-packages.md)),
+`sq.load`; [ADR 0079](../adr/0079-saving-a-pipeline.md)), where the user
+saves the trained model and `sq.load` imports nothing (same ADR),
 decomposition (PCA, `sq.decompose`), and whatever the core's contract makes
 possible. Models come from other
 libraries the user installs, for now
@@ -197,6 +203,9 @@ come with the native engine (3.10, Phase 5; [ADR
 0068](../adr/0068-sqlearns-own-models.md)).
 
 **Done when:** never; it grows. Each area is done when its spec says so.
+
+The areas built so far were built in the old Python, now in `old_python/` and
+never run (ADR 0073); each is rebuilt in C++ (ADR 0070).
 
 **Depends on:** 3.2.
 
@@ -319,10 +328,11 @@ silicon first, in seven phases ([spec](../specs/native-engine.md) §4; ADRs
 0060 to 0070; milestone "Native engine", #78 to #84). Phase 0 decides and takes
 the [inventory of every module](engine-inventory.md).
 
-**Done when:** every group's C++ passes its tests and the validation, is
-not slower than the Python it replaced, and no library logic is left in
-Python (Phases 1 to 4); each later phase is done when its spec says
-so.
+**Done when:** every group's C++ passes its own tests and validation
+runners (the old Python never runs, so no group is benchmarked against it:
+[ADR 0073](../adr/0073-the-old-python-moves-to-old-python.md)), and no
+library logic is left in Python (Phases 1 to 4); each later phase is done
+when its spec says so.
 
 **Depends on:** 3.2 and 3.3 for what is ported, 3.8 for the validation the
 port must keep passing, 3.9 for the benchmarks.
@@ -348,10 +358,10 @@ to other engines would plug into its compositor:
    after it.
 7. Workflow editor (3.7), last, when the library is more or less done.
 
-Now (2026-11-21): the native engine (3.10). Phase 0 is done (merge pending);
-porting sqlearn's current state to C++, Phases 1 to 4, comes before any new area
-of 3.3 or 3.6, after HANDOFF's three small fixes
-([spec](../specs/native-engine.md) §4).
+Now (2026-11-27): the native engine (3.10). Phase 0 is done, and Phase 1's
+steps 1 (the checks) and 2 (the build) are merged; rewriting sqlearn in C++,
+Phases 1 to 4, comes before any new area of 3.3 or 3.6
+([spec](../specs/native-engine.md) §4; ADR 0070, 0073).
 
 How the work runs, and where each kind of document goes:
 [workflow.md](workflow.md).

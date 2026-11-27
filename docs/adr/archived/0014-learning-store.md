@@ -2,14 +2,16 @@
 type: adr
 tags: [learned-state, learn, apply, cross-validation, cache, pipeline]
 summary: "Records where learned values live: a store kept while the program runs, keyed by data, fold and steps, so nothing is learned twice and nothing is overwritten."
-related: [docs/adr/0012-static-and-dynamic-steps.md, docs/adr/0013-learn-apply-train-predict.md, docs/adr/0003-scikit-learn-style-api.md, docs/questions/archived/earlier-attempts/README.md]
+related: [docs/adr/archived/0012-static-and-dynamic-steps.md, docs/adr/0013-learn-apply-train-predict.md, docs/adr/0003-scikit-learn-style-api.md, docs/questions/archived/earlier-attempts/README.md]
 ---
 # 0014: Learned values live in a store while the program runs
 
-Status: accepted (2026-11-04). The data part of the key is extended to
-in-memory tables by [ADR 0021](0021-inputs-and-how-the-store-knows-them.md);
-the steps part follows what a step reads, by
-[ADR 0024](0024-store-keys-follow-what-a-step-reads.md).
+Status: accepted (2026-11-04). The data part of the key is extended to in-memory
+tables by [ADR 0021](0021-inputs-and-how-the-store-knows-them.md); the steps
+part follows what a step reads, by
+[ADR 0024](0024-store-keys-follow-what-a-step-reads.md). Archived (2026-11-27):
+superseded by [ADR 0076](../0076-the-learning-store-and-its-keys.md), which
+states the learning store and its keys in full.
 
 ## Context
 
@@ -20,7 +22,7 @@ values only on the step objects. Learning the same pipeline again, as
 cross-validation does for each fold, overwrote them; a fold's values could be
 applied to another fold; and every trial of a hyperparameter search learned
 the same preparation steps again
-([earlier attempts](../questions/archived/earlier-attempts/README.md)).
+([earlier attempts](../../questions/archived/earlier-attempts/README.md)).
 
 ## Decision
 
@@ -45,7 +47,7 @@ data, fold and steps all match:
 The pipeline the user holds points to its entries, so `pipe.learn(train)` then
 `pipe.apply(test)` behaves as expected, and learned values are readable as
 attributes ending in `_` (`pipe.steps[1].mean_`,
-[ADR 0003](0003-scikit-learn-style-api.md)). Learning the pipeline again on
+[ADR 0003](../0003-scikit-learn-style-api.md)). Learning the pipeline again on
 other data points it at other entries; nothing is overwritten.
 
 ## Consequences

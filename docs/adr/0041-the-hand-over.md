@@ -8,7 +8,12 @@ related: [docs/adr/0017-models-from-other-libraries.md, docs/adr/0023-lazy-resul
 
 Status: accepted (2026-11-07). Made during the model-selection build; builds
 on [ADR 0023](0023-lazy-results-out-and-feed.md), which put `feed=` on the
-model and left every form but numpy for later.
+model and left every form but numpy for later. Amended by
+[ADR 0060](0060-a-native-engine-in-cpp-inside-duckdb.md): the hand-over's
+logic is the C++ library's, and the bindings only hand Python objects to it.
+Amended by [ADR 0073](0073-the-old-python-moves-to-old-python.md): the Python
+it names, such as `sqlearn._selectors.is_text`, is in `old_python/`, never
+run.
 
 ## Context
 

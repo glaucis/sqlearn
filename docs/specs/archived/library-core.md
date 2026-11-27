@@ -2,7 +2,7 @@
 type: spec
 tags: [library-core, pipeline, steps, learn, apply, search, selectors, learning-store]
 summary: "Spec for sqlearn's library core (overview 3.2): the step contract, how runs are planned, the learning store, selectors, lazy results, the search, and the vertical slice that proves them."
-related: [docs/architecture/overview.md, docs/adr/0012-static-and-dynamic-steps.md, docs/adr/0013-learn-apply-train-predict.md, docs/adr/0014-learning-store.md, docs/adr/0015-duckdb-expressions-no-sqlglot.md, docs/adr/0016-validation-method.md, docs/adr/0017-models-from-other-libraries.md, docs/adr/0018-runs-follow-the-chains-between-steps.md, docs/adr/0019-custom-steps-and-failure-feedback.md, docs/adr/0020-column-selectors.md, docs/adr/0021-inputs-and-how-the-store-knows-them.md, docs/adr/0022-one-search-with-pluggable-methods.md, docs/adr/0023-lazy-results-out-and-feed.md]
+related: [docs/architecture/overview.md, docs/adr/archived/0012-static-and-dynamic-steps.md, docs/adr/0013-learn-apply-train-predict.md, docs/adr/archived/0014-learning-store.md, docs/adr/0015-duckdb-expressions-no-sqlglot.md, docs/adr/0016-validation-method.md, docs/adr/0017-models-from-other-libraries.md, docs/adr/archived/0018-runs-follow-the-chains-between-steps.md, docs/adr/archived/0019-custom-steps-and-failure-feedback.md, docs/adr/0020-column-selectors.md, docs/adr/archived/0021-inputs-and-how-the-store-knows-them.md, docs/adr/archived/0022-one-search-with-pluggable-methods.md, docs/adr/0023-lazy-results-out-and-feed.md]
 ---
 # Library core
 
@@ -28,7 +28,7 @@ over settings runs.
 It must be **fast in the normal case** and
 **explain itself in full when something fails**. The normal path does only what
 it must; diagnosis runs only after a failure
-([ADR 0019](../../adr/0019-custom-steps-and-failure-feedback.md)).
+([ADR 0019](../../adr/archived/0019-custom-steps-and-failure-feedback.md)).
 
 ## 2. The slice
 
@@ -68,8 +68,8 @@ It shows, and its tests prove:
 - **the store:** over 2 imputer settings × 3 values of `C` × 5 folds (30
   trainings), `Impute` and `Scale` learn 10 times, `OneHot` and `Ordinal` 5
   times (they never read what `Impute` writes), each plus one for the final
-  training on all data; changing only `C` learns
-  nothing ([ADR 0024](../../adr/0024-store-keys-follow-what-a-step-reads.md));
+  training on all data; changing only `C` learns nothing
+  ([ADR 0024](../../adr/archived/0024-store-keys-follow-what-a-step-reads.md));
 - **fold first:** the data is transformed once per fold and imputer setting,
   10 times for 30 trainings;
 - **the hand-over:** numpy to scikit-learn's `LogisticRegression`;
@@ -127,7 +127,8 @@ class Scale(sq.Step):
   ([issue #27](https://github.com/glaucis/sqlearn/issues/27) tracks the sort's
   reach).
 - Steps that change rows (filters, sampling) are not in the slice; the contract
-  leaves room for them ([ADR 0012](../../adr/0012-static-and-dynamic-steps.md)).
+  leaves room for them
+  ([ADR 0012](../../adr/archived/0012-static-and-dynamic-steps.md)).
 
 ### 3.2 What a step declares
 
@@ -140,7 +141,7 @@ can read it without special cases:
   step with `keep=True` writes `<column>_<step>`; a dynamic step declares the
   **types** of the columns it will create (OneHot: integers), even before their
   names are known
-  ([ADR 0018](../../adr/0018-runs-follow-the-chains-between-steps.md));
+  ([ADR 0018](../../adr/archived/0018-runs-follow-the-chains-between-steps.md));
 - **static or dynamic:** built-in steps declare it, per settings where it
   depends on them; a user's step may (`static = True` or `dynamic = True` as a
   class attribute) or may leave it out (§3.4).
@@ -154,7 +155,7 @@ is overwritten silently.
 
 ### 3.4 A user's own step
 
-Per [ADR 0019](../../adr/0019-custom-steps-and-failure-feedback.md):
+Per [ADR 0019](../../adr/archived/0019-custom-steps-and-failure-feedback.md):
 
 1. A declared class is trusted.
 2. An undeclared one is inspected before the first run: its `apply` is called
@@ -184,7 +185,7 @@ words and spaces in column names.
 
 ## 4. Runs
 
-Per [ADR 0018](../../adr/0018-runs-follow-the-chains-between-steps.md):
+Per [ADR 0018](../../adr/archived/0018-runs-follow-the-chains-between-steps.md):
 
 - The pipeline is planned as a graph of columns. Each step goes in the
   **earliest run its own inputs allow**. A step must wait for a dynamic step
@@ -223,8 +224,8 @@ call), so tests assert both.
 
 ## 5. The learning store
 
-Per [ADR 0014](../../adr/0014-learning-store.md) and
-[ADR 0021](../../adr/0021-inputs-and-how-the-store-knows-them.md):
+Per [ADR 0014](../../adr/archived/0014-learning-store.md) and
+[ADR 0021](../../adr/archived/0021-inputs-and-how-the-store-knows-them.md):
 
 - One store per Python process, in memory. An entry holds a step's learned
   values, the columns its selector matched, and its `apply` SQL.
@@ -233,7 +234,7 @@ Per [ADR 0014](../../adr/0014-learning-store.md) and
   that changes rows is read by every step after it; a step whose selector
   could have matched a column an earlier dynamic step took away depends on
   that step; and the columns the step's selector resolved to
-  ([ADR 0024](../../adr/0024-store-keys-follow-what-a-step-reads.md)).
+  ([ADR 0024](../../adr/archived/0024-store-keys-follow-what-a-step-reads.md)).
 - The data part, by kind of input:
 
   | input | key | in the slice |
@@ -325,7 +326,7 @@ Per [ADR 0023](../../adr/0023-lazy-results-out-and-feed.md):
 
 ## 10. The search
 
-Per [ADR 0022](../../adr/0022-one-search-with-pluggable-methods.md):
+Per [ADR 0022](../../adr/archived/0022-one-search-with-pluggable-methods.md):
 
 - `sq.Search(pipe, params=None, metric=..., method=..., folds=...)` with
   `train` and `predict`; `method` defaults to `sq.Grid()`, `folds` to

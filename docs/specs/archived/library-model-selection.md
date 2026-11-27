@@ -2,7 +2,7 @@
 type: spec
 tags: [model-selection, search, folds, hand-over, feed, batches, optuna, metrics, library-breadth]
 summary: "Spec for the model-selection area of sqlearn's library breadth (overview 3.3): handing prepared data to models from other libraries without running out of memory, keeping prepared folds for repeated searches, more search methods and kinds of folds, a few metrics, and a grouped home for the search's names."
-related: [docs/architecture/overview.md, docs/specs/archived/library-core.md, docs/specs/archived/library-preprocessing.md, docs/adr/0017-models-from-other-libraries.md, docs/adr/0022-one-search-with-pluggable-methods.md, docs/adr/0023-lazy-results-out-and-feed.md, docs/adr/0034-a-grouped-api.md, docs/adr/0014-learning-store.md]
+related: [docs/architecture/overview.md, docs/specs/archived/library-core.md, docs/specs/archived/library-preprocessing.md, docs/adr/0017-models-from-other-libraries.md, docs/adr/archived/0022-one-search-with-pluggable-methods.md, docs/adr/0023-lazy-results-out-and-feed.md, docs/adr/0034-a-grouped-api.md, docs/adr/archived/0014-learning-store.md]
 ---
 # Library breadth: model selection
 
@@ -12,10 +12,10 @@ Status: approved by Tomas on 2026-11-07. Written from the design talk of
 2026-11-07. It rests on
 [ADR 0017](../../adr/0017-models-from-other-libraries.md) (models come from
 other libraries),
-[ADR 0022](../../adr/0022-one-search-with-pluggable-methods.md) (one search with
-pluggable methods) and [ADR 0034](../../adr/0034-a-grouped-api.md) (a grouped
-API), and absorbs [#21](https://github.com/glaucis/sqlearn/issues/21) and
-[#25](https://github.com/glaucis/sqlearn/issues/25). Where this spec makes a
+[ADR 0022](../../adr/archived/0022-one-search-with-pluggable-methods.md) (one
+search with pluggable methods) and [ADR 0034](../../adr/0034-a-grouped-api.md)
+(a grouped API), and absorbs [#21](https://github.com/glaucis/sqlearn/issues/21)
+and [#25](https://github.com/glaucis/sqlearn/issues/25). Where this spec makes a
 call of its own, it says "(spec's call)".
 
 Tracked in [issue #33](https://github.com/glaucis/sqlearn/issues/33).

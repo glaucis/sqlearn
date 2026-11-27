@@ -2,14 +2,16 @@
 type: adr
 tags: [std, accuracy, numerics, favg, compositor, larger-than-memory, validation]
 summary: "Records that sq.agg.std is a staged aggregate computed in two compensated passes (favg mean, then sqrt(favg((x - mean)^2))), exactly 0 when every value is the same, about 2.9 times the one-pass cost with no loss of reach under 64 MB, validated within 2 ULPs; it may hold other staged aggregates but not another standard deviation, nor sit inside a quantile or mode."
-related: [docs/adr/0033-the-mean-is-summed-with-compensation.md, docs/adr/0036-staged-aggregates-anywhere-in-a-learned-value.md, docs/adr/0032-the-median-is-exact-by-sorting.md, docs/adr/0043-repeatable-within-rounding.md, docs/benchmarks/standard-deviation.md]
+related: [docs/adr/archived/0033-the-mean-is-summed-with-compensation.md, docs/adr/archived/0036-staged-aggregates-anywhere-in-a-learned-value.md, docs/adr/archived/0032-the-median-is-exact-by-sorting.md, docs/adr/0043-repeatable-within-rounding.md, docs/benchmarks/standard-deviation.md]
 ---
 # 0044: The standard deviation in two staged passes
 
 Status: accepted (2026-11-10). Found as
 [#28](https://github.com/glaucis/sqlearn/issues/28). Supersedes the line of
-[ADR 0033](0033-the-mean-is-summed-with-compensation.md) that keeps the
-standard deviation as DuckDB's `stddev_pop`.
+[ADR 0033](0033-the-mean-is-summed-with-compensation.md) that keeps the standard
+deviation as DuckDB's `stddev_pop`. Archived (2026-11-27): superseded by
+[ADR 0078](../0078-how-aggregates-learn.md), which states how aggregates learn
+in full.
 
 ## Context
 
@@ -37,7 +39,7 @@ it cannot be one aggregate in the learn stage's row.
 - **Bound: 2 ULPs** in the validation, for `sq.agg.std` and Scale's standard
   divisor, down from 16. The worst measured is 1 (small and large sets); the
   large set gave 0 in 2 of 30 runs, because DuckDB's threads finish in another
-  order ([ADR 0043](0043-repeatable-within-rounding.md)). The house rule's
+  order ([ADR 0043](../0043-repeatable-within-rounding.md)). The house rule's
   power of two would be 1; 2 leaves that ULP of thread order beside the worst
   case. DuckDB's own `stddev_pop`, still the "duckdb" reference, is then an
   anomaly on the large set (12 ULPs, past four times the bound).
@@ -55,16 +57,16 @@ it cannot be one aggregate in the learn stage's row.
 ## Consequences
 
 - Cost, measured on 20,000,000 rows from Parquet
-  ([benchmark](../benchmarks/standard-deviation.md)): under 64 MB on one
+  ([benchmark](../../benchmarks/standard-deviation.md)): under 64 MB on one
   thread, learning it through sqlearn takes 1.15 s against 0.40 s for the one
   pass, about 2.9 times; as SQL alone about 2.5 times. Every form fits 64 MB:
   no loss of reach. It lands 1 ULP from the exact value where `stddev_pop`
   lands 700 (one thread) or 41 to 47 (eight).
 - Every step using `sq.agg.std` improves at once; Scale's standard divisor is
   within 1 ULP on the validation's sets.
-- An overflowing sum gives NaN, not infinity: on `[1e300, -1e300, 1e300]`
-  `favg` overflows to NaN, where `stddev_pop` gave infinity. Infinity in the
-  data is refused by the steps anyway ([ADR 0030](0030-infinity-is-refused.md)).
+- An overflowing sum gives NaN, not infinity: on `[1e300, -1e300, 1e300]` `favg`
+  overflows to NaN, where `stddev_pop` gave infinity. Infinity in the data is
+  refused by the steps anyway ([ADR 0030](../0030-infinity-is-refused.md)).
 - `sq.agg.var` was still DuckDB's `var_pop` (20 ULPs on the large set), and
   Scale's zero-spread rule judges the standard deviation by it (amended by
   #42, below).

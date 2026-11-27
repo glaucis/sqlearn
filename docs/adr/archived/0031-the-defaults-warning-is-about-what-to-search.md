@@ -2,11 +2,13 @@
 type: adr
 tags: [search, defaults, warnings, model-selection, api]
 summary: "Records that DefaultsUsedWarning fires only when Search's params are left to the default, while a default method or folds is recorded in used_ without a warning."
-related: [docs/adr/0022-one-search-with-pluggable-methods.md]
+related: [docs/adr/archived/0022-one-search-with-pluggable-methods.md]
 ---
 # 0031: The defaults warning is about what to search
 
 Status: accepted (2026-11-05). Made during the core build, reviewed after it.
+Archived (2026-11-27): superseded by [ADR 0077](../0077-the-search.md), which
+states the search in full.
 
 ## Context
 

@@ -2,7 +2,7 @@
 type: spec
 tags: [saving, serialisation, json, learned-state, store, pipeline-file, library-breadth]
 summary: "Spec for the saving area of sqlearn's library breadth (overview 3.3): one JSON file holds a pipeline's recipe and, once learned, its learned values with the fingerprint of the data they came from, so a pipeline learned today is trained or applied tomorrow in a new process without learning again; the trained model is saved only on request, by pickle in a file of its own opened only when trusted, and loading imports only modules the user allows."
-related: [docs/architecture/overview.md, docs/adr/0003-scikit-learn-style-api.md, docs/adr/0014-learning-store.md, docs/adr/0021-inputs-and-how-the-store-knows-them.md, docs/adr/0024-store-keys-follow-what-a-step-reads.md, docs/adr/0046-sqlearn-warns-the-user-chooses.md]
+related: [docs/architecture/overview.md, docs/adr/0003-scikit-learn-style-api.md, docs/adr/archived/0014-learning-store.md, docs/adr/archived/0021-inputs-and-how-the-store-knows-them.md, docs/adr/archived/0024-store-keys-follow-what-a-step-reads.md, docs/adr/0046-sqlearn-warns-the-user-chooses.md]
 ---
 # Library breadth: saving
 
@@ -21,7 +21,7 @@ Note (2026-11-12, after #55): the trained model is no longer saved by
 sqlearn, and `sq.load` imports nothing: sections on `allow=`, `trust_model=`
 and `model=` no longer describe the code. See
 [the spec of saving the model](library-saving-the-model.md) and
-[ADR 0048](../../adr/0048-the-user-saves-the-model-and-imports-its-packages.md).
+[ADR 0048](../../adr/archived/0048-the-user-saves-the-model-and-imports-its-packages.md).
 
 Note (2026-11-11, at the build's end): section 2's example learned without the
 target, so the later `train` would have learned again; it now passes

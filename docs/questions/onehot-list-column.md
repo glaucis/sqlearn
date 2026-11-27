@@ -2,7 +2,7 @@
 type: question
 tags: [onehot, runs, performance, remote-data, compositor]
 summary: "Kept idea: OneHot writes one list column so a pipeline learns in one pass instead of two; worth building only when reading the data twice is expensive."
-related: [docs/adr/0018-runs-follow-the-chains-between-steps.md, docs/benchmarks/onehot-second-run.md]
+related: [docs/adr/archived/0018-runs-follow-the-chains-between-steps.md, docs/benchmarks/onehot-second-run.md]
 ---
 # Should OneHot write one list column, to learn in one pass?
 
@@ -12,8 +12,8 @@ Tracked in [issue #22](https://github.com/glaucis/sqlearn/issues/22).
 ## The idea
 
 A pipeline learns in runs, passes over the data
-([ADR 0018](../adr/0018-runs-follow-the-chains-between-steps.md)). OneHot
-forces a new run because the columns it writes cannot be named before its
+([ADR 0018](../adr/archived/0018-runs-follow-the-chains-between-steps.md)).
+OneHot forces a new run because the columns it writes cannot be named before its
 categories are learned:
 
 ```python

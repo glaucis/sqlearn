@@ -8,11 +8,12 @@ related: [docs/adr/0060-a-native-engine-in-cpp-inside-duckdb.md, docs/adr/0016-v
 
 Status: accepted (2026-11-21). Decided by Tomas on 2026-11-21 with the
 [native engine spec](../../specs/native-engine.md) (§3.8, §4). Revised before
-merging (2026-11-21), with the spec's revision: the whole library is ported,
-not only its computation. Superseded by
+merging (2026-11-21), with the spec's revision: the whole library is ported, not
+only its computation. Superseded by
 [ADR 0070](../0070-sqlearn-is-rewritten-in-cpp.md) (2026-11-27): the library is
-rewritten in C++ group by group, the Python's tests are no fixed contract,
-and the `sq.` API may change before `1.0.0`.
+rewritten in C++ group by group, the Python's tests are no fixed contract, and
+the `sq.` API may change before `1.0.0`. Archived (2026-11-27): superseded by
+ADR 0070; see [ADR 0070](../0070-sqlearn-is-rewritten-in-cpp.md).
 
 ## Context
 
