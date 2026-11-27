@@ -20558,7 +20558,19 @@
     },
     {
       "area": "validation/__main__",
+      "name": "tests/validation/test___main__.py::test_an_unreadable_build_records_no_pass",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/__main__",
       "name": "tests/validation/test___main__.py::test_an_unreadable_build_reruns_every_runner",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/__main__",
+      "name": "tests/validation/test___main__.py::test_each_runner_is_named_by_a_last_part_no_other_has",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -20864,6 +20876,24 @@
     },
     {
       "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_a_new_sql_test_file_reruns_the_sql_task[engine/extension/test/sql/data/rows.csv]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_a_new_sql_test_file_reruns_the_sql_task[engine/extension/test/sql/x.test_coverage]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_a_new_sql_test_file_reruns_the_sql_task[engine/extension/test/sql/x.test_slow]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
       "name": "tests/validation/test__checks.py::test_a_new_tool_config_file_reruns_lint_on_every_file[.ruff.toml]",
       "outcome": "passed",
       "tier": "fast"
@@ -20930,6 +20960,12 @@
     },
     {
       "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_a_task_run_while_the_groups_are_unreadable_records_no_pass",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
       "name": "tests/validation/test__checks.py::test_a_tool_upgrade_checks_every_file_again",
       "outcome": "passed",
       "tier": "fast"
@@ -20985,6 +21021,12 @@
     {
       "area": "validation/_checks",
       "name": "tests/validation/test__checks.py::test_an_unreadable_record_file_counts_as_absent",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_every_file_the_tooling_tests_read_is_a_tooling_input",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -21326,6 +21368,12 @@
     },
     {
       "area": "validation/_groups",
+      "name": "tests/validation/test__groups.py::test_the_build_directories_follow_the_pythons_cache_tag",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_groups",
       "name": "tests/validation/test__groups.py::test_the_coverage_wheels_override_keeps_the_shared_part",
       "outcome": "passed",
       "tier": "fast"
@@ -21560,13 +21608,25 @@
     },
     {
       "area": "validation/_pytest_sets",
+      "name": "tests/validation/test__pytest_sets.py::test_a_data_file_reruns_the_sets_that_read_it[NOTICE-reran6]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_pytest_sets",
+      "name": "tests/validation/test__pytest_sets.py::test_a_data_file_reruns_the_sets_that_read_it[THIRD_PARTY.md-reran5]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_pytest_sets",
       "name": "tests/validation/test__pytest_sets.py::test_a_data_file_reruns_the_sets_that_read_it[commitlint.config.mjs-reran3]",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "validation/_pytest_sets",
-      "name": "tests/validation/test__pytest_sets.py::test_a_data_file_reruns_the_sets_that_read_it[devdata/data/iris.csv-reran5]",
+      "name": "tests/validation/test__pytest_sets.py::test_a_data_file_reruns_the_sets_that_read_it[devdata/data/iris.csv-reran7]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -21584,25 +21644,25 @@
     },
     {
       "area": "validation/_pytest_sets",
-      "name": "tests/validation/test__pytest_sets.py::test_a_data_file_reruns_the_sets_that_read_it[tests/conftest.py-reran7]",
+      "name": "tests/validation/test__pytest_sets.py::test_a_data_file_reruns_the_sets_that_read_it[tests/conftest.py-reran9]",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "validation/_pytest_sets",
-      "name": "tests/validation/test__pytest_sets.py::test_a_data_file_reruns_the_sets_that_read_it[tests/src/helpers.py-reran8]",
+      "name": "tests/validation/test__pytest_sets.py::test_a_data_file_reruns_the_sets_that_read_it[tests/src/helpers.py-reran10]",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "validation/_pytest_sets",
-      "name": "tests/validation/test__pytest_sets.py::test_a_data_file_reruns_the_sets_that_read_it[uv.lock-reran9]",
+      "name": "tests/validation/test__pytest_sets.py::test_a_data_file_reruns_the_sets_that_read_it[uv.lock-reran11]",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "validation/_pytest_sets",
-      "name": "tests/validation/test__pytest_sets.py::test_a_data_file_reruns_the_sets_that_read_it[validation/_cases.py-reran6]",
+      "name": "tests/validation/test__pytest_sets.py::test_a_data_file_reruns_the_sets_that_read_it[validation/_cases.py-reran8]",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -21668,6 +21728,12 @@
     },
     {
       "area": "validation/_pytest_sets",
+      "name": "tests/validation/test__pytest_sets.py::test_a_test_module_another_directory_imports_reruns_a_set",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_pytest_sets",
       "name": "tests/validation/test__pytest_sets.py::test_a_tooling_input_reruns_the_tooling_set_alone",
       "outcome": "passed",
       "tier": "fast"
@@ -21680,19 +21746,19 @@
     },
     {
       "area": "validation/_pytest_sets",
-      "name": "tests/validation/test__pytest_sets.py::test_an_edited_test_file_reruns_its_set_alone[tests/checks/test_tool.py-tooling]",
+      "name": "tests/validation/test__pytest_sets.py::test_an_edited_test_file_reruns_the_sets_that_may_import_it[tests/checks/test_tool.py-reran2]",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "validation/_pytest_sets",
-      "name": "tests/validation/test__pytest_sets.py::test_an_edited_test_file_reruns_its_set_alone[tests/src/b/test_b.py-group:b]",
+      "name": "tests/validation/test__pytest_sets.py::test_an_edited_test_file_reruns_the_sets_that_may_import_it[tests/src/b/test_b.py-reran0]",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "validation/_pytest_sets",
-      "name": "tests/validation/test__pytest_sets.py::test_an_edited_test_file_reruns_its_set_alone[tests/src/sqlearn/test_lib.py-unclaimed]",
+      "name": "tests/validation/test__pytest_sets.py::test_an_edited_test_file_reruns_the_sets_that_may_import_it[tests/src/sqlearn/test_lib.py-reran1]",
       "outcome": "passed",
       "tier": "fast"
     },
