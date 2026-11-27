@@ -116,11 +116,23 @@ _GAP = re.compile(r"(?:\s+|\[UnClean='.*?'\]|\[\w+\])*", re.DOTALL)
 """
 
 
-IDENTITY_HEADER = "build_identity.hpp"
-"""The generated header of the build's identity, its version normalised."""
+_SCM_VERSION = re.compile(
+    r"(?<![\w.])\d+(?:\.\d+)*(?:\.post\d+)?"
+    r"(?:\.dev\d+(?:\+[A-Za-z0-9.]+)?|\+(?:g[0-9a-f]{7,}(?:\.d\d{8})?|d\d{8}))"
+)
+"""A version setuptools-scm gives between releases: ``0.1.dev5+g….d2026….``
 
-_VERSION_DEFINE = re.compile(r'^(#define SQ_SQLEARN_VERSION ")([^"]*)(")', re.MULTILINE)
-"""The define of sqlearn's version in ``IDENTITY_HEADER``."""
+sqlearn's reaches the build as ``build_identity.hpp``'s
+``SQ_SQLEARN_VERSION``, the extension's ``-DEXT_VERSION_SQLEARN`` and
+DuckDB's generated ``sqlearn_describe.c``; cut to its release part
+(``release``) wherever the build directory or a compile entry holds it, so a
+new commit alone changes no fingerprint, while a new release does.
+"""
+
+
+def _versionless(text: str) -> str:
+    """Return `text` with each setuptools-scm version cut to its release."""
+    return _SCM_VERSION.sub(lambda m: release(m[0]), text)
 
 
 def release(version: str) -> str:
@@ -409,9 +421,12 @@ def _pins(root: Path) -> dict[str, str]:
 
 
 def _normal(text: str, root: Path) -> str:
-    """Return `text` with the checkout's and uv's places taken out."""
+    """Return `text` with the checkout's and uv's places taken out.
+
+    A setuptools-scm version is cut to its release (``_versionless``).
+    """
     text = text.replace(str(root), "<root>")
-    return _BUILD_ENVIRONMENT.sub("<build-environment>", text)
+    return _versionless(_BUILD_ENVIRONMENT.sub("<build-environment>", text))
 
 
 def _bytes(path: Path, root: Path) -> str:
@@ -512,22 +527,17 @@ class _Fingerprinter:
         return _normal(path.as_posix(), self.root)
 
     def text(self, path: Path) -> str:
-        """Return ``stripped(path)``, read once a run; the identity as generated."""
-        if path not in self.texts:
-            identity = path.name == IDENTITY_HEADER and path.is_relative_to(self.build)
-            self.texts[path] = self.generated(path) if identity else stripped(path)
-        return self.texts[path]
+        """Return ``stripped(path)``, read once a run.
 
-    def generated(self, path: Path) -> str:
-        """Return a generated file's text, sqlearn's version cut to its release.
-
-        In ``IDENTITY_HEADER`` alone, so a new commit changes no fingerprint
-        (the other defines are kept as they are).
+        A file of the build directory is generated: its versions are cut to
+        their release (``_versionless``).
         """
-        text = _bytes(path, self.root)
-        if path.name != IDENTITY_HEADER:
-            return text
-        return _VERSION_DEFINE.sub(lambda m: m[1] + release(m[2]) + m[3], text)
+        if path not in self.texts:
+            text = stripped(path)
+            if path.is_relative_to(self.build):
+                text = _versionless(text)
+            self.texts[path] = text
+        return self.texts[path]
 
     def owner(self, path: Path) -> str | None:
         """Return the group whose directory holds `path`, None for none."""
@@ -631,7 +641,8 @@ class _Fingerprinter:
         files -= generated
         parts = sorted(entries)
         parts.extend(
-            f"generated\0{self.name(p)}\0{self.generated(p)}" for p in sorted(generated)
+            f"generated\0{self.name(p)}\0{_bytes(p, self.root)}"
+            for p in sorted(generated)
         )
         parts.extend(f"file\0{self.name(p)}\0{self.text(p)}" for p in sorted(files))
         # The bindings run the groups they read (crash::install at start-up,

@@ -254,6 +254,31 @@ def test_a_new_commit_alone_changes_no_fingerprint(scratch):
     assert _changed(before, scratch.prints()) == {"a", "b", "shared"}
 
 
+def test_a_new_commit_alone_changes_no_shared_part(scratch):
+    """sqlearn's version in the extension's flags and a generated source.
+
+    ``-DEXT_VERSION_SQLEARN`` and DuckDB's generated ``sqlearn_describe.c``
+    carry it; only its release part counts.
+    """
+    extension = scratch.root / "engine" / "extension" / "src" / "ext.cpp"
+    extension.parent.mkdir()
+    extension.write_text("const char *v = EXT_VERSION_SQLEARN;\n")
+    describe = scratch.build / "codegen" / "sqlearn_describe.c"
+    describe.parent.mkdir()
+    scratch.flags[str(describe)] = []
+
+    def built(version):
+        scratch.flags[str(extension)] = [f'-DEXT_VERSION_SQLEARN="{version}"']
+        scratch.entries()
+        describe.write_text(f'const char *extension_version = "{version}";\n')
+        return scratch.prints()
+
+    before = built("0.1.dev719+ge19d484f4.d20261127")
+    assert built("0.1.dev720+gabcdef012") == before
+    assert built("0.1") == before
+    assert _changed(before, built("0.2.dev1+g1234567")) == {"shared"}
+
+
 def test_a_compile_flag_changes_the_group(scratch):
     """A flag of ``b``'s compile entry reruns ``b``, not ``a`` nor everything."""
     before = scratch.prints()

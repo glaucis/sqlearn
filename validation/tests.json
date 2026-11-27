@@ -21236,6 +21236,12 @@
     },
     {
       "area": "validation/_groups",
+      "name": "tests/validation/test__groups.py::test_a_new_commit_alone_changes_no_shared_part",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_groups",
       "name": "tests/validation/test__groups.py::test_a_pin_build_table_or_compiler_changes_the_shared_part",
       "outcome": "passed",
       "tier": "fast"
