@@ -76,8 +76,31 @@ function(sq_test_timeout)
   set_tests_properties(${ARGN} PROPERTIES TIMEOUT ${SQ_TEST_TIMEOUT})
 endfunction()
 
+# Set `out` to the JSON array of the strings after it.
+function(sq_json_list out)
+  set(items "")
+  foreach(item IN LISTS ARGN)
+    list(APPEND items "\"${item}\"")
+  endforeach()
+  list(JOIN items ", " joined)
+  set(${out} "[${joined}]" PARENT_SCOPE)
+endfunction()
+
+# Write <build>/sq_groups.json, the manifest of the groups sq_add_group saw,
+# in definition order, with the directories that belong to no group.
+function(sq_write_groups_manifest)
+  get_property(groups GLOBAL PROPERTY SQ_GROUPS_JSON)
+  list(JOIN groups ",\n    " joined)
+  file(
+    WRITE "${CMAKE_BINARY_DIR}/sq_groups.json"
+    "{\n  \"groups\": [\n    ${joined}\n  ],\n"
+    "  \"shared\": [\"engine/src/bindings\", \"engine/extension\"]\n}\n"
+  )
+endfunction()
+
 # sq_add_group(<name> SOURCES <file>... [DEPENDS <group>...] [TESTS <file>...]
-#              [DATA <file>...] [ARGS <argument>...])
+#              [DATA <file>...] [ARGS <argument>...] [PYTHON_TESTS <dir>...]
+#              [VALIDATION <runner>...] [BENCH <name>...])
 #
 # The object library sq_<name> from SOURCES (engine/src/<name>/), with
 # sqlearn's options; in the wheel its objects join _duckdb. DEPENDS names
@@ -90,12 +113,42 @@ endfunction()
 # test_<name> under the label <name>, with SQ_TEST_TIMEOUT; DATA names the
 # files it reads at run time (sq_test_data), and ARGS what CTest passes the
 # program (a Catch2 test filter). The group `raw` alone goes without
-# -Wunsafe-buffer-usage.
+# -Wunsafe-buffer-usage. PYTHON_TESTS (directories, relative to the
+# repository, which must exist), VALIDATION (runners) and BENCH (benchmarks)
+# are what the group claims: they go into the manifest (sq_write_groups_manifest)
+# that the checks read to rerun only what a change to the group affects.
 function(sq_add_group name)
-  cmake_parse_arguments(PARSE_ARGV 1 arg "" "" "SOURCES;DEPENDS;TESTS;DATA;ARGS")
+  cmake_parse_arguments(
+    PARSE_ARGV 1
+    arg
+    ""
+    ""
+    "SOURCES;DEPENDS;TESTS;DATA;ARGS;PYTHON_TESTS;VALIDATION;BENCH"
+  )
   if(NOT arg_SOURCES)
     message(FATAL_ERROR "sq_add_group(${name}) has no SOURCES")
   endif()
+  foreach(dir IN LISTS arg_PYTHON_TESTS)
+    if(NOT EXISTS "${SQ_ENGINE_DIR}/../${dir}")
+      message(
+        FATAL_ERROR
+        "sq_add_group(${name}): PYTHON_TESTS ${dir} does not exist.\n"
+        "Fix: name a directory of the repository, relative to its root, "
+        "as sq_add_group(... PYTHON_TESTS tests/engine)"
+      )
+    endif()
+  endforeach()
+  sq_json_list(depends_json ${arg_DEPENDS})
+  sq_json_list(tests_json ${arg_PYTHON_TESTS})
+  sq_json_list(validation_json ${arg_VALIDATION})
+  sq_json_list(bench_json ${arg_BENCH})
+  set_property(
+    GLOBAL
+    APPEND
+    PROPERTY
+      SQ_GROUPS_JSON
+        "{\"name\": \"${name}\", \"dir\": \"engine/src/${name}\", \"depends\": ${depends_json}, \"python_tests\": ${tests_json}, \"validation\": ${validation_json}, \"bench\": ${bench_json}}"
+  )
   set(raw "")
   if(name STREQUAL "raw")
     set(raw RAW)

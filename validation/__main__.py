@@ -16,7 +16,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from types import ModuleType
 
-from validation import _cases, _record
+from validation import _cases, _groups, _record
 
 ROOT = Path(__file__).parent
 
@@ -54,17 +54,22 @@ def results_path(runner: ModuleType) -> Path:
     return source.with_name(source.stem.removeprefix("validate_") + ".results.json")
 
 
-def run_one(name: str, repo: Path) -> int:
+def run_one(name: str, repo: Path, groups: str | None = None) -> int:
     """Run the runner `name` in this process, write its results, save its record.
 
     The child's half of `main` (``--one``): what it imported is known only
     in the process that ran it. The files it could depend on are hashed
     before it is imported, and those hashes recorded; a file it loaded that
-    changed while it ran, or was not there before, saves no record of a
-    pass. Exit 1 when a sqlearn case failed.
+    changed while it ran, or was not there before, or a C++ group it uses that
+    changed (its identity taken again after the run), saves no record of a
+    pass; nor does a run under groups that could not be read
+    (``_record.UNREADABLE``). Exit 1 when a sqlearn case failed. `groups` is
+    the identity of the C++ groups the runner uses, which `main` took once
+    for every runner; it is computed here when None.
     """
     before = _record.candidates(repo)
-    environment = _record.environment(_cases.environment(), repo)
+    environment = _cases.environment()
+    environment["groups"] = groups or _record.engine(repo, name)
     runner = importlib.import_module(name)
     cases = runner.cases()
     _cases.write_json(results_path(runner), {"rules": _cases.RULES, "cases": cases})
@@ -74,12 +79,22 @@ def run_one(name: str, repo: Path) -> int:
     print(f"{name}: {dict(sorted(counts.items()))}", flush=True)  # noqa: T201
     failed = [c for c in cases if c["result"] == "fail"]
     depends, moved = _record.as_before(_record.loaded_files(repo), before, repo)
+    # the identity was taken before the run (by `main`, possibly long before):
+    # take it again, so a pass is never recorded for groups that changed since
+    if _record.engine(repo, name) != environment["groups"]:
+        moved.append("the C++ groups it uses")
     # a failed run is saved whatever moved: it only ever makes a runner rerun,
-    # and cancels an earlier pass of the same inputs
-    if moved and not failed:
+    # and cancels an earlier pass of the same inputs. Under groups that could
+    # not be read nothing is saved: such a record stands for no build, and a
+    # failure under it cancels no pass (``matching`` compares environments)
+    if environment["groups"] == _record.UNREADABLE:
         print(  # noqa: T201
-            f"{name}: not recorded, these files changed while it ran or were"
-            f" not there before: {', '.join(moved)}",
+            f"{name}: not recorded, the C++ groups are unreadable", flush=True
+        )
+    elif moved and not failed:
+        print(  # noqa: T201
+            f"{name}: not recorded, these files or groups changed while it ran or"
+            f" were not there before: {', '.join(moved)}",
             flush=True,
         )
     else:
@@ -108,19 +123,28 @@ def main(runners: Sequence[str], root: Path, *, everything: bool = False) -> int
     """
     repo = root.resolve().parent
     base = _cases.environment()
-    # a record's environment holds the engine's digest too; environment.json
-    # is committed, so it keeps the versions alone
-    environment = _record.environment(base, repo)
     directory = _record.record_dir(repo)
+    try:
+        prints = _groups.fingerprints(repo, _groups.WHEEL_BUILD)
+    except _groups.Unreadable as error:
+        # no record matches: every runner reruns, and none keeps a match
+        print(f"the C++ groups are unreadable: {error}", flush=True)  # noqa: T201
+        prints = None
     failed = False
     ran = False
     for name in runners:
+        # a record's environment holds the identity of the groups the runner
+        # uses; environment.json is committed, so it keeps the versions alone
+        identity = _record.engine(repo, name, prints) if prints else _record.UNREADABLE
+        environment = {**base, "groups": identity}
         records = _record.load(directory, name)
         if not everything and _record.matching(records, repo, environment):
             print(f"{name}: unchanged since a passed run", flush=True)  # noqa: T201
             continue
         child = subprocess.run(
-            [sys.executable, "-m", "validation", "--one", name], cwd=repo, check=False
+            [sys.executable, "-m", "validation", "--one", name, "--groups", identity],
+            cwd=repo,
+            check=False,
         )
         ran = True
         failed = failed or child.returncode != 0
@@ -134,9 +158,10 @@ def _cli(argv: Sequence[str]) -> int:
     parser = argparse.ArgumentParser(prog="python -m validation")
     parser.add_argument("--all", action="store_true", help="rerun every runner")
     parser.add_argument("--one", metavar="MODULE", help=argparse.SUPPRESS)
+    parser.add_argument("--groups", metavar="IDENTITY", help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
     if args.one:
-        return run_one(args.one, Path.cwd().resolve())
+        return run_one(args.one, Path.cwd().resolve(), args.groups)
     return main(RUNNERS, ROOT, everything=args.all)
 
 

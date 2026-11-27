@@ -307,6 +307,18 @@ leaks-engine: (build-engine "release")
 coverage-engine: (build-engine "coverage")
     uv run --locked python -m validation._coverage
 
+# Audit the C++ groups' claims (validation/_audit.py): build the coverage wheel (sqlearn's C++ with source-based coverage, DuckDB not) into .venvs/coverage, measure a bare import, then each Python test set and validation runner a group claims, and fail when one ran a group outside its declared groups; a second DuckDB build, then up to an hour on every core
+[group('test')]
+audit-groups:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    export UV_PROJECT_ENVIRONMENT=.venvs/coverage SQLEARN_AUDIT_COVERAGE=1
+    uv sync --locked --reinstall-package sqlearn
+    # The audit's own process loads the module too: its profile goes apart,
+    # never measured.
+    rm -rf build/audit-self && mkdir -p build/audit-self
+    LLVM_PROFILE_FILE="$PWD/build/audit-self/%p.profraw" uv run --locked python -m validation._audit
+
 # Fetch Mull's runner and its LLVM 23 plugin into engine/build/mull/<version>/, checking their digests; skipped when they are there
 [group('setup')]
 fetch-mull:
@@ -363,6 +375,19 @@ headers-alone:
 [group('test')]
 bench-engine: (build-engine "release")
     engine/build/release/bench/bench_buffer
+
+# List the benchmarks out of date (script or measured C++ groups changed since the last run) with their last time, cores and memory; runs none (ADR 0072)
+[group('test')]
+benchmarks-due:
+    uv run --locked python -m validation._bench due
+
+# Run one benchmark and record its time, cores, memory and load: only after Tomas's go-ahead, which names it, its time and its weight (ADR 0072)
+[group('test')]
+bench name:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    case "{{name}}" in bench_*) just build-engine release ;; esac
+    uv run --locked python -m validation._bench run {{name}}
 
 # Print which C++26 features each compiler on this machine has, by its __cpp_* macros (spec §3.8's table); rerun after each Xcode or compiler update
 [group('maintain')]
@@ -652,7 +677,7 @@ docstrings:
 types:
     {{ checks }} types
 
-# Run the tests when what they read changed since a passed run: the C++ groups whose program changed (dev), then the fast ones in parallel, the serial ones, the slow tier, the hooks; tests.json is merged
+# Run the tests that changed since a passed run: the C++ groups whose program changed (dev), then each Python test set whose identity changed (validation/_pytest_sets.py: the tooling tests, each group's, the unclaimed ones), its fast tests in parallel, the serial ones, the slow tier; tests.json is merged
 [group('test')]
 test:
     {{ checks }} test
@@ -746,7 +771,7 @@ done:
     if [ "$first" -ne 0 ]; then exit "$first"; fi
     "${j[@]}" remember-tree "$tree" "$place"
 
-# Run every check all through, whatever the records say (the steady-memory test in full test's slow tier), then the sanitizers, the leak check of the release build, a minute of fuzzing, the C++ coverage gate, mutation testing, the licence check, and the tests with coverage and on every Python: the release tier, by hand before 1.0.0
+# Run every check all through, whatever the records say (the steady-memory test in full test's slow tier), then the audit of the groups' claims, the sanitizers, the leak check of the release build, a minute of fuzzing, the C++ coverage gate, mutation testing, the licence check, and the tests with coverage and on every Python: the release tier, by hand before 1.0.0
 [group('check')]
 verify:
     #!/usr/bin/env bash
@@ -760,6 +785,8 @@ verify:
     for task in format lint docstrings types tidy test sql validate docs; do
         "${j[@]}" full "$task"
     done
+    # After validate-all (full validate): the groups' claims, by coverage.
+    "${j[@]}" audit-groups
     "${j[@]}" sanitize leaks-engine
     "${j[@]}" fuzz 60
     "${j[@]}" coverage-engine mutate-engine check-licences

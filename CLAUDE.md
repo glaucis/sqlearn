@@ -202,8 +202,9 @@ commit both of these into it, without being asked:
 - **Before you say any work is done, `just done` passes.** It runs
   `check-lockfile`, `check-mirror` and `check-no-devdata`, then each check
   (`format`, `lint`, `docstrings`, `types`, `tidy`, `test`, `sql`, `validate`,
-  `docs`) on what changed since it passed, every one even when another fails,
-  and remembers the tree that passed (nothing uncommitted but the checks'
+  `docs`) on what changed since it passed (by group: a comment, a CMake
+  comment or a docs edit reruns almost nothing), every one even when another
+  fails, and remembers the tree that passed (nothing uncommitted but the checks'
   outputs), so a passed tree (after a fast-forward or a merge too) runs nothing
   again in the same place (Python, platform, machine), and everything in a new
   one. `just full <task>` runs one check all through. `just verify` is the

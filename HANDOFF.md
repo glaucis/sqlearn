@@ -14,18 +14,38 @@ None.
 
 ## Waiting on the user
 
-None.
+- The audit's first real run, `just audit-groups` (a coverage-instrumented
+  wheel; minutes to build): awaits your go-ahead. It must pass before the
+  first group claims Python tests (`PYTHON_TESTS`) or a runner
+  (`VALIDATION`) lands, since it is the only check that a claim is not too
+  small; the first claim's plan carries that step. (since 2026-11-27)
+- The first benchmark reruns, `just benchmarks-due` then `just bench
+  <name>` for each due one (ADR 0072): awaits your go-ahead. The pages
+  `explore-correlations`, `explore-larger-than-memory` and
+  `generators-on-many-threads` have no script, so nothing lists them.
+  (since 2026-11-27)
 
 ## Next up
 
-- Coverage-based selection, its spec first: each test, validation runner
-  and benchmark records the code it ran (C++ by source-based coverage,
-  fingerprinted without comments; flags by the compile commands, not the
-  CMake text), so a comment or docs change reruns nothing and a C++ change
-  only what used it. Today any input of the module reruns every runner
-  (about 47 min) and any `engine/` change the whole Python suite.
-  Benchmarks are a separate kind, still run only on Tomas's go-ahead (ADR
-  0072). Before the rewrite's first group (Tomas, 2026-11-27).
+- Follow-ups of selecting by group (Tomas, 2026-11-27: after it merges,
+  before Phase 1 step 3 or beside it):
+  - Move `release()` (the version rule) out of `validation/_groups.py`
+    into a file of its own that `_cases.py` and `_groups.py` both import:
+    every runner imports `_groups` only for it, so an edit of the
+    fingerprint code reruns all 21 runners (about 47 min).
+  - `engine/sqllogic/CMakeLists.txt` gives `sq_test_data(sqllogic ...)`
+    only the `.test` files: add every file under `engine/extension/test`
+    (a `GLOB_RECURSE`), or a data file beside a `.test` reruns the `sql`
+    task while `_ctest` skips the label. Latent: one `.test` file today;
+    before the first data file lands.
+  - Record each validation runner's wall time (and the split between the
+    exact maths, the references and sqlearn) in its record, to see where
+    the 47 minutes go.
+  - Then move as much of the validation as can go to C++ (the exact
+    maths, for example with Boost.Multiprecision, the runner code, the
+    case generation), keeping Python only where it calls scikit-learn,
+    numpy, scipy or pandas to compare; the heaviest runners first, by the
+    timing.
 - Windows needs its own crash handler (no POSIX signals there; the
   current one calls `sigaction`): write it when the Windows build starts
   (ADR 0069). For now macOS and Linux only (Tomas, 2026-11-26).
@@ -244,6 +264,14 @@ None.
 
 ## Just finished
 
+- Selecting by group (2026-11-27): the checks rerun only what a change
+  affects. Spec `docs/specs/selection-by-group.md`, plan
+  `docs/plans/2026-11-27-selection-by-group.md`, described in
+  `docs/architecture/testing.md`. Proof on this machine: a comment edited
+  within its line in `core`, and a comment line added to
+  `engine/cmake/warnings.cmake`, each reran no library set, no runner,
+  no docs and no sql (the tooling set reran for both: it reads the text).
+  Probe commits and their reverts stay in the history.
 - ADR 0072, benchmarks on Tomas's go-ahead (2026-11-27): no check runs
   one; ask first with its time and weight, small batches, only what the
   change touches, load recorded. The loaded pages are rerun with their

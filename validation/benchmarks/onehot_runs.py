@@ -27,6 +27,11 @@ import sqlearn as sq
 from sqlearn._errors import SqlearnError
 from sqlearn._store import STORE
 
+PAGE = "docs/benchmarks/onehot-second-run.md"
+"""The page of ``docs/benchmarks`` this script's numbers feed."""
+GROUPS: tuple[str, ...] | None = None
+"""The C++ groups it measures; None for every group (ADR 0072)."""
+
 SEED = 0
 """Every dataset comes from this seed: generated, never downloaded."""
 

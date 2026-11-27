@@ -29,6 +29,11 @@ import duckdb
 
 from validation.benchmarks.category_lookup import _machine
 
+PAGE = "docs/benchmarks/median-reach.md"
+"""The page of ``docs/benchmarks`` this script's numbers feed."""
+GROUPS: tuple[str, ...] | None = None
+"""The C++ groups it measures; None for every group (ADR 0072)."""
+
 SEED = 0
 """The data comes from this seed: generated, never downloaded."""
 
