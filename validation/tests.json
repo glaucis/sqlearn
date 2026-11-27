@@ -21092,6 +21092,12 @@
     },
     {
       "area": "validation/_groups",
+      "name": "tests/validation/test__groups.py::test_a_group_a_shared_entry_reads_is_part_of_the_shared_part",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_groups",
       "name": "tests/validation/test__groups.py::test_a_header_in_a_submodule_is_left_to_its_pin",
       "outcome": "passed",
       "tier": "fast"

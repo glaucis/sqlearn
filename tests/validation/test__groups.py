@@ -330,6 +330,17 @@ def test_a_header_of_a_vanished_build_environment_is_left_to_the_pins(scratch):
     assert _changed(second, scratch.prints()) == {"shared"}
 
 
+def test_a_group_a_shared_entry_reads_is_part_of_the_shared_part(scratch):
+    """The bindings read ``a``'s header: any change in ``a`` reruns everything.
+
+    Spec 5.2: what the module runs at start-up is shared.
+    """
+    scratch.write("bindings/module.cpp", '#include "a/one.hpp"\nint m();\n')
+    before = scratch.prints()
+    scratch.write("a/one.cpp", '#include "a/one.hpp"\n// x\nint one() { return 7; }\n')
+    assert _changed(before, scratch.prints()) == {"a", "b", "shared"}
+
+
 def test_a_compile_flag_changes_the_group(scratch):
     """A flag of ``b``'s compile entry reruns ``b``, not ``a`` nor everything."""
     before = scratch.prints()

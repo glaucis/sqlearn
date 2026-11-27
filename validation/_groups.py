@@ -29,6 +29,10 @@ The **shared part** is the SHA-256 of:
 - ``stripped()`` of every C++ file under the shared directories (the
   bindings, the extension) and of every file their entries read in the tree
   outside the groups' directories and the submodules;
+- the fingerprints of the closure of every group whose file a shared entry
+  reads: the bindings read ``core`` and ``crash`` and run
+  ``crash::install`` when the module loads, and start-up code is shared
+  (spec §5.2), so such a group's change reruns everything;
 - the submodules' pins under ``engine/``, which stand for their files;
 - ``pyproject.toml``'s ``[build-system]`` and ``[tool.scikit-build]``
   tables, which pin uv's build environment;
@@ -530,23 +534,28 @@ class _Fingerprinter:
 
         Every compile entry of no group (DuckDB's, cpptrace's, nanobind's,
         the bindings', the extension's, generated ones), a generated
-        source's text, and every file such an entry reads in the tree
-        outside a group's directory, which its group holds.
+        source's text, every file such an entry reads in the tree outside a
+        group's directory, and the fingerprints of the closure of each
+        group whose file such an entry reads.
         """
         files: set[Path] = set()
         for directory in self.shared_dirs:
             files.update(_files((self.root / directory).resolve()))
         entries = []
         generated = set()
+        read_groups: set[str] = set()
         for compiled in self.compiled:
             if compiled.owner is not None:
                 continue
             entries.append(self.entry(compiled))
             if compiled.source.is_relative_to(self.build):
                 generated.add(compiled.source)
-            files.update(
-                p for p in compiled.reads if self.owner(p) is None and self.counted(p)
-            )
+            for found in compiled.reads:
+                holder = self.owner(found)
+                if holder is not None:
+                    read_groups.add(holder)
+                elif self.counted(found):
+                    files.add(found)
         generated.update(
             p
             for p in self.build.rglob("*")
@@ -561,6 +570,12 @@ class _Fingerprinter:
             for p in sorted(generated)
         )
         parts.extend(f"file\0{self.name(p)}\0{self.text(p)}" for p in sorted(files))
+        # The bindings run the groups they read (crash::install at start-up,
+        # spec 5.2): those groups and the ones they are built on are shared.
+        parts.extend(
+            f"group\0{name}\0{self.group(name)}"
+            for name in sorted(closure(self.groups, read_groups))
+        )
         pins = "\n".join(f"{n}\0{c}" for n, c in sorted(self.pins.items()))
         parts.append(f"pins\0{pins}")
         parts.append(f"build tables\0{_build_tables(self.root)}")
