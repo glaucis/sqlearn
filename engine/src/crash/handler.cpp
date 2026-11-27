@@ -222,11 +222,13 @@ void report(const Previous &signal, const siginfo_t *info, const void *context) 
 /// siginfo and context, once. Its handler is called here, as the kernel
 /// would call it, rather than through raise(): raise() would hand it a
 /// signal sent, not the fault, and a handler that returns (a runtime's
-/// guard page) would then run twice (ADR 0046). The previous action is
+/// guard page) would then run twice (ADR 0069). The previous action is
 /// back in place first, so what happens next is what would have happened
 /// without sqlearn: a fault whose handler returns runs its instruction
-/// again. macOS gives a signal sent a fault's si_code, so the handler
-/// cannot be told which it is; calling it covers both.
+/// again. Returning instead, to let the fault recur, needs telling a fault
+/// from a signal sent, and macOS cannot: a null write and a kill arrive
+/// with the same siginfo, and the context's syndrome register is stale for
+/// a kill (ADR 0069); calling the handler covers both.
 /// @param signal The signal's entry.
 /// @param info What the kernel says of it.
 /// @param context The interrupted context.

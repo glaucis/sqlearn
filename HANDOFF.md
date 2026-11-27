@@ -14,10 +14,6 @@ None.
 
 ## Waiting on the user
 
-- Confirm the crash handler's chaining: it calls the previous handler once
-  with the kernel's siginfo and context, instead of the plan's "restore and
-  re-raise", because on macOS a re-raised signal looks the same as a real
-  fault (ADR 0046). (since 2026-11-24)
 - Confirm `version.cpp` left out of Mull's mutation testing. (since
   2026-11-25)
 - The validation reruns on every `engine/` edit, its tests and fuzz corpus
@@ -35,6 +31,9 @@ None.
 
 ## Next up
 
+- Windows needs its own crash handler (no POSIX signals there; the
+  current one calls `sigaction`): write it when the Windows build starts
+  (ADR 0069). For now macOS and Linux only (Tomas, 2026-11-26).
 - #85: the follow-ups of Phase 1 step 2's reviews, triaged "can wait" and
   grouped by area.
 - Phase 1 step 3: the release tier's workflows, started by
@@ -253,6 +252,10 @@ None.
 
 ## Just finished
 
+- The crash handler's chaining confirmed (Tomas, 2026-11-26): it hands the
+  fault to the previous handler with the kernel's siginfo, on macOS and
+  Linux; Mach exception ports left out. ADR 0069 records it with the macOS
+  probe (a null write and a kill arrive with the same siginfo).
 - Phase 1 step 2 merged into `main` and pushed (Tomas, 2026-11-26); the
   worktree `../sqlearn-build`, its ledger and the branch removed. A fresh
   checkout needs `just setup` (submodules, about 10 min) before `uv sync`
