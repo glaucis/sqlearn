@@ -1,3 +1,10 @@
+---
+type: adr
+tags: [sqlearn, cpp-rewrite, repository-layout, python-migration, validation]
+summary: "Moves the old Python sqlearn library, its tests, runners and docs into old_python/ as reference only, amending ADRs 0070 and 0053."
+related: [docs/adr/0070-sqlearn-is-rewritten-in-cpp.md, docs/adr/0053-sqlearn-ships-no-datasets.md, docs/architecture/layout.md]
+mdindex: [type=0fc814, tags=3b976a, summary=5cc881, related=6bb78c]
+---
 # 0073: The old Python moves to `old_python/`
 
 Status: accepted (2026-11-27). Decided by Tomas on 2026-11-27. Amends
