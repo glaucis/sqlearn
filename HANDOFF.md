@@ -3,9 +3,8 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-27 · Branch: `old-python` (not merged) · Last commit:
-`d4f7d3b refactor: move the frozen Python library to old_python/` · Checks:
-passing (`just check`, `just test`, `just build-docs`)
+Updated: 2026-11-27 · Branch: `main` (not pushed) · Last commit: `f77a891
+docs: refresh the docs index frontmatter` · Checks: passing (`just done`)
 Verify with: `just done` (`just verify` is the release tier)
 
 ## In progress
@@ -14,8 +13,8 @@ None. [verified]
 
 ## Waiting on the user
 
-- Merging `old-python` into `main`: the old Python moved to `old_python/`
-  (ADR 0073, plan `docs/plans/2026-11-27-old-python.md`). (since 2026-11-27)
+- Pushing `main`: the move to `old_python/` is merged but not pushed.
+  (since 2026-11-27)
 - The audit's first real run, `just audit-groups` (builds a second,
   coverage-instrumented wheel with DuckDB): awaits your go-ahead. With the
   old runners and tests in `old_python/` nothing claims anything yet, so it
@@ -297,7 +296,7 @@ None. [verified]
 
 ## Just finished
 
-- The old Python moved to `old_python/` (2026-11-27, branch `old-python`,
+- The old Python moved to `old_python/` (2026-11-27, merged into `main`,
   `d4f7d3b`; ADR 0073): the library but the bindings, its tests, the 24
   runners, `devdata/`, the examples, the guide, lessons and API reference.
   Nothing there runs; `just validate` has no runner, `check-mirror` is gone,
