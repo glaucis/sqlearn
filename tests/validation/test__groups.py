@@ -341,6 +341,39 @@ def test_a_group_a_shared_entry_reads_is_part_of_the_shared_part(scratch):
     assert _changed(before, scratch.prints()) == {"a", "b", "shared"}
 
 
+IDENTITY = """#pragma once
+
+#define SQ_SQLEARN_VERSION "{version}"
+#define SQ_DUCKDB_VERSION "2.0.1"
+#define SQ_COMPILER "AppleClang 21.0.0.21000401"
+"""
+
+
+def test_a_new_commit_alone_changes_no_fingerprint(scratch):
+    """``build_identity.hpp``'s version counts by its release part alone.
+
+    Its dev, local and date parts change with each commit, as
+    ``validation._cases.environment`` says of sqlearn's version.
+    """
+    identity = scratch.build / "generated" / "build_identity.hpp"
+    identity.parent.mkdir()
+    scratch.flags["a/one.cpp"] = [f"-I{identity.parent}"]
+    scratch.write(
+        "a/one.cpp", '#include "build_identity.hpp"\nint one() { return 1; }\n'
+    )
+    scratch.entries()
+    identity.write_text(IDENTITY.format(version="0.1.dev719+ge19d484f4.d20261127"))
+    before = scratch.prints()
+    identity.write_text(IDENTITY.format(version="0.1.dev720+gabcdef012"))
+    assert scratch.prints() == before
+    identity.write_text(IDENTITY.format(version="0.1"))
+    assert scratch.prints() == before
+    identity.write_text(IDENTITY.format(version="0.2.dev1+g1234567"))
+    assert _changed(before, scratch.prints()) == {"a", "b", "shared"}
+    identity.write_text(IDENTITY.format(version="0.1").replace("2.0.1", "2.0.2"))
+    assert _changed(before, scratch.prints()) == {"a", "b", "shared"}
+
+
 def test_a_compile_flag_changes_the_group(scratch):
     """A flag of ``b``'s compile entry reruns ``b``, not ``a`` nor everything."""
     before = scratch.prints()

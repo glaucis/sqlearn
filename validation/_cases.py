@@ -26,6 +26,7 @@ import numpy as np
 import pandas as pd
 
 import sqlearn
+from validation import _groups
 
 SEED = 0
 """Every dataset comes from this seed: generated, never downloaded."""
@@ -557,7 +558,7 @@ def environment() -> dict:
     the BLAS (Accelerate ships with macOS) and with it the last digits of
     numpy's linear algebra.
     """
-    release = version("sqlearn").split(".dev")[0].split("+")[0]
+    release = _groups.release(version("sqlearn"))
     blas = np.show_config(mode="dicts")["Build Dependencies"]["blas"]["name"]
     return {
         "sqlearn": ".".join(release.split(".")[:2]),

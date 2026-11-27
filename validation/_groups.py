@@ -111,6 +111,32 @@ _GAP = re.compile(r"(?:\s+|\[UnClean='.*?'\]|\[\w+\])*", re.DOTALL)
 """
 
 
+IDENTITY_HEADER = "build_identity.hpp"
+"""The generated header of the build's identity, its version normalised."""
+
+_VERSION_DEFINE = re.compile(r'^(#define SQ_SQLEARN_VERSION ")([^"]*)(")', re.MULTILINE)
+"""The define of sqlearn's version in ``IDENTITY_HEADER``."""
+
+
+def release(version: str) -> str:
+    """Return the release part of a version: ``0.1`` of ``0.1.dev5+g….d2026``.
+
+    sqlearn's version comes from git and changes with every commit (its dev,
+    local and date parts); its release part changes only with a release.
+
+    Parameters
+    ----------
+    version : str
+        A version as setuptools-scm gives it.
+
+    Returns
+    -------
+    str
+        The version up to ``.dev`` or ``+``.
+    """
+    return version.split(".dev")[0].split("+")[0]
+
+
 class Unreadable(Exception):  # noqa: N818  (the name Tasks 3 to 7 use)
     """What the fingerprints need could not be read; its message says what."""
 
@@ -459,10 +485,22 @@ class _Fingerprinter:
         return _normal(path.as_posix(), self.root)
 
     def text(self, path: Path) -> str:
-        """Return ``stripped(path)``, read once a run."""
+        """Return ``stripped(path)``, read once a run; the identity as generated."""
         if path not in self.texts:
-            self.texts[path] = stripped(path)
+            identity = path.name == IDENTITY_HEADER and path.is_relative_to(self.build)
+            self.texts[path] = self.generated(path) if identity else stripped(path)
         return self.texts[path]
+
+    def generated(self, path: Path) -> str:
+        """Return a generated file's text, sqlearn's version cut to its release.
+
+        In ``IDENTITY_HEADER`` alone, so a new commit changes no fingerprint
+        (the other defines are kept as they are).
+        """
+        text = _bytes(path, self.root)
+        if path.name != IDENTITY_HEADER:
+            return text
+        return _VERSION_DEFINE.sub(lambda m: m[1] + release(m[2]) + m[3], text)
 
     def owner(self, path: Path) -> str | None:
         """Return the group whose directory holds `path`, None for none."""
@@ -566,8 +604,7 @@ class _Fingerprinter:
         files -= generated
         parts = sorted(entries)
         parts.extend(
-            f"generated\0{self.name(p)}\0{_bytes(p, self.root)}"
-            for p in sorted(generated)
+            f"generated\0{self.name(p)}\0{self.generated(p)}" for p in sorted(generated)
         )
         parts.extend(f"file\0{self.name(p)}\0{self.text(p)}" for p in sorted(files))
         # The bindings run the groups they read (crash::install at start-up,
