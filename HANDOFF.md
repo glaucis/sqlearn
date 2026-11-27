@@ -14,9 +14,6 @@ None.
 
 ## Waiting on the user
 
-- The validation reruns on every `engine/` edit, its tests and fuzz corpus
-  included, which over-runs it; narrowing it to the wheel's inputs is
-  Tomas's call. (since 2026-11-25)
 - Task 6's note: any `engine/` change reruns the whole Python suite
   (`engine` is one of `TEST_INPUTS`). (since 2026-11-25)
 - The FMA ADR: `-ffp-contract=off` everywhere, `std::fma` on purpose and
@@ -250,6 +247,12 @@ None.
 
 ## Just finished
 
+- The validation's engine digest narrowed to what the module is built
+  from (Tomas, 2026-11-27): `ENGINE_BUILD`, uv's cache-keys and every
+  submodule under `engine/`, so a C++ test, fuzz input, benchmark or
+  tool setting keeps every record. `ENGINE_BUILD` gained
+  `engine/third_party` (cpptrace is linked into the module; a bump reran
+  neither docs nor types), and `sql`'s inputs too.
 - `version.cpp` is back in Mull's mutation testing (Tomas, 2026-11-26:
   test everything, cut no corners): the build identity is a header CMake
   writes (`engine/cmake/build_identity.hpp.in`) instead of definitions

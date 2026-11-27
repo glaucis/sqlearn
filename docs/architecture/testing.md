@@ -127,7 +127,7 @@ passed run already checked.
 | `docstrings` | the Python files under `src/` | each changed file: `numpydoc lint`, `just check-docstring-args` |
 | `types` | every `*.py` and `*.pyi` file | the whole program: `ty check`, then `mypy` |
 | `test` | `src/`, `tests/`, `validation/`, `devdata/`, `engine/` (with its submodules' commits), every `conftest.py`, `docs/conf.py`, `docs/architecture/engine-inventory.md`, `.githooks/`, `commitlint.config.mjs` | the C++ groups whose program changed (below), then every test: the four passes (above) |
-| `sql` | `engine/extension/` (its `.test` files included), `engine/src/`, `engine/sqllogic/`, `engine/cmake/`, the CMake files and presets, duckdb-python's commit, `validation/_ctest.py`; the compiler's and the SDK's versions | the extension's SQL tests: `just test-sql` (below) |
+| `sql` | `engine/extension/` (its `.test` files included), `engine/src/`, `engine/sqllogic/`, `engine/cmake/`, the CMake files and presets, duckdb-python's and `engine/third_party/`'s commits, `validation/_ctest.py`; the compiler's and the SDK's versions | the extension's SQL tests: `just test-sql` (below) |
 | `tidy` | our C++ (`engine/src/`, `engine/tests/`, `engine/bench/`, `engine/extension/`), `engine/cmake/`, the CMake files and presets, `engine/.clang-tidy`, `engine/src/raw/.clang-tidy`, `engine/iwyu.imp`, the submodules' commits | the whole engine: `just tidy-engine` (clang-tidy with the static analyser), `just iwyu-engine` (include-what-you-use), `just headers-alone` |
 | `docs` | `docs/`, `src/`, `examples/` | the whole site: `just build-docs` |
 | `validate` | each runner's imported modules, `uv.lock`, `devdata/data/` | each changed runner, by its own records (below) |
@@ -139,12 +139,15 @@ any depth (`pyproject.toml`, `ruff.toml`, `.ruff.toml`, `typos.toml`,
 `.mypy.ini`, `ty.toml`), so one added reruns every file it governs. `format`
 also reads `engine/.clang-format` and `.gersemirc`. `docs`, `types` and
 `docstrings` also read what the built module comes from (`ENGINE_BUILD`:
-duckdb-python's commit, `engine/src/`, `engine/extension/`, `engine/cmake/` and
-`engine/CMakeLists.txt`, the files uv rebuilds the module on): the doctests run
-on it and ty and mypy read its stubs, so a DuckDB bump or a C++ edit reruns all
-of each. A tool from Homebrew, not
-`uv.lock` (clang-format, clang-tidy, include-what-you-use, and the SDK),
-counts by its version: an upgrade reruns all of the tasks that use it.
+`engine/src/`, `engine/extension/`, `engine/cmake/` and `engine/CMakeLists.txt`,
+the files uv rebuilds the module on, and the commit of every submodule under
+`engine/`: duckdb-python's and `third_party/`'s, cpptrace among them): the
+doctests run on it and ty and mypy read its stubs, so a DuckDB or cpptrace bump
+or a C++ edit reruns all of each. A test (`tests/checks/test_tasks.py`) fails
+when `ENGINE_BUILD` and uv's `cache-keys` disagree, or a submodule under
+`engine/` lies outside it. A tool from Homebrew, not `uv.lock` (clang-format,
+clang-tidy, include-what-you-use, and the SDK), counts by its version: an
+upgrade reruns all of the tasks that use it.
 
 - **Per file** (`format`, `lint`, `docstrings`): a file is checked again
   unless a kept record passed it, with the same digest, under today's
@@ -398,7 +401,9 @@ depends on changed since it last passed. Each runner runs in its own process,
 writes its `*.results.json` as before, and then saves a record: the SHA-256 of
 every module it imported from the repository (outside `.venv`), of `uv.lock` and
 of every file under `devdata/data/`, with the environment (`environment.json`'s
-fields: library versions, Python, the OS and its release, the machine, BLAS),
+fields: library versions, Python, the OS and its release, the machine, BLAS;
+and the digest of `ENGINE_BUILD`, the build tables of `pyproject.toml` and the
+compiler's version, so a module built from other inputs reruns every runner),
 the count of each result and whether every sqlearn case passed. The hashes are
 taken before the runner is imported: a file it loaded that changed while it ran,
 or was not there before, saves no passed record, printing `not recorded` and the
@@ -408,7 +413,10 @@ runner, printing `unchanged since a passed run` and leaving its results file
 alone, when the newest record with the same environment and every file it names
 present with the same hash passed. A run with a failing case reruns every time,
 and it cancels any earlier pass of the same inputs. `environment.json` is
-written when any runner ran. The code is `validation/_record.py`.
+written when any runner ran. The code is `validation/_record.py`. A file
+under `engine/` the module is not built from (a C++ test, a fuzz input, a
+benchmark, `engine/sqllogic/`, `mull.yml`, a tool's settings, the presets)
+keeps every record.
 
 The records live in `sqlearn-validation/` in git's common directory (`git
 rev-parse --git-common-dir`), one JSON file per runner holding its 20 newest.

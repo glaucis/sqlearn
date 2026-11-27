@@ -144,8 +144,8 @@ def test_a_failed_save_leaves_no_temporary_file(root, tmp_path, monkeypatch):
 def engine_repo(tmp_path, monkeypatch):
     """A scratch git repository with an engine source and a build table."""
     subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
-    (tmp_path / "engine").mkdir()
-    (tmp_path / "engine" / "a.cpp").write_text("int a;\n")
+    (tmp_path / "engine" / "src").mkdir(parents=True)
+    (tmp_path / "engine" / "src" / "a.cpp").write_text("int a;\n")
     (tmp_path / "pyproject.toml").write_text(
         '[build-system]\nrequires = ["nanobind==3.1.0"]\n\n'
         '[project]\nname = "x"\n\n[tool.scikit-build]\nbuild-dir = "build"\n'
@@ -165,7 +165,7 @@ def test_the_engine_digest_follows_what_the_module_is_built_from(engine_repo):
     pyproject.write_text(pyproject.read_text().replace('"x"', '"y"'))
     assert record_module.engine(engine_repo) == first, "outside the build table"
 
-    source = engine_repo / "engine" / "a.cpp"
+    source = engine_repo / "engine" / "src" / "a.cpp"
     source.write_text("int b;\n")
     assert record_module.engine(engine_repo) != first
     source.write_text("int a;\n")
@@ -182,11 +182,40 @@ def test_the_engine_digest_follows_what_the_module_is_built_from(engine_repo):
 
     pin = "0123456789abcdef0123456789abcdef01234567"
     subprocess.run(
-        ["git", "update-index", "--add", "--cacheinfo", f"160000,{pin},engine/sub"],
+        [
+            "git",
+            "update-index",
+            "--add",
+            "--cacheinfo",
+            f"160000,{pin},engine/third_party/sub",
+        ],
         cwd=engine_repo,
         check=True,
     )
     assert record_module.engine(engine_repo) != first
+
+
+@pytest.mark.parametrize(
+    "outside",
+    [
+        "engine/tests/core/test_a.cpp",
+        "engine/fuzz/corpus/parse_version/seed",
+        "engine/bench/bench_a.cpp",
+        "engine/sqllogic/CMakeLists.txt",
+        "engine/mull.yml",
+        "engine/.clang-tidy",
+        "engine/CMakePresets.json",
+    ],
+)
+def test_a_file_the_module_is_not_built_from_is_the_same_engine(engine_repo, outside):
+    """A C++ test, a fuzz input, a benchmark, the SQL tests' build or a
+    tool's settings under engine/ builds no part of the module, so the
+    runners keep their records (only ENGINE_BUILD is digested)."""
+    first = record_module.engine(engine_repo)
+    path = engine_repo / outside
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("changed\n")
+    assert record_module.engine(engine_repo) == first
 
 
 def test_a_build_requirement_bump_is_another_engine(engine_repo):

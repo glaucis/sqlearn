@@ -179,12 +179,16 @@ ENGINE_BUILD = (
     "engine/extension",
     "engine/CMakeLists.txt",
     "engine/cmake",
+    "engine/third_party",
 )
 """What the built module comes from: pyproject's ``tool.uv.cache-keys`` under
-``engine/``, on which uv rebuilds it, and duckdb-python's gitlink, which pins
-DuckDB's. A task whose result depends on the module or on DuckDB (the
-doctests run on it, the type checkers read its stubs) has it as
-configuration, so a DuckDB bump or a C++ edit reruns all of it."""
+``engine/``, on which uv rebuilds it, and every submodule pinned under
+``engine/``: duckdb-python's gitlink, which pins DuckDB's, and
+``third_party``'s (cpptrace is linked into the module; the test libraries
+are counted too, which only ever reruns). A task whose result depends on the
+module or on DuckDB (the doctests run on it, the type checkers read its
+stubs, the validation's records hold its digest) has it as configuration,
+so a DuckDB or cpptrace bump or a C++ edit reruns all of it."""
 
 TIDY_INPUTS = (
     *ENGINE_SOURCES,
@@ -228,8 +232,10 @@ SQL_INPUTS = (
     "engine/cmake",
     "engine/CMakeLists.txt",
     "engine/CMakePresets.json",
-    # DuckDB, through duckdb-python's gitlink, which pins its own.
+    # DuckDB, through duckdb-python's gitlink, which pins its own, and the
+    # other submodules ENGINE_BUILD names, should our C++ ever link one.
     "engine/duckdb-python",
+    "engine/third_party",
     "validation/_ctest.py",
 )
 """What DuckDB's unittest with the sqlearn extension, and its SQL tests, come from."""

@@ -310,8 +310,9 @@ def test_a_cxx_edit_reruns_what_runs_on_the_engine(scratch, task, first, changed
 
 def test_the_engine_build_inputs_are_uvs_cache_keys():
     """ENGINE_BUILD is what uv rebuilds the module on (pyproject's
-    ``tool.uv.cache-keys`` under ``engine/``), plus duckdb-python's gitlink,
-    which uv keys through the commit and ``.gitmodules``. The compiler stamp
+    ``tool.uv.cache-keys`` under ``engine/``), plus every submodule pinned
+    under ``engine/`` (duckdb-python and ``third_party``), which uv keys
+    through the commit and ``.gitmodules``. The compiler stamp
     is a git-ignored file no digest can see: the tasks name the compiler as
     a tool instead."""
     import tomllib
@@ -325,7 +326,19 @@ def test_the_engine_build_inputs_are_uvs_cache_keys():
         if "file" in k and k["file"].startswith("engine/")
     }
     globs.discard("engine/.compiler-stamp")
-    assert set(_checks.ENGINE_BUILD) == {*globs, "engine/duckdb-python"}
+    pins = {"engine/duckdb-python", "engine/third_party"}
+    assert set(_checks.ENGINE_BUILD) == {*globs, *pins}
+    # Every submodule under engine/ (DuckDB, cpptrace linked into the
+    # module, the test libraries) is under ENGINE_BUILD, so a bump of any
+    # reruns what depends on the module.
+    links = _checks._gitlinks(("engine",), REPO)
+    assert links, "the engine pins its submodules"
+    loose = [
+        name
+        for name in links
+        if not any(name.startswith(f"{p}/") or name == p for p in pins)
+    ]
+    assert loose == []
 
     def covered(path, task):
         specs = (*task.inputs, *task.config)

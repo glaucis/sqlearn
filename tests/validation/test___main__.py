@@ -172,10 +172,11 @@ def test_results_path_mirrors_the_runner():
 
 
 def test_a_changed_engine_reruns_every_runner(root, capfd):
-    """An edit under ``engine/`` rebuilds the module, so every runner reruns."""
+    """An edit of what the module is built from (engine/src) rebuilds it, so
+    every runner reruns."""
     assert entry.main([GOOD, ODD], root) == 0
-    (root.parent / "engine").mkdir()
-    (root.parent / "engine" / "a.cpp").write_text("int a;\n")
+    (root.parent / "engine" / "src").mkdir(parents=True)
+    (root.parent / "engine" / "src" / "a.cpp").write_text("int a;\n")
     capfd.readouterr()
     assert entry.main([GOOD, ODD], root) == 0
     out = capfd.readouterr().out

@@ -165,8 +165,10 @@ def _compiler() -> str:
 def engine(root: Path) -> str:
     """Return the digest of what the engine module under `root` is built from.
 
-    Every file under ``engine/`` and the commit each submodule there pins,
-    as ``_checks`` digests a task's inputs; ``pyproject.toml``'s
+    The files of ``_checks.ENGINE_BUILD`` (what uv rebuilds the module on)
+    and the commit each submodule under it pins, as ``_checks`` digests a
+    task's inputs, so a C++ test, a fuzz input, a benchmark or a tool's
+    settings under ``engine/`` keeps every record; ``pyproject.toml``'s
     ``[build-system]`` table (the build requirements, pinned exactly) and its
     ``[tool.scikit-build]`` table; and the C++ compiler's version. A module
     built from other inputs is another engine, so every runner reruns. Its
@@ -175,8 +177,8 @@ def engine(root: Path) -> str:
     edit of sqlearn's C++.
     """
     root = root.resolve()
-    files = _checks._listed(("engine",), root)
-    links = _checks._gitlinks(("engine",), root)
+    files = _checks._listed(_checks.ENGINE_BUILD, root)
+    links = _checks._gitlinks(_checks.ENGINE_BUILD, root)
     pyproject = root / "pyproject.toml"
     project = (
         tomllib.loads(pyproject.read_text(encoding="utf-8"))

@@ -21272,6 +21272,48 @@
     },
     {
       "area": "validation/_record",
+      "name": "tests/validation/test__record.py::test_a_file_the_module_is_not_built_from_is_the_same_engine[engine/.clang-tidy]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_record",
+      "name": "tests/validation/test__record.py::test_a_file_the_module_is_not_built_from_is_the_same_engine[engine/CMakePresets.json]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_record",
+      "name": "tests/validation/test__record.py::test_a_file_the_module_is_not_built_from_is_the_same_engine[engine/bench/bench_a.cpp]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_record",
+      "name": "tests/validation/test__record.py::test_a_file_the_module_is_not_built_from_is_the_same_engine[engine/fuzz/corpus/parse_version/seed]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_record",
+      "name": "tests/validation/test__record.py::test_a_file_the_module_is_not_built_from_is_the_same_engine[engine/mull.yml]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_record",
+      "name": "tests/validation/test__record.py::test_a_file_the_module_is_not_built_from_is_the_same_engine[engine/sqllogic/CMakeLists.txt]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_record",
+      "name": "tests/validation/test__record.py::test_a_file_the_module_is_not_built_from_is_the_same_engine[engine/tests/core/test_a.cpp]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_record",
       "name": "tests/validation/test__record.py::test_a_record_matches_while_its_files_are_unchanged",
       "outcome": "passed",
       "tier": "fast"
