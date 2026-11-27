@@ -498,6 +498,7 @@ def test_the_task_table_names_every_check():
     assert set(_checks.TASKS) == {
         "format",
         "lint",
+        "links",
         "docstrings",
         "types",
         "test",

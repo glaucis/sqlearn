@@ -48,7 +48,7 @@ before work is done, and `just verify` is the release tier.
 | A commit | the pre-commit hook: `just pre-commit` over the files committed |
 | A push | none: a push runs no suite |
 | A merge to `main` | the pre-merge-commit hook runs what the pre-commit hook runs; `just done` on `main` runs nothing for a tree that passed |
-| Work is done | `just done`: `check-lockfile`, `check-no-devdata`, then each check on what changed (`format`, `lint`, `docstrings`, `types`, `tidy`, `test`, `sql`, `validate`, `docs`), then the tree is remembered |
+| Work is done | `just done`: `check-lockfile`, `check-no-devdata`, then each check on what changed (`format`, `lint`, `links`, `docstrings`, `types`, `tidy`, `test`, `sql`, `validate`, `docs`), then the tree is remembered |
 | A release | `just verify`: the same two, each check with `just full` (`validate` as `validate-all`), then the C++ tools in full (`sanitize`, `leaks-engine`, `fuzz 60`, `coverage-engine`, `mutate-engine`), `check-licences`, `test-all` (coverage) and `test-python-versions`, by hand before `1.0.0` |
 
 `just done` remembers each tree that passed in `sqlearn-passed`, in the git
@@ -124,6 +124,7 @@ passed run already checked.
 |---|---|---|
 | `format` | every `*.py`, `*.pyi`, `*.md`, `*.cpp`, `*.hpp`, `CMakeLists.txt` and `*.cmake` file (none of the submodules') | each changed file: `ruff format --check`, `rumdl fmt --check`, `clang-format --dry-run -Werror` (C++), `gersemi --check` (CMake) |
 | `lint` | every file | each changed file: `ruff check` (Python), `typos` (every file), `rumdl check` (Markdown) |
+| `links` | every `*.md` file and `tests/docs/test_links.py` | the whole tree: `pytest tests/docs/test_links.py`, every relative link and `related:` path names a file |
 | `docstrings` | the Python files under `src/` | each changed file: `numpydoc lint`, `just check-docstring-args` |
 | `types` | every `*.py` and `*.pyi` file | the whole program: `ty check`, then `mypy` |
 | `test` | the C++ groups' own identities, then each Python set's (see "Selecting by group", below) | the C++ groups whose program changed, then each Python set whose identity has no passed record |
@@ -149,14 +150,14 @@ moved while it ran. A tool from Homebrew, not `uv.lock` (clang-format,
 clang-tidy, include-what-you-use, and the SDK), counts by its version: an
 upgrade reruns all of the tasks that use it.
 
-- **Per file** (`format`, `lint`, `docstrings`): a file is checked again
-  unless a kept record passed it, with the same digest, under today's
-  settings. A change to the settings checks every file. `lint` also counts
-  which Python files exist, since ruff's import sorting depends on it: a
-  Python file added or removed reruns every `lint` step on every file, the
-  Markdown and the spelling included.
-- **Whole** (`types`, `tidy`, `docs`): the task runs all of it when its digest
-  matches no kept record, and nothing otherwise.
+- **Per file** (`format`, `lint`, `links`, `docstrings`): a file is checked
+  again unless a kept record passed it, with the same digest, under today's
+  settings. A change to the settings checks every file. `lint` also counts which
+  Python files exist, since ruff's import sorting depends on it: a Python file
+  added or removed reruns every `lint` step on every file, the Markdown and the
+  spelling included.
+- **Whole** (`links`, `types`, `tidy`, `docs`): the task runs all of it when its
+  digest matches no kept record, and nothing otherwise.
 - **By group** (`test`, `validate`): each C++ group, Python set and runner has
   its own identity and record, and only those whose identity has no passed
   record run (see "Selecting by group").

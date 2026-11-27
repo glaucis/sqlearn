@@ -13,6 +13,7 @@ RUNS = (
     "check-no-devdata",
     "format",
     "lint",
+    "links",
     "docstrings",
     "types",
     "tidy",
@@ -27,6 +28,7 @@ RUNS = (
 TASKS = (
     "format",
     "lint",
+    "links",
     "docstrings",
     "types",
     "tidy",

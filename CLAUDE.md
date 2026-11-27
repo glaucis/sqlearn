@@ -206,20 +206,19 @@ commit both of these into it, without being asked:
   at 80 columns and formats the Python, the C++ and the CMake files, and its
   three parts are the only recipes that reformat your files.
 - **Before you say any work is done, `just done` passes.** It runs
-  `check-lockfile` and `check-no-devdata`, then each check
-  (`format`, `lint`, `docstrings`, `types`, `tidy`, `test`, `sql`, `validate`,
-  `docs`) on what changed since it passed (by group: a comment, a CMake
-  comment or a docs edit reruns almost nothing), every one even when another
-  fails, and remembers the tree that passed (nothing uncommitted but the checks'
-  outputs), so a passed tree (after a fast-forward or a merge too) runs nothing
-  again in the same place (Python, platform, machine), and everything in a new
-  one. `just full <task>` runs one check all through. `just verify` is the
-  release tier: every check in full, then the sanitizers, the leak check of
-  the release build (`leaks-engine`), a minute of fuzzing,
-  the C++ coverage gate, mutation testing, the licence check, coverage and every
-  Python, run by hand before `1.0.0` (an hour or more). A reviewer's verdict
-  says which ran and passed. How a check finds what changed:
-  `docs/architecture/testing.md`.
+  `check-lockfile` and `check-no-devdata`, then each check (`format`, `lint`,
+  `links`, `docstrings`, `types`, `tidy`, `test`, `sql`, `validate`, `docs`) on
+  what changed since it passed (by group: a comment, a CMake comment or a docs
+  edit reruns almost nothing), every one even when another fails, and remembers
+  the tree that passed (nothing uncommitted but the checks' outputs), so a
+  passed tree (after a fast-forward or a merge too) runs nothing again in the
+  same place (Python, platform, machine), and everything in a new one.
+  `just full <task>` runs one check all through. `just verify` is the release
+  tier: every check in full, then the sanitizers, the leak check of the release
+  build (`leaks-engine`), a minute of fuzzing, the C++ coverage gate, mutation
+  testing, the licence check, coverage and every Python, run by hand before
+  `1.0.0` (an hour or more). A reviewer's verdict says which ran and passed. How
+  a check finds what changed: `docs/architecture/testing.md`.
 - **`just --list` names every recipe.** When a composite fails, `just` names
   the recipe that failed: run that one alone.
 - **The conventions are in `docs/architecture/`**: the layout, the Python

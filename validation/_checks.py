@@ -303,6 +303,25 @@ def _table() -> dict[str, Task]:
             layout=PYTHON,
         ),
         Task(
+            name="links",
+            # Every Markdown file, read as data: a link or related: path in
+            # one names another, so a move anywhere can break any of them.
+            inputs=(*MARKDOWN, "tests/docs/test_links.py"),
+            config=SETTINGS,
+            steps=(
+                Step(
+                    (
+                        "pytest",
+                        "-q",
+                        "-p",
+                        "no:cacheprovider",
+                        "tests/docs/test_links.py",
+                    )
+                ),
+            ),
+            per_file=False,
+        ),
+        Task(
             name="docstrings",
             inputs=("src/*.py",),
             config=SETTINGS,

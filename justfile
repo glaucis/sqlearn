@@ -628,6 +628,11 @@ format:
 lint:
     {{ checks }} lint
 
+# Check that every relative link and related: path in the tracked Markdown names a file (tests/docs/test_links.py), when a Markdown file changed since a passed run
+[group('check')]
+links:
+    {{ checks }} links
+
 # Validate the docstrings of the files under src/ changed since a passed run (numpydoc, pydoclint)
 [group('check')]
 docstrings:
@@ -724,7 +729,7 @@ done:
     fi
     # every check runs whatever the others' exit, as each task's steps do, so one failure hides no other's findings
     first=0
-    for check in check-lockfile check-no-devdata format lint docstrings types tidy test sql validate docs; do
+    for check in check-lockfile check-no-devdata format lint links docstrings types tidy test sql validate docs; do
         code=0
         "${j[@]}" "$check" || code=$?
         if [ "$first" -eq 0 ]; then first=$code; fi
@@ -743,7 +748,7 @@ verify:
     tree="$("${j[@]}" checkable-tree)"
     place="$("${j[@]}" place)"
     "${j[@]}" check-lockfile check-no-devdata
-    for task in format lint docstrings types tidy test sql validate docs; do
+    for task in format lint links docstrings types tidy test sql validate docs; do
         "${j[@]}" full "$task"
     done
     # After validate-all (full validate): the groups' claims, by coverage.
