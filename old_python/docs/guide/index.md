@@ -1,8 +1,8 @@
 ---
 type: guide
-tags: [sqlearn, documentation, api, pipeline, machine-learning]
+tags: [sqlearn, documentation, index, api-usage, pipelines]
 summary: "Index page for the sqlearn user guide: writing steps, inputs and the store, saving a pipeline, the preprocessing groups (imputing, scaling, encoding, binning, transforming, making features, selecting features, reducing columns), exploring data, column names, tuning a model, evaluating a model, handing data to models, and moving from scikit-learn."
-mdindex: [type=83ca68, tags=8a6725]
+mdindex: [type=83ca68, tags=3d77d8]
 related: [docs/guide/writing-a-step.md, docs/guide/inputs-and-the-store.md, docs/guide/saving-a-pipeline.md, docs/guide/from-scikit-learn.md, docs/guide/column-names.md]
 ---
 # Guide

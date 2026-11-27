@@ -2,7 +2,7 @@
 type: spec
 tags: [datasets, generators, threads, parallelism, duckdb, attach]
 summary: "Spec for running the sq.datasets generators on every core (#46): row numbers come from small work tickets in meta_sqlearn, an in-memory database sqlearn attaches beside the user's, so DuckDB shares the work between threads while the rows, their order and the laziness stay as they are."
-related: [docs/adr/0045-datasets-are-relations-built-in-sql.md, docs/adr/0046-sqlearn-warns-the-user-chooses.md, docs/adr/0043-repeatable-within-rounding.md, docs/specs/library-datasets.md, docs/guide/datasets.md]
+related: [docs/adr/0045-datasets-are-relations-built-in-sql.md, docs/adr/0046-sqlearn-warns-the-user-chooses.md, docs/adr/0043-repeatable-within-rounding.md, docs/specs/library-datasets.md]
 ---
 # Generators on many threads
 

@@ -2,7 +2,7 @@
 type: note
 tags: [docs-cleanup, archiving, adr, markdown-links, implementation-plan]
 summary: "Implementation plan to archive outdated ADRs, specs, plans and questions into archived/ folders, with a link-check test and archiving rules."
-related: [docs/plans/2026-11-27-docs-cleanup-list.md, docs/plans/2026-11-27-old-python.md, docs/plans/2026-11-27-bazel-prototype.md, docs/adr/index.md, docs/architecture/workflow.md, CLAUDE.md, HANDOFF.md, tests/docs/test_links.py]
+related: [docs/plans/2026-11-27-old-python.md, docs/plans/2026-11-27-bazel-prototype.md, docs/adr/index.md, docs/architecture/workflow.md, CLAUDE.md, HANDOFF.md, tests/docs/test_links.py]
 mdindex: [type=edb465, tags=399bd1, summary=9782f5, related=15558a]
 ---
 # The docs cleanup: implementation plan

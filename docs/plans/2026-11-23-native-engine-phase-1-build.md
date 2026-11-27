@@ -2,7 +2,7 @@
 type: plan
 tags: [native-engine, phase-1, build, cmake, cpp, plan]
 summary: "Phase 1 step 2: DuckDB 2.0.1 and its Python package as submodules under engine/, sqlearn's C++ skeleton and nanobind module compiled into DuckDB's own binary, one wheel, sq.version() from C++, the start-up check, and every C++ tool of spec §3.2 and §3.9 on the skeleton."
-related: [docs/specs/native-engine-phase-1.md, docs/specs/native-engine.md, ADR 0060, ADR 0061, ADR 0062, ADR 0063, ADR 0065, ADR 0066, ADR 0067]
+related: [docs/specs/native-engine-phase-1.md, docs/specs/native-engine.md, docs/adr/0060-a-native-engine-in-cpp-inside-duckdb.md, docs/adr/0061-sqlearn-ships-its-own-duckdb-build.md, docs/adr/0062-apple-silicon-first.md, docs/adr/0063-the-engines-compute-libraries.md, docs/adr/0065-safety-rules-for-the-cpp.md, docs/adr/0066-permissive-licences-never-copyleft.md, docs/adr/0067-how-computation-moves-to-the-engine.md]
 ---
 # Phase 1 step 2: the build, Implementation Plan
 

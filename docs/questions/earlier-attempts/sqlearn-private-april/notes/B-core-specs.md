@@ -2,7 +2,7 @@
 type: architecture
 tags: [fit-execution, learned-state, sql-compilation, duckdb, precision, federated]
 summary: "Batch B review of sqlearn core module specs, finding the fit defect, layer rules, learned state, precision and concurrency gaps in the April 2026 planning repo."
-related: [docs/questions/earlier-attempts/sqlearn-private-april/sqlearn-v04/notes/B-compiler.md, "OLD:S/compiler/layers.md", "OLD:S/compiler/compile.md", "OLD:S/compiler/compose.md", "OLD:S/compiler/classify.md", "OLD:S/_hardening/v0_8_hardening.md", "OLD:P/federated/federated_execution.md", "OLD:S/precision/precision.md"]
+related: []
 mdindex: [type=4ca303, tags=47b9f4, summary=9677b4, related=0d9771]
 ---
 # Batch B: core specifications (April planning repo)

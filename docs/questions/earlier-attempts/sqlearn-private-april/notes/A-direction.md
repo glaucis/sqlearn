@@ -2,7 +2,7 @@
 type: note
 tags: [planning, sqlearn, v2-migration, free-pro-split, decisions]
 summary: "Batch A summary of the April 2026 sqlearn planning repo covering direction, version timeline, the free/pro split and the eight v2 rationale documents."
-related: [docs/questions/earlier-attempts/sqlearn-private-april/notes/A-direction.md, "OLD:README.md", "OLD:CLAUDE.md", "OLD:MAP.md", "OLD:CONVERSATION.md", "OLD:rationale/v2-free-pro-line.md", "OLD:rationale/v2-option-cascade-removal.md", "OLD:rationale/v2-null-preserve-default.md"]
+related: [docs/questions/earlier-attempts/sqlearn-private-april/notes/A-direction.md]
 mdindex: [type=edb465, tags=1c0bb6, summary=b4a244, related=2e05e8]
 ---
 # A. Direction and decisions

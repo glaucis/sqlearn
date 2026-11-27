@@ -2,7 +2,7 @@
 type: note
 tags: [benchmarks, performance, exploration, profile, correlations, memory, sqlearn]
 summary: Runs sq.explore.profile and correlations on 12,500,000 rows of 200 doubles, a 20 GB Parquet file on a 16 GiB machine, under memory budgets of 2 GB and 4 GB, with the time, peak memory and load of each, which probes completed and which were refused with a Fix, and what failed first.
-related: [index, gram-streaming, explore-correlations]
+related: [docs/benchmarks/index.md, docs/benchmarks/gram-streaming.md, docs/benchmarks/explore-correlations.md]
 ---
 # Exploring data larger than memory
 

@@ -2,7 +2,7 @@
 type: note
 tags: [testing, validation, scikit-learn-parity, sqlearn, tolerances, snapshots]
 summary: "Audit of the tests and correctness validation in the sqlearn-desktop attempt: parity tolerances, snapshots, gaps, and the impute-then-scale defect."
-related: [docs/questions/earlier-attempts/tomosius-sqlearn/notes/C-tests.md, ADR-0003, ADR 0006]
+related: [docs/questions/earlier-attempts/tomosius-sqlearn/notes/C-tests.md]
 mdindex: [type=edb465, tags=16c85c, summary=317b49, related=1ee240]
 ---
 # C: Tests and validation in Tomosius/sqlearn (sqlearn-desktop)

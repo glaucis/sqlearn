@@ -2,7 +2,7 @@
 type: question
 tags: [scikit-learn, api-design, survey, sqlearn, preprocessing]
 summary: "Open question on which parts of scikit-learn's API sqlearn should copy, adapt, or skip, based on earlier attempts."
-related: [docs/specs/, earlier-attempts/README.md, ducklearn, Tomosius/sqlearn, sql_learn_test, sqlearn_000, v0.4]
+related: [docs/specs, docs/questions/earlier-attempts/README.md]
 mdindex: [type=1f5087, tags=0866c9, summary=fef2c5, related=d5023e]
 ---
 # Which parts of scikit-learn's API do we copy, and where do we improve it?

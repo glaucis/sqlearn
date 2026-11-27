@@ -2,7 +2,7 @@
 type: note
 tags: [sqlearn, planning, process, ideas, reports, retrospective]
 summary: "Batch E review of April 2026 sqlearn planning repo: ideas, reports and process, with relevance and contradictions for the new project."
-related: [docs/adr/0003-use-duckdb.md, ADR-0003, CONSTITUTION.md]
+related: []
 mdindex: [type=edb465, tags=87fb66, summary=ad69c4, related=2e0045]
 ---
 # Batch E: ideas, reports and process (April planning repo)

@@ -2,7 +2,7 @@
 type: spec
 tags: [saving, loading, models, imports, security, library-breadth]
 summary: "Spec for #55 under ADR 0048: the user saves and opens the trained model in any format, pipe.model_ hands it out and pipe.use_model puts it back; sq.save writes only sqlearn's part, sq.load imports nothing and builds only steps, models and fold schemes from modules already imported; allow=, trust_model= and model= are removed."
-related: [docs/adr/0048-the-user-saves-the-model-and-imports-its-packages.md, docs/adr/0047-a-pipeline-saves-as-json.md, docs/specs/library-saving.md, docs/guide/saving-a-pipeline.md, docs/adr/0046-sqlearn-warns-the-user-chooses.md]
+related: [docs/adr/0048-the-user-saves-the-model-and-imports-its-packages.md, docs/adr/0047-a-pipeline-saves-as-json.md, docs/specs/library-saving.md, old_python/docs/guide/saving-a-pipeline.md, docs/adr/0046-sqlearn-warns-the-user-chooses.md]
 ---
 # Library breadth: saving the model
 

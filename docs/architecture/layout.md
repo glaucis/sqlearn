@@ -1,9 +1,9 @@
 ---
 type: architecture
-tags: [repository-layout, directory-structure, project-organization, tests, documentation]
-summary: "Describes the sqlearn repository's directory tree, why each top-level folder exists, and what arrives in later phases."
-related: [docs/specs/foundation.md, docs/adr/0025-results-stored-as-data-in-mirrored-folders.md, docs/adr/0053-sqlearn-ships-no-datasets.md, ADR 0053, ADR 0060, ADR 0061, ADR 0062, ADR 0065]
-mdindex: [type=4ca303, tags=d6947e, summary=6addad, related=235fd6]
+tags: [repository-layout, directory-structure, project-structure, tests, monorepo]
+summary: "Describes what each directory and file in the sqlearn repository is for, and why the layout is organized as it is."
+related: [docs/specs/foundation.md, docs/adr/0025-results-stored-as-data-in-mirrored-folders.md, docs/adr/0073-the-old-python-moves-to-old-python.md, docs/adr/0060-a-native-engine-in-cpp-inside-duckdb.md, docs/adr/0061-sqlearn-ships-its-own-duckdb-build.md, docs/adr/0062-apple-silicon-first.md, docs/adr/0065-safety-rules-for-the-cpp.md, docs/adr/0066-permissive-licences-never-copyleft.md]
+mdindex: [type=4ca303, tags=7c4966, summary=caabef, related=c91dad]
 ---
 # The repository's layout
 

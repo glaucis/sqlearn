@@ -1,9 +1,9 @@
 ---
-type: note
-tags: [sqlearn, duckdb, machine-learning, documentation, index]
-summary: "Landing page for the sqlearn docs: a scikit-learn-style ML library that runs models as SQL on DuckDB, with a toctree of sections."
-related: [validation/index, benchmarks/index, architecture/index]
-mdindex: [type=edb465, tags=d38cd0, summary=acb10b, related=945135]
+type: architecture
+tags: [sqlearn, duckdb, machine-learning, sql, documentation-index]
+summary: "Index page introducing sqlearn, a scikit-learn-style ML library running as SQL on DuckDB, being rebuilt in C++, linking validation, benchmarks, and architecture"
+related: [docs/validation/index.md, docs/benchmarks/index.md, docs/architecture/index.md]
+mdindex: [type=4ca303, tags=860a1a, summary=5dc687]
 ---
 # sqlearn
 

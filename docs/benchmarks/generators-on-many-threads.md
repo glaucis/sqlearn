@@ -2,7 +2,7 @@
 type: note
 tags: [benchmarks, datasets, generators, threads, parquet, sqlearn]
 summary: "Measures the sq.datasets generators on 1, 2, 4 and 8 threads, with tickets and with parallel=False, plus the cost at 100 rows and an ordered Parquet export, on a machine that was not quiet."
-related: [index, median-reach]
+related: [docs/benchmarks/index.md, docs/benchmarks/median-reach.md]
 ---
 # Generators on many threads
 

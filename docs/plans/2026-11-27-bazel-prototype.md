@@ -2,7 +2,7 @@
 type: note
 tags: [bazel, build-system, cmake, prototype, engine]
 summary: "Implementation plan for a throwaway Bazel prototype of the sqlearn engine to decide whether to move from CMake, reporting evidence to a questions doc."
-related: [docs/questions/bazel-prototype.md, docs/questions/test-selection.md, docs/plans/2026-11-27-old-python.md, engine/CMakeLists.txt, engine/cmake/pins.cmake, engine/cmake/warnings.cmake, engine/cmake/hardening.cmake]
+related: [docs/questions/test-selection.md, docs/plans/2026-11-27-old-python.md, engine/CMakeLists.txt, engine/cmake/pins.cmake, engine/cmake/warnings.cmake, engine/cmake/hardening.cmake]
 mdindex: [type=edb465, tags=817fc2, summary=7eebe0, related=e06904]
 ---
 # A Bazel prototype of the engine: implementation plan

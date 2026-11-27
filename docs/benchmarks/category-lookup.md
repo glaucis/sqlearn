@@ -2,7 +2,7 @@
 type: note
 tags: [benchmarks, performance, encoders, ordinal, target, sqlearn]
 summary: "Times the ways a step can look a category up in one DuckDB expression, at 100, 1,000 and 10,000 categories on 1,000,000 rows, and the ordinal and target encoders with lookup=\"list\" and lookup=\"hash\" from Parquet up to 100,000 categories."
-related: [index, onehot-second-run]
+related: [docs/benchmarks/index.md, docs/benchmarks/onehot-second-run.md]
 ---
 # Looking a category up
 

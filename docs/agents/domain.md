@@ -3,7 +3,7 @@ type: guide
 tags: [domain-docs, glossary, adr, agents, conventions]
 summary: "Explains how engineering skills should read and use the repo's glossary and ADR domain documentation when exploring code."
 mdindex: [type=83ca68, tags=71030c, summary=8282b0, related=ede9d9]
-related: [GLOSSARY.md, GLOSSARY-MAP.md, docs/adr/, src/<context>/docs/adr/, ADR-0007]
+related: [GLOSSARY.md, docs/adr, docs/adr/0007-python-3-12-floor.md]
 ---
 # Domain Docs
 

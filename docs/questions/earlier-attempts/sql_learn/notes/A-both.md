@@ -2,7 +2,7 @@
 type: note
 tags: [sql-learn, process, agent-harness, earlier-attempts, retrospective]
 summary: "Comparative review of two earlier sql_learn attempts (OLD1 and OLD2), mostly about agent harness and process rather than the library itself."
-related: [docs/questions/earlier-attempts/sql_learn/notes/A-both.md, "OLD1:CLAUDE.md", "OLD2:README.md", "OLD2:TODO.json", "OLD2:plans/review-estimator-contract.md"]
+related: [docs/questions/earlier-attempts/sql_learn/notes/A-both.md]
 mdindex: [type=edb465, tags=6af363, summary=256ed2, related=ef8777]
 ---
 # sql_learn: batch A, both histories

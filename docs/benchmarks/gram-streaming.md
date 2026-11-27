@@ -2,7 +2,7 @@
 type: note
 tags: [benchmarks, performance, gram, pca, memory, sqlearn]
 summary: Learns PCA on 12,500,000 rows of 200 columns, 20 GB as doubles, at a 2 GB DuckDB limit, with the peak memory, the time, and the agreement with DuckDB's covar_pop.
-related: [index, gram-batches]
+related: [docs/benchmarks/index.md, docs/benchmarks/gram-batches.md]
 ---
 # PCA on data larger than memory
 

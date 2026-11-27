@@ -2,7 +2,7 @@
 type: note
 tags: [sqlearn, design, fit-execution, cross-validation, learned-state, sqlglot]
 summary: "Batch A design review of the earlier sqlearn attempt: fit-ordering bug, layered fit, cross-validation, learned state and sqlglot decisions."
-related: [docs/questions/earlier-attempts/tomosius-sqlearn/notes/A-design.md, ideas/rejected/query-template-single-pass.md, architecture/design/compiler.md, architecture/design/cv-design.md, architecture/decisions.md, ideas/active/base-features.md, architecture/planning/performance.md, architecture/design/base-class.md]
+related: [docs/questions/earlier-attempts/tomosius-sqlearn/notes/A-design.md]
 mdindex: [type=edb465, tags=9eeb96, summary=0c5f18, related=b1957d]
 ---
 # Tomosius/sqlearn, batch A: design and decisions

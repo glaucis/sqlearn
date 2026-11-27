@@ -2,7 +2,7 @@
 type: note
 tags: [benchmarks, median, larger-than-memory, sort, sqlearn]
 summary: "Measures the most rows the exact median (computed by sorting) learns under 32, 64 and 128 MB memory limits on one thread, with the time at each."
-related: [index, standard-deviation, onehot-second-run]
+related: [docs/benchmarks/index.md, docs/benchmarks/standard-deviation.md, docs/benchmarks/onehot-second-run.md]
 ---
 # How far the exact median reaches
 

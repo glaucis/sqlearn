@@ -2,7 +2,7 @@
 type: architecture
 tags: [sqlearn, design-decisions, fit-execution, sqlglot, learned-state, old-version]
 summary: "Design review of old sqlearn v0.4: compiler shape, layer-based fit, learned-state encoding, sqlglot/dialect choices, and their documented failures."
-related: [docs/questions/earlier-attempts/sqlearn-v04/notes/A-design.md, docs/adr/0003-use-duckdb.md, ADR-002, ADR-003, ADR-001, ADR-0003]
+related: [docs/questions/earlier-attempts/sqlearn-v04/notes/A-design.md]
 mdindex: [type=4ca303, tags=5bc0e5, summary=760841, related=8a3442]
 ---
 # Batch A — design and decisions (old sqlearn v0.4)

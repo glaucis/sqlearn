@@ -1,8 +1,8 @@
 ---
 type: guide
-tags: [learning, advanced, curriculum, machine-learning, index]
-summary: "Index page for the Advanced learning level, covering algorithm internals, SQL, custom estimators, and scale, performance, and validation."
-mdindex: [type=83ca68, tags=691d1a, summary=75264b]
+tags: [learning, advanced, curriculum, python, machine-learning]
+summary: "Index for the Advanced learning level, covering algorithm internals, SQL, custom estimators, and scale and validation."
+mdindex: [type=83ca68, tags=e16337, summary=4c649a]
 ---
 # Advanced
 

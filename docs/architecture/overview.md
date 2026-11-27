@@ -1,9 +1,9 @@
 ---
 type: architecture
-tags: [overview, sqlearn, duckdb, roadmap, constraints]
-summary: "Project map of sqlearn, a DuckDB-based scikit-learn alternative: purpose, agreed constraints, and the parts to be built in order."
+tags: [sqlearn, duckdb, scikit-learn, roadmap, design-principles, pipeline]
+summary: "Project overview of sqlearn: its purpose, constraints, and the sequenced parts from foundation to library core, breadth, docs, learning site and apps."
 related: [docs/adr/0003-scikit-learn-style-api.md, docs/adr/0002-sql-on-duckdb-execution-engine.md, docs/adr/0060-a-native-engine-in-cpp-inside-duckdb.md, docs/adr/0058-a-gram-step-builds-xtx-in-numpy.md, docs/adr/0061-sqlearn-ships-its-own-duckdb-build.md, docs/adr/0057-numpy-is-a-runtime-dependency.md, docs/adr/0005-runtime-dependencies.md, docs/adr/0004-apache-2-licence.md]
-mdindex: [type=4ca303, tags=a6c6a2, summary=cd61dd, related=f8da9c]
+mdindex: [type=4ca303, tags=c91fc6, summary=949411, related=f8da9c]
 ---
 # Overview
 

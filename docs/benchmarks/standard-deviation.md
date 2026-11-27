@@ -2,7 +2,7 @@
 type: note
 tags: [benchmarks, performance, std, numerics, larger-than-memory, sqlearn]
 summary: "Times the two-pass standard deviation against DuckDB's one-pass stddev_pop on 20,000,000 rows under a 64 MB limit on one thread, and with no limit, with each result's distance from the exact value."
-related: [index, onehot-second-run, category-lookup]
+related: [docs/benchmarks/index.md, docs/benchmarks/onehot-second-run.md, docs/benchmarks/category-lookup.md]
 ---
 # The standard deviation in two passes
 

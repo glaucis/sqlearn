@@ -2,7 +2,7 @@
 type: architecture
 tags: [sqlearn, redesign, multi-dialect, fit, sqlglot, engine-alias]
 summary: "Analysis of the sqlearn war-room redesign: scope change to multi-dialect, the fit layer rule, learned state handling, and the engine alias dispatch model."
-related: ["OLD:plans/archived/2026-04-30-sqlearn-multi-dialect-redesign.md", "OLD:plans/archived/2026-05-02-engine-alias-foundation.md", "OLD:plans/archived/2026-05-03-engine-alias-migration.md", "OLD:plans/archived/2026-05-01-track-a-custom-step-authoring.md", "OLD:projects/sqlearn/core/pipeline.md", "OLD:projects/sqlearn/core/inspector.md", "OLD:projects/sqlearn/api-surface.md", "OLD:projects/sqlearn/redesign-overview.md"]
+related: []
 mdindex: [type=4ca303, tags=1da911, summary=473518, related=f1989d]
 ---
 # Batch A: direction and the redesign

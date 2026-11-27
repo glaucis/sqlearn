@@ -2,7 +2,7 @@
 type: note
 tags: [sqlearn, rehearsal, agent-rules, foundation-spec, validation]
 summary: "Batch A review of the OLD sqlearn repo: its foundation spec, the agent-rule rehearsal cases, and what carried over to the current repository."
-related: [docs/specs/foundation.md, docs/questions/agents-and-skills.md, CLAUDE.md, commitlint.config.mjs, docs/superpowers/plans/2026-10-01-foundation-closing.md, docs/superpowers/specs/2026-10-01-foundation-design.md, docs/superpowers/plans/2026-10-02-case-one.md, docs/superpowers/plans/2026-10-03-case-three.md]
+related: [docs/specs/foundation.md, docs/questions/agents-and-skills.md, CLAUDE.md, commitlint.config.mjs]
 mdindex: [type=edb465, tags=59f4b1, summary=8207ad, related=cf9360]
 ---
 # sqlearn, autumn: batch A, docs and code

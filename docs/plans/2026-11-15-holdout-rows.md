@@ -2,7 +2,7 @@
 type: plan
 tags: [folds, holdout, model-selection, guide]
 summary: "Implementation plan for Holdout.rows (#60): the held-out or training rows of a holdout split, as KFold.rows gives a fold's, and the evaluating guide holding out a plain fifth of the rows."
-related: [docs/guide/evaluating-a-model.md, docs/adr/0040-fold-schemes-as-sql-over-rows.md]
+related: [old_python/docs/guide/evaluating-a-model.md, docs/adr/0040-fold-schemes-as-sql-over-rows.md]
 ---
 # Holdout.rows Implementation Plan
 

@@ -2,7 +2,7 @@
 type: note
 tags: [sqlearn, war-room, planning, spec-corpus, retrospective]
 summary: "Retrospective of batch D: live war-room plans (Q-IO phase 2, ClickHouse, connections, step composability) that were executed as spec edits."
-related: [TODO.md, core/io.md, core/warnings.md, backend/clickhouse.md, connections/clickhouse.md, core/inspector.md, core/connections/, connections/]
+related: []
 mdindex: [type=edb465, tags=0fc93e, summary=8f1cab, related=4d057e]
 ---
 # Batch D: live plans of the war room

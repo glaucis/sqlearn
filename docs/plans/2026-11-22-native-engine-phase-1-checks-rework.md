@@ -2,7 +2,7 @@
 type: plan
 tags: [native-engine, phase-1, checks, selection, plan]
 summary: "Rework of Phase 1 step 1's checks: drop pytest-testmon, run each check (format, lint, docstrings, types, test, validate, docs) only when its inputs changed, `just full <task>` to run one in full, keep the validation records and the passed tree."
-related: [docs/specs/native-engine-phase-1.md, docs/plans/2026-11-22-native-engine-phase-1-checks.md, docs/architecture/testing.md, ADR 0008, ADR 0016, ADR 0043]
+related: [docs/specs/native-engine-phase-1.md, docs/plans/2026-11-22-native-engine-phase-1-checks.md, docs/architecture/testing.md, docs/adr/0008-just-task-runner.md, docs/adr/0016-validation-method.md, docs/adr/0043-repeatable-within-rounding.md]
 ---
 # Phase 1 step 1: per-check selection, Implementation Plan
 

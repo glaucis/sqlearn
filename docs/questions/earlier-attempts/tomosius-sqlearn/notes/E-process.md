@@ -2,7 +2,7 @@
 type: note
 tags: [sqlearn, process, retrospective, git-history, tomosius]
 summary: "Retrospective process notes on the Tomosius/sqlearn build (Mar 13 - Apr 9 2026): workflow, commit history by day, and why work stopped."
-related: [scratchpad/tomosius-git-log.txt, "OLD:.claude/settings.local.json", "OLD:.claude/skills/SKILLS-REGISTRY.md", "OLD:.claude/skills/core/SKILL.md", "OLD:.claude/skills/backlog/SKILL.md", "OLD:.claude/skills/commit/SKILL.md", "OLD:.claude/skills/review/SKILL.md", "OLD:.claude/skills/work-tracker/SKILL.md"]
+related: []
 mdindex: [type=edb465, tags=deaa46, summary=72868e, related=fc550a]
 ---
 # E-process notes: Tomosius/sqlearn (Mar 13 - Apr 9 2026)

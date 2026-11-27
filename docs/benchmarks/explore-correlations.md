@@ -2,7 +2,7 @@
 type: note
 tags: [benchmarks, performance, exploration, correlations, memory, sqlearn]
 summary: Times sq.explore.correlations on 1,000,000 rows of 200 and 500 columns in Parquet files with default row groups, at blocks of 20, 40 and 80 columns, says why 20 was chosen, then measures Spearman on ranks written once, with and without missing values and under a small memory budget.
-related: [index, gram-batches, gram-streaming]
+related: [docs/benchmarks/index.md, docs/benchmarks/gram-batches.md, docs/benchmarks/gram-streaming.md]
 ---
 # How many columns one statement reads
 

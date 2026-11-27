@@ -2,7 +2,7 @@
 type: note
 tags: [benchmarks, performance, gram, pca, batches, sqlearn]
 summary: Times three ways to cut the batches of a Gram learn on 1,000,000 rows of 50, 200 and 500 columns, and the temporary-table way on 1,000,000 and 4,000,000 rows.
-related: [index, standard-deviation]
+related: [docs/benchmarks/index.md, docs/benchmarks/standard-deviation.md]
 ---
 # How the batches of a Gram learn are cut
 

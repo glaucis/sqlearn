@@ -2,7 +2,7 @@
 type: note
 tags: [benchmarks, performance, onehot, sqlearn]
 summary: "Measures the time and the reads of OneHot's second run in the slice's preparation, with and without OneHot."
-related: [index]
+related: [docs/benchmarks/index.md]
 ---
 # OneHot's second run
 

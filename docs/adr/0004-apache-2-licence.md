@@ -3,7 +3,7 @@ type: adr
 tags: [licence, apache-2-0, open-source, dependencies, governance]
 summary: "Decides sqlearn is Apache-2.0 licensed, with money from products built on top, permissive-only runtime dependencies, and a CLA for contributors."
 mdindex: [type=0fc814, tags=e2c827, summary=2422d3, related=a7518b]
-related: [docs/adr/0066-permissive-licences-never-copyleft.md, ADR 0066, docs/adr/0057-numpy-is-a-runtime-dependency.md, ADR 0057, docs/adr/0005-runtime-dependencies.md, ADR 0005]
+related: [docs/adr/0066-permissive-licences-never-copyleft.md, docs/adr/0057-numpy-is-a-runtime-dependency.md, docs/adr/0005-runtime-dependencies.md]
 ---
 # 0004: Apache-2.0 licence
 

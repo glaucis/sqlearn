@@ -2,7 +2,7 @@
 type: spec
 tags: [pipeline, predict-proba, metrics, roc-curve, average-precision, search]
 summary: "Short spec for Pipeline.predict_proba: one call hands back the target beside one probability column per class, in input order, so every probability metric and curve reads the result directly; with Pipeline.classes_ and Search.predict_proba."
-related: [docs/adr/0050-predict-proba-keeps-the-target.md, docs/specs/library-more-metrics.md, docs/adr/0003-scikit-learn-style-api.md, docs/guide/evaluating-a-model.md]
+related: [docs/adr/0050-predict-proba-keeps-the-target.md, docs/specs/library-more-metrics.md, docs/adr/0003-scikit-learn-style-api.md, old_python/docs/guide/evaluating-a-model.md]
 ---
 # Pipeline.predict_proba
 
