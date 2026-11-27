@@ -3,9 +3,10 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-26 · Branch: `main` · Last commit: `84e674d Merge branch
-'phase-1-build'` · Checks: passing (`just done` on the merged `main`, tree
-remembered)
+Updated: 2026-11-27 · Branch: `main` · Last commit: `d1a32ed Merge branch
+'selection-by-group'` (pushed) · Checks: passing (`just done` on the
+branch's last code commit; not remembered only because the docs tagger's
+uncommitted frontmatter edits sit in the tree)
 Verify with: `just done` (`just verify` is the release tier)
 
 ## In progress
@@ -14,9 +15,10 @@ None.
 
 ## Waiting on the user
 
-- The audit's first real run, `just audit-groups` (a coverage-instrumented
-  wheel; minutes to build): awaits your go-ahead. It must pass before the
-  first group claims Python tests (`PYTHON_TESTS`) or a runner
+- The audit's first real run, `just audit-groups` (builds a second,
+  coverage-instrumented wheel with DuckDB, then runs every test set and runner
+  on it: an hour or more on all cores): awaits your go-ahead. It must pass
+  before the first group claims Python tests (`PYTHON_TESTS`) or a runner
   (`VALIDATION`) lands, since it is the only check that a claim is not too
   small; the first claim's plan carries that step. (since 2026-11-27)
 - The first benchmark reruns, `just benchmarks-due` then `just bench
@@ -27,8 +29,8 @@ None.
 
 ## Next up
 
-- Follow-ups of selecting by group (Tomas, 2026-11-27: after it merges,
-  before Phase 1 step 3 or beside it):
+- Follow-ups of selecting by group (Tomas, 2026-11-27: next, in a fresh
+  session; Phase 1 step 3 after them or beside them):
   - Move `release()` (the version rule) out of `validation/_groups.py`
     into a file of its own that `_cases.py` and `_groups.py` both import:
     every runner imports `_groups` only for it, so an edit of the
@@ -85,6 +87,23 @@ None.
 
 ## Dead ends and traps
 
+- Selecting by group (2026-11-27). Any edit of `validation/__main__.py`,
+  `_cases.py` or `_groups.py` reruns all 21 runners (about 47 min): group
+  edits to them into one commit. The first `just done` after a record's
+  key changes reruns everything once. sqlearn's version carries the
+  commit hash in `build_identity.hpp`, the extension's
+  `-DEXT_VERSION_SQLEARN` and the generated `sqlearn_describe.c`:
+  anything that fingerprints the build cuts it with `_groups.release()`,
+  or every commit reruns everything. clang has no `-fpreprocessed` (GCC
+  only): `_groups.stripped()` uses `-Xclang -dump-raw-tokens`. The docs
+  tagger's uncommitted frontmatter blocks `git checkout main` when the
+  branch changed the same file: `git diff > patch`, check the files out,
+  switch and merge, `git apply` the patch; commit a tagger-edited doc by
+  staging HEAD's frontmatter with the new body (`git hash-object -w`,
+  `git update-index --cacheinfo`). A `just check` under `cargo` in `ps`
+  belongs to another project: leave it. commitlint reads a body line
+  that starts `word:` as a footer and warns. Subagents doing TDD skip
+  watching the test fail unless the dispatch asks for the RED output.
 - ThreadSanitizer intercepts signals and delivers them late: the crash
   group's signal-chaining cases failed under it, and one hung 20 h, past
   its child's `alarm(20)`. TypeSanitizer cannot see the kernel's writes of
@@ -264,14 +283,15 @@ None.
 
 ## Just finished
 
-- Selecting by group (2026-11-27): the checks rerun only what a change
-  affects. Spec `docs/specs/selection-by-group.md`, plan
+- Selecting by group (2026-11-27), merged into `main` as `d1a32ed` and pushed:
+  the checks rerun only what a change affects. Spec
+  `docs/specs/selection-by-group.md`, plan
   `docs/plans/2026-11-27-selection-by-group.md`, described in
-  `docs/architecture/testing.md`. Proof on this machine: a comment edited
-  within its line in `core`, and a comment line added to
-  `engine/cmake/warnings.cmake`, each reran no library set, no runner,
-  no docs and no sql (the tooling set reran for both: it reads the text).
-  Probe commits and their reverts stay in the history.
+  `docs/architecture/testing.md`. Proof on this machine: a comment edited within
+  its line in `core`, and a comment line added to `engine/cmake/warnings.cmake`,
+  each reran no library set, no runner, no docs and no sql (the tooling set
+  reran for both: it reads the text). Probe commits and their reverts stay in
+  the history.
 - ADR 0072, benchmarks on Tomas's go-ahead (2026-11-27): no check runs
   one; ask first with its time and weight, small batches, only what the
   change touches, load recorded. The loaded pages are rerun with their
@@ -293,12 +313,9 @@ None.
   the inventory, ADRs 0060 and 0065 (amended) and issues #79 to #82
   follow it. Task 6's note (any `engine/` change reruns the whole Python
   suite) is dropped: the suite is redrawn as the groups are rewritten.
-- The validation's engine digest narrowed to what the module is built
-  from (Tomas, 2026-11-27): `ENGINE_BUILD`, uv's cache-keys and every
-  submodule under `engine/`, so a C++ test, fuzz input, benchmark or
-  tool setting keeps every record. `ENGINE_BUILD` gained
-  `engine/third_party` (cpptrace is linked into the module; a bump reran
-  neither docs nor types), and `sql`'s inputs too.
+- The validation's engine digest narrowed (Tomas, 2026-11-27,
+  `bb09f4e`), then replaced by selecting by group's per-group
+  fingerprints; `ENGINE_BUILD` is gone.
 - `version.cpp` is back in Mull's mutation testing (Tomas, 2026-11-26:
   test everything, cut no corners): the build identity is a header CMake
   writes (`engine/cmake/build_identity.hpp.in`) instead of definitions
