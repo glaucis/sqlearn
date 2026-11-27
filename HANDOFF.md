@@ -3,8 +3,8 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-27 · Branch: `main` · Last commit: `8df448a docs: refresh
-the docs index frontmatter` · Checks: passing (`just done`, tree remembered;
+Updated: 2026-11-27 · Branch: `main` · Last commit: `7597ae9 docs: refresh
+the docs index frontmatter` · Checks: passing (`just check`, `just test`;
 nothing uncommitted)
 Verify with: `just done` (`just verify` is the release tier)
 
@@ -27,6 +27,12 @@ None. [verified]
   (since 2026-11-27)
 
 ## Next up
+
+- When `pyright-lsp` is installed globally (not yet), turn it off here in
+  `.claude/settings.json`: `"enabledPlugins":
+  {"pyright-lsp@claude-plugins-official": false}`. ty and mypy are this
+  project's type checkers, and pyright disagrees with them (Tomas,
+  2026-11-27).
 
 - Follow-ups of selecting by group (Tomas, 2026-11-27: next, in a fresh
   session; Phase 1 step 3 after them or beside them):
@@ -91,6 +97,14 @@ None. [verified]
   are on the issue.
 
 ## Dead ends and traps
+
+- clangd (2026-11-27). A new source in `engine/src/bindings/`,
+  `engine/extension/src/` or `engine/bench/` has no compile flags until
+  `just tidy-engine` reruns (only its merged database lists them). The
+  plugin starts clangd by name, so `ps` shows a bare `clangd`: name the
+  binary with `lsof` (`docs/architecture/setup.md`). `clangd --check`
+  counts its refactoring tweaks' failures ("tweak: ... FAIL") as errors:
+  read the `E[` lines before taking a count as diagnostics.
 
 - Selecting by group (2026-11-27). Any edit of `validation/__main__.py`,
   `_cases.py` or `_groups.py` reruns all 24 runners (about 47 min): group edits
@@ -284,6 +298,13 @@ None. [verified]
   (2026-11-06)
 
 ## Just finished
+
+- clangd for the whole engine (`b85959f`), verified live through Claude
+  Code's `clangd-lsp` plugin (2026-11-27): Homebrew clangd 23 runs (linked
+  at `~/.local/bin/clangd`), an edit's errors come back from clang and
+  clang-tidy, go-to-definition and find-references work, the index lands in
+  `engine/build/llvm-dev/.cache/`, the deliberately broken tests are
+  silenced. How to check it is in `docs/architecture/setup.md`.
 
 - The validation documented, `docs/architecture/validation.md`
   (`c1811e8`): what it checks, the results, the data, the 24 runners

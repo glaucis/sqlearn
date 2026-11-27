@@ -136,7 +136,19 @@ the submodules or the build's outputs, nor the tests that fail on purpose
 `.cache/` beside the database it reads. Claude Code's `clangd-lsp` plugin
 starts the `clangd` first on the PATH, so link Homebrew's there once per
 machine (`ln -s /opt/homebrew/opt/llvm/bin/clangd ~/.local/bin/clangd`),
-leaving the rest of Homebrew LLVM off it. CodeGraph indexes sqlearn's own code,
+leaving the rest of Homebrew LLVM off it. A new source in one of those three
+directories has no compile flags until `just tidy-engine` runs again.
+
+To check it, once the plugin has started clangd: `ps -o args= -p $(pgrep -x
+clangd)` shows only `clangd --background-index`, since the plugin starts it by
+name, so `lsof -p $(pgrep -x clangd) | awk '$4=="txt"{print $9; exit}'` names
+the binary, which must be under `/opt/homebrew/`, not `/usr/bin/clangd`. After
+a few minutes `ls engine/build/llvm-dev/.cache/clangd/index | wc -l` is
+non-zero, and no `.cache/` exists at the root or in `engine/`. The bindings'
+files join the index only once clangd has opened one of them. `clangd
+--check=<file>` from the root shows which database and command a file gets.
+
+CodeGraph indexes sqlearn's own code,
 `engine/` included; the root `codegraph.json` leaves out the submodules
 (`engine/duckdb-python/`, `engine/third_party/`).
 
