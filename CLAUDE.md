@@ -248,7 +248,11 @@ commit both of these into it, without being asked:
 - **Docs index:** docs are tagged automatically (frontmatter `type`, `tags`,
   `summary`, `related`) and searchable with `qmd query "<question>" -c sqlearn`.
   Search here before grepping docs. Status: `mdindex status`. Off: delete
-  `.mdindex/` and run `qmd collection remove sqlearn`.
+  `.mdindex/` and run `qmd collection remove sqlearn`. The tagger's
+  frontmatter edits are committed, never left in the tree: check that every
+  `related:` path exists, then commit them on their own as `docs: refresh
+  the docs index frontmatter`; edit `summary` and `tags` by hand when
+  needed, never the `mdindex:` line.
 - **Matt Pocock setup:** see `docs/agents/` for the issue tracker and the domain
   doc rules.
 
