@@ -388,8 +388,8 @@ answers within the same bounds.
 CPU targets as ADR 0062: macOS `-mcpu=apple-m1`; Linux and Windows a safe
 baseline. Never `-ffast-math` (ADR 0063); FMA contraction off
 (`-ffp-contract=off`), so every compiler and platform gives the same bits,
-and a kernel that wants FMA calls `std::fma` and is validated for it — an
-ADR beside 0063 (the agent's proposal, to decide with Tomas).
+and a kernel that wants FMA calls `std::fma` and is validated for it
+(ADR 0071, decided 2026-11-27).
 
 **Performance: the method** (most gain first)
 

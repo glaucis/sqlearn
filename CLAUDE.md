@@ -47,7 +47,7 @@ built.
   `docs/specs/library-exploration.md`, plan
   `docs/plans/2026-11-20-library-exploration.md`, ADR 0059, issue #74. The
   native engine (part 3.10: sqlearn as a C++ library embedding DuckDB, Python
-  its bindings): spec `docs/specs/native-engine.md`, ADRs 0060–0070, the
+  its bindings): spec `docs/specs/native-engine.md`, ADRs 0060–0071, the
   rewrite's inventory `docs/architecture/engine-inventory.md`, milestone
   "Native engine" (#78 to #84). Phase 0 is done; Phase 1's steps 1 (the
   checks) and 2 (the build) are merged. The library is rewritten in C++
@@ -95,7 +95,10 @@ Rules from the ADRs:
 - float64 runs on the CPU: Accelerate on macOS, OpenBLAS elsewhere. No MLX. GPU
   kernels are Metal, compiled ahead of time; Phase 6 tries Mojo beside it, and
   it becomes the kernels' language if it matches Metal (0063). Never
-  `-ffast-math` (0063).
+  `-ffast-math` (0063). FMA contraction is off: a kernel fuses only by
+  calling `std::fma` (Metal's `fma()`), validated; contraction is turned
+  on for one target or kernel only when its benchmark shows a gain and
+  the validation passes (0071).
 - The C++ follows the safety rules from its first commit: RAII, no raw
   `new` or `delete`, one thin layer for raw memory, warnings as errors,
   clang-tidy and the static analyser, sanitizers and fuzzing in

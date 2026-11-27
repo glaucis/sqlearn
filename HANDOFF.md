@@ -14,9 +14,6 @@ None.
 
 ## Waiting on the user
 
-- The FMA ADR: `-ffp-contract=off` everywhere, `std::fma` on purpose and
-  validated (spec §3.9, the agent's proposal); decide before Phase 2's
-  kernels. (since 2026-11-22)
 - Benchmarks run on a loaded machine, to rerun on a quiet one if wanted:
   `generators-on-many-threads.md` (#46), `gram-batches.md`, both
   `explore-*.md` pages (load up to 145) and `engine-profile.md` (load 10 to
@@ -245,6 +242,12 @@ None.
 
 ## Just finished
 
+- ADR 0071, FMA only on purpose (Tomas, 2026-11-27): contraction off
+  everywhere, `std::fma` (Metal's `fma()`) where a kernel wants it,
+  validated; turned on per target or kernel only with a benchmark's gain
+  and a passing validation. On x86_64's safe build `std::fma` is software
+  without the FMA instruction: such a kernel takes ADR 0062's run-time
+  dispatch.
 - ADR 0070 supersedes 0067 (Tomas, 2026-11-27: rewrite everything in
   C++, new bindings, delete the Python not needed; he left the rules to
   the agent): the Python library is frozen; each group's Python and

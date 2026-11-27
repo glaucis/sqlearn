@@ -37,8 +37,10 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 # Never -ffast-math (ADR 0063). FMA contraction off, so every compiler and
-# platform gives the same bits (spec §3.9); a kernel that wants FMA calls
-# std::fma. The FMA ADR before Phase 2's kernels may change this line.
+# platform gives the same bits; a kernel that wants FMA calls std::fma,
+# validated (ADR 0071). Contraction is turned on only for one target or
+# kernel whose benchmark shows a gain and whose validation passes, with the
+# reason and the benchmark written here.
 set(SQ_FP_OPTIONS -ffp-contract=off)
 
 # Give `target` sqlearn's warnings and floating-point rule. RAW marks the
