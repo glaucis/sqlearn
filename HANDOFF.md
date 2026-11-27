@@ -3,7 +3,7 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-27 · Branch: `main` · Last commit: `7597ae9 docs: refresh
+Updated: 2026-11-27 · Branch: `main` · Last commit: `3a2a54a docs: refresh
 the docs index frontmatter` · Checks: passing (`just check`, `just test`;
 nothing uncommitted)
 Verify with: `just done` (`just verify` is the release tier)
@@ -33,6 +33,9 @@ None. [verified]
   {"pyright-lsp@claude-plugins-official": false}`. ty and mypy are this
   project's type checkers, and pyright disagrees with them (Tomas,
   2026-11-27).
+- A new file in `engine/src/bindings/`, `engine/extension/src/` or
+  `engine/bench/` needs `just tidy-engine` before clangd has its compile
+  flags: only the tidy database lists those directories (Tomas, 2026-11-27).
 
 - Follow-ups of selecting by group (Tomas, 2026-11-27: next, in a fresh
   session; Phase 1 step 3 after them or beside them):
