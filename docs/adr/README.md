@@ -5,4 +5,5 @@ summary: "Explains the convention for architecture decision records: one numbere
 mdindex: [type=83ca68, tags=5acf82, summary=90c0ab]
 ---
 Architecture decision records: one file per decision, `NNNN-short-title.md`,
-never edited after acceptance (supersede instead).
+never edited after acceptance (supersede instead). Superseded, or its subject
+gone, it moves to `archived/` with its number, its status line saying why.

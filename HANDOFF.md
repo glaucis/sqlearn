@@ -3,9 +3,9 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-27 · Branch: `main` (one commit ahead of `origin/main`) ·
-Last commit: `a452ea7 docs: plan the docs cleanup and hand it to a fresh
-session` · Checks: passing (`just check`; `just done` last at `78f3ea6`)
+Updated: 2026-11-27 · Branch: `main` (ahead of `origin/main`, not pushed) ·
+Last commit: `docs: archive work when it is done` · Checks: passing
+(`just done`)
 Verify with: `just done` (`just verify` is the release tier)
 
 ## In progress
@@ -22,17 +22,18 @@ None. [verified]
 - Benchmark reruns, `just benchmarks-due` then `just bench <name>` (ADR
   0072): awaits your go-ahead. Only the `engine/bench` programs are listed;
   the page scripts are in `old_python/`. (since 2026-11-27)
+- A read of ADRs 0074 to 0079, the six consolidating records the docs
+  cleanup wrote on your answer: each restates rules written for the old
+  Python, and its writer was unsure of some points, among them whether a
+  user's step is still inspected with placeholders (0075), whether one shared
+  sort for every quantile binds the C++ (0078), and whether the saved file's
+  Python-named value tags (`tuple`, `decimal`, `uuid`) are format or
+  mechanics (0079). Each file's own "Mechanics" bullet leaves the mechanics
+  to its C++ group (ADR 0070). (since 2026-11-27)
 
 ## Next up
 
-- **Next: the docs cleanup**, in a fresh session (Tomas, 2026-11-27): plan
-  `docs/plans/2026-11-27-docs-cleanup.md`, approved to start. Implemented
-  plans, built or old-Python specs, answered questions and superseded ADRs
-  move to an `archived/` folder beside them; ADR numbers never change;
-  nothing is deleted. Task 1 adds a link check first. Task 2 stops after the
-  classification list: show Tomas the counts and every "consolidate" row,
-  and move nothing until he says go.
-- Then the Bazel prototype (Tomas, 2026-11-27: one plan at a time):
+- **Next: the Bazel prototype** (Tomas, 2026-11-27: one plan at a time):
   `docs/plans/2026-11-27-bazel-prototype.md`, in its own worktree; ask
   before installing bazelisk and before any timing.
 - Ideas from the research (`docs/questions/test-selection.md`), none
@@ -95,6 +96,9 @@ None. [verified]
   through `_groups.release()`, or every commit reruns everything. clang has
   no `-fpreprocessed`: `_groups.stripped()` uses `-Xclang -dump-raw-tokens`.
   (2026-11-27)
+- The docs tagger writes `related:` entries that are no paths (`ADR-0029`,
+  `docs/adr/0070.md`, a bare page name), even into new files: `just links`
+  names each, so fix them before its frontmatter commit. (2026-11-27)
 - The docs tagger's frontmatter is committed on its own (`docs: refresh the
   docs index frontmatter`) after checking every `related:` path exists; it
   has written paths that do not exist and names that are not paths. Left
@@ -169,9 +173,18 @@ None. [verified]
 
 ## Just finished
 
+- The docs cleanup (2026-11-27, plan and list now in
+  `docs/plans/archived/`): `305f313` and `4d2fa4c` the link check and the
+  `related:` paths it named; `4811972` and `0f8a393` the list and your
+  answers; `ab421ee` the moves into `archived/` folders (`docs/adr/`,
+  `specs/`, `plans/`, `questions/`, `benchmarks/`); `1267423` `just links`,
+  a check of its own on every Markdown file; `1792390` ADRs 0074 to 0079,
+  the twenty they supersede archived, the amended ADRs' status lines, the
+  index and the stale active pages; then the archiving rule in `CLAUDE.md`
+  and `workflow.md`. Nothing was deleted; no ADR was renumbered.
 - The old Python moved to `old_python/` (2026-11-27, ADR 0073, plan
-  `docs/plans/2026-11-27-old-python.md`): `d4f7d3b` the move, `55cd48e` the
-  docs, merged into `main` and pushed. Nothing there runs; `just validate`
+  `docs/plans/archived/2026-11-27-old-python.md`): `d4f7d3b` the move, `55cd48e`
+  the docs, merged into `main` and pushed. Nothing there runs; `just validate`
   has no runner; `check-mirror` is gone; `tests/src/` is empty until the C++
   brings `sq.` back.
 - The research on choosing what a change tests,

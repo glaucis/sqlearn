@@ -52,9 +52,22 @@ passed, and `just done` runs every one even when one fails:
 | How the system works now | `docs/architecture/` |
 | What to build: one spec per part or feature | `docs/specs/` |
 | How to build it: implementation plans | `docs/plans/` |
-| Open questions | `docs/questions/`; answered, the answer moves to the right doc |
+| Open questions | `docs/questions/`; answered, the answer moves to the right doc and the question to `archived/` |
 | Bugs, requests and tasks | GitHub Issues on `glaucis/sqlearn` ([docs/agents/issue-tracker.md](../agents/issue-tracker.md)) |
 | Domain vocabulary | `GLOSSARY.md` at the root, created when the first term is settled ([docs/agents/domain.md](../agents/domain.md)) |
+
+What is done is archived, never deleted: it moves with `git mv` to an
+`archived/` folder beside it. A plan moves to `docs/plans/archived/` in the
+last commit of the work it plans; a spec to `docs/specs/archived/` when what
+it describes is built or replaced; a question to `docs/questions/archived/`
+when it is answered, its answer moved into the right doc; an ADR to
+`docs/adr/archived/` when it is superseded or its subject is gone, with its
+status line saying why and its entry under "Archived" in
+[the index](../adr/index.md). ADR numbers and file names never change, and
+several ADRs on one subject are consolidated by a new ADR that supersedes
+them, never by renumbering. An archived file is not edited, except its status
+line and any link a move broke; `just links` checks that every link and
+`related:` path still names a file.
 
 The superpowers skills default to `docs/superpowers/specs/` and
 `docs/superpowers/plans/`. In this repository they use `docs/specs/` and

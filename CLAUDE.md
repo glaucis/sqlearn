@@ -249,7 +249,14 @@ commit both of these into it, without being asked:
 - **Docs layout:** `docs/adr/` (decisions), `docs/architecture/` (how it works),
   `docs/specs/` (what to build), `docs/plans/` (how to build it),
   `docs/questions/` (open questions). New decision → new ADR. Answered question
-  → move the answer into the right doc.
+  → move the answer into the right doc. **Archiving:** what is done moves with
+  `git mv` to an `archived/` folder beside it, never deleted: a plan when it
+  is implemented, in the work's last commit; a spec when what it describes is
+  built or replaced; a question when it is answered (its answer moved into
+  the right doc); an ADR when it is superseded or its subject is gone, its
+  status line saying why, listed under "Archived" in `docs/adr/index.md`. ADR
+  numbers and file names never change; an archived file is not edited, except
+  its status line and any link a move broke. `just links` checks every link.
 - **Docs index:** docs are tagged automatically (frontmatter `type`, `tags`,
   `summary`, `related`) and searchable with `qmd query "<question>" -c sqlearn`.
   Search here before grepping docs. Status: `mdindex status`. Off: delete

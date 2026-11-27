@@ -2,7 +2,7 @@
 type: note
 tags: [bazel, build-system, cmake, prototype, engine]
 summary: "Implementation plan for a throwaway Bazel prototype of the sqlearn engine to decide whether to move from CMake, reporting evidence to a questions doc."
-related: [docs/questions/test-selection.md, docs/plans/2026-11-27-old-python.md, engine/CMakeLists.txt, engine/cmake/pins.cmake, engine/cmake/warnings.cmake, engine/cmake/hardening.cmake]
+related: [docs/questions/test-selection.md, docs/plans/archived/2026-11-27-old-python.md, engine/CMakeLists.txt, engine/cmake/pins.cmake, engine/cmake/warnings.cmake, engine/cmake/hardening.cmake]
 mdindex: [type=edb465, tags=817fc2, summary=7eebe0, related=e06904]
 ---
 # A Bazel prototype of the engine: implementation plan
@@ -27,11 +27,11 @@ or "partly, because"; the branch is never merged, only the report is.
 rules_foreign_cc, rules_python, nanobind_bazel; the Bazel Central Registry's
 `catch2`, `rapidcheck`, `cpptrace`, `nanobind`.
 
-**Spec:** Tomas's question of 2026-11-27, "why not adopt Bazel from the
-start?", and the research in `docs/questions/test-selection.md` (part B
-§1.1, §7.2, §7.4). Runs after the move of the old Python
-(`docs/plans/2026-11-27-old-python.md`), so only the C++ and the bindings
-are left to build.
+**Spec:** Tomas's question of 2026-11-27, "why not adopt Bazel from the start?",
+and the research in `docs/questions/test-selection.md` (part B §1.1, §7.2,
+§7.4). Runs after the move of the old Python
+(`docs/plans/archived/2026-11-27-old-python.md`), so only the C++ and the
+bindings are left to build.
 
 ## Global Constraints
 
