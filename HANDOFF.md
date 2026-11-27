@@ -3,9 +3,10 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-27 · Branch: `main` (not pushed) · Last commit: `f77a891
-docs: refresh the docs index frontmatter` · Checks: passing (`just done`)
-Verify with: `just done` (`just verify` is the release tier)
+Updated: 2026-11-27 · Branch: `main` (pushed) · Last commit:
+`78f3ea6 docs: record the merge of the old Python's move in the handoff` ·
+Checks: passing (`just done`) Verify with: `just done` (`just verify` is the
+release tier)
 
 ## In progress
 
@@ -13,8 +14,6 @@ None. [verified]
 
 ## Waiting on the user
 
-- Pushing `main`: the move to `old_python/` is merged but not pushed.
-  (since 2026-11-27)
 - The audit's first real run, `just audit-groups` (builds a second,
   coverage-instrumented wheel with DuckDB): awaits your go-ahead. With the
   old runners and tests in `old_python/` nothing claims anything yet, so it
