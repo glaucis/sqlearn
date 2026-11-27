@@ -9,6 +9,9 @@ related: [docs/adr/0016-validation-method.md, docs/adr/0043-repeatable-within-ro
 Status: accepted (2026-11-21). Decided by Tomas on 2026-11-21 with the
 [native engine spec](../specs/native-engine.md) (§3.6). Revised before merging
 (2026-11-21), with the spec's revision: the C++ library's own tests.
+Amended by [ADR 0070](0070-sqlearn-is-rewritten-in-cpp.md) (2026-11-27):
+behaviour inside the library is tested in C++, behaviour seen through `sq.`
+in Python; ADR 0067's Python tests are no fixed contract.
 Amended by the [Phase 1 spec](../specs/native-engine-phase-1.md)
 (2026-11-21): ownership is a tree, and a pointer back up is `weak_ptr` or
 plainly non-owning, so no `shared_ptr` cycle keeps objects alive (§3.2); the

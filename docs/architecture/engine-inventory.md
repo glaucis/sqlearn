@@ -6,8 +6,9 @@ related: [docs/specs/native-engine.md, docs/adr/0067-how-computation-moves-to-th
 ---
 # The native engine's inventory
 
-sqlearn is ported to a C++ library one piece at a time, with `main` green
-([ADR 0067](../adr/0067-how-computation-moves-to-the-engine.md)). This page is
+sqlearn is rewritten as a C++ library one group at a time, with `main` green
+([ADR 0070](../adr/0070-sqlearn-is-rewritten-in-cpp.md), which supersedes
+0067). This page is
 the port's map. It gives every module of `src/sqlearn` the phase that ports it,
 the C++ that replaces it, what stays in the Python bindings, and what it imports
 from the other modules. It then puts Phase 4's groups in order, from those
@@ -137,7 +138,7 @@ the budget in. No binding beyond Phase 1's is needed for it.
 
 ## The groups of Phase 4
 
-A piece of the port is one group (ADR 0067; the agent's call, spec §3.8). The
+A piece of the port is one group (ADR 0070; the agent's call, spec §3.8). The
 groups go in this order. Each is ported after the groups it imports from, so
 each group's C++ calls only C++ already merged, except where the seam to Python
 steps carries the call (the agent's call, spec §3.1). Phase 4's specs may split

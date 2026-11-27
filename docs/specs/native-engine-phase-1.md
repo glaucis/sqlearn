@@ -368,7 +368,8 @@ committed and checked against the module.
 
 **Correctness:** validation, ULP bounds, no `-ffast-math` (in place); a
 snapshot of the public `sq.` API (every name and signature; a change fails
-until accepted, so ADR 0003 and 0067's rule is checked); snapshots of the SQL
+until accepted, so ADR 0003's rule is checked and, under ADR 0070, every
+change is accepted in the commit that makes it); snapshots of the SQL
 reference pipelines build; fault tests (memory limit, disk full while
 spilling, DuckDB out of memory, Ctrl-C in a long query: a clean `sq.errors`
 message and consistent state); in the release, the GCC and MSVC builds'

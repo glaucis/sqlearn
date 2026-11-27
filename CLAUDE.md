@@ -47,11 +47,12 @@ built.
   `docs/specs/library-exploration.md`, plan
   `docs/plans/2026-11-20-library-exploration.md`, ADR 0059, issue #74. The
   native engine (part 3.10: sqlearn as a C++ library embedding DuckDB, Python
-  its bindings): spec `docs/specs/native-engine.md`, ADRs 0060–0068, the port's
-  inventory `docs/architecture/engine-inventory.md`, milestone "Native engine"
-  (#78 to #84). Phase 0 is done; Phase 1's step 1 (the checks) is merged and
-  its step 2 (the build) is built on the branch `phase-1-build`, awaiting the
-  merge; the port comes before any new area. sqlearn's
+  its bindings): spec `docs/specs/native-engine.md`, ADRs 0060–0070, the
+  rewrite's inventory `docs/architecture/engine-inventory.md`, milestone
+  "Native engine" (#78 to #84). Phase 0 is done; Phase 1's steps 1 (the
+  checks) and 2 (the build) are merged. The library is rewritten in C++
+  (ADR 0070, superseding 0067), and the rewrite comes before any new
+  area. sqlearn's
   own models are a goal, built in the engine; outside models stay supported (ADR
   0017, 0068). **Next:** chosen from `HANDOFF.md`'s "Next up".
 
@@ -61,14 +62,14 @@ Rules from the ADRs:
   `python` (0001).
 - sqlearn is a C++ library embedding DuckDB. Python is thin nanobind
   bindings with no logic of their own, as it will be at the end of the
-  port (0067); users' own steps stay writable in
+  rewrite (0070); users' own steps stay writable in
   Python. Other languages bind later, through a C layer when they need
   one. The C++ API is internal: only `sq.` is public (0060).
 - Computation runs inside DuckDB: the SQL the library builds, and
   sqlearn's C++ functions (`sqlearn_*`) registered in it (0002, 0060).
   Apply SQL may call them where a benchmark shows it faster; each keeps a
   plain-SQL twin where one exists. Until the engine's Phase 2, a Gram
-  step's learn sums XᵀX in numpy from batches DuckDB streams (0058, 0067).
+  step's learn sums XᵀX in numpy from batches DuckDB streams (0058, 0070).
 - The API follows scikit-learn conventions; any departure needs its own ADR
   (0003). The verbs are sqlearn's own: `learn`/`apply` for steps,
   `train`/`predict` for models (0013).
@@ -100,13 +101,18 @@ Rules from the ADRs:
   clang-tidy and the static analyser, sanitizers and fuzzing in
   `just verify` and in workflows started by hand, a hardened standard
   library, and no crash reaching the user (0065).
-- The library is ported to C++ one inventory group at a time, with `main`
-  green: the Python package calls the C++ for each group ported and its
-  own Python for the rest. A group merges when the public API's tests and
-  the validation pass unchanged against the C++ and its benchmark is not
-  slower; then its Python is deleted, and the tests of its internals are
-  rewritten against `sq.` or in C++. A test of the public API changes
-  only with an ADR (0067).
+- The library is rewritten in C++ one inventory group at a time, with
+  `main` green, each group designed for C++, not translated from the
+  Python. The Python library is frozen: no new features, fixes only where
+  a bug blocks the work. A group merges when its C++ tests and the
+  validation runners it touches pass and its benchmark is not slower than
+  the Python it replaces; in the same merge its Python is deleted with
+  every test of it. Behaviour inside the library is tested in C++,
+  behaviour seen through `sq.` in Python. Before `1.0.0` the `sq.` API
+  may change in the commit that needs it, recorded in
+  `tests/public_api.txt`; only a departure from scikit-learn's
+  conventions needs an ADR. Files saved before the rewrite need not load
+  after it; `sq.load`'s security rules hold (0070).
 - Python 3.12 is the floor (0007). Every task runs through `just` (0008).
 - British English in prose, American spelling in identifiers (0010).
 - sqlearn ships, generates and fetches no datasets: the user brings their

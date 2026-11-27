@@ -54,8 +54,10 @@ sqlearn's computation in C++, inside its own DuckDB build.
 - [0065: Safety rules for the C++](0065-safety-rules-for-the-cpp.md)
 - [0066: Permissive licences, never copyleft](0066-permissive-licences-never-copyleft.md)
 - [0067: The library is ported to C++ piece by piece](0067-how-computation-moves-to-the-engine.md)
+  (superseded by 0070)
 - [0068: sqlearn's own models, in the engine](0068-sqlearns-own-models.md)
 - [0069: The crash handler hands the fault on](0069-the-crash-handler-hands-the-fault-on.md)
+- [0070: sqlearn is rewritten in C++](0070-sqlearn-is-rewritten-in-cpp.md)
 
 ## The API
 

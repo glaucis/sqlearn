@@ -14,8 +14,6 @@ None.
 
 ## Waiting on the user
 
-- Task 6's note: any `engine/` change reruns the whole Python suite
-  (`engine` is one of `TEST_INPUTS`). (since 2026-11-25)
 - The FMA ADR: `-ffp-contract=off` everywhere, `std::fma` on purpose and
   validated (spec §3.9, the agent's proposal); decide before Phase 2's
   kernels. (since 2026-11-22)
@@ -247,6 +245,15 @@ None.
 
 ## Just finished
 
+- ADR 0070 supersedes 0067 (Tomas, 2026-11-27: rewrite everything in
+  C++, new bindings, delete the Python not needed; he left the rules to
+  the agent): the Python library is frozen; each group's Python and
+  its tests go once its C++ tests and validation pass and it is not
+  slower; the `sq.` API may change before `1.0.0`; old saved files need
+  not load. `CLAUDE.md`, the spec (§3.8, §4), the overview, the layout,
+  the inventory, ADRs 0060 and 0065 (amended) and issues #79 to #82
+  follow it. Task 6's note (any `engine/` change reruns the whole Python
+  suite) is dropped: the suite is redrawn as the groups are rewritten.
 - The validation's engine digest narrowed to what the module is built
   from (Tomas, 2026-11-27): `ENGINE_BUILD`, uv's cache-keys and every
   submodule under `engine/`, so a C++ test, fuzz input, benchmark or

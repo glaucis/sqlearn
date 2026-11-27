@@ -398,47 +398,41 @@ Binding from the first commit.
 - Considered: keeping ADR 0004's four licences, which would rule out bundling
   DuckDB as it is.
 
-### 3.8 How the library is ported (ADR 0067)
+### 3.8 How the library is rewritten (ADR 0070, superseding 0067)
 
-- **The whole library is ported to C++, piece by piece, with `main` green**
-  (Tomas chose this over bindings at the end, 2026-11-21). From Phase 1 the
-  Python package calls the C++ for each piece already ported and today's
-  Python for each piece still waiting; at the end no logic is left in
-  Python, only the bindings. Each phase has its own spec, plan and branch in
-  a worktree, and Tomas merges it; `just verify` passes on `main` after every
-  merge.
-- **The Python API and its tests are the contract:** about 3,190 tests and
-  the validation runners (ADR 0016), run against the C++ through the bindings
-  at every step, as Polars' Python tests run against its Rust. A piece is
-  ported when its C++ version passes the same tests unchanged and its
-  benchmark is not slower; only then is its Python deleted. A test of the
-  public API changes only with an ADR saying why the behaviour changes.
-- **Tests of internals** (the agent's call): 69 of the 96 test files import a
-  private module (`sqlearn._config`, `_store`, `_saving`, `_errors`, `_step`
-  most), and the validation runners reach into some (`learned_from_gram`).
-  The bindings keep no copies of private modules for them. When a piece is
-  ported, each test of its internals is rewritten against the public API
-  where the behaviour is public, or becomes a C++ test where it is not; the
-  phase's spec lists them, and no ADR is needed, since no public behaviour
-  changes. The gate "the same tests unchanged" applies to the public API's
-  tests and the validation runners' verdicts.
-- **A piece** is one group of the inventory (§5.3), not a module (the agent's
-  call). Inside a group's branch the code may be slower for a while, as
-  Python and C++ call each other; the group merges only when its benchmark,
-  run on the same data and machine with the load recorded, is not slower
-  than before the group. A difference within the run-to-run spread of two
-  runs counts as not slower.
-- **Saving keeps its behaviour exactly:** files saved before the port load
-  after it, and `sq.load`'s security rules hold in C++ (a static class
-  lookup; values reach exact arithmetic only as plain numbers). The saving
-  group gets a whole-branch security review of its own, as #55 and #65 did.
+Revised 2026-11-27 (Tomas): ADR 0067 ported the library under its Python
+tests, unchanged; ADR 0070 replaces that with a rewrite.
+
+- **The whole library is rewritten in C++**, one group of the inventory
+  (§5.3) at a time, in its order, each group designed for C++ rather than
+  translated from the Python. At the end no library logic is left in
+  Python, only the bindings and the seam for users' own steps (§3.1). Each
+  phase has its own spec, plan and branch in a worktree, and Tomas merges
+  it; `main` stays green, and `just verify` passes on it after every merge.
+- **The Python library is frozen:** no new features, fixes only where a bug
+  blocks the work.
+- **A group's gate:** its C++ tests pass, every validation runner it touches
+  passes (ADR 0016), and its benchmark, on the same data and machine with
+  the load recorded, is not slower than the Python it replaces (a difference
+  within the run-to-run spread of two runs counts as not slower). In the
+  same merge its Python is deleted with every test of it.
+- **Tests:** behaviour inside the library is tested in C++, behaviour seen
+  through `sq.` in Python against the bindings. A Python test is kept,
+  changed or deleted on its merits; tests of a deleted Python internal are
+  deleted, not rewritten. Each group's spec lists the tests it deletes and
+  adds.
+- **The `sq.` API may be improved before `1.0.0`** in the commit that needs
+  it, recorded in `tests/public_api.txt`, the docs and the changelog; a
+  departure from scikit-learn's conventions still needs an ADR (0003).
+- **Saving:** files saved before the rewrite need not load after it.
+  `sq.load`'s security rules hold in C++ (a static class lookup; values reach
+  exact arithmetic only as plain numbers), and the saving group gets a
+  whole-branch security review of its own, as #55 and #65 did.
 - **Users' own steps:** see §3.1.
-- **The order** comes from the inventory (§5.3): what the rest depends on,
-  and what the profiling shows costs most.
-- **What stays Python:** in the library, only the bindings. The development
-  tools stay Python too: the tests, the validation that compares sqlearn with
-  scikit-learn (itself Python), the benchmarks and `devdata/`. None of them
-  ship.
+- **What stays Python:** the bindings, the seam for users' steps, and the
+  development tools, none of which ship: the validation that compares sqlearn
+  with scikit-learn (itself Python), the benchmarks, `devdata/` and the
+  checks.
 - **Measure honestly,** by HANDOFF's rules: `uptime` before and after, one
   probe per subprocess, large data written as Parquet with `COPY`, peak memory
   read twice.
@@ -472,9 +466,9 @@ about 6 times the cost of XᵀX), and 0058, which Phase 2 supersedes, not Phase 
 |---|---|---|
 | 0 | This spec: the decisions as ADRs, the inventory (the port's order), the backup, the issues | §5 |
 | 1 | sqlearn's DuckDB build, the C++ library's skeleton and its Python bindings, CI | `sq.version()` answers from the C++ on every platform's build, one DuckDB in the process, the safety stack runs in CI |
-| 2 | `sqlearn_gram`, and PCA's learn on it | every PCA test and `validate_pca` pass unchanged, not slower, numpy Gram path removed |
+| 2 | `sqlearn_gram`, and PCA's learn on it | its C++ tests and `validate_pca` pass, not slower, numpy Gram path removed |
 | 3 | Numeric functions | each function validated against mpmath; PCA's `eigh` in C++ |
-| 4 | The rest of the library, in the inventory's order, one spec per group | every test passes unchanged against the C++, no logic left in Python |
+| 4 | The rest of the library, in the inventory's order, one spec per group | each group's gate passes (§3.8) and its Python is deleted; no library logic left in Python |
 | 5 | sqlearn's own models, one spec each | each validated and benchmarked against scikit-learn |
 | 6 | Apple GPU kernels | one kernel at a time, each faster where it runs (#77) |
 
@@ -540,15 +534,15 @@ about 6 times the cost of XᵀX), and 0058, which Phase 2 supersedes, not Phase 
   and the decision to publish a C++ API.
 
 **The order of work** (Tomas, 2026-11-21): the port comes first, planned from
-start to end over sqlearn's whole current state, and done piece by piece with
+start to end over sqlearn's whole current state, and done group by group with
 `main` green. From Phase 1 all of sqlearn's SQL runs in sqlearn's DuckDB build
 and the Python package loads the C++ library's bindings, calling the C++ for
-each piece already ported and its own Python for the rest; Phases 2 to 4 port
-the library; the inventory (§5.3) is the port's full map, module by module.
-Before Phase 1, HANDOFF's three small queued fixes land (the one-line
-`profile` fix, #75, #76; the agent's call). New library areas wait until the
-port is done, and work that needs an engine function (p-values, normality
-tests) waits for the phase that brings it.
+each group already rewritten and the frozen Python for the rest; Phases 2 to 4
+rewrite the library (ADR 0070); the inventory (§5.3) is the port's full map,
+module by module. Before Phase 1, HANDOFF's three small queued fixes land (the
+one-line `profile` fix, #75, #76; the agent's call). New library areas wait
+until the port is done, and work that needs an engine function (p-values,
+normality tests) waits for the phase that brings it.
 
 ## 5. Phase 0's deliverables
 

@@ -313,14 +313,15 @@ sqlearn stands and at what size the others stop.
 ### 3.10 Native engine
 
 **What:** sqlearn becomes a C++ library embedding DuckDB, with Python as its
-bindings, ported piece by piece
-([ADR 0067](../adr/0067-how-computation-moves-to-the-engine.md)), Apple
+bindings, rewritten in C++ group by group
+([ADR 0070](../adr/0070-sqlearn-is-rewritten-in-cpp.md)), Apple
 silicon first, in seven phases ([spec](../specs/native-engine.md) §4; ADRs
-0060 to 0068; milestone "Native engine", #78 to #84). Phase 0 decides and takes
+0060 to 0070; milestone "Native engine", #78 to #84). Phase 0 decides and takes
 the [inventory of every module](engine-inventory.md).
 
-**Done when:** every test passes unchanged against the C++ and no logic is
-left in Python (Phases 1 to 4); each later phase is done when its spec says
+**Done when:** every group's C++ passes its tests and the validation, is
+not slower than the Python it replaced, and no library logic is left in
+Python (Phases 1 to 4); each later phase is done when its spec says
 so.
 
 **Depends on:** 3.2 and 3.3 for what is ported, 3.8 for the validation the

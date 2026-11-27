@@ -135,6 +135,6 @@ folder when its first example lands. Today there is the root header,
 - `.github/`: the workflows, started by hand, with the native engine's
   Phase 1, step 3.
 - In `engine/src/`, a group for each part of the library as the port moves
-  it to C++ (ADR 0067), with its tests and benchmarks.
+  it to C++ (ADR 0070), with its tests and benchmarks.
 - Guide chapters, lessons, validation pages and benchmarks: the foundation
   creates no content beyond the placeholder example.

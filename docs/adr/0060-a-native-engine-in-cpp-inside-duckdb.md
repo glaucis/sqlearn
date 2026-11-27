@@ -10,7 +10,9 @@ Status: accepted (2026-11-21). Decided by Tomas on 2026-11-21 with the
 [native engine spec](../specs/native-engine.md) (§3.1). Amends
 [ADR 0002](0002-sql-on-duckdb-execution-engine.md). Revised before merging
 (2026-11-21), with the spec's revision: sqlearn becomes a C++ library
-embedding DuckDB, and Python its bindings.
+embedding DuckDB, and Python its bindings. Amended by
+[ADR 0070](0070-sqlearn-is-rewritten-in-cpp.md) (2026-11-27): the library's
+logic is rewritten in C++, not ported under ADR 0067's rules.
 
 ## Context
 
