@@ -2,7 +2,7 @@
 type: adr
 tags: [learning-store, cache-keys, fold, fingerprint, steps]
 summary: "ADR 0076 sets the rules for the learning store and its three-part keys (data, fold, steps), superseding ADRs 0014, 0021, 0024 and 0056."
-related: [docs/adr/archived/0014-learning-store.md, docs/adr/archived/0021-inputs-and-how-the-store-knows-them.md, docs/adr/archived/0024-store-keys-follow-what-a-step-reads.md, docs/adr/archived/0056-settings-that-only-choose-the-output-stay-out-of-the-learn-key.md, ADR-0029, ADR-0040, ADR-0018, ADR-0074]
+related: [docs/adr/archived/0014-learning-store.md, docs/adr/archived/0021-inputs-and-how-the-store-knows-them.md, docs/adr/archived/0024-store-keys-follow-what-a-step-reads.md, docs/adr/archived/0056-settings-that-only-choose-the-output-stay-out-of-the-learn-key.md, docs/adr/0029-relations-from-another-connection-are-refused.md, docs/adr/0040-fold-schemes-as-sql-over-rows.md, docs/adr/0074-how-a-pipeline-learns.md]
 mdindex: [type=0fc814, tags=0fb0b4, summary=b24880, related=e4688f]
 ---
 # 0076: The learning store and its keys
