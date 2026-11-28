@@ -42,13 +42,17 @@ function(sq_check_pins)
       message(
         FATAL_ERROR
         "engine/${path} is not checked out.\n"
-        "Fix: git submodule update --init --recursive"
+        "Fix: run these two commands\n"
+        "  git submodule update --init\n"
+        "  git -C engine/duckdb-python submodule update --init external/duckdb"
       )
     elseif(NOT found STREQUAL pinned)
       message(
         FATAL_ERROR
         "engine/${path} is at ${found}, pinned to ${pinned}.\n"
-        "Fix: git submodule update --init --recursive"
+        "Fix: run these two commands\n"
+        "  git submodule update --init\n"
+        "  git -C engine/duckdb-python submodule update --init external/duckdb"
       )
     endif()
   endforeach()

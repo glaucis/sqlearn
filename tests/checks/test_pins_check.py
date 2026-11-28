@@ -8,7 +8,11 @@ from pathlib import Path
 import pytest
 
 REPO = Path(__file__).resolve().parents[2]
-FIX = "Fix: git submodule update --init --recursive"
+FETCH = (
+    "git submodule update --init",
+    "git -C engine/duckdb-python submodule update --init external/duckdb",
+)
+FIX = "Fix: run these two commands"
 NESTED = (
     "duckdb-python",
     "duckdb-python/external/duckdb",
@@ -80,6 +84,7 @@ def test_a_configure_without_submodules_names_the_fix(scratch):
     done = _configure(scratch)
     assert done.returncode != 0
     assert FIX in done.stderr
+    assert all(command in done.stderr for command in FETCH)
 
 
 def test_a_configure_with_every_pin_matched_passes(scratch):
@@ -98,6 +103,7 @@ def test_a_configure_at_another_commit_names_the_fix(scratch):
     assert done.returncode != 0
     assert "engine/third_party/catch2" in done.stderr
     assert FIX in done.stderr
+    assert all(command in done.stderr for command in FETCH)
 
 
 def test_duckdb_checked_out_off_its_pin_inside_duckdb_python_fails_configure(scratch):
@@ -111,3 +117,12 @@ def test_duckdb_checked_out_off_its_pin_inside_duckdb_python_fails_configure(scr
     assert done.returncode != 0
     assert "engine/duckdb-python/external/duckdb" in done.stderr
     assert FIX in done.stderr
+    assert all(command in done.stderr for command in FETCH)
+
+
+def test_the_pins_fix_names_the_same_fetch_as_setup():
+    """The pins check's ``Fix:`` is the two commands ``just setup`` runs."""
+    text = (REPO / "engine" / "cmake" / "pins.cmake").read_text()
+    assert "--recursive" not in text
+    for command in FETCH:
+        assert text.count(f'"  {command}') == 2

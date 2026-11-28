@@ -542,3 +542,32 @@ def test_every_recipe_that_runs_checks_writes_the_compiler_stamp_first(recipe):
     ).stdout
     depends = json.loads(dumped)["recipes"][recipe]["dependencies"]
     assert [d["recipe"] for d in depends] == ["compiler-stamp"]
+
+
+def _recipe_text(recipe):
+    """The recipe as ``just`` prints it."""
+    return subprocess.run(
+        ["just", "--justfile", str(REPO / "justfile"), "--show", recipe],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+
+
+SETUP_FETCH = (
+    "git submodule update --init\n"
+    "git -C engine/duckdb-python submodule update --init external/duckdb"
+)
+
+
+def test_doctor_names_llvm_by_the_justfile_variable():
+    """``doctor`` finds clang through ``llvm``, not a second literal path."""
+    assert "/opt/homebrew/opt/llvm" not in _recipe_text("doctor")
+
+
+def test_setup_fetches_no_nested_submodule_but_duckdbs():
+    """``setup`` fetches the top-level submodules and DuckDB, nested in
+    duckdb-python; RapidCheck's ``ext/`` stays unfetched."""
+    body = _recipe_text("setup")
+    assert "--recursive" not in body
+    assert SETUP_FETCH in "\n".join(line.strip() for line in body.splitlines())

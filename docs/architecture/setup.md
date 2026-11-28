@@ -19,7 +19,8 @@ just setup
 ```
 
 `just setup` points git's `core.hooksPath` at `.githooks`, runs `just doctor`,
-fetches the submodules (`git submodule update --init --recursive`) and runs
+fetches the submodules (`git submodule update --init`, then DuckDB inside
+duckdb-python: RapidCheck's own submodules stay unfetched) and runs
 `uv sync --locked`, which installs the locked environment into `.venv` on the
 Python floor, 3.12. Nothing else installs the hooks, so run it once after every
 clone. A missing tool is reported and the rest still runs; `just setup` then

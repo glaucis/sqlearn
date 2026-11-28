@@ -151,6 +151,12 @@
       "tier": "fast"
     },
     {
+      "area": "checks/pins_check",
+      "name": "tests/checks/test_pins_check.py::test_the_pins_fix_names_the_same_fetch_as_setup",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
       "area": "checks/tasks",
       "name": "tests/checks/test_tasks.py::test_a_change_to_one_python_file_lints_only_that_file",
       "outcome": "passed",
@@ -338,6 +344,12 @@
     },
     {
       "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_doctor_names_llvm_by_the_justfile_variable",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
       "name": "tests/checks/test_tasks.py::test_every_cache_key_under_engine_reaches_a_fingerprint",
       "outcome": "passed",
       "tier": "fast"
@@ -387,6 +399,12 @@
     {
       "area": "checks/tasks",
       "name": "tests/checks/test_tasks.py::test_only_the_test_task_is_left_unexplained",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_setup_fetches_no_nested_submodule_but_duckdbs",
       "outcome": "passed",
       "tier": "fast"
     },

@@ -29,7 +29,7 @@ doctor:
     check() { # formula, command, version argument
         local found
         if [ "$1" = llvm ]; then
-            found=/opt/homebrew/opt/llvm/bin/clang
+            found="{{ llvm }}/clang"
             [ -x "$found" ] || found=
         else
             found=$(command -v "$2" 2>/dev/null || true)
@@ -76,7 +76,8 @@ setup:
     git config core.hooksPath .githooks
     doctor=0
     "{{ just_executable() }}" --justfile "{{ justfile() }}" doctor || doctor=$?
-    git submodule update --init --recursive
+    git submodule update --init
+    git -C engine/duckdb-python submodule update --init external/duckdb
     uv sync --locked
     exit "$doctor"
 
@@ -435,10 +436,10 @@ probe-cxx26:
             columns+=("$("$tmp/probe" | paste -sd '|' -)")
         else
             names+=("$name ($version)")
-            columns+=("compile failed: $(head -n 1 "$tmp/err")|||")
+            columns+=("compile failed: $(head -n 1 "$tmp/err" | tr '|' '/')|||")
         fi
     }
-    probe "Apple clang" clang++
+    probe "Apple clang" "$(xcrun --find clang++)"
     probe "Homebrew LLVM" /opt/homebrew/opt/llvm/bin/clang++ -isysroot "$sdk"
     for gcc in g++-16 gcc-16; do
         if command -v "$gcc" > /dev/null 2>&1; then
