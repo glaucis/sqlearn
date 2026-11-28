@@ -1,3 +1,10 @@
+---
+type: adr
+tags: [build-system, cmake, bazel, test-selection, decision]
+summary: "Decides the sqlearn engine stays on CMake under just with its own test selection, keeping Bazel for later and listing the signs to look again."
+related: [docs/questions/archived/bazel-prototype.md, docs/adr/0008-just-task-runner.md, docs/architecture/testing.md, validation/_checks.py, validation/_ctest.py, HANDOFF.md]
+mdindex: [type=0fc814, tags=0bcabe, summary=e41566, related=3aec66]
+---
 # 0080: The engine stays on CMake for now
 
 Status: accepted (2026-11-28). Decided by Tomas on 2026-11-28, after the
