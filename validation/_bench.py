@@ -343,13 +343,14 @@ def due(root: Path) -> list[Due]:
     return out
 
 
-def _out_of_date(root: Path, name: str) -> str | None:
+def _out_of_date(root: Path, name: str, build_dir: Path = PROGRAM_BUILD) -> str | None:
     """Return why the program `name` is not built as its sources are, or None.
 
-    ``ninja -n`` lists the work the build would do; any means the binary
-    is not what the sources make. Nothing is rebuilt here.
+    ``ninja -n`` lists the work the build (`build_dir`, relative to the root:
+    the release build, or the profile one) would do; any means the binary is
+    not what the sources make. Nothing is rebuilt here.
     """
-    build = root / PROGRAM_BUILD
+    build = root / build_dir
     if not build.is_dir():
         return f"its build {build} does not exist"
     try:

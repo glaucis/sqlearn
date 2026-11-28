@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pytest
 
+from validation import _bench, _checks, _load
 from validation import _profile as pr
 
 DATA = Path(__file__).parent / "data"
@@ -323,3 +324,196 @@ def test_each_ranking_keeps_the_top_thirty(tmp_path):
     assert [f.name for f in summary.by_self] == expected
     assert [f.name for f in summary.by_total] == expected
     assert summary.owners == {"sqlearn": pytest.approx(1.0, abs=1e-12)}
+
+
+# `run`: one profile of a C++ program, the sampler replaced by a fake that
+# writes the fixture where samply would.
+
+
+@pytest.fixture(autouse=True)
+def _idle_machine(monkeypatch):
+    """Run every test on an idle machine, with samply found."""
+    monkeypatch.setattr(_load, "now", lambda: 0.0)
+    _samply(monkeypatch, "/fake/samply")
+
+
+def _samply(monkeypatch, found):
+    """Make `shutil.which("samply")` say `found`; other tools are found as usual."""
+    which = shutil.which
+    monkeypatch.setattr(
+        pr.shutil,
+        "which",
+        lambda tool, *a, **k: found if tool == "samply" else which(tool, *a, **k),
+    )
+
+
+def _program(scratch):
+    manifest = scratch.build / "sq_groups.json"
+    text = manifest.read_text().replace('"bench": []', '"bench": ["thing"]', 1)
+    manifest.write_text(text)
+    bench = scratch.root / "engine" / "bench"
+    bench.mkdir(parents=True)
+    (bench / "bench_thing.cpp").write_text("int main() {}\n")
+    binary = scratch.root / "engine" / "build" / "profile" / "bench" / "bench_thing"
+    binary.parent.mkdir(parents=True)
+    binary.write_text("#!/bin/sh\nexit 0\n")
+    binary.chmod(0o755)
+    return binary
+
+
+def _fake_sampler(monkeypatch, *, write=True, exit_code=0):
+    """Replace samply: write the fixture to the output file, run `exit_code`."""
+    calls = []
+
+    def sampler(argv, out_file):
+        calls.append((list(argv), out_file))
+        if write:
+            with gzip.open(out_file, "wt", encoding="utf-8") as text:
+                text.write(FIXTURE.read_text(encoding="utf-8"))
+            shutil.copy(
+                DATA / "samply-small.json.syms.json",
+                out_file.with_name("profile.json.syms.json"),
+            )
+        return ["sh", "-c", f"exit {exit_code}"]
+
+    monkeypatch.setattr(pr, "SAMPLER", sampler)
+    return calls
+
+
+def _clock(monkeypatch):
+    """Make each run's directory name a different second."""
+    ticks = iter(range(100))
+    monkeypatch.setattr(pr, "_stamp", lambda: f"20261128-1200{next(ticks):02d}")
+
+
+def _records(scratch):
+    return _checks.load(_checks.record_dir(scratch.root), "profile-bench_thing")
+
+
+def _dirs(scratch):
+    folder = scratch.root / "build" / "profiles" / "bench_thing"
+    return sorted(p.name for p in folder.iterdir()) if folder.is_dir() else []
+
+
+def test_a_profile_writes_its_summary_comparison_and_record(
+    scratch, monkeypatch, capsys
+):
+    """A run records the program under samply and saves what the agent reads."""
+    _program(scratch)
+    calls = _fake_sampler(monkeypatch)
+    _clock(monkeypatch)
+    assert pr.run(scratch.root, "bench_thing") == 0
+    [(argv, out_file)] = calls
+    assert argv == [str(scratch.root / "engine/build/profile/bench/bench_thing")]
+    [folder] = (scratch.root / "build/profiles/bench_thing").iterdir()
+    assert out_file == folder / "profile.json.gz"
+    assert (folder / "summary.json").is_file()
+    assert "No previous clean profile" in (folder / "compare.md").read_text()
+    summary = pr.Summary.from_json(json.loads((folder / "summary.json").read_text()))
+    assert summary.by_self[0].name == BITSET
+    [record] = _records(scratch)
+    assert record["digest"] == _bench.profile_identity(scratch.root, "bench_thing")
+    assert record["config"] == "bench_thing"
+    assert record["files"] == {}
+    assert record["loaded"] is False
+    assert record["summary"] == str((folder / "summary.json").relative_to(scratch.root))
+    assert record["seconds"] > 0
+    assert record["cores"] >= 0
+    assert {"uptime_before", "uptime_after"} <= record.keys()
+    assert "compare.md" in capsys.readouterr().out
+
+
+def test_the_comparison_uses_the_last_clean_profile(scratch, monkeypatch):
+    """A loaded profile newer than a clean one is skipped as the previous."""
+    _program(scratch)
+    _fake_sampler(monkeypatch)
+    _clock(monkeypatch)
+    assert pr.run(scratch.root, "bench_thing") == 0
+    assert pr.run(scratch.root, "bench_thing") == 0
+    monkeypatch.setattr(_load, "now", lambda: 1000.0)
+    assert pr.run(scratch.root, "bench_thing") == 0
+    monkeypatch.setattr(_load, "now", lambda: 0.0)
+    second = _dirs(scratch)[1]
+    assert _records(scratch)[2]["loaded"] is True
+    assert pr.run(scratch.root, "bench_thing") == 0
+    folder = scratch.root / "build/profiles/bench_thing"
+    text = (folder / _dirs(scratch)[-1] / "compare.md").read_text()
+    assert "| wall time |" in text
+    # Its previous is the second run: the loaded third is skipped.
+    previous = pr.Summary.from_json(
+        json.loads((folder / second / "summary.json").read_text())
+    )
+    assert f"| wall time | {previous.seconds:.3f} s |" in text
+
+
+def test_only_five_recordings_are_kept(scratch, monkeypatch):
+    """Seven runs leave the five newest directories."""
+    _program(scratch)
+    _fake_sampler(monkeypatch)
+    _clock(monkeypatch)
+    for _ in range(7):
+        assert pr.run(scratch.root, "bench_thing") == 0
+    assert _dirs(scratch) == [f"20261128-1200{n:02d}" for n in range(2, 7)]
+
+
+def test_a_directory_this_module_did_not_make_is_never_deleted(scratch, monkeypatch):
+    """Retention touches only names of the form YYYYMMDD-HHMMSS."""
+    _program(scratch)
+    _fake_sampler(monkeypatch)
+    _clock(monkeypatch)
+    other = scratch.root / "build/profiles/bench_thing/notes"
+    other.mkdir(parents=True)
+    for _ in range(6):
+        assert pr.run(scratch.root, "bench_thing") == 0
+    assert other.is_dir()
+    assert len(_dirs(scratch)) == 6
+
+
+def test_without_samply_nothing_runs_and_the_fix_is_named(scratch, monkeypatch, capsys):
+    """No samply: exit 1, the fix named, nothing created."""
+    _program(scratch)
+    calls = _fake_sampler(monkeypatch)
+    _samply(monkeypatch, None)
+    assert pr.run(scratch.root, "bench_thing") == 1
+    out = capsys.readouterr().out
+    assert "samply is not installed." in out
+    assert "Fix: brew install samply" in out
+    assert not calls
+    assert not (scratch.root / "build" / "profiles").exists()
+    assert _records(scratch) == []
+
+
+def test_a_stale_profile_build_is_refused_with_a_fix(scratch, monkeypatch, capsys):
+    """A program whose profile build is out of date is not profiled."""
+    binary = _program(scratch)
+    calls = _fake_sampler(monkeypatch)
+    (binary.parent.parent / "stale").write_text("")
+    assert pr.run(scratch.root, "bench_thing") == 1
+    out = capsys.readouterr().out
+    assert "out of date" in out
+    assert "Fix: just profile bench_thing" in out
+    assert not calls
+    assert _records(scratch) == []
+    (binary.parent.parent / "stale").unlink()
+    assert pr.run(scratch.root, "bench_thing") == 0
+
+
+def test_a_failed_sampler_saves_no_record(scratch, monkeypatch, capsys):
+    """A nonzero exit, or no profile file: no record, no directory, exit 1."""
+    _program(scratch)
+    _clock(monkeypatch)
+    _fake_sampler(monkeypatch, exit_code=3)
+    assert pr.run(scratch.root, "bench_thing") == 1
+    assert "exit" in capsys.readouterr().out
+    _fake_sampler(monkeypatch, write=False)
+    assert pr.run(scratch.root, "bench_thing") == 1
+    assert "no profile" in capsys.readouterr().out
+    assert _records(scratch) == []
+    assert _dirs(scratch) == []
+
+
+def test_a_name_that_is_no_program_is_refused(scratch, monkeypatch):
+    """Exit 2 for a name no group claims."""
+    _program(scratch)
+    _fake_sampler(monkeypatch)
+    assert pr.run(scratch.root, "bench_nothing") == 2

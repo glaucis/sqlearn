@@ -31,7 +31,9 @@ exits 1.
 Line Tools) builds the wheel and the everyday presets; Homebrew LLVM, which is
 keg-only and stays off `PATH`, runs clang-tidy, clang-format, clangd, the
 sanitizers Apple clang lacks, fuzzing, coverage and Mull. gitleaks is the
-pre-commit hook's secret check.
+pre-commit hook's secret check. samply, which `just profile` records with, is
+optional: it is listed with its version, or `samply (optional): missing` and
+`Fix: brew install samply`, and never changes the exit code.
 
 `uv sync` builds the package from source: DuckDB, its Python module and
 sqlearn's C++ in one binary, from the submodules under `engine/`. The first
@@ -72,7 +74,7 @@ system's OpenMP library; uv cannot provide it. uv is the only package tool
 | setup | `build-tools`, `compiler-stamp`, `doctor`, `fetch-mull`, `setup` |
 | format | `fmt`, `fmt-engine`, `fmt-markdown`, `fmt-python` |
 | check | `check`, `check-docstring-args`, `check-docstrings`, `check-licences`, `check-lockfile`, `check-no-devdata`, `check-secrets`, `check-spelling`, `check-stubs`, `check-types`, `check-types-mypy`, `checkable-tree`, `docstrings`, `done`, `format`, `full`, `headers-alone`, `iwyu-engine`, `links`, `lint`, `lint-markdown`, `lint-python`, `place`, `pre-commit`, `remember-tree`, `tidy`, `tidy-engine`, `types`, `verify` |
-| test | `audit-groups`, `bench`, `bench-engine`, `benchmarks-due`, `coverage-engine`, `fuzz`, `leaks-engine`, `mutate-engine`, `sanitize`, `sql`, `test`, `test-all`, `test-engine`, `test-engine-changed`, `test-hooks`, `test-python-versions`, `test-sql`, `validate`, `validate-all` |
+| test | `audit-groups`, `bench`, `bench-engine`, `benchmarks-due`, `coverage-engine`, `fuzz`, `leaks-engine`, `mutate-engine`, `profile`, `sanitize`, `sql`, `test`, `test-all`, `test-engine`, `test-engine-changed`, `test-hooks`, `test-python-versions`, `test-sql`, `validate`, `validate-all` |
 | docs | `build-docs`, `docs`, `fetch-inventories`, `fetch-mathjax` |
 | build | `api-snapshot`, `build-engine`, `build-package`, `stubs` |
 | maintain | `clean`, `crash-report`, `probe-cxx26`, `upgrade-dependencies` |
@@ -100,7 +102,9 @@ measured C++ groups changed since the last run) with their last time, cores
 and memory, and runs none; `just bench <name>` runs one benchmark and records
 its time, cores, memory and load, only after Tomas's go-ahead, which names it,
 its time and its weight
-([ADR 0072](../adr/0072-benchmarks-run-on-tomass-go-ahead.md)).
+([ADR 0072](../adr/0072-benchmarks-run-on-tomass-go-ahead.md)); `just profile
+<name>` records one C++ program under samply the same way (see
+[testing](testing.md)).
 
 Which recipe runs when (a commit, a merge, work done, a release) is in
 [the tiers' table](testing.md). The checks `just done` runs (`format`, `lint`,

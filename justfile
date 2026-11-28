@@ -48,6 +48,13 @@ doctor:
     check llvm clang --version
     check include-what-you-use include-what-you-use --version
     check gitleaks gitleaks version
+    # samply profiles the benchmarks (just profile): optional, never failing
+    if command -v samply > /dev/null; then
+        echo "samply: $(samply --version 2>&1 | head -n 1)"
+    else
+        echo "samply (optional): missing"
+        echo "Fix: brew install samply"
+    fi
     exit "$missing"
 
 # Write engine/.compiler-stamp, the C++ compiler's --version (CXX, else c++) and the SDK's, when it changed: one of uv's cache keys (pyproject.toml), so the next uv run rebuilds the module after a compiler update; rewritten only on a change, since uv keys a file on its modification time
@@ -397,6 +404,14 @@ bench name:
     set -euo pipefail
     case "{{name}}" in bench_*) just build-engine release ;; esac
     uv run --locked python -m validation._bench run {{name}}
+
+# Profile one C++ benchmark program under samply (profile build) and write build/profiles/<name>/<time>/summary.json and compare.md, keeping the last five; only after Tomas's go-ahead (ADR 0072)
+[group('test')]
+profile name:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    just build-engine profile
+    uv run --locked python -m validation._profile run {{name}}
 
 # Print which C++26 features each compiler on this machine has, by its __cpp_* macros (spec §3.8's table); rerun after each Xcode or compiler update
 [group('maintain')]

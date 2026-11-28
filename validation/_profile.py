@@ -30,11 +30,19 @@ from __future__ import annotations
 import bisect
 import gzip
 import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import time
 from collections import Counter
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
+from validation import _bench, _checks, _groups, _load
 from validation._crash_report import owner_of_image
 
 TOP = 30
@@ -42,6 +50,47 @@ TOP = 30
 
 MOVED = 0.02
 """A function whose self share moved more than this is in the comparison."""
+
+KEEP = 5
+"""How many recordings of a program are kept."""
+
+PROFILES = Path("build/profiles")
+"""Where the recordings are, relative to the root: one folder for each program."""
+
+_RECORD_KEY = "profile"
+_STAMP = re.compile(r"\d{8}-\d{6}")
+
+
+def SAMPLER(argv: list[str], out_file: Path) -> list[str]:  # noqa: N802
+    """Return samply's argv recording the program `argv` into `out_file`.
+
+    Parameters
+    ----------
+    argv : list of str
+        The program and its arguments.
+    out_file : Path
+        Where the profile is written (``profile.json.gz``; the sidecar of
+        names goes beside it).
+
+    Returns
+    -------
+    list of str
+        The command that records it, saving only (no browser) and
+        presymbolicating.
+    """
+    return [
+        "samply",
+        "record",
+        "--save-only",
+        "--unstable-presymbolicate",
+        "-o",
+        str(out_file),
+        "--",
+        *argv,
+    ]
+
+
+_Sampler = Callable[[list[str], Path], list[str]]
 
 
 @dataclass(frozen=True)
@@ -413,3 +462,140 @@ def compare(previous: Summary | None, current: Summary) -> str:
             " new in the top 30."
         )
     return heading + "\n".join(lines) + "\n"
+
+
+def _stamp() -> str:
+    return time.strftime("%Y%m%d-%H%M%S")
+
+
+def _previous(root: Path, name: str) -> Summary | None:
+    """Return the summary of the newest clean profile whose file still exists."""
+    for record in reversed(
+        cast(
+            "list[dict[str, Any]]",
+            _checks.load(_checks.record_dir(root), f"{_RECORD_KEY}-{name}"),
+        )
+    ):
+        path = root / str(record.get("summary", ""))
+        if _bench.clean(record) and record.get("summary") and path.is_file():
+            return Summary.from_json(json.loads(path.read_text(encoding="utf-8")))
+    return None
+
+
+def _prune(folder: Path) -> None:
+    """Keep the `KEEP` newest recordings: only directories named by ``_stamp``."""
+    ours = sorted(
+        p for p in folder.iterdir() if p.is_dir() and _STAMP.fullmatch(p.name)
+    )
+    for old in ours[:-KEEP]:
+        shutil.rmtree(old)
+
+
+def run(root: Path, name: str) -> int:
+    """Record the program `name` under samply, summarise and compare it.
+
+    Parameters
+    ----------
+    root : Path
+        The repository's working tree, built, with the profile build's
+        program (``just profile`` builds it first).
+    name : str
+        A C++ benchmark program, ``bench_<name>``.
+
+    Returns
+    -------
+    int
+        0 when recorded; 1 when refused (no samply, a stale build) or the
+        sampler failed (no record is saved); 2 when `name` is no program.
+        The recording is in ``build/profiles/<name>/<YYYYMMDD-HHMMSS>/``
+        (``profile.json.gz``, its sidecar, ``summary.json``, ``compare.md``),
+        and the ``profile-<name>`` record names the summary.
+    """
+    if name not in _bench.programs(root):
+        print(f"no benchmark program {name}: `just benchmarks-due` lists them")  # noqa: T201
+        return 2
+    if shutil.which("samply") is None:
+        print("samply is not installed.\nFix: brew install samply")  # noqa: T201
+        return 1
+    stale = _bench._out_of_date(root, name, _bench.PROFILE_BUILD)
+    if stale is not None:
+        print(  # noqa: T201
+            f"{name}: not profiled, {stale}.\n"
+            f"Fix: just profile {name} (it builds the program first)"
+        )
+        return 1
+    identity = _bench.profile_identity(root, name)
+    folder = root / PROFILES / name
+    run_dir = folder / _stamp()
+    run_dir.mkdir(parents=True)
+    out_file = run_dir / "profile.json.gz"
+    program = [str(root / _bench.PROFILE_BINARIES / name)]
+    before = _bench._uptime()
+    start = time.perf_counter()
+    try:
+        child = subprocess.Popen(SAMPLER(program, out_file), cwd=root)
+    except OSError as error:
+        print(f"{name} did not start: {error}")  # noqa: T201
+        shutil.rmtree(run_dir)
+        return 1
+    _, status, usage = os.wait4(child.pid, 0)
+    wall = time.perf_counter() - start
+    child.returncode = os.waitstatus_to_exitcode(status)
+    after = _bench._uptime()
+    if child.returncode != 0 or not out_file.is_file():
+        why = (
+            f"samply exited with {child.returncode}"
+            if child.returncode != 0
+            else "samply wrote no profile"
+        )
+        print(f"{name}: not recorded, {why}.")  # noqa: T201
+        shutil.rmtree(run_dir)
+        return 1
+    cores = (usage.ru_utime + usage.ru_stime) / wall
+    summary = summarise(out_file, wall, before, after)
+    previous = _previous(root, name)
+    summary_file = run_dir / "summary.json"
+    summary_file.write_text(
+        json.dumps(summary.to_json(), indent=2) + "\n", encoding="utf-8"
+    )
+    (run_dir / "compare.md").write_text(compare(previous, summary), encoding="utf-8")
+    record = {
+        "digest": identity,
+        "config": name,
+        "files": {},
+        "seconds": wall,
+        "cores": cores,
+        "loaded": _load.loaded_after(cores),
+        "uptime_before": before,
+        "uptime_after": after,
+        "summary": str(summary_file.relative_to(root)),
+    }
+    _checks.save(
+        _checks.record_dir(root),
+        f"{_RECORD_KEY}-{name}",
+        cast("_checks.Record", record),
+    )
+    _prune(folder)
+    print(  # noqa: T201
+        f"{name}: profiled in {wall:.1f} s"
+        f"{' (machine loaded: the record stays due)' if record['loaded'] else ''}.\n"
+        f"Read {run_dir.relative_to(root) / 'compare.md'} and "
+        f"{run_dir.relative_to(root) / 'summary.json'}."
+    )
+    return 0
+
+
+def cli(argv: Sequence[str]) -> int:
+    """Parse ``run <name>`` and act in the current directory."""
+    if argv[:1] == ["run"] and len(argv) == 2:
+        try:
+            return run(Path.cwd(), argv[1])
+        except _groups.Unreadable as error:
+            print(f"profile: {error}")  # noqa: T201
+            return 1
+    print("usage: python -m validation._profile run <name>")  # noqa: T201
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(cli(sys.argv[1:]))
