@@ -87,7 +87,8 @@ due while its benchmark is not, as `bench_buffer`'s is today; the two
 usually change together, since both follow the same sources.
 
 **Clean and loaded records** (spec's call): a record whose load after the
-run is above the idle threshold (§6.2), or whose run the queue stopped, is
+run, less the run's own cores (user plus system time over the wall time),
+is at or above the idle threshold (§6.2), or whose run the queue stopped, is
 kept with `"loaded": true`. A loaded record does not clear "due": the next
 queue reruns the item. It is never the "previous run" a comparison (§6.4)
 uses; only clean records are. This applies to benchmarks too, so

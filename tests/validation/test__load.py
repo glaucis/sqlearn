@@ -30,3 +30,11 @@ def test_wait_for_idle_gives_up_at_its_limit(monkeypatch):
     slept: list[float] = []
     assert not _load.wait_for_idle(limit=90, sleep=slept.append)
     assert sum(slept) == 90
+
+
+def test_a_run_is_loaded_when_the_load_less_its_own_cores_is_not_idle(monkeypatch):
+    """The benchmark's own cores are discounted from the load it ends on."""
+    monkeypatch.setattr(_load.os, "cpu_count", lambda: 8)
+    monkeypatch.setattr(_load, "now", lambda: 5.0)
+    assert not _load.loaded_after(4.0)
+    assert _load.loaded_after(2.0)

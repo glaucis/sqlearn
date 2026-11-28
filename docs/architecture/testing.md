@@ -604,17 +604,17 @@ page's script under `validation/benchmarks/`, none today: the old Python's are
 in `old_python/validation/benchmarks/`) an identity of its claimed groups, its
 own files and the shared part. `just benchmarks-due` lists the benchmarks whose
 identity has no recorded run, with the time, cores and peak memory of the last
-run, and runs nothing. `just bench <name>` runs one after Tomas's go-ahead
-(ADR 0072): it builds the release preset first (only for a `bench_` program),
-and records the identity, the numbers and the load. A run that ends while the
+run, and runs nothing. `just bench <name>` runs one after Tomas's go-ahead (ADR
+0072): it builds the release preset first (only for a `bench_` program), and
+records the identity, the numbers and the load. A run that ends while the
 1-minute load is at or above a quarter of the cores (`validation/_load.py`) is
-recorded as `loaded`: it is kept, but only a clean record clears "due" or
-gives the last numbers, so the benchmark stays due. Only `python -m
-validation._bench run`, called directly, refuses a program older than its
-sources (with a `Fix:` line), since nothing has rebuilt it. The page is written
-by hand. The pages
-`explore-correlations`, `explore-larger-than-memory` and
-`generators-on-many-threads` have no script, so nothing lists them.
+recorded as `loaded` (the load less the run's own cores, so a multi-threaded
+benchmark does not mark itself): it is kept, but only a clean record clears
+"due" or gives the last numbers, so the benchmark stays due. Only
+`python -m validation._bench run`, called directly, refuses a program older than
+its sources (with a `Fix:` line), since nothing has rebuilt it. The page is
+written by hand. The pages `explore-correlations`, `explore-larger-than-memory`
+and `generators-on-many-threads` have no script, so nothing lists them.
 
 ## The validation runners
 

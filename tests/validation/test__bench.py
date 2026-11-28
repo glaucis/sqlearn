@@ -198,3 +198,19 @@ def test_a_loaded_record_leaves_the_benchmark_due(scratch, monkeypatch):
     _bench.run(scratch.root, "standin")
     [item] = _bench.due(scratch.root)
     assert item == _bench.Due("standin", "docs/benchmarks/standin.md", None, None, None)
+
+
+def test_a_loaded_record_newer_than_a_clean_one_gives_the_clean_numbers(
+    scratch, monkeypatch
+):
+    """Last numbers come from the newest clean record, not a newer loaded one."""
+    _install(scratch)
+    _bench.run(scratch.root, "standin")
+    records: list[Any] = _checks.load(_checks.record_dir(scratch.root), "bench-standin")
+    [clean_record] = records
+    scratch.write("a/one.cpp", '#include "a/one.hpp"\n// x\nint one() { return 2; }\n')
+    monkeypatch.setattr(_load, "now", lambda: 99.0)
+    _bench.run(scratch.root, "standin")
+    [item] = _bench.due(scratch.root)
+    assert item.last_seconds == clean_record["seconds"]
+    assert item.last_cores == clean_record["cores"]

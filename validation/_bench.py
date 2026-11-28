@@ -15,8 +15,9 @@ The records are one file for each benchmark, ``bench-<name>``, in the same
 directory as the checks' (``_checks.record_dir``). A run records its wall
 time, its cores (user plus system time over the wall time, of the child), its
 peak memory and the load (``uptime``) before and after. A run that ends on a
-busy machine (``_load.idle``) is marked ``loaded``: it is kept, but only a
-clean record (``clean``) clears "due" or gives the last numbers.
+busy machine (``_load.loaded_after``: the load less its own cores) is marked
+``loaded``: it is kept, but only a clean record (``clean``) clears "due" or
+gives the last numbers.
 """
 
 import ast
@@ -345,20 +346,20 @@ def run(root: Path, name: str) -> int:
     wall = time.perf_counter() - start
     child.returncode = os.waitstatus_to_exitcode(status)
     after = _uptime()
-    loaded = not _load.idle()
     if child.returncode != 0:
         return child.returncode
+    cores = (usage.ru_utime + usage.ru_stime) / wall
     record = {
         "digest": identity,
         "config": name,
         "files": {},
         "seconds": wall,
-        "cores": (usage.ru_utime + usage.ru_stime) / wall,
+        "cores": cores,
         "peak_mb": usage.ru_maxrss
         / (1024 * 1024 if sys.platform == "darwin" else 1024),
         "uptime_before": before,
         "uptime_after": after,
-        "loaded": loaded,
+        "loaded": _load.loaded_after(cores),
     }
     _checks.save(
         _checks.record_dir(root),

@@ -49,6 +49,26 @@ def idle() -> bool:
     return now() < threshold(os.cpu_count() or 1)
 
 
+def loaded_after(own_cores: float) -> bool:
+    """Return whether a run ended on a busy machine, discounting its own cores.
+
+    The 1-minute load includes the benchmark's own threads, so they are
+    taken off before it is compared with the threshold.
+
+    Parameters
+    ----------
+    own_cores : float
+        The cores the run used: user plus system time over the wall time.
+
+    Returns
+    -------
+    bool
+        True when ``now() - own_cores`` is at or above
+        ``threshold(os.cpu_count() or 1)``.
+    """
+    return now() - own_cores >= threshold(os.cpu_count() or 1)
+
+
 def wait_for_idle(
     limit: float = 1800,
     every: float = 30,
