@@ -147,6 +147,8 @@ TEST_CASE("a buffer as large as a std::size_t counts in bytes passes the precond
     }
     // The bound itself is allowed: the request reaches the allocator, which
     // has no such memory.
-    const auto most = std::numeric_limits<std::size_t>::max() / sizeof(double);
+    // Read through volatile, so GCC cannot inline the constant into the
+    // fill after the allocation and warn of a fill it never reaches.
+    static volatile std::size_t most = std::numeric_limits<std::size_t>::max() / sizeof(double);
     CHECK_THROWS_AS(Buffer<double>(most), std::bad_alloc);
 }
