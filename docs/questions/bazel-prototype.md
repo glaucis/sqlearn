@@ -89,12 +89,16 @@ every `core` object is linked into `test_raw` and `test_crash` and their
 bytes change. Static libraries for the test programs might give CMake the
 same as Bazel; not tried.
 
-One result of today's selection is unexplained and may be a missed rerun:
-after swapping the two sides of an `||` in `core/parse_version.cpp`,
+One result looked like a missed rerun and is not one (diagnosed 2026-11-28).
+After swapping the two sides of an `||` in `core/parse_version.cpp`,
 `validation._ctest` said `core: unchanged since a passed run` although
-`test_core`'s bytes had changed (`md5` `2045707…` before, `0ccd4a7…` after).
-Two other edits behaved as expected (one compiled to the original bytes and
-was rightly "unchanged"; the change above reran). It was not diagnosed.
+`test_core`'s bytes differed from the build before it (`md5` `2045707…`
+before, `0ccd4a7…` after). The same swap had been made earlier in the
+prototype, and `core`'s tests had run and passed on exactly those bytes. The
+records keep every identity that passed, not only the last one, so the
+second time the swap was rightly found already passed. Making one edit twice,
+with a revert between, reproduces it: the first time `core` reruns, the
+second time it is "unchanged", the program's bytes the same both times.
 
 ## 3. A change in something used reruns its users
 
@@ -380,9 +384,9 @@ benchmark runs; and item 7 is not met: the library Bazel builds differs from
 CMake's in the list above, DuckDB's part most of all. A move would trade a
 selection that covers every check for one that covers the C++ tests well and the
 rest only after more rules are written. The sign to move would be today's
-selection failing Tomas's aim on its own: the unexplained `core: unchanged`
-after the `||` swap (item 2) is the first thing to diagnose, since a missed
-rerun is the failure that aim rules out.
+selection failing Tomas's aim on its own, a missed rerun above all. The one
+result that looked like one (item 2) was diagnosed and is not: those exact
+bytes had passed before.
 
 ## How the prototype was built
 

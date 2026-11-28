@@ -35,10 +35,7 @@ None. [verified]
 - From the Bazel prototype, for the CMake build: give the test programs
   static libraries of the groups (today object libraries link every `core`
   object into `test_raw` and `test_crash`, so a `core` edit reruns them;
-  Bazel's archives did not), and diagnose why `validation._ctest` said
-  `core: unchanged` after the `||` swap in `core/parse_version.cpp` changed
-  `test_core`'s bytes, possibly a missed rerun
-  (`docs/questions/bazel-prototype.md`, item 2).
+  Bazel's archives did not) (`docs/questions/bazel-prototype.md`, item 2).
 - A fresh clone fails `tests/docs/test_links.py::test_every_related_path_exists`
   until `just fetch-mathjax` has run: `docs/architecture/writing.md` lists
   the git-ignored `docs/_static/mathjax` in `related:`. `just setup` could
@@ -193,6 +190,10 @@ None. [verified]
 
 ## Just finished
 
+- The possible missed rerun the Bazel prototype reported (item 2) is not
+  one (2026-11-28): the same `||` swap had passed earlier on exactly those
+  bytes, and `_ctest`'s records keep every identity that passed. Making one
+  edit twice, with a revert between, reproduces it. No code changed.
 - The Bazel prototype (2026-11-27 and 28, plan
   `docs/plans/archived/2026-11-27-bazel-prototype.md`): on the branch
   `claude/bazel-prototype-266e9b`, `c589f90` the groups and their tests
