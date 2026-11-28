@@ -596,25 +596,30 @@ ADR 0061 promises that an extension the user installs works, but only a
 missing one is tested
 (`test_a_missing_local_extension_fails_at_its_path_and_nothing_downloads`).
 
-**Files:** Create a test extension under `engine/tests/loadable/` (one SQL
-function, `sqlearn_test_answer()` returning 42), its CMake target. Test:
-`tests/engine/test_extension.py`.
+**Files:** Create `tests/engine/data/answer.c` (one SQL function,
+`sqlearn_test_answer()` returning 42). Test: `tests/engine/test_extension.py`.
 
-- [ ] **Step 1: Find how DuckDB 2.0.1 builds a loadable extension** against
+**As built:** step 1 found that a C API extension links nothing of
+DuckDB's (the API hands it DuckDB's functions at load), while a C++ one
+needs DuckDB's symbols, hidden inside `_duckdb`. So the test compiles the C
+file itself with `cc` and appends DuckDB's footer: no CMake target, and
+nothing can reach the wheel.
+
+- [x] **Step 1: Find how DuckDB 2.0.1 builds a loadable extension** against
   the same DuckDB as the wheel (its `build_loadable_extension` and the
   metadata footer it appends), without the extension entering the wheel.
   Write the finding into the task's report before building.
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
   `test_an_extension_the_user_installs_loads`: with
   `allow_unsigned_extensions` (the test extension is not signed by DuckDB)
   and `extension_directory` in `tmp_path`, `INSTALL '<file>'` then
   `LOAD`, then `SELECT sqlearn_test_answer()` gives `42`, and nothing
   downloads. It skips, naming the recipe, when the extension is not built.
-- [ ] **Step 3: Build the extension** (a recipe, or a target of an
+- [x] **Step 3: Build the extension** (a recipe, or a target of an
   existing preset), run the test, expect PASS.
-- [ ] **Step 4: Write down** in `docs/architecture/testing.md` that a real
+- [x] **Step 4: Write down** in `docs/architecture/testing.md` that a real
   signed extension is not tested (it needs a download), and why.
-- [ ] **Step 5: Commit** `test: load an extension the user installs`
+- [x] **Step 5: Commit** `test: load an extension the user installs`
 
 ### Task 16: Our targets take only the flavour's flags
 

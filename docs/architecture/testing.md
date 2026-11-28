@@ -311,6 +311,18 @@ the runner presets it, so it is tested on the wheel
 inputs changed, so `just done` reaches it after any change to the extension;
 `just test` does not build it.
 
+**An extension the user installs.** sqlearn's DuckDB downloads none, but one
+the user installs from a file works (ADR 0061).
+`tests/engine/test_extension.py` builds one as a user would:
+`tests/engine/data/answer.c`, one SQL function on DuckDB's C extension API
+(which hands it DuckDB's functions at load, so it links nothing of DuckDB's),
+compiled with `cc` and given DuckDB's metadata footer
+(`scripts/append_metadata.cmake`). It installs and loads with
+`allow_unsigned_extensions`, and by default `INSTALL` refuses it. Not tested:
+an extension DuckDB signed (its repository's files), since getting one needs
+a download; a C++ extension, which links DuckDB's symbols, hidden inside
+`_duckdb`.
+
 **Fuzzing.** `just fuzz [seconds]` (60 by default) builds the `fuzzing`
 preset (Homebrew LLVM, since Apple clang has no libFuzzer runtime; libFuzzer
 with AddressSanitizer and UndefinedBehaviorSanitizer) and runs each target
