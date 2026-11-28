@@ -44,5 +44,6 @@ the machine is idle, and stops when the load rises.
 
 - Tomas answers once for the whole queue; the machine, not his go-ahead per
   item, decides when each measurement starts.
-- A run the load interrupted is recorded as interrupted, never as a clean
-  number.
+- The queue stops between items when the load rises, never inside one;
+  what it did not run stays due, and a run measured on a loaded machine is
+  never a clean number.

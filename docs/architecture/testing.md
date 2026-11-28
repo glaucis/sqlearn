@@ -610,10 +610,12 @@ a clean `profile-<name>` record holds the identity of the program's profile
 build (`engine/build/profile/bench`: the same parts as the benchmark's, with
 that binary's bytes). `just bench <name>` runs one after Tomas's go-ahead (ADR
 0072): it builds the release preset first (only for a `bench_` program), and
-records the identity, the numbers and the load. A run that ends while the
-1-minute load is at or above a quarter of the cores (`validation/_load.py`) is
-recorded as `loaded` (the load less the run's own cores, so a multi-threaded
-benchmark does not mark itself): it is kept, but only a clean record clears
+records the identity, the numbers and the load. A run is
+recorded as `loaded` when the machine was not idle just before it started (the
+1-minute load at or above a quarter of the cores, `validation/_load.py`), or
+when the load after it, less the run's own share of it (its cores times
+`1 - e^(-wall/60)`, as that is how much of it the average holds), is at or
+above that: it is kept, but only a clean record clears
 "due" or gives the last numbers, so the benchmark stays due. Only
 `python -m validation._bench run`, called directly, refuses a program older than
 its sources (with a `Fix:` line), since nothing has rebuilt it. The page is

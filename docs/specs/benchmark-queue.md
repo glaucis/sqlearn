@@ -45,7 +45,7 @@ while anything is measured.
 - Not the baseline-and-noise-bound gate of `just bench [group]` (spec
   §3.7); this queue records and compares, it gives no verdict.
 - Anti-goal: numbers measured under load presented as clean. Every
-  record carries its load, and a run the load interrupted says so.
+  record carries its load, and a run measured on a loaded machine says so.
 
 ## 4. Constraints
 
@@ -86,10 +86,13 @@ pointers), so a C++ program's profile is of
 due while its benchmark is not, as `bench_buffer`'s is today; the two
 usually change together, since both follow the same sources.
 
-**Clean and loaded records** (spec's call): a record whose load after the
-run, less the run's own cores (user plus system time over the wall time),
-is at or above the idle threshold (§6.2), or whose run the queue stopped, is
-kept with `"loaded": true`. A loaded record does not clear "due": the next
+**Clean and loaded records** (spec's call): a record is marked `"loaded":
+true` when the machine was not idle just before the run started (§6.2's
+threshold), or when the load after the run, less the run's own share of it, is
+at or above that threshold. The 1-minute load average takes in a run of `W`
+seconds on `c` cores as only about `c * (1 - e^(-W/60))`, so that is the share
+taken off (`c` is user plus system time over the wall time). The record is
+kept. A loaded record does not clear "due": the next
 queue reruns the item. It is never the "previous run" a comparison (§6.4)
 uses; only clean records are. This applies to benchmarks too, so
 `just bench <name>` marks a loaded run the same way.

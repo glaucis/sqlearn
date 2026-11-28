@@ -15,7 +15,8 @@ The records are one file for each benchmark, ``bench-<name>``, in the same
 directory as the checks' (``_checks.record_dir``). A run records its wall
 time, its cores (user plus system time over the wall time, of the child), its
 peak memory and the load (``uptime``) before and after. A run that ends on a
-busy machine (``_load.loaded_after``: the load less its own cores) is marked
+busy machine (``loaded``: not idle before it started, or the load after it
+less the run's own share of it, ``_load.loaded_after``) is marked
 ``loaded``: it is kept, but only a clean record (``clean``) clears "due" or
 gives the last numbers.
 """
@@ -293,7 +294,8 @@ def due(root: Path) -> list[Due]:
     Returns
     -------
     list of Due
-        Each out-of-date benchmark with what its newest clean record measured.
+        Each out-of-date benchmark with what its newest clean record measured
+        (a profile's, its seconds only).
 
     Raises
     ------
@@ -400,6 +402,8 @@ class Measured:
         Its peak memory, in MB.
     before, after : str
         The load (``uptime``) before and after the run.
+    idle_before : bool
+        Whether the machine was idle just before the run started.
     """
 
     returncode: int
@@ -408,6 +412,7 @@ class Measured:
     peak_mb: float
     before: str
     after: str
+    idle_before: bool
 
 
 def measure(argv: Sequence[str], cwd: Path) -> Measured:
@@ -430,6 +435,7 @@ def measure(argv: Sequence[str], cwd: Path) -> Measured:
     OSError
         The command did not start.
     """
+    idle_before = _load.idle()
     before = _uptime()
     start = time.perf_counter()
     child = subprocess.Popen(argv, cwd=cwd)
@@ -443,7 +449,25 @@ def measure(argv: Sequence[str], cwd: Path) -> Measured:
         peak_mb=usage.ru_maxrss / (1024 * 1024 if sys.platform == "darwin" else 1024),
         before=before,
         after=_uptime(),
+        idle_before=idle_before,
     )
+
+
+def loaded(measured: Measured) -> bool:
+    """Return whether a run was measured on a busy machine.
+
+    Parameters
+    ----------
+    measured : Measured
+        The run.
+
+    Returns
+    -------
+    bool
+        True when the machine was not idle before it started, or the load
+        after it, less its own share (``_load.loaded_after``), is not idle.
+    """
+    return not measured.idle_before or _load.loaded_after(measured.cores, measured.wall)
 
 
 def run(root: Path, name: str) -> int:
@@ -500,7 +524,7 @@ def run(root: Path, name: str) -> int:
         "peak_mb": measured.peak_mb,
         "uptime_before": measured.before,
         "uptime_after": measured.after,
-        "loaded": _load.loaded_after(measured.cores),
+        "loaded": loaded(measured),
     }
     _checks.save(
         _checks.record_dir(root),

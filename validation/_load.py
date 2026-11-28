@@ -1,11 +1,12 @@
 """Whether the machine is idle, and waiting for it.
 
 A benchmark measured on a busy machine says little (ADR 0072), so a run
-records whether the machine was idle when it ended, and the queue waits for
-idle before it starts. Idle is a 1-minute load average below a quarter of the
-cores.
+records whether the machine was idle when it started and when it ended
+(less its own load), and the queue waits for idle before it starts. Idle is
+a 1-minute load average below a quarter of the cores.
 """
 
+import math
 import os
 import time
 from collections.abc import Callable
@@ -49,24 +50,28 @@ def idle() -> bool:
     return now() < threshold(os.cpu_count() or 1)
 
 
-def loaded_after(own_cores: float) -> bool:
-    """Return whether a run ended on a busy machine, discounting its own cores.
+def loaded_after(own_cores: float, wall: float) -> bool:
+    """Return whether a run ended on a busy machine, discounting its own load.
 
-    The 1-minute load includes the benchmark's own threads, so they are
-    taken off before it is compared with the threshold.
+    The 1-minute load average takes in a run of `wall` seconds on `own_cores`
+    cores as only about ``own_cores * (1 - exp(-wall / 60))``, so that much
+    is taken off before the load is compared with the threshold.
 
     Parameters
     ----------
     own_cores : float
         The cores the run used: user plus system time over the wall time.
+    wall : float
+        The run's wall time, in seconds.
 
     Returns
     -------
     bool
-        True when ``now() - own_cores`` is at or above
+        True when ``now()`` less the run's own share of it is at or above
         ``threshold(os.cpu_count() or 1)``.
     """
-    return now() - own_cores >= threshold(os.cpu_count() or 1)
+    own = own_cores * (1 - math.exp(-wall / 60))
+    return now() - own >= threshold(os.cpu_count() or 1)
 
 
 def wait_for_idle(

@@ -193,6 +193,17 @@ def test_a_run_under_load_is_recorded_as_loaded(scratch, monkeypatch):
     assert not _bench.clean(record)
 
 
+def test_a_run_that_started_on_a_busy_machine_is_loaded(scratch, monkeypatch):
+    """Not idle before the start marks the run loaded, whatever it ends on."""
+    _install(scratch)
+    loads = iter([99.0, 0.0])
+    monkeypatch.setattr(_load, "now", lambda: next(loads, 0.0))
+    assert _bench.run(scratch.root, "standin") == 0
+    records: list[Any] = _checks.load(_checks.record_dir(scratch.root), "bench-standin")
+    [record] = records
+    assert record["loaded"] is True
+
+
 def test_a_loaded_record_leaves_the_benchmark_due(scratch, monkeypatch):
     """Only a clean record clears ``due``, and a loaded one gives no last numbers."""
     _install(scratch)

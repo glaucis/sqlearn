@@ -40,7 +40,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 
-from validation import _bench, _checks, _groups, _load
+from validation import _bench, _checks, _groups
 from validation._crash_report import owner_of_image
 
 TOP = 30
@@ -558,7 +558,7 @@ def run(root: Path, name: str) -> int:
         "files": {},
         "seconds": wall,
         "cores": cores,
-        "loaded": _load.loaded_after(cores),
+        "loaded": _bench.loaded(measured),
         "uptime_before": before,
         "uptime_after": after,
         "summary": str(summary_file.relative_to(root)),
