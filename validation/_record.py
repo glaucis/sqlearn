@@ -43,18 +43,31 @@ class Record(TypedDict):
     passed: bool
 
 
+SELECTION = frozenset(
+    {
+        "validation._groups",
+        "validation._checks",
+        "validation._ctest",
+        "validation._record",
+        "validation._pytest_sets",
+    }
+)
+"""The modules that decide what runs, not what a runner computes: the child
+imports them, but a change to one is no change to a runner's results."""
+
+
 def loaded_files(root: Path) -> list[Path]:
     """Return the files a run under `root` depended on, resolved and sorted.
 
     The source of every imported module under `root` and outside its
-    ``.venv``, and ``uv.lock``.
+    ``.venv`` (but not those of ``SELECTION``), and ``uv.lock``.
     """
     root = root.resolve()
     venv = root / ".venv"
     files = set()
     for module in list(sys.modules.values()):
         name = getattr(module, "__file__", None)
-        if not name:
+        if not name or module.__name__ in SELECTION:
             continue
         path = Path(name).resolve()
         if (
@@ -272,13 +285,33 @@ def save(directory: Path, record: Record) -> None:
     Written to a temporary file and moved into place, so a reader (another
     worktree's run) never sees half a file; a write that fails removes it.
     """
+    _write(directory, record["runner"], [*load(directory, record["runner"]), record])
+
+
+def forget_passes(directory: Path, runner: str, groups: str) -> None:
+    """Drop `runner`'s passed records made under the groups' identity `groups`.
+
+    Its failures stay: they only make the runner rerun.
+    """
+    records = load(directory, runner)
+    kept = [
+        r
+        for r in records
+        if not (r["passed"] and r["environment"].get("groups") == groups)
+    ]
+    if kept != records:
+        _write(directory, runner, kept)
+
+
+def _write(directory: Path, runner: str, records: list[Record]) -> None:
+    """Write the newest ``KEPT`` of `records` as `runner`'s file, atomically."""
     directory.mkdir(parents=True, exist_ok=True)
-    records = [*load(directory, record["runner"]), record][-KEPT:]
+    records = records[-KEPT:]
     handle, temporary = tempfile.mkstemp(dir=directory, suffix=".tmp")
     try:
         with os.fdopen(handle, "w", encoding="utf-8") as out:
             json.dump(records, out, indent=1, sort_keys=True)
-        os.replace(temporary, _path(directory, record["runner"]))
+        os.replace(temporary, _path(directory, runner))
     except BaseException:
         Path(temporary).unlink(missing_ok=True)
         raise

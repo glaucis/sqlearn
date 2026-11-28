@@ -9,7 +9,15 @@ import numpy as np
 import pytest
 
 from validation import _record as record_module
-from validation._record import Record, digest, load, loaded_files, matching, save
+from validation._record import (
+    SELECTION,
+    Record,
+    digest,
+    load,
+    loaded_files,
+    matching,
+    save,
+)
 
 ENVIRONMENT = {"os_release": "27.2.1", "numpy": "2.3.0"}
 
@@ -101,6 +109,17 @@ def test_loaded_files_names_repo_modules_and_the_lock_only(tmp_path, scratch_mod
     assert names == {"scratch_record_module.py", "uv.lock"}
     numpy = Path(np.__file__).resolve()
     assert numpy not in loaded_files(tmp_path)
+
+
+def test_loaded_files_leave_out_the_selection_machinery():
+    """The modules that decide what runs are no part of a runner's identity;
+    a runner's own helpers still are."""
+    from validation import _cases, _groups  # noqa: F401
+
+    repo = Path(__file__).resolve().parents[2]
+    names = {p.relative_to(repo).as_posix() for p in loaded_files(repo)}
+    assert not {f"{m.replace('.', '/')}.py" for m in SELECTION} & names
+    assert "validation/_cases.py" in names
 
 
 @pytest.mark.parametrize(

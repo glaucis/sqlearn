@@ -62,6 +62,7 @@ from pathlib import Path
 from typing import Any
 
 from validation import _checks, _ctest
+from validation._version import release
 
 WHEEL_BUILD = Path("build") / sys.implementation.cache_tag
 """The wheel's build directory, relative to the repository's root: this
@@ -134,25 +135,6 @@ new commit alone changes no fingerprint, while a new release does.
 def _versionless(text: str) -> str:
     """Return `text` with each setuptools-scm version cut to its release."""
     return _SCM_VERSION.sub(lambda m: release(m[0]), text)
-
-
-def release(version: str) -> str:
-    """Return the release part of a version: ``0.1`` of ``0.1.dev5+g….d2026``.
-
-    sqlearn's version comes from git and changes with every commit (its dev,
-    local and date parts); its release part changes only with a release.
-
-    Parameters
-    ----------
-    version : str
-        A version as setuptools-scm gives it.
-
-    Returns
-    -------
-    str
-        The version up to ``.dev`` or ``+``.
-    """
-    return version.split(".dev")[0].split("+")[0]
 
 
 class Unreadable(Exception):  # noqa: N818  (the name Tasks 3 to 7 use)

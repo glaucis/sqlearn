@@ -38,11 +38,12 @@ def run_one(name: str, repo: Path, groups: str | None = None) -> int:
     in the process that ran it. The files it could depend on are hashed
     before it is imported, and those hashes recorded; a file it loaded that
     changed while it ran, or was not there before, or a C++ group it uses that
-    changed (its identity taken again after the run), saves no record of a
-    pass; nor does a run under groups that could not be read
-    (``_record.UNREADABLE``). Exit 1 when a sqlearn case failed. `groups` is
-    the identity of the C++ groups the runner uses, which `main` took once
-    for every runner; it is computed here when None.
+    changed, saves no record of a pass; nor does a run under groups that could
+    not be read (``_record.UNREADABLE``). Exit 1 when a sqlearn case failed.
+    `groups` is the identity of the C++ groups the runner uses, which `main`
+    took once for every runner; `main` then takes it again after all of them
+    and drops the passes of a runner whose groups moved. Run alone (None), the
+    identity is computed here, and again after the run.
     """
     before = _record.candidates(repo)
     environment = _cases.environment()
@@ -56,9 +57,10 @@ def run_one(name: str, repo: Path, groups: str | None = None) -> int:
     print(f"{name}: {dict(sorted(counts.items()))}", flush=True)  # noqa: T201
     failed = [c for c in cases if c["result"] == "fail"]
     depends, moved = _record.as_before(_record.loaded_files(repo), before, repo)
-    # the identity was taken before the run (by `main`, possibly long before):
-    # take it again, so a pass is never recorded for groups that changed since
-    if _record.engine(repo, name) != environment["groups"]:
+    # run alone, the identity was taken before the run: take it again, so a
+    # pass is never recorded for groups that changed since; `main` does so
+    # once for every runner it ran
+    if groups is None and _record.engine(repo, name) != environment["groups"]:
         moved.append("the C++ groups it uses")
     # a failed run is saved whatever moved: it only ever makes a runner rerun,
     # and cancels an earlier pass of the same inputs. Under groups that could
@@ -90,6 +92,32 @@ def run_one(name: str, repo: Path, groups: str | None = None) -> int:
     return 1 if failed else 0
 
 
+def _drop_moved(repo: Path, ran: dict[str, str], readable: bool) -> None:
+    """Drop the passes of runners in `ran` whose C++ groups moved while they ran.
+
+    `ran` maps a runner to the identity it ran under; the identity is taken
+    again here, once for every runner, so a pass is never kept for groups
+    that changed since. Nothing to do when the build was unreadable (nothing
+    was recorded then).
+    """
+    if not readable:
+        return
+    try:
+        after = _groups.fingerprints(repo, _groups.WHEEL_BUILD)
+    except _groups.Unreadable:
+        after = None
+    directory = _record.record_dir(repo)
+    for name, identity in ran.items():
+        now = _record.engine(repo, name, after) if after else _record.UNREADABLE
+        if now != identity:
+            _record.forget_passes(directory, name, identity)
+            print(  # noqa: T201
+                f"{name}: not recorded, these files or groups changed while it"
+                " ran or were not there before: the C++ groups it uses",
+                flush=True,
+            )
+
+
 def main(runners: Sequence[str], root: Path, *, everything: bool = False) -> int:
     """Run each of `runners` that changed since a passed run; write the environment.
 
@@ -111,7 +139,7 @@ def main(runners: Sequence[str], root: Path, *, everything: bool = False) -> int
         print(f"the C++ groups are unreadable: {error}", flush=True)  # noqa: T201
         prints = None
     failed = False
-    ran = False
+    ran: dict[str, str] = {}
     for name in runners:
         # a record's environment holds the identity of the groups the runner
         # uses; environment.json is committed, so it keeps the versions alone
@@ -126,9 +154,10 @@ def main(runners: Sequence[str], root: Path, *, everything: bool = False) -> int
             cwd=repo,
             check=False,
         )
-        ran = True
+        ran[name] = identity
         failed = failed or child.returncode != 0
     if ran:
+        _drop_moved(repo, ran, prints is not None)
         _cases.write_json(root / "environment.json", base)
     return 1 if failed else 0
 

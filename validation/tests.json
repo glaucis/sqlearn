@@ -1370,6 +1370,12 @@
     },
     {
       "area": "validation/__main__",
+      "name": "tests/validation/test___main__.py::test_a_runner_takes_the_fingerprints_once",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/__main__",
       "name": "tests/validation/test___main__.py::test_an_anomaly_exits_zero_and_is_written",
       "outcome": "passed",
       "tier": "fast"
@@ -1419,12 +1425,6 @@
     {
       "area": "validation/__main__",
       "name": "tests/validation/test___main__.py::test_results_path_mirrors_the_runner",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "validation/__main__",
-      "name": "tests/validation/test___main__.py::test_the_fingerprints_are_computed_once_a_run",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -2913,6 +2913,12 @@
     {
       "area": "validation/_record",
       "name": "tests/validation/test__record.py::test_an_unreadable_record_file_counts_as_absent",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_record",
+      "name": "tests/validation/test__record.py::test_loaded_files_leave_out_the_selection_machinery",
       "outcome": "passed",
       "tier": "fast"
     },

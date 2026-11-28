@@ -229,8 +229,9 @@ def test_an_unreadable_build_reruns_every_runner(root, capfd):
         assert f"{ODD}: {{'anomaly': 1}}" in out
 
 
-def test_the_fingerprints_are_computed_once_a_run(root, monkeypatch):
-    """Two runners rerun, one computation: the child gets the identity."""
+def test_a_runner_takes_the_fingerprints_once(root, monkeypatch):
+    """Two runners rerun, two computations in all: once before, once after;
+    a child takes none (it is given the identity)."""
     real = entry._groups.fingerprints
     calls = []
 
@@ -240,7 +241,7 @@ def test_the_fingerprints_are_computed_once_a_run(root, monkeypatch):
 
     monkeypatch.setattr(entry._groups, "fingerprints", counted)
     assert entry.main([GOOD, ODD], root) == 0
-    assert len(calls) == 1
+    assert len(calls) == 2
 
 
 def test_a_group_edited_while_the_runner_ran_is_not_recorded(root, capfd):
