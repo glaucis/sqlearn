@@ -3,8 +3,9 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 # The Python versions the package is tested on
 matrix := "3.12 3.13 3.14"
 
-# Homebrew LLVM's tools (clang-tidy, clang-format): the formula is keg-only, so they are off PATH
-llvm := "/opt/homebrew/opt/llvm/bin"
+# LLVM's tools (clang-tidy, clang-format): SQ_LLVM_ROOT, else Homebrew's prefix for the host (keg-only, so off PATH), as engine/cmake/toolchain-llvm.cmake finds it
+llvm_root := env("SQ_LLVM_ROOT", if os() == "macos" { "/opt/homebrew/opt/llvm" } else { "/home/linuxbrew/.linuxbrew/opt/llvm" })
+llvm := llvm_root + "/bin"
 
 # MathJax 4 and its font package (released together, one version), from the npm registry, with sha512 integrities
 mathjax_version := "4.1.3"
@@ -474,7 +475,7 @@ probe-cxx26:
         fi
     }
     probe "Apple clang" "$(xcrun --find clang++)"
-    probe "Homebrew LLVM" /opt/homebrew/opt/llvm/bin/clang++ -isysroot "$sdk"
+    probe "LLVM" "{{ llvm }}/clang++" -isysroot "$sdk"
     for gcc in g++-16 gcc-16; do
         if command -v "$gcc" > /dev/null 2>&1; then
             [ "$gcc" = gcc-16 ] && set -- -lstdc++ || set --

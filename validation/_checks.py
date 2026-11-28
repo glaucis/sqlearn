@@ -41,6 +41,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TypedDict
 
+from validation import _llvm
+
 KEPT = 20
 """How many records of each task are kept, the newest."""
 
@@ -171,8 +173,8 @@ PYTHON = ("*.py", "*.pyi")
 MARKDOWN = ("*.md",)
 """Every Markdown file, at any depth."""
 
-LLVM = "/opt/homebrew/opt/llvm/bin"
-"""Homebrew LLVM's tools: the formula is keg-only, so they are off ``PATH``."""
+LLVM = str(_llvm.bin_dir())
+"""LLVM's tools, from ``_llvm`` (Homebrew's formula is keg-only, off ``PATH``)."""
 
 CXX = ("*.cpp", "*.hpp")
 """Every C++ file of ours: git lists no file inside a submodule."""

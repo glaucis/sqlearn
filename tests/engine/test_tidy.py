@@ -8,9 +8,11 @@ from pathlib import Path
 
 import pytest
 
+from validation import _llvm
+
 REPO = Path(__file__).resolve().parents[2]
 ENGINE = REPO / "engine"
-LLVM = Path("/opt/homebrew/opt/llvm/bin")
+LLVM = _llvm.bin_dir()
 CASES = ENGINE / "tests" / "must_not_pass_tidy"
 
 # A finding's check, as clang-tidy names it at the end of the line.

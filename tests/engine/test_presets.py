@@ -2,6 +2,7 @@
 the flag files they read, turns on fast math."""
 
 import json
+import os
 import platform
 import re
 import shlex
@@ -453,3 +454,67 @@ endforeach()
         assert "-fsanitize=address" in probes[linked], probes[linked]
     for unlinked in ("t_static", "t_object"):
         assert "-fsanitize" not in probes[unlinked], probes[unlinked]
+
+
+def test_the_llvm_toolchain_reads_its_prefix_from_the_environment(
+    tmp_path: Path,
+) -> None:
+    """An LLVM prefix with no clang++ there stops the configure, naming the
+    variable that moves it: SQ_LLVM_ROOT, read from the environment."""
+    done = subprocess.run(
+        ["cmake", "--preset", "llvm-dev", "-B", str(tmp_path / "build")],
+        cwd=ENGINE,
+        env={**os.environ, "SQ_LLVM_ROOT": str(tmp_path / "nowhere")},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = done.stdout + done.stderr
+    assert done.returncode != 0
+    assert str(tmp_path / "nowhere") in output
+    assert "Fix:" in output
+    assert "SQ_LLVM_ROOT" in output
+
+
+def _outside_if_apple(text: str) -> str:
+    """Return `text` with every if(APPLE) ... endif() block left out, nested
+    blocks counted."""
+    kept: list[str] = []
+    depth = 0
+    for line in _code(text).splitlines():
+        stripped = line.strip()
+        opens = re.match(r"if\s*\(", stripped) is not None
+        if depth == 0 and re.match(r"if\s*\(\s*APPLE\s*\)", stripped):
+            depth = 1
+            continue
+        if depth > 0:
+            if opens:
+                depth += 1
+            elif re.match(r"endif\s*\(", stripped):
+                depth -= 1
+            continue
+        kept.append(line)
+    return "\n".join(kept)
+
+
+def test_the_llvm_toolchain_asks_xcrun_only_on_macos() -> None:
+    """The SDK root is Apple's: xcrun and CMAKE_OSX_SYSROOT sit inside
+    if(APPLE), so the toolchain configures on Linux."""
+    text = (ENGINE / "cmake" / "toolchain-llvm.cmake").read_text()
+    outside = _outside_if_apple(text)
+    assert "xcrun" in text
+    assert "xcrun" not in outside
+    assert "CMAKE_OSX_SYSROOT" not in outside
+
+
+def test_just_names_one_llvm_prefix() -> None:
+    """The justfile's LLVM tools come from the same SQ_LLVM_ROOT."""
+    done = subprocess.run(
+        ["just", "--evaluate", "llvm"],
+        cwd=REPO,
+        env={**os.environ, "SQ_LLVM_ROOT": "/x"},
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert done.stdout == "/x/bin"

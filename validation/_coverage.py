@@ -28,8 +28,10 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
-LLVM = Path("/opt/homebrew/opt/llvm/bin")
-"""Homebrew LLVM's tools: the formula is keg-only, so they are off ``PATH``."""
+from validation import _llvm
+
+LLVM = _llvm.bin_dir()
+"""LLVM's tools, from ``_llvm`` (Homebrew's formula is keg-only, off ``PATH``)."""
 
 FLOOR = 95.0
 """The least per cent of lines that must run, as the Python package's floor."""

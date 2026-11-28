@@ -28,6 +28,8 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
+from validation import _llvm
+
 PROGRAMS = ("test_core", "test_raw")
 """The test programs Mull runs: each group's own."""
 
@@ -186,9 +188,9 @@ def run(engine: Path, tools: Path) -> int:
                 "--include-not-covered",
                 "--no-cache",
                 "--no-output",
-                # Homebrew LLVM's libc++, which the programs load through their rpath
+                # LLVM's libc++, which the programs load through their rpath
                 "--ld-search-path",
-                "/opt/homebrew/opt/llvm/lib/c++",
+                str(_llvm.root() / "lib" / "c++"),
                 "--reporters",
                 "SQLite",
                 *report,

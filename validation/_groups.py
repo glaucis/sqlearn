@@ -65,7 +65,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from validation import _checks, _ctest
+from validation import _checks, _ctest, _llvm
 from validation._version import release
 
 WHEEL_BUILD = Path("build") / sys.implementation.cache_tag
@@ -83,8 +83,8 @@ MANIFEST = "sq_groups.json"
 MODULE = "_duckdb"
 """The Ninja target of the module, whose link command is part of the shared part."""
 
-LLVM_CLANG = Path("/opt/homebrew/opt/llvm/bin/clang")
-"""Homebrew LLVM's clang, preferred to strip comments (keg-only, off PATH)."""
+LLVM_CLANG = _llvm.bin_dir() / "clang"
+"""LLVM's clang (``_llvm``), preferred to strip comments (keg-only, off PATH)."""
 
 CPP_SUFFIXES = frozenset(
     {".c", ".cc", ".cpp", ".cxx", ".mm", ".h", ".hh", ".hpp", ".hxx", ".inc", ".ipp"}
