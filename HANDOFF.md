@@ -4,9 +4,8 @@ Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
 Updated: 2026-11-28 · Branch: `claude/tooling-fixes` (not pushed; level with
-`main` plus the plan and the fixes) · Last commit: `docs: close the tooling
-fixes` · Checks: `just done` as reported in the commit's session, see
-`git log -1`
+`main` plus the plan and the fixes) · Last commit: `fix: name the wheel
+rebuild in the loose tests' Fix line` · Checks: passing (`just done`)
 Verify with: `just done` (`just verify` is the release tier)
 
 ## In progress
