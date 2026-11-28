@@ -229,12 +229,3 @@ def test_a_record_from_before_the_groups_is_rerun_once(scratch):
         runner="x", depends={}, environment=environment, counts={"pass": 1}, passed=True
     )
     assert matching([old, new], scratch.root, environment) == new
-
-
-def test_a_records_environment_holds_the_groups_identity(scratch):
-    """The environment a record keeps is the base one, with the identity."""
-    environment = {**ENVIRONMENT, "groups": record_module.engine(scratch.root, "x")}
-    assert environment == {
-        **ENVIRONMENT,
-        "groups": record_module.engine(scratch.root, "x"),
-    }

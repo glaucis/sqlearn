@@ -85,7 +85,11 @@ def _unchanged(verdicts: Sequence[_affected.Verdict]) -> dict[str, bool]:
     unit, by ``_missed_units``.
     """
     called = {v.check: not v.runs for v in verdicts}
-    return {name: called.get(name, False) for name in _checks.TASKS if name != "test"}
+    return {
+        name: called.get(name, False)
+        for name, task in _checks.TASKS.items()
+        if task.explained
+    }
 
 
 def _due_units(root: Path) -> set[str]:
@@ -142,12 +146,12 @@ def run(root: Path) -> int:
     tree, checkable = _tree(root)
     first = 0
     missed = []
-    for name in _checks.TASKS:
+    for name, task in _checks.TASKS.items():
         code = _full(name, root)
         if code == 0:
             continue
         first = first or code
-        if name == "test":
+        if not task.explained:
             missed += _missed_units(verdicts, root)
         elif unchanged[name]:
             missed.append(name)

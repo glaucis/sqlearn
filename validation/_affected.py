@@ -63,7 +63,7 @@ def report(root: Path) -> list[Verdict]:
     """
     verdicts = []
     for name, task in _checks.TASKS.items():
-        if name != "test":
+        if task.explained:
             with contextlib.redirect_stdout(sys.stderr):
                 reasons = _checks.why(task, root)
             verdicts.append(_verdict(name, reasons))

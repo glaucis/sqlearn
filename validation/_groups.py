@@ -463,6 +463,8 @@ def _responses(argv: Sequence[str], here: Path, root: Path) -> str:
     count, as ``_ctest._target_parts`` counts them; `here` is where the
     command runs. Empty for none.
     """
+    # Ninja deletes its own rspfiles after a successful command, so one it
+    # made hashes as absent; none are used today.
     parts = []
     for arg in argv:
         if arg.startswith("@") and len(arg) > 1:

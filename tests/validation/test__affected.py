@@ -3,6 +3,7 @@
 import json
 import subprocess
 import sys
+from types import SimpleNamespace
 
 import pytest
 
@@ -157,6 +158,7 @@ def test_the_report_runs_nothing(scratch, monkeypatch):
         config=("settings.toml",),
         steps=tasks["whole"].steps,
         per_file=False,
+        explained=False,
     )
     monkeypatch.setattr(_checks, "TASKS", tasks)
     assert _checks.run("whole", scratch) == 0
@@ -208,7 +210,14 @@ def test_what_the_checks_print_goes_to_standard_error(monkeypatch, capsys):
         print("the C++ groups are unreadable")  # noqa: T201
         return {"tooling": []}
 
-    monkeypatch.setattr(_checks, "TASKS", {"format": None, "test": None})
+    monkeypatch.setattr(
+        _checks,
+        "TASKS",
+        {
+            "format": SimpleNamespace(explained=True),
+            "test": SimpleNamespace(explained=False),
+        },
+    )
     monkeypatch.setattr(_checks, "why", loud_why)
     monkeypatch.setattr(_ctest, "due", lambda preset, root: {"core": []})
     monkeypatch.setattr(_pytest_sets, "due", loud_pytest_due)

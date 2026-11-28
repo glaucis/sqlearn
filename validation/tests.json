@@ -2978,12 +2978,6 @@
     },
     {
       "area": "validation/_record",
-      "name": "tests/validation/test__record.py::test_a_records_environment_holds_the_groups_identity",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "validation/_record",
       "name": "tests/validation/test__record.py::test_a_runner_is_named_by_its_modules_last_part",
       "outcome": "passed",
       "tier": "fast"

@@ -246,7 +246,7 @@ def _out_of_date(root: Path, name: str) -> str | None:
     """
     build = root / PROGRAM_BUILD
     if not build.is_dir():
-        return f"{build} does not exist"
+        return f"its build {build} does not exist"
     try:
         done = subprocess.run(
             ["ninja", "-C", str(build), "-n", name],
@@ -257,7 +257,8 @@ def _out_of_date(root: Path, name: str) -> str | None:
     except OSError as error:
         return f"ninja could not run: {error}"
     if done.returncode != 0:
-        return f"ninja could not list its work: {done.stdout.strip()[:200]}"
+        said = (done.stderr or done.stdout).strip()[:200]
+        return f"ninja could not list its work: {said}"
     work = [
         line
         for line in done.stdout.splitlines()
@@ -305,9 +306,8 @@ def run(root: Path, name: str) -> int:
         stale = _out_of_date(root, name)
         if stale is not None:
             print(  # noqa: T201
-                f"{name}: not run, {stale}: the binary is not what the "
-                f"sources build.\nFix: just bench {name} (it builds the "
-                "program first)"
+                f"{name}: not run, {stale}.\n"
+                f"Fix: just bench {name} (it builds the program first)"
             )
             return 1
     identity = _identity(

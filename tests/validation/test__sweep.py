@@ -5,6 +5,7 @@ import json
 import shutil
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -85,7 +86,9 @@ def sweep(tmp_path, monkeypatch):
     _git(root, "init", "--quiet")
     stand_in = Sweep(root)
     stand_in.say()
-    monkeypatch.setattr(_checks, "TASKS", dict.fromkeys(TASKS))
+    monkeypatch.setattr(
+        _checks, "TASKS", {n: SimpleNamespace(explained=n != "test") for n in TASKS}
+    )
     monkeypatch.setattr(_affected, "report", stand_in.report)
     monkeypatch.setattr(_sweep, "_full", stand_in.full)
     monkeypatch.setattr(_ctest, "due", stand_in.ctest_due)
