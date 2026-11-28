@@ -4,7 +4,7 @@ Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
 Updated: 2026-11-28 · Branch: `main` (pushed, level with `origin/main`) · Last
-commit: `docs: close the tooling fixes` · Checks: passing (`just done`)
+commit: `db2be83 docs: close the tooling fixes` · Checks: passing (`just done`)
 
 Verify with: `just done` (`just verify` is the release tier)
 
@@ -82,6 +82,17 @@ profiling queue (below).
 
 ## Dead ends and traps
 
+- C++ work (2026-11-28): while headers are half changed, build with
+  `cmake --build --preset <p>`, not `uv run`, which rebuilds the wheel and
+  fails mid-edit. Catch2 here cannot print a `string_view` comparison (it
+  fails to link): compare `std::string`. A Catch2 assertion on another
+  `std::thread` ends the program (`std::terminate`): collect, then check on
+  the main thread. macOS refuses to disable a `sigaltstack` with a size
+  below `MINSIGSTKSZ` (ENOMEM). A `constexpr const char *` to a literal
+  differs by translation unit: compare a `std::to_array` object's `data()`.
+  AddressSanitizer gives every thread a 512 KiB alt stack, so a sigaltstack
+  test goes red only in `release`. `atos -o` names macOS's shared-cache
+  libraries wrong: `atos -p <own pid>` (same boot).
 - A worktree with submodules cannot be removed with plain
   `git worktree remove`: check `git -C <wt> status --porcelain -uall` and
   `git -C <wt> submodule foreach` show nothing, then `--force`. A new
@@ -140,7 +151,8 @@ profiling queue (below).
   has written paths that do not exist and names that are not paths. Left
   uncommitted it blocks `git switch`. It keeps a stale `summary` after a
   rewrite: edit `summary` and `tags` by hand, never `mdindex:`. `just fmt`
-  can pick its edits up. (2026-11-27)
+  can pick its edits up. It rewrites frontmatter while `just done` runs, which
+  then says "Not remembered": commit its edit on its own, rerun. (2026-11-28)
 - commitlint takes no scope but `hooks`, `site`, `deps`; lines at most 72
   characters; a body line starting `word:` reads as a footer.
 - ThreadSanitizer delivers signals late (the crash group's chaining cases
@@ -231,8 +243,5 @@ profiling queue (below).
     its image names and finishes its report (`40d556e`); `just crash-report`
     names a report's frames from the module's linker map and says whose
     code crashed (`36be38c`).
-- Found on the way: #87, TypeSanitizer intermittently reports `test_core`'s
-  precondition test (heap memory a RapidCheck object used, reused for a
-  `core::Error`); `core` is untouched, so it predates this work.
-- The docs tagger's frontmatter, its bad `related:` entries fixed
-  (`48a444f`).
+- #87 opened (2026-11-28): found while running `just sanitize`, outside the
+  tooling fixes (above, "Next up").
