@@ -125,16 +125,33 @@ def _related(text: str) -> list[tuple[int, str]]:
     return entries
 
 
+def _ignored(root: Path, path: str) -> bool:
+    """Return whether git ignores `path`, so a fresh clone does not have it.
+
+    False when `root` is not a repository.
+    """
+    return (
+        subprocess.run(
+            ["git", "check-ignore", "-q", "--", path],
+            cwd=root,
+            capture_output=True,
+            check=False,
+        ).returncode
+        == 0
+    )
+
+
 def missing_related(root: Path) -> list[str]:
     """Return each ``related:`` path that names no file, as ``file:line: path``.
 
-    A ``related:`` entry is a path from the repository's root.
+    A ``related:`` entry is a path from the repository's root. One git
+    ignores counts as missing: a fresh clone has no such file.
     """
     return [
         f"{source}:{number}: {entry}"
         for source in markdown(root)
         for number, entry in _related((root / source).read_text())
-        if not (root / entry).exists()
+        if not (root / entry).exists() or _ignored(root, entry)
     ]
 
 
@@ -146,6 +163,17 @@ def test_every_relative_link_resolves():
 def test_every_related_path_exists():
     """Every path in a file's `related:` frontmatter exists."""
     assert missing_related(REPO) == []
+
+
+def test_a_related_path_git_ignores_is_found(tmp_path):
+    """A `related:` path git ignores is missing from a fresh clone, so it is found."""
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    (tmp_path / ".gitignore").write_text("built/\n")
+    (tmp_path / "built").mkdir()
+    (tmp_path / "built" / "x.js").write_text("")
+    (tmp_path / "a.md").write_text("---\nrelated: [built]\n---\n# A\n")
+    subprocess.run(["git", "add", "a.md", ".gitignore"], cwd=tmp_path, check=True)
+    assert missing_related(tmp_path) == ["a.md:2: built"]
 
 
 def test_a_broken_link_is_found(tmp_path):
