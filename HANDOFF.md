@@ -3,9 +3,9 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-28 · Branch: `selection-strengthened` · Last commit: `fix:
-find a missed rerun per test unit in the sweep` · Checks: passing (`just
-done`)
+Updated: 2026-11-28 · Branch: `main` (pushed, level with `origin/main`) ·
+Last commit: `docs: reflow the sweep paragraph in testing` (`6fdd51d`) ·
+Checks: passing (`just done`); last `just sweep` passed 2026-11-28
 Verify with: `just done` (`just verify` is the release tier)
 
 ## In progress
@@ -27,8 +27,12 @@ None. [verified]
 
 - **The preparation before the rewrite, in this order** (Tomas, 2026-11-28:
   he prepares everything before starting, for a clear path):
-  1. The small tooling fixes below: the SQL tests' data files, the 24 s
-     rebuild, `just done`'s order, #85 and #86.
+  1. **Next: the small tooling fixes**, each an item below: the SQL tests'
+     data files (`engine/sqllogic/CMakeLists.txt`), the 24 s rebuild (uv's
+     build isolation), `just done`'s order (`place` before
+     `check-lockfile`), `just test` and `just full` without
+     `compiler-stamp`, then #85 and #86. Small enough for one plan
+     (superpowers:writing-plans), shown to Tomas before it starts.
   2. A benchmark and profiling queue: profiling joins `just benchmarks-due`,
      and one command runs the whole queue on Tomas's go-ahead, when the
      machine is idle (ADR 0072 unchanged: nothing runs by itself).
@@ -85,6 +89,16 @@ None. [verified]
   position, so the copy goes a column group at a time.
 
 ## Dead ends and traps
+
+- A worktree with submodules cannot be removed with plain
+  `git worktree remove`: check `git -C <wt> status --porcelain -uall` and
+  `git -C <wt> submodule foreach` show nothing, then `--force`. A new
+  worktree needs `just setup` (submodules and the module build, minutes).
+  After a fast-forward, `just done` on `main` runs nothing: the worktree's
+  pass of the same tree counts. Subagents still reach for a `tail -f`
+  Monitor while waiting: name it in their brief as forbidden. The docs
+  tagger writes non-paths into `related:` (a branch name, "ADR 0001"):
+  `just links` now refuses them. (2026-11-28)
 
 - Bazel (the prototype, `claude/bazel-prototype-266e9b`): the registry's
   cpptrace compiles libdwarf (LGPL), so it is built from the submodule;
