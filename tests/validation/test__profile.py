@@ -237,3 +237,89 @@ def test_with_no_previous_summary_the_comparison_says_so():
     assert pr.compare(None, current) == (
         "# Profile comparison\n\nNo previous clean profile to compare with.\n"
     )
+
+
+def test_a_comparison_names_a_function_that_left_the_top_thirty():
+    """A function gone from the current top 30 is listed when it fell more
+    than 2 points: its current share from ``by_total``, or 0 when the
+    current ranking is shorter than 30 and does not know it."""
+    previous = _made(
+        2.0,
+        "quiet",
+        _function("sq::gone", 0.15),
+        _function("sq::dropped", 0.15),
+        _function("sq::eased", 0.15),
+    )
+    kept = _function("sq::kept", 0.5)
+    current = pr.Summary(
+        2.0,
+        "quiet before",
+        "quiet after",
+        {"sqlearn": 0.5},
+        (kept,),
+        (
+            kept,
+            pr.Function("sq::dropped", "sqlearn", 0.12, 0.3),
+            pr.Function("sq::eased", "sqlearn", 0.14, 0.3),
+        ),
+    )
+    text = pr.compare(previous, current)
+    assert "| `sq::gone` | sqlearn | 15.0% | 0.0% |" in text
+    assert "| `sq::dropped` | sqlearn | 15.0% | 12.0% |" in text
+    assert "sq::eased" not in text
+
+
+def test_a_function_below_a_full_top_thirty_is_shown_as_below_it():
+    """When the current top 30 is full and does not know a function, its
+    share is at most the 30th's: listed as below the top 30 when that bound
+    is more than 2 points under its previous share."""
+    previous = _made(2.0, "quiet", _function("sq::gone", 0.15))
+    top = tuple(_function(f"sq::f{i:02}", 0.04) for i in range(30))
+    current = pr.Summary(2.0, "a", "b", {"sqlearn": 1.0}, top, top)
+    text = pr.compare(previous, current)
+    assert "| `sq::gone` | sqlearn | 15.0% | below the top 30 |" in text
+
+
+def _many_functions_profile(count: int) -> dict[str, object]:
+    """One one-frame sample per function, function ``i`` weighing ``i + 1``."""
+    return {
+        "meta": {"version": 24, "preprocessedProfileVersion": 49},
+        "libs": [{"name": "loop", "path": "/x/loop", "codeId": "AB"}],
+        "threads": [
+            {
+                "samples": {
+                    "length": count,
+                    "stack": list(range(count)),
+                    "weight": [i + 1 for i in range(count)],
+                },
+                "stackTable": {
+                    "length": count,
+                    "prefix": [None] * count,
+                    "frame": list(range(count)),
+                },
+                "frameTable": {
+                    "length": count,
+                    "address": [-1] * count,
+                    "func": list(range(count)),
+                },
+                "funcTable": {
+                    "length": count,
+                    "name": list(range(count)),
+                    "resource": [0] * count,
+                },
+                "resourceTable": {"length": 1, "lib": [0], "name": [count]},
+                "stringArray": [f"sq::f{i:02}" for i in range(count)] + ["loop"],
+            }
+        ],
+    }
+
+
+def test_each_ranking_keeps_the_top_thirty(tmp_path):
+    """Of 31 functions, the lightest is cut from both rankings."""
+    path = tmp_path / "profile.json"
+    path.write_text(json.dumps(_many_functions_profile(31)))
+    summary = pr.summarise(path, 1.0, "a", "b")
+    expected = [f"sq::f{i:02}" for i in range(30, 0, -1)]
+    assert [f.name for f in summary.by_self] == expected
+    assert [f.name for f in summary.by_total] == expected
+    assert summary.owners == {"sqlearn": pytest.approx(1.0, abs=1e-12)}

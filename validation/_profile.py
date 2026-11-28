@@ -312,6 +312,39 @@ def _cell(name: str) -> str:
     return "`" + name.replace("|", "\\|") + "`"
 
 
+def _left_the_top(previous: Summary, current: Summary) -> list[str]:
+    """Rows for the functions of the previous top 30 the current one lacks.
+
+    The current share is ``by_total``'s when that run knows the function; 0
+    when the current top 30 is not full (every function with self time is in
+    it); otherwise at most the 30th's, shown as below the top 30. A function
+    is listed when it fell by more than 2 points (by that bound, for one below
+    a full top 30), in the previous ranking's order.
+    """
+    in_top = {f.name for f in current.by_self}
+    known_now = {f.name: f.self_share for f in current.by_total}
+    full = len(current.by_self) >= TOP
+    rows = []
+    for function in previous.by_self:
+        if function.name in in_top:
+            continue
+        if function.name in known_now:
+            now: float = known_now[function.name]
+            shown = _share(now)
+        elif not full:
+            now = 0.0
+            shown = _share(now)
+        else:
+            now = current.by_self[-1].self_share
+            shown = "below the top 30"
+        if round(function.self_share - now, 12) > MOVED:
+            rows.append(
+                f"| {_cell(function.name)} | {function.owner}"
+                f" | {_share(function.self_share)} | {shown} |"
+            )
+    return rows
+
+
 def compare(previous: Summary | None, current: Summary) -> str:
     """Compare a profile's summary with the previous clean one, as Markdown.
 
@@ -327,7 +360,8 @@ def compare(previous: Summary | None, current: Summary) -> str:
     str
         Both runs' wall time and loads, each owner's share side by side, and
         the functions whose self share moved more than 2 percentage points
-        or that are new in the top 30 by self time, with both shares. With
+        or that are new in the top 30 by self time, or left it having fallen
+        more than 2 points, with both shares. With
         no previous summary, a line saying so.
     """
     heading = "# Profile comparison\n\n"
@@ -366,6 +400,7 @@ def compare(previous: Summary | None, current: Summary) -> str:
             f"| {_cell(function.name)} | {function.owner} | {shown}"
             f" | {_share(function.self_share)} |"
         )
+    rows += _left_the_top(previous, current)
     if rows:
         lines += [
             "| function | owner | previous | current |",
