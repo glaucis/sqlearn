@@ -3,41 +3,36 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-28 · Branch: `benchmark-queue` (not pushed, 16 commits ahead
-of `main`) · Last commit: `docs: close the benchmark queue`, after `a48e7c8` ·
-Checks: passing (`just done`)
+Updated: 2026-11-28 · Branch: `main` (not pushed: ahead of `origin/main`) ·
+Last commit: `docs: record the benchmark queue's merge` · Checks: passing
+(`just done`)
 
 Verify with: `just done` (`just verify` is the release tier)
 
 ## In progress
 
-None. [verified] The benchmark and profiling queue is built on branch
-`benchmark-queue` (issue #88, plan
-`docs/plans/archived/2026-11-28-benchmark-queue.md`); the branch awaits your
-review and merge.
+None. [verified] The benchmark and profiling queue is merged into `main`
+(issue #88 closed); next is Phase 1 step 3 (below).
 
 ## Waiting on the user
 
-- Review and merge `benchmark-queue` (16 commits, `git log --oneline
-  main..benchmark-queue`); #88 closes on the merge.
 - The first `just bench-queue` (ADR 0081): today it runs `bench_buffer` and
   its profile, seconds each, one core; it measures only on an idle machine.
-  Awaits your go-ahead.
+  Awaits your go-ahead. It replaces running `just bench <name>` one at a
+  time.
+- Pushing `main` to `origin` (the queue's commits are local).
 - The audit's first real run, `just audit-groups` (builds a second,
   coverage-instrumented wheel with DuckDB): awaits your go-ahead. Nothing
   claims Python tests or runners since ADR 0073, so it is due before the
   first group claims `PYTHON_TESTS` or `VALIDATION`; that plan carries the
   step. (since 2026-11-27)
-- Benchmark reruns, `just benchmarks-due` then `just bench <name>` (ADR
-  0072): awaits your go-ahead. Only the `engine/bench` programs are listed;
-  the page scripts are in `old_python/`. (since 2026-11-27)
 
 ## Next up
 
 - **The preparation before the rewrite, in this order** (Tomas, 2026-11-28:
   he prepares everything before starting, for a clear path):
   1. ~~The small tooling fixes~~: done (below, "Just finished").
-  2. ~~The benchmark and profiling queue~~: built, on `benchmark-queue`
+  2. ~~The benchmark and profiling queue~~: merged
      (`docs/plans/archived/2026-11-28-benchmark-queue.md`, #88).
   3. **Next:** Phase 1 step 3, then step 4 (below).
   4. The audit's first run, on Tomas's go-ahead (above), before the first
@@ -235,8 +230,8 @@ review and merge.
 
 - **The benchmark and profiling queue** (2026-11-28, issue #88, plan
   `docs/plans/archived/2026-11-28-benchmark-queue.md`, spec
-  `docs/specs/archived/benchmark-queue.md`, ADR 0081): on `benchmark-queue`,
-  `93d69e9..a48e7c8` and the closing commit. A benchmark run under load is
+  `docs/specs/archived/benchmark-queue.md`, ADR 0081): merged into `main`
+  (fast-forward), `93d69e9..35d42bd`. A benchmark run under load is
   recorded as loaded; profiles join `just benchmarks-due`; samply profiles
   are summarised and compared; `just bench-queue` runs every due item on one
   go-ahead, on an idle machine only. Not run yet (above).
