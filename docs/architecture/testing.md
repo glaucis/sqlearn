@@ -651,8 +651,8 @@ it waits for idle again for at most 5 minutes, since the previous item's own
 threads linger in the 1-minute average; still busy, it stops, keeps what it
 recorded and lists what is left (exit 1). A failed item is reported with its
 exit code and the queue goes on (exit 1 at the end). The report has one line per
-item (`ran`, `failed (exit N)` or `not run`), and for each profile that ran, the
-path of its `compare.md`.
+item (`ran`, `failed (exit N)` or `not run`); a `ran` line has its wall
+time and the load before and after, and a profile its `compare.md` path.
 
 ## The validation runners
 

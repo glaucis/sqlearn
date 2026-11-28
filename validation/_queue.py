@@ -13,6 +13,7 @@ import shutil
 import sys
 from collections.abc import Callable, Sequence
 from pathlib import Path
+from typing import Any
 
 from validation import _bench, _checks, _groups, _load, _profile
 
@@ -64,11 +65,14 @@ def presets(root: Path) -> list[str]:
     return out
 
 
-def _comparison(root: Path, name: str) -> str | None:
-    records = _checks.load(_checks.record_dir(root), f"profile-{name}")
-    if not records:
-        return None
-    summary = records[-1].get("summary")
+def _newest(root: Path, item: _bench.Due) -> dict[str, Any]:
+    key = "profile" if item.kind == "profile" else "bench"
+    records = _checks.load(_checks.record_dir(root), f"{key}-{item.name}")
+    return dict(records[-1]) if records else {}
+
+
+def _comparison(record: dict[str, Any], root: Path) -> str | None:
+    summary = record.get("summary")
     if not summary:
         return None
     return str((root / str(summary)).with_name("compare.md").relative_to(root))
@@ -79,8 +83,17 @@ def _report(root: Path, items: list[_bench.Due], results: dict[int, str]) -> Non
     for index, item in enumerate(items):
         what = results.get(index, "not run")
         line = f"  {what}: {item.kind} {item.name}"
-        if what == "ran" and item.kind == "profile":
-            path = _comparison(root, item.name)
+        if what == "ran":
+            record = _newest(root, item)
+            if "seconds" in record:
+                line += (
+                    f"  {record['seconds']:.1f} s, load "
+                    f"{record.get('uptime_before', '?')} before, "
+                    f"{record.get('uptime_after', '?')} after"
+                )
+                if record.get("loaded"):
+                    line += " (machine loaded: stays due)"
+            path = _comparison(record, root) if item.kind == "profile" else None
             if path:
                 line += f"  (comparison: {path})"
         print(line)  # noqa: T201
@@ -160,7 +173,7 @@ def cli(argv: Sequence[str], root: Path | None = None) -> int:
         if argv == ["run"]:
             return run(here)
     except _groups.Unreadable as error:
-        print(f"queue: {error}")  # noqa: T201
+        print(f"queue: {error}", file=sys.stderr)  # noqa: T201
         return 1
     print("usage: python -m validation._queue presets | run")  # noqa: T201
     return 2

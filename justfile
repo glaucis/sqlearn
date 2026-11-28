@@ -410,7 +410,8 @@ bench name:
 bench-queue:
     #!/usr/bin/env bash
     set -euo pipefail
-    for preset in $(uv run --locked python -m validation._queue presets); do
+    presets=$(uv run --locked python -m validation._queue presets)
+    for preset in $presets; do
         just build-engine "$preset"
     done
     uv run --locked python -m validation._queue run

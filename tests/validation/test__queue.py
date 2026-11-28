@@ -51,7 +51,25 @@ def fakes(tmp_path, monkeypatch):
 
     def bench_run(root, name):
         fake.calls.append(("bench", name))
-        return fake.codes.get(("bench", name), 0)
+        code = fake.codes.get(("bench", name), 0)
+        if code == 0:
+            _checks.save(
+                tmp_path / "records",
+                f"bench-{name}",
+                cast(
+                    "_checks.Record",
+                    {
+                        "digest": "d",
+                        "config": name,
+                        "files": {},
+                        "seconds": 3.5,
+                        "uptime_before": "1.00",
+                        "uptime_after": "1.10",
+                        "loaded": True,
+                    },
+                ),
+            )
+        return code
 
     def profile_run(root, name):
         fake.calls.append(("profile", name))
@@ -68,6 +86,10 @@ def fakes(tmp_path, monkeypatch):
                         "digest": "d",
                         "config": name,
                         "files": {},
+                        "seconds": 12.5,
+                        "uptime_before": "0.40",
+                        "uptime_after": "0.60",
+                        "loaded": False,
                         "summary": str(
                             (run_dir / "summary.json").relative_to(tmp_path)
                         ),
@@ -102,6 +124,9 @@ def test_the_queue_runs_a_benchmark_then_its_profile(fakes, monkeypatch, capsys)
     ]
     out = capsys.readouterr().out
     assert "ran" in out
+    assert "12.5 s" in out
+    assert "0.40 before, 0.60 after" in out
+    assert "3.5 s, load 1.00 before, 1.10 after (machine loaded" in out
     assert "build/profiles/bench_a/20260101-000000/compare.md" in out
 
 
@@ -193,3 +218,16 @@ def test_the_cli_runs_the_queue(fakes, monkeypatch, capsys):
     assert _queue.cli(["run"], fakes.root) == 0
     assert "nothing is due" in capsys.readouterr().out
     assert _queue.cli(["bogus"], fakes.root) == 2
+
+
+def test_an_unreadable_manifest_stops_the_presets_on_stderr(fakes, monkeypatch, capsys):
+    """The presets say why on stderr and exit 1, so the recipe stops."""
+
+    def broken(root):
+        raise _queue._groups.Unreadable("no manifest")
+
+    monkeypatch.setattr(_bench, "due", broken)
+    assert _queue.cli(["presets"], fakes.root) == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "no manifest" in captured.err
