@@ -35,6 +35,14 @@ if(APPLE AND CMAKE_SYSTEM_PROCESSOR MATCHES "arm64|aarch64")
   set(SQ_CPU_OPTIONS -mcpu=apple-m1)
 endif()
 
+# The release's debug information is line tables alone, for crash reports'
+# file and line. Clang names that -gline-tables-only; GCC has no such level
+# and refuses it, and its nearest, -g1, keeps line tables without locals.
+set(SQ_LINE_TABLES -gline-tables-only)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  set(SQ_LINE_TABLES -g1)
+endif()
+
 # The release hardening of OpenSSF's compiler options guide, for the
 # optimised flavours: _FORTIFY_SOURCE needs optimisation, and is undefined
 # first in case the compiler or a caller set another level. macOS's SDK
@@ -174,7 +182,7 @@ elseif(SQ_FLAVOR STREQUAL "release")
   set(
     SQ_FLAVOR_OPTIONS
     -O2
-    -gline-tables-only
+    ${SQ_LINE_TABLES}
     -ftrivial-auto-var-init=zero
     ${SQ_CPU_OPTIONS}
     ${SQ_RELEASE_HARDENING}
