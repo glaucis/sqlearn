@@ -190,6 +190,9 @@ TIDY_INPUTS = (
     # What the tools check and how: the sources and their exclusions, the
     # build each comes from, IWYU's flags and mapping files.
     "validation/_tidy.py",
+    # The layering check, and the manifest reader it uses.
+    "validation/_layering.py",
+    "validation/_groups.py",
     "engine/cmake",
     "engine/CMakeLists.txt",
     "engine/CMakePresets.json",
@@ -400,10 +403,13 @@ def _table() -> dict[str, Task]:
             inputs=TIDY_INPUTS,
             config=SETTINGS,
             steps=(
-                # clang-tidy, with the static analyser, then
-                # include-what-you-use, over one compile database of our
-                # sources (validation/_tidy.py); then every header alone.
+                # clang-tidy, with the static analyser, then the layering
+                # check on the manifest tidy-engine configures
+                # (validation/_layering.py), then include-what-you-use, over
+                # one compile database of our sources (validation/_tidy.py);
+                # then every header alone.
                 Step(("just", "tidy-engine")),
+                Step(("uv", "run", "--locked", "python", "-m", "validation._layering")),
                 Step(("just", "iwyu-engine")),
                 Step(("just", "headers-alone")),
             ),

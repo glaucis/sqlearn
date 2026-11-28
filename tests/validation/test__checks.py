@@ -651,8 +651,19 @@ def test_the_tidy_task_reads_our_cxx_and_not_the_submodules():
         "engine/iwyu.imp",
         # What it checks and how: the sources, their builds, IWYU's flags.
         "validation/_tidy.py",
+        "validation/_layering.py",
+        "validation/_groups.py",
     ):
         assert path in tidy.inputs, path
+
+
+def test_the_tidy_task_checks_the_layering_on_the_build_tidy_configures():
+    """The layering check reads the llvm-dev manifest, so it follows tidy-engine."""
+    commands = [step.command for step in _checks.TASKS["tidy"].steps]
+    layering = commands.index(
+        ("uv", "run", "--locked", "python", "-m", "validation._layering")
+    )
+    assert commands.index(("just", "tidy-engine")) < layering
 
 
 @pytest.mark.parametrize(

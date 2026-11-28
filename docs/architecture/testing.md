@@ -129,7 +129,7 @@ passed run already checked.
 | `types` | every `*.py` and `*.pyi` file | the whole program: `ty check`, then `mypy` |
 | `test` | the C++ groups' own identities, then each Python set's (see "Selecting by group", below) | the C++ groups whose program changed, then each Python set whose identity has no passed record |
 | `sql` | `engine/extension/test/` whole (the `.test`, `.test_slow` and `.test_coverage` files and any data file beside them), the extension's CMake files and config, `engine/sqllogic/`, `validation/_ctest.py`, the module's shared fingerprint and `core`'s; the compiler's and the SDK's versions | the extension's SQL tests: `just test-sql` (below) |
-| `tidy` | our C++ (`engine/src/`, `engine/tests/`, `engine/bench/`, `engine/extension/`), `engine/cmake/`, the CMake files and presets, `engine/.clang-tidy`, `engine/src/raw/.clang-tidy`, `engine/iwyu.imp`, the submodules' commits | the whole engine: `just tidy-engine` (clang-tidy with the static analyser), `just iwyu-engine` (include-what-you-use), `just headers-alone` |
+| `tidy` | our C++ (`engine/src/`, `engine/tests/`, `engine/bench/`, `engine/extension/`), `engine/cmake/`, the CMake files and presets, `engine/.clang-tidy`, `engine/src/raw/.clang-tidy`, `engine/iwyu.imp`, `validation/_tidy.py`, `validation/_layering.py`, `validation/_groups.py`, the submodules' commits | the whole engine: `just tidy-engine` (clang-tidy with the static analyser), the layering check (`validation/_layering.py`, below), `just iwyu-engine` (include-what-you-use), `just headers-alone` |
 | `docs` | `docs/`, `src/`, the module's shared fingerprint and every group's | the whole site: `just build-docs` |
 | `validate` | each runner's imported modules, `uv.lock`, its groups' fingerprints and the shared part | each changed runner, by its own records (below) |
 
@@ -420,6 +420,30 @@ installs `crash`'s handler at import, so every Python test and runner still
 depends on them all. The saving now is comments, docs and CMake text, and it
 grows with each group the port adds. `just audit-groups` (below) checks the
 claims.
+
+### The layering check
+
+A group's `DEPENDS` decides what a change to it reruns, and the link does not
+keep it honest: each group is a static archive linking its `DEPENDS`, so
+linking is transitive. The `tidy` task runs `validation/_layering.py` after
+`just tidy-engine`, on the `llvm-dev` build's manifest, which `tidy-engine`
+configures. It reads the manifest and the files, with no list of allowed
+layers of its own, and refuses, each with a `Fix:` line:
+
+1. an include, in a group's files (`engine/src/<name>/`) or its tests
+   (`engine/tests/<name>/`), of a group that is neither its own nor in its
+   `DEPENDS`;
+2. a `DEPENDS` that leaves out a group in the closure of those it names:
+   `DEPENDS` is not transitive;
+3. a stale `DEPENDS` entry, in no closure of the groups the group's own files
+   include (its tests do not count), which makes a change rerun what it
+   cannot affect;
+4. a cycle of `DEPENDS`;
+5. an include of a shared directory (`engine/src/bindings`) by a group.
+
+An include names a group when its path's first part is a group's name;
+`"..."` and `<...>` count alike, and so does one in a comment. Run it alone
+with `uv run --locked python -m validation._layering`.
 
 ### The fingerprints
 

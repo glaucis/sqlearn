@@ -108,10 +108,14 @@ endfunction()
 # too, and its archive, so that a linker reading archives in order (GNU ld)
 # finds them after it even when DEPENDS is not in dependency order (crash
 # names core raw). That link makes linking transitive, and the group's own
-# objects compile with its DEPENDS' interface requirements. The rule that
-# DEPENDS is not transitive (a group whose dependency has a dependency of
-# its own names both) is kept by the layering check, which reads the
-# manifest (validation/_layering.py), not by the link. The test program
+# objects compile with its DEPENDS' interface requirements. The layering
+# check (validation/_layering.py, run by the tidy task) keeps DEPENDS true,
+# reading the manifest and the includes, not the link: the group's files
+# and tests include only its own group and its DEPENDS; DEPENDS is not
+# transitive (a group whose dependency has a dependency of its own names
+# both); no entry is stale (out of the closure of what the group's own files
+# include); no cycle; and no group includes a shared directory
+# (engine/src/bindings). The test program
 # links archives, so it holds only the objects it uses: an edit of an
 # object it does not use leaves its bytes, and the checks do not rerun it
 # (validation/_ctest.py). A program takes from an archive only the objects

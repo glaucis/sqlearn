@@ -1868,6 +1868,12 @@
     },
     {
       "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_the_tidy_task_checks_the_layering_on_the_build_tidy_configures",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
       "name": "tests/validation/test__checks.py::test_the_tidy_task_reads_our_cxx_and_not_the_submodules",
       "outcome": "passed",
       "tier": "fast"
@@ -2157,6 +2163,84 @@
     {
       "area": "validation/_groups",
       "name": "tests/validation/test__groups.py::test_the_shared_groups_are_the_closure_of_those_shared_entries_read",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_layering",
+      "name": "tests/validation/test__layering.py::test_a_cycle_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_layering",
+      "name": "tests/validation/test__layering.py::test_a_dependency_nothing_includes_is_stale",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_layering",
+      "name": "tests/validation/test__layering.py::test_a_dependency_of_a_dependency_must_be_named",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_layering",
+      "name": "tests/validation/test__layering.py::test_a_dependency_only_the_tests_include_is_stale",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_layering",
+      "name": "tests/validation/test__layering.py::test_a_group_including_the_bindings_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_layering",
+      "name": "tests/validation/test__layering.py::test_an_angle_include_counts",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_layering",
+      "name": "tests/validation/test__layering.py::test_an_include_in_a_comment_counts",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_layering",
+      "name": "tests/validation/test__layering.py::test_an_include_naming_no_group_is_ignored",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_layering",
+      "name": "tests/validation/test__layering.py::test_an_include_of_a_group_not_depended_on_in_its_tests_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_layering",
+      "name": "tests/validation/test__layering.py::test_an_include_of_a_group_not_depended_on_is_refused",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_layering",
+      "name": "tests/validation/test__layering.py::test_the_bindings_may_include_any_group",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_layering",
+      "name": "tests/validation/test__layering.py::test_the_command_reports_each_problem_and_fails",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_layering",
+      "name": "tests/validation/test__layering.py::test_the_real_engine_has_no_problems",
       "outcome": "passed",
       "tier": "fast"
     },
