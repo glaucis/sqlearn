@@ -3,7 +3,7 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-28 · Branch: `main` (not pushed: ahead of `origin/main`) ·
+Updated: 2026-11-28 · Branch: `main` (pushed, level with `origin/main`) ·
 Last commit: `docs: record the benchmark queue's merge` · Checks: passing
 (`just done`)
 
@@ -20,7 +20,6 @@ None. [verified] The benchmark and profiling queue is merged into `main`
   its profile, seconds each, one core; it measures only on an idle machine.
   Awaits your go-ahead. It replaces running `just bench <name>` one at a
   time.
-- Pushing `main` to `origin` (the queue's commits are local).
 - The audit's first real run, `just audit-groups` (builds a second,
   coverage-instrumented wheel with DuckDB): awaits your go-ahead. Nothing
   claims Python tests or runners since ADR 0073, so it is due before the
