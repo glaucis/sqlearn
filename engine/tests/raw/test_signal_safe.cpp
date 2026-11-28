@@ -4,6 +4,7 @@
 #include "raw/fd_writer.hpp"
 #include "raw/fixed_text.hpp"
 #include "raw/images.hpp"
+#include "raw/signal_stack.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 #include <rapidcheck.h>
@@ -13,20 +14,43 @@
 #include <sys/types.h> // IWYU pragma: keep
 #include <unistd.h>
 
+#if defined(__APPLE__)
+#include <mach-o/dyld.h>
+#else
+#include <link.h>
+#endif
+
 #include <algorithm>
 #include <array>
 #include <cerrno>
 #include <climits>
+#include <csignal>
+// IWYU pragma: no_include <sys/_types/_sigaltstack.h>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
+#include <iterator>
+#include <limits>
+#include <memory>
 #include <span>
 #include <string>
 #include <string_view>
+#include <thread>
+#include <vector>
 
 namespace {
 
 using sq::raw::FdWriter;
 using sq::raw::FixedText;
+
+/// Room for the loaded images' paths, as the crash handler gives it.
+constexpr std::size_t name_room = 262'144;
+/// Room for the loaded images, as many as the crash handler keeps.
+constexpr std::size_t table_room = 1024;
+/// Room for one short name at most: a path of seven bytes and its NUL.
+constexpr std::size_t few_room = 8;
+/// A spare signal stack's size in the tests, as the crash handler's.
+constexpr std::size_t spare_room = 262'144;
 
 /// A pipe, both ends closed at the end.
 class Pipe {
@@ -233,7 +257,8 @@ TEST_CASE("an image holds its first code address, not its end", "[raw]") {
 TEST_CASE("the loaded images hold this program's code, with its path", "[raw]") {
     constexpr std::size_t room = 1024;
     std::array<sq::raw::Image, room> images{};
-    const std::size_t count = sq::raw::loaded_images(images);
+    std::vector<char> names(name_room);
+    const std::size_t count = sq::raw::loaded_images(images, names);
     REQUIRE(count > 0);
     const std::span<const sq::raw::Image> loaded = std::span(images).first(count);
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast): a function's address
@@ -268,9 +293,229 @@ TEST_CASE("the loaded images hold this program's code, with its path", "[raw]") 
 
 TEST_CASE("no image holds address 0, and a full table stops at its size", "[raw]") {
     std::array<sq::raw::Image, 1> one{};
-    CHECK(sq::raw::loaded_images(one) == 1);
+    std::vector<char> names(name_room);
+    CHECK(sq::raw::loaded_images(one, names) == 1);
     CHECK(sq::raw::image_of(std::span<const sq::raw::Image>(one), 0) == nullptr);
-    CHECK(sq::raw::loaded_images(std::span<sq::raw::Image>()) == 0);
+    CHECK(sq::raw::loaded_images(std::span<sq::raw::Image>(), names) == 0);
+}
+
+namespace {
+
+/// Return the loader's own name of the image loaded at `load`, or null.
+/// @param load An image's load address.
+/// @return The name the loader keeps for it.
+const char *loaders_name(std::uintptr_t load) {
+#if defined(__APPLE__)
+    for (std::uint32_t i = 0; i < _dyld_image_count(); ++i) {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast): the header's address
+        if (reinterpret_cast<std::uintptr_t>(_dyld_get_image_header(i)) == load) {
+            return _dyld_get_image_name(i);
+        }
+    }
+    return nullptr;
+#else
+    struct Found {
+        std::uintptr_t load;
+        const char *name;
+    } found{load, nullptr};
+    dl_iterate_phdr(
+        [](dl_phdr_info *info, std::size_t, void *data) noexcept -> int {
+            auto &want = *static_cast<Found *>(data);
+            if (info->dlpi_addr != want.load) {
+                return 0;
+            }
+            want.name = info->dlpi_name;
+            return 1;
+        },
+        &found);
+    return found.name;
+#endif
+}
+
+} // namespace
+
+TEST_CASE("each image's path is the table's own copy, not the loader's", "[raw]") {
+    // An image unloaded after the table is taken frees the loader's copy of
+    // its name; the table's stays, so a report never reads freed memory.
+    std::array<sq::raw::Image, table_room> images{};
+    std::vector<char> names(name_room);
+    const std::size_t count = sq::raw::loaded_images(images, names);
+    REQUIRE(count > 1);
+    const char *first = names.data();
+    const char *past = std::to_address(names.end());
+    std::size_t named = 0;
+    for (const sq::raw::Image &image : std::span(images).first(count)) {
+        if (image.path == nullptr) {
+            continue;
+        }
+        ++named;
+        const char *theirs = loaders_name(image.load);
+        REQUIRE(theirs != nullptr);
+        CHECK(std::string(image.path) == std::string(theirs));
+        CHECK(image.path != theirs);
+        CHECK(std::less_equal<>{}(first, image.path));
+        CHECK(std::less<>{}(image.path, past));
+    }
+    CHECK(named > 1);
+}
+
+TEST_CASE("a name with no room left is marked, never cut", "[raw]") {
+    // Room for one short name at most: every image is still listed, each
+    // with its whole path or names_full.
+    std::array<sq::raw::Image, table_room> images{};
+    std::vector<char> names(name_room);
+    const std::size_t count = sq::raw::loaded_images(images, names);
+    REQUIRE(count > 1);
+    std::array<sq::raw::Image, table_room> tight{};
+    std::array<char, few_room> few{};
+    REQUIRE(sq::raw::loaded_images(tight, few) == count);
+    std::size_t marked = 0;
+    for (std::size_t i = 0; i < count; ++i) {
+        const char *path = tight.at(i).path;
+        if (path == sq::raw::names_full.data()) {
+            ++marked;
+            continue;
+        }
+        if (path == nullptr) {
+            continue;
+        }
+        CHECK(std::string(path) == std::string(images.at(i).path));
+        CHECK(std::string_view(path).size() < few.size());
+    }
+    CHECK(marked > 0);
+}
+
+TEST_CASE("a name fits with its NUL exactly, and not one byte less", "[raw]") {
+    std::array<sq::raw::Image, table_room> images{};
+    std::vector<char> names(name_room);
+    const std::size_t count = sq::raw::loaded_images(images, names);
+    // The first two images with a path, in the loader's order.
+    std::vector<std::size_t> named;
+    for (std::size_t i = 0; i < count && named.size() < 2; ++i) {
+        if (images.at(i).path != nullptr) {
+            named.push_back(i);
+        }
+    }
+    REQUIRE(named.size() == 2);
+    const std::string one = images.at(named.at(0)).path;
+    const std::string two = images.at(named.at(1)).path;
+    std::array<sq::raw::Image, table_room> tight{};
+
+    // Room for the first name and its NUL: kept, at the room's start.
+    std::vector<char> exact(one.size() + 1);
+    REQUIRE(sq::raw::loaded_images(tight, exact) == count);
+    CHECK(tight.at(named.at(0)).path == exact.data());
+    CHECK(std::string(tight.at(named.at(0)).path) == one);
+    CHECK(tight.at(named.at(1)).path == sq::raw::names_full.data());
+
+    // One byte less, no room for its NUL: marked.
+    std::vector<char> short_one(one.size());
+    REQUIRE(sq::raw::loaded_images(tight, short_one) == count);
+    CHECK(tight.at(named.at(0)).path == sq::raw::names_full.data());
+
+    // Room for both names and their NULs: both kept, the second after the
+    // first.
+    std::vector<char> both(one.size() + 1 + two.size() + 1);
+    REQUIRE(sq::raw::loaded_images(tight, both) == count);
+    CHECK(tight.at(named.at(0)).path == both.data());
+    CHECK(std::string(tight.at(named.at(1)).path) == two);
+    CHECK(tight.at(named.at(1)).path == std::next(both.data(), std::ssize(one) + 1));
+}
+
+namespace {
+
+/// The calling thread's alternate signal stack.
+/// @return What sigaltstack(2) reports; disabled when it fails.
+stack_t current_signal_stack() {
+    stack_t now{};
+    if (::sigaltstack(nullptr, &now) != 0) {
+        now.ss_flags = SS_DISABLE;
+    }
+    return now;
+}
+
+/// Whether `stack` is in use, not disabled.
+/// @param stack What sigaltstack(2) reported.
+/// @return True when enabled.
+bool enabled(const stack_t &stack) {
+    return (static_cast<unsigned>(stack.ss_flags) & static_cast<unsigned>(SS_DISABLE)) == 0;
+}
+
+/// Turn the calling thread's alternate signal stack off. macOS refuses
+/// (ENOMEM) unless the size is at least MINSIGSTKSZ, though unused.
+/// @return True when it is off.
+bool disable_signal_stack() {
+    stack_t off{};
+    off.ss_size = MINSIGSTKSZ;
+    off.ss_flags = SS_DISABLE;
+    return ::sigaltstack(&off, nullptr) == 0;
+}
+
+/// Run `body` on a new thread and return what it gives, the thread's
+/// alternate signal stack put back after. No assertion runs on that
+/// thread: Catch2's throw from one would end the program.
+/// @param body What to run; it returns what the test checks.
+/// @return What `body` returned.
+template <typename Body> auto on_a_new_thread(Body body) {
+    decltype(body()) seen{};
+    std::thread([&] {
+        const stack_t before = current_signal_stack();
+        seen = body();
+        (void)(enabled(before) ? ::sigaltstack(&before, nullptr) == 0 : disable_signal_stack());
+    }).join();
+    return seen;
+}
+
+/// What a thread saw of use_signal_stack.
+struct Seen {
+    bool first = false;          ///< The first call's result.
+    bool second = false;         ///< The second call's result.
+    stack_t after_first{};       ///< The stack in place after the first.
+    stack_t after_second{};      ///< The stack in place after the second.
+    const void *spare = nullptr; ///< The spare memory's address.
+    std::size_t size = 0;        ///< Its size.
+};
+
+} // namespace
+
+TEST_CASE("a thread without a big enough signal stack is given the spare one", "[raw]") {
+    // The first call asks for more than any stack in place, so the spare
+    // one replaces it; the second finds the spare one in place and big
+    // enough, and keeps it.
+    const Seen seen = on_a_new_thread([] {
+        std::vector<std::byte> spare(spare_room);
+        std::vector<std::byte> other(spare_room);
+        Seen out;
+        out.spare = spare.data();
+        out.size = spare.size();
+        out.first = sq::raw::use_signal_stack(spare, std::numeric_limits<std::size_t>::max());
+        out.after_first = current_signal_stack();
+        out.second = sq::raw::use_signal_stack(other, spare_room);
+        out.after_second = current_signal_stack();
+        (void)disable_signal_stack();
+        return out;
+    });
+    CHECK(seen.first);
+    CHECK(enabled(seen.after_first));
+    CHECK(seen.after_first.ss_sp == seen.spare);
+    CHECK(seen.after_first.ss_size == seen.size);
+    CHECK(seen.second);
+    CHECK(seen.after_second.ss_sp == seen.spare);
+}
+
+TEST_CASE("a thread with no signal stack and no spare memory has none", "[raw]") {
+    const Seen seen = on_a_new_thread([] {
+        Seen out;
+        if (disable_signal_stack()) {
+            out.first = sq::raw::use_signal_stack({}, 1);
+            out.after_first = current_signal_stack();
+            out.second = true;
+        }
+        return out;
+    });
+    REQUIRE(seen.second);
+    CHECK_FALSE(seen.first);
+    CHECK_FALSE(enabled(seen.after_first));
 }
 
 TEST_CASE("no context has no program counter", "[raw]") {

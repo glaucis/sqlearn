@@ -36,8 +36,18 @@ report_directory(std::string_view home, std::string_view xdg_state_home, bool ma
 /// signal is ignored. The handler allocates nothing and calls only
 /// async-signal-safe functions.
 ///
+/// The thread that calls it gets a spare signal stack (unless it has one
+/// of 64 KiB or more already), so a stack overflow on it is reported too;
+/// the other threads, DuckDB's workers among them, have none, and a stack
+/// overflow on one ends the process with no report. Each image's path is
+/// copied at install, so a report never reads the loader's copy of an
+/// image unloaded since.
+///
 /// It reports once a process and then unhooks: the previous action stays
-/// in place, so a later signal goes to it alone. The report and its line
+/// in place, so a later signal goes to it alone. A crash on another thread
+/// while the report is being written waits for it, at most five seconds,
+/// before its previous action runs, so that action does not end the
+/// process mid-report. The report and its line
 /// on standard error say the signal reached sqlearn's handler, since the
 /// previous handler may have handled it. Installed with SA_NODEFER, so a
 /// fault inside the report, or inside a previous handler that sets
@@ -71,6 +81,12 @@ extern void (*fault_in_report)();
 /// so the coverage flavour writes a dying child's profile.
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables): a test's hook
 extern void (*before_default)();
+
+/// Tests only: when set, the report calls it once its file is open, before
+/// it writes, so a test can fault another thread while the report is
+/// being written.
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables): a test's hook
+extern void (*while_reporting)();
 
 } // namespace detail
 #endif

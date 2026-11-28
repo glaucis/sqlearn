@@ -10,6 +10,7 @@
 #include "core/version.hpp"
 #include "crash/handler.hpp"
 
+#include <catch2/catch_message.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <cpptrace/basic.hpp>
 #include <cpptrace/forward.hpp>
@@ -19,10 +20,13 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include <array>
 #include <atomic>
 #include <csignal>
+#include <cstddef> // IWYU pragma: keep
 #include <cstdint>
 #include <cstdlib>
+#include <ctime>
 #include <filesystem>
 #include <fstream>
 // std::hex, which include-what-you-use finds through <sstream> and
@@ -33,6 +37,7 @@
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -157,6 +162,30 @@ void set_handler(int signo, void (*handler)(int)) {
     auto *target = reinterpret_cast<volatile int *>(zero);
     *target = 1;
     // NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast,performance-no-int-to-ptr,clang-analyzer-core.NullDereference)
+}
+
+/// Never true: the recursion's way out, which the compiler cannot see is
+/// never taken, so it neither warns of unbounded recursion nor makes a loop.
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables): read through volatile
+volatile bool stop_recursing = false;
+
+/// The bytes each level of the recursion keeps on the stack.
+constexpr std::size_t frame_bytes = 1024;
+
+/// Call itself until the stack runs out, each call keeping `frame_bytes`
+/// on it. The sanitizers are off here, so the overflow is the guard
+/// page's fault, not a sanitizer's report.
+/// @param depth How deep it is.
+/// @return Never, in practice.
+// NOLINTNEXTLINE(misc-no-recursion): the stack overflow under test
+[[gnu::noinline]] [[clang::no_sanitize("address", "undefined")]] std::size_t
+overflow_the_stack(std::size_t depth) {
+    std::array<volatile char, frame_bytes> pad{};
+    pad.at(depth % pad.size()) = 1;
+    if (stop_recursing) {
+        return depth;
+    }
+    return overflow_the_stack(depth + 1) + static_cast<unsigned char>(pad.at(0));
 }
 
 /// The test's own previous handler: it says so and exits.
@@ -291,6 +320,27 @@ TEST_CASE("a null write leaves a report and dies by its signal", "[crash]") {
     } else {
         CHECK(text.find("stack: none") != std::string::npos);
     }
+}
+
+TEST_CASE("a stack overflow on the installing thread leaves a whole report", "[crash][signals]") {
+    // The overflow leaves no stack to run the handler on: install() gives
+    // the thread a spare one (sigaltstack), unless it has one already.
+    const ScratchDir dir;
+    const auto ending = in_child([&] {
+        set_handler(SIGSEGV, default_handler);
+        set_handler(SIGBUS, default_handler);
+        if (sq::crash::install(dir.path())) {
+            (void)overflow_the_stack(0);
+        }
+    });
+    REQUIRE(ending.killed);
+    CAPTURE(ending.signal, ending.code);
+    const bool fault = ending.signal == SIGSEGV || ending.signal == SIGBUS;
+    CHECK(fault);
+    const std::string text = report(dir.path(), ending.pid);
+    REQUIRE_FALSE(text.empty());
+    CHECK(text.find("signal: SIG") != std::string::npos);
+    CHECK(text.ends_with("end of report\n"));
 }
 
 TEST_CASE("the handler that was there before runs after the report", "[crash][signals]") {
@@ -499,6 +549,54 @@ TEST_CASE("a fault in a previous SA_NODEFER handler ends the process", "[crash][
     const bool fault = ending.signal == SIGSEGV || ending.signal == SIGBUS;
     CHECK(fault);
     CHECK(reports(dir.path(), ending.pid).size() == 1);
+}
+
+namespace {
+
+/// Set once the first thread's report is being written: the second thread
+/// faults then.
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables): the two threads' signal
+std::atomic<bool> report_open{false};
+
+/// How long the report waits with its file open while the second thread
+/// faults: long enough for that fault to reach the handler.
+constexpr long pause_nanoseconds = 300'000'000;
+
+/// The report's pause: let the second thread fault, then go on writing.
+void let_the_second_thread_fault() {
+    report_open.store(true);
+    const timespec pause{.tv_sec = 0, .tv_nsec = pause_nanoseconds};
+    (void)::nanosleep(&pause, nullptr);
+}
+
+} // namespace
+
+TEST_CASE("a second thread's fault waits for the first thread's report", "[crash][signals]") {
+    // Without the wait, the second fault runs the default action at once
+    // and ends the process while the first report is half written.
+    const ScratchDir dir;
+    const auto ending = in_child([&] {
+        set_handler(SIGSEGV, default_handler);
+        set_handler(SIGBUS, default_handler);
+        std::thread second([] {
+            while (!report_open.load()) {
+                std::this_thread::yield();
+            }
+            write_through_null();
+        });
+        sq::crash::detail::while_reporting = let_the_second_thread_fault;
+        if (sq::crash::install(dir.path())) {
+            (void)::raise(SIGSEGV);
+        }
+        second.join();
+    });
+    REQUIRE(ending.killed);
+    const bool fault = ending.signal == SIGSEGV || ending.signal == SIGBUS;
+    CHECK(fault);
+    CHECK(reports(dir.path(), ending.pid).size() == 1);
+    const std::string text = report(dir.path(), ending.pid);
+    CHECK(text.find("signal: SIGSEGV") != std::string::npos);
+    CHECK(text.ends_with("end of report\n"));
 }
 
 TEST_CASE("a fault inside sqlearn's report ends the process", "[crash][signals]") {

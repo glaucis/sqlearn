@@ -2,9 +2,11 @@
 /// The loaded images, from dyld on macOS and dl_iterate_phdr elsewhere.
 #include "raw/images.hpp"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <span>
+#include <string_view>
 
 #if defined(__APPLE__)
 #include <mach-o/dyld.h>
@@ -24,9 +26,37 @@
 
 namespace sq::raw {
 
+namespace {
+
+/// Copy `name` into `names` after its first `used` bytes, NUL-terminated,
+/// when it fits whole.
+/// @param name The loader's copy, or null.
+/// @param names The room for every image's path.
+/// @param used How many of its bytes are taken; moved past the copy.
+/// @return The copy; null for a null or empty name; names_full.data() when it
+///         does not fit.
+const char *keep_name(const char *name, std::span<char> names, std::size_t &used) noexcept {
+    if (name == nullptr || name[0] == '\0') {
+        return nullptr;
+    }
+    const std::string_view text(name);
+    // used never passes names.size(): it moves only past a copy that fit.
+    if (names.size() - used <= text.size()) {
+        return names_full.data();
+    }
+    const std::span<char> copy = names.subspan(used, text.size() + 1);
+    std::ranges::copy(text, copy.begin());
+    copy.back() = '\0';
+    used += copy.size();
+    return copy.data();
+}
+
+} // namespace
+
 #if defined(__APPLE__)
 
-std::size_t loaded_images(std::span<Image> out) noexcept {
+std::size_t loaded_images(std::span<Image> out, std::span<char> names) noexcept {
+    std::size_t used = 0;
     std::size_t count = 0;
     const std::uint32_t total = _dyld_image_count();
     for (std::uint32_t i = 0; i < total && count < out.size(); ++i) {
@@ -45,7 +75,7 @@ std::size_t loaded_images(std::span<Image> out) noexcept {
         image.load = reinterpret_cast<std::uintptr_t>(header);
         image.start = reinterpret_cast<std::uintptr_t>(text);
         image.end = image.start + size;
-        image.path = _dyld_get_image_name(i);
+        image.path = keep_name(_dyld_get_image_name(i), names, used);
         ++count;
     }
     return count;
@@ -57,8 +87,10 @@ namespace {
 
 /// Where dl_iterate_phdr's callback writes.
 struct Filling {
-    std::span<Image> out; ///< The images' room.
-    std::size_t count;    ///< How many are written.
+    std::span<Image> out;  ///< The images' room.
+    std::size_t count;     ///< How many are written.
+    std::span<char> names; ///< The room for their paths.
+    std::size_t used;      ///< How many of its bytes are taken.
 };
 
 /// dl_iterate_phdr's callback: one image, each executable segment's range
@@ -91,16 +123,15 @@ int add_image(dl_phdr_info *info, std::size_t size, void *data) noexcept {
     image.start = start;
     image.end = end;
     // The program itself has an empty name.
-    image.path =
-        info->dlpi_name != nullptr && info->dlpi_name[0] != '\0' ? info->dlpi_name : nullptr;
+    image.path = keep_name(info->dlpi_name, filling.names, filling.used);
     ++filling.count;
     return 0;
 }
 
 } // namespace
 
-std::size_t loaded_images(std::span<Image> out) noexcept {
-    Filling filling{out, 0};
+std::size_t loaded_images(std::span<Image> out, std::span<char> names) noexcept {
+    Filling filling{out, 0, names, 0};
     dl_iterate_phdr(add_image, &filling);
     return filling.count;
 }

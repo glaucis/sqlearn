@@ -200,6 +200,7 @@ sq_add_group(
     src/raw/fd_writer.cpp
     src/raw/fixed_text.cpp
     src/raw/images.cpp
+    src/raw/signal_stack.cpp
   DEPENDS core
   TESTS tests/raw/test_buffer.cpp tests/raw/test_demangle.cpp tests/raw/test_signal_safe.cpp
   BENCH buffer

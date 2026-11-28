@@ -6,6 +6,7 @@
 /// Reading the loader's headers is the raw layer's work (ADR 0065).
 #pragma once
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <span>
@@ -17,16 +18,26 @@ struct Image {
     std::uintptr_t load = 0;  ///< Its load address, as atos -l takes it.
     std::uintptr_t start = 0; ///< The first address of its code.
     std::uintptr_t end = 0;   ///< The address just past its code.
-    /// Its path, as the loader keeps it, valid while the image is loaded;
-    /// null for one the loader gives no name.
+    /// Its path, NUL-terminated, in the names given to loaded_images (so it
+    /// stays readable after the image is unloaded), or names_full.data() when
+    /// they had no room for it; null for one the loader gives no name.
     const char *path = nullptr;
 };
 
-/// Fill `out` with the images loaded now, as many as fit. Not
-/// async-signal-safe: call it before a handler needs it.
+/// The path of an image whose name did not fit in loaded_images' names: a
+/// name is kept whole or not at all, never cut. An inline object, so its
+/// data() is one address in every translation unit, and a path can be
+/// compared with it.
+inline constexpr auto names_full =
+    std::to_array("(name not kept: the table's room for names is full)");
+
+/// Fill `out` with the images loaded now, as many as fit, each one's path
+/// copied into `names`. Not async-signal-safe: call it before a handler
+/// needs it.
 /// @param out Where to put them.
+/// @param names Where to copy their paths, each NUL-terminated.
 /// @return How many were written.
-std::size_t loaded_images(std::span<Image> out) noexcept;
+std::size_t loaded_images(std::span<Image> out, std::span<char> names) noexcept;
 
 /// Return the image whose code holds `address`. Async-signal-safe.
 /// @param images Images from loaded_images.

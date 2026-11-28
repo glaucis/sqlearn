@@ -3,20 +3,23 @@
 /// install(): the report's path up to the process id, the build's line and
 /// the images' table, each in fixed storage, so the handler allocates
 /// nothing, takes no lock and calls only async-signal-safe functions:
-/// getpid, clock_gettime, open, write, close, sigaction, pthread_sigmask,
-/// raise and cpptrace's
-/// safe_generate_raw_trace.
+/// getpid, clock_gettime, nanosleep, open, write, close, sigaction,
+/// pthread_sigmask, pthread_self, raise and cpptrace's
+/// safe_generate_raw_trace. The thread that installs it gets a spare stack
+/// to run it on, so a stack overflow there is reported too.
 #include "crash/handler.hpp"
 
 #include "core/version.hpp"
 #include "raw/fd_writer.hpp"
 #include "raw/fixed_text.hpp"
 #include "raw/images.hpp"
+#include "raw/signal_stack.hpp"
 
 #include <cpptrace/basic.hpp>
 #include <cpptrace/forward.hpp>
 
 #include <fcntl.h>
+#include <pthread.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -58,6 +61,17 @@ constexpr std::size_t max_path = 1024;
 constexpr std::size_t max_name = 48;
 /// The longest build line core::describe gives that a report keeps whole.
 constexpr std::size_t max_build = 512;
+/// The room for the images' paths, copied at install so a report never
+/// reads the loader's copy of an image unloaded since: a few hundred
+/// images of about a hundred bytes each fit several times over.
+constexpr std::size_t max_names = 262'144;
+/// The spare stack the installing thread's handler runs on, so a stack
+/// overflow there is reported: the handler's own frames, cpptrace's
+/// unwinding and a sanitizer's instrumentation fit several times over.
+constexpr std::size_t spare_stack = 262'144;
+/// The smallest alternate stack already in place that is kept, not
+/// replaced by the spare one (Python's faulthandler gives twice SIGSTKSZ).
+constexpr std::size_t enough_stack = 65'536;
 /// How many signals the handler takes: SIGSEGV, SIGBUS, SIGILL, SIGFPE and
 /// SIGABRT.
 constexpr std::size_t handled = 5;
@@ -78,6 +92,9 @@ struct State {
     raw::FixedText<max_build> build;           ///< core::describe's line.
     std::array<raw::Image, max_images> images; ///< The images at install.
     std::size_t image_count = 0;               ///< How many of them.
+    std::array<char, max_names> names{};       ///< Their paths, copied.
+    /// The installing thread's alternate signal stack, when it had none.
+    alignas(std::max_align_t) std::array<std::byte, spare_stack> signal_stack{};
     /// The signals handled, and what each did before.
     std::array<Previous, handled> previous{{{SIGSEGV, "SIGSEGV"},
                                             {SIGBUS, "SIGBUS"},
@@ -96,10 +113,32 @@ static_assert(std::atomic<bool>::is_always_lock_free, "the handler's flags must 
 
 /// Set once the handlers are installed.
 constinit std::atomic<bool> installed{false};
-/// Set by the first crash to report, so a second crash (another thread, or
-/// a fault while reporting) writes nothing and goes to the previous handler.
+/// Set by the first crash to report, so a second crash writes nothing: a
+/// fault inside the report goes to the previous handler at once, and
+/// another thread's waits for the report first (wait_for_report).
 constinit std::atomic<bool> reporting{false};
+/// Set once the first crash's report is written (or could not be).
+constinit std::atomic<bool> reported{false};
+static_assert(std::atomic<pthread_t>::is_always_lock_free, "the reporter must be lock-free");
+/// The thread writing the report, set just after `reporting`.
+constinit std::atomic<pthread_t> reporter{};
 // NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
+
+/// The longest another thread's crash waits for the report: a report takes
+/// milliseconds, and a hung one must not hold the process up for ever.
+constexpr int wait_steps = 5000;
+/// One step of that wait: a millisecond.
+constexpr long wait_step_nanoseconds = 1'000'000;
+
+/// Wait, a bounded time, for the report being written on another thread to
+/// be finished, so this thread's previous action (which may end the
+/// process) does not cut it short. nanosleep is async-signal-safe.
+void wait_for_report() noexcept {
+    const timespec step{.tv_sec = 0, .tv_nsec = wait_step_nanoseconds};
+    for (int i = 0; i < wait_steps && !reported.load(); ++i) {
+        (void)::nanosleep(&step, nullptr);
+    }
+}
 
 /// Return the entry of `signo` among the handled signals.
 /// @param signo A signal number.
@@ -206,6 +245,11 @@ void report(const Previous &signal, const siginfo_t *info, const void *context) 
         return;
     }
     raw::FdWriter file(fd);
+#if defined(SQ_CRASH_TEST_HOOKS)
+    if (detail::while_reporting != nullptr) {
+        detail::while_reporting();
+    }
+#endif
     write_report(file, signal, info, context);
     ::close(fd);
     if (file.ok()) {
@@ -295,10 +339,20 @@ void on_signal(int signo, siginfo_t *info, void *context) {
     const int saved = errno;
     const Previous *signal = entry_of(signo);
     // Installed with SA_NODEFER, so a fault inside the report comes back
-    // here at once: the report is skipped, and the previous action ends
-    // the process, rather than a blocked signal hanging it (macOS).
-    if (signal != nullptr && !reporting.exchange(true)) {
-        report(*signal, info, context);
+    // here at once, on the reporting thread: the report is skipped, and the
+    // previous action ends the process, rather than a blocked signal
+    // hanging it (macOS). Another thread's crash waits for the report
+    // instead, so its previous action does not end the process mid-report.
+    // pthread_self reads the thread's register, safe in a handler on the
+    // platforms sqlearn runs on, though POSIX does not list it.
+    if (signal != nullptr) {
+        if (!reporting.exchange(true)) {
+            reporter.store(::pthread_self());
+            report(*signal, info, context);
+            reported.store(true);
+        } else if (::pthread_equal(reporter.load(), ::pthread_self()) == 0) {
+            wait_for_report();
+        }
     }
     errno = saved;
     if (signal != nullptr) {
@@ -338,7 +392,13 @@ bool prepare(const fs::path &dir) {
     state.prefix.append((absolute / "sqlearn-crash-").native());
     state.build = {};
     state.build.append(core::describe(core::build_identity()));
-    state.image_count = raw::loaded_images(state.images);
+    state.image_count = raw::loaded_images(state.images, state.names);
+    // The handler runs on it (SA_ONSTACK) when this thread's own stack is
+    // used up; without one, a stack overflow ends the process with no
+    // report (macOS kills it by SIGILL, unable to deliver the fault). The
+    // other threads, DuckDB's workers, have none (Tomas, 2026-11-28): the
+    // crash reports page says so. Failing leaves the rest of the handler.
+    (void)raw::use_signal_stack(state.signal_stack, enough_stack);
     warm_up();
     return !state.prefix.truncated();
 }
@@ -365,6 +425,7 @@ bool set_handlers() noexcept {
 // NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables): the tests' hooks
 void (*detail::fault_in_report)() = nullptr;
 void (*detail::before_default)() = nullptr;
+void (*detail::while_reporting)() = nullptr;
 // NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 #endif
 

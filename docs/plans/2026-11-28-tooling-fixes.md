@@ -748,22 +748,32 @@ and `.hpp` (the stack's memory in the raw layer). Create
 `docs/architecture/crash-reports.md`. Test:
 `engine/tests/crash/test_handler.cpp`, `tests/engine/test_crash_report.py`.
 
-- [ ] **Step 1: Write the failing tests**, each in a forked child as the
+- [x] **Step 1: Write the failing tests**, each in a forked child as the
   crash tests are: unbounded recursion on the installing thread leaves a
   report naming `SIGSEGV`; an image loaded, the handler installed, the image
   unloaded, then a fault: the report names every image readably; two
   threads fault at once: one report, complete (its last line written).
-- [ ] **Step 2: Run, expect FAIL**
-- [ ] **Step 3: Fix the three,** one at a time, each test passing before
+- [x] **Step 2: Run, expect FAIL**
+- [x] **Step 3: Fix the three,** one at a time, each test passing before
   the next.
-- [ ] **Step 4: Write `docs/architecture/crash-reports.md`:** what a report
+- [x] **Step 4: Write `docs/architecture/crash-reports.md`:** what a report
   holds, where it goes, that nothing is sent, and the limits: a worker
   thread's stack overflow, and what no handler can catch (`kill -9`, the
   system ending the process for memory, power loss).
-- [ ] **Step 5: `just test-engine dev`, `just sanitize`, `just
+- [x] **Step 5: `just test-engine dev`, `just sanitize`, `just
   mutate-engine`, expect PASS** (`HANDOFF.md`'s traps: after a new raw
   file).
-- [ ] **Step 6: Commit** `fix: report stack overflows and keep the report whole`
+- [x] **Step 6: Commit** `fix: report stack overflows and keep the report whole`
+
+**As built:** the spare stack is 256 KiB in the handler's static state, given
+by `raw::use_signal_stack` (a new raw file), and kept off when the thread
+has one of 64 KiB or more (AddressSanitizer's is 512 KiB). Without it
+macOS ends an overflowing process by `SIGILL`, with no report. The image
+names go into one 256 KiB pool; a name that does not fit is marked
+(`names_full`), never cut. A second thread waits at most 5 s. Mull's
+survivors moved lines; the new code's were killed by an exact-fit test. A
+TypeSanitizer report on `test_core`, intermittent and outside this task,
+is #87.
 
 ### Task 21: A crash report can be read, and says whose code crashed
 
