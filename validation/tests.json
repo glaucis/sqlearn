@@ -368,6 +368,12 @@
     },
     {
       "area": "docs/links",
+      "name": "tests/docs/test_links.py::test_a_related_path_git_ignores_is_found",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "docs/links",
       "name": "tests/docs/test_links.py::test_every_related_path_exists",
       "outcome": "passed",
       "tier": "fast"
