@@ -2,7 +2,7 @@
 type: task
 tags: [benchmarks, profiling, queue, samply, implementation-plan]
 summary: "Implementation plan for a benchmark and profiling queue that runs due items only on an idle machine, with samply profiles summarised and compared."
-related: [docs/specs/benchmark-queue.md, docs/adr/0072-benchmarks-run-on-tomass-go-ahead.md, docs/adr/index.md, docs/architecture/testing.md, docs/architecture/setup.md]
+related: [docs/specs/archived/benchmark-queue.md, docs/adr/0072-benchmarks-run-on-tomass-go-ahead.md, docs/adr/index.md, docs/architecture/testing.md, docs/architecture/setup.md]
 mdindex: [type=0fc814, tags=717c9d, summary=e0f0d3, related=d50e77]
 ---
 # The benchmark and profiling queue: implementation plan
@@ -25,7 +25,7 @@ turn, stop on load, report). The just recipes are thin.
 **Tech Stack:** Python 3.12 under `uv run`, pytest, just, samply (a
 development tool Tomas installs, never in the wheel).
 
-**Spec:** `docs/specs/benchmark-queue.md` (approved 2026-11-28).
+**Spec:** `docs/specs/archived/benchmark-queue.md` (approved 2026-11-28).
 
 ## Global Constraints
 

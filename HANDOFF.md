@@ -3,19 +3,26 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-28 · Branch: `main` (pushed, level with `origin/main`) · Last
-commit: `db2be83 docs: close the tooling fixes` · Checks: passing (`just done`)
+Updated: 2026-11-28 · Branch: `benchmark-queue` (not pushed, 16 commits ahead
+of `main`) · Last commit: `docs: close the benchmark queue`, after `a48e7c8` ·
+Checks: passing (`just done`)
 
 Verify with: `just done` (`just verify` is the release tier)
 
 ## In progress
 
-None. [verified] The tooling-fixes plan is done and archived
-(`docs/plans/archived/2026-11-28-tooling-fixes.md`); next is the benchmark and
-profiling queue (below).
+None. [verified] The benchmark and profiling queue is built on branch
+`benchmark-queue` (issue #88, plan
+`docs/plans/archived/2026-11-28-benchmark-queue.md`); the branch awaits your
+review and merge.
 
 ## Waiting on the user
 
+- Review and merge `benchmark-queue` (16 commits, `git log --oneline
+  main..benchmark-queue`); #88 closes on the merge.
+- The first `just bench-queue` (ADR 0081): today it runs `bench_buffer` and
+  its profile, seconds each, one core; it measures only on an idle machine.
+  Awaits your go-ahead.
 - The audit's first real run, `just audit-groups` (builds a second,
   coverage-instrumented wheel with DuckDB): awaits your go-ahead. Nothing
   claims Python tests or runners since ADR 0073, so it is due before the
@@ -30,11 +37,9 @@ profiling queue (below).
 - **The preparation before the rewrite, in this order** (Tomas, 2026-11-28:
   he prepares everything before starting, for a clear path):
   1. ~~The small tooling fixes~~: done (below, "Just finished").
-  2. **Next:** a benchmark and profiling queue: profiling joins
-     `just benchmarks-due`, and one command runs the whole queue on Tomas's
-     go-ahead, when the machine is idle (ADR 0072 unchanged: nothing runs by
-     itself).
-  3. Phase 1 step 3, then step 4 (below).
+  2. ~~The benchmark and profiling queue~~: built, on `benchmark-queue`
+     (`docs/plans/archived/2026-11-28-benchmark-queue.md`, #88).
+  3. **Next:** Phase 1 step 3, then step 4 (below).
   4. The audit's first run, on Tomas's go-ahead (above), before the first
      group claims Python tests or runners.
   5. Then the rewrite's first group, its plan first.
@@ -82,6 +87,13 @@ profiling queue (below).
 
 ## Dead ends and traps
 
+- The profiling queue (2026-11-28): on the first real profile, check that
+  (i) a profile's wall time and cores are samply's whole run (start-up and
+  symbolication included), not the program's alone: take the program's span
+  from the profile if the numbers mislead; (ii) idle-thread samples may
+  inflate `system`; (iii) whether samply's rusage covers the program. samply
+  0.13.1 records on macOS without `samply setup`: never run `samply setup`
+  (it codesigns and changes the system).
 - C++ work (2026-11-28): while headers are half changed, build with
   `cmake --build --preset <p>`, not `uv run`, which rebuilds the wheel and
   fails mid-edit. Catch2 here cannot print a `string_view` comparison (it
@@ -221,6 +233,13 @@ profiling queue (below).
 
 ## Just finished
 
+- **The benchmark and profiling queue** (2026-11-28, issue #88, plan
+  `docs/plans/archived/2026-11-28-benchmark-queue.md`, spec
+  `docs/specs/archived/benchmark-queue.md`, ADR 0081): on `benchmark-queue`,
+  `93d69e9..a48e7c8` and the closing commit. A benchmark run under load is
+  recorded as loaded; profiles join `just benchmarks-due`; samply profiles
+  are summarised and compared; `just bench-queue` runs every due item on one
+  go-ahead, on an idle machine only. Not run yet (above).
 - **The tooling fixes, closed** (2026-11-28, plan
   `docs/plans/archived/2026-11-28-tooling-fixes.md`, all merged into `main`
   and pushed; #85 stays open for steps 3 and 4, its comments list what each

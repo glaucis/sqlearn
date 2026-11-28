@@ -2,7 +2,7 @@
 type: adr
 tags: [benchmarks, profiling, queue, process, architecture-decision]
 summary: "Amends ADR 0072's small-batches rule for the benchmark and profiling queue only: one go-ahead from Tomas covers the whole queue, which measures only on an idle machine and stops when the load rises."
-related: [docs/adr/0072-benchmarks-run-on-tomass-go-ahead.md, docs/specs/benchmark-queue.md]
+related: [docs/adr/0072-benchmarks-run-on-tomass-go-ahead.md, docs/specs/archived/benchmark-queue.md]
 ---
 # 0081: One go-ahead runs the queue on an idle machine
 
@@ -17,9 +17,9 @@ benchmarks in small batches, one page or one group at a time, with Tomas
 saying when the next may run. It did so because anything else running on the
 machine changes a benchmark's numbers.
 
-The [benchmark and profiling queue](../specs/benchmark-queue.md) runs every
-benchmark and profile that is due, with one command. It measures only while
-the machine is idle, and stops when the load rises.
+The [benchmark and profiling queue](../specs/archived/benchmark-queue.md) runs
+every benchmark and profile that is due, with one command. It measures only
+while the machine is idle, and stops when the load rises.
 
 ## Decision
 

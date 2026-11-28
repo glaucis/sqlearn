@@ -7,8 +7,8 @@ mdindex: [type=d4f02e, tags=ec92be, summary=06f3fa]
 ---
 # The benchmark and profiling queue
 
-Status: approved by Tomas on 2026-11-28, from the design talk of that day.
-Where this spec makes a call of its own, it says "(spec's call)".
+Status: built on 2026-11-28 (issue #88); approved by Tomas that day, from the
+design talk. Where this spec makes a call of its own, it says "(spec's call)".
 
 ## 1. Why
 

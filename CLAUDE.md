@@ -122,10 +122,11 @@ Rules from the ADRs:
   conventions needs an ADR. Files saved before the rewrite need not load
   after it; `sq.load`'s security rules hold (0070).
 - No check runs a benchmark. Ask Tomas before any benchmark: which one,
-  about how long, how heavy; run it only on his go-ahead, one page or
-  group at a time, only those the change touches, with the load recorded.
-  Pages measured under load are rerun when their group is rewritten
-  (0072).
+  about how long, how heavy; run it only on his go-ahead, with the load
+  recorded. One go-ahead may run `just bench-queue`, every due benchmark
+  and profile, measuring only on an idle machine; otherwise one page or
+  group at a time, only those the change touches. Pages measured under
+  load are rerun when their group is rewritten (0072, 0081).
 - Python 3.12 is the floor (0007). Every task runs through `just` (0008).
 - British English in prose, American spelling in identifiers (0010).
 - sqlearn ships, generates and fetches no datasets: the user brings their
