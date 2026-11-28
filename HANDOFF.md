@@ -26,24 +26,15 @@ None. [verified]
 
 - **The preparation before the rewrite, in this order** (Tomas, 2026-11-28:
   he prepares everything before starting, for a clear path):
-  1. The selection, strengthened with today's tools (ADR 0080): the groups'
-     test programs link static libraries, so a `core` edit stops rerunning
-     `test_raw` and `test_crash` (report item 2,
-     `docs/questions/archived/bazel-prototype.md`); a check that each
-     group's `DEPENDS` matches the headers it includes, with rules for which
-     group may depend on which (Bazel's `layering_check` found `test_raw`
-     including `core/error.hpp` through `raw`, report item 6);
-     `just affected`, what a change reruns and why; a full run at a set
-     cadence, compared with what the selection chose.
-  2. The small tooling fixes below: the SQL tests' data files, the 24 s
+  1. The small tooling fixes below: the SQL tests' data files, the 24 s
      rebuild, `just done`'s order, #85 and #86.
-  3. A benchmark and profiling queue: profiling joins `just benchmarks-due`,
+  2. A benchmark and profiling queue: profiling joins `just benchmarks-due`,
      and one command runs the whole queue on Tomas's go-ahead, when the
      machine is idle (ADR 0072 unchanged: nothing runs by itself).
-  4. Phase 1 step 3, then step 4 (below).
-  5. The audit's first run, on Tomas's go-ahead (above), before the first
+  3. Phase 1 step 3, then step 4 (below).
+  4. The audit's first run, on Tomas's go-ahead (above), before the first
      group claims Python tests or runners.
-  6. Then the rewrite's first group, its plan first.
+  5. Then the rewrite's first group, its plan first.
 - When `pyright-lsp` is installed globally (not yet), turn it off here in
   `.claude/settings.json`: `"enabledPlugins":
   {"pyright-lsp@claude-plugins-official": false}`; ty and mypy are this
@@ -188,6 +179,15 @@ None. [verified]
 
 ## Just finished
 
+- The selection, strengthened (2026-11-28, ADR 0080): the groups' test
+  programs link static libraries, so a `core` edit no longer reruns
+  `test_raw` and `test_crash` (`2ea9fcb`, `4a6ef34`); a check that each
+  group's `DEPENDS` matches what it includes, with the layering rules
+  (`5de91a7`, `465ad02`); `just affected`, what a change reruns and why
+  (`eb8f3a3`, `bae1373`); `just sweep`, every check in full compared with
+  what the selection chose, every 7 days (Tomas), `just done` warning when
+  it is older (`feat: compare a full run with the selection, with just
+  sweep`).
 - The Bazel decision (2026-11-28): the engine stays on CMake for now,
   ADR 0080, with the signs to look again; the report is answered and in
   `docs/questions/archived/`. A fresh clone no longer fails the `related:`

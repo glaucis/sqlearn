@@ -678,6 +678,16 @@ full task:
 affected:
     uv run --locked python -m validation._affected
 
+# Run every check of just done in full and compare with what the selection chose; minutes to an hour, no benchmark. A check the selection called unchanged that fails is a missed rerun (exit 1); a pass is remembered with its date (validation/_sweep.py)
+[group('check')]
+sweep:
+    uv run --locked python -m validation._sweep
+
+# Print a warning when the last passed sweep is older than its cadence (CADENCE_DAYS in validation/_sweep.py) or missing; runs nothing
+[group('check')]
+sweep-stale:
+    @uv run --locked python -m validation._sweep --stale
+
 # Print the tree of HEAD when only the checks' own outputs differ from it, and nothing otherwise
 [group('check')]
 checkable-tree:
@@ -726,6 +736,8 @@ done:
     j=(just --justfile '{{ justfile() }}')
     # A compiler update rebuilds the module at the first uv run (its stamp is a cache key).
     "${j[@]}" compiler-stamp
+    # The sweep's cadence: a warning only, which changes neither what runs nor the exit.
+    "${j[@]}" sweep-stale || true
     tree="$("${j[@]}" checkable-tree)"
     place="$("${j[@]}" place)"
     if [ -n "$tree" ] && grep -qx "$tree $place" "$(git rev-parse --git-common-dir)/sqlearn-passed" 2>/dev/null; then

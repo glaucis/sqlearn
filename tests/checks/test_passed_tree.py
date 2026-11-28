@@ -57,6 +57,8 @@ OVERRIDES = (
     + "\nplace:\n    @cat place 2>/dev/null || echo here\n"
     # The stamp is git-ignored in the real tree; here it would dirty it.
     + "\ncompiler-stamp:\n    @true\n"
+    # The sweep's warning, on stdout only: calls.log stays what runs.
+    + "\nsweep-stale:\n    @echo sweep-warning\n"
     + "\nfull task:\n    @echo full-{{ task }} >> calls.log\n"
     + "\nfuzz seconds:\n    @echo fuzz-{{ seconds }} >> calls.log\n"
     + "".join(
@@ -276,3 +278,24 @@ def test_verify_runs_every_task_in_full_and_the_release_tools(tmp_path):
         *RELEASE,
     ]
     assert passed(repo, env) == [git(repo, "rev-parse", "HEAD^{tree}", env=env)]
+
+
+def test_done_warns_of_an_old_sweep_first_even_on_a_passed_tree(tmp_path):
+    """The sweep's warning comes before anything else, the shortcut included."""
+    repo, env = make_repo(tmp_path)
+    assert just(repo, "done", env=env).startswith("sweep-warning")
+    again = just(repo, "done", env=env).splitlines()
+    assert again[0] == "sweep-warning"
+    assert "already passed" in again[1]
+
+
+def test_a_failing_sweep_warning_changes_nothing_done_runs(tmp_path):
+    """A warning that fails stops no check and leaves the exit code as it was."""
+    repo, env = make_repo(tmp_path)
+    (repo / "justfile").write_text(
+        OVERRIDES.replace("@echo sweep-warning", "@echo sweep-warning\n    @exit 5")
+    )
+    git(repo, "commit", "-qam", "chore: failing warning", env=env)
+    just(repo, "done", env=env)
+    assert calls(repo) == list(RUNS)
+    assert len(passed(repo, env)) == 1
