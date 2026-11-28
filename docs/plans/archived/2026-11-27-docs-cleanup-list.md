@@ -1,3 +1,10 @@
+---
+type: note
+tags: [docs-cleanup, archive, adr, classification, sqlearn]
+summary: "Proposed verdicts (keep, archive, amend, consolidate) for every document in the docs folders, pending Tomas's approval, with his later answers."
+related: [docs/plans/archived/2026-11-27-docs-cleanup.md, docs/adr/0070-sqlearn-is-rewritten-in-cpp.md, docs/adr/0073-the-old-python-moves-to-old-python.md, docs/adr/0058-a-gram-step-builds-xtx-in-numpy.md, docs/adr/archived/0012-static-and-dynamic-steps.md, docs/adr/archived/0014-learning-store.md, docs/adr/archived/0022-one-search-with-pluggable-methods.md, docs/adr/0072-benchmarks-run-on-tomass-go-ahead.md]
+mdindex: [type=edb465, tags=7a978c, summary=92f793, related=ff1d76]
+---
 # The docs cleanup: what is kept, archived, amended, consolidated
 
 Task 2 of [the docs cleanup plan](2026-11-27-docs-cleanup.md): one row per

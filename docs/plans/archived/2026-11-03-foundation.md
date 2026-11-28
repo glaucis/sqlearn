@@ -1,9 +1,9 @@
 ---
 type: task
-tags: [foundation, packaging, uv, hatch-vcs, just, git-hooks]
-summary: "Implementation plan for sqlearn's repository skeleton: installable package, just recipes, git hooks, and an offline Sphinx site, split into tasks."
+tags: [foundation, repository-skeleton, uv, python-packaging, git-hooks, sphinx]
+summary: "Implementation plan for sqlearn's repository skeleton: installable package, just-based quality gates, git hooks, and a skeleton Sphinx site."
 related: [docs/specs/foundation.md, docs/adr/0001-uv-for-python-packaging.md, docs/adr/0005-runtime-dependencies.md, docs/adr/0006-local-and-offline.md, docs/adr/0010-british-prose-american-identifiers.md, CLAUDE.md]
-mdindex: [type=0ebb42, tags=1374fc, summary=8cdb73, related=31198d]
+mdindex: [type=0ebb42, tags=99ef2d, summary=6bdeac]
 ---
 # Foundation Implementation Plan
 

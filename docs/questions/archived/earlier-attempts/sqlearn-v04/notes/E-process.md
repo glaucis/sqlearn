@@ -1,9 +1,9 @@
 ---
 type: note
-tags: [process, workflow, retrospective, agents, sqlearn, v0.4]
-summary: "Retrospective on the sqlearn v0.4 spec/plan/agent workflow, noting process-heavy planning, unticked plans, and standards worth keeping."
+tags: [process, retrospective, agents, planning, sqlearn, workflow]
+summary: "Retrospective on the sqlearn v0.4 workflow: oversized gitignored plans, unticked checkboxes, agent and skill duplication, and standards worth keeping."
 related: [docs/questions/archived/earlier-attempts/sqlearn-v04/notes/E-process.md]
-mdindex: [type=edb465, tags=c367c6, summary=8f6d04, related=709a27]
+mdindex: [type=edb465, tags=83b71b, summary=0a1978]
 ---
 # E-process notes
 OLD = "/Users/tomas/Desktop/Desktop - Tomas’s MacBook

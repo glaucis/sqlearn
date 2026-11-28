@@ -1,9 +1,9 @@
 ---
 type: note
-tags: [sqlearn, sql-compilation, preprocessing, cross-validation, design-review]
-summary: "Original design-only ducklearn/sqlearn proposal compiling Python preprocessing steps into DuckDB SQL, reviewed for scope, API, compiler and cross-validation."
+tags: [ducklearn, sql-compiler, preprocessing, cross-validation, sqlglot, duckdb]
+summary: "Original design-only proposal for ducklearn, a DuckDB/sqlglot-based scikit-learn-style preprocessing library, with its compiler, API, and cross-validation design"
 related: [docs/questions/archived/earlier-attempts/ducklearn/notes/A-design.md]
-mdindex: [type=edb465, tags=7b4bea, summary=5c2a77, related=1a2e7a]
+mdindex: [type=edb465, tags=331595, summary=116f2e]
 ---
 # ducklearn: the original design (batch A)
 

@@ -1,9 +1,9 @@
 ---
 type: architecture
-tags: [sqlearn, design-decisions, fit-execution, sqlglot, learned-state, old-version]
-summary: "Design review of old sqlearn v0.4: compiler shape, layer-based fit, learned-state encoding, sqlglot/dialect choices, and their documented failures."
+tags: [sqlearn, sql-compiler, fit-layers, sqlglot, design-decisions, old-version]
+summary: "Design and decisions review of the old sqlearn v0.4 SQL compiler: fit layering, learned state, sqlglot usage and documented failures."
 related: [docs/questions/archived/earlier-attempts/sqlearn-v04/notes/A-design.md]
-mdindex: [type=4ca303, tags=5bc0e5, summary=760841, related=8a3442]
+mdindex: [type=4ca303, tags=77aa7e, summary=21080e]
 ---
 # Batch A — design and decisions (old sqlearn v0.4)
 

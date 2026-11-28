@@ -1,9 +1,9 @@
 ---
 type: note
 tags: [sqlearn, code-review, fit-pipeline, duckdb, batch-b]
-summary: "Read-only review of the sqlearn-desktop core code: API, layered fit planning, transform composition, and semantic departures."
+summary: "Read-only review of Tomosius/sqlearn core code (v0.3.0), tracing fit planning, layered execution, and transform composition."
 related: [docs/questions/archived/earlier-attempts/tomosius-sqlearn/notes/B-core.md]
-mdindex: [type=edb465, tags=941c14, summary=d11dd1, related=58ef69]
+mdindex: [type=edb465, tags=941c14, summary=bd8fe4]
 ---
 # Batch B: `Tomosius/sqlearn` core code (`sqlearn-desktop`)
 

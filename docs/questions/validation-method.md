@@ -1,8 +1,8 @@
 ---
 type: question
-tags: [validation, precision, testing, reference-implementations, iterative-algorithms]
+tags: [validation, precision, numerical-methods, testing, iterative-algorithms]
 summary: "Mostly answered by ADR 0016; still open: the rule for models fitted by iteration, and the layout of the validation page."
-mdindex: [type=1f5087, tags=e8f243]
+mdindex: [type=1f5087, tags=f548e9]
 related: [docs/architecture/overview.md]
 ---
 # How exactly does validation work?

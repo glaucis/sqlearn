@@ -1,9 +1,9 @@
 ---
-type: spec
-tags: [testing, validation, tolerances, ulp, sqlearn, planning]
-summary: "Batch D review of the April planning repo's test and validation specs: validation method, tolerance cascade, datasets, gates, and spec errors."
+type: note
+tags: [testing, validation, tolerances, specification, sqlearn]
+summary: "Batch D of an archived April 2026 planning review: specs for sqlearn's test and validation methods, tolerances, datasets and gates, read but not run."
 related: []
-mdindex: [type=d4f02e, tags=703eb0, summary=35207b, related=ff5b8e]
+mdindex: [type=edb465, tags=49371b, summary=6f008c]
 ---
 # D: Test and validation specs in the April planning repo
 

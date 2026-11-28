@@ -1,9 +1,9 @@
 ---
 type: note
 tags: [sqlearn, rehearsal, agent-rules, foundation-spec, validation]
-summary: "Batch A review of the OLD sqlearn repo: its foundation spec, the agent-rule rehearsal cases, and what carried over to the current repository."
+summary: "Batch A review of the old sqlearn repo: its foundation spec, the rehearsal cases testing CLAUDE.md agent rules, and what carried over to the current repository."
 related: [docs/specs/foundation.md, docs/questions/agents-and-skills.md, CLAUDE.md, commitlint.config.mjs]
-mdindex: [type=edb465, tags=59f4b1, summary=8207ad, related=cf9360]
+mdindex: [type=edb465, tags=59f4b1, summary=514f0c]
 ---
 # sqlearn, autumn: batch A, docs and code
 

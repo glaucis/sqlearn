@@ -1,9 +1,9 @@
 ---
 type: note
-tags: [sqlearn, helpers, audit, statistics, duckdb, legacy]
-summary: "Audit of the old sqlearn v0.4 helper modules: per-helper computation method, correctness defects, and Python-side data pulls."
+tags: [sqlearn, helpers, review, statistics, duckdb, legacy]
+summary: "Review of old sqlearn v0.4 helper functions: what each computes, where (SQL vs Python), statistical correctness, and dependencies, to inform the new app."
 related: [docs/questions/archived/earlier-attempts/sqlearn-v04/notes/F-helpers.md]
-mdindex: [type=edb465, tags=4ca8e6, summary=000587, related=122a2f]
+mdindex: [type=edb465, tags=bb2b25, summary=2daa73]
 ---
 # Batch F: helpers, user guide, notebooks, api/quickstart (old sqlearn v0.4)
 

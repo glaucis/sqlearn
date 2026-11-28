@@ -1,9 +1,9 @@
 ---
-type: adr
-tags: [native-engine, duckdb, cpp, decisions, phase-0a]
-summary: "Implementation plan recording the native engine's nine decisions as ADRs 0060-0068, with amendments to older ADRs and CLAUDE.md rules."
+type: note
+tags: [native-engine, duckdb, cpp, adr, phase-0, documentation]
+summary: "Implementation plan recording the native engine's nine decisions as ADRs 0060-0068, with amendments and CLAUDE.md rule changes."
 related: [docs/specs/native-engine.md, docs/plans/archived/2026-11-21-native-engine-phase-0b-inventory.md, docs/adr/0060-a-native-engine-in-cpp-inside-duckdb.md, docs/adr/0002-sql-on-duckdb-execution-engine.md, docs/adr/index.md, docs/questions/multi-engine-support.md, CLAUDE.md, docs/adr/0061-sqlearn-ships-its-own-duckdb-build.md]
-mdindex: [type=0fc814, tags=38e4ea, summary=81c817, related=e608c3]
+mdindex: [type=edb465, tags=a240b1, summary=4c8c68]
 ---
 # Native engine, Phase 0a: the decisions — Implementation Plan
 

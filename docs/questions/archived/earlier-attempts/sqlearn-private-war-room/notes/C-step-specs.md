@@ -1,9 +1,9 @@
 ---
 type: note
-tags: [sqlearn, war-room, step-specs, aggregates, batch-c, v0.1.0]
-summary: "Batch C review of 32 sqlearn-private war-room step-spec files (26 Apr to 13 Jun 2026), covering aggregates, scalers, encoders, filters and their known departure"
+tags: [sqlearn, step-specs, aggregates, war-room, batch-c]
+summary: "Batch C review of 32 sqlearn-private war-room step specs (v0.1.0 walking skeleton): aggregates as a new spec family, per-engine dispatch, filters, and known dep"
 related: [docs/questions/archived/earlier-attempts/sqlearn-private-april/notes/C-transform-specs.md]
-mdindex: [type=edb465, tags=bf4807, summary=b59ced, related=6290b4]
+mdindex: [type=edb465, tags=c19946, summary=1d38b8]
 ---
 # Batch C: step specs (sqlearn-private war room, April to June 2026)
 

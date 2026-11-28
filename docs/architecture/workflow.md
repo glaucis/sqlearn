@@ -1,9 +1,9 @@
 ---
 type: architecture
-tags: [workflow, process, specs, plans, adr, archiving]
-summary: "Describes how work flows from spec to plan to merge, which recipes run at each point, where each document kind lives, and which agents and skills are used."
-mdindex: [type=4ca303, tags=e94563, summary=437b6d, related=0e08c1]
-related: [docs/architecture/overview.md, docs/architecture/testing.md, docs/agents/issue-tracker.md, docs/agents/domain.md, docs/adr/index.md, docs/questions/agents-and-skills.md, docs/specs/, docs/plans/]
+tags: [workflow, process, docs-layout, agents, skills, release]
+summary: "Describes how work flows from spec to merge, which recipes run at each stage, where each document type lives, and which agents and skills are used."
+mdindex: [type=4ca303, tags=6678cd, summary=96f26a, related=b4e14d]
+related: [docs/architecture/overview.md, docs/architecture/testing.md, docs/agents/issue-tracker.md, docs/agents/domain.md, docs/adr/index.md, docs/questions/agents-and-skills.md, docs/agents/, GLOSSARY.md]
 ---
 # How work runs
 

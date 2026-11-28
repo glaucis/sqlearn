@@ -1,9 +1,9 @@
 ---
 type: note
-tags: [sqlearn, planning, process, ideas, reports, retrospective]
-summary: "Batch E review of April 2026 sqlearn planning repo: ideas, reports and process, with relevance and contradictions for the new project."
+tags: [planning, process, ideas, reports, retrospective]
+summary: "Batch E review of April 2026 sqlearn-private ideas, reports and process, judging relevance to the new project and what to avoid."
 related: []
-mdindex: [type=edb465, tags=87fb66, summary=ad69c4, related=2e0045]
+mdindex: [type=edb465, tags=162eda, summary=094536]
 ---
 # Batch E: ideas, reports and process (April planning repo)
 

@@ -1,9 +1,9 @@
 ---
 type: note
-tags: [sqlearn, process, records, agents, retrospective, rehearsal]
-summary: "Retrospective on the sqlearn autumn 2026 run: its records folder, agent and hook setup, and commit history, showing that process work dominated and no library w"
+tags: [sqlearn, process, agent-records, bug-tracker, retrospective]
+summary: "Retrospective of the sqlearn autumn 2026 batch: records and process, showing a bug-tracker for agent briefs and a closed loop of rules and rehearsals."
 related: [CLAUDE.md]
-mdindex: [type=edb465, tags=b32e31, summary=d67a96, related=af5469]
+mdindex: [type=edb465, tags=65148a, summary=2144e3]
 ---
 # Batch B: records and process (sqlearn, autumn 2026)
 

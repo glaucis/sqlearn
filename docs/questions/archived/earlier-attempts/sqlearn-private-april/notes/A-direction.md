@@ -1,9 +1,9 @@
 ---
 type: note
-tags: [planning, sqlearn, v2-migration, free-pro-split, decisions]
-summary: "Batch A summary of the April 2026 sqlearn planning repo covering direction, version timeline, the free/pro split and the eight v2 rationale documents."
+tags: [sqlearn, planning, direction, versions, rationale, free-pro-split]
+summary: "Batch A summary of the archived April 2026 sqlearn planning repo: direction shifts, version plans, v2 rationale documents and the free/pro line."
 related: [docs/questions/archived/earlier-attempts/sqlearn-private-april/notes/A-direction.md]
-mdindex: [type=edb465, tags=1c0bb6, summary=b4a244, related=2e05e8]
+mdindex: [type=edb465, tags=ed15ee, summary=0f7a49]
 ---
 # A. Direction and decisions
 

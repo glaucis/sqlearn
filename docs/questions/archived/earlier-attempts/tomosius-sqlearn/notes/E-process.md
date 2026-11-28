@@ -1,9 +1,9 @@
 ---
 type: note
-tags: [sqlearn, process, retrospective, git-history, tomosius]
-summary: "Retrospective process notes on the Tomosius/sqlearn build (Mar 13 - Apr 9 2026): workflow, commit history by day, and why work stopped."
+tags: [process-retrospective, sqlearn, git-history, agents, skills, documentation]
+summary: "Retrospective of the Tomosius/sqlearn build (Mar 13 - Apr 9 2026): workflow, commit history, process overhead, review sweep, and the pause."
 related: []
-mdindex: [type=edb465, tags=deaa46, summary=72868e, related=fc550a]
+mdindex: [type=edb465, tags=ed881b, summary=468b04]
 ---
 # E-process notes: Tomosius/sqlearn (Mar 13 - Apr 9 2026)
 

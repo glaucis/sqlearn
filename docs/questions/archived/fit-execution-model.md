@@ -1,8 +1,8 @@
 ---
-type: question
-tags: [learning, fit, execution-model, static-steps, dynamic-steps, learned-state]
+type: note
+tags: [learning-execution, static-dynamic-steps, learned-state, fit-pipeline, answered-question]
 summary: "Answered: how learning runs (ADR 0012), the verbs (ADR 0013) and where learned state lives (ADR 0014); kept for its evidence until the earlier-attempt reviews are retired."
-mdindex: [type=1f5087, tags=a75939, related=fa6ef0]
+mdindex: [type=edb465, tags=86ca6a]
 related: [docs/adr/archived/0012-static-and-dynamic-steps.md, docs/adr/0013-learn-apply-train-predict.md, docs/adr/archived/0014-learning-store.md, docs/questions/archived/earlier-attempts/README.md]
 ---
 # How does learning run? (answered)

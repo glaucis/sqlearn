@@ -1,9 +1,9 @@
 ---
 type: spec
-tags: [sqlearn, fit-execution, learned-state, dialects, war-room]
-summary: "Batch B war-room specs covering sqlearn core fit execution, learned state, and the multi-engine backend and connection design after the 2026-04-30 redesign."
+tags: [sqlearn, fit, learned-state, dialects, connections, war-room]
+summary: "Batch B review of core, backend and connection specs for sqlearn's post-redesign fit execution, learned state, SQL dialects and connections."
 related: [docs/questions/archived/earlier-attempts/sqlearn-private-war-room/notes/B-core-specs.md]
-mdindex: [type=d4f02e, tags=c2b008, summary=2b1a43, related=192de0]
+mdindex: [type=d4f02e, tags=2cade4, summary=2aef5c]
 ---
 # Batch B: core, backend and connection specs (war room)
 

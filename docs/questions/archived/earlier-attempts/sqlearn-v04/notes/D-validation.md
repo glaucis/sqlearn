@@ -1,9 +1,9 @@
 ---
 type: note
-tags: [validation, testing, sqlearn, parity, tolerances, ci]
-summary: "Review of how the old sqlearn v0.4 validated correctness: pytest parity tests, hand-picked tolerances, skipped dataset tests in CI, and a near-empty verificatio"
+tags: [validation, testing, sqlearn, parity, tolerances, verification-ledger]
+summary: "Audit of how the old sqlearn v0.4 validated numerical parity: tests, tolerances, references, CI gates, and the verification ledger, with gaps noted."
 related: []
-mdindex: [type=edb465, tags=d67fda, summary=2f1b3b, related=9dc9c6]
+mdindex: [type=edb465, tags=944d53, summary=20f9fe]
 ---
 # D: Validation in the old sqlearn (v0.4)
 

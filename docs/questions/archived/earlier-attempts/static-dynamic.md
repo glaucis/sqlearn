@@ -1,9 +1,9 @@
 ---
 type: question
-tags: [static-dynamic, fit-execution, layers, onehotencoder, classification]
-summary: Evidence review of how earlier sqlearn/ducklearn attempts split steps into static and dynamic and grouped learning into SQL layers.
+tags: [static-dynamic, layers, fit-execution, query-count, classification, sqlearn]
+summary: "Evidence review of how earlier attempts (ducklearn, Tomosius/sqlearn, v0.4, April, war room) defined and used static vs dynamic steps and layer boundaries in fi"
 related: [docs/questions/archived/earlier-attempts/static-dynamic.md]
-mdindex: [type=1f5087, tags=3bb427, summary=c50965, related=8b6891]
+mdindex: [type=1f5087, tags=abbb88, summary=0ca4d4]
 ---
 # Static and dynamic steps in the earlier attempts
 

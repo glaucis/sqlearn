@@ -1,8 +1,8 @@
 ---
 type: guide
-tags: [beginner, machine-learning, learning-path, python]
-summary: "Index page for the beginner level of the learning path, for readers who know Python but not machine learning."
-mdindex: [type=83ca68, tags=579cfc, summary=bd1429]
+tags: [beginner, machine-learning, python, onboarding]
+summary: "Beginner-level learning index for readers with Python but no machine learning background, covering models, first training, and evaluation."
+mdindex: [type=83ca68, tags=fb5147, summary=256e48]
 ---
 # Beginner
 

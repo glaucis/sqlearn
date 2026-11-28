@@ -1,9 +1,9 @@
 ---
-type: task
-tags: [refactor, python, cpp-rewrite, migration, old-python]
-summary: "Plan to move the frozen Python sqlearn library and its tests, validation and docs into old_python/, leaving the C++ engine active."
-related: [docs/questions/test-selection.md, engine/src/bindings/module.cpp, tests/engine/test_package.py, tests/public_api.txt, docs/index.md, docs/conf.py, docs/architecture/layout.md, docs/architecture/testing.md]
-mdindex: [type=0ebb42, tags=c38cde, summary=a6d838, related=a67776]
+type: spec
+tags: [python-migration, cpp-rewrite, repo-layout, old-python, sqlearn]
+summary: "Implementation plan to move the frozen Python sqlearn library into old_python/ and keep only the C++ engine, bindings and tooling active."
+related: [docs/questions/test-selection.md, engine/src/bindings/module.cpp, tests/public_api.txt, tests/engine/test_package.py, HANDOFF.md, CLAUDE.md]
+mdindex: [type=d4f02e, tags=a39fc4, summary=28888d, related=6e2e5f]
 ---
 # The old Python moves to `old_python/`: implementation plan
 

@@ -1,9 +1,9 @@
 ---
 type: note
 tags: [war-room, rules, process, design-review, sqlearn]
-summary: "Batch E review of the sqlearn war room's rules, ideas and process: which rules to keep or drop, revisions, and process lessons for the new project."
+summary: "Review of batch E of the sqlearn war room: which rules, ideas and process pieces to keep or drop for the new project, plus revision history."
 related: []
-mdindex: [type=edb465, tags=12e9ce, summary=1096a6, related=2c88ee]
+mdindex: [type=edb465, tags=12e9ce, summary=d10919]
 ---
 # E. Rules, ideas and process (war room, 26 April - 13 June 2026)
 

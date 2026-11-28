@@ -1,9 +1,9 @@
 ---
 type: question
 tags: [test-selection, ci, build-graph, validation, sqlearn]
-summary: "Open question on how sqlearn should choose which tests and validation run for a change, with research on how large projects select tests."
+summary: "Open research question on how sqlearn should choose which tests and validation run for a change, comparing large projects' selection methods."
 related: [docs/specs/selection-by-group.md, docs/architecture/testing.md, docs/architecture/overview.md, HANDOFF.md, docs/adr/0043-repeatable-within-rounding.md]
-mdindex: [type=1f5087, tags=1bbbb9, summary=0f79bd, related=505c16]
+mdindex: [type=1f5087, tags=1bbbb9, summary=c9c19b]
 ---
 # How should sqlearn choose which tests and validation run for a change?
 

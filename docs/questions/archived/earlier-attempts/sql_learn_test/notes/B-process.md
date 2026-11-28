@@ -1,9 +1,9 @@
 ---
 type: note
-tags: [process, sql-learn, tests-first, agents, workflow, retrospective]
-summary: "Batch B process review of the sql_learn_test attempt: orchestrator-and-subagent roles, TODO queue, 11-step tests-first pipeline, and which rules to keep or drop"
+tags: [process, sql-learn, tests-first, agents, orchestration, rules]
+summary: "Post-mortem of the sql_learn_test restart's process: orchestrator queue, subagent pipeline, rules corpus, and which ideas to keep or drop."
 related: [docs/questions/archived/earlier-attempts/sql_learn_test/notes/B-process.md]
-mdindex: [type=edb465, tags=322d2c, summary=9ef961, related=e102a8]
+mdindex: [type=edb465, tags=e7ae24, summary=9cb177]
 ---
 # sql_learn_test, batch B: process
 

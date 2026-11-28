@@ -1,9 +1,9 @@
 ---
 type: note
-tags: [sqlearn, user-docs, sklearn-compat, column-routing, documentation-audit]
-summary: "Audit of sqlearn-desktop user docs: scikit-learn-shaped API over DuckDB, column routing, layered fit compiler, and documentation drift lessons."
+tags: [sqlearn, documentation, sklearn-compat, column-routing, pipeline, design]
+summary: "Review of the sqlearn-desktop user docs: API as documented, sklearn departures, column routing, and documentation drift lessons."
 related: [docs/questions/archived/earlier-attempts/tomosius-sqlearn/notes/D-docs.md]
-mdindex: [type=edb465, tags=6eae66, summary=50d20b, related=983e83]
+mdindex: [type=edb465, tags=cac0ac, summary=88cace]
 ---
 # Batch D: user docs of `sqlearn-desktop`
 

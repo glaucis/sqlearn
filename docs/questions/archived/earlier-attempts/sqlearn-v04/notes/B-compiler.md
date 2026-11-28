@@ -1,9 +1,9 @@
 ---
-type: architecture
-tags: [compiler, sqlearn, fit, transform, sqlglot, layers]
-summary: "Read-only trace of the old sqlearn compiler, core and backend code, covering fit and transform flow and the defects found in each."
+type: note
+tags: [compiler, sqlearn, fit-pipeline, sql-generation, code-review]
+summary: "Read-only trace of the old sqlearn compiler, core and backend, listing fit and transform flow, defects and inferred behaviour."
 related: [docs/questions/archived/earlier-attempts/sqlearn-v04/notes/B-compiler.md]
-mdindex: [type=4ca303, tags=57479c, summary=0f9346, related=96dd4c]
+mdindex: [type=edb465, tags=0e2f58, summary=1eb617]
 ---
 # Batch B: OLD compiler, core, backend (actual code)
 

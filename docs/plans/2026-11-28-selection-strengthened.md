@@ -1,9 +1,9 @@
 ---
 type: task
-tags: [testing, test-selection, cmake, layering, just, implementation-plan]
-summary: "Implementation plan for strengthening sqlearn's test selection: static-archive test programs, a layering check, a just affected report, and a full sweep."
+tags: [testing, selection, cmake, layering, just]
+summary: "Implementation plan to make sqlearn's checks run exactly what a change affects, with a layering check, just affected report, and sweep verification."
 related: [docs/adr/0080-the-engine-stays-on-cmake-for-now.md, HANDOFF.md, docs/questions/archived/bazel-prototype.md, docs/questions/test-selection.md, docs/architecture/testing.md, docs/adr/0001-uv-for-python-packaging.md, docs/adr/0008-just-task-runner.md, docs/adr/0046-sqlearn-warns-the-user-chooses.md]
-mdindex: [type=0ebb42, tags=85cf5c, summary=a88a65, related=16a714]
+mdindex: [type=0ebb42, tags=7e9068, summary=a4767e]
 ---
 # The selection, strengthened: implementation plan
 

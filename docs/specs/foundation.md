@@ -1,9 +1,9 @@
 ---
 type: spec
-tags: [foundation, repository-layout, tooling, packaging, git-hooks, docs-site]
-summary: "Spec for sqlearn's repository skeleton: layout, packaging and versioning, quality gates, git hooks, docs toolchain, and conventions."
+tags: [foundation, repository-skeleton, tooling, sphinx, git-hooks, versioning]
+summary: "Specifies the sqlearn repository skeleton: layout, packaging, quality gates, git hooks, docs toolchain, conventions, and done-criteria."
 related: [docs/architecture/overview.md, docs/plans/archived/2026-11-03-foundation.md, docs/adr/README.md, docs/adr/0004-apache-2-licence.md, docs/adr/0011-curriculum-levels.md, docs/adr/0062-apple-silicon-first.md]
-mdindex: [type=d4f02e, tags=c03d83, summary=e1a158]
+mdindex: [type=d4f02e, tags=614dc5, summary=72871f]
 ---
 # Foundation
 

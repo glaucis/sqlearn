@@ -1,8 +1,9 @@
 ---
 type: guide
-tags: [learning, intermediate, pipelines, feature-engineering, model-selection]
-summary: "Index page for the intermediate learning level, covering pipelines, feature engineering, model selection, metrics, and large data."
-mdindex: [type=83ca68, tags=13bd48, summary=9120f9]
+tags: [learning, python, intermediate, curriculum]
+summary: "Index page for the intermediate Python learning level covering pipelines, feature engineering, model selection, metrics, and large data."
+mdindex: [type=83ca68, tags=7ca1e2, summary=6ca467, related=81e969]
+related: [old_python/docs/learn/beginner/index.md]
 ---
 # Intermediate
 

@@ -1,9 +1,9 @@
 ---
 type: note
-tags: [sqlearn, transformers, review, sklearn-comparison, duckdb]
-summary: "Batch C review of the old sqlearn v0.4 transformers, comparing each against sklearn equivalents and listing departures and bugs."
+tags: [sqlearn, transformers, review, duckdb, sklearn-comparison]
+summary: "Batch C review of the sqlearn v0.4 transformers, comparing their SQL generation against sklearn and noting departures and bugs."
 related: [docs/questions/archived/earlier-attempts/sqlearn-v04/notes/C-transformers.md]
-mdindex: [type=edb465, tags=4b1f5f, summary=c2b6f7, related=f36a98]
+mdindex: [type=edb465, tags=b891d9, summary=d4f4ff]
 ---
 # Batch C: OLD transformers (sqlearn v0.4, `src/sqlearn/transforms/`)
 

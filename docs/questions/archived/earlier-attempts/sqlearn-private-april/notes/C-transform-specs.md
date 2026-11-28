@@ -1,9 +1,9 @@
 ---
 type: note
-tags: [sqlearn, transformers, specs, duckdb, batch-c]
-summary: "Review of sqlearn-private transformer and helper spec pages (April 2026): taxonomy, per-transformer table, and checked DuckDB claims."
+tags: [sqlearn, transformers, specs, duckdb, design-review]
+summary: "Batch C review of archived sqlearn-private transformer and helper specs, with checked DuckDB claims and taxonomy of transform kinds."
 related: [docs/questions/archived/earlier-attempts/sqlearn-private-april/notes/C-transform-specs.md]
-mdindex: [type=edb465, tags=3c90cf, summary=f3bc3f, related=236b74]
+mdindex: [type=edb465, tags=f55595, summary=e8bcd5]
 ---
 # Batch C: transformer and helper specs (sqlearn-private, April 2026)
 

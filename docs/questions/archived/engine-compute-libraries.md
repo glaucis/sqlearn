@@ -1,9 +1,9 @@
 ---
 type: question
-tags: [compute-libraries, float64, metal, mlx, cpu-engine]
-summary: "Asks which compute libraries sqlearn's C++ engine should use, weighing Apple Accelerate, Metal, MLX and other GPU options for float64 validation."
+tags: [compute-libraries, apple-silicon, metal, float64, gpu, engine]
+summary: "Research question on which compute libraries sqlearn's C++ engine should use, answered by ADR 0063 and kept as the supporting research."
 related: [docs/adr/0043-repeatable-within-rounding.md, docs/adr/0016-validation-method.md]
-mdindex: [type=1f5087, tags=dca05e, summary=0c5e38]
+mdindex: [type=1f5087, tags=44651b, summary=8999d3]
 ---
 # Which compute libraries does sqlearn's engine use?
 

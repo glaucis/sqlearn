@@ -1,9 +1,9 @@
 ---
-type: architecture
-tags: [sqlearn, redesign, multi-dialect, fit, sqlglot, engine-alias]
-summary: "Analysis of the sqlearn war-room redesign: scope change to multi-dialect, the fit layer rule, learned state handling, and the engine alias dispatch model."
+type: note
+tags: [sqlearn, redesign, multi-dialect, war-room, fit, sqlglot]
+summary: "Analysis of the April-June 2026 sqlearn war-room work: why the multi-dialect redesign happened, how fit layers, learned state and engine aliases were decided, a"
 related: []
-mdindex: [type=4ca303, tags=1da911, summary=473518, related=f1989d]
+mdindex: [type=edb465, tags=f903a9, summary=f95dff]
 ---
 # Batch A: direction and the redesign
 

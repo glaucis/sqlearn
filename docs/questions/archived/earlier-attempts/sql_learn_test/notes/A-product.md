@@ -1,9 +1,9 @@
 ---
 type: note
-tags: [sql-learn, scikit-learn-parity, duckdb, agent-workflow, research-retrospective]
-summary: "Retrospective on the sql_learn_test restart: parity-with-scikit-learn product goal, 17 agent-process syntheses, and why no library was built."
+tags: [sql-learn, scikit-learn, duckdb, agent-workflow, research, restart]
+summary: "Product and research review of the sql_learn_test restart: a scikit-learn-parity DuckDB library attempt that produced process research rather than estimators."
 related: [docs/questions/archived/earlier-attempts/sql_learn_test/notes/A-product.md]
-mdindex: [type=edb465, tags=dd0ee9, summary=403c69, related=1be721]
+mdindex: [type=edb465, tags=32c6c9, summary=cc7c3e]
 ---
 # sql_learn_test, batch A: product and research
 

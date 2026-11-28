@@ -1,9 +1,9 @@
 ---
 type: note
-tags: [sql-learn, process, agent-harness, earlier-attempts, retrospective]
-summary: "Comparative review of two earlier sql_learn attempts (OLD1 and OLD2), mostly about agent harness and process rather than the library itself."
+tags: [sql-learn, harness, restart, earlier-attempts, duckdb]
+summary: "Batch A analysis of two earlier sql_learn attempts (Aug 2026), mostly about agent harness and process rather than the library."
 related: [docs/questions/archived/earlier-attempts/sql_learn/notes/A-both.md]
-mdindex: [type=edb465, tags=6af363, summary=256ed2, related=ef8777]
+mdindex: [type=edb465, tags=5c0c7d, summary=f79d04]
 ---
 # sql_learn: batch A, both histories
 
