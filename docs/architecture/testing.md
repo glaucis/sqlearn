@@ -1,9 +1,9 @@
 ---
-type: architecture
+type: guide
 tags: [testing, pytest, coverage, hooks, tiers, checks]
 summary: "Explains how tests are written, split into fast and slow tiers, how each check finds what changed and keeps its records, selecting by group (the manifest, the fingerprints, the Python sets, the audit, the benchmarks due), the validation runners' records, the hook tests, and coverage reporting."
 related: [docs/architecture/layout.md, docs/architecture/validation.md, docs/specs/selection-by-group.md, pyproject.toml, validation/_checks.py, validation/_ctest.py, validation/_groups.py, validation/_pytest_sets.py, validation/_record.py, validation/_audit.py, validation/_bench.py, validation/tests.json, engine/cmake/groups.cmake, engine/.clang-format, ".gersemirc"]
-mdindex: [type=4ca303]
+mdindex: [type=83ca68]
 ---
 # Testing
 
