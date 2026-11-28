@@ -3,19 +3,50 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-28 · Branch: `main` (pushed, level with `origin/main`) ·
-Last commit: `8984fdb docs: mark main as pushed in the handoff` · Checks:
-passing (`just done`, on `8822141`; later commits touch only this file)
+Updated: 2026-11-28 · Branch: `workflows-and-site` (local only, not
+pushed; `main` is one commit ahead of `origin/main`, `40784ee`) · Checks:
+`just check` and `just test` pass on each commit; `just done` not yet run on
+the branch
 
 Verify with: `just done` (`just verify` is the release tier)
 
 ## In progress
 
-None. [verified] The benchmark and profiling queue is merged into `main`
-(issue #88 closed); next is Phase 1 step 3 (below).
+- **Phase 1 step 3, the workflows and the site** (plan
+  `docs/plans/2026-11-28-workflows-and-site.md`, #79, #4, #6), on branch
+  `workflows-and-site`. Tasks 1 to 6 are committed: `SQ_LLVM_ROOT` (LLVM's
+  prefix on macOS and Linux, `validation/_llvm.py`); libstdc++ builds take
+  `_GLIBCXX_ASSERTIONS`; GNU ld's map and `addr2line` for crash reports, and
+  `just crash-report <report> --map <release map>`; `just check-wheel` and
+  `[tool.cibuildwheel]`; `.github/workflows/release-tier.yml` (by hand only)
+  with `verify` split into `verify-checks`, `verify-engine`,
+  `verify-mutate`, and `verify-linux`; `.github/workflows/site.yml`. Left:
+  the first workflow run and its fixes (Task 5 step 6), Pages turned on (Task
+  6 step 6), then `just done`, the plan archived, the merge. The spec now says
+  step 3 is macOS and Linux; Windows is #89. The rulings made while building
+  are in the plan's ledger, `.superpowers/sdd/2026-11-28-workflows-and-site/
+  progress.md` (git-ignored).
 
 ## Waiting on the user
 
+- **Step 3's first run** (since 2026-11-28): push `workflows-and-site`, then
+  start "Release tier" from the Actions tab on that branch (or approve
+  `gh workflow run release-tier.yml --ref workflows-and-site`). Hours of
+  runner time; the first Linux and GCC build will fail somewhere, as §3.5
+  expects. Nothing has run on GitHub yet: the workflows are untested
+  [assumed: the LLVM apt packages' names, libc++'s path under
+  `/usr/lib/llvm-23/lib`, cibuildwheel copying `/project/build/*/_duckdb.map`,
+  the GNU map parser on a real bfd map].
+- **GitHub Pages on** (since 2026-11-28): Settings → Pages → Source "GitHub
+  Actions", or your yes to
+  `gh api -X POST repos/glaucis/sqlearn/pages -f build_type=workflow`. The
+  first deploy is at the merge into `main`.
+- **A ruling, with step 4's measurement of the hardened library** (ADR
+  0065): Linux's libstdc++ builds define `_GLIBCXX_ASSERTIONS` in every
+  flavour, release included (the agent's call, 2026-11-28; libc++ gets
+  `fast` there).
+- Optional: `brew install actionlint`, so the workflows can be linted here
+  (`just doctor` lists it as optional); not installed without your yes.
 - The first `just bench-queue` (ADR 0081): today it runs `bench_buffer` and
   its profile, seconds each, one core; it measures only on an idle machine.
   Awaits your go-ahead. It replaces running `just bench <name>` one at a
@@ -35,7 +66,7 @@ None. [verified] The benchmark and profiling queue is merged into `main`
      steps 3 and 4).
   2. ~~The benchmark and profiling queue~~: merged
      (`docs/plans/archived/2026-11-28-benchmark-queue.md`, #88).
-  3. **Next:** Phase 1 step 3, then step 4 (below).
+  3. **Now:** Phase 1 step 3 (in progress, above), then step 4 (below).
   4. The audit's first run, on Tomas's go-ahead (above), before the first
      group claims Python tests or runners.
   5. Then the rewrite's first group, its plan first.
@@ -51,15 +82,8 @@ None. [verified] The benchmark and profiling queue is merged into `main`
   project's type checkers (Tomas, 2026-11-27).
 - #86's item 13 (a runner's claims match a module's last name part) waits for
   the first runner, beside `validate` joining `affected` and `sweep`.
-- Phase 1 step 3: the release tier's workflows, started by hand, and the
-  site's deploy (spec §3.5, §3.6; #4, #6); its plan first, with
-  superpowers:writing-plans. Then step 4, the review and the measurements
-  (spec §3.7). Step 3 also: detect LLVM's path for Linux (it is
-  `/opt/homebrew` until then, Tomas, 2026-11-28); each release keeps its
-  module's linker map (`build/<cache tag>/_duckdb.map`, for
-  `just crash-report`), so a user's crash report can be read, and Linux
-  gets its map and `addr2line` there; the release
-  wheel stays built in isolation (`just build-package`, `--no-config`).
+- Phase 1 step 4, after step 3 merges: the review and the measurements
+  (spec §3.7).
 - The dependencies the old Python used: numpy (runtime, ADR 0057) and the
   test group's scikit-learn, pandas, polars, optuna, catboost, lightgbm,
   hypothesis, mpmath. Trim them when nothing active uses them
@@ -68,9 +92,9 @@ None. [verified] The benchmark and profiling queue is merged into `main`
   0063), with an ADR replacing 0057; Eigen stays out (MPL-2.0, ADR 0066).
 - The published validation pages (ADR 0016) are still to be built;
   `docs/validation/index.md` is a placeholder.
-- Windows needs its own crash handler (no POSIX signals; the current one
-  calls `sigaction`): when the Windows build starts (ADR 0069). macOS and
-  Linux only for now (Tomas, 2026-11-26).
+- Windows needs its own crash handler, raw layer and MSVC build before it
+  joins the release workflow: #89 (ADR 0069; Tomas, 2026-11-26 and
+  2026-11-28).
 - Open question: free-threaded Python,
   `docs/questions/free-threaded-python.md` (nanobind's stable ABI excludes
   it).
@@ -83,6 +107,13 @@ None. [verified] The benchmark and profiling queue is merged into `main`
 
 ## Dead ends and traps
 
+- pytest's `-r` option replaces its default `fE`: `addopts` carries
+  `-rfEs`, never a bare `-rs`, which hides the failures from the summary.
+  commitlint's `site` is a scope: `ci(site): …`, never `site: …`. A new test
+  that reads a file outside `TOOLING_INPUTS` fails
+  `test_every_file_the_tooling_tests_read_is_a_tooling_input`: add the path
+  there. `ruff check --fix` removes an import added before its first use:
+  add the import with the code that uses it. (2026-11-28)
 - The profiling queue (2026-11-28): on the first real profile, check that
   (i) a profile's wall time and cores are samply's whole run (start-up and
   symbolication included), not the program's alone: take the program's span

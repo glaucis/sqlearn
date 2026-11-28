@@ -257,6 +257,11 @@ docstring against its function's signature.
   agent's call).
 - Before `1.0.0`, the tier's local part (macOS) can be run by hand at any
   time; it is not a gate for merges.
+- **Windows waits** (Tomas, 2026-11-28): step 3's workflow covers macOS
+  arm64 and Linux x86_64 and arm64. Windows joins once it has its own crash
+  handler and raw layer (ADR 0069; `engine/src/crash/` and `engine/src/raw/`
+  are POSIX) and its MSVC build, in
+  [issue #89](https://github.com/glaucis/sqlearn/issues/89).
 
 ### 3.6 The site (Tomas, 2026-11-21)
 
@@ -489,8 +494,9 @@ wheel per platform for every Python from 3.12 (nanobind's stable ABI).
   passes; the skeleton builds as C++23 with Apple clang and Homebrew LLVM, and
   the C++26 probe runs (§3.8); a change to one group's C++ file rebuilds and
   runs that group's tests only.
-- Step 3: the hand-started workflow passes on every platform of ADR 0062
-  and produces each platform's wheel; the site is live on GitHub Pages.
+- Step 3: the hand-started workflow passes on macOS arm64 and Linux x86_64
+  and arm64 and produces each platform's wheel; the site is live on GitHub
+  Pages. Windows joins later (§3.5).
 - Step 4: the review is recorded, the benchmarks published, and Tomas has
   ruled on the hardened library.
 - `HANDOFF.md` updated with each merge, and #79 closed after step 4.
