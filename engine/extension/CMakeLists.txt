@@ -5,6 +5,10 @@ cmake_minimum_required(VERSION 3.29)
 
 project(SqlearnExtension LANGUAGES CXX)
 
+# This directory is ours inside DuckDB's: the flavour's levels alone
+# (hardening.cmake).
+sq_flavor_levels_only()
+
 build_static_extension(sqlearn src/sqlearn_extension.cpp)
 set_target_properties(
   sqlearn_extension

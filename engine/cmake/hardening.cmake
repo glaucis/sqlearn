@@ -225,6 +225,25 @@ function(sq_test_environment test)
   endif()
 endfunction()
 
+# Take the optimisation and debug levels out of CMake's build-type defaults
+# (CMAKE_<LANG>_FLAGS_<CONFIG>: Release's -O3, Debug's -g) in the calling
+# directory, so our targets there get the flavour's levels alone, not two of
+# each on one line. Everything else stays, -DNDEBUG above all: DuckDB's
+# headers, inlined into our objects, then turn their asserts off exactly as
+# in DuckDB's own objects. A macro, so it sets the caller's directory scope;
+# a subdirectory added after it inherits the result, one added before keeps
+# CMake's defaults (DuckDB, duckdb-python, the third-party libraries).
+macro(sq_flavor_levels_only)
+  foreach(sq_lang C CXX)
+    foreach(sq_config DEBUG RELEASE RELWITHDEBINFO MINSIZEREL)
+      set(sq_var CMAKE_${sq_lang}_FLAGS_${sq_config})
+      separate_arguments(sq_flags UNIX_COMMAND "${${sq_var}}")
+      list(FILTER sq_flags EXCLUDE REGEX "^-(O|g)")
+      list(JOIN sq_flags " " ${sq_var})
+    endforeach()
+  endforeach()
+endmacro()
+
 # Give `target` the flavour: its compile options, the hardening mode and,
 # for a program, the sanitizers' runtime at the link, and the coverage
 # runtime in the coverage flavour.

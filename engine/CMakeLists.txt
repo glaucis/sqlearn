@@ -179,6 +179,12 @@ if(SQ_BUILD_TESTS)
   target_link_libraries(sq_rapidcheck_catch INTERFACE rapidcheck)
 endif()
 
+# From here on, this directory's targets (the groups, the bindings, the
+# headers-alone units) and the subdirectories below (tests, fuzz, bench)
+# are ours: they take the flavour's levels alone. Everything added above
+# keeps CMake's defaults.
+sq_flavor_levels_only()
+
 sq_add_group(
   core
   SOURCES ${SQ_CORE_SOURCES}

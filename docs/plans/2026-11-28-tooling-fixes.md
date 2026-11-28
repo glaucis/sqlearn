@@ -632,20 +632,25 @@ two things. The flavours rely on CMake's `-DNDEBUG` to turn `assert` off.
 definitions), the CMake scope of our targets. Test:
 `tests/engine/test_presets.py`.
 
-- [ ] **Step 1: Write the failing tests:**
+**As built:** CMake's defaults keep `-DNDEBUG` and lose only their `-O`
+and `-g` (`sq_flavor_levels_only`, called in our directories), so
+`assert` and DuckDB's inlined headers behave as before in every build; no
+`NDEBUG` moved into the flavours. The second test pins it per build type.
+
+- [x] **Step 1: Write the failing tests:**
   `test_our_compile_lines_carry_one_optimisation_level` (in each built
   preset's `compile_commands.json`, a unit under `engine/src` has one
   `-O` and at most one `-g`), and
   `test_assert_is_off_exactly_where_it_was` (`-DNDEBUG` on our units in the
   release and profile flavours and the wheel, and on none of the others).
-- [ ] **Step 2: Run, expect the first to FAIL** and the second to pass
+- [x] **Step 2: Run, expect the first to FAIL** and the second to pass
   (today's state, which it pins).
-- [ ] **Step 3: Empty `CMAKE_<LANG>_FLAGS_<CONFIG>` in our directories'
+- [x] **Step 3: Empty `CMAKE_<LANG>_FLAGS_<CONFIG>` in our directories'
   scope only.** DuckDB's directories keep theirs (its build is not ours to
   change). Add `NDEBUG` to the release and profile flavours' definitions.
-- [ ] **Step 4: Run both, expect PASS;** rebuild the wheel (`uv run`), run
+- [x] **Step 4: Run both, expect PASS;** rebuild the wheel (`uv run`), run
   `just test`.
-- [ ] **Step 5: Commit** `build: give our targets the flavour's flags alone`
+- [x] **Step 5: Commit** `build: give our targets the flavour's flags alone`
 
 ### Task 17: `just headers-alone` builds the bindings' headers too
 

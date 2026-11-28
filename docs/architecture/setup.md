@@ -81,7 +81,12 @@ The C++ builds run under `just` (ADR 0008): `just build-engine <preset>`
 configures and builds `engine/` with a CMake preset (`engine/CMakePresets.json`:
 `dev`, `debug`, `release`, `profile`, `llvm-dev`, and the sanitizer, fuzzing,
 coverage, mutation and SQL-test presets) into `engine/build/<preset>`, and
-`just test-engine <preset>` runs its C++ tests with CTest. `just probe-cxx26`
+`just test-engine <preset>` runs its C++ tests with CTest. Each preset sets a
+flavour (`SQ_FLAVOR`, `engine/cmake/hardening.cmake`), which gives our sources
+their optimisation and debug levels, hardening and sanitizers; CMake's
+build-type defaults keep only what is not a level there (`-DNDEBUG`, so DuckDB's
+headers inline into our objects as into DuckDB's), and DuckDB's and the
+third-party libraries' sources keep CMake's defaults whole. `just probe-cxx26`
 prints which C++26 features each compiler here has; rerun it after an Xcode or
 compiler update.
 

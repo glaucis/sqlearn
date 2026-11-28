@@ -182,6 +182,65 @@ TEST_ONLY = re.compile(
 the include paths of the test-only libraries (Catch2, RapidCheck, nanobench)."""
 
 
+OURS = ("src", "extension", "tests", "fuzz", "bench")
+"""The directories of engine/ that hold our sources."""
+
+DEBUG_LEVEL = re.compile(r"-g(?:[0-3]|line-tables-only|line-directives-only)?")
+"""A flag that sets the level of debug information (not -grecord-command-line,
+which says what to record)."""
+
+
+def _builds() -> list[tuple[Path, str, list[dict[str, Any]]]]:
+    """Each build here with a compile database: its directory, its CMake build
+    type and its commands on our sources."""
+    found = []
+    for database in sorted(
+        [
+            *(ENGINE / "build").glob("*/compile_commands.json"),
+            *(REPO / "build").glob("*/compile_commands.json"),
+        ]
+    ):
+        cache = database.parent / "CMakeCache.txt"
+        if not cache.exists():
+            continue
+        match = re.search(r"^CMAKE_BUILD_TYPE:\w+=(.*)$", cache.read_text(), re.M)
+        build_type = match.group(1) if match else ""
+        ours = [
+            c
+            for c in json.loads(database.read_text())
+            if any(c["file"].startswith(str(ENGINE / d) + "/") for d in OURS)
+        ]
+        if ours:
+            found.append((database.parent, build_type, ours))
+    if not found:
+        pytest.skip("no build here yet: uv sync or just build-engine makes one")
+    return found
+
+
+def test_our_compile_lines_carry_one_optimisation_level() -> None:
+    """Our sources get the flavour's optimisation and debug levels alone, not
+    CMake's build-type defaults beside them: one -O and at most one debug
+    level on each line."""
+    for build, _, ours in _builds():
+        for command in ours:
+            flags = command["command"].split()
+            levels = [f for f in flags if f.startswith("-O")]
+            debug = [f for f in flags if DEBUG_LEVEL.fullmatch(f)]
+            assert len(levels) == 1, (build.name, command["file"], levels)
+            assert len(debug) <= 1, (build.name, command["file"], debug)
+
+
+def test_assert_is_off_exactly_where_the_build_type_turns_it_off() -> None:
+    """-DNDEBUG reaches our sources where CMake's build type gives it to
+    DuckDB's (every type but Debug), so the inline functions of DuckDB's
+    headers compile alike in our objects and in DuckDB's."""
+    for build, build_type, ours in _builds():
+        wanted = build_type not in ("", "Debug")
+        for command in ours:
+            has = "-DNDEBUG" in command["command"].split()
+            assert has == wanted, (build.name, build_type, command["file"])
+
+
 def test_the_wheel_build_has_nothing_of_the_test_builds() -> None:
     """No compile command of the wheel's build sanitizes, turns on the crash
     group's test hooks, or reads a test-only library's headers: those never

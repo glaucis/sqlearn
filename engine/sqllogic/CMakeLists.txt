@@ -40,6 +40,10 @@ set(GIT_COMMIT_HASH "${SQ_DUCKDB_COMMIT}")
 
 add_subdirectory("${SQ_DUCKDB_DIR}" duckdb)
 
+# DuckDB is added above with CMake's defaults; sq_core below is ours, with
+# the flavour's levels alone (hardening.cmake).
+sq_flavor_levels_only()
+
 # DuckDB copies its compile_commands.json to .cache/clangd two levels above
 # the build directory, which here is engine/, inside our tree: the target is
 # left out of the build (a property of their target; their file is as it
