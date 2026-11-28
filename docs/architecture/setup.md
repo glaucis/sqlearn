@@ -1,9 +1,9 @@
 ---
 type: guide
-tags: [setup, git-hooks, toolchain, just-recipes, clangd]
+tags: [setup, git-hooks, just-recipes, toolchain, clangd]
 summary: "How to set up a sqlearn clone: install the tools, run just setup, the just recipes and presets, the git hooks, and the editor tools."
 related: [docs/adr/0001-uv-for-python-packaging.md, docs/adr/0008-just-task-runner.md, docs/architecture/testing.md, engine/CMakePresets.json, engine/cmake/ccache.cmake, pyproject.toml, commitlint.config.mjs]
-mdindex: [type=83ca68, tags=2d1204, summary=c43e5c]
+mdindex: [type=83ca68, tags=59c337]
 ---
 # Setting up
 
