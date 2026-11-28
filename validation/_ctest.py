@@ -508,7 +508,16 @@ def _prepared(
     if code != 0:
         _say(f"C++ tests: the {preset} build failed; no test ran, none recorded")
         return code, build, {}, ""
-    units, loose = _units(_tests(build))
+    try:
+        units, loose = _units(_tests(build))
+        _compile_entries(build)
+    except (ValueError, KeyError, subprocess.CalledProcessError) as error:
+        _say(
+            f"C++ tests: CTest's or CMake's output for {preset} is unreadable "
+            f"({type(error).__name__}: {error}).\n"
+            f"Fix: delete engine/build/{preset} and run the check again"
+        )
+        return 1, build, {}, ""
     if loose:
         _say(
             f"C++ tests: {', '.join(sorted(loose))} carry no label, so no "

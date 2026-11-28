@@ -236,3 +236,31 @@ def test_a_nested_rpath_library_is_found_through_the_programs_run_paths(tmp_path
     assert [x.split("\0")[0] for x in found] == sorted(
         [str((a / "liba.dylib").resolve()), str((b / "libb.dylib").resolve())]
     )
+
+
+def test_corrupt_ctest_output_is_refused_with_a_fix(
+    engine_scratch, capsys, monkeypatch
+):
+    """A test listing or compile_commands.json that does not parse stops the
+    run with a Fix line, never a traceback."""
+    scratch = engine_scratch
+    real = _ctest.subprocess.run
+
+    def garbled(argv, *args, **kwargs):
+        done = real(argv, *args, **kwargs)
+        if "--show-only=json-v1" in argv:
+            done.stdout = "{not json"
+        return done
+
+    monkeypatch.setattr(_ctest.subprocess, "run", garbled)
+    assert _ctest.run("dev", scratch.root) != 0
+    out = capsys.readouterr().out
+    assert "Fix:" in out
+    assert scratch.runs() == []
+    monkeypatch.undo()
+    # The build step would write the file afresh: leave it out.
+    monkeypatch.setattr(_ctest, "_build", lambda *a, **k: (0, "compiler"))
+    commands = scratch.root / "engine" / "build" / "dev" / "compile_commands.json"
+    commands.write_text("[{broken")
+    assert _ctest.run("dev", scratch.root) != 0
+    assert "Fix:" in capsys.readouterr().out

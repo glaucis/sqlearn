@@ -401,7 +401,7 @@ def _table() -> dict[str, Task]:
             tools=(
                 # The compiler behind the build (an Xcode or Command Line
                 # Tools update), and the SDK it compiles against.
-                ("c++", "--version"),
+                (os.environ.get("CXX") or "c++", "--version"),
                 ("xcrun", "--show-sdk-version"),
             ),
         ),
@@ -921,17 +921,26 @@ def why(task: Task, root: Path) -> list[str]:
 
 
 def _run_steps(
-    task: Task, root: Path, files: list[Path] | None, *, everything: bool = False
+    task: Task,
+    root: Path,
+    files: list[Path] | None,
+    *,
+    everything: bool = False,
+    always_only: bool = False,
 ) -> int:
     """Run every step of `task`, each given its share of `files` when set.
 
     With `everything`, each step is given its ``everything`` arguments too.
+    With `always_only`, only the steps marked ``always`` run.
 
     Returns the first failing step's exit code, else 0: a failure does not
-    stop the steps after it, so their findings show too.
+    stop the steps after it, so their findings show too. A step whose
+    program cannot be started fails with 127 and a ``Fix:`` line.
     """
     first = 0
     for step in task.steps:
+        if always_only and not step.always:
+            continue
         argv = list(step.command)
         if everything:
             argv += step.everything
@@ -941,22 +950,15 @@ def _run_steps(
             if not mine:
                 continue
             argv += mine
-        code = subprocess.run(argv, cwd=root, check=False).returncode
-        if code not in step.ok and first == 0:
-            first = code
-    return first
-
-
-def _run_always(task: Task, root: Path) -> int:
-    """Run the steps of `task` that run when it is unchanged, on all its inputs.
-
-    Returns the first failing step's exit code, else 0.
-    """
-    first = 0
-    for step in task.steps:
-        if not step.always:
-            continue
-        code = subprocess.run(list(step.command), cwd=root, check=False).returncode
+        try:
+            code = subprocess.run(argv, cwd=root, check=False).returncode
+        except OSError as error:
+            print(  # noqa: T201
+                f"{task.name}: could not start {argv[0]} ({error.strerror}).\n"
+                "Fix: just doctor",
+                flush=True,
+            )
+            code = 127
         if code not in step.ok and first == 0:
             first = code
     return first
@@ -1000,7 +1002,7 @@ def run(task_name: str, root: Path, *, everything: bool = False) -> int:
             else [p.as_posix() for p in _changed(task, root, config, files)]
         )
     if skip:
-        code = _run_always(task, root)
+        code = _run_steps(task, root, None, always_only=True)
         print(f"{task.name}: unchanged since a passed run", flush=True)  # noqa: T201
         return code
     code = _run_steps(

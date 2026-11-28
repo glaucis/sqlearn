@@ -108,3 +108,12 @@ def test_mull_leaves_out_only_the_bindings():
         if line.strip().startswith("- ")
     ]
     assert paths == [".*/engine/src/bindings/.*"]
+
+
+def test_a_mutant_outside_the_engine_is_refused_with_a_fix():
+    """A report naming a file outside engine/ gives a Fix line, not a bare
+    ValueError from the path arithmetic."""
+    other = "/elsewhere/x.cpp"
+    report = {"files": {other: {"mutants": [_mutant(other, 1, 1, "m", "Survived")]}}}
+    with pytest.raises(ValueError, match="Fix:"):
+        _mutate.survivors(report, ENGINE)

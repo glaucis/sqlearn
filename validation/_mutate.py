@@ -63,7 +63,13 @@ def survivors(report: dict[str, Any], engine: Path) -> set[str]:
     """
     found: set[str] = set()
     for path, entry in report["files"].items():
-        name = Path(path).relative_to(engine).as_posix()
+        try:
+            name = Path(path).relative_to(engine).as_posix()
+        except ValueError:
+            raise ValueError(
+                f"Mull's report names {path}, outside {engine}.\n"
+                "Fix: run `just mutate-engine` again from this checkout"
+            ) from None
         for mutant in entry["mutants"]:
             if mutant["status"] in SURVIVING:
                 start = mutant["location"]["start"]
@@ -211,7 +217,11 @@ def run(engine: Path, tools: Path) -> int:
         return done.returncode
     elements = json.loads((out / "engine.json").read_text())
     total = sum(len(entry["mutants"]) for entry in elements["files"].values())
-    found = survivors(elements, engine)
+    try:
+        found = survivors(elements, engine)
+    except ValueError as error:
+        _say(str(error), error=True)
+        return 1
     unrecorded, stale = verdict(found, kept)
     _say(
         f"\nmutants: {total}, killed: {total - len(found)}, kept survivors: {len(kept)}"

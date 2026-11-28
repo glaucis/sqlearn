@@ -863,3 +863,36 @@ def test_passed_and_reasons_read_records_from_checks(tmp_path):
     assert _checks.reasons({"core": "3" * 64}, tmp_path, "k", "changed") == {
         "core": ["changed"]
     }
+
+
+def test_a_missing_program_is_a_failed_step_with_a_fix(scratch, capsys, monkeypatch):
+    """A step whose program is not installed fails with the program named and a
+    Fix line, never a traceback; the steps after it still run."""
+    tool = scratch.parent / "tool.py"
+    task = Task(
+        name="gone",
+        inputs=("src",),
+        config=("settings.toml",),
+        steps=(
+            Step(("no-such-program-here", "go")),
+            Step((sys.executable, str(tool), "after")),
+        ),
+        per_file=False,
+    )
+    monkeypatch.setitem(_checks.TASKS, "gone", task)
+    assert run("gone", scratch) == 127
+    assert _calls(scratch) == [["after"]]
+    out = capsys.readouterr().out
+    assert "no-such-program-here" in out
+    assert "Fix: just doctor" in out
+
+
+def test_the_sql_task_reads_the_compiler_cxx_names(monkeypatch):
+    """The compiler whose version reruns the sql task is ${CXX:-c++}, as the
+    justfile's compiler-stamp reads it."""
+    monkeypatch.setenv("CXX", "my-clang++")
+    assert ("my-clang++", "--version") in _checks._table()["sql"].tools
+    monkeypatch.delenv("CXX")
+    assert ("c++", "--version") in _checks._table()["sql"].tools
+    monkeypatch.setenv("CXX", "")
+    assert ("c++", "--version") in _checks._table()["sql"].tools

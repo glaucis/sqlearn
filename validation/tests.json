@@ -1790,6 +1790,12 @@
     },
     {
       "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_a_missing_program_is_a_failed_step_with_a_fix",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
       "name": "tests/validation/test__checks.py::test_a_missing_tool_is_part_of_the_configuration",
       "outcome": "passed",
       "tier": "fast"
@@ -2048,6 +2054,12 @@
     },
     {
       "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_the_sql_task_reads_the_compiler_cxx_names",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
       "name": "tests/validation/test__checks.py::test_the_task_table_names_every_check",
       "outcome": "passed",
       "tier": "fast"
@@ -2175,6 +2187,12 @@
     {
       "area": "validation/_ctest",
       "name": "tests/validation/test__ctest.py::test_another_compiler_reruns_every_group",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_ctest",
+      "name": "tests/validation/test__ctest.py::test_corrupt_ctest_output_is_refused_with_a_fix",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -2613,6 +2631,12 @@
     {
       "area": "validation/_licences",
       "name": "tests/validation/test__licences.py::test_the_terms_allowed_for_one_row_are_printed_with_it",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_mutate",
+      "name": "tests/validation/test__mutate.py::test_a_mutant_outside_the_engine_is_refused_with_a_fix",
       "outcome": "passed",
       "tier": "fast"
     },
