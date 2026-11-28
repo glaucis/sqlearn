@@ -194,6 +194,11 @@ check-docstring-args *files:
 build-package:
     uv build --wheel --no-config
 
+# Check a release wheel: its cp312-abi3 tag for macOS 15 arm64 or manylinux_2_28, one _duckdb module, abi3audit, and sq.version() and DuckDB's extensions in an environment of its own (validation/_wheel.py)
+[group('build')]
+check-wheel wheel:
+    uv run --locked python -m validation._wheel {{ wheel }}
+
 # Configure and build sqlearn's C++ groups and their test programs with a preset (dev, debug, release, profile, llvm-dev) into engine/build/<preset>
 [group('build')]
 build-engine preset="dev":

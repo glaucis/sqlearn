@@ -41,6 +41,7 @@ dependencies = [
 
 [dependency-groups]
 test = [
+    "abi3audit>=0.0.26",
     "catboost>=1.2.10",
     "hypothesis>=6.170.15",
     "lightgbm>=4.7.0",
@@ -165,6 +166,23 @@ inherit.cmake.define = "append"
 build-dir = "build/coverage-{cache_tag}"
 cmake.define.SQ_FLAVOR = "coverage"
 cmake.define.CMAKE_TOOLCHAIN_FILE = "cmake/toolchain-llvm.cmake"
+
+# Linux's release wheels, built by the release workflow (.github/workflows/
+# release-tier.yml) in manylinux_2_28 with its GCC (spec §3.8). One wheel:
+# CPython 3.12's stable ABI serves every later Python. pypa/build builds it
+# in isolation; it reads no [tool.uv], so no-build-isolation-package, which
+# is for the everyday build, stays out, as `just build-package`'s
+# --no-config leaves it out on macOS. Each wheel is checked where
+# cibuildwheel installed it (validation/_wheel.py).
+[tool.cibuildwheel]
+build = "cp312-*"
+skip = "*-musllinux_*"
+build-frontend = "build"
+manylinux-x86_64-image = "manylinux_2_28"
+manylinux-aarch64-image = "manylinux_2_28"
+test-requires = ["abi3audit"]
+test-sources = ["validation"]
+test-command = "python -m validation._wheel --installed {wheel}"
 
 # The version from git, the numbers hatch-vcs gave.
 [[tool.dynamic-metadata]]
