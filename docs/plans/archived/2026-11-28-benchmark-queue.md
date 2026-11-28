@@ -1,9 +1,9 @@
 ---
 type: task
-tags: [benchmarks, profiling, queue, samply, implementation-plan]
-summary: "Implementation plan for a benchmark and profiling queue that runs due items only on an idle machine, with samply profiles summarised and compared."
+tags: [benchmarks, profiling, queue, samply, load, implementation-plan]
+summary: "Implementation plan for a benchmark and profiling queue that runs due items only on an idle machine, with samply summaries and comparisons."
 related: [docs/specs/archived/benchmark-queue.md, docs/adr/0072-benchmarks-run-on-tomass-go-ahead.md, docs/adr/index.md, docs/architecture/testing.md, docs/architecture/setup.md]
-mdindex: [type=0fc814, tags=717c9d, summary=e0f0d3, related=d50e77]
+mdindex: [tags=9aaf32, summary=b5d1c9]
 ---
 # The benchmark and profiling queue: implementation plan
 

@@ -1,9 +1,9 @@
 ---
 type: spec
 tags: [benchmarks, profiling, queue, samply, process]
-summary: "Spec for a benchmark and profiling queue that runs on Tomas's go-ahead only when the machine is idle, writing samply summaries and comparisons."
+summary: Spec for a just bench-queue command that runs due benchmarks and samply profiles on an idle machine and writes summaries and comparisons.
 related: [docs/adr/0072-benchmarks-run-on-tomass-go-ahead.md, validation/_bench.py, docs/specs/native-engine-phase-1.md, docs/architecture/testing.md, docs/architecture/setup.md]
-mdindex: [type=d4f02e, tags=ec92be, summary=06f3fa]
+mdindex: [type=d4f02e, summary=6411b4]
 ---
 # The benchmark and profiling queue
 
