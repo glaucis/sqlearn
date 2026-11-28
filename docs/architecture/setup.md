@@ -73,10 +73,11 @@ system's OpenMP library; uv cannot provide it. uv is the only package tool
 |---|---|
 | setup | `build-tools`, `compiler-stamp`, `doctor`, `fetch-mull`, `setup` |
 | format | `fmt`, `fmt-engine`, `fmt-markdown`, `fmt-python` |
-| check | `check`, `check-docstring-args`, `check-docstrings`, `check-licences`, `check-lockfile`, `check-no-devdata`, `check-secrets`, `check-spelling`, `check-stubs`, `check-types`, `check-types-mypy`, `checkable-tree`, `docstrings`, `done`, `format`, `full`, `headers-alone`, `iwyu-engine`, `links`, `lint`, `lint-markdown`, `lint-python`, `place`, `pre-commit`, `remember-tree`, `tidy`, `tidy-engine`, `types`, `verify` |
+| check | `check`, `check-docstring-args`, `check-docstrings`, `check-licences`, `check-lockfile`, `check-no-devdata`, `check-secrets`, `check-spelling`, `check-stubs`, `check-types`, `check-types-mypy`, `checkable-tree`, `docstrings`, `done`, `format`, `full`, `headers-alone`, `iwyu-engine`, `links`, `lint`, `lint-markdown`, `lint-python`, `place`, `pre-commit`, `remember-tree`, `tidy`, `tidy-engine`, `types`, `verify`, `verify-checks`, `verify-engine`, `verify-linux`, `verify-mutate` |
 | test | `audit-groups`, `bench`, `bench-engine`, `bench-queue`, `benchmarks-due`, `coverage-engine`, `fuzz`, `leaks-engine`, `mutate-engine`, `profile`, `sanitize`, `sql`, `test`, `test-all`, `test-engine`, `test-engine-changed`, `test-hooks`, `test-python-versions`, `test-sql`, `validate`, `validate-all` |
 | docs | `build-docs`, `docs`, `fetch-inventories`, `fetch-mathjax` |
-| build | `api-snapshot`, `build-engine`, `build-package`, `stubs` |
+| build | `api-snapshot`, `build-engine`, `build-package`, `check-wheel`, `stubs` |
+| release | `check-release-tag`, `ci-tools-linux`, `ci-tools-macos`, `release-assets` |
 | maintain | `clean`, `crash-report`, `probe-cxx26`, `upgrade-dependencies` |
 
 The C++ builds run under `just` (ADR 0008): `just build-engine <preset>`
@@ -191,9 +192,14 @@ CodeGraph indexes sqlearn's own code,
 ## Where work runs
 
 Work is on the laptop for now. No CI runs by itself before `1.0.0`: the
-workflows arrive with the native engine's Phase 1, step 3, and are started by
-hand ([the Phase 1 spec](../specs/native-engine-phase-1.md), §3.5;
-[ADR 0062](../adr/0062-apple-silicon-first.md)). There is no
-bootstrap for Claude Code web sessions; the hooks, the reviewer and
-`just verify` are the net, and Linux and Windows are a known gap. See [the
+release workflow (`.github/workflows/release-tier.yml`) is started by hand
+from the Actions tab, and runs the release tier on macOS arm64 and on Linux
+x86_64 and arm64 ([the Phase 1 spec](../specs/native-engine-phase-1.md),
+§3.5; [ADR 0062](../adr/0062-apple-silicon-first.md)). Its tools are the
+`ci-tools-macos` and `ci-tools-linux` recipes; on Linux `SQ_LLVM_ROOT` names
+LLVM's prefix (`/usr/lib/llvm-23` from apt.llvm.org), and anywhere it moves
+the LLVM the toolchain, the justfile and the checks use. The site's deploy
+runs on each push to `main`. There is no bootstrap for Claude Code web
+sessions; the hooks, the reviewer and `just verify` are the net, and Windows
+is a known gap until it has its own crash handler. See [the
 spec's out-of-scope list](../specs/foundation.md).

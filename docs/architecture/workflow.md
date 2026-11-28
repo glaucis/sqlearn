@@ -33,7 +33,7 @@ What runs at each point:
 | A push | none: a push runs no suite |
 | A merge to `main` | the pre-merge-commit hook runs what the pre-commit hook runs; `just done` on `main` runs nothing for a tree that passed |
 | Work is done | `just done`: `check-lockfile` (first: a stale lock exits at once, even for a passed tree), `check-no-devdata`, then each check on what changed (`format`, `lint`, `links`, `docstrings`, `types`, `tidy`, `test`, `sql`, `validate`, `docs`), then the tree is remembered |
-| A release | `just verify`: the same two, each check with `just full` (`validate` as `validate-all`), then the C++ tools in full (`sanitize`, `leaks-engine`, `fuzz 60`, `coverage-engine`, `mutate-engine`), `check-licences`, `test-all` (coverage) and `test-python-versions`, by hand before `1.0.0` |
+| A release | `just verify` on this Mac: the same two, each check with `just full` (`validate` as `validate-all`), `audit-groups`, `check-licences`, `test-all` (coverage) and `test-python-versions` (`verify-checks`), then the C++ tools in full (`sanitize`, `leaks-engine`, `fuzz 60`, `coverage-engine`: `verify-engine`) and `mutate-engine` (`verify-mutate`), by hand before `1.0.0`. The release workflow, `.github/workflows/release-tier.yml`, started by hand from the Actions tab, runs those three parts as macOS jobs, `just verify-linux` on Linux x86_64 and arm64, CodeQL, and builds each platform's wheel and linker map; given a `vX.Y.0` tag, it attaches them to a GitHub Release |
 
 `just done` remembers each tree that passed in `sqlearn-passed`, in the git
 common directory (the 50 newest, shared by worktrees), with the place it passed

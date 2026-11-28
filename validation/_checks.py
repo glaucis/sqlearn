@@ -239,6 +239,8 @@ TOOLING_INPUTS = (
     "docs/conf.py",
     ".githooks",
     "commitlint.config.mjs",
+    # The workflows and their setup action, which the workflow tests read.
+    ".github",
     ":(glob)**/conftest.py",
 )
 """What the tooling tests import or read, every file as text."""

@@ -1,0 +1,171 @@
+# The release tier (spec §3.5), started by hand from the Actions tab: no CI
+# runs by itself before 1.0.0. macOS arm64 runs `just verify` in its three
+# parts; Linux x86_64 and arm64 run `just verify-linux`; CodeQL reads the
+# C++; each platform's wheel is built, checked and kept with its linker map.
+# Given a tag (vX.Y.0, spec §3.4), the release job attaches them to a GitHub
+# Release. Windows joins once it has its own crash handler and raw layer.
+name: Release tier
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: A release tag, vX.Y.0, to attach the wheels and maps to; none for a run without a release
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-tier-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    # bash -eo pipefail: a failing `just` stays failed through `tee`.
+    shell: bash
+
+env:
+  # The floor (ADR 0007): the one Python of every job but test-python-versions.
+  UV_PYTHON: "3.12"
+
+jobs:
+  macos-checks:
+    runs-on: macos-15
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The version comes from git's history and tags.
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+      - run: just verify-checks 2>&1 | tee verify.log
+      - name: The skipped tests, in the run's summary
+        if: always()
+        run: grep -h '^SKIPPED' verify.log >> "$GITHUB_STEP_SUMMARY" || true
+
+  macos-engine:
+    runs-on: macos-15
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+      - run: just verify-engine
+
+  macos-mutate:
+    runs-on: macos-15
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+      - run: just verify-mutate
+
+  linux:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 360
+    env:
+      # GCC builds the Linux release (spec §3.8); LLVM 23 the sanitizer builds.
+      CC: gcc-14
+      CXX: g++-14
+      SQ_LLVM_ROOT: /usr/lib/llvm-23
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+      - run: just verify-linux 2>&1 | tee verify.log
+      - name: The skipped tests, in the run's summary
+        if: always()
+        run: grep -h '^SKIPPED' verify.log >> "$GITHUB_STEP_SUMMARY" || true
+
+  codeql:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      security-events: write
+    env:
+      CC: gcc-14
+      CXX: g++-14
+      SQ_LLVM_ROOT: /usr/lib/llvm-23
+      # CodeQL reads what the compiler compiles: a cached object is unseen.
+      CCACHE_DISABLE: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+        with:
+          sync: "false"
+      - uses: github/codeql-action/init@915412ff23e8b7659517e607487dbeae018f2934 # v4.39.5
+        with:
+          languages: c-cpp
+          build-mode: manual
+      # sqlearn's own C++ groups (SQ_ENGINE_ONLY): ours to scan, not DuckDB's.
+      - run: just build-engine release
+      - uses: github/codeql-action/analyze@915412ff23e8b7659517e607487dbeae018f2934 # v4.39.5
+
+  wheels:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15, ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+        with:
+          sync: "false"
+      # macOS: the wheel as `just build-package` builds it, in isolation.
+      - if: runner.os == 'macOS'
+        run: just build-package
+      - if: runner.os == 'macOS'
+        run: just check-wheel dist/*.whl
+      - if: runner.os == 'macOS'
+        run: just release-assets dist/*.whl build/*/_duckdb.map assets
+      # Linux: manylinux_2_28 with its GCC, by cibuildwheel ([tool.cibuildwheel]),
+      # which checks each wheel where it installed it.
+      - if: runner.os == 'Linux'
+        uses: pypa/cibuildwheel@f9b966cfadf4109556cadc5bb39ddb72d0ce664e # v4.3.5
+        with:
+          output-dir: dist
+      - if: runner.os == 'Linux'
+        run: just release-assets dist/*.whl dist/_duckdb.map assets
+      - run: cp dist/*.whl assets/
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-${{ matrix.runner }}
+          path: assets/
+          if-no-files-found: error
+
+  release:
+    needs: [macos-checks, macos-engine, macos-mutate, linux, codeql, wheels]
+    if: inputs.tag != ''
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
+      - run: just check-release-tag "$TAG"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: release-*
+          path: assets
+          merge-multiple: true
+      - run: gh release create "$TAG" --verify-tag --title "sqlearn $TAG" assets/*

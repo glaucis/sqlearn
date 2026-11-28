@@ -1,0 +1,58 @@
+# The release workflows' setup, the CI form of `just setup`: uv and just, the
+# platform's tools (`just ci-tools-macos`, `just ci-tools-linux`), the
+# submodules, ccache's directory and the build folders restored, then the
+# locked environment, which builds the module. No git hooks and no doctor:
+# CI commits nothing, and the tools are installed here.
+name: Set up sqlearn
+description: uv, just, the C++ tools, the submodules, the build cache and the environment
+
+inputs:
+  sync:
+    description: Build the locked environment (uv sync), the module with it
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+    - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
+    - name: The C++ tools (macOS)
+      if: runner.os == 'macOS'
+      shell: bash
+      run: just ci-tools-macos
+    - name: The C++ tools (Linux)
+      if: runner.os == 'Linux'
+      shell: bash
+      run: just ci-tools-linux
+    - name: The submodules, as just setup fetches them
+      shell: bash
+      run: git submodule update --init
+    - name: DuckDB inside duckdb-python
+      shell: bash
+      run: git -C engine/duckdb-python submodule update --init external/duckdb
+    - name: ccache's directory, in the runner's scratch space
+      shell: bash
+      run: echo "CCACHE_DIR=$RUNNER_TEMP/ccache" >> "$GITHUB_ENV"
+    - name: The compiler's identity, one of the cache's keys
+      shell: bash
+      run: just compiler-stamp
+    - name: The submodules' commits, another
+      id: pins
+      shell: bash
+      run: echo "submodules=$(git submodule status --recursive | git hash-object --stdin)" >> "$GITHUB_OUTPUT"
+    # ccache's objects and the build folders: a cold DuckDB build is the
+    # longest part of every job. Keyed on the compiler, the submodules and
+    # the build settings; never a passed-tree record, which lives in .git.
+    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          ${{ runner.temp }}/ccache
+          build
+          engine/build
+        key: build-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-${{ hashFiles('engine/.compiler-stamp', '.gitmodules', 'pyproject.toml') }}-${{ steps.pins.outputs.submodules }}
+        restore-keys: |
+          build-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-
+    - name: The locked environment, and the module with it
+      if: inputs.sync == 'true'
+      shell: bash
+      run: uv sync --locked

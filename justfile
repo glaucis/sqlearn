@@ -49,6 +49,13 @@ doctor:
     check llvm clang --version
     check include-what-you-use include-what-you-use --version
     check gitleaks gitleaks version
+    # actionlint checks the workflows (.github/workflows): optional, never failing
+    if command -v actionlint > /dev/null; then
+        echo "actionlint: $(actionlint --version 2>&1 | head -n 1)"
+    else
+        echo "actionlint (optional): missing"
+        echo "Fix: brew install actionlint"
+    fi
     # samply profiles the benchmarks (just profile): optional, never failing
     if command -v samply > /dev/null; then
         echo "samply: $(samply --version 2>&1 | head -n 1)"
@@ -197,7 +204,7 @@ build-package:
 # Check a release wheel: its cp312-abi3 tag for macOS 15 arm64 or manylinux_2_28, one _duckdb module, abi3audit, and sq.version() and DuckDB's extensions in an environment of its own (validation/_wheel.py)
 [group('build')]
 check-wheel wheel:
-    uv run --locked python -m validation._wheel {{ wheel }}
+    uv run --locked --no-install-project python -m validation._wheel {{ wheel }}
 
 # Configure and build sqlearn's C++ groups and their test programs with a preset (dev, debug, release, profile, llvm-dev) into engine/build/<preset>
 [group('build')]
@@ -804,7 +811,7 @@ done:
     if [ "$first" -ne 0 ]; then exit "$first"; fi
     "${j[@]}" remember-tree "$tree" "$place"
 
-# Run every check all through, whatever the records say (the steady-memory test in full test's slow tier), then the audit of the groups' claims, the sanitizers, the leak check of the release build, a minute of fuzzing, the C++ coverage gate, mutation testing, the licence check, and the tests with coverage and on every Python: the release tier, by hand before 1.0.0
+# Run every check all through, whatever the records say (the steady-memory test in full test's slow tier), then the audit of the groups' claims, the licence check, the tests with coverage and on every Python, the sanitizers, the leak check of the release build, a minute of fuzzing, the C++ coverage gate and mutation testing: the release tier on this Mac, by hand before 1.0.0. Its three parts (verify-checks, verify-engine, verify-mutate) are the release workflow's macOS jobs; only verify remembers the tree
 [group('check')]
 verify:
     #!/usr/bin/env bash
@@ -816,14 +823,87 @@ verify:
     "${j[@]}" check-lockfile
     tree="$("${j[@]}" checkable-tree)"
     place="$("${j[@]}" place)"
+    "${j[@]}" _verify-checks
+    "${j[@]}" verify-engine verify-mutate
+    "${j[@]}" remember-tree "$tree" "$place"
+
+# The release tier's checks: the lockfile, every task in full, the audit of the groups' claims, the licence check, and the tests with coverage and on every Python (the release workflow's macos-checks job)
+[group('check')]
+verify-checks: compiler-stamp check-lockfile _verify-checks
+
+# verify-checks after the lockfile check, which verify makes before it reads the tree
+[private]
+_verify-checks:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    j=(just --justfile '{{ justfile() }}')
     "${j[@]}" check-no-devdata
     for task in format lint links docstrings types tidy test sql validate docs; do
         "${j[@]}" full "$task"
     done
     # After validate-all (full validate): the groups' claims, by coverage.
-    "${j[@]}" audit-groups
+    "${j[@]}" audit-groups check-licences
+    "${j[@]}" test-all test-python-versions
+
+# The release tier's C++ tools: the sanitizers, the leak check of the release build, a minute of fuzzing, the C++ coverage gate (the release workflow's macos-engine job)
+[group('check')]
+verify-engine:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    j=(just --justfile '{{ justfile() }}')
     "${j[@]}" sanitize leaks-engine
     "${j[@]}" fuzz 60
-    "${j[@]}" coverage-engine mutate-engine check-licences
-    "${j[@]}" test-all test-python-versions
-    "${j[@]}" remember-tree "$tree" "$place"
+    "${j[@]}" coverage-engine
+
+# The release tier's mutation testing (the release workflow's macos-mutate job)
+[group('check')]
+verify-mutate:
+    just --justfile '{{ justfile() }}' mutate-engine
+
+# The release tier on Linux (the release workflow's linux job): the C++ tests on the release build (GCC), then under AddressSanitizer and UndefinedBehaviorSanitizer (dev), ThreadSanitizer and LeakSanitizer (LLVM); then every Python test, the slow tier included, on one Python; every part runs, a failing one included, and the first failure's code is the exit. TypeSanitizer and Mull stay on macOS (#87; Mull's plugin is fetched for macOS)
+[group('check')]
+verify-linux: compiler-stamp check-lockfile
+    #!/usr/bin/env bash
+    set -euo pipefail
+    first=0
+    run() { local code=0; "$@" || code=$?; if [ "$first" -eq 0 ]; then first=$code; fi; }
+    run just --justfile '{{ justfile() }}' test-engine release
+    for preset in dev tsan lsan; do
+        run uv run --locked python -m validation._ctest "$preset" --all
+    done
+    run uv run --locked pytest -m ""
+    exit "$first"
+
+# Refuse a tag that is not a release: a release is a major or minor version tag, vX.Y.0, and a patch runs no release tier (spec §3.4)
+[group('release')]
+check-release-tag tag:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [[ ! '{{ tag }}' =~ ^v[0-9]+\.[0-9]+\.0$ ]]; then
+        echo "'{{ tag }}' is not a release: a release is a major or minor version tag, vX.Y.0 (spec §3.4)."
+        echo "Fix: start the release workflow with a tag such as v1.0.0, or with none"
+        exit 1
+    fi
+
+# Copy the module's linker map beside a release wheel as sqlearn-<version>-<platform>.map, with its build line in .map.build, for just crash-report --map (validation/_wheel.py)
+[group('release')]
+release-assets wheel map out:
+    uv run --locked --no-install-project python -m validation._wheel --assets {{ wheel }} {{ map }} {{ out }}
+
+# Install the release workflow's macOS tools (GitHub's macos-15 runner): the brew line of just doctor
+[group('release')]
+ci-tools-macos:
+    brew install llvm cmake ninja ccache include-what-you-use gitleaks
+
+# Install the release workflow's Linux tools (GitHub's Ubuntu 24.04 runners): GCC 14, ccache, LLVM 23 with its libc++ and runtimes from apt.llvm.org's signed repository (SQ_LLVM_ROOT=/usr/lib/llvm-23), and CMake and Ninja from PyPI, since Ubuntu's CMake is older than 3.29
+[group('release')]
+ci-tools-linux:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    codename=$(. /etc/os-release && echo "$VERSION_CODENAME")
+    curl --fail --location --silent --show-error https://apt.llvm.org/llvm-snapshot.gpg.key | sudo gpg --dearmor --yes -o /usr/share/keyrings/apt.llvm.org.gpg
+    echo "deb [signed-by=/usr/share/keyrings/apt.llvm.org.gpg] https://apt.llvm.org/$codename/ llvm-toolchain-$codename-23 main" | sudo tee /etc/apt/sources.list.d/llvm-23.list > /dev/null
+    sudo apt-get update
+    sudo apt-get install --yes --no-install-recommends gcc-14 g++-14 ccache binutils clang-23 clang-tidy-23 lld-23 llvm-23 libc++-23-dev libc++abi-23-dev libclang-rt-23-dev
+    uv tool install cmake
+    uv tool install ninja

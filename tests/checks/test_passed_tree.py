@@ -5,6 +5,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import pytest
+
 REPO = Path(__file__).resolve().parents[2]
 
 # What done runs, in order: the instant checks, then every task.
@@ -37,17 +39,12 @@ TASKS = (
     "validate",
     "docs",
 )
-RELEASE = (
-    "audit-groups",
-    "sanitize",
-    "leaks-engine",
-    "fuzz-60",
-    "coverage-engine",
-    "mutate-engine",
-    "check-licences",
-    "test-all",
-    "test-python-versions",
-)
+# verify's three parts, each a job of the release workflow: the checks, the
+# C++ tools, mutation testing.
+CHECKS_PART = ("audit-groups", "check-licences", "test-all", "test-python-versions")
+ENGINE_PART = ("sanitize", "leaks-engine", "fuzz-60", "coverage-engine")
+MUTATE_PART = ("mutate-engine",)
+RELEASE = (*CHECKS_PART, *ENGINE_PART, *MUTATE_PART)
 
 # Stand-ins for what done runs; the real justfile is imported under them. The
 # place the checks run in is the file `place`, or "here" without one.
@@ -294,6 +291,31 @@ def test_verify_runs_every_task_in_full_and_the_release_tools(tmp_path):
         *RELEASE,
     ]
     assert passed(repo, env) == [git(repo, "rev-parse", "HEAD^{tree}", env=env)]
+
+
+@pytest.mark.parametrize(
+    ("part", "runs"),
+    [
+        (
+            "verify-checks",
+            [
+                "check-lockfile",
+                "check-no-devdata",
+                *(f"full-{task}" for task in TASKS),
+                *CHECKS_PART,
+            ],
+        ),
+        ("verify-engine", list(ENGINE_PART)),
+        ("verify-mutate", list(MUTATE_PART)),
+    ],
+)
+def test_each_part_of_verify_runs_alone_and_remembers_nothing(tmp_path, part, runs):
+    """A workflow job runs one part; only the whole of verify, on one machine,
+    is a passed tree."""
+    repo, env = make_repo(tmp_path)
+    just(repo, part, env=env)
+    assert calls(repo) == runs
+    assert passed(repo, env) == []
 
 
 def test_done_warns_of_an_old_sweep_first_even_on_a_passed_tree(tmp_path):

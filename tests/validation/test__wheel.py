@@ -97,3 +97,40 @@ def test_check_wheel_refuses_a_wheel_not_tagged_for_release(tmp_path, capsys, na
 def test_a_release_tag_passes_the_static_checks(name):
     """The three platforms' tags, the module and the packages there: no finding."""
     assert _wheel.static_findings(name, GOOD) == []
+
+
+@pytest.mark.parametrize(
+    ("name", "stem"),
+    [
+        (
+            "sqlearn-1.0.0-cp312-abi3-macosx_15_0_arm64.whl",
+            "sqlearn-1.0.0-macosx_15_0_arm64",
+        ),
+        (
+            "sqlearn-1.0.0-cp312-abi3-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
+            "sqlearn-1.0.0-manylinux_2_28_x86_64",
+        ),
+    ],
+)
+def test_a_release_map_is_named_after_its_wheel(name, stem):
+    """The map a release attaches says the version and the platform it is
+    of, the newest manylinux tag for Linux's."""
+    assert _wheel.asset_stem(name) == stem
+
+
+def test_release_assets_copy_the_map_and_write_its_build_line(tmp_path, monkeypatch):
+    """The map is copied under its release name, and its build line, the
+    wheel's sq.version() installed, is written beside it."""
+    wheel = _wheel_file(
+        tmp_path, "sqlearn-1.0.0-cp312-abi3-macosx_15_0_arm64.whl", GOOD
+    )
+    linker_map = tmp_path / "_duckdb.map"
+    linker_map.write_text("# Path: _duckdb.abi3.so\n")
+    out = tmp_path / "out"
+    monkeypatch.setattr(
+        _wheel, "_build_line", lambda path: "sqlearn 1.0.0, DuckDB 2.0.1"
+    )
+    assert _wheel.main(["--assets", str(wheel), str(linker_map), str(out)]) == 0
+    stem = "sqlearn-1.0.0-macosx_15_0_arm64"
+    assert (out / f"{stem}.map").read_text() == "# Path: _duckdb.abi3.so\n"
+    assert (out / f"{stem}.map.build").read_text() == "sqlearn 1.0.0, DuckDB 2.0.1\n"

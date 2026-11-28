@@ -15,6 +15,7 @@ environment of uv's, made for the check and thrown away.
 """
 
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -146,6 +147,60 @@ def _smoke(wheel: Path, version: str, *, installed: bool) -> list[str]:
     return [f"installed: {line}" for line in done.stderr.strip().splitlines()]
 
 
+def asset_stem(name: str) -> str:
+    """Return the release name of the map beside the wheel named `name`.
+
+    Parameters
+    ----------
+    name : str
+        The wheel's file name.
+
+    Returns
+    -------
+    str
+        ``sqlearn-<version>-<platform>``; of a manylinux wheel's compressed
+        tags, the newest.
+    """
+    tags = NAME.match(name)
+    if tags is None:
+        raise ValueError(f"{name} is not a sqlearn wheel's name")
+    platform = tags["platform"].split(".")[-1]
+    return f"sqlearn-{tags['version']}-{platform}"
+
+
+def _build_line(wheel: Path) -> str:
+    """The build line of `wheel`'s sqlearn, installed in an environment of uv's."""
+    with tempfile.TemporaryDirectory() as away:
+        done = subprocess.run(
+            [
+                "uv",
+                "run",
+                "--isolated",
+                "--no-project",
+                "--with",
+                str(wheel.resolve()),
+                "python",
+                "-c",
+                "from sqlearn import _native; print(_native.describe())",
+            ],
+            cwd=away,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    return done.stdout.strip()
+
+
+def _assets(wheel: Path, linker_map: Path, out: Path) -> int:
+    """Copy `linker_map` into `out` under its release name, its build line beside it."""
+    stem = asset_stem(wheel.name)
+    out.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(linker_map, out / f"{stem}.map")
+    (out / f"{stem}.map.build").write_text(f"{_build_line(wheel)}\n", encoding="utf-8")
+    print(f"{out / stem}.map and .map.build")  # noqa: T201
+    return 0
+
+
 def main(argv: list[str]) -> int:
     """Check the wheel `argv[-1]`; print each finding.
 
@@ -153,13 +208,16 @@ def main(argv: list[str]) -> int:
     ----------
     argv : list of str
         ``[wheel]``, or ``["--installed", wheel]`` for a wheel already
-        installed in this Python.
+        installed in this Python; or ``["--assets", wheel, map, out]`` to
+        write the release's map and build line (`asset_stem`) into ``out``.
 
     Returns
     -------
     int
         0 when the wheel is sound, 1 otherwise (with a ``Fix:`` line).
     """
+    if argv[:1] == ["--assets"] and len(argv) == 4:
+        return _assets(Path(argv[1]), Path(argv[2]), Path(argv[3]))
     installed = argv[:1] == ["--installed"]
     if installed:
         argv = argv[1:]
