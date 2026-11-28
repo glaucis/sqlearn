@@ -54,7 +54,9 @@ A compiler update rebuilds the module too: `just setup`,
 `just compiler-stamp`, which writes the compiler's and the SDK's versions to
 `engine/.compiler-stamp` (git-ignored, one of the cache keys) when they changed,
 and only then, since uv keys a file on its modification time. A build without
-the submodules fails at configure with the line that fixes it.
+the submodules, with one at a commit other than its pin, or with one holding
+local edits fails at configure with the line that fixes it
+(`engine/cmake/pins.cmake`): the submodules are never edited.
 
 `libomp` is for LightGBM, a dev dependency whose macOS wheel needs the
 system's OpenMP library; uv cannot provide it. uv is the only package tool

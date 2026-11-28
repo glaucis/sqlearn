@@ -64,6 +64,65 @@ def pins_tag() -> str:
     return _pins()["SQ_DUCKDB_TAG"]
 
 
+def _submodule(tmp_path: Path) -> tuple[Path, str]:
+    """Make a scratch repository standing in for a submodule; return it and
+    its commit."""
+    repo = tmp_path / "fake"
+    repo.mkdir()
+
+    def git(*args: str) -> str:
+        return subprocess.run(
+            ["git", "-C", str(repo), *args],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+
+    git("init", "-q")
+    (repo / "source.cpp").write_text("int answer() { return 42; }\n")
+    git("add", "source.cpp")
+    git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "one")
+    return repo, git("rev-parse", "HEAD")
+
+
+def _check(tmp_path: Path, repo: Path, pinned: str) -> subprocess.CompletedProcess[str]:
+    """Run sq_check_submodule on `repo` in CMake's script mode."""
+    script = tmp_path / "check.cmake"
+    script.write_text(
+        f'include("{PINS.as_posix()}")\n'
+        f'sq_check_submodule("{repo.as_posix()}" "engine/fake" "{pinned}")\n'
+    )
+    return subprocess.run(
+        ["cmake", "-P", str(script)], capture_output=True, text=True, check=False
+    )
+
+
+def test_a_clean_submodule_at_its_pin_passes(tmp_path):
+    """A submodule at its pinned commit with nothing changed passes."""
+    repo, commit = _submodule(tmp_path)
+    done = _check(tmp_path, repo, commit)
+    assert done.returncode == 0, done.stderr
+
+
+@pytest.mark.parametrize("edit", ["tracked", "untracked"])
+def test_a_submodule_with_local_edits_fails_the_configure(tmp_path, edit):
+    """A submodule at its pin but with a file edited, or a new file, fails,
+    naming the submodule, the file and the fix: submodules are never edited."""
+    repo, commit = _submodule(tmp_path)
+    if edit == "tracked":
+        (repo / "source.cpp").write_text('int answer() { puts("x"); return 42; }\n')
+        name = "source.cpp"
+    else:
+        (repo / "added.cpp").write_text("int more() { return 1; }\n")
+        name = "added.cpp"
+    done = _check(tmp_path, repo, commit)
+    assert done.returncode == 1
+    assert "engine/fake has local edits" in done.stderr
+    assert name in done.stderr
+    assert "Fix:" in done.stderr
+    assert "git -C engine/fake" in done.stderr
+
+
 @pytest.mark.parametrize("name", sorted(PATHS))
 def test_a_pin_is_a_full_commit_hash(name):
     """A pin is a 40-digit hash, never a tag or branch that can move."""

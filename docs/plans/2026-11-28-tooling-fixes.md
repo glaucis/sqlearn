@@ -559,18 +559,18 @@ check cannot refuse a normal build.
 
 **Files:** Modify `engine/cmake/pins.cmake`. Test: `tests/engine/test_pins.py`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
   `test_a_submodule_with_local_edits_fails_the_configure`: run the check in
   CMake's script mode over a scratch git repository standing in for a
   submodule, at its pinned commit with one tracked file edited. Expect
   exit 1, the path and `Fix: git -C engine/<path> checkout .` (and
   `git clean -fd` when the edit is an untracked file) in its output.
-- [ ] **Step 2: Run it, expect FAIL**
-- [ ] **Step 3: After the commit check, run `git -C <dir> status
+- [x] **Step 2: Run it, expect FAIL**
+- [x] **Step 3: After the commit check, run `git -C <dir> status
   --porcelain`** for each submodule; anything listed is a `FATAL_ERROR`
   naming the files (the first ten) and the fix.
-- [ ] **Step 4: Run the test and `just build-engine dev`, expect PASS**
-- [ ] **Step 5: Commit** `build: refuse a submodule with local edits`
+- [x] **Step 4: Run the test and `just build-engine dev`, expect PASS**
+- [x] **Step 5: Commit** `build: refuse a submodule with local edits`
 
 ### Task 14: A test checks the stubs again
 

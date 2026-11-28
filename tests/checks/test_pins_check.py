@@ -68,9 +68,16 @@ def _repin(root):
         "third_party/nanobench": "SQ_NANOBENCH_COMMIT",
         "third_party/cpptrace": "SQ_CPPTRACE_COMMIT",
     }
-    for path in NESTED:
+    # The deepest first: duckdb-python records DuckDB's commit as a gitlink,
+    # as the real one does, so its status sees DuckDB as a submodule, never
+    # as an untracked directory.
+    for path in sorted(NESTED, key=lambda p: -p.count("/")):
         directory = root / "engine" / path
         _git(directory, "init", "-q")
+        if path == "duckdb-python":
+            nested = _git(directory / "external" / "duckdb", "rev-parse", "HEAD")
+            link = f"160000,{nested},external/duckdb"
+            _git(directory, "update-index", "--add", "--cacheinfo", link)
         _git(directory, "commit", "-q", "--allow-empty", "-m", "x")
         commit = _git(directory, "rev-parse", "HEAD")
         text = re.sub(
@@ -118,6 +125,20 @@ def test_duckdb_checked_out_off_its_pin_inside_duckdb_python_fails_configure(scr
     assert "engine/duckdb-python/external/duckdb" in done.stderr
     assert FIX in done.stderr
     assert all(command in done.stderr for command in FETCH)
+
+
+def test_an_edit_inside_duckdb_is_named_at_duckdb_not_duckdb_python(scratch):
+    """A file added inside the DuckDB nested in duckdb-python fails configure
+    naming DuckDB's own directory, whose fix discards it, never
+    duckdb-python's."""
+    _repin(scratch)
+    duckdb = scratch / "engine" / "duckdb-python" / "external" / "duckdb"
+    (duckdb / "debug.cpp").write_text("// a forgotten printf\n")
+    done = _configure(scratch)
+    assert done.returncode != 0
+    assert "engine/duckdb-python/external/duckdb has local edits" in done.stderr
+    assert "engine/duckdb-python has local edits" not in done.stderr
+    assert "debug.cpp" in done.stderr
 
 
 def test_the_pins_fix_names_the_same_fetch_as_setup():
