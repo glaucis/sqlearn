@@ -518,3 +518,63 @@ def test_just_names_one_llvm_prefix() -> None:
         check=True,
     )
     assert done.stdout == "/x/bin"
+
+
+def _standard_library_hardening(tmp_path: Path, compiler: str, flavour: str) -> str:
+    """Configure a scratch project reading hardening.cmake with `compiler` and
+    `flavour`; return the standard library hardening it chose."""
+    project = tmp_path / "project"
+    project.mkdir()
+    (project / "CMakeLists.txt").write_text(
+        "cmake_minimum_required(VERSION 3.29)\n"
+        "project(probe LANGUAGES CXX)\n"
+        f'include("{(ENGINE / "cmake" / "hardening.cmake").as_posix()}")\n'
+        'message(STATUS "STDLIB_HARDENING=${SQ_HARDENING}")\n'
+    )
+    done = subprocess.run(
+        [
+            "cmake",
+            "-S",
+            str(project),
+            "-B",
+            str(tmp_path / "build"),
+            "-G",
+            "Ninja",
+            f"-DCMAKE_CXX_COMPILER={compiler}",
+            f"-DSQ_FLAVOR={flavour}",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    line = next(x for x in done.stdout.splitlines() if "-- STDLIB_HARDENING=" in x)
+    return line.split("=", 1)[1]
+
+
+@pytest.mark.skipif(
+    shutil.which("cmake") is None
+    or shutil.which("ninja") is None
+    or shutil.which("g++-16") is None,
+    reason="cmake, ninja and GCC 16: just doctor, brew install gcc",
+)
+@pytest.mark.parametrize(
+    ("compiler", "flavour", "expected"),
+    [
+        # libc++ (Apple clang): its own modes, fast for the release.
+        ("c++", "release", "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_FAST"),
+        ("c++", "dev", "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE"),
+        # libstdc++ (GCC, as manylinux builds): its assertions, never
+        # _GLIBCXX_DEBUG, which changes the ABI.
+        ("g++-16", "release", "_GLIBCXX_ASSERTIONS"),
+        ("g++-16", "dev", "_GLIBCXX_ASSERTIONS"),
+    ],
+)
+def test_every_flavour_hardens_whichever_standard_library_it_gets(
+    tmp_path: Path, compiler: str, flavour: str, expected: str
+) -> None:
+    """The hardening follows the standard library, not the compiler's name:
+    the _LIBCPP_ macros do nothing on libstdc++."""
+    found = _standard_library_hardening(
+        tmp_path, shutil.which(compiler) or compiler, flavour
+    )
+    assert found == expected

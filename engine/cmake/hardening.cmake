@@ -199,6 +199,21 @@ else()
   )
 endif()
 
+# The _LIBCPP_ macros do nothing on libstdc++ (GCC's, which the manylinux
+# release builds with, spec §3.8), so a build on it takes libstdc++'s own
+# checks instead: _GLIBCXX_ASSERTIONS, its bounds and precondition checks,
+# for every flavour (ADR 0065). _GLIBCXX_DEBUG is never used: it changes the
+# ABI. The choice keys on the standard library the compiler gives, not on
+# the compiler's name, since clang can use either.
+include(CheckCXXSourceCompiles)
+check_cxx_source_compiles(
+  "#include <version>\n#if !defined(_LIBCPP_VERSION)\n#error not libc++\n#endif\nint main() {}\n"
+  SQ_STDLIB_IS_LIBCXX
+)
+if(NOT SQ_STDLIB_IS_LIBCXX)
+  set(SQ_HARDENING _GLIBCXX_ASSERTIONS)
+endif()
+
 # Give the test `test` the flavour's sanitizer options (SQ_TEST_ENVIRONMENT),
 # before any the user exported: each NAME=options becomes NAME=options:<the
 # user's>, and the sanitizers read their options left to right, so the
