@@ -14,7 +14,9 @@ script names its page and its groups in two module constants, ``PAGE`` and
 The records are one file for each benchmark, ``bench-<name>``, in the same
 directory as the checks' (``_checks.record_dir``). A run records its wall
 time, its cores (user plus system time over the wall time, of the child), its
-peak memory and the load (``uptime``) before and after.
+peak memory and the load (``uptime``) before and after. A run that ends on a
+busy machine (``_load.idle``) is marked ``loaded``: it is kept, but only a
+clean record (``clean``) clears "due" or gives the last numbers.
 """
 
 import ast
@@ -28,7 +30,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 
-from validation import _checks, _groups, _pytest_sets
+from validation import _checks, _groups, _load, _pytest_sets
 
 SCRIPTS = Path("validation/benchmarks")
 """Where the page scripts are, relative to the root."""
@@ -57,7 +59,7 @@ class Due:
         The page it feeds (``docs/benchmarks/*.md``); empty for a program
         that prints its table and has none.
     last_seconds, last_cores, last_peak_mb : float or None
-        The newest record's wall time, cores and peak memory; None when it
+        The newest clean record's wall time, cores and peak memory; None when it
         never ran.
     """
 
@@ -196,6 +198,22 @@ def _records(root: Path, name: str) -> list[dict[str, Any]]:
     )
 
 
+def clean(record: dict[str, Any]) -> bool:
+    """Return whether `record` was measured on an idle machine.
+
+    Parameters
+    ----------
+    record : dict
+        A benchmark record; one without ``loaded`` is clean.
+
+    Returns
+    -------
+    bool
+        True unless the record is marked ``loaded``.
+    """
+    return not record.get("loaded", False)
+
+
 def due(root: Path) -> list[Due]:
     """Return the benchmarks whose identity has no record. Runs none.
 
@@ -207,7 +225,7 @@ def due(root: Path) -> list[Due]:
     Returns
     -------
     list of Due
-        Each out-of-date benchmark with what its newest record measured.
+        Each out-of-date benchmark with what its newest clean record measured.
 
     Raises
     ------
@@ -220,7 +238,7 @@ def due(root: Path) -> list[Due]:
     library = _library(root)
     out: list[Due] = []
     for item in benchmarks:
-        records = _records(root, item.name)
+        records = [r for r in _records(root, item.name) if clean(r)]
         if any(
             r["digest"] == _identity(item, prints, groups, library) for r in records
         ):
@@ -327,6 +345,7 @@ def run(root: Path, name: str) -> int:
     wall = time.perf_counter() - start
     child.returncode = os.waitstatus_to_exitcode(status)
     after = _uptime()
+    loaded = not _load.idle()
     if child.returncode != 0:
         return child.returncode
     record = {
@@ -339,6 +358,7 @@ def run(root: Path, name: str) -> int:
         / (1024 * 1024 if sys.platform == "darwin" else 1024),
         "uptime_before": before,
         "uptime_after": after,
+        "loaded": loaded,
     }
     _checks.save(
         _checks.record_dir(root),

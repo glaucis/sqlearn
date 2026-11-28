@@ -7,7 +7,9 @@ measures group ``a``.
 
 from typing import Any
 
-from validation import _bench, _checks
+import pytest
+
+from validation import _bench, _checks, _load
 
 STANDIN = '''"""A stand-in benchmark."""
 
@@ -25,6 +27,12 @@ if __name__ == "__main__":
         total += 1
     print("measured")
 '''
+
+
+@pytest.fixture(autouse=True)
+def _idle_machine(monkeypatch):
+    """Run every test on an idle machine, whatever the real load is."""
+    monkeypatch.setattr(_load, "now", lambda: 0.0)
 
 
 def _install(scratch):
@@ -170,3 +178,23 @@ def test_a_missing_bench_build_is_refused_with_the_same_fix(scratch, capsys):
     binary.parent.parent.rmdir()
     assert _bench.run(scratch.root, "bench_thing") != 0
     assert "Fix: just bench bench_thing" in capsys.readouterr().out
+
+
+def test_a_run_under_load_is_recorded_as_loaded(scratch, monkeypatch):
+    """A run that ends on a busy machine keeps ``loaded`` true in its record."""
+    _install(scratch)
+    monkeypatch.setattr(_load, "now", lambda: 99.0)
+    assert _bench.run(scratch.root, "standin") == 0
+    records: list[Any] = _checks.load(_checks.record_dir(scratch.root), "bench-standin")
+    [record] = records
+    assert record["loaded"] is True
+    assert not _bench.clean(record)
+
+
+def test_a_loaded_record_leaves_the_benchmark_due(scratch, monkeypatch):
+    """Only a clean record clears ``due``, and a loaded one gives no last numbers."""
+    _install(scratch)
+    monkeypatch.setattr(_load, "now", lambda: 99.0)
+    _bench.run(scratch.root, "standin")
+    [item] = _bench.due(scratch.root)
+    assert item == _bench.Due("standin", "docs/benchmarks/standin.md", None, None, None)
