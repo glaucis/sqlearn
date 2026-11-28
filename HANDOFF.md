@@ -4,17 +4,15 @@ Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
 Updated: 2026-11-28 · Branch: `main` (pushed, level with `origin/main`) · Last
-commit: `d88c16e feat: pin each licence text by its digest` · Checks: passing
-(`just done`)
+commit: `docs: close the tooling fixes` · Checks: passing (`just done`)
 
 Verify with: `just done` (`just verify` is the release tier)
 
 ## In progress
 
-None. [verified] The tooling-fixes plan
-(`docs/plans/2026-11-28-tooling-fixes.md`) stays active, not archived: Tasks 13
-to 19 are done; 20 to 22 are not started. Task 20 (the crash handler's three
-gaps) is next, then 21 (reading a crash report).
+None. [verified] The tooling-fixes plan is done and archived
+(`docs/plans/archived/2026-11-28-tooling-fixes.md`); next is the benchmark and
+profiling queue (below).
 
 ## Waiting on the user
 
@@ -31,21 +29,21 @@ gaps) is next, then 21 (reading a crash report).
 
 - **The preparation before the rewrite, in this order** (Tomas, 2026-11-28:
   he prepares everything before starting, for a clear path):
-  1. **The small tooling fixes**: Tasks 1 to 19 are merged into `main`.
-     Tomas answered the 13 decisions (2026-11-28, the plan's table and
-     #85's comment); the yeses are Tasks 13 to 21, then Task 22 closes the
-     plan. Tasks 20 and 21 are the crash handler's (a stack overflow's
-     report, its two bugs, reading a report and telling sqlearn's crash
-     from DuckDB's).
-  2. A benchmark and profiling queue: profiling joins `just benchmarks-due`,
-     and one command runs the whole queue on Tomas's go-ahead, when the
-     machine is idle (ADR 0072 unchanged: nothing runs by itself).
+  1. ~~The small tooling fixes~~: done (below, "Just finished").
+  2. **Next:** a benchmark and profiling queue: profiling joins
+     `just benchmarks-due`, and one command runs the whole queue on Tomas's
+     go-ahead, when the machine is idle (ADR 0072 unchanged: nothing runs by
+     itself).
   3. Phase 1 step 3, then step 4 (below).
   4. The audit's first run, on Tomas's go-ahead (above), before the first
      group claims Python tests or runners.
   5. Then the rewrite's first group, its plan first.
 - `validate` is in neither `just affected` nor `just sweep`: add it when the
   first runner lands.
+- #87: TypeSanitizer's intermittent report on `test_core` (needs-triage):
+  decide whether it is TypeSanitizer's reading of reused heap memory or a
+  real aliasing problem, then fix it or write a suppression. Until then a
+  failing `just sanitize` on `tysan`'s `test_core` alone is that.
 - When `pyright-lsp` is installed globally (not yet), turn it off here in
   `.claude/settings.json`: `"enabledPlugins":
   {"pyright-lsp@claude-plugins-official": false}`; ty and mypy are this
@@ -211,34 +209,30 @@ gaps) is next, then 21 (reading a crash report).
 
 ## Just finished
 
-- Tasks 15 to 19 of the tooling fixes (2026-11-28): an extension the user
-  installs loads, built from a C file on DuckDB's C API (`1159a23`); our
-  compile lines carry the flavour's levels alone, `-DNDEBUG` where the build
-  type gives it (`f9eebd9`); the bindings' headers build alone with LLVM
-  (`5b04967`); the fuzz corpus is capped at 500 files and 1 MiB, inputs at
-  4,096 bytes (`409e07f`); each licence text is pinned by its SHA-256
-  (`d88c16e`).
-
-- Tasks 13 and 14 of the tooling fixes (2026-11-28): a submodule with local
-  edits fails the configure, DuckDB's edits named at its own directory
-  (`58aceb1`); a test checks `_native.pyi` against the module again
-  (`93b1c45`).
-
-- Task 4 of the tooling fixes (2026-11-28, `a490fa0`, merged into `main` and
-  pushed): sqlearn builds in the project's environment, the `build` group
-  holding `[build-system].requires`, so a rebuild compiles only what changed (56
-  of 68 objects missed ccache before; 0 of 1 after).
-
-- The small tooling fixes (2026-11-28, plan
-  `docs/plans/2026-11-28-tooling-fixes.md`, merged into `main` and pushed,
-  `ce3d768..cd40339`): the SQL label hashes every file under
-  `engine/extension/test` (`e71fb01`, `9d0a394`); `just test` and `just full`
-  write the compiler stamp (`6882a40`); `just done` checks the lockfile first
-  (`a76612e`); #86's follow-ups (`01829d4`, `6b4f91f`, `c7d6369`, `d52ebfe`,
-  `8a74800`; #86 closed); #85's that needed no decision (`1cbe000`,
-  `f7fe1b2`, `95bcb54`, `1ce87c9`; progress on #85); the docs (`8cf0d52`);
-  a whole-branch review's fixes, a run cut short still forgets moved passes
-  and the loose tests' `Fix:` names the wheel rebuild (`b12eb9d`,
-  `5a3e156`).
+- **The tooling fixes, closed** (2026-11-28, plan
+  `docs/plans/archived/2026-11-28-tooling-fixes.md`, all merged into `main`
+  and pushed; #85 stays open for steps 3 and 4, its comments list what each
+  task did):
+  - Tasks 1 to 12 (`ce3d768..cd40339`): the SQL label hashes every file
+    under `engine/extension/test`; `just test` and `just full` write the
+    compiler stamp; `just done` checks the lockfile first; #86's follow-ups
+    (#86 closed); #85's that needed no decision; a whole-branch review's
+    fixes.
+  - Task 4 (`a490fa0`): sqlearn builds in the project environment, so a
+    rebuild after a commit compiles only what changed (2 of 3 objects
+    missed ccache, where 56 of 68 did).
+  - Tasks 13 to 21, Tomas's answers to the 13 decisions: a patched
+    submodule fails the configure (`58aceb1`); the stubs test is back
+    (`93b1c45`); an extension the user installs loads (`1159a23`); our
+    compile lines carry the flavour's levels alone (`f9eebd9`); the
+    bindings' headers build alone with LLVM (`5b04967`); the fuzz corpus is
+    capped (`409e07f`); licence texts are pinned by SHA-256 (`d88c16e`); the
+    crash handler reports a stack overflow on the installing thread, keeps
+    its image names and finishes its report (`40d556e`); `just crash-report`
+    names a report's frames from the module's linker map and says whose
+    code crashed (`36be38c`).
+- Found on the way: #87, TypeSanitizer intermittently reports `test_core`'s
+  precondition test (heap memory a RapidCheck object used, reused for a
+  `core::Error`); `core` is untouched, so it predates this work.
 - The docs tagger's frontmatter, its bad `related:` entries fixed
   (`48a444f`).

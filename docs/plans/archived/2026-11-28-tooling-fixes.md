@@ -129,7 +129,7 @@ task while `_ctest` skips the label.
   depth (`GLOB_RECURSE`, `CONFIGURE_DEPENDS` outside script mode,
   `LIST_DIRECTORIES false`), sorted.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `test_the_test_data_takes_every_file_under_the_directory(tmp_path)`. It
 builds the same tree as
@@ -141,18 +141,18 @@ Change `test_every_sql_test_file_is_part_of_the_labels_identity` to
 `test_every_file_under_the_sql_tests_is_part_of_the_labels_identity`:
 `required == {p for p in TESTS.rglob("*") if p.is_file()}`.
 
-- [ ] **Step 2: Run them, expect FAIL**
+- [x] **Step 2: Run them, expect FAIL**
 
 Run: `uv run --locked pytest tests/engine/test_sqllogic.py -v`. The first
 fails because `sq_sql_test_data` is unknown. The second is skipped without
 a sqllogic build; it runs under `just test-sql`'s build.
 
-- [ ] **Step 3: Add `sq_sql_test_data` and pass its list to `sq_test_data`**
+- [x] **Step 3: Add `sq_sql_test_data` and pass its list to `sq_test_data`**
 
 `sq_sql_test_files` still feeds the "No SQL test" guard.
 
-- [ ] **Step 4: Run the tests, then `just test-sql`, expect PASS**
-- [ ] **Step 5: Remove the HANDOFF item, commit**
+- [x] **Step 4: Run the tests, then `just test-sql`, expect PASS**
+- [x] **Step 5: Remove the HANDOFF item, commit**
   `fix: hash every file under the SQL tests for their label`
 
 ### Task 2: `just test` and `just full` write the compiler stamp first
@@ -162,17 +162,17 @@ a sqllogic build; it runs under `just test-sql`'s build.
 - Modify: `justfile` (`test:` and `full task:`)
 - Test: `tests/checks/test_tasks.py`
 
-- [ ] **Step 1: Widen the test.** Rename
+- [x] **Step 1: Widen the test.** Rename
   `test_affected_and_sweep_write_the_compiler_stamp_first` to
   `test_every_recipe_that_runs_checks_writes_the_compiler_stamp_first`,
   parametrised over `["affected", "sweep", "test", "full"]`, with the same
   assertion.
-- [ ] **Step 2: Run it, expect FAIL** for `test` and `full`.
-- [ ] **Step 3: Make `compiler-stamp` a dependency** of `test` and `full`.
+- [x] **Step 2: Run it, expect FAIL** for `test` and `full`.
+- [x] **Step 3: Make `compiler-stamp` a dependency** of `test` and `full`.
   Add one line to each recipe's comment, as `affected` has.
-- [ ] **Step 4: Run it, expect PASS;** then
+- [x] **Step 4: Run it, expect PASS;** then
   `uv run --locked pytest tests/checks -v`.
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
   `fix: write the compiler stamp before just test and just full`
 
 ### Task 3: `check-lockfile` runs before anything uv runs
@@ -192,7 +192,7 @@ would fail on uv's error. It leaves `done`'s loop. `calls.log` still
 starts with it, so `RUNS` stays as it is. `verify` also runs it alone,
 before `checkable-tree`.
 
-- [ ] **Step 1: Write the failing tests.** In `OVERRIDES`, `place` and
+- [x] **Step 1: Write the failing tests.** In `OVERRIDES`, `place` and
   `check-lockfile` also append their name to `order.log`; add `order.log`
   to the scratch `.gitignore`.
   - `test_the_lockfile_is_checked_before_anything_uv_runs`: after `just
@@ -202,12 +202,12 @@ before `checkable-tree`.
     ["check-lockfile"]` and nothing remembered.
   - The same order test for `verify`:
     `test_verify_checks_the_lockfile_before_anything_uv_runs`.
-- [ ] **Step 2: Run them, expect FAIL** (`place` comes first).
-- [ ] **Step 3: Reorder `done` and `verify`.** The existing tests' expected
+- [x] **Step 2: Run them, expect FAIL** (`place` comes first).
+- [x] **Step 3: Reorder `done` and `verify`.** The existing tests' expected
   `calls` stay as they are.
-- [ ] **Step 4: Run `uv run --locked pytest tests/checks/test_passed_tree.py
+- [x] **Step 4: Run `uv run --locked pytest tests/checks/test_passed_tree.py
   -v`, expect PASS**
-- [ ] **Step 5: Remove the HANDOFF item, commit**
+- [x] **Step 5: Remove the HANDOFF item, commit**
   `fix: check the lockfile before just done runs uv`
 
 ### Task 4: sqlearn builds without isolation, so ccache hits after a commit
@@ -296,20 +296,20 @@ of 68 before; 54 of 66 on the first rebuild after, 0 of 1 on the second.
   `fingerprints()` loaded. Callers read it instead of calling
   `_groups.load` again.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
   - `test_a_new_object_of_a_group_leaves_the_shared_part(scratch)`: add
     `CMakeFiles/sq_b.dir/b/three.cpp.o` to the link line. Assert
     `_changed(...) == set()`: the group's own fingerprint covers its
     sources.
   - `test_the_fingerprints_carry_the_manifest_they_read(scratch)`:
     `scratch.prints().manifest == _groups.load(build)[0]`.
-- [ ] **Step 2: Run, expect FAIL**
-- [ ] **Step 3: Drop our groups' objects from the link line.** In `shared`,
+- [x] **Step 2: Run, expect FAIL**
+- [x] **Step 3: Drop our groups' objects from the link line.** In `shared`,
   leave out every link argument containing `/CMakeFiles/sq_<g>.dir/` for a
   `g` in `self.groups`, the marker `_ctest._target_parts` uses. Set
   `manifest` in `fingerprints()`, and switch each caller to it.
-- [ ] **Step 4: Run `uv run --locked pytest tests/validation -v`, expect PASS**
-- [ ] **Step 5: Commit**
+- [x] **Step 4: Run `uv run --locked pytest tests/validation -v`, expect PASS**
+- [x] **Step 5: Commit**
   `fix: keep group objects out of the link line's fingerprint`
 
 ### Task 6: #86, the runners' identities (items 2, 3)
@@ -337,7 +337,7 @@ also fingerprints the build a second time after its run (about 8 s).
   passes this run saved for it, as `_ctest._forget` does, and keeps its
   failures.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
   - `test_loaded_files_leave_out_the_selection_machinery`: with
     `validation._groups` imported, `loaded_files` names no file of
     `SELECTION`, and still names `validation/_cases.py`.
@@ -346,12 +346,12 @@ also fingerprints the build a second time after its run (about 8 s).
     all: once before, once after.
   - `test_a_group_edited_while_the_runner_ran_is_not_recorded` stays and
     must pass unchanged.
-- [ ] **Step 2: Run, expect FAIL**
-- [ ] **Step 3: Implement.** Move `release` into `_version.py` and point
+- [x] **Step 2: Run, expect FAIL**
+- [x] **Step 3: Implement.** Move `release` into `_version.py` and point
   `_groups` and `_cases` at it. Add `SELECTION` and filter
   `loaded_files` by it. Move the after-run check from `run_one` into `main`.
-- [ ] **Step 4: Run `uv run --locked pytest tests/validation -v`, expect PASS**
-- [ ] **Step 5: Commit**
+- [x] **Step 4: Run `uv run --locked pytest tests/validation -v`, expect PASS**
+- [x] **Step 5: Commit**
   `fix: keep the selection modules out of a runner's identity`
 
 ### Task 7: #86, the latent loud failures (items 5, 6, 7, 8)
@@ -365,7 +365,7 @@ also fingerprints the build a second time after its run (about 8 s).
 - Test: `tests/engine/test_groups_manifest.py`,
   `tests/validation/test__audit.py`, `test__pytest_sets.py`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
   - `test_a_name_with_a_quote_or_backslash_writes_valid_json`: by
     `cmake -P`, as the manifest tests do.
   - `test_paths_spelt_differently_overlap`: `_overlap("a/./b", "a//b/")`
@@ -375,13 +375,13 @@ also fingerprints the build a second time after its run (about 8 s).
   - `test_an_unreadable_manifest_is_named_before_any_fix`: an unreadable
     manifest and a claim outside `tests/src`. The output gives the
     unreadable reason first, not "claim them in a group's PYTHON_TESTS".
-- [ ] **Step 2: Run, expect FAIL**
-- [ ] **Step 3: Implement.** Build the manifest with `string(JSON ... SET)`
+- [x] **Step 2: Run, expect FAIL**
+- [x] **Step 3: Implement.** Build the manifest with `string(JSON ... SET)`
   (CMake 3.29 is the floor). Use `posixpath.normpath` in `_overlap`. Have
   `ran` return the files in no group for `run` to print. Have `_manifest`
   return its reason with the empty dict.
-- [ ] **Step 4: Run the three test files, expect PASS**
-- [ ] **Step 5: Commit** `fix: name what the group checks could not read`
+- [x] **Step 4: Run the three test files, expect PASS**
+- [x] **Step 5: Commit** `fix: name what the group checks could not read`
 
 ### Task 8: #86, the latent hidden changes and the tidying
 
@@ -413,7 +413,7 @@ Items 9 to 12 and 14 to 16, with `HANDOFF.md`'s record helpers and the
 - `_record.environment` is deleted and its tests inline it.
 - A whole task never asked `why` (today `test`) saves `files={}`.
 
-- [ ] **Step 1: Write the failing tests**, one per decision:
+- [x] **Step 1: Write the failing tests**, one per decision:
   - `test_a_submodule_checked_out_elsewhere_changes_the_shared_part`
   - `test_a_response_files_contents_change_its_entry`
   - `test_another_packages_dev_version_is_kept`
@@ -421,13 +421,13 @@ Items 9 to 12 and 14 to 16, with `HANDOFF.md`'s record helpers and the
   - `test_the_test_tasks_record_keeps_no_files`
   - `test_passed_and_reasons_read_records_from_checks`: imports them from
     `_checks`.
-- [ ] **Step 2: Run, expect FAIL**
-- [ ] **Step 3: Implement.** Also: `_record` uses `_checks.UNREADABLE`;
+- [x] **Step 2: Run, expect FAIL**
+- [x] **Step 3: Implement.** Also: `_record` uses `_checks.UNREADABLE`;
   `__main__.py:49` uses `groups if groups is not None else ...`; the
   stand-in task in `test_tasks.py:476-501` uses `module=("core",)`.
-- [ ] **Step 4: Run `uv run --locked pytest tests/validation tests/checks -v`,
+- [x] **Step 4: Run `uv run --locked pytest tests/validation tests/checks -v`,
   expect PASS**
-- [ ] **Step 5: Close #86,** listing item 13 as waiting for the first
+- [x] **Step 5: Close #86,** listing item 13 as waiting for the first
   runner. Remove the HANDOFF items. Commit
   `fix: hash what the build reads in the group fingerprints`
 
@@ -449,15 +449,15 @@ Items 9 to 12 and 14 to 16, with `HANDOFF.md`'s record helpers and the
   still run.
 - The `sql` task's compiler tool is `${CXX:-c++}`, as `compiler-stamp` uses.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
   - `test_corrupt_ctest_output_is_refused_with_a_fix`
   - `test_a_missing_program_is_a_failed_step_with_a_fix`
   - `test_a_mutant_outside_the_engine_is_refused_with_a_fix`
   - `test_the_sql_task_reads_the_compiler_cxx_names`
-- [ ] **Step 2: Run, expect FAIL**
-- [ ] **Step 3: Implement**
-- [ ] **Step 4: Run `uv run --locked pytest tests/validation -v`, expect PASS**
-- [ ] **Step 5: Commit** `fix: give the checks a Fix line, not a traceback`
+- [x] **Step 2: Run, expect FAIL**
+- [x] **Step 3: Implement**
+- [x] **Step 4: Run `uv run --locked pytest tests/validation -v`, expect PASS**
+- [x] **Step 5: Commit** `fix: give the checks a Fix line, not a traceback`
 
 ### Task 10: #85, the flags' tests read what the build uses (items 11, 12, 13, 16)
 
@@ -467,7 +467,7 @@ Items 9 to 12 and 14 to 16, with `HANDOFF.md`'s record helpers and the
 - Modify: `engine/cmake/hardening.cmake:227` (link options only on linked
   targets)
 
-- [ ] **Step 1: Strengthen the tests**
+- [x] **Step 1: Strengthen the tests**
   - `test_fp_contract_is_off_in_every_target`: strips CMake comments, then
     asserts `-ffp-contract=off` is set and used in `sq_target_warnings`.
   - `test_the_wheel_compiles_with_every_warning`: parses `SQ_WARNINGS` from
@@ -479,13 +479,13 @@ Items 9 to 12 and 14 to 16, with `HANDOFF.md`'s record helpers and the
   - `test_link_options_go_only_on_linked_targets`: by `cmake -P` or text,
     `sq_target_options` adds link options only to `EXECUTABLE`,
     `SHARED_LIBRARY` and `MODULE_LIBRARY`.
-- [ ] **Step 2: Run, expect the last to FAIL.** The first three may pass
+- [x] **Step 2: Run, expect the last to FAIL.** The first three may pass
   today; they guard more than before. Note it.
-- [ ] **Step 3: Guard `target_link_options` by `get_target_property(...
+- [x] **Step 3: Guard `target_link_options` by `get_target_property(...
   TYPE)`**
-- [ ] **Step 4: `uv run --locked pytest tests/engine/test_presets.py -v`,
+- [x] **Step 4: `uv run --locked pytest tests/engine/test_presets.py -v`,
   then `just test`, expect PASS**
-- [ ] **Step 5: Commit** `fix: link options only on targets that link`
+- [x] **Step 5: Commit** `fix: link options only on targets that link`
 
 ### Task 11: #85, the recipes (items 3, 5, 14)
 
@@ -505,16 +505,16 @@ Items 9 to 12 and 14 to 16, with `HANDOFF.md`'s record helpers and the
 - `probe-cxx26` replaces `|` in an error line with `/`, and finds Apple
   clang by `xcrun --find clang++`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
   - `test_doctor_names_llvm_by_the_justfile_variable`: no
     `/opt/homebrew/opt/llvm` literal in the recipe's body.
   - `test_setup_fetches_no_nested_submodule_but_duckdbs`: the recipe, read
     by `just --dump`.
   - `test_the_pins_fix_names_the_same_fetch_as_setup`
-- [ ] **Step 2: Run, expect FAIL**
-- [ ] **Step 3: Implement**
-- [ ] **Step 4: Run the two test files, expect PASS**
-- [ ] **Step 5: Commit** `fix: fetch only the submodules the build uses`
+- [x] **Step 2: Run, expect FAIL**
+- [x] **Step 3: Implement**
+- [x] **Step 4: Run the two test files, expect PASS**
+- [x] **Step 5: Commit** `fix: fetch only the submodules the build uses`
 
 ### Task 12: #85, small engine edits (items 6, 7, 22, 23, 24)
 
@@ -533,7 +533,7 @@ Items 9 to 12 and 14 to 16, with `HANDOFF.md`'s record helpers and the
 - Test: `tests/engine/test_extension.py`, `tests/engine/test_sanitizers.py`,
   `engine/tests/` for the demangling
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
   - In `test_nothing_downloads_by_itself`, add
     `assert duckdb.sql(AUTOINSTALL).fetchone() == (False,)`. It may pass
     today: it guards the default connection.
@@ -542,12 +542,12 @@ Items 9 to 12 and 14 to 16, with `HANDOFF.md`'s record helpers and the
     `std::runtime_error`. Put it in the bindings' group test program if one
     exists; if the guard is reachable only from Python, add no test-only
     binding and say so in the report.
-- [ ] **Step 2: Run, expect FAIL**
-- [ ] **Step 3: Implement**
-- [ ] **Step 4: Run `just test`, then `just sanitize` and `just mutate-engine`**
+- [x] **Step 2: Run, expect FAIL**
+- [x] **Step 3: Implement**
+- [x] **Step 4: Run `just test`, then `just sanitize` and `just mutate-engine`**
   (Global Constraints). Name every survivor; record new survivors in
   `engine/mull.yml` only with a reason the source gives.
-- [ ] **Step 5: Commit** `fix: name a C++ exception by its demangled type`
+- [x] **Step 5: Commit** `fix: name a C++ exception by its demangled type`
 
 ### Task 13: A submodule with local edits fails the configure
 
@@ -812,15 +812,15 @@ images by `atos`, a shared-cache library through the reader's own process
 
 ### Task 22: Close the work
 
-- [ ] **Step 1: Comment on #85.** Say what Tasks 9 to 21 fixed, the
+- [x] **Step 1: Comment on #85.** Say what Tasks 9 to 21 fixed, the
   "Decisions for Tomas" with his answers, and the items left with their
   reasons. Leave it open for steps 3 and 4.
-- [ ] **Step 2: Update `HANDOFF.md`.** Move the finished items to "Just
+- [x] **Step 2: Update `HANDOFF.md`.** Move the finished items to "Just
   finished" with their commits. "Next up" item 1 becomes done; item 2, the
   benchmark queue, is next.
-- [ ] **Step 3: Docs.** Update `docs/architecture/testing.md` where it
+- [x] **Step 3: Docs.** Update `docs/architecture/testing.md` where it
   describes what Tasks 5 to 9 changed (the link line, runners' `depends`,
   `Fix:` lines). Run `/docs-sync` if more moved.
-- [ ] **Step 4: `git mv` this plan to `docs/plans/archived/`**
-- [ ] **Step 5: `just done`, expect PASS;** name every failure.
-- [ ] **Step 6: Commit** `docs: close the tooling fixes`
+- [x] **Step 4: `git mv` this plan to `docs/plans/archived/`**
+- [x] **Step 5: `just done`, expect PASS;** name every failure.
+- [x] **Step 6: Commit** `docs: close the tooling fixes`
