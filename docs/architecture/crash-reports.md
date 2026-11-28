@@ -86,8 +86,10 @@ just crash-report ~/sqlearn-crash-20261128-101500-4242.txt --map ~/sqlearn-1.0.0
 ```
 
 The reader checks the report's build line against the `.build` file and
-refuses a map of another build, which would name the frames wrongly. It
-reads reports on macOS and on Linux.
+refuses a map of another build, which would name the frames wrongly. The
+line ends with the system and processor the build was for (`Linux x86_64`,
+`Linux aarch64`, `Darwin arm64`), since a release's platforms share every
+other part of it. It reads reports on macOS and on Linux.
 
 **Where the names come from.** The module is linked with nanobind's `-x -S`,
 which drops every local symbol, so none of sqlearn's functions (hidden by
@@ -100,7 +102,12 @@ DuckDB's library, extensions and Python module, nanobind, cpptrace. Other
 images are named by `atos` on macOS and `addr2line` on Linux, and owned by
 Python (its library, program or extension modules) or the system. ld64 writes
 the map on macOS and GNU ld (manylinux's GCC) on Linux, each in its own
-format; the reader takes both. A library of the system's shared cache is
+format; the reader takes both. GNU ld's map lists only the link's global
+symbols, so sqlearn's own code is built on Linux with each function in its
+own section (`-ffunction-sections`), whose name names a function of internal
+linkage too; DuckDB's is not, so on Linux a frame in one of DuckDB's
+internal functions is named after the DuckDB function before it, and is
+still owned by DuckDB. A library of the system's shared cache is
 named through the reader's own process (`atos -p`), where it sits at the
 same address until the next boot: its file on disk is not the copy that
 ran, and `atos -o` on it gives wrong names. After a reboot those frames may

@@ -118,6 +118,10 @@ GNU_SECTION_NAME = re.compile(r"^ (\.\S+)$")
 GNU_SECTION_REST = re.compile(r"^\s+0x([0-9a-fA-F]+)\s+0x([0-9a-fA-F]+)\s+(\S.*)$")
 """The rest of a long input section's line: address, size, object file."""
 
+GNU_SECTION_FUNCTION = re.compile(r"^\.text(?:\.(?:unlikely|hot|startup|exit))?\.(.+)$")
+"""A function's own section (-ffunction-sections): its mangled name after
+``.text.``, or after ``.text.unlikely.`` for GCC's cold part of it."""
+
 GNU_SYMBOL = re.compile(r"^\s+0x([0-9a-fA-F]+)\s+(\S+)$")
 """A symbol of the input section above it: address, name."""
 
@@ -179,8 +183,14 @@ def _gnu_symbols(text: str) -> list[Symbol]:
 
     A symbol runs to the next one in its input section, the last to the
     section's end; several names at one address (a constructor's aliases)
-    are one symbol, the first named. Only ``.text`` input sections hold
-    code; the discarded ones come before `GNU_START` and are not read.
+    are one symbol, the first named. GNU ld lists only the link's global
+    symbols, so a function of internal linkage (an anonymous namespace's, a
+    static one, GCC's cold part) has no symbol line: in its own section
+    (-ffunction-sections, as sqlearn's own code is built on Linux) it is
+    named from the section's name; in an object without them it falls in
+    the global function before it, whose owner is its own. Only ``.text``
+    input sections hold code; the discarded ones come before `GNU_START`
+    and are not read.
     """
     symbols: list[Symbol] = []
     section: tuple[str, int, int, str] | None = None
@@ -189,7 +199,10 @@ def _gnu_symbols(text: str) -> list[Symbol]:
 
     def flush() -> None:
         if section is not None and section[0].startswith(".text"):
-            _, start, size, source = section
+            name, start, size, source = section
+            own = GNU_SECTION_FUNCTION.match(name)
+            if not names and own and size > 0:
+                symbols.append(Symbol(start, size, own.group(1), source))
             starts = sorted({a for a, _ in names})
             first = {}
             for address, name in names:

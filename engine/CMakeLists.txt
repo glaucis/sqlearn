@@ -63,10 +63,14 @@ set(SQ_CORE_SOURCES src/core/error.cpp src/core/parse_version.cpp src/core/versi
 function(sq_build_identity source)
   set(SQ_COMPILER "${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
   set(SQ_BUILD_TYPE "${CMAKE_BUILD_TYPE}")
+  # The system and processor built for: two platforms' wheels of one release
+  # share every other field, and a crash report read with another
+  # platform's map must not pass the reader's check (just crash-report).
+  set(SQ_TARGET "${CMAKE_SYSTEM_NAME} ${CMAKE_SYSTEM_PROCESSOR}")
   foreach(
     name
     IN
-    ITEMS SQ_SQLEARN_VERSION SQ_DUCKDB_VERSION SQ_DUCKDB_COMMIT SQ_COMPILER SQ_BUILD_TYPE
+    ITEMS SQ_SQLEARN_VERSION SQ_DUCKDB_VERSION SQ_DUCKDB_COMMIT SQ_COMPILER SQ_BUILD_TYPE SQ_TARGET
   )
     if("${${name}}" MATCHES "[\"\\\\\n]")
       message(

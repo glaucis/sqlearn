@@ -29,9 +29,9 @@ void raise_internal(const std::string &message) {
 
 namespace {
 
-/// Return the build identity as a dictionary of its five fields.
-/// @return sqlearn_version, duckdb_version, duckdb_commit, compiler and
-///         build_type, each a string.
+/// Return the build identity as a dictionary of its six fields.
+/// @return sqlearn_version, duckdb_version, duckdb_commit, compiler,
+///         build_type and target, each a string.
 nb::dict build_identity() {
     return sq::bindings::guarded([] {
         const auto identity = sq::core::build_identity();
@@ -41,6 +41,7 @@ nb::dict build_identity() {
         out["duckdb_commit"] = identity.duckdb_commit;
         out["compiler"] = identity.compiler;
         out["build_type"] = identity.build_type;
+        out["target"] = identity.target;
         return out;
     });
 }

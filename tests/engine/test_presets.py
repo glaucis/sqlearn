@@ -578,3 +578,18 @@ def test_every_flavour_hardens_whichever_standard_library_it_gets(
         tmp_path, shutil.which(compiler) or compiler, flavour
     )
     assert found == expected
+
+
+def test_our_linux_code_gives_each_function_its_own_section() -> None:
+    """GNU ld's map lists no function of internal linkage; in its own section
+    (-ffunction-sections) the crash report reader names it from the section.
+    Every flavour of our targets on Linux takes it (sq_target_flavor)."""
+    text = _code((ENGINE / "cmake" / "hardening.cmake").read_text())
+    body = text.split("function(sq_target_flavor target)", 1)[1].split(
+        "endfunction()", 1
+    )[0]
+    linux = re.search(
+        r'if\(CMAKE_SYSTEM_NAME STREQUAL "Linux"\)(.*?)endif\(\)', body, re.DOTALL
+    )
+    assert linux is not None
+    assert "-ffunction-sections" in linux.group(1)

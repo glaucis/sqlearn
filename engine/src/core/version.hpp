@@ -13,6 +13,7 @@ struct BuildIdentity {
     std::string duckdb_commit;   ///< The DuckDB commit the build is pinned to.
     std::string compiler;        ///< The C++ compiler's name and version.
     std::string build_type;      ///< The CMake build type, such as Release.
+    std::string target;          ///< The system and processor, such as "Darwin arm64".
 };
 
 /// Return this build's identity.

@@ -383,3 +383,33 @@ def test_linux_frames_outside_the_module_go_to_addr2line(monkeypatch):
         cr.Named("pc", "system", "strlen"),
         cr.Named("#0", "system", ""),
     ]
+
+
+# GNU ld lists only the link's global symbols: a function of internal
+# linkage (an anonymous namespace's, a static one) or GCC's cold part of a
+# function, each in its own section under -ffunction-sections, comes with
+# no symbol line; its section's name holds its mangled name.
+GNU_LOCAL_MAP = """Linker script and memory map
+
+.text           0x0000000000001000     0x1000
+ .text.unlikely._ZN2sq4core8describeERKNS0_13BuildIdentityE
+                0x0000000000001000       0x10 CMakeFiles/sq_core.dir/src/core/version.cpp.o
+ .text._ZN2sq5crash12_GLOBAL__N_19on_signalEi
+                0x0000000000001010       0x30 CMakeFiles/sq_crash.dir/src/crash/handler.cpp.o
+ .text._ZN2sq4core8describeERKNS0_13BuildIdentityE
+                0x0000000000001040       0x20 CMakeFiles/sq_core.dir/src/core/version.cpp.o
+                0x0000000000001040                _ZN2sq4core8describeERKNS0_13BuildIdentityE
+"""  # noqa: E501 (the map's own columns)
+
+
+def test_a_gnu_maps_local_function_is_named_from_its_section():
+    """A section with no symbol line is its function: named from the
+    section's name, owned by its object, never folded into a neighbour."""
+    symbols = cr.Map(GNU_LOCAL_MAP)
+    assert [
+        (s.start, s.size, s.name, cr.owner_of_object(s.source)) for s in symbols.symbols
+    ] == [
+        (0x1000, 0x10, "_ZN2sq4core8describeERKNS0_13BuildIdentityE", "sqlearn"),
+        (0x1010, 0x30, "_ZN2sq5crash12_GLOBAL__N_19on_signalEi", "sqlearn"),
+        (0x1040, 0x20, "_ZN2sq4core8describeERKNS0_13BuildIdentityE", "sqlearn"),
+    ]

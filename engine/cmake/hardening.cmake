@@ -264,6 +264,12 @@ endmacro()
 # runtime in the coverage flavour.
 function(sq_target_flavor target)
   target_compile_options(${target} PRIVATE ${SQ_FLAVOR_OPTIONS} ${SQ_SANITIZERS})
+  # On Linux each function in its own section: GNU ld's map, which names a
+  # crash report's frames (validation/_crash_report.py), lists no function of
+  # internal linkage, and its section's name is the reader's only name for it.
+  if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    target_compile_options(${target} PRIVATE -ffunction-sections)
+  endif()
   target_compile_definitions(${target} PRIVATE ${SQ_HARDENING})
   # Link options mean something only to a target that links: a program, a
   # shared library or a module. A static or object library is archived, not
