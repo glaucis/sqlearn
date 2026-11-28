@@ -2,7 +2,7 @@
 type: task
 tags: [ci, release, linux, macos, github-actions, documentation-site]
 summary: "Implementation plan for step 3 of the native engine: GitHub release-tier workflows on macOS and Linux, plus the GitHub Pages documentation site."
-related: [docs/specs/native-engine-phase-1.md, HANDOFF.md, ADR 0062, ADR 0063, ADR 0071, ADR 0065, ADR 0046, ADR 0072]
+related: [docs/specs/native-engine-phase-1.md, HANDOFF.md, docs/adr/0062-apple-silicon-first.md, docs/adr/0063-the-engines-compute-libraries.md, docs/adr/0071-fused-multiply-add-only-on-purpose.md, docs/adr/0065-safety-rules-for-the-cpp.md, docs/adr/0046-sqlearn-warns-the-user-chooses.md, docs/adr/0072-benchmarks-run-on-tomass-go-ahead.md]
 mdindex: [type=0ebb42, tags=42c6c6, summary=98a63c, related=f8bc99]
 ---
 # The workflows and the site: implementation plan
