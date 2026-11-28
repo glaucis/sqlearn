@@ -65,6 +65,13 @@ def presets(root: Path) -> list[str]:
     return out
 
 
+def _profile_needs_samply(root: Path) -> bool:
+    """Return whether a profile is due and samply is missing."""
+    return shutil.which("samply") is None and any(
+        i.kind == "profile" for i in _bench.due(root)
+    )
+
+
 def _newest(root: Path, item: _bench.Due) -> dict[str, Any]:
     key = "profile" if item.kind == "profile" else "bench"
     records = _checks.load(_checks.record_dir(root), f"{key}-{item.name}")
@@ -148,7 +155,11 @@ def run(
             code = 1
             break
         runner = _bench.run if item.kind == "bench" else _profile.run
-        status = runner(root, item.name)
+        try:
+            status = runner(root, item.name)
+        except _groups.Unreadable as error:
+            print(f"{item.kind} {item.name}: {error}")  # noqa: T201
+            status = 1
         if status == 0:
             results[index] = "ran"
         else:
@@ -167,6 +178,12 @@ def cli(argv: Sequence[str], root: Path | None = None) -> int:
     here = root or Path.cwd()
     try:
         if argv == ["presets"]:
+            if _profile_needs_samply(here):
+                print(  # noqa: T201
+                    "samply is not installed.\nFix: brew install samply",
+                    file=sys.stderr,
+                )
+                return 1
             for preset in presets(here):
                 print(preset)  # noqa: T201
             return 0

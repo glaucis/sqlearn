@@ -231,3 +231,37 @@ def test_an_unreadable_manifest_stops_the_presets_on_stderr(fakes, monkeypatch, 
     captured = capsys.readouterr()
     assert captured.out == ""
     assert "no manifest" in captured.err
+
+
+def test_an_unreadable_item_is_reported_and_the_queue_goes_on(
+    fakes, monkeypatch, capsys
+):
+    """A manifest that cannot be read fails one item, not the report."""
+    _set_due(monkeypatch, [_due("bench_a"), _due("bench_b")])
+    run_a = _bench.run
+
+    def broken(root, name):
+        if name == "bench_a":
+            raise _queue._groups.Unreadable("no manifest")
+        return run_a(root, name)
+
+    monkeypatch.setattr(_bench, "run", broken)
+    assert _run(fakes) == 1
+    out = capsys.readouterr().out
+    assert "no manifest" in out
+    assert "failed" in out
+    assert "Queue report:" in out
+    assert ("bench", "bench_b") in fakes.calls
+
+
+def test_the_presets_stop_when_a_profile_is_due_and_samply_is_missing(
+    fakes, monkeypatch, capsys
+):
+    """No samply with a profile due: exit 1 and the fix, so nothing is built."""
+    _set_due(monkeypatch, [_due("bench_a"), _due("bench_a", "profile")])
+    monkeypatch.setattr(_queue.shutil, "which", lambda name: None)
+    assert _queue.cli(["presets"], fakes.root) == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "samply is not installed." in captured.err
+    assert "Fix: brew install samply" in captured.err

@@ -644,22 +644,23 @@ does. A failed samply, a stale profile build, or a recording that cannot be
 summarised saves no record and says why (with a `Fix:` line), and removes the
 directory.
 
-`just bench-queue` (`validation/_queue.py`) runs every due item on one
-go-ahead from Tomas (ADR 0081, ADR 0072). It builds the `release` preset when
-a due benchmark is a `bench_` program and the `profile` preset when a profile
-is due (`python -m validation._queue presets` names them), then runs the queue.
-With nothing due it says `nothing is due`. A profile due and samply missing
-stops it before anything runs (`Fix: brew install samply`). It waits for an
-idle machine for at most 30 minutes (the 1-minute load below a quarter of the
-cores, looked at every 30 s); never idle, it runs nothing, prints the load and
-the threshold, and exits 3. The order is each name's benchmark and then its
-profile when both are due; an item due alone runs alone. Before each later item
-it waits for idle again for at most 5 minutes, since the previous item's own
-threads linger in the 1-minute average; still busy, it stops, keeps what it
-recorded and lists what is left (exit 1). A failed item is reported with its
-exit code and the queue goes on (exit 1 at the end). The report has one line per
-item (`ran`, `failed (exit N)` or `not run`); a `ran` line has its wall
-time and the load before and after, and a profile its `compare.md` path.
+`just bench-queue` (`validation/_queue.py`) runs every due item on one go-ahead
+from Tomas (ADR 0081, ADR 0072). It builds the `release` preset when a due
+benchmark is a `bench_` program and the `profile` preset when a profile is due
+(`python -m validation._queue presets` names them), then runs the queue. With
+nothing due it says `nothing is due`. A profile due and samply missing stops it
+before anything is built or run (`Fix: brew install samply`, from `presets`
+already). It waits for an idle machine for at most 30 minutes (the 1-minute load
+below a quarter of the cores, looked at every 30 s); never idle, it runs
+nothing, prints the load and the threshold, and exits 3. The order is each
+name's benchmark and then its profile when both are due; an item due alone runs
+alone. Before each later item it waits for idle again for at most 5 minutes,
+since the previous item's own threads linger in the 1-minute average; still
+busy, it stops, keeps what it recorded and lists what is left (exit 1). A failed
+item (or one whose manifest cannot be read) is reported and the queue goes on
+(exit 1 at the end). The report has one line per item (`ran`, `failed (exit N)`
+or `not run`); a `ran` line has its wall time and the load before and after, and
+a profile its `compare.md` path.
 
 ## The validation runners
 
