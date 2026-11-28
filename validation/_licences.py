@@ -15,8 +15,10 @@ writes):
   ``site-packages`` is gone once the build ends;
 - every row's licence is one ADR 0066 allows (:data:`ALLOWED`): AND needs
   each term allowed, OR one of them, and a WITH exception is refused;
-- every row's licence text, when a path, is a file of the repository, and
-  ``NOTICE`` has a section (``## <library>``) for every row;
+- every row's licence text, when a path, is a file of the repository whose
+  SHA-256 is the row's digest (its last column), so a licence changed by a
+  submodule bump is read again before the row passes, and ``NOTICE`` has a
+  section (``## <library>``) for every row;
 - every input of ``_duckdb``'s link, read from the build's ``build.ninja``,
   was built in the build directory or is the system's (:data:`SYSTEM_LINK`):
   the compile database lists compiled sources, never a prebuilt archive;
@@ -29,6 +31,7 @@ every run.
 """
 
 import fnmatch
+import hashlib
 import json
 import re
 import shlex
@@ -139,6 +142,8 @@ class Row:
     """Its licence text: a path of the repository or a URL."""
     paths: tuple[str, ...]
     """Where its code is compiled from, as :func:`_matches` reads them."""
+    digest: str = ""
+    """Its licence text's SHA-256 when the text is a file, a dash when a URL."""
 
 
 def rows(markdown: str) -> list[Row]:
@@ -172,6 +177,7 @@ def rows(markdown: str) -> list[Row]:
                 spdx=cells[2],
                 text=link.group(1) if link else "",
                 paths=tuple(re.findall(r"`([^`]+)`", cells[4])),
+                digest=cells[5] if len(cells) > 5 else "",
             )
         )
     return found
@@ -364,6 +370,26 @@ def _licence_problem(what: str, name: str, expression: str) -> str | None:
     )
 
 
+def _digest_problem(row: Row, text: Path) -> str | None:
+    """Return the problem with `row`'s digest of its licence file `text`, or
+    None when the row pins the file as it is."""
+    actual = hashlib.sha256(text.read_bytes()).hexdigest()
+    if row.digest == actual:
+        return None
+    if not row.digest or row.digest in ("—", "-"):
+        return (
+            f"{row.name}'s licence text {row.text} has no digest in "
+            f"THIRD_PARTY.md.\nFix: read {row.text}, check the row's licence "
+            f"against it, then put its SHA-256, {actual}, in the row's last column"
+        )
+    return (
+        f"{row.name}'s licence text {row.text} changed since its row was "
+        f"checked: its SHA-256 is {actual}, the row pins {row.digest}.\nFix: "
+        f"read the new text, set the row's licence to what it says, then its "
+        f"digest to {actual}"
+    )
+
+
 def _link_statement(build: Path) -> str | None:
     """Return the text of ``_duckdb``'s link statement in ``build.ninja``,
     its continued lines joined and its variables after it; None when there
@@ -520,6 +546,10 @@ def problems(repo: Path, numpy_expression: str | None) -> list[str]:
                 "repository.\nFix: link the licence file in its submodule, or its "
                 "URL at the pinned tag"
             )
+        elif row.text and not re.match(r"https?://", row.text):
+            digest_problem = _digest_problem(row, repo / row.text)
+            if digest_problem:
+                found.append(digest_problem)
     notice_path = repo / "NOTICE"
     notice = notice_path.read_text(encoding="utf-8") if notice_path.is_file() else ""
     sections = {

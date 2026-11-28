@@ -463,7 +463,9 @@ them.
 **The licence check.** `just check-licences` (`validation/_licences.py`)
 checks `THIRD_PARTY.md` and `NOTICE` against the wheel's last build: every
 file compiled in lies in a listed library, every licence is one ADR 0066
-allows, and `_duckdb` links nothing from outside its build. `just test` runs
+allows, each licence file has the SHA-256 its row pins (a text a submodule
+bump changed is read again before the row passes), and `_duckdb` links
+nothing from outside its build. `just test` runs
 it as a test, and `just verify` runs it on its own.
 
 ## Selecting by group

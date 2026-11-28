@@ -88,7 +88,7 @@ the last one (Tasks 13 to 21); the last, Task 22, closes the work.
 | Duplicate flavour flags | Clear CMake's config flags for our targets (keeping `-DNDEBUG` where it is now), or leave | Clear them, `-DNDEBUG` moved into the release flavours, with a test that `assert` stays off there | 16 |
 | Bindings in headers-alone | Configure duckdb-python in a preset, or accept | Add a preset, so `just headers-alone` builds the bindings' headers with LLVM too | 17 |
 | Fuzz corpus cap | Pick `-max_len` and a size cap, or none | `-max_len=4096`, and per target at most 500 files and 1 MB | 18 |
-| Licence column | Pin each licence file's digest beside its row, or trust the column | Pin them: the 27 rows whose text is a file here; the 5 web links stay trusted | 19 |
+| Licence column | Pin each licence file's digest beside its row, or trust the column | Pin them: the 28 rows whose text is a file here; the 5 web links stay trusted | 19 |
 | Per-thread `sigaltstack` | Hook DuckDB's thread start, or main thread only | Main thread only, written down in the crash docs; no thread has one today | 20 |
 | Mutation-test the crash group | Add `test_crash` to Mull, or not | Not yet: forking tests under Mull are slow and flaky | — |
 | SQL tests without a build | Configure the sqllogic tree in the test, or keep the skip | Keep the skip: the `sql` task builds it | — |
@@ -711,16 +711,21 @@ relicensed in a submodule bump would pass unseen.
 **Files:** Modify `THIRD_PARTY.md` (a digest column), `validation/_licences.py`.
 Test: `tests/validation/test__licences.py`.
 
-- [ ] **Step 1: Write the failing tests:** a row whose licence file's
+- [x] **Step 1: Write the failing tests:** a row whose licence file's
   SHA-256 differs from its digest is a problem naming the file and `Fix:`
   (read the new text, set the row's licence, then its digest); a row whose
   licence text is a web link needs no digest; a file row without one is a
   problem.
-- [ ] **Step 2: Run, expect FAIL**
-- [ ] **Step 3: Check the digests in `problems()`;** add the 27 file rows'
+- [x] **Step 2: Run, expect FAIL**
+- [x] **Step 3: Check the digests in `problems()`;** add the 28 file rows'
   digests, each file read first to confirm its row's licence.
-- [ ] **Step 4: Run the tests and `just check-licences`, expect PASS**
-- [ ] **Step 5: Commit** `feat: pin each licence text by its digest`
+- [x] **Step 4: Run the tests and `just check-licences`, expect PASS**
+- [x] **Step 5: Commit** `feat: pin each licence text by its digest`
+
+**As built:** 28 rows are files, pinned in a last column, and 5 are web
+links, a dash. HyperLogLog's BSD-3 part (Redis's sds) is stated in its
+source headers, not its LICENSE, so its digest covers the MIT text alone;
+`THIRD_PARTY.md` says so.
 
 ### Task 20: The crash handler's three gaps
 

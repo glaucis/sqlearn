@@ -1,6 +1,7 @@
 """The licence check (``just check-licences``): THIRD_PARTY.md against the
 wheel's build, ADR 0066's licences, and numpy's declared licence."""
 
+import hashlib
 import json
 from importlib import metadata
 from pathlib import Path
@@ -15,15 +16,21 @@ HEADER = """# Third-party code
 
 ## Compiled into the wheel
 
-| Library | Version | Licence | Licence text | Compiled from |
-| --- | --- | --- | --- | --- |
+| Library | Version | Licence | Licence text | Compiled from | Licence text's SHA-256 |
+| --- | --- | --- | --- | --- | --- |
 """
 
+LICENCE = "licence\n"
+"""The scratch repository's LICENSE, every row's licence text by default."""
 
-def row(name, spdx, paths, text="LICENSE"):
+PINNED = hashlib.sha256(LICENCE.encode()).hexdigest()
+"""Its SHA-256, each row's digest by default."""
+
+
+def row(name, spdx, paths, text="LICENSE", digest=PINNED):
     """One table row of THIRD_PARTY.md's shipped table."""
     cells = " ".join(f"`{p}`" for p in paths)
-    return f"| {name} | 1.0 | {spdx} | [LICENSE]({text}) | {cells} |\n"
+    return f"| {name} | 1.0 | {spdx} | [LICENSE]({text}) | {cells} | {digest} |\n"
 
 
 def scratch(tmp_path, rows, compiled, includes=(), notice=None):
@@ -33,7 +40,7 @@ def scratch(tmp_path, rows, compiled, includes=(), notice=None):
     repo = tmp_path / "repo"
     build = repo / _groups.WHEEL_BUILD
     build.mkdir(parents=True)
-    (repo / "LICENSE").write_text("licence\n")
+    (repo / "LICENSE").write_text(LICENCE)
     (repo / "THIRD_PARTY.md").write_text(
         HEADER + "".join(rows) + "\n## Development only\n"
     )
@@ -165,6 +172,56 @@ def test_a_licence_file_that_is_not_there_fails(tmp_path):
     found = _licences.problems(repo, "MIT")
     assert len(found) == 1
     assert "third_party/fmt/LICENSE" in found[0]
+
+
+def test_a_licence_text_changed_since_its_row_fails(tmp_path):
+    """A licence file whose SHA-256 is not the row's digest is named, with both
+    digests and the fix: a human reads the new text before the row passes."""
+    repo = scratch(
+        tmp_path,
+        [row("fmt", "MIT", ["third_party/fmt"])],
+        ["third_party/fmt/format.cc"],
+    )
+    (repo / "LICENSE").write_text("GNU General Public License\n")
+    now = hashlib.sha256(b"GNU General Public License\n").hexdigest()
+    found = _licences.problems(repo, "MIT")
+    assert len(found) == 1
+    assert "fmt" in found[0]
+    assert "LICENSE" in found[0]
+    assert PINNED in found[0]
+    assert now in found[0]
+    assert "Fix:" in found[0]
+
+
+def test_a_licence_file_without_a_digest_fails(tmp_path):
+    """A row whose licence text is a file needs its digest."""
+    repo = scratch(
+        tmp_path,
+        [row("fmt", "MIT", ["third_party/fmt"], digest="")],
+        ["third_party/fmt/format.cc"],
+    )
+    found = _licences.problems(repo, "MIT")
+    assert len(found) == 1
+    assert "no digest" in found[0]
+    assert PINNED in found[0]
+
+
+def test_a_licence_link_needs_no_digest(tmp_path):
+    """A row whose licence text is a web page has none to pin: a dash."""
+    repo = scratch(
+        tmp_path,
+        [
+            row(
+                "cldr",
+                "Unicode-3.0",
+                ["third_party/cldr"],
+                text="https://x/l",
+                digest="—",
+            )
+        ],
+        ["third_party/cldr/a.c"],
+    )
+    assert _licences.problems(repo, "MIT") == []
 
 
 def test_notice_names_every_library(tmp_path):

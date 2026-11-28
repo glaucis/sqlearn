@@ -20,9 +20,14 @@ licence text and notices.
 the wheel's last build: every source file it compiled and every include
 directory it read lies in a library below, in sqlearn's own code or in the
 system's SDK; every input of `_duckdb`'s link (`build.ninja`) was built in
-that build or is the system's; every licence is one ADR 0066 allows; and
-numpy, the one runtime dependency, declares licences it allows too (ADR
-0066's amendment allows its 0BSD and CC0-1.0 for numpy alone). The paths are
+that build or is the system's; every licence is one ADR 0066 allows; every
+licence text that is a file has the SHA-256 the row's last column pins, so a
+text a submodule bump changed is read again, and the row's licence set to
+what it says, before the row passes (a web page's text has none to pin: a
+dash); and numpy, the one runtime dependency, declares licences it allows
+too (ADR 0066's amendment allows its 0BSD and CC0-1.0 for numpy alone). A
+digest pins the licence file alone: a licence stated only in a library's
+source headers (Redis's sds in HyperLogLog) is not covered by it. The paths are
 those of the build's compile database
 (`build/<cache tag>/compile_commands.json`): `<build>` is that build
 directory, and a path holding `*` is a pattern for a directory outside the
@@ -30,41 +35,41 @@ repository, such as the build environment's `site-packages`.
 
 ## Compiled into the wheel
 
-| Library | Version | Licence | Licence text | Compiled from |
-| --- | --- | --- | --- | --- |
-| DuckDB | 2.0.1 (`8d78114e90`) | MIT | [LICENSE](engine/duckdb-python/external/duckdb/LICENSE) | `engine/duckdb-python/external/duckdb/src` `engine/duckdb-python/external/duckdb/extension/core_functions` `engine/duckdb-python/external/duckdb/extension/json` `engine/duckdb-python/external/duckdb/extension/parquet` `engine/duckdb-python/external/duckdb/extension/icu` `engine/duckdb-python/external/duckdb/extension/loader` `engine/duckdb-python/external/duckdb/tools` `<build>/duckdb-python/duckdb` |
-| Unicode CLDR 48 and UCD 17.0.0 data, Unicode's time zone data (IANA 2026f), in DuckDB's icu extension | DuckDB 2.0.1's | Unicode-3.0 | [Unicode License v3](https://www.unicode.org/license.txt) | `engine/duckdb-python/external/duckdb/extension/icu/collation/generated` `engine/duckdb-python/external/duckdb/extension/icu/datetime/generated` |
-| duckdb-python | 2.0.1 (`de8eed7`) | MIT | [LICENSE](engine/duckdb-python/LICENSE) | `engine/duckdb-python/src` `<build>/duckdb-python` |
-| Brotli | 1.1.0 | MIT | [LICENSE](engine/duckdb-python/external/duckdb/third_party/brotli/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/brotli` |
-| concurrentqueue | DuckDB 2.0.1's | (BSD-2-Clause OR BSL-1.0) AND Zlib | [LICENSE](engine/duckdb-python/external/duckdb/third_party/concurrentqueue/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/concurrentqueue` |
-| fast_float | DuckDB 2.0.1's | MIT | [LICENSE](engine/duckdb-python/external/duckdb/third_party/fast_float/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/fast_float` |
-| FastPFor | DuckDB 2.0.1's | Apache-2.0 | [LICENSE](engine/duckdb-python/external/duckdb/third_party/fastpforlib/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/fastpforlib` |
-| {fmt} | 6.1.2 | MIT | [LICENSE](engine/duckdb-python/external/duckdb/third_party/fmt/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/fmt` |
-| FSST | DuckDB 2.0.1's | MIT | [LICENSE](engine/duckdb-python/external/duckdb/third_party/fsst/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/fsst` |
-| cpp-httplib | 0.53.1 | MIT | [LICENSE](engine/duckdb-python/external/duckdb/third_party/httplib/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/httplib` |
-| HyperLogLog, with Redis's sds | DuckDB 2.0.1's | MIT AND BSD-3-Clause | [LICENSE](engine/duckdb-python/external/duckdb/third_party/hyperloglog/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/hyperloglog` |
-| jaro_winkler | DuckDB 2.0.1's | MIT | [LICENSE](engine/duckdb-python/external/duckdb/third_party/jaro_winkler/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/jaro_winkler` |
-| LZ4 | 1.9.4 | BSD-2-Clause | [LICENSE](engine/duckdb-python/external/duckdb/third_party/lz4/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/lz4` |
-| Mbed TLS | 3.6.7 | Apache-2.0 OR GPL-2.0-or-later | [LICENSE](engine/duckdb-python/external/duckdb/third_party/mbedtls/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/mbedtls` |
-| miniz | 10.0.3 | MIT | [LICENSE](engine/duckdb-python/external/duckdb/third_party/miniz/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/miniz` |
-| Apache Parquet's Thrift definitions | DuckDB 2.0.1's | Apache-2.0 | [LICENSE](engine/duckdb-python/external/duckdb/third_party/parquet/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/parquet` |
-| PCG random | DuckDB 2.0.1's | MIT | [LICENSE](engine/duckdb-python/external/duckdb/third_party/pcg/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/pcg` |
-| pdqsort | DuckDB 2.0.1's | Zlib | [LICENSE](engine/duckdb-python/external/duckdb/third_party/pdqsort/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/pdqsort` |
-| RE2 | DuckDB 2.0.1's | BSD-3-Clause | [LICENSE](engine/duckdb-python/external/duckdb/third_party/re2/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/re2` |
-| ska_sort | DuckDB 2.0.1's | BSL-1.0 | [LICENSE](engine/duckdb-python/external/duckdb/third_party/ska_sort/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/ska_sort` |
-| SkipList | DuckDB 2.0.1's | MIT | [LICENSE](engine/duckdb-python/external/duckdb/third_party/skiplist/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/skiplist` |
-| Snappy | 1.2.1 | BSD-3-Clause | [LICENSE](engine/duckdb-python/external/duckdb/third_party/snappy/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/snappy` |
-| t-digest | DuckDB 2.0.1's | Apache-2.0 | [LICENSE](engine/duckdb-python/external/duckdb/third_party/tdigest/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/tdigest` |
-| Apache Thrift (C++ library) | DuckDB 2.0.1's | Apache-2.0 | [LICENSE](engine/duckdb-python/external/duckdb/third_party/thrift/thrift/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/thrift` |
-| utf8proc | 2.9.0 | MIT AND Unicode-DFS-2015 | [LICENSE](engine/duckdb-python/external/duckdb/third_party/utf8proc/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/utf8proc` |
-| vergesort | DuckDB 2.0.1's | MIT | [LICENSE](engine/duckdb-python/external/duckdb/third_party/vergesort/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/vergesort` |
-| yyjson | 0.9.0 | MIT | [LICENSE](engine/duckdb-python/external/duckdb/third_party/yyjson/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/yyjson` |
-| Zstandard | 1.5.6 | BSD-3-Clause OR GPL-2.0-only | [LICENSE](engine/duckdb-python/external/duckdb/third_party/zstd/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/zstd` |
-| nanobind | 3.1.0 | BSD-3-Clause | [LICENSE](https://github.com/wjakob/nanobind/blob/v3.1.0/LICENSE) | `*/site-packages/nanobind` |
-| robin-map (nanobind's) | 1.4.0 | MIT | [LICENSE](https://github.com/Tessil/robin-map/blob/v1.4.0/LICENSE) | `*/site-packages/nanobind/ext/robin_map` |
-| NumPy's C headers | 2.5.4 | BSD-3-Clause | [LICENSE.txt](https://github.com/numpy/numpy/blob/v2.5.4/LICENSE.txt) | `*/site-packages/numpy` |
-| CPython's C API headers | 3.12 (the stable ABI) | PSF-2.0 | [LICENSE](https://docs.python.org/3/license.html) | `*/include/python3.*` |
-| cpptrace, with its libdl symbol back-end | 1.0.4 (`3db8da8`) | MIT | [LICENSE](engine/third_party/cpptrace/LICENSE) | `engine/third_party/cpptrace` `<build>/third_party/cpptrace` |
+| Library | Version | Licence | Licence text | Compiled from | Licence text's SHA-256 |
+| --- | --- | --- | --- | --- | --- |
+| DuckDB | 2.0.1 (`8d78114e90`) | MIT | [LICENSE](engine/duckdb-python/external/duckdb/LICENSE) | `engine/duckdb-python/external/duckdb/src` `engine/duckdb-python/external/duckdb/extension/core_functions` `engine/duckdb-python/external/duckdb/extension/json` `engine/duckdb-python/external/duckdb/extension/parquet` `engine/duckdb-python/external/duckdb/extension/icu` `engine/duckdb-python/external/duckdb/extension/loader` `engine/duckdb-python/external/duckdb/tools` `<build>/duckdb-python/duckdb` | 075c33400ffcb0c586dd106a029d3e733e9da3693f8fcb9cebfc651c8a2f14e3 |
+| Unicode CLDR 48 and UCD 17.0.0 data, Unicode's time zone data (IANA 2026f), in DuckDB's icu extension | DuckDB 2.0.1's | Unicode-3.0 | [Unicode License v3](https://www.unicode.org/license.txt) | `engine/duckdb-python/external/duckdb/extension/icu/collation/generated` `engine/duckdb-python/external/duckdb/extension/icu/datetime/generated` | — |
+| duckdb-python | 2.0.1 (`de8eed7`) | MIT | [LICENSE](engine/duckdb-python/LICENSE) | `engine/duckdb-python/src` `<build>/duckdb-python` | 075c33400ffcb0c586dd106a029d3e733e9da3693f8fcb9cebfc651c8a2f14e3 |
+| Brotli | 1.1.0 | MIT | [LICENSE](engine/duckdb-python/external/duckdb/third_party/brotli/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/brotli` | 3d180008e36922a4e8daec11c34c7af264fed5962d07924aea928c38e8663c94 |
+| concurrentqueue | DuckDB 2.0.1's | (BSD-2-Clause OR BSL-1.0) AND Zlib | [LICENSE](engine/duckdb-python/external/duckdb/third_party/concurrentqueue/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/concurrentqueue` | eaf0df40f77e929cd83cd4485de2bdf806c7908db84a52007a700588f6566331 |
+| fast_float | DuckDB 2.0.1's | MIT | [LICENSE](engine/duckdb-python/external/duckdb/third_party/fast_float/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/fast_float` | 23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3 |
+| FastPFor | DuckDB 2.0.1's | Apache-2.0 | [LICENSE](engine/duckdb-python/external/duckdb/third_party/fastpforlib/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/fastpforlib` | 9ff562631a04b8cb1030c53fdf461bd749c9af0655d86e4f17eb270e935a7fe2 |
+| {fmt} | 6.1.2 | MIT | [LICENSE](engine/duckdb-python/external/duckdb/third_party/fmt/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/fmt` | 825c9324e70f8c839c8ba910543dd4a7daee243b86ef960594c11381a19980b8 |
+| FSST | DuckDB 2.0.1's | MIT | [LICENSE](engine/duckdb-python/external/duckdb/third_party/fsst/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/fsst` | 20e9c14ff437a73a6e2b105f1b5aaf9ef24a84d962741c0ab01d04b4910294ab |
+| cpp-httplib | 0.53.1 | MIT | [LICENSE](engine/duckdb-python/external/duckdb/third_party/httplib/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/httplib` | 4b45cbe16d7b71b89ae6127e26e0d90a029198ca5e958ad8e3d0b8bbed364d8b |
+| HyperLogLog, with Redis's sds | DuckDB 2.0.1's | MIT AND BSD-3-Clause | [LICENSE](engine/duckdb-python/external/duckdb/third_party/hyperloglog/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/hyperloglog` | 3a3fcdbaecbeb1e7dea97843961100c637766e59de4674fed809760283b716e1 |
+| jaro_winkler | DuckDB 2.0.1's | MIT | [LICENSE](engine/duckdb-python/external/duckdb/third_party/jaro_winkler/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/jaro_winkler` | 077815ffd10f0677d060e9d5c0059592d28c41d1e9985c848435e0ea17ea06c3 |
+| LZ4 | 1.9.4 | BSD-2-Clause | [LICENSE](engine/duckdb-python/external/duckdb/third_party/lz4/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/lz4` | 99b8d2d8011d1ce548c5aaf3270c6bee014507fa821c4f9a7e300a9e11015db7 |
+| Mbed TLS | 3.6.7 | Apache-2.0 OR GPL-2.0-or-later | [LICENSE](engine/duckdb-python/external/duckdb/third_party/mbedtls/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/mbedtls` | 9b405ef4c89342f5eae1dd828882f931747f71001cfba7d114801039b52ad09b |
+| miniz | 10.0.3 | MIT | [LICENSE](engine/duckdb-python/external/duckdb/third_party/miniz/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/miniz` | 0115478d567121238cf6cc1c0c361926cf07a49d9e4c9e66da97fac6a01646b3 |
+| Apache Parquet's Thrift definitions | DuckDB 2.0.1's | Apache-2.0 | [LICENSE](engine/duckdb-python/external/duckdb/third_party/parquet/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/parquet` | 70b6a7d630fae9f49643f9b16bee42a2feda68301f9c14470e7fb5ad0599bb9f |
+| PCG random | DuckDB 2.0.1's | MIT | [LICENSE](engine/duckdb-python/external/duckdb/third_party/pcg/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/pcg` | 3febf788fd814bf1f350db169bdc51b28ff7e7596ff1f09cc0181e4fde42b480 |
+| pdqsort | DuckDB 2.0.1's | Zlib | [LICENSE](engine/duckdb-python/external/duckdb/third_party/pdqsort/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/pdqsort` | 323fc18e35fcf058d69d684022ef844f206cb8fefb2bac1298fa1767e0b9ae38 |
+| RE2 | DuckDB 2.0.1's | BSD-3-Clause | [LICENSE](engine/duckdb-python/external/duckdb/third_party/re2/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/re2` | 6040cda75d90b1738292a631d89934c411ef7ffd543c4d6a1b7edfc8edf29449 |
+| ska_sort | DuckDB 2.0.1's | BSL-1.0 | [LICENSE](engine/duckdb-python/external/duckdb/third_party/ska_sort/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/ska_sort` | 3c3a838f6ac2201bb8255b374fad34e3e1de07940c3acdc09e661e118fb75078 |
+| SkipList | DuckDB 2.0.1's | MIT | [LICENSE](engine/duckdb-python/external/duckdb/third_party/skiplist/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/skiplist` | 3b9cac57dbb2d7ec76298cb0d33afe12f891e1d0dbb38ff17993a14f3480ee7c |
+| Snappy | 1.2.1 | BSD-3-Clause | [LICENSE](engine/duckdb-python/external/duckdb/third_party/snappy/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/snappy` | 55172044f7e241207117448a4d9d6ba1d0925c8ad66b5d4c08c70adfa9cc3de6 |
+| t-digest | DuckDB 2.0.1's | Apache-2.0 | [LICENSE](engine/duckdb-python/external/duckdb/third_party/tdigest/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/tdigest` | 43070e2d4e532684de521b885f385d0841030efa2b1a20bafb76133a5e1379c1 |
+| Apache Thrift (C++ library) | DuckDB 2.0.1's | Apache-2.0 | [LICENSE](engine/duckdb-python/external/duckdb/third_party/thrift/thrift/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/thrift` | 23df881cec3192d1f4474633c14eb2ec30a45b84f8daeb82b9de5d2bd3ac8218 |
+| utf8proc | 2.9.0 | MIT AND Unicode-DFS-2015 | [LICENSE](engine/duckdb-python/external/duckdb/third_party/utf8proc/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/utf8proc` | fbc720fcc90fb44396985646f67e4d19be03e0c0539f7138ed9dc6efba49dc49 |
+| vergesort | DuckDB 2.0.1's | MIT | [LICENSE](engine/duckdb-python/external/duckdb/third_party/vergesort/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/vergesort` | 12dd392860ea2a3633bce5f33d7eebd4308a7e3386b4372260e5e72be7a64033 |
+| yyjson | 0.9.0 | MIT | [LICENSE](engine/duckdb-python/external/duckdb/third_party/yyjson/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/yyjson` | 734d7fb3eb56f0a04e6b7ab0c5d3634624a8bfaa2acc87a2c03a029b20868cf8 |
+| Zstandard | 1.5.6 | BSD-3-Clause OR GPL-2.0-only | [LICENSE](engine/duckdb-python/external/duckdb/third_party/zstd/LICENSE) | `engine/duckdb-python/external/duckdb/third_party/zstd` | 8b7bc50ec3ecee27224e17d4d316a939fa2ddda9c88e0ddc2f059ce432edbfb9 |
+| nanobind | 3.1.0 | BSD-3-Clause | [LICENSE](https://github.com/wjakob/nanobind/blob/v3.1.0/LICENSE) | `*/site-packages/nanobind` | — |
+| robin-map (nanobind's) | 1.4.0 | MIT | [LICENSE](https://github.com/Tessil/robin-map/blob/v1.4.0/LICENSE) | `*/site-packages/nanobind/ext/robin_map` | — |
+| NumPy's C headers | 2.5.4 | BSD-3-Clause | [LICENSE.txt](https://github.com/numpy/numpy/blob/v2.5.4/LICENSE.txt) | `*/site-packages/numpy` | — |
+| CPython's C API headers | 3.12 (the stable ABI) | PSF-2.0 | [LICENSE](https://docs.python.org/3/license.html) | `*/include/python3.*` | — |
+| cpptrace, with its libdl symbol back-end | 1.0.4 (`3db8da8`) | MIT | [LICENSE](engine/third_party/cpptrace/LICENSE) | `engine/third_party/cpptrace` `<build>/third_party/cpptrace` | 8ac69cb836d165edd51212074441c1794b1f6712783d59014b773eeed133d4d3 |
 
 Notes:
 
