@@ -10,6 +10,9 @@ inputs:
   sync:
     description: Build the locked environment (uv sync), the module with it
     default: "true"
+  cache:
+    description: Restore and save ccache's directory and the build folders
+    default: "true"
 
 runs:
   using: composite
@@ -44,6 +47,7 @@ runs:
     # longest part of every job. Keyed on the compiler, the submodules and
     # the build settings; never a passed-tree record, which lives in .git.
     - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      if: inputs.cache == 'true'
       with:
         path: |
           ${{ runner.temp }}/ccache

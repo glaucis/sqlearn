@@ -184,11 +184,13 @@ test-requires = ["abi3audit"]
 test-sources = ["validation"]
 test-command = "python -m validation._wheel --installed {wheel}"
 
-# auditwheel's repair, then the module's linker map out of the container
-# beside the wheel (build/<cache tag>/_duckdb.map, engine/CMakeLists.txt),
-# for the release's crash-report map (just release-assets).
+# auditwheel's repair, then the module's linker map out of the container:
+# cibuildwheel copies its /output folder to the host's dist/, and takes only
+# wheels from {dest_dir}; so the map (build/<cache tag>/_duckdb.map,
+# engine/CMakeLists.txt) goes to /output, beside the wheel, for the
+# release's crash-report map (just release-assets).
 [tool.cibuildwheel.linux]
-repair-wheel-command = "auditwheel repair -w {dest_dir} {wheel} && cp /project/build/*/_duckdb.map {dest_dir}/"
+repair-wheel-command = "auditwheel repair -w {dest_dir} {wheel} && mkdir -p /output && cp /project/build/*/_duckdb.map /output/"
 
 # The version from git, the numbers hatch-vcs gave.
 [[tool.dynamic-metadata]]

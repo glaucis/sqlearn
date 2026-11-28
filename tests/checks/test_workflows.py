@@ -134,3 +134,143 @@ def test_every_pytest_run_reports_its_skips():
         "pytest"
     ]["ini_options"]
     assert "-rfEs" in pytest_options["addopts"]
+
+
+def test_codeql_builds_without_the_build_cache():
+    """CodeQL reads what the compiler compiles: a restored engine/build makes
+    the build a no-op and CodeQL sees nothing, so its job restores no build
+    folders and ccache is off."""
+    job = _load(RELEASE_TIER)["jobs"]["codeql"]
+    setup = next(s for s in job["steps"] if s.get("uses") == "./.github/actions/setup")
+    assert setup["with"]["cache"] == "false"
+    assert job["env"]["CCACHE_DISABLE"] == "1"
+    cache = next(
+        s
+        for s in _load(SETUP)["runs"]["steps"]
+        if s.get("uses", "").startswith("actions/cache@")
+    )
+    assert cache["if"] == "inputs.cache == 'true'"
+
+
+def test_a_tag_cannot_run_its_own_code():
+    """The tag reaches the recipe's shell as an argument, never as its text."""
+    # Run as code, it would print 42 marked; as text it reads $((6*7)).
+    done = _release_tag("v1.0.0' ]] || echo $((6*7))-RAN; [[ 'v1.0.0")
+    assert done.returncode != 0
+    assert "42-RAN" not in done.stdout + done.stderr
+
+
+def _git(repo: Path, *args: str) -> str:
+    """Run git in `repo`; its output, stripped."""
+    return subprocess.run(
+        ["git", "-C", str(repo), *args], capture_output=True, text=True, check=True
+    ).stdout.strip()
+
+
+def _tagged_repo(tmp_path: Path) -> Path:
+    """A repository whose one commit is tagged v1.0.0."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "-q")
+    _git(
+        repo,
+        "-c",
+        "user.name=t",
+        "-c",
+        "user.email=t@t",
+        "commit",
+        "-q",
+        "--allow-empty",
+        "-m",
+        "c",
+    )
+    _git(repo, "tag", "v1.0.0")
+    return repo
+
+
+def _release_assets(
+    repo: Path, tag: str, assets: Path
+) -> subprocess.CompletedProcess[str]:
+    """`just check-release-assets <tag> <assets>`, run in `repo`."""
+    return subprocess.run(
+        [
+            "just",
+            "--justfile",
+            str(REPO / "justfile"),
+            "--working-directory",
+            str(repo),
+            "check-release-assets",
+            tag,
+            str(assets),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def _assets(tmp_path: Path, *names: str) -> Path:
+    """A folder holding an empty file of each name."""
+    folder = tmp_path / "assets"
+    folder.mkdir()
+    for name in names:
+        (folder / name).write_text("")
+    return folder
+
+
+WHEEL_100 = "sqlearn-1.0.0-cp312-abi3-macosx_15_0_arm64.whl"
+
+
+def test_a_release_attaches_the_wheels_of_its_tags_commit(tmp_path):
+    """Run on the tag's own commit, with wheels of the tag's version: passes."""
+    repo = _tagged_repo(tmp_path)
+    assert _release_assets(repo, "v1.0.0", _assets(tmp_path, WHEEL_100)).returncode == 0
+
+
+def test_a_release_run_on_another_commit_is_refused(tmp_path):
+    """The workflow built some branch, not the tag: its wheels are not the
+    release's."""
+    repo = _tagged_repo(tmp_path)
+    _git(
+        repo,
+        "-c",
+        "user.name=t",
+        "-c",
+        "user.email=t@t",
+        "commit",
+        "-q",
+        "--allow-empty",
+        "-m",
+        "d",
+    )
+    done = _release_assets(repo, "v1.0.0", _assets(tmp_path, WHEEL_100))
+    assert done.returncode != 0
+    assert "Fix:" in done.stdout + done.stderr
+
+
+@pytest.mark.parametrize(
+    "names",
+    [
+        ("sqlearn-1.0.1.dev3+gabc-cp312-abi3-macosx_15_0_arm64.whl",),
+        (WHEEL_100, "sqlearn-1.0.0.dev1-cp312-abi3-manylinux_2_28_x86_64.whl"),
+        (),
+    ],
+)
+def test_a_release_without_its_versions_wheels_is_refused(tmp_path, names):
+    """Every wheel is the tag's version, and there is at least one."""
+    repo = _tagged_repo(tmp_path)
+    done = _release_assets(repo, "v1.0.0", _assets(tmp_path, *names))
+    assert done.returncode != 0
+    assert "Fix:" in done.stdout + done.stderr
+
+
+def test_the_release_job_checks_its_assets_before_it_publishes():
+    """The release job checks the tag's commit and the wheels' versions, then
+    creates the release; it checks out the history, where the tag is."""
+    steps = _load(RELEASE_TIER)["jobs"]["release"]["steps"]
+    runs = [s["run"] for s in steps if "run" in s]
+    assert runs == [
+        'just check-release-assets "$TAG" assets',
+        'gh release create "$TAG" --verify-tag --title "sqlearn $TAG" assets/*',
+    ]
+    assert steps[0]["with"]["fetch-depth"] == 0

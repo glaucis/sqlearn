@@ -134,3 +134,16 @@ def test_release_assets_copy_the_map_and_write_its_build_line(tmp_path, monkeypa
     stem = "sqlearn-1.0.0-macosx_15_0_arm64"
     assert (out / f"{stem}.map").read_text() == "# Path: _duckdb.abi3.so\n"
     assert (out / f"{stem}.map.build").read_text() == "sqlearn 1.0.0, DuckDB 2.0.1\n"
+
+
+def test_linuxs_map_leaves_the_container_with_the_wheel():
+    """cibuildwheel copies out only its /output folder, and from the repair's
+    {dest_dir} only the wheels: the map is copied to /output, where the host's
+    dist/ receives it beside the wheel."""
+    linux = tomllib.loads((REPO / "pyproject.toml").read_text())["tool"][
+        "cibuildwheel"
+    ]["linux"]
+    command = linux["repair-wheel-command"]
+    assert command.startswith("auditwheel repair -w {dest_dir} {wheel} && ")
+    assert command.endswith("cp /project/build/*/_duckdb.map /output/")
+    assert "{dest_dir}/" not in command.split("&&", 1)[1]

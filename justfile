@@ -883,13 +883,47 @@ verify-linux: compiler-stamp check-lockfile
     exit "$first"
 
 # Refuse a tag that is not a release: a release is a major or minor version tag, vX.Y.0, and a patch runs no release tier (spec §3.4)
+# The tag is the script's argument ($1), never pasted into its text: a tag is the workflow's input.
 [group('release')]
+[positional-arguments]
 check-release-tag tag:
     #!/usr/bin/env bash
     set -euo pipefail
-    if [[ ! '{{ tag }}' =~ ^v[0-9]+\.[0-9]+\.0$ ]]; then
-        echo "'{{ tag }}' is not a release: a release is a major or minor version tag, vX.Y.0 (spec §3.4)."
+    if [[ ! "$1" =~ ^v[0-9]+\.[0-9]+\.0$ ]]; then
+        printf '%s\n' "'$1' is not a release: a release is a major or minor version tag, vX.Y.0 (spec §3.4)."
         echo "Fix: start the release workflow with a tag such as v1.0.0, or with none"
+        exit 1
+    fi
+
+# Refuse to attach `assets` to the release `tag` unless the tag is a release, this checkout is the tag's own commit, and every wheel there (at least one) is the tag's version: the release workflow builds whatever ref it was started on
+[group('release')]
+[positional-arguments]
+check-release-assets tag assets:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    just --justfile '{{ justfile() }}' check-release-tag "$1"
+    tagged=$(git rev-parse --verify --quiet "$1^{commit}" || true)
+    here=$(git rev-parse HEAD)
+    if [ "$tagged" != "$here" ]; then
+        printf '%s\n' "The run built $here, and the tag $1 is ${tagged:-nowhere here}: its wheels are not the release's."
+        printf '%s\n' "Fix: push the tag, then start the release workflow on the tag itself (Use workflow from: $1)"
+        exit 1
+    fi
+    version="${1#v}"
+    found=0
+    for wheel in "$2"/*.whl; do
+        [ -e "$wheel" ] || continue
+        found=1
+        name=$(basename "$wheel")
+        if [[ "$name" != "sqlearn-$version-"* ]]; then
+            printf '%s\n' "$name is not sqlearn $version."
+            echo "Fix: start the release workflow on the tag itself, so every wheel is built from it"
+            exit 1
+        fi
+    done
+    if [ "$found" -eq 0 ]; then
+        printf '%s\n' "$2 holds no wheel."
+        echo "Fix: let the wheels job finish on every platform first"
         exit 1
     fi
 
