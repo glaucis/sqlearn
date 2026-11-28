@@ -2,6 +2,12 @@
   "tests": [
     {
       "area": "checks/engine_groups",
+      "name": "tests/checks/test_engine_groups.py::test_a_change_to_a_core_object_raw_does_not_use_leaves_raw_alone",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/engine_groups",
       "name": "tests/checks/test_engine_groups.py::test_a_change_to_one_groups_file_runs_that_group_only",
       "outcome": "passed",
       "tier": "fast"

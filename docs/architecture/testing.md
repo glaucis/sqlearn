@@ -1,9 +1,9 @@
 ---
-type: architecture
+type: guide
 tags: [testing, pytest, coverage, hooks, tiers, checks]
 summary: "Explains how tests are written, split into fast and slow tiers, how each check finds what changed and keeps its records, selecting by group (the manifest, the fingerprints, the Python sets, the audit, the benchmarks due), the validation runners' records, the hook tests, and coverage reporting."
 related: [docs/architecture/layout.md, docs/architecture/validation.md, docs/specs/selection-by-group.md, pyproject.toml, validation/_checks.py, validation/_ctest.py, validation/_groups.py, validation/_pytest_sets.py, validation/_record.py, validation/_audit.py, validation/_bench.py, validation/tests.json, engine/cmake/groups.cmake, engine/.clang-format, ".gersemirc"]
-mdindex: [type=4ca303]
+mdindex: [type=83ca68]
 ---
 # Testing
 
@@ -202,7 +202,11 @@ A group's identity is the hash of:
   changed, and `sq_stable_link` (`engine/cmake/groups.cmake`) sets
   `ZERO_AR_DATE` for the link on macOS, so a relink of the same objects gives
   the same bytes (Apple's linker otherwise writes each object's modification
-  time into the debug map);
+  time into the debug map). A test program links its group and the groups
+  it `DEPENDS` on as static archives (`sq_add_group`), so it holds only the
+  objects it uses: an edit reruns only the programs whose bytes change, and
+  an edit of a `core` object `raw` does not use leaves `test_raw` alone. The
+  module still holds every group's objects (`sq_add_to_module`);
 - the bytes of each shared library the program loads outside the system's
   (`/usr/lib/`, `/System/`, `/lib/`): the sanitizers' runtime, another libc++,
   a library of the build, found with `otool` on macOS, an `@rpath/` name

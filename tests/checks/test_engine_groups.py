@@ -45,3 +45,21 @@ def test_everything_runs_every_group(engine_scratch, capsys):
     assert _ctest.run("dev", scratch.root, everything=True) == 0
     assert sorted(scratch.runs()) == ["core", "raw"]
     assert "unchanged" not in capsys.readouterr().out
+
+
+def test_a_change_to_a_core_object_raw_does_not_use_leaves_raw_alone(
+    engine_scratch, capsys
+):
+    """``test_raw`` links ``core``'s archive: an object it does not pull in
+    changes ``test_core`` alone, so ``raw`` is not rerun."""
+    scratch = engine_scratch
+    assert _ctest.run("dev", scratch.root) == 0
+    scratch.runs()
+    capsys.readouterr()
+    alone = scratch.root / "engine" / "src" / "core" / "alone.cpp"
+    alone.write_text(
+        "static volatile int three = 3;\nint core_alone() { return three - 3; }\n"
+    )
+    assert _ctest.run("dev", scratch.root) == 0
+    assert scratch.runs() == ["core"]
+    assert "raw: unchanged since a passed run" in capsys.readouterr().out

@@ -134,8 +134,10 @@ else()
     endif()
   endforeach()
 
-  # Compile one of our object libraries into _duckdb, beside duckdb-python's
-  # own objects (the spike's mechanism). sq_add_group calls it for each group.
+  # Compile the objects of one of our libraries (a group's static library,
+  # the bindings' object library) into _duckdb, beside duckdb-python's own
+  # objects (the spike's mechanism): all of them, used or not. sq_add_group
+  # calls it for each group.
   function(sq_add_to_module target)
     target_sources(_duckdb PRIVATE $<TARGET_OBJECTS:${target}>)
   endfunction()

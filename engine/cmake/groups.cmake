@@ -1,6 +1,6 @@
 # The groups of sqlearn's C++: one directory of engine/src each (the
 # inventory's groups, docs/architecture/engine-inventory.md), compiled as
-# an object library with sqlearn's flags, and tested by one Catch2 program.
+# a static library with sqlearn's flags, and tested by one Catch2 program.
 
 # Give `target`, one of ours, the C++ standard, hidden symbols (the module
 # exports DuckDB's), engine/src as its include root, the warnings and the
@@ -102,12 +102,15 @@ endfunction()
 #              [DATA <file>...] [ARGS <argument>...] [PYTHON_TESTS <dir>...]
 #              [VALIDATION <runner>...] [BENCH <name>...])
 #
-# The object library sq_<name> from SOURCES (engine/src/<name>/), with
-# sqlearn's options; in the wheel its objects join _duckdb. DEPENDS names
-# the groups whose objects it calls, which its test program links too (an
-# object library's objects reach only the targets that name it). DEPENDS is
-# not transitive: a group whose dependency has a dependency of its own names
-# both. With TESTS,
+# The static library sq_<name> from SOURCES (engine/src/<name>/), with
+# sqlearn's options; in the wheel all its objects join _duckdb. DEPENDS
+# names the groups whose objects it calls, which its test program links
+# too, and its archive, so that a linker reading archives in order (GNU ld)
+# finds them after it. The test program links archives, so it holds only
+# the objects it uses: an edit of an object it does not use leaves its
+# bytes, and the checks do not rerun it (validation/_ctest.py). DEPENDS is
+# not transitive: a group whose dependency has a dependency of its own
+# names both. With TESTS,
 # and when the tests are built (SQ_BUILD_TESTS), the Catch2 program
 # test_<name>, with RapidCheck for its properties, registered with CTest as
 # test_<name> under the label <name>, with SQ_TEST_TIMEOUT; DATA names the
@@ -154,8 +157,10 @@ function(sq_add_group name)
     set(raw RAW)
   endif()
   set(target sq_${name})
-  add_library(${target} OBJECT ${arg_SOURCES})
+  add_library(${target} STATIC ${arg_SOURCES})
   sq_target_options(${target} ${raw})
+  list(TRANSFORM arg_DEPENDS PREPEND sq_ OUTPUT_VARIABLE depends)
+  target_link_libraries(${target} PRIVATE ${depends})
   if(COMMAND sq_add_to_module)
     sq_add_to_module(${target})
   endif()
@@ -164,7 +169,6 @@ function(sq_add_group name)
     add_executable(${program} ${arg_TESTS})
     sq_stable_link(${program})
     sq_target_options(${program} ${raw})
-    list(TRANSFORM arg_DEPENDS PREPEND sq_ OUTPUT_VARIABLE depends)
     target_link_libraries(
       ${program}
       PRIVATE ${target} ${depends} Catch2::Catch2WithMain sq_rapidcheck_catch
