@@ -50,8 +50,7 @@ def test_everything_runs_every_group(engine_scratch, capsys):
 def test_a_change_to_a_core_object_raw_does_not_use_leaves_raw_alone(
     engine_scratch, capsys
 ):
-    """``test_raw`` links ``core``'s archive: an object it does not pull in
-    changes ``test_core`` alone, so ``raw`` is not rerun."""
+    """An edited ``core`` object ``test_raw`` does not pull in reruns ``core`` alone."""
     scratch = engine_scratch
     assert _ctest.run("dev", scratch.root) == 0
     scratch.runs()

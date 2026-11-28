@@ -106,11 +106,18 @@ endfunction()
 # sqlearn's options; in the wheel all its objects join _duckdb. DEPENDS
 # names the groups whose objects it calls, which its test program links
 # too, and its archive, so that a linker reading archives in order (GNU ld)
-# finds them after it. The test program links archives, so it holds only
-# the objects it uses: an edit of an object it does not use leaves its
-# bytes, and the checks do not rerun it (validation/_ctest.py). DEPENDS is
-# not transitive: a group whose dependency has a dependency of its own
-# names both. With TESTS,
+# finds them after it even when DEPENDS is not in dependency order (crash
+# names core raw). That link makes linking transitive, and the group's own
+# objects compile with its DEPENDS' interface requirements. The rule that
+# DEPENDS is not transitive (a group whose dependency has a dependency of
+# its own names both) is kept by the layering check, which reads the
+# manifest (validation/_layering.py), not by the link. The test program
+# links archives, so it holds only the objects it uses: an edit of an
+# object it does not use leaves its bytes, and the checks do not rerun it
+# (validation/_ctest.py). A program takes from an archive only the objects
+# it references, so an object reached only through a static initialiser
+# is left out of the program, while the module keeps every object. With
+# TESTS,
 # and when the tests are built (SQ_BUILD_TESTS), the Catch2 program
 # test_<name>, with RapidCheck for its properties, registered with CTest as
 # test_<name> under the label <name>, with SQ_TEST_TIMEOUT; DATA names the
