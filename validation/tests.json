@@ -2690,6 +2690,18 @@
     },
     {
       "area": "validation/_pytest_sets",
+      "name": "tests/validation/test__pytest_sets.py::test_due_is_empty_for_every_set_after_a_passed_run",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_pytest_sets",
+      "name": "tests/validation/test__pytest_sets.py::test_due_names_the_set_a_file_it_reads_reruns",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_pytest_sets",
       "name": "tests/validation/test__pytest_sets.py::test_each_set_runs_the_three_passes_on_its_paths",
       "outcome": "passed",
       "tier": "fast"

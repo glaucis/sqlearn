@@ -9,7 +9,6 @@ preset) and per Python test set (``validation._pytest_sets.due``), named
 """
 
 import argparse
-import subprocess
 import sys
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -71,17 +70,6 @@ def report(root: Path) -> list[Verdict]:
     return verdicts
 
 
-def _root() -> Path:
-    """Return the working tree holding the current directory."""
-    top = subprocess.run(
-        ["git", "rev-parse", "--show-toplevel"],
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.strip()
-    return Path(top)
-
-
 def cli(argv: Sequence[str]) -> int:
     """Print each check, ``runs`` or ``unchanged``, then its reasons indented.
 
@@ -99,7 +87,7 @@ def cli(argv: Sequence[str]) -> int:
         prog="python -m validation._affected",
         description="Print whether just done would run each check, and why.",
     ).parse_args(argv)
-    for verdict in report(_root()):
+    for verdict in report(_checks._root()):
         lines = [f"{verdict.check}: {'runs' if verdict.runs else 'unchanged'}"]
         lines += [f"  {reason}" for reason in verdict.reasons]
         print("\n".join(lines), flush=True)  # noqa: T201

@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from validation import _groups, _pytest_sets
+from validation import _checks, _groups, _pytest_sets
 
 PYTEST = """#!{python}
 import json, os, pathlib, sys
@@ -326,3 +326,31 @@ def test_unreadable_fingerprints_run_every_set_and_record_none(repo, capsys):
     assert repo.ran() == {"tooling", "group:a", "group:b", "unclaimed"}
     assert repo.run() == 0
     assert repo.ran() == {"tooling", "group:a", "group:b", "unclaimed"}
+
+
+def _records(root):
+    """Return each file of the records' directory with its bytes."""
+    directory = _checks.record_dir(root)
+    return {p.name: p.read_bytes() for p in sorted(directory.glob("*"))}
+
+
+def test_due_is_empty_for_every_set_after_a_passed_run(repo):
+    """Nothing changed since the passed run: no set has a reason; none runs."""
+    before = _records(repo.root)
+    assert _pytest_sets.due(repo.root) == {name: [] for name in EVERY}
+    assert repo.ran() == set()
+    assert _records(repo.root) == before
+
+
+def test_due_names_the_set_a_file_it_reads_reruns(repo):
+    """An edited tooling input gives the tooling set a reason, the others none."""
+    repo.edit("engine/mull.yml")
+    before = _records(repo.root)
+    assert _pytest_sets.due(repo.root) == {
+        "tooling": ["its tests, what they read or the settings changed"],
+        "group:a": [],
+        "group:b": [],
+        "unclaimed": [],
+    }
+    assert repo.ran() == set()
+    assert _records(repo.root) == before

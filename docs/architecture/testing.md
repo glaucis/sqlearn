@@ -524,9 +524,9 @@ nothing. `-n auto` and the slow tier work as in "The passes".
 
 | Change | Reruns |
 |---|---|
-| a comment in `engine/cmake/warnings.cmake` | the tooling set only |
-| a comment edited within its line in `engine/src/core/error.cpp` | no library or unclaimed Python set, no runner, no docs, no `sql` (the tooling set, `core`'s C++ tests and `tidy` read the text and rerun) |
-| a comment line added to a `core` source | `core`'s tests and every Python set and runner (all use `core`) |
+| a comment in `engine/cmake/warnings.cmake` | the tooling set, `tidy` and `sql`, which read `engine/cmake/` as text, and `format` on every file (`engine/cmake/` is its configuration); no C++ group's tests, no library or unclaimed Python set, no runner, no docs |
+| a comment edited within its line in `engine/src/core/error.cpp` | the tooling set, `tidy`, `format` and `lint` on that file, which read the text; no C++ group's tests (the programs' bytes are the same), no library or unclaimed Python set, no runner, no docs, no `sql` |
+| a comment line added to a `core` source | the tests of `core` and of each group whose program links that object (`raw`, for `error.cpp`), every Python set and runner (all use `core`), `docs`, `types`, `docstrings` and `sql` (the module's fingerprint moved), `tidy`, and `format` and `lint` on that file |
 | a compile flag, a pin, a build table, the compiler | everything that uses the module |
 
 ### The audit

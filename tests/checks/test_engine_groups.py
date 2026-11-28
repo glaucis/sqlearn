@@ -64,8 +64,11 @@ def test_a_change_to_a_core_object_raw_does_not_use_leaves_raw_alone(
     assert "raw: unchanged since a passed run" in capsys.readouterr().out
 
 
-def test_due_names_the_label_a_change_reruns(engine_scratch):
-    """An edited ``raw`` source gives ``raw`` a reason, ``core`` none; no test runs."""
+def test_due_names_the_label_a_change_reruns(engine_scratch, capfd):
+    """An edited ``raw`` source gives ``raw`` a reason, ``core`` none; no test runs.
+
+    The build's output goes to standard error, leaving standard output clean.
+    """
     scratch = engine_scratch
     assert _ctest.run("dev", scratch.root) == 0
     scratch.runs()
@@ -74,7 +77,11 @@ def test_due_names_the_label_a_change_reruns(engine_scratch):
     )
     directory = _checks.record_dir(scratch.root)
     before = {p.name: p.read_bytes() for p in directory.glob("*")}
+    capfd.readouterr()
     due = _ctest.due("dev", scratch.root)
+    said = capfd.readouterr()
+    assert said.out == ""
+    assert "ninja" in said.err or "Build files" in said.err
     assert due["raw"] == ["its test program, data or command changed"]
     assert due["core"] == []
     assert due["must_not_compile"] == []

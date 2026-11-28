@@ -758,6 +758,38 @@ def changed_files(task: Task, root: Path) -> list[Path]:
     return _changed(task, root, _config(task, root), files)
 
 
+def unchanged(
+    task: Task, root: Path, whole: str, config: str, files: dict[str, str]
+) -> bool:
+    """Return whether a passed run already checked what `task` reads today.
+
+    The one rule ``run`` skips by and ``why`` answers by.
+
+    Parameters
+    ----------
+    task : Task
+        The task.
+    root : Path
+        The repository's working tree.
+    whole : str
+        Today's ``digest`` of the task.
+    config : str
+        Today's configuration of the task (``_config``).
+    files : dict of str to str
+        Each input file with its digest today (``_hashes``).
+
+    Returns
+    -------
+    bool
+        For a per-file task, whether every file has a kept record under
+        `config` with its digest; for a whole task, whether a kept record's
+        digest is `whole`.
+    """
+    if task.per_file:
+        return not _changed(task, root, config, files)
+    return any(r["digest"] == whole for r in load(record_dir(root), task.name))
+
+
 NEVER_PASSED = "never passed here"
 """Why a task with no record at all would run."""
 
@@ -812,16 +844,7 @@ def why(task: Task, root: Path) -> list[str]:
     files = _hashes(_listed(task.inputs, root), root)
     records = load(record_dir(root), task.name)
     config = _config(task, root, module)
-    todo = (
-        [p.as_posix() for p in _changed(task, root, config, files)]
-        if task.per_file
-        else []
-    )
-    if task.per_file and not todo:
-        return []
-    if not task.per_file and any(
-        r["digest"] == digest(task, root, module) for r in records
-    ):
+    if unchanged(task, root, digest(task, root, module), config, files):
         return []
     if not records:
         return [NEVER_PASSED]
@@ -830,6 +853,7 @@ def why(task: Task, root: Path) -> list[str]:
         return [SETTINGS_CHANGED]
     if task.per_file:
         held = {name for r in records for name in r["files"]}
+        todo = [p.as_posix() for p in _changed(task, root, config, files)]
         return [f"{n}: {'changed' if n in held else 'added'}" for n in todo]
     newest = mine[-1]["files"]
     return (_differences(newest, files) if newest else []) or [INPUTS_CHANGED]
@@ -906,17 +930,13 @@ def run(task_name: str, root: Path, *, everything: bool = False) -> int:
     if task.per_file and not files:
         print(f"{task.name}: no files to check", flush=True)  # noqa: T201
         return 0
+    skip = not everything and unchanged(task, root, whole, config, files)
+    todo = None
     if task.per_file:
         todo = (
             sorted(files)
             if everything
             else [p.as_posix() for p in _changed(task, root, config, files)]
-        )
-        skip = not todo
-    else:
-        todo = None
-        skip = not everything and any(
-            r["digest"] == whole for r in load(directory, task.name)
         )
     if skip:
         code = _run_always(task, root)

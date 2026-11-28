@@ -45,6 +45,7 @@ recorded, and only when it is unchanged after.
 """
 
 import argparse
+import contextlib
 import hashlib
 import json
 import os
@@ -67,6 +68,9 @@ SANITIZER_ENVIRONMENT = re.compile(r"^(ASAN|UBSAN|LSAN|TSAN|TYSAN|MSAN|RC|CATCH)
 
 SYSTEM = ("/usr/lib/", "/System/", "/lib/", "/lib64/", "/usr/lib64/")
 """The system's libraries: an OS update changes the place (its platform)."""
+
+STDERR = 2
+"""The file descriptor of standard error, where ``due`` sends the build's output."""
 
 STAMP = "sqlearn-compiler.txt"
 """The file, in a build directory, naming the compiler it was configured with."""
@@ -164,19 +168,25 @@ def _place(live: str) -> str:
     return hashlib.sha256(where.encode()).hexdigest()
 
 
-def _cmake(argv: Sequence[str], engine: Path) -> int:
-    """Run a CMake command in `engine`; return its exit code."""
-    return subprocess.run(list(argv), cwd=engine, check=False).returncode
+def _cmake(argv: Sequence[str], engine: Path, out: int | None = None) -> int:
+    """Run a CMake command in `engine`, its output to `out`; return its exit code.
+
+    `out` is a file descriptor, None for this process's standard output.
+    """
+    return subprocess.run(list(argv), cwd=engine, check=False, stdout=out).returncode
 
 
-def _build(preset: str, engine: Path, build: Path) -> tuple[int, str]:
+def _build(
+    preset: str, engine: Path, build: Path, out: int | None = None
+) -> tuple[int, str]:
     """Configure and build `preset`; return the first failing code and the compiler.
 
     A build directory configured with another compiler than today's (its
-    stamp, ``STAMP``, differs) is configured afresh.
+    stamp, ``STAMP``, differs) is configured afresh. CMake's and Ninja's
+    output goes to the file descriptor `out`, None for standard output.
     """
     new = not (build / "CMakeCache.txt").exists()
-    code = _cmake(["cmake", "--preset", preset], engine)
+    code = _cmake(["cmake", "--preset", preset], engine, out)
     if code != 0:
         return code, ""
     live = compiler(build)
@@ -191,13 +201,13 @@ def _build(preset: str, engine: Path, build: Path) -> tuple[int, str]:
             f"C++ tests: the compiler changed since {preset} was configured: "
             "configuring afresh"
         )
-        code = _cmake(["cmake", "--fresh", "--preset", preset], engine)
+        code = _cmake(["cmake", "--fresh", "--preset", preset], engine, out)
         if code != 0:
             return code, ""
         live = compiler(build)
         digest = hashlib.sha256(live.encode()).hexdigest()
     stamp.write_text(digest, encoding="utf-8")
-    code = _cmake(["cmake", "--build", "--preset", preset, "--parallel"], engine)
+    code = _cmake(["cmake", "--build", "--preset", preset, "--parallel"], engine, out)
     return code, live
 
 
@@ -472,8 +482,13 @@ def _forget(directory: Path, key: str, failed: dict[str, str]) -> None:
         _checks.write(directory, key, kept)
 
 
-def _prepared(preset: str, root: Path) -> tuple[int, Path, dict[str, list[Test]], str]:
+def _prepared(
+    preset: str, root: Path, out: int | None = None
+) -> tuple[int, Path, dict[str, list[Test]], str]:
     """Build `preset` and list its tests by label, saying what stops a run.
+
+    The build's output goes to the file descriptor `out`, None for standard
+    output.
 
     Returns the first failing code (the build's, or 1 for a missing tool, a
     test with no TIMEOUT or a test no label selects), the build directory,
@@ -489,7 +504,7 @@ def _prepared(preset: str, root: Path) -> tuple[int, Path, dict[str, list[Test]]
             "Fix: run `just doctor`, then install what it names"
         )
         return 1, build, {}, ""
-    code, live = _build(preset, engine, build)
+    code, live = _build(preset, engine, build, out)
     if code != 0:
         _say(f"C++ tests: the {preset} build failed; no test ran, none recorded")
         return code, build, {}, ""
@@ -578,7 +593,8 @@ def due(preset: str, root: Path) -> dict[str, list[str]]:
     """Return each label of `preset` with why ``run`` would run it; runs none.
 
     It builds the preset, since a label's identity holds its program's bytes,
-    and writes no record.
+    and writes no record. What the build and its checks print goes to
+    standard error, so standard output holds only the caller's answer.
 
     Parameters
     ----------
@@ -595,7 +611,8 @@ def due(preset: str, root: Path) -> dict[str, list[str]]:
         ``build``, says so: ``run`` would fail there.
     """
     root = root.resolve()
-    code, build, units, place = _prepared(preset, root)
+    with contextlib.redirect_stdout(sys.stderr):
+        code, build, units, place = _prepared(preset, root, STDERR)
     if code != 0:
         return {"build": [f"the {preset} build or its tests' listing failed"]}
     return reasons(
