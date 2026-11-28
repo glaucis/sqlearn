@@ -3,45 +3,45 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-28 · Branch: `workflows-and-site` (local only, not pushed;
-`main` is one commit ahead of `origin/main`, `40784ee`) · Checks: passing
-(`just done` on the branch, on `b6d0984`)
+Updated: 2026-11-28 · Branch: `main` (pushed; `workflows-and-site`
+fast-forwarded into it, Tomas's choice, so the hand-started workflow can be
+started) · Checks: passing (`just done`, on `b6d0984`; later commits touch
+only this file)
 
 Verify with: `just done` (`just verify` is the release tier)
 
 ## In progress
 
 - **Phase 1 step 3, the workflows and the site** (plan
-  `docs/plans/2026-11-28-workflows-and-site.md`, #79, #4, #6), on branch
-  `workflows-and-site`. Tasks 1 to 6 are committed: `SQ_LLVM_ROOT` (LLVM's
+  `docs/plans/2026-11-28-workflows-and-site.md`, #79, #4, #6), merged into
+  `main` before its first run: GitHub starts a hand-run workflow only once its
+  file is on the default branch. Tasks 1 to 6 are done: `SQ_LLVM_ROOT` (LLVM's
   prefix on macOS and Linux, `validation/_llvm.py`); libstdc++ builds take
   `_GLIBCXX_ASSERTIONS`; GNU ld's map and `addr2line` for crash reports, and
   `just crash-report <report> --map <release map>`; `just check-wheel` and
   `[tool.cibuildwheel]`; `.github/workflows/release-tier.yml` (by hand only)
-  with `verify` split into `verify-checks`, `verify-engine`,
-  `verify-mutate`, and `verify-linux`; `.github/workflows/site.yml`. Left:
-  the first workflow run and its fixes (Task 5 step 6), Pages turned on (Task
-  6 step 6), then `just done`, the plan archived, the merge. The spec now says
-  step 3 is macOS and Linux; Windows is #89. A fresh review of the whole
-  branch found five important problems, fixed (`c90d129`, `b6d0984`); its
-  minor findings, for the first run or after: the build cache's
-  `restore-keys` can restore old build folders after a compiler change
-  (restore them on an exact key only); the tag is checked only in the last
-  job (check it first); `brew install llvm` is unpinned (`llvm@23`, as Mull
-  needs); on Linux `dev` and `tsan` build with GCC, not LLVM as the
-  recipe's comment says; `--map` names a report's other images (libc,
-  libpython) from the reader's own files; `_platform_ok` refuses a legacy
-  manylinux alias and `asset_stem` takes the last tag part; `check-wheel`
-  neither installs the official `duckdb` beside it nor cuts the network; an
-  empty `SQ_LLVM_ROOT` gives `/bin` in the justfile; the local reader can
-  take `build/coverage-*`'s map after `audit-groups`; apt.llvm.org's key has
-  no pinned fingerprint.
+  with `verify` split into `verify-checks`, `verify-engine`, `verify-mutate`,
+  and `verify-linux`; `.github/workflows/site.yml`. Left: the first workflow run
+  and its fixes (Task 5 step 6), Pages turned on (Task 6 step 6), each fix on
+  `main`, then the plan archived. The spec now says step 3 is macOS and Linux;
+  Windows is #89. A fresh review of the whole branch found five important
+  problems, fixed (`c90d129`, `b6d0984`); its minor findings, for the first run
+  or after: the build cache's `restore-keys` can restore old build folders after
+  a compiler change (restore them on an exact key only); the tag is checked only
+  in the last job (check it first); `brew install llvm` is unpinned (`llvm@23`,
+  as Mull needs); on Linux `dev` and `tsan` build with GCC, not LLVM as the
+  recipe's comment says; `--map` names a report's other images (libc, libpython)
+  from the reader's own files; `_platform_ok` refuses a legacy manylinux alias
+  and `asset_stem` takes the last tag part; `check-wheel` neither installs the
+  official `duckdb` beside it nor cuts the network; an empty `SQ_LLVM_ROOT`
+  gives `/bin` in the justfile; the local reader can take `build/coverage-*`'s
+  map after `audit-groups`; apt.llvm.org's key has no pinned fingerprint.
 
 ## Waiting on the user
 
-- **Step 3's first run** (since 2026-11-28): push `workflows-and-site`, then
-  start "Release tier" from the Actions tab on that branch (or approve
-  `gh workflow run release-tier.yml --ref workflows-and-site`). Hours of
+- **Step 3's first run** (since 2026-11-28): start "Release tier" from the
+  Actions tab on `main` (or approve `gh workflow run release-tier.yml`).
+  Hours of
   runner time; the first Linux and GCC build will fail somewhere, as §3.5
   expects. Nothing has run on GitHub yet: the workflows are untested
   [assumed: the LLVM apt packages' names, libc++'s path under
@@ -49,8 +49,9 @@ Verify with: `just done` (`just verify` is the release tier)
   the GNU map parser on a real bfd map].
 - **GitHub Pages on** (since 2026-11-28): Settings → Pages → Source "GitHub
   Actions", or your yes to
-  `gh api -X POST repos/glaucis/sqlearn/pages -f build_type=workflow`. The
-  first deploy is at the merge into `main`.
+  `gh api -X POST repos/glaucis/sqlearn/pages -f build_type=workflow`. Until
+  then the site workflow's deploy job fails on each push to `main`; rerun it
+  (or push) once Pages is on.
 - **A ruling, with step 4's measurement of the hardened library** (ADR
   0065): Linux's libstdc++ builds define `_GLIBCXX_ASSERTIONS` in every
   flavour, release included (the agent's call, 2026-11-28; libc++ gets
