@@ -1,9 +1,9 @@
 ---
 type: adr
-tags: [search, hyperparameter-tuning, defaults, api, metrics]
-summary: "ADR 0077 sets the rule for sqlearn's single search function: pluggable methods via ask and tell, default settings, and the warning about what to search."
+tags: [search, hyperparameter-tuning, defaults, warnings, api]
+summary: "ADR 0077 consolidates the rules for sq.search: one search with pluggable methods, grouped names, default params and folds, and the defaults warning."
 related: [docs/adr/archived/0022-one-search-with-pluggable-methods.md, docs/adr/archived/0031-the-defaults-warning-is-about-what-to-search.md, docs/adr/0039-the-search-names-as-groups.md, docs/adr/0003-scikit-learn-style-api.md, docs/adr/0013-learn-apply-train-predict.md, docs/adr/0034-a-grouped-api.md, docs/adr/0002-sql-on-duckdb-execution-engine.md, docs/adr/0005-runtime-dependencies.md]
-mdindex: [type=0fc814, tags=a3a22f, summary=9b1253, related=baf3a3]
+mdindex: [type=0fc814, tags=48fe67, summary=5a434c, related=baf3a3]
 ---
 # 0077: The search: one function, pluggable methods, defaults and the defaults warning
 

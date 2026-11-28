@@ -5,10 +5,10 @@ kernelspec:
   display_name: Python 3
   language: python
 type: guide
-tags: [documentation, markdown, restructuredtext, myst, style]
-summary: "Explains how docs and Markdown are written: Markdown vs reStructuredText rules, British English, 80-column wrapping, math, and text notebooks."
+tags: [documentation, markdown, restructuredtext, style, line-length, math]
+summary: "Explains how documentation and Markdown are written in the repository: docstring and page formats, British prose, 80-column wrapping, math, and text notebooks."
 related: [docs/specs/foundation.md, docs/adr/0010-british-prose-american-identifiers.md, docs/adr/0006-local-and-offline.md, pyproject.toml]
-mdindex: [type=83ca68, tags=0634b9, summary=3c2987, related=32f0f2]
+mdindex: [type=83ca68, tags=c5ce29, summary=29dc08]
 ---
 
 # Writing the documentation

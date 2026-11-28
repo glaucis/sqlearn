@@ -1,9 +1,9 @@
 ---
 type: adr
-tags: [aggregates, median, standard-deviation, compensated-sum, quantiles, nesting]
-summary: "ADR 0078 consolidates how sq.agg aggregates learn: exact sorted medians, compensated sums, two-pass std/var, and nesting levels."
+tags: [aggregates, quantiles, standard-deviation, compensated-sum, sqlearn]
+summary: "Consolidates sq.agg learning rules: exact sorted median and quantiles, Kahan-compensated means, two-pass variance, and nested aggregates in levels."
 related: [docs/adr/archived/0032-the-median-is-exact-by-sorting.md, docs/adr/archived/0033-the-mean-is-summed-with-compensation.md, docs/adr/archived/0036-staged-aggregates-anywhere-in-a-learned-value.md, docs/adr/archived/0044-the-standard-deviation-in-two-staged-passes.md, docs/adr/archived/0051-aggregates-learn-in-levels.md, docs/adr/0030-infinity-is-refused.md, docs/adr/0043-repeatable-within-rounding.md, docs/adr/0070-sqlearn-is-rewritten-in-cpp.md]
-mdindex: [type=0fc814, tags=35edfe, summary=bae3e2, related=44eab5]
+mdindex: [type=0fc814, tags=c473bf, summary=70cb3f]
 ---
 # 0078: How aggregates learn: exact quantiles by sorting, compensated sums, levels
 

@@ -1,9 +1,9 @@
 ---
 type: note
 tags: [performance, profiling, duckdb, benchmarks, cpp-port]
-summary: "Measures where sqlearn's Python and DuckDB paths spend time across six heavy paths, to prioritise the planned C++ port (issue #78)."
+summary: "Measures where sqlearn's Python and DuckDB heavy paths spend time, to order the planned C++ port, under heavy machine load."
 related: [docs/adr/0058-a-gram-step-builds-xtx-in-numpy.md, docs/adr/0060-a-native-engine-in-cpp-inside-duckdb.md, docs/specs/native-engine.md, docs/benchmarks/gram-batches.md]
-mdindex: [type=edb465, tags=2cd212, summary=e5afc0]
+mdindex: [type=edb465, tags=2cd212, summary=a90465]
 ---
 # Where sqlearn's heavy paths spend their time
 

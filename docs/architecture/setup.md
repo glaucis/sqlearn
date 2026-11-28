@@ -1,9 +1,9 @@
 ---
 type: guide
-tags: [setup, git-hooks, just, toolchain, editor-tools]
-summary: "How to set up a clone: installing tools, the just recipes, what the pre-commit and commit-msg hooks check, and editor tooling."
+tags: [setup, git-hooks, just, clangd, tooling]
+summary: "How to set up a clone: install tools, run just setup, the recipes, git pre-commit and commit-msg hooks, and editor tools."
 related: [docs/adr/0001-uv-for-python-packaging.md, docs/adr/0008-just-task-runner.md, docs/architecture/testing.md, engine/CMakePresets.json, engine/cmake/ccache.cmake, pyproject.toml, commitlint.config.mjs]
-mdindex: [type=83ca68, tags=ed54d6, summary=b3bcb6]
+mdindex: [type=83ca68, tags=ae8aad, summary=4eecbe]
 ---
 # Setting up
 

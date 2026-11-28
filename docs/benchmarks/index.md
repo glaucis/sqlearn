@@ -1,8 +1,8 @@
 ---
 type: note
-tags: [benchmarks, performance, sqlearn, comparison]
-summary: Index page listing sqlearn benchmark documents that measure speed against the libraries sqlearn imitates.
-mdindex: [type=edb465, tags=48b2d8, summary=d0c89c]
+tags: [benchmarks, performance, sqlearn, index]
+summary: "Index page listing sqlearn benchmark pages against similar libraries, with archived old-Python measurements and their rerun status."
+mdindex: [type=edb465, tags=8a3784, summary=db9933]
 related: [docs/benchmarks/onehot-second-run.md, docs/benchmarks/archived/category-lookup.md, docs/benchmarks/standard-deviation.md, docs/benchmarks/median-reach.md, docs/benchmarks/archived/generators-on-many-threads.md]
 ---
 # Benchmarks

@@ -1,9 +1,9 @@
 ---
 type: adr
-tags: [pipeline, static-steps, dynamic-steps, planner, learning]
-summary: "ADR 0074 decides how a pipeline learns: static vs dynamic steps, each step in its earliest run, runs along the column graph; supersedes ADRs 0012, 0018, 0026."
+tags: [pipeline, static-steps, dynamic-steps, learning, planner, runs]
+summary: "Consolidated ADR defining how pipelines learn: static vs dynamic steps, run planning on a column graph, and the rules for no-column steps."
 related: [docs/adr/archived/0012-static-and-dynamic-steps.md, docs/adr/archived/0018-runs-follow-the-chains-between-steps.md, docs/adr/archived/0026-a-step-without-cols-works-on-every-column.md, docs/adr/0075-the-contract-of-a-users-own-step.md, docs/adr/0076-the-learning-store-and-its-keys.md, docs/adr/0020-column-selectors.md, docs/adr/0070-sqlearn-is-rewritten-in-cpp.md, docs/architecture/overview.md]
-mdindex: [type=0fc814, tags=295a48, summary=9a79dc, related=51574e]
+mdindex: [type=0fc814, tags=3ebfe5, summary=b54eda, related=333e74]
 ---
 # 0074: How a pipeline learns: static and dynamic steps, and its runs
 

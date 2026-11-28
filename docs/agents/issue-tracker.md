@@ -1,9 +1,9 @@
 ---
 type: guide
 tags: [github, issue-tracker, gh-cli, triage, wayfinder]
-summary: "How to use GitHub issues, the sqlearn board, milestones, blocking edges and wayfinder maps for this repo via the gh CLI."
+summary: "Guide to using GitHub issues, milestones, board, blocking, sub-issues and wayfinding with the gh CLI for this repo."
 related: [docs/architecture/overview.md]
-mdindex: [type=83ca68, tags=f162a8, summary=7673aa, related=3d8346]
+mdindex: [type=83ca68, tags=f162a8, summary=e0fb16, related=3d8346]
 ---
 # Issue tracker: GitHub
 
