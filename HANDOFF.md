@@ -51,7 +51,13 @@ Verify with: `just done` (`just verify` is the release tier)
   Actions", or your yes to
   `gh api -X POST repos/glaucis/sqlearn/pages -f build_type=workflow`. Until
   then the site workflow's deploy job fails on each push to `main`; rerun it
-  (or push) once Pages is on.
+  (or push) once Pages is on. The Site workflow's first run (run
+  46184972585, on the push of `1ff19f0`) failed before deploy: its build
+  step's GCC refused clang's `-gline-tables-only` (fixed in the release
+  flavour, GCC gets `-g1`; not pushed yet).
+- **Delete the `workflows-and-site` branch on GitHub** (since 2026-11-28):
+  fully merged into `main` (`777df60`); awaits your yes to
+  `git push origin --delete workflows-and-site`.
 - **A ruling, with step 4's measurement of the hardened library** (ADR
   0065): Linux's libstdc++ builds define `_GLIBCXX_ASSERTIONS` in every
   flavour, release included (the agent's call, 2026-11-28; libc++ gets
