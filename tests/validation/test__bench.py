@@ -5,7 +5,7 @@ what ran can be seen. Groups ``a`` and ``b`` are the conftest's; the stand-in
 measures group ``a``.
 """
 
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -104,7 +104,7 @@ def test_a_program_a_group_claims_is_listed_by_its_group(scratch):
     bench = scratch.root / "engine" / "bench"
     bench.mkdir(parents=True)
     (bench / "bench_thing.cpp").write_text("int main() {}\n")
-    names = [item.name for item in _bench.due(scratch.root)]
+    names = [i.name for i in _bench.due(scratch.root) if i.kind == "bench"]
     assert names == ["standin", "bench_thing"]
 
 
@@ -150,9 +150,11 @@ def test_a_program_is_due_again_when_its_binary_changes(scratch):
     _install(scratch)
     binary = _program(scratch)
     _bench.run(scratch.root, "bench_thing")
-    assert "bench_thing" not in [i.name for i in _bench.due(scratch.root)]
+    benches = [i.name for i in _bench.due(scratch.root) if i.kind == "bench"]
+    assert "bench_thing" not in benches
     binary.write_text("#!/bin/sh\nexit 0\n# rebuilt\n")
-    assert "bench_thing" in [i.name for i in _bench.due(scratch.root)]
+    benches = [i.name for i in _bench.due(scratch.root) if i.kind == "bench"]
+    assert "bench_thing" in benches
 
 
 def test_a_stale_bench_program_is_refused_with_a_fix(scratch, capsys):
@@ -214,3 +216,95 @@ def test_a_loaded_record_newer_than_a_clean_one_gives_the_clean_numbers(
     [item] = _bench.due(scratch.root)
     assert item.last_seconds == clean_record["seconds"]
     assert item.last_cores == clean_record["cores"]
+
+
+def _profile_binary(scratch, text="#!/bin/sh\nexit 0\n"):
+    binary = scratch.root / "engine" / "build" / "profile" / "bench" / "bench_thing"
+    binary.parent.mkdir(parents=True, exist_ok=True)
+    binary.write_text(text)
+    return binary
+
+
+def _save_profile(scratch, loaded=False):
+    record = {
+        "digest": _bench.profile_identity(scratch.root, "bench_thing"),
+        "config": "bench_thing",
+        "files": {},
+        "seconds": 1.2,
+        "loaded": loaded,
+    }
+    _checks.save(
+        _checks.record_dir(scratch.root),
+        "profile-bench_thing",
+        cast("_checks.Record", record),
+    )
+
+
+def _profiles(scratch):
+    return [i for i in _bench.due(scratch.root) if i.kind == "profile"]
+
+
+def test_a_program_never_profiled_has_its_profile_due(scratch):
+    """A program with no profile record is listed after the benchmarks."""
+    _install(scratch)
+    _program(scratch)
+    listed = _bench.due(scratch.root)
+    assert [(i.name, i.kind) for i in listed] == [
+        ("standin", "bench"),
+        ("bench_thing", "bench"),
+        ("bench_thing", "profile"),
+    ]
+    assert _bench.programs(scratch.root) == ["bench_thing"]
+    [profile] = _profiles(scratch)
+    assert profile.last_seconds is None
+    assert _bench._line(profile) == "profile bench_thing  never run"
+
+
+def test_a_profile_is_due_while_its_benchmark_is_not(scratch):
+    """A clean benchmark record does not clear the profile."""
+    _install(scratch)
+    _program(scratch)
+    _bench.run(scratch.root, "bench_thing")
+    listed = [(i.name, i.kind) for i in _bench.due(scratch.root)]
+    assert ("bench_thing", "bench") not in listed
+    assert ("bench_thing", "profile") in listed
+
+
+def test_a_clean_profile_record_clears_the_profile(scratch):
+    """A clean record with the current identity leaves nothing due for it."""
+    _install(scratch)
+    _program(scratch)
+    _profile_binary(scratch)
+    _save_profile(scratch)
+    assert _profiles(scratch) == []
+
+
+def test_a_loaded_profile_record_leaves_the_profile_due(scratch):
+    """A loaded record clears nothing and gives no last numbers."""
+    _install(scratch)
+    _program(scratch)
+    _profile_binary(scratch)
+    _save_profile(scratch, loaded=True)
+    [profile] = _profiles(scratch)
+    assert profile.last_seconds is None
+
+
+def test_a_profile_is_due_again_when_its_binary_changes(scratch):
+    """The record holds the profile binary: a rebuilt one is due, with its time."""
+    _install(scratch)
+    _program(scratch)
+    binary = _profile_binary(scratch)
+    _save_profile(scratch)
+    assert _profiles(scratch) == []
+    binary.write_text("#!/bin/sh\nexit 0\n# rebuilt\n")
+    [profile] = _profiles(scratch)
+    assert profile.last_seconds == 1.2
+    assert _bench._line(profile) == "profile bench_thing  last 1.2 s"
+
+
+def test_a_script_has_no_profile_due(scratch):
+    """The stand-in script lists only its benchmark."""
+    _install(scratch)
+    assert [(i.name, i.kind) for i in _bench.due(scratch.root)] == [
+        ("standin", "bench")
+    ]

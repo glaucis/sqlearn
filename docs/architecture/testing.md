@@ -604,7 +604,11 @@ page's script under `validation/benchmarks/`, none today: the old Python's are
 in `old_python/validation/benchmarks/`) an identity of its claimed groups, its
 own files and the shared part. `just benchmarks-due` lists the benchmarks whose
 identity has no recorded run, with the time, cores and peak memory of the last
-run, and runs nothing. `just bench <name>` runs one after Tomas's go-ahead (ADR
+run, and runs nothing. After the benchmarks it lists one profile for each
+`bench_` program (`profile bench_buffer  never run`, or `last 1.2 s`), due until
+a clean `profile-<name>` record holds the identity of the program's profile
+build (`engine/build/profile/bench`: the same parts as the benchmark's, with
+that binary's bytes). `just bench <name>` runs one after Tomas's go-ahead (ADR
 0072): it builds the release preset first (only for a `bench_` program), and
 records the identity, the numbers and the load. A run that ends while the
 1-minute load is at or above a quarter of the cores (`validation/_load.py`) is

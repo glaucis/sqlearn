@@ -45,7 +45,14 @@ PROGRAM_BUILD = Path("engine/build/release")
 PROGRAM_BINARIES = PROGRAM_BUILD / "bench"
 """Where ``just bench-engine`` builds the programs, relative to the root."""
 
+PROFILE_BUILD = Path("engine/build/profile")
+"""The profile build the programs are profiled from, relative to the root."""
+
+PROFILE_BINARIES = PROFILE_BUILD / "bench"
+"""Where the profile build keeps the programs, relative to the root."""
+
 _KEY = "bench"
+_PROFILE_KEY = "profile"
 
 
 @dataclass(frozen=True)
@@ -61,7 +68,10 @@ class Due:
         that prints its table and has none.
     last_seconds, last_cores, last_peak_mb : float or None
         The newest clean record's wall time, cores and peak memory; None when it
-        never ran.
+        never ran. A profile has seconds only.
+    kind : str
+        ``"bench"`` for a benchmark, ``"profile"`` for the profile of a C++
+        program (``profile-<name>`` records).
     """
 
     name: str
@@ -69,6 +79,7 @@ class Due:
     last_seconds: float | None
     last_cores: float | None
     last_peak_mb: float | None
+    kind: str = "bench"
 
 
 @dataclass(frozen=True)
@@ -165,12 +176,13 @@ def _identity(
     prints: _groups.Fingerprints,
     groups: dict[str, _groups.Group],
     library: str,
+    binary: Path | None = None,
 ) -> str:
     """Return the SHA-256 of what `item` measured.
 
     Its bytes, its groups, the place, and the Python it times (`library`);
     for a program, the binary's bytes instead of the Python, as the one that
-    runs is the one measured.
+    runs is the one measured (`binary` names another, the profile build's).
     """
     try:
         source = item.source.read_bytes()
@@ -178,7 +190,9 @@ def _identity(
         raise _groups.Unreadable(f"{item.source} could not be read: {error}") from error
     if item.program:
         try:
-            measured = hashlib.sha256(Path(item.argv[0]).read_bytes()).hexdigest()
+            measured = hashlib.sha256(
+                (binary or Path(item.argv[0])).read_bytes()
+            ).hexdigest()
         except OSError:
             measured = "no binary"
     else:
@@ -193,10 +207,60 @@ def _identity(
     return hashlib.sha256(b"\0".join(parts)).hexdigest()
 
 
-def _records(root: Path, name: str) -> list[dict[str, Any]]:
+def _records(root: Path, name: str, key: str = _KEY) -> list[dict[str, Any]]:
     return cast(
-        "list[dict[str, Any]]", _checks.load(_checks.record_dir(root), f"{_KEY}-{name}")
+        "list[dict[str, Any]]", _checks.load(_checks.record_dir(root), f"{key}-{name}")
     )
+
+
+def programs(root: Path) -> list[str]:
+    """Return the names of the C++ benchmark programs, ``bench_<name>``.
+
+    Parameters
+    ----------
+    root : Path
+        The repository's working tree, built (``_groups.WHEEL_BUILD``).
+
+    Returns
+    -------
+    list of str
+        Each program a group claims, in ``due``'s order.
+    """
+    groups = _groups.fingerprints(root, _groups.WHEEL_BUILD).manifest
+    return [b.name for b in _benchmarks(root, groups) if b.program]
+
+
+def profile_identity(root: Path, name: str) -> str:
+    """Return the SHA-256 of what the profile of the program `name` measured.
+
+    As a benchmark's identity, with the profile build's binary
+    (``PROFILE_BINARIES``) in place of the release one; "no binary" when it
+    is not built.
+
+    Parameters
+    ----------
+    root : Path
+        The repository's working tree, built.
+    name : str
+        A program's name, ``bench_<name>``.
+
+    Returns
+    -------
+    str
+        The hex digest.
+
+    Raises
+    ------
+    validation._groups.Unreadable
+        A manifest, a fingerprint or the program's source cannot be read, or
+        `name` is no program.
+    """
+    prints = _groups.fingerprints(root, _groups.WHEEL_BUILD)
+    groups = prints.manifest
+    for item in _benchmarks(root, groups):
+        if item.program and item.name == name:
+            return _identity(item, prints, groups, "", root / PROFILE_BINARIES / name)
+    raise _groups.Unreadable(f"no benchmark program {name}")
 
 
 def clean(record: dict[str, Any]) -> bool:
@@ -216,7 +280,10 @@ def clean(record: dict[str, Any]) -> bool:
 
 
 def due(root: Path) -> list[Due]:
-    """Return the benchmarks whose identity has no record. Runs none.
+    """Return the benchmarks and profiles whose identity has no clean record.
+
+    Runs none. The profiles, one for each C++ program, come after the
+    benchmarks.
 
     Parameters
     ----------
@@ -252,6 +319,25 @@ def due(root: Path) -> list[Due]:
                 last["seconds"] if last else None,
                 last["cores"] if last else None,
                 last["peak_mb"] if last else None,
+            )
+        )
+    for item in benchmarks:
+        if not item.program:
+            continue
+        records = [r for r in _records(root, item.name, _PROFILE_KEY) if clean(r)]
+        identity = _identity(
+            item, prints, groups, "", root / PROFILE_BINARIES / item.name
+        )
+        if any(r["digest"] == identity for r in records):
+            continue
+        out.append(
+            Due(
+                item.name,
+                "",
+                records[-1]["seconds"] if records else None,
+                None,
+                None,
+                "profile",
             )
         )
     return out
@@ -370,6 +456,10 @@ def run(root: Path, name: str) -> int:
 
 
 def _line(item: Due) -> str:
+    if item.kind == "profile":
+        if item.last_seconds is None:
+            return f"profile {item.name}  never run"
+        return f"profile {item.name}  last {item.last_seconds:.1f} s"
     page = item.page or "no page"
     if item.last_seconds is None:
         return f"{item.name}  ({page})  never run"
