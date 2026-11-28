@@ -3,9 +3,8 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-28 · Branch: `main` (one commit ahead of `origin/main`,
-not pushed) · Last commit: `docs: report what a Bazel build of the engine
-showed` · Checks: passing (`just done`)
+Updated: 2026-11-28 · Branch: `main` · Last commit: `docs: stay on CMake
+for now, and order the preparation` · Checks: passing (`just done`)
 Verify with: `just done` (`just verify` is the release tier)
 
 ## In progress
@@ -14,13 +13,6 @@ None. [verified]
 
 ## Waiting on the user
 
-- The Bazel decision: read `docs/questions/bazel-prototype.md`, a 9-item
-  checklist against today's selection, judged on features, not speed
-  (Tomas, 2026-11-28). It recommends keeping CMake, and moving if today's
-  selection, once the test programs link static libraries, still reruns or
-  misses what Tomas's aim rules out. Only the report and this handoff are
-  on `main` (Tomas, 2026-11-28); the prototype stays on the unmerged,
-  unpushed branch `claude/bazel-prototype-266e9b`. (since 2026-11-28)
 - The audit's first real run, `just audit-groups` (builds a second,
   coverage-instrumented wheel with DuckDB): awaits your go-ahead. Nothing
   claims Python tests or runners since ADR 0073, so it is due before the
@@ -32,20 +24,26 @@ None. [verified]
 
 ## Next up
 
-- From the Bazel prototype, for the CMake build: give the test programs
-  static libraries of the groups (today object libraries link every `core`
-  object into `test_raw` and `test_crash`, so a `core` edit reruns them;
-  Bazel's archives did not) (`docs/questions/bazel-prototype.md`, item 2).
-- A fresh clone fails `tests/docs/test_links.py::test_every_related_path_exists`
-  until `just fetch-mathjax` has run: `docs/architecture/writing.md` lists
-  the git-ignored `docs/_static/mathjax` in `related:`. `just setup` could
-  fetch it, or the entry go.
-- Ideas from the research (`docs/questions/test-selection.md`), none
-  decided: a check that `DEPENDS` matches the headers a group includes
-  (Bazel's `layering_check` does it, and found `test_raw` including
-  `core/error.hpp` through `raw`: the report's item 6), rules
-  for which group may depend on which, `just affected` (what a change reruns
-  and why), a full run at a set cadence compared with the selection.
+- **The preparation before the rewrite, in this order** (Tomas, 2026-11-28:
+  he prepares everything before starting, for a clear path):
+  1. The selection, strengthened with today's tools (ADR 0080): the groups'
+     test programs link static libraries, so a `core` edit stops rerunning
+     `test_raw` and `test_crash` (report item 2,
+     `docs/questions/archived/bazel-prototype.md`); a check that each
+     group's `DEPENDS` matches the headers it includes, with rules for which
+     group may depend on which (Bazel's `layering_check` found `test_raw`
+     including `core/error.hpp` through `raw`, report item 6);
+     `just affected`, what a change reruns and why; a full run at a set
+     cadence, compared with what the selection chose.
+  2. The small tooling fixes below: the SQL tests' data files, the 24 s
+     rebuild, `just done`'s order, #85 and #86.
+  3. A benchmark and profiling queue: profiling joins `just benchmarks-due`,
+     and one command runs the whole queue on Tomas's go-ahead, when the
+     machine is idle (ADR 0072 unchanged: nothing runs by itself).
+  4. Phase 1 step 3, then step 4 (below).
+  5. The audit's first run, on Tomas's go-ahead (above), before the first
+     group claims Python tests or runners.
+  6. Then the rewrite's first group, its plan first.
 - When `pyright-lsp` is installed globally (not yet), turn it off here in
   `.claude/settings.json`: `"enabledPlugins":
   {"pyright-lsp@claude-plugins-official": false}`; ty and mypy are this
@@ -190,6 +188,11 @@ None. [verified]
 
 ## Just finished
 
+- The Bazel decision (2026-11-28): the engine stays on CMake for now,
+  ADR 0080, with the signs to look again; the report is answered and in
+  `docs/questions/archived/`. A fresh clone no longer fails the `related:`
+  check: it now counts a path git ignores as missing, and
+  `docs/architecture/writing.md` lost `docs/_static/mathjax`.
 - The possible missed rerun the Bazel prototype reported (item 2) is not
   one (2026-11-28): the same `||` swap had passed earlier on exactly those
   bytes, and `_ctest`'s records keep every identity that passed. Making one
@@ -199,7 +202,7 @@ None. [verified]
   `claude/bazel-prototype-266e9b`, `c589f90` the groups and their tests
   (Apple clang, Homebrew LLVM, sanitizers, coverage), `8822816` DuckDB as one
   CMake step, the one binary and the wheel, then the report
-  `docs/questions/bazel-prototype.md`, rewritten as an 8-item checklist
+  `docs/questions/archived/bazel-prototype.md`, rewritten as an 8-item checklist
   when Tomas dropped speed as a criterion (the timings run before that are
   left out of it), then a fix of what a whole-branch review
   found (the module now takes every group object and no test hooks). Not

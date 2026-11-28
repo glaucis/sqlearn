@@ -22,6 +22,7 @@ How sqlearn is built, licensed and checked.
 - [0006: Local and offline](0006-local-and-offline.md)
 - [0007: Python 3.12 as the floor](0007-python-3-12-floor.md)
 - [0008: just as the task runner](0008-just-task-runner.md)
+- [0080: The engine stays on CMake for now](0080-the-engine-stays-on-cmake-for-now.md)
 - [0010: British prose, American identifiers](0010-british-prose-american-identifiers.md)
 - [0025: Results stored as data, in folders that mirror the package](0025-results-stored-as-data-in-mirrored-folders.md)
 

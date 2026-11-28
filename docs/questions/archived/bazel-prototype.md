@@ -6,11 +6,11 @@ related: [docs/plans/archived/2026-11-27-bazel-prototype.md, docs/questions/test
 ---
 # Can sqlearn's engine move from CMake to Bazel now?
 
-Open: the prototype has answered its questions, and the decision is Tomas's.
-The prototype of 2026-11-27 and 28
-([plan](../plans/archived/2026-11-27-bazel-prototype.md)) answers Tomas's
+Answered by [ADR 0080](../../adr/0080-the-engine-stays-on-cmake-for-now.md)
+(2026-11-28): the engine stays on CMake for now. The prototype of 2026-11-27 and
+28 ([plan](../../plans/archived/2026-11-27-bazel-prototype.md)) answers Tomas's
 question "why not adopt Bazel from the start?" and part B of the
-[test-selection research](test-selection.md). It was built on the branch
+[test-selection research](../test-selection.md). It was built on the branch
 `claude/bazel-prototype-266e9b`, beside the CMake build, which it leaves
 untouched; that branch is not merged. Bazel 9.3.3 through bazelisk 1.31.0, on
 macOS 27.2 (Apple silicon), Apple clang 21.0.0.
@@ -24,7 +24,7 @@ changed, and always when the code has not changed but something it uses (an
 include, an import, a function in another group) has. Each item below
 compares Bazel with today's home-made selection (`validation/_checks.py`,
 `validation/_ctest.py`, `just done`'s records and selecting by group,
-[testing](../architecture/testing.md)) like for like.
+[testing](../../architecture/testing.md)) like for like.
 
 Every Bazel run below is `bazel test //engine/...` (the dev flavour, the
 default) or with `--config=release`, after a passed run, and "ran" lists the
@@ -123,7 +123,7 @@ passed, 9 skipped`: every Python test, since every set uses `src/`.
 
 ## 4. A comment-only or docs-only edit
 
-| Edit | Bazel | Today ([testing](../architecture/testing.md), "What reruns for a change") |
+| Edit | Bazel | Today ([testing](../../architecture/testing.md), "What reruns for a change") |
 | --- | --- | --- |
 | a comment in `core/parse_version.cpp` within its lines | `compiled` that file, nothing ran (the object was the same) | `core`'s C++ tests, which read the text |
 | a comment line added there | dev: `test_core` and the replay ran (the debug information moved); release: relinks, nothing ran | `core`'s tests and every Python set and runner |
@@ -164,7 +164,7 @@ be selected **as tightly as its inputs are declared**: per file if it gets one
 action per file, per target if it runs per target. Today, each task of
 `validation/_checks.py` names its inputs as git pathspecs and runs per file
 (`format`, `lint`, `docstrings`) or whole (the others); the C++ and Python tests
-have records of their own ([testing](../architecture/testing.md)).
+have records of their own ([testing](../../architecture/testing.md)).
 
 "Tighter" below means fewer reruns for the same change, with nothing missed.
 
