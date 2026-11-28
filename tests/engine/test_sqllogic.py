@@ -12,7 +12,8 @@ import pytest
 REPO = Path(__file__).resolve().parents[2]
 ENGINE = REPO / "engine"
 BUILD = ENGINE / "build" / "sqllogic"
-TESTS = ENGINE / "extension" / "test" / "sql"
+EXTENSION_TESTS = ENGINE / "extension" / "test"
+TESTS = EXTENSION_TESTS / "sql"
 
 # The suffixes DuckDB's runner takes, at any depth (its test_sqllogictest.cpp).
 SUFFIXES = (".test", ".test_slow", ".test_coverage")
@@ -21,6 +22,26 @@ SUFFIXES = (".test", ".test_slow", ".test_coverage")
 def _runner_files(root: Path) -> set[Path]:
     """Return every file under `root` the runner would run."""
     return {p for p in root.rglob("*") if p.is_file() and p.suffix in SUFFIXES}
+
+
+def _listed(function: str, tree: Path, script_dir: Path) -> set[Path]:
+    """Return what the cmake function `function` of sql_tests.cmake lists under
+    `tree`, run by `cmake -P` from a script kept in `script_dir`."""
+    script = script_dir / "list.cmake"
+    script.write_text(
+        f'include("{ENGINE / "cmake" / "sql_tests.cmake"}")\n'
+        f'{function}(found "{tree}")\n'
+        'foreach(file IN LISTS found)\n  message(STATUS "${file}")\nendforeach()\n'
+    )
+    done = subprocess.run(
+        ["cmake", "-P", str(script)], check=False, capture_output=True, text=True
+    )
+    assert done.returncode == 0, done.stderr
+    return {
+        Path(line.removeprefix("-- "))
+        for line in done.stdout.splitlines()
+        if line.startswith("-- ")
+    }
 
 
 def _preset() -> dict[str, Any]:
@@ -86,12 +107,12 @@ def test_the_sql_label_runs_only_the_extensions_tests() -> None:
 
 
 def test_every_file_under_the_sql_tests_is_part_of_the_labels_identity() -> None:
-    """Each file under the tests' directory, a data file a .test reads too, is
-    a REQUIRED_FILES entry, which the checks hash, so an edited one reruns the
-    label."""
+    """Each file under engine/extension/test (the `sql` task's inputs), a data
+    file a .test reads too, is a REQUIRED_FILES entry, which the checks hash, so
+    an edited one reruns the label."""
     entry = _ctest_entry()
     required = {Path(p) for p in _property(entry, "REQUIRED_FILES")}
-    assert required == {p for p in TESTS.rglob("*") if p.is_file()}
+    assert required == {p for p in EXTENSION_TESTS.rglob("*") if p.is_file()}
 
 
 def test_the_test_set_takes_every_file_the_runner_runs(tmp_path: Path) -> None:
@@ -110,21 +131,7 @@ def test_the_test_set_takes_every_file_the_runner_runs(tmp_path: Path) -> None:
     for name in names:
         (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
         (tmp_path / name).write_text("require sqlearn\n")
-    script = tmp_path / "list.cmake"
-    script.write_text(
-        f'include("{ENGINE / "cmake" / "sql_tests.cmake"}")\n'
-        f'sq_sql_test_files(found "{tmp_path}")\n'
-        'foreach(file IN LISTS found)\n  message(STATUS "${file}")\nendforeach()\n'
-    )
-    done = subprocess.run(
-        ["cmake", "-P", str(script)], check=False, capture_output=True, text=True
-    )
-    assert done.returncode == 0, done.stderr
-    listed = {
-        Path(line.removeprefix("-- "))
-        for line in done.stdout.splitlines()
-        if line.startswith("-- ")
-    }
+    listed = _listed("sq_sql_test_files", tmp_path, tmp_path)
     assert listed == _runner_files(tmp_path)
     assert tmp_path / "sub" / "deeper" / "e.test_slow" in listed
 
@@ -144,19 +151,5 @@ def test_the_test_data_takes_every_file_under_the_directory(tmp_path: Path) -> N
     for name in names:
         (tree / name).parent.mkdir(parents=True, exist_ok=True)
         (tree / name).write_text("require sqlearn\n")
-    script = tmp_path / "list.cmake"
-    script.write_text(
-        f'include("{ENGINE / "cmake" / "sql_tests.cmake"}")\n'
-        f'sq_sql_test_data(found "{tree}")\n'
-        'foreach(file IN LISTS found)\n  message(STATUS "${file}")\nendforeach()\n'
-    )
-    done = subprocess.run(
-        ["cmake", "-P", str(script)], check=False, capture_output=True, text=True
-    )
-    assert done.returncode == 0, done.stderr
-    listed = {
-        Path(line.removeprefix("-- "))
-        for line in done.stdout.splitlines()
-        if line.startswith("-- ")
-    }
+    listed = _listed("sq_sql_test_data", tree, tmp_path)
     assert listed == {tree / name for name in names}
