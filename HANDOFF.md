@@ -4,15 +4,15 @@ Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
 Updated: 2026-11-28 · Branch: `main` (pushed, level with `origin/main`) · Last
-commit: `docs: update the handoff` · Checks: passing (`just done`) Verify with:
-`just done` (`just verify` is the release tier)
+commit: `2ba74e8 docs: update the handoff` · Checks: passing (`just done`)
+
+Verify with: `just done` (`just verify` is the release tier)
 
 ## In progress
 
-The small tooling fixes, plan `docs/plans/2026-11-28-tooling-fixes.md`, merged
-into `main` (`cd40339`): Tasks 1 to 3 and 5 to 13 done and reviewed, Task 4
-blocked (below). The plan stays active until Task 4 and its decisions are
-settled. [verified]
+None. [verified] The tooling-fixes plan
+(`docs/plans/2026-11-28-tooling-fixes.md`) stays active, not archived, until its
+Task 4 and its decisions (below) are settled.
 
 ## Waiting on the user
 
@@ -22,10 +22,11 @@ settled. [verified]
   uv's two-phase install, with no scikit_build_core in the environment.
   Baseline counted: 56 misses and 11 hits of 67 objects after a cache-key
   touch. Choose: `[tool.uv.extra-build-dependencies]`,
-  `[tool.uv.dependency-metadata]`, or leave the rebuild.
+  `[tool.uv.dependency-metadata]`, or leave the rebuild. (since 2026-11-28)
 - The plan's "Decisions for Tomas" table (13 #85 items, each with a
   recommendation): none is built until you answer; a yes adds a task. See the
-  plan's section of that name.
+  plan's section of that name; #85's comment of 2026-11-28 lists them.
+  (since 2026-11-28)
 - The audit's first real run, `just audit-groups` (builds a second,
   coverage-instrumented wheel with DuckDB): awaits your go-ahead. Nothing
   claims Python tests or runners since ADR 0073, so it is due before the
@@ -113,13 +114,24 @@ settled. [verified]
   `clangd --check` counts failed refactoring tweaks as errors: read the
   `E[` lines. (2026-11-27)
 - Selecting by group: an edit of `validation/__main__.py`, `_cases.py` or
-  `_groups.py` reruns every runner, so group them into one commit. The
+  `_version.py` reruns every runner (the selection modules in
+  `_record.SELECTION` no longer do), so group them into one commit. The
   first `just done` after a record's key changes reruns everything once.
   sqlearn's version carries the commit hash (`build_identity.hpp`,
-  `-DEXT_VERSION_SQLEARN`, `sqlearn_describe.c`): fingerprint the build
-  through `_groups.release()`, or every commit reruns everything. clang has
-  no `-fpreprocessed`: `_groups.stripped()` uses `-Xclang -dump-raw-tokens`.
-  (2026-11-27)
+  `-DEXT_VERSION_SQLEARN`, `sqlearn_describe.c`): the fingerprints cut
+  exactly sqlearn's installed version, so a build made outside uv (another
+  version) over-runs. clang has no `-fpreprocessed`: `_groups.stripped()`
+  uses `-Xclang -dump-raw-tokens`. (2026-11-28)
+- `no-build-isolation-package = ["sqlearn"]` breaks `uv lock`: the dynamic
+  version needs metadata built before uv's two-phase install, with no
+  scikit_build_core there (Task 4 of the tooling-fixes plan). CMake's
+  `string(JSON SET)` pretty-prints: the groups manifest escapes by hand
+  (`sq_json_string`). (2026-11-28)
+- A session isolated in a worktree refuses compound `git` commands: run
+  plain ones from the worktree. A subagent's sandbox can refuse
+  `git submodule update`. A subagent's commit can be refused without its
+  noticing: check `git log` and `git status` after each report.
+  (2026-11-28)
 - The docs tagger writes `related:` entries that are no paths (`ADR-0029`,
   `docs/adr/0070.md`, a bare page name), even into new files: `just links`
   names each, so fix them before its frontmatter commit. (2026-11-27)
@@ -197,73 +209,16 @@ settled. [verified]
 
 ## Just finished
 
-- The small tooling fixes (2026-11-28, branch `claude/tooling-fixes`,
-  `ce3d768..1ce87c9`, plan `docs/plans/2026-11-28-tooling-fixes.md`): the
-  SQL label hashes every file under `engine/extension/test` (`e71fb01`,
-  `9d0a394`); `just test` and `just full` write the compiler stamp
-  (`6882a40`); `just done` checks the lockfile first (`a76612e`); group
-  objects stay out of the link line's fingerprint (`01829d4`); the selection
-  modules stay out of a runner's identity and `main` fingerprints once after
-  its runners (`6b4f91f`); the group checks name what they could not read,
-  and the manifest escapes quotes (`c7d6369`); group fingerprints hash what
-  the build reads, pins come from the checked-out HEADs, the version cut is
-  sqlearn's own, `_bench run` refuses a stale program (`d52ebfe`,
-  `8a74800`); missing programs and corrupt outputs give `Fix:` lines
-  (`1cbe000`); link options only on targets that link (`f7fe1b2`); setup
-  fetches only the submodules the build uses (`95bcb54`); a C++ exception is
-  named by its demangled type (`1ce87c9`). Task 4 is not done.
-- The selection, strengthened (2026-11-28, ADR 0080): the groups' test
-  programs link static libraries, so a `core` edit no longer reruns
-  `test_raw` and `test_crash` (`2ea9fcb`, `4a6ef34`); a check that each
-  group's `DEPENDS` matches what it includes, with the layering rules
-  (`5de91a7`, `465ad02`); `just affected`, what a change reruns and why
-  (`eb8f3a3`, `bae1373`); `just sweep`, every check in full compared with
-  what the selection chose, every 7 days (Tomas), `just done` warning when
-  it is older (`c670a08`, `7ade7b4`); then the fixes of a whole-branch
-  review (`fix: find a missed rerun per test unit in the sweep`): the sweep
-  compares `test` unit by unit, `affected` and `sweep` write the compiler
-  stamp first, and the layering check skips git-ignored files and refuses
-  `..` includes.
-- The Bazel decision (2026-11-28): the engine stays on CMake for now,
-  ADR 0080, with the signs to look again; the report is answered and in
-  `docs/questions/archived/`. A fresh clone no longer fails the `related:`
-  check: it now counts a path git ignores as missing, and
-  `docs/architecture/writing.md` lost `docs/_static/mathjax`.
-- The possible missed rerun the Bazel prototype reported (item 2) is not
-  one (2026-11-28): the same `||` swap had passed earlier on exactly those
-  bytes, and `_ctest`'s records keep every identity that passed. Making one
-  edit twice, with a revert between, reproduces it. No code changed.
-- The Bazel prototype (2026-11-27 and 28, plan
-  `docs/plans/archived/2026-11-27-bazel-prototype.md`): on the branch
-  `claude/bazel-prototype-266e9b`, `c589f90` the groups and their tests
-  (Apple clang, Homebrew LLVM, sanitizers, coverage), `8822816` DuckDB as one
-  CMake step, the one binary and the wheel, then the report
-  `docs/questions/archived/bazel-prototype.md`, rewritten as an 8-item checklist
-  when Tomas dropped speed as a criterion (the timings run before that are
-  left out of it), then a fix of what a whole-branch review
-  found (the module now takes every group object and no test hooks). Not
-  merged, not pushed.
-- The review of ADRs 0074 to 0079 (2026-11-27; Tomas left it to the
-  session): each restates the records it supersedes faithfully. Their status
-  lines now say they were written on Tomas's decision to consolidate and take
-  no new decision; 0075 leaves how an undeclared step is inspected
-  (placeholders in the old Python) to the C++ group; 0079 lets the C++ saving
-  group rename or extend the value tags. 0078's shared sort was already
-  mechanics.
-- The docs cleanup (2026-11-27, plan and list now in
-  `docs/plans/archived/`): `305f313` and `4d2fa4c` the link check and the
-  `related:` paths it named; `4811972` and `0f8a393` the list and your
-  answers; `ab421ee` the moves into `archived/` folders (`docs/adr/`,
-  `specs/`, `plans/`, `questions/`, `benchmarks/`); `1267423` `just links`,
-  a check of its own on every Markdown file; `1792390` ADRs 0074 to 0079,
-  the twenty they supersede archived, the amended ADRs' status lines, the
-  index and the stale active pages; then the archiving rule in `CLAUDE.md`
-  and `workflow.md`. Nothing was deleted; no ADR was renumbered.
-- The old Python moved to `old_python/` (2026-11-27, ADR 0073, plan
-  `docs/plans/archived/2026-11-27-old-python.md`): `d4f7d3b` the move, `55cd48e`
-  the docs, merged into `main` and pushed. Nothing there runs; `just validate`
-  has no runner; `check-mirror` is gone; `tests/src/` is empty until the C++
-  brings `sq.` back.
-- The research on choosing what a change tests,
-  `docs/questions/test-selection.md` (`9e5ce3f`), and the plans for the
-  move, the Bazel prototype (`e5f2d73`) and the docs cleanup (`a452ea7`).
+- The small tooling fixes (2026-11-28, plan
+  `docs/plans/2026-11-28-tooling-fixes.md`, merged into `main` and pushed,
+  `ce3d768..cd40339`): the SQL label hashes every file under
+  `engine/extension/test` (`e71fb01`, `9d0a394`); `just test` and `just full`
+  write the compiler stamp (`6882a40`); `just done` checks the lockfile first
+  (`a76612e`); #86's follow-ups (`01829d4`, `6b4f91f`, `c7d6369`, `d52ebfe`,
+  `8a74800`; #86 closed); #85's that needed no decision (`1cbe000`,
+  `f7fe1b2`, `95bcb54`, `1ce87c9`; progress on #85); the docs (`8cf0d52`);
+  a whole-branch review's fixes, a run cut short still forgets moved passes
+  and the loose tests' `Fix:` names the wheel rebuild (`b12eb9d`,
+  `5a3e156`). Task 4 is not done (above).
+- The docs tagger's frontmatter, its bad `related:` entries fixed
+  (`48a444f`).
