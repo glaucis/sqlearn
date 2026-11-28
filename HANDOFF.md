@@ -57,7 +57,9 @@ gaps) is next, then 21 (reading a crash report).
   superpowers:writing-plans. Then step 4, the review and the measurements
   (spec §3.7). Step 3 also: detect LLVM's path for Linux (it is
   `/opt/homebrew` until then, Tomas, 2026-11-28); each release keeps its
-  binary's debug symbols, so a user's crash report can be read; the release
+  module's linker map (`build/<cache tag>/_duckdb.map`, for
+  `just crash-report`), so a user's crash report can be read, and Linux
+  gets its map and `addr2line` there; the release
   wheel stays built in isolation (`just build-package`, `--no-config`).
 - The dependencies the old Python used: numpy (runtime, ADR 0057) and the
   test group's scikit-learn, pandas, polars, optuna, catboost, lightgbm,

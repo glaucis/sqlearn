@@ -121,6 +121,16 @@ else()
   # that writes their counts. The release flavour has none.
   target_link_options(_duckdb PRIVATE ${SQ_FLAVOR_LINK_OPTIONS})
 
+  # The linker's map of the module: each symbol's address and the object it
+  # came from. nanobind links the module with -x -S, which drops every local
+  # symbol (all of ours: they are hidden) and the debug map, so the map is
+  # what names a crash report's frames and tells sqlearn's from DuckDB's
+  # (just crash-report, validation/_crash_report.py). Beside the build, never
+  # in the wheel. Linux's linkers write another format: step 3.
+  if(APPLE)
+    target_link_options(_duckdb PRIVATE "LINKER:-map,${CMAKE_BINARY_DIR}/_duckdb.map")
+  endif()
+
   # Their headers are system headers to our targets, so our warnings (as
   # errors) cover our code and not theirs. Setting a property of their
   # targets edits none of their files.

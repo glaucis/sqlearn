@@ -785,21 +785,30 @@ so a DuckDB bug can be told from sqlearn's and reported upstream.
 Modify `docs/architecture/crash-reports.md`. Test:
 `tests/validation/test__crash_report.py`.
 
-- [ ] **Step 1: Write the failing tests:** a report (a fixture made by a
+- [x] **Step 1: Write the failing tests:** a report (a fixture made by a
   real crash of the dev build) gives one line per frame with its function,
   file and line, and its owner: `sqlearn` (`sq::`), `DuckDB`
   (`duckdb::`), `Python`, or `system`; a report from another build is
   refused with `Fix:` naming the build it needs.
-- [ ] **Step 2: Run, expect FAIL**
-- [ ] **Step 3: Build it on `atos`** (macOS; `addr2line` on Linux at
+- [x] **Step 2: Run, expect FAIL**
+- [x] **Step 3: Build it on `atos`** (macOS; `addr2line` on Linux at
   step 3), checking the report's build line against the installed build.
-- [ ] **Step 4: Add to the page** how to tell whose bug it is: reproduce the
+- [x] **Step 4: Add to the page** how to tell whose bug it is: reproduce the
   SQL in plain DuckDB 2.0.1 (with made-up data, never the user's); a crash
   there is DuckDB's, to report on DuckDB's tracker and explain to the user;
   none there is sqlearn's.
-- [ ] **Step 5: Note for step 3** in `HANDOFF.md`: each release keeps its
+- [x] **Step 5: Note for step 3** in `HANDOFF.md`: each release keeps its
   binary's debug symbols, so a user's report can be read.
-- [ ] **Step 6: Commit** `feat: read a crash report and name whose code crashed`
+- [x] **Step 6: Commit** `feat: read a crash report and name whose code crashed`
+
+**As built (Tomas chose the map, 2026-11-28):** nanobind links the module
+with `-x -S`, so the binary names none of sqlearn's (hidden) functions and
+`atos` would name each after the DuckDB symbol before it. The link writes
+the module's map (`build/<cache tag>/_duckdb.map`, `engine/CMakeLists.txt`):
+module frames are named from it and owned by their object file; other
+images by `atos`, a shared-cache library through the reader's own process
+(`atos -p`), since `atos -o` on its file names it wrong. No file and line: a
+`.dSYM` would add them later. The fixture is a real crash made in the test.
 
 ### Task 22: Close the work
 

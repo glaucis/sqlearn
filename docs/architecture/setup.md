@@ -75,7 +75,7 @@ system's OpenMP library; uv cannot provide it. uv is the only package tool
 | test | `audit-groups`, `bench`, `bench-engine`, `benchmarks-due`, `coverage-engine`, `fuzz`, `leaks-engine`, `mutate-engine`, `sanitize`, `sql`, `test`, `test-all`, `test-engine`, `test-engine-changed`, `test-hooks`, `test-python-versions`, `test-sql`, `validate`, `validate-all` |
 | docs | `build-docs`, `docs`, `fetch-inventories`, `fetch-mathjax` |
 | build | `api-snapshot`, `build-engine`, `build-package`, `stubs` |
-| maintain | `clean`, `probe-cxx26`, `upgrade-dependencies` |
+| maintain | `clean`, `crash-report`, `probe-cxx26`, `upgrade-dependencies` |
 
 The C++ builds run under `just` (ADR 0008): `just build-engine <preset>`
 configures and builds `engine/` with a CMake preset (`engine/CMakePresets.json`:
