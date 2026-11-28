@@ -688,19 +688,20 @@ limit. Today: 98 files, 5,866 bytes, the largest 4,096 bytes. The replay
 test passes each file on its command line, so a large corpus can also pass
 the system's argument limit.
 
-**Files:** Modify the `fuzz` recipe (`justfile`). Test:
-`tests/checks/test_tasks.py`.
+**Files:** Modify the `fuzz` recipe (`justfile`). Create `validation/_fuzz.py`
+(the cap, which the recipe runs after its merge). Test:
+`tests/validation/test__fuzz.py`.
 
-- [ ] **Step 1: Write the failing tests:** the recipe passes
+- [x] **Step 1: Write the failing tests:** the recipe passes
   `-max_len=4096` to every fuzzing run; and, run on a scratch corpus of 501
   files (or one over 1 MB), the size check fails, naming the target and
   `Fix:` (merge the corpus into an empty directory with `-merge=1`, which
   keeps only the inputs that add coverage, and commit that).
-- [ ] **Step 2: Run, expect FAIL**
-- [ ] **Step 3: Add the flag and the check**, after the merge: at most 500
+- [x] **Step 2: Run, expect FAIL**
+- [x] **Step 3: Add the flag and the check**, after the merge: at most 500
   files and 1,048,576 bytes per target.
-- [ ] **Step 4: Run the tests, expect PASS**
-- [ ] **Step 5: Commit** `fix: cap the fuzz corpus`
+- [x] **Step 4: Run the tests, expect PASS**
+- [x] **Step 5: Commit** `fix: cap the fuzz corpus`
 
 ### Task 19: Each licence text is pinned by its digest
 

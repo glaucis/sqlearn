@@ -341,7 +341,13 @@ after `format`, to an equal version. Every `dev` run replays the corpus
 libFuzzer), with each corpus file an argument and a required file of the test,
 so a new file or a change to the parser reruns the `core` group. The target's
 source compiles in every preset, so clang-tidy checks it. The 1 MiB string of
-digits seed is built inside the replay, not kept as a file.
+digits seed is built inside the replay, not kept as a file. The corpus has a
+cap (`validation/_fuzz.py`): libFuzzer makes no input longer than 4,096 bytes
+(`-max_len`, on the run and the merge), and after its merge each target's
+corpus may hold at most 500 files and 1 MiB, or the recipe fails with the
+fix, a merge into an empty directory that keeps only the inputs adding
+coverage. The repository keeps every corpus file in its history, each `dev`
+run replays them all, and the replay takes each on its command line.
 
 **The sanitizers.** `just sanitize` runs `validation._ctest` with `--all` on
 each sanitizer preset: `dev` (AddressSanitizer and UndefinedBehaviorSanitizer,

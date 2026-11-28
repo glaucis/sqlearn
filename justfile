@@ -207,7 +207,7 @@ test-engine-changed preset="dev" *flags:
 test-sql *flags:
     uv run --locked python -m validation._ctest sqllogic {{ flags }}
 
-# Fuzz each target for `seconds` (libFuzzer on the fuzzing preset, Homebrew LLVM) on a scratch copy of its corpus, then merge the new inputs into engine/fuzz/corpus/<target>/; a crash, leak, out-of-memory or timeout input is kept there, named, and fails
+# Fuzz each target for `seconds` (libFuzzer on the fuzzing preset, Homebrew LLVM) on a scratch copy of its corpus, then merge the new inputs (each at most 4,096 bytes) into engine/fuzz/corpus/<target>/, which fails past 500 files or 1 MiB (validation/_fuzz.py); a crash, leak, out-of-memory or timeout input is kept there, named, and fails
 [group('test')]
 fuzz seconds="60":
     #!/usr/bin/env bash
@@ -227,7 +227,8 @@ fuzz seconds="60":
         # the corpus's inputs, not the failures kept from an earlier run
         find "$corpus" -maxdepth 1 -type f ! \( "${kinds[@]}" \) -exec cp {} "$work"/ \;
         code=0
-        "$binary" -max_total_time={{ seconds }} -timeout=10 -detect_leaks=0 \
+        # -max_len: no input longer than validation/_fuzz.py's MAX_LEN
+        "$binary" -max_len=4096 -max_total_time={{ seconds }} -timeout=10 -detect_leaks=0 \
             -artifact_prefix="$found/" "$work" || code=$?
         # libFuzzer writes each failing input under the prefix: this run's alone
         inputs="$(find "$found" -maxdepth 1 -type f \( "${kinds[@]}" \))"
@@ -246,7 +247,9 @@ fuzz seconds="60":
             echo "Fix: the parser, then just test-engine dev runs it again" >&2
             exit 1
         fi
-        "$binary" -merge=1 "$corpus" "$work"
+        "$binary" -max_len=4096 -merge=1 "$corpus" "$work"
+        # the merged corpus keeps the cap: at most 500 files and 1 MiB
+        (cd .. && uv run --locked python -m validation._fuzz "engine/$corpus")
     done
 
 # Build each sanitizer preset and run every C++ group's tests and its canaries under it: dev (AddressSanitizer, UndefinedBehaviorSanitizer), tsan, lsan, tysan (validation/_ctest.py, --all); every preset runs, a failing one included, and the first failure's code is the exit
