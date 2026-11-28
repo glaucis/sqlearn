@@ -1,0 +1,124 @@
+{
+ "string_table": [
+  "UNKNOWN",
+  "start",
+  "sq::accumulate_squares(std::__1::vector<double, std::__1::allocator<double> > const&)",
+  "sq::sort_batch(std::__1::vector<double, std::__1::allocator<double> >&, std::__1::mersenne_twister_engine<unsigned long long, (unsigned long)64, (unsigned long)312, (unsigned long)156, (unsigned long)31, (unsigned long long)13043109905998158313, (unsigned long)29, (unsigned long long)6148914691236517205, (unsigned long)17, (unsigned long long)8202884508482404352, (unsigned long)37, (unsigned long long)18444473444759240704, (unsigned long)43, (unsigned long long)6364136223846793005>&)",
+  "sq::run()",
+  "main",
+  "std::__1::__introsort<std::__1::_ClassicAlgPolicy, std::__1::greater<double>&, double*, true>(double*, double*, std::__1::greater<double>&, std::__1::iterator_traits<double*>::difference_type, bool)",
+  "std::__1::__bitset_partition[abi:nqe220106]<std::__1::_ClassicAlgPolicy, double*, std::__1::greater<double>&>(std::__1::pair, std::__1::pair, std::__1::greater<double>&)",
+  "std::__1::__insertion_sort_incomplete[abi:nqe220106]<std::__1::_ClassicAlgPolicy, std::__1::greater<double>&, double*>(double*, double*, std::__1::greater<double>&)",
+  "_platform_memmove"
+ ],
+ "data": [
+  {
+   "debug_name": "dyld",
+   "debug_id": "d8104ed6-185e-3a2f-ad71-b91eddbe2598",
+   "code_id": "D8104ED6185E3A2FAD71B91EDDBE2598",
+   "symbol_table": [
+    {
+     "rva": 197504,
+     "size": 7724,
+     "symbol": 1
+    }
+   ],
+   "known_addresses": [
+    [
+     197504,
+     0
+    ]
+   ]
+  },
+  {
+   "debug_name": "loop",
+   "debug_id": "e18bcb67-7530-3cbb-8ea2-727d859c9929",
+   "code_id": "E18BCB6775303CBB8EA2727D859C9929",
+   "symbol_table": [
+    {
+     "rva": 1256,
+     "size": 48,
+     "symbol": 2
+    },
+    {
+     "rva": 1304,
+     "size": 292,
+     "symbol": 3
+    },
+    {
+     "rva": 1596,
+     "size": 460,
+     "symbol": 4
+    },
+    {
+     "rva": 2056,
+     "size": 48,
+     "symbol": 5
+    },
+    {
+     "rva": 2104,
+     "size": 1648,
+     "symbol": 6
+    },
+    {
+     "rva": 3752,
+     "size": 784,
+     "symbol": 7
+    },
+    {
+     "rva": 4536,
+     "size": 656,
+     "symbol": 8
+    }
+   ],
+   "known_addresses": [
+    [
+     1256,
+     0
+    ],
+    [
+     1304,
+     1
+    ],
+    [
+     1596,
+     2
+    ],
+    [
+     2056,
+     3
+    ],
+    [
+     2104,
+     4
+    ],
+    [
+     3752,
+     5
+    ],
+    [
+     4536,
+     6
+    ]
+   ]
+  },
+  {
+   "debug_name": "libsystem_platform.dylib",
+   "debug_id": "fdf30fd1-5e97-3348-bee7-ba386574a75f",
+   "code_id": "FDF30FD15E973348BEE7BA386574A75F",
+   "symbol_table": [
+    {
+     "rva": 15712,
+     "size": 736,
+     "symbol": 9
+    }
+   ],
+   "known_addresses": [
+    [
+     15712,
+     0
+    ]
+   ]
+  }
+ ]
+}

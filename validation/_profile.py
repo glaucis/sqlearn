@@ -1,0 +1,380 @@
+"""A profile's summary and its comparison with the previous one.
+
+A profile is a samply recording (``samply record --save-only
+--unstable-presymbolicate``), in the Firefox Profiler's processed format as
+samply 0.13.1 writes it (``meta.version`` 24, ``preprocessedProfileVersion``
+49), plain or gzipped. With ``--unstable-presymbolicate`` the function names
+are not in the profile but in a sidecar beside it: for ``profile.json.gz`` or
+``profile.json``, ``profile.json.syms.json``. ``summarise`` takes the
+profile's path and reads the sidecar from there when it exists; without one,
+it uses the names the profile holds.
+
+A frame is named after the symbol whose range holds its address in its image
+(inlined frames are not split out). A frame neither the sidecar nor the
+profile names (the profile's name is then its address, ``0x…``) is counted as
+``unsymbolicated code in <image>``, so its addresses do not split its share.
+
+A sample's stack is read root to leaf: its self time goes to the leaf, its
+total time to every distinct function on the stack, once (a recursive
+function counts once). Shares are fractions of all samples with a stack,
+weighted by samply's sample weights. Each function's owner is whose code it
+is (``owner``), and ``owners`` sums the self shares by owner.
+
+The agent reads the summary (``summary.json``) and the comparison
+(``compare.md``), so both are exact and stable: functions are ranked by share
+descending, then by name, and values are written the same way each time.
+"""
+
+from __future__ import annotations
+
+import bisect
+import gzip
+import json
+from collections import Counter
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+from validation._crash_report import owner_of_image
+
+TOP = 30
+"""How many functions each ranking keeps."""
+
+MOVED = 0.02
+"""A function whose self share moved more than this is in the comparison."""
+
+
+@dataclass(frozen=True)
+class Function:
+    """One function of a profile, with its shares of all samples."""
+
+    name: str
+    owner: str
+    self_share: float
+    total_share: float
+
+
+@dataclass(frozen=True)
+class Summary:
+    """What a profile says: its time, its load, and where the time went.
+
+    ``owners`` maps each owner to its share of samples by self time;
+    ``by_self`` and ``by_total`` are the top functions by self and by total
+    time, each sorted by that share descending, then by name.
+    """
+
+    seconds: float
+    load_before: str
+    load_after: str
+    owners: dict[str, float]
+    by_self: tuple[Function, ...]
+    by_total: tuple[Function, ...]
+
+    def to_json(self) -> dict[str, Any]:
+        """Return the summary as JSON data (``from_json`` reads it back).
+
+        Returns
+        -------
+        dict[str, Any]
+            The summary's fields; each function is an object of its four.
+        """
+        return {
+            "seconds": self.seconds,
+            "load_before": self.load_before,
+            "load_after": self.load_after,
+            "owners": dict(self.owners),
+            "by_self": [_function_json(f) for f in self.by_self],
+            "by_total": [_function_json(f) for f in self.by_total],
+        }
+
+    @classmethod
+    def from_json(cls, data: dict[str, Any]) -> Summary:
+        """Read a summary that ``to_json`` wrote.
+
+        Parameters
+        ----------
+        data : dict[str, Any]
+            The JSON data.
+
+        Returns
+        -------
+        Summary
+            The summary, equal to the one written.
+        """
+        return cls(
+            seconds=float(data["seconds"]),
+            load_before=str(data["load_before"]),
+            load_after=str(data["load_after"]),
+            owners={str(k): float(v) for k, v in data["owners"].items()},
+            by_self=tuple(Function(**f) for f in data["by_self"]),
+            by_total=tuple(Function(**f) for f in data["by_total"]),
+        )
+
+
+def _function_json(function: Function) -> dict[str, Any]:
+    return {
+        "name": function.name,
+        "owner": function.owner,
+        "self_share": function.self_share,
+        "total_share": function.total_share,
+    }
+
+
+def owner(name: str, image: str) -> str:
+    """Return whose code a function is.
+
+    Parameters
+    ----------
+    name : str
+        The function's demangled name.
+    image : str
+        The path (or name) of the image it is in.
+
+    Returns
+    -------
+    str
+        ``sqlearn`` for a name in ``sq::``, ``DuckDB`` in ``duckdb::``,
+        ``standard library`` in ``std::`` or in an image named ``libc++*``;
+        otherwise the image's owner (``Python`` or ``system``).
+    """
+    if name.startswith("sq::"):
+        return "sqlearn"
+    if name.startswith("duckdb::"):
+        return "DuckDB"
+    if name.startswith("std::") or Path(image).name.startswith("libc++"):
+        return "standard library"
+    return owner_of_image(image)
+
+
+def _sidecar(profile: Path) -> Path:
+    stem = profile.name.removesuffix(".gz")
+    return profile.with_name(stem + ".syms.json")
+
+
+def _read_json(path: Path) -> Any:
+    if path.suffix == ".gz":
+        with gzip.open(path, "rt", encoding="utf-8") as text:
+            return json.load(text)
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+class _Symbols:
+    """The sidecar's symbols of each image: its ranges, sorted by address."""
+
+    def __init__(self, sidecar: Any) -> None:
+        strings = sidecar["string_table"]
+        self._images: dict[str, tuple[list[int], list[tuple[int, str]]]] = {}
+        for image in sidecar["data"]:
+            entries = sorted(
+                (e["rva"], e["size"], strings[e["symbol"]])
+                for e in image["symbol_table"]
+            )
+            starts = [rva for rva, _, _ in entries]
+            ranges = [(rva + size, name) for rva, size, name in entries]
+            for key in (image.get("code_id"), image.get("debug_name")):
+                if key:
+                    self._images.setdefault(str(key).upper(), (starts, ranges))
+
+    def name(self, lib: dict[str, Any], address: int) -> str | None:
+        for key in (lib.get("codeId"), lib.get("debugName"), lib.get("name")):
+            if key and str(key).upper() in self._images:
+                starts, ranges = self._images[str(key).upper()]
+                at = bisect.bisect_right(starts, address) - 1
+                if at >= 0 and address < ranges[at][0]:
+                    return ranges[at][1]
+                return None
+        return None
+
+
+def _frame_names(
+    thread: dict[str, Any],
+    libs: list[dict[str, Any]],
+    strings: list[str],
+    symbols: _Symbols,
+) -> list[tuple[str, str]]:
+    """Each frame's function name and image path."""
+    frames = thread["frameTable"]
+    funcs = thread["funcTable"]
+    resources = thread["resourceTable"]
+    named = []
+    for frame in range(frames["length"]):
+        func = frames["func"][frame]
+        resource = funcs["resource"][func]
+        lib = None
+        if resource is not None and resource >= 0:
+            index = resources["lib"][resource]
+            if index is not None and index >= 0:
+                lib = libs[index]
+        image = (lib.get("path") or lib.get("name") or "") if lib else ""
+        address = frames["address"][frame]
+        name = None
+        if lib is not None and address is not None and address >= 0:
+            name = symbols.name(lib, address)
+        if name is None:
+            name = strings[funcs["name"][func]]
+            if name.startswith("0x"):
+                name = f"unsymbolicated code in {Path(image).name or 'no image'}"
+        named.append((name, image))
+    return named
+
+
+def summarise(
+    profile: Path, seconds: float, load_before: str, load_after: str
+) -> Summary:
+    """Summarise a samply profile.
+
+    Parameters
+    ----------
+    profile : Path
+        The recording (``.json`` or ``.json.gz``); its ``.syms.json``
+        sidecar, when beside it, names the functions.
+    seconds : float
+        The run's wall time.
+    load_before, load_after : str
+        The load before and after the run (``uptime``'s line).
+
+    Returns
+    -------
+    Summary
+        Its owners' shares and its top functions by self and total time.
+    """
+    data = _read_json(profile)
+    sidecar_path = _sidecar(profile)
+    symbols = _Symbols(
+        _read_json(sidecar_path)
+        if sidecar_path.exists()
+        else {"string_table": [], "data": []}
+    )
+    shared = data.get("shared") or {}
+    self_weight: Counter[str] = Counter()
+    total_weight: Counter[str] = Counter()
+    owners_of: dict[str, str] = {}
+    all_weight = 0
+    for thread in data["threads"]:
+        strings = thread.get("stringArray") or shared.get("stringArray") or []
+        names = _frame_names(thread, data["libs"], strings, symbols)
+        stacks = thread["stackTable"]
+        samples = thread["samples"]
+        weights = samples.get("weight") or [1] * samples["length"]
+        for stack, weight in zip(samples["stack"], weights, strict=True):
+            if stack is None:
+                continue
+            weight = 1 if weight is None else weight
+            all_weight += weight
+            leaf = True
+            seen: set[str] = set()
+            while stack is not None:
+                name, image = names[stacks["frame"][stack]]
+                owners_of.setdefault(name, owner(name, image))
+                if leaf:
+                    self_weight[name] += weight
+                    leaf = False
+                if name not in seen:
+                    seen.add(name)
+                    total_weight[name] += weight
+                stack = stacks["prefix"][stack]
+    functions = [
+        Function(
+            name,
+            owners_of[name],
+            self_weight[name] / all_weight,
+            total_weight[name] / all_weight,
+        )
+        for name in total_weight
+    ]
+    owners: Counter[str] = Counter()
+    for function in functions:
+        if function.self_share > 0:
+            owners[function.owner] += self_weight[function.name]
+    by_self = sorted(
+        (f for f in functions if f.self_share > 0),
+        key=lambda f: (-f.self_share, f.name),
+    )
+    by_total = sorted(functions, key=lambda f: (-f.total_share, f.name))
+    return Summary(
+        seconds=seconds,
+        load_before=load_before,
+        load_after=load_after,
+        owners={
+            name: count / all_weight
+            for name, count in sorted(owners.items(), key=lambda o: (-o[1], o[0]))
+        },
+        by_self=tuple(by_self[:TOP]),
+        by_total=tuple(by_total[:TOP]),
+    )
+
+
+def _share(share: float) -> str:
+    return f"{share * 100:.1f}%"
+
+
+def _cell(name: str) -> str:
+    return "`" + name.replace("|", "\\|") + "`"
+
+
+def compare(previous: Summary | None, current: Summary) -> str:
+    """Compare a profile's summary with the previous clean one, as Markdown.
+
+    Parameters
+    ----------
+    previous : Summary or None
+        The previous clean profile's summary, None when there is none.
+    current : Summary
+        This profile's summary.
+
+    Returns
+    -------
+    str
+        Both runs' wall time and loads, each owner's share side by side, and
+        the functions whose self share moved more than 2 percentage points
+        or that are new in the top 30 by self time, with both shares. With
+        no previous summary, a line saying so.
+    """
+    heading = "# Profile comparison\n\n"
+    if previous is None:
+        return heading + "No previous clean profile to compare with.\n"
+    lines = [
+        "| | previous | current |",
+        "| --- | --- | --- |",
+        f"| wall time | {previous.seconds:.3f} s | {current.seconds:.3f} s |",
+        f"| load before | {previous.load_before} | {current.load_before} |",
+        f"| load after | {previous.load_after} | {current.load_after} |",
+        "",
+        "## Owners, by self time",
+        "",
+        "| owner | previous | current |",
+        "| --- | --- | --- |",
+    ]
+    for name in sorted(previous.owners.keys() | current.owners.keys()):
+        lines.append(
+            f"| {name} | {_share(previous.owners.get(name, 0.0))}"
+            f" | {_share(current.owners.get(name, 0.0))} |"
+        )
+    lines += ["", "## Functions that moved", ""]
+    top_before = {f.name: f.self_share for f in previous.by_self}
+    known_before = {f.name: f.self_share for f in previous.by_total} | top_before
+    rows = []
+    for function in current.by_self:
+        before = known_before.get(function.name)
+        if function.name not in top_before:
+            shown = "new" if before is None else f"new, {_share(before)}"
+        elif round(abs(function.self_share - before), 12) > MOVED:
+            shown = _share(before)
+        else:
+            continue
+        rows.append(
+            f"| {_cell(function.name)} | {function.owner} | {shown}"
+            f" | {_share(function.self_share)} |"
+        )
+    if rows:
+        lines += [
+            "| function | owner | previous | current |",
+            "| --- | --- | --- | --- |",
+            *rows,
+        ]
+    else:
+        lines.append(
+            "No function's self share moved more than 2 points, and none is"
+            " new in the top 30."
+        )
+    return heading + "\n".join(lines) + "\n"
