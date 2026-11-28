@@ -108,7 +108,7 @@ def problems(
     root: Path,
     groups: dict[str, _groups.Group],
     *,
-    shared: Iterable[str] = (),
+    shared: Iterable[str],
 ) -> list[str]:
     """Return what breaks the layering rules, one message per problem.
 
@@ -118,10 +118,9 @@ def problems(
         The repository's root.
     groups : dict of str to Group
         The manifest's groups.
-    shared : iterable of str, optional
+    shared : iterable of str
         The manifest's shared directories, relative to `root`; those under
-        ``INCLUDE_ROOT`` are what rule 5 refuses. Empty by default, which
-        leaves rule 5 nothing to refuse.
+        ``INCLUDE_ROOT`` are what rule 5 refuses.
 
     Returns
     -------

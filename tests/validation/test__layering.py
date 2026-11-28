@@ -52,7 +52,7 @@ def test_an_include_of_a_group_not_depended_on_is_refused(tmp_path):
         "raw": _group("raw", ["core"]),
         "crash": _group("crash"),
     }
-    found = _layering.problems(tmp_path, groups)
+    found = _layering.problems(tmp_path, groups, shared=SHARED)
     assert len(found) == 1
     assert "raw" in found[0]
     assert "crash" in found[0]
@@ -70,7 +70,7 @@ def test_an_include_of_a_group_not_depended_on_in_its_tests_is_refused(tmp_path)
         },
     )
     groups = {"raw": _group("raw"), "crash": _group("crash")}
-    (found,) = _layering.problems(tmp_path, groups)
+    (found,) = _layering.problems(tmp_path, groups, shared=SHARED)
     assert "engine/tests/raw/test_a.cpp:1" in found
     assert "Fix: add crash to DEPENDS" in found
 
@@ -117,7 +117,7 @@ def test_a_dependency_of_a_dependency_must_be_named(tmp_path):
         "raw": _group("raw", ["core"]),
         "crash": _group("crash", ["raw"]),
     }
-    (found,) = _layering.problems(tmp_path, groups)
+    (found,) = _layering.problems(tmp_path, groups, shared=SHARED)
     assert "Fix: add core to DEPENDS of crash" in found
 
 
@@ -132,7 +132,7 @@ def test_a_dependency_nothing_includes_is_stale(tmp_path):
         },
     )
     groups = {"core": _group("core"), "raw": _group("raw", ["core"])}
-    (found,) = _layering.problems(tmp_path, groups)
+    (found,) = _layering.problems(tmp_path, groups, shared=SHARED)
     assert "stale" in found
     assert "Fix:" in found
 
@@ -147,7 +147,7 @@ def test_a_dependency_only_the_tests_include_is_stale(tmp_path):
         },
     )
     groups = {"core": _group("core"), "raw": _group("raw", ["core"])}
-    (found,) = _layering.problems(tmp_path, groups)
+    (found,) = _layering.problems(tmp_path, groups, shared=SHARED)
     assert "stale" in found
 
 
@@ -162,10 +162,8 @@ def test_a_cycle_is_refused(tmp_path):
         },
     )
     groups = {"a": _group("a", ["b"]), "b": _group("b", ["a"])}
-    (found,) = _layering.problems(tmp_path, groups)
-    assert "cycle" in found
-    assert "a" in found
-    assert "b" in found
+    (found,) = _layering.problems(tmp_path, groups, shared=SHARED)
+    assert "groups a, b depend on one another in a cycle" in found
     assert "Fix:" in found
 
 
