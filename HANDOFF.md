@@ -4,7 +4,7 @@ Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
 Updated: 2026-11-28 · Branch: `main` (pushed, level with `origin/main`) · Last
-commit: `048a27e docs: refresh the docs index frontmatter` · Checks: passing
+commit: `93b1c45 test: check the engine's stubs again` · Checks: passing
 (`just done`)
 
 Verify with: `just done` (`just verify` is the release tier)
@@ -12,8 +12,10 @@ Verify with: `just done` (`just verify` is the release tier)
 ## In progress
 
 None. [verified] The tooling-fixes plan
-(`docs/plans/2026-11-28-tooling-fixes.md`) stays active, not archived: its
-Tasks 13 to 22, from Tomas's answers to its decisions, are not started.
+(`docs/plans/2026-11-28-tooling-fixes.md`) stays active, not archived: Tasks 13
+and 14 are done; 15 to 22 are not started. Task 15 (the test extension) is next,
+its first step finding how DuckDB 2.0.1 builds a loadable extension outside the
+wheel.
 
 ## Waiting on the user
 
@@ -30,7 +32,7 @@ Tasks 13 to 22, from Tomas's answers to its decisions, are not started.
 
 - **The preparation before the rewrite, in this order** (Tomas, 2026-11-28:
   he prepares everything before starting, for a clear path):
-  1. **The small tooling fixes**: Tasks 1 to 12 are merged into `main`.
+  1. **The small tooling fixes**: Tasks 1 to 14 are merged into `main`.
      Tomas answered the 13 decisions (2026-11-28, the plan's table and
      #85's comment); the yeses are Tasks 13 to 21, then Task 22 closes the
      plan. Tasks 20 and 21 are the crash handler's (a stack overflow's
@@ -207,6 +209,11 @@ Tasks 13 to 22, from Tomas's answers to its decisions, are not started.
   with `COPY`, one probe per subprocess. (2026-11-12)
 
 ## Just finished
+
+- Tasks 13 and 14 of the tooling fixes (2026-11-28): a submodule with local
+  edits fails the configure, DuckDB's edits named at its own directory
+  (`58aceb1`); a test checks `_native.pyi` against the module again
+  (`93b1c45`).
 
 - Task 4 of the tooling fixes (2026-11-28, `a490fa0`, merged into `main` and
   pushed): sqlearn builds in the project's environment, the `build` group
