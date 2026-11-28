@@ -1,10 +1,39 @@
 """A user's DuckDB connection crossing into sqlearn's C++ and back."""
 
+import subprocess
+import sys
+from pathlib import Path
+
 import duckdb
 import pytest
 
 import sqlearn as sq
 from sqlearn._native import count_rows, roundtrip
+
+REPO = Path(__file__).resolve().parents[2]
+STUB = "src/sqlearn/_native.pyi"
+
+
+def test_the_stubs_match_the_engines_module(tmp_path):
+    """nanobind's stubgen, formatted by ruff, gives the committed _native.pyi,
+    so ty, mypy and editors see the module's functions as they are.
+
+    What ``just check-stubs`` runs, here on the running interpreter with no
+    uv, so it never syncs or rebuilds the environment the tests run in.
+    """
+    raw = tmp_path / "raw.pyi"
+    stubgen = ["-m", "nanobind.stubgen", "-q", "-D", "-m", "sqlearn._native"]
+    subprocess.run([sys.executable, *stubgen, "-o", str(raw)], cwd=REPO, check=True)
+    formatted = subprocess.run(
+        [sys.executable, "-m", "ruff", "format", "--stdin-filename", STUB],
+        cwd=REPO,
+        input=raw.read_text(encoding="utf-8"),
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    committed = (REPO / STUB).read_text(encoding="utf-8")
+    assert formatted == committed, "Fix: just stubs"
 
 
 @pytest.fixture

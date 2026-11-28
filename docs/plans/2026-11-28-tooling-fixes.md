@@ -580,14 +580,15 @@ stale for ty, mypy and editors.
 
 **Files:** Test: `tests/engine/test_bindings.py`.
 
-- [ ] **Step 1: Write the test**
-  `test_the_stubs_match_the_engines_module`: run `just check-stubs` from
-  `REPO`; expect exit 0. It is in the tooling set, so an engine edit reruns
-  it.
-- [ ] **Step 2: Show it can fail:** add a parameter to one binding's
+- [x] **Step 1: Write the test**
+  `test_the_stubs_match_the_engines_module`: what `just check-stubs` runs
+  (stubgen, then ruff), on the running interpreter without uv, so it never
+  syncs or rebuilds the environment the tests run in. It is in the tooling
+  set, so an engine edit reruns it.
+- [x] **Step 2: Show it can fail:** add a parameter to one binding's
   signature in a scratch edit of `_native.pyi`, run, expect FAIL with the
   diff; restore.
-- [ ] **Step 3: Commit** `test: check the engine's stubs again`
+- [x] **Step 3: Commit** `test: check the engine's stubs again`
 
 ### Task 15: An extension the user installs loads
 
