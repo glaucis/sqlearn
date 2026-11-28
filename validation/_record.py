@@ -170,9 +170,9 @@ def engine(root: Path, runner: str, prints: _groups.Fingerprints | None = None) 
     name = runner.rsplit(".", 1)[-1]
     build = _groups.WHEEL_BUILD
     try:
-        groups, _ = _groups.load(root.resolve() / build)
         if prints is None:
             prints = _groups.fingerprints(root, build)
+        groups = prints.manifest
         claimed = [g.name for g in groups.values() if name in g.validation]
         return _groups.identity(prints, groups, claimed or None)
     except _groups.Unreadable as error:

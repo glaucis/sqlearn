@@ -57,7 +57,7 @@ import subprocess
 import sys
 import tomllib
 from collections.abc import Iterable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -196,11 +196,14 @@ class Fingerprints:
     shared_groups : frozenset of str
         The groups in the shared part: the closure of those whose files the
         shared entries read (the bindings, the extension).
+    manifest : dict of str to Group
+        The manifest these were made from, so a caller loads it only once.
     """
 
     shared: str
     groups: dict[str, str]
     shared_groups: frozenset[str] = frozenset()
+    manifest: dict[str, Group] = field(default_factory=dict)
 
 
 def _strings(value: Any, what: str) -> tuple[str, ...]:
@@ -657,7 +660,15 @@ class _Fingerprinter:
         parts.append(f"pins\0{pins}")
         parts.append(f"build tables\0{_build_tables(self.root)}")
         parts.append(f"compiler\0{_ctest.compiler(self.build)}")
-        parts.append(f"link\0{_normalised(_link_command(self.build), self.root)}")
+        # A group's own objects are in its fingerprint (its sources and
+        # flags): leave them out, or a new source of a group moves every part.
+        markers = tuple(f"/CMakeFiles/sq_{name}.dir/" for name in self.groups)
+        link = [
+            arg
+            for arg in _link_command(self.build)
+            if not any(marker in arg for marker in markers)
+        ]
+        parts.append(f"link\0{_normalised(link, self.root)}")
         return _digest(parts)
 
 
@@ -675,7 +686,7 @@ def fingerprints(root: Path, build: Path) -> Fingerprints:
     Returns
     -------
     Fingerprints
-        The shared part and each group's fingerprint.
+        The shared part, each group's fingerprint and the manifest read.
 
     Raises
     ------
@@ -690,7 +701,10 @@ def fingerprints(root: Path, build: Path) -> Fingerprints:
     prints = {name: making.group(name) for name in sorted(groups)}
     shared_part = making.shared()
     return Fingerprints(
-        shared=shared_part, groups=prints, shared_groups=making.shared_groups
+        shared=shared_part,
+        groups=prints,
+        shared_groups=making.shared_groups,
+        manifest=groups,
     )
 
 

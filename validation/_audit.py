@@ -288,8 +288,9 @@ def run(root: Path) -> int:
     """
     root = root.resolve()
     try:
-        groups, _ = _groups.load(root / COVERAGE_BUILD)
-        shared = set(_groups.fingerprints(root, COVERAGE_BUILD).shared_groups)
+        prints = _groups.fingerprints(root, COVERAGE_BUILD)
+        groups = prints.manifest
+        shared = set(prints.shared_groups)
         module = _module()
     except _groups.Unreadable as error:
         _say(f"The audit cannot read the coverage build: {error}")

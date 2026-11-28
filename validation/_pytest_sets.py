@@ -194,17 +194,26 @@ def _files(specs: Sequence[str], root: Path) -> set[str]:
     return set(_checks._listed(specs, root))
 
 
+def _read(root: Path) -> _groups.Fingerprints | _groups.Unreadable:
+    """Return the module's fingerprints, or why they cannot be read."""
+    try:
+        return _groups.fingerprints(root, _groups.WHEEL_BUILD)
+    except _groups.Unreadable as error:
+        return error
+
+
 def _identities(
-    chosen: Sets, groups: dict[str, _groups.Group], root: Path
+    chosen: Sets, prints: _groups.Fingerprints | _groups.Unreadable, root: Path
 ) -> dict[str, str] | None:
     """Return each set of `chosen` with its identity, None when unreadable.
 
     The reason is printed when the fingerprints cannot be read.
     """
     try:
-        prints = _groups.fingerprints(root, _groups.WHEEL_BUILD)
+        if isinstance(prints, _groups.Unreadable):
+            raise prints
         modules = {
-            name: _groups.identity(prints, groups, uses)
+            name: _groups.identity(prints, prints.manifest, uses)
             for name, (_, uses) in chosen.items()
         }
     except _groups.Unreadable as error:
@@ -244,16 +253,21 @@ def _run_set(paths: Sequence[str], root: Path) -> int:
     return next((c for c in codes if c not in {0, NO_TESTS}), 0)
 
 
-def _manifest(root: Path) -> dict[str, _groups.Group]:
+def _manifest(
+    prints: _groups.Fingerprints | _groups.Unreadable, root: Path
+) -> dict[str, _groups.Group]:
     """Return the manifest's groups, none when it cannot be read.
 
-    ``_identities`` says why it cannot: the sets are then those of no group.
+    The fingerprints carry it; when they cannot be read (a missing compile
+    database, say) the manifest alone is loaded. ``_identities`` says why
+    the fingerprints cannot be read: the sets are then those of no group.
     """
+    if not isinstance(prints, _groups.Unreadable):
+        return prints.manifest
     try:
-        groups, _ = _groups.load(root / _groups.WHEEL_BUILD)
+        return _groups.load(root / _groups.WHEEL_BUILD)[0]
     except _groups.Unreadable:
         return {}
-    return groups
 
 
 def due(root: Path) -> dict[str, list[str]]:
@@ -274,12 +288,12 @@ def due(root: Path) -> dict[str, list[str]]:
         the fingerprints cannot be read, every set runs, for that reason.
     """
     root = root.resolve()
-    groups = _manifest(root)
+    prints = _read(root)
     try:
-        chosen = sets(groups, root)
+        chosen = sets(_manifest(prints, root), root)
     except ValueError as error:
         return {"sets": [str(error)]}
-    found = _identities(chosen, groups, root)
+    found = _identities(chosen, prints, root)
     if found is None:
         return {name: ["the C++ groups are unreadable"] for name in chosen}
     return _ctest.reasons(
@@ -307,13 +321,13 @@ def run(root: Path, *, everything: bool = False) -> int:
         included), 1 when a test file lies in no set; else 0.
     """
     root = root.resolve()
-    groups = _manifest(root)
+    prints = _read(root)
     try:
-        chosen = sets(groups, root)
+        chosen = sets(_manifest(prints, root), root)
     except ValueError as error:
         _say(str(error))
         return 1
-    before = _identities(chosen, groups, root)
+    before = _identities(chosen, prints, root)
     directory = _checks.record_dir(root)
     passed = _ctest.passed(directory, KEY)
     good: dict[str, str] = {}
@@ -337,7 +351,7 @@ def run(root: Path, *, everything: bool = False) -> int:
         return first
     if failed:
         _ctest._forget(directory, KEY, failed)
-    after = _identities(chosen, groups, root) if ran else {}
+    after = _identities(chosen, _read(root), root) if ran else {}
     recorded = False
     for name in ran:
         if after is None or after[name] != before[name]:

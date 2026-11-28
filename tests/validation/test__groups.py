@@ -450,3 +450,18 @@ def test_the_build_directories_follow_the_pythons_cache_tag(tmp_path):
         text=True,
     ).stdout.split()
     assert out == ["build/cpython-399", "build/coverage-cpython-399"]
+
+
+def test_a_new_object_of_a_group_leaves_the_shared_part(scratch):
+    """A group's own objects in the link line change nothing shared."""
+    link = f"{scratch.compiler} -bundle -o _duckdb.abi3.so"
+    scratch.link(link)
+    before = scratch.prints()
+    scratch.link(f"{link} engine/CMakeFiles/sq_b.dir/b/three.cpp.o")
+    assert _changed(before, scratch.prints()) == set()
+
+
+def test_the_fingerprints_carry_the_manifest_they_read(scratch):
+    """The callers read the manifest from the fingerprints, not a second load."""
+    build = scratch.build
+    assert scratch.prints().manifest == _groups.load(build)[0]

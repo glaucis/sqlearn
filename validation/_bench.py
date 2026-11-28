@@ -211,9 +211,9 @@ def due(root: Path) -> list[Due]:
     validation._groups.Unreadable
         A manifest, a fingerprint or a script's constants cannot be read.
     """
-    groups, _ = _groups.load(root / _groups.WHEEL_BUILD)
-    benchmarks = _benchmarks(root, groups)
     prints = _groups.fingerprints(root, _groups.WHEEL_BUILD)
+    groups = prints.manifest
+    benchmarks = _benchmarks(root, groups)
     library = _library(root)
     out: list[Due] = []
     for item in benchmarks:
@@ -259,7 +259,8 @@ def run(root: Path, name: str) -> int:
     int
         The benchmark's exit code; 2 when `name` is no benchmark.
     """
-    groups, _ = _groups.load(root / _groups.WHEEL_BUILD)
+    prints = _groups.fingerprints(root, _groups.WHEEL_BUILD)
+    groups = prints.manifest
     chosen = [b for b in _benchmarks(root, groups) if b.name == name]
     if not chosen:
         print(f"no benchmark {name}: `just benchmarks-due` lists them")  # noqa: T201
@@ -267,7 +268,7 @@ def run(root: Path, name: str) -> int:
     item = chosen[0]
     identity = _identity(
         item,
-        _groups.fingerprints(root, _groups.WHEEL_BUILD),
+        prints,
         groups,
         _library(root),
     )

@@ -2258,6 +2258,12 @@
     },
     {
       "area": "validation/_groups",
+      "name": "tests/validation/test__groups.py::test_a_new_object_of_a_group_leaves_the_shared_part",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_groups",
       "name": "tests/validation/test__groups.py::test_a_pin_build_table_or_compiler_changes_the_shared_part",
       "outcome": "passed",
       "tier": "fast"
@@ -2295,6 +2301,12 @@
     {
       "area": "validation/_groups",
       "name": "tests/validation/test__groups.py::test_the_coverage_wheels_override_keeps_the_shared_part",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_groups",
+      "name": "tests/validation/test__groups.py::test_the_fingerprints_carry_the_manifest_they_read",
       "outcome": "passed",
       "tier": "fast"
     },

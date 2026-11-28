@@ -569,11 +569,9 @@ def module_identity(task: Task, root: Path) -> str:
         return ""
     from validation import _groups
 
-    build = root / _groups.WHEEL_BUILD
     try:
-        groups, _ = _groups.load(build)
         prints = _groups.fingerprints(root, _groups.WHEEL_BUILD)
-        return _groups.identity(prints, groups, task.module)
+        return _groups.identity(prints, prints.manifest, task.module)
     except _groups.Unreadable as error:
         print(  # noqa: T201
             f"{task.name}: the C++ groups are unreadable: {error}\n"
