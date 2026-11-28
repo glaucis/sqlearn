@@ -1,9 +1,9 @@
 ---
 type: adr
 tags: [saving, pipeline, json, serialization, security, sqlearn]
-summary: "Accepted decision on saving pipelines as JSON (recipe and learned part only), refusing pickle, and having sq.load import nothing."
-related: [docs/adr/archived/0047-a-pipeline-saves-as-json.md, docs/adr/archived/0048-the-user-saves-the-model-and-imports-its-packages.md, docs/adr/0070-sqlearn-is-rewritten-in-cpp.md, docs/specs/archived/library-saving.md, docs/specs/archived/library-saving-the-model.md, docs/adr/0003-scikit-learn-style-api.md, docs/adr/0076-the-learning-store-and-its-keys.md, docs/adr/0046-sqlearn-warns-the-user-chooses.md]
-mdindex: [type=0fc814, tags=30e998, summary=91d4dc, related=54dd0f]
+summary: "Accepted ADR consolidating sqlearn's rules for saving and loading pipelines as JSON, with the trained model kept separate and no imports by sq.load."
+related: [docs/adr/archived/0047-a-pipeline-saves-as-json.md, docs/adr/archived/0048-the-user-saves-the-model-and-imports-its-packages.md, docs/adr/0070-sqlearn-is-rewritten-in-cpp.md, docs/adr/0003-scikit-learn-style-api.md, docs/adr/0076-the-learning-store-and-its-keys.md, docs/adr/0046-sqlearn-warns-the-user-chooses.md, docs/adr/0005-runtime-dependencies.md, docs/adr/0006-local-and-offline.md]
+mdindex: [type=0fc814, tags=30e998, summary=a950cf, related=29bd45]
 ---
 # 0079: Saving a pipeline: JSON, sqlearn's part only, nothing imported
 

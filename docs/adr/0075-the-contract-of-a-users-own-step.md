@@ -1,9 +1,9 @@
 ---
 type: adr
-tags: [step-contract, user-steps, static-dynamic, learn-apply, error-diagnosis]
-summary: "Consolidates the contract for user-written steps (static/dynamic classification, inspection, failure reporting, hooks, declarations), superseding ADRs 0019, 002"
+tags: [step-contract, custom-steps, static-dynamic, failure-diagnosis, sqlearn]
+summary: "Consolidated ADR stating the contract a user's own sqlearn step must follow: parts, static/dynamic declaration, inspection, failure reporting and hooks."
 related: [docs/adr/archived/0019-custom-steps-and-failure-feedback.md, docs/adr/archived/0027-a-user-step-may-declare-itself-dynamic.md, docs/adr/archived/0028-a-step-returning-a-mapping-counts-as-dynamic.md, docs/adr/archived/0037-four-additions-to-the-step-contract.md, docs/adr/0070-sqlearn-is-rewritten-in-cpp.md, docs/adr/archived/0012-static-and-dynamic-steps.md, docs/adr/0074-how-a-pipeline-learns.md, docs/adr/0035-names-of-generated-columns.md]
-mdindex: [type=0fc814, tags=e19eff, summary=d1ced5, related=7a2183]
+mdindex: [type=0fc814, tags=21837c, summary=115a18, related=7a2183]
 ---
 # 0075: The contract of a user's own step
 
