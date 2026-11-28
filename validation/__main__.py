@@ -110,12 +110,17 @@ def _drop_moved(repo: Path, ran: dict[str, str], readable: bool) -> None:
     for name, identity in ran.items():
         now = _record.engine(repo, name, after) if after else _checks.UNREADABLE
         if now != identity:
-            _record.forget_passes(directory, name, identity)
-            print(  # noqa: T201
-                f"{name}: not recorded, these files or groups changed while it"
-                " ran or were not there before: the C++ groups it uses",
-                flush=True,
+            had = any(
+                r["passed"] and r["environment"].get("groups") == identity
+                for r in _record.load(directory, name)
             )
+            _record.forget_passes(directory, name, identity)
+            if had:
+                print(  # noqa: T201
+                    f"{name}: not recorded, the C++ groups it uses changed"
+                    " while it ran or were not there before",
+                    flush=True,
+                )
 
 
 def main(runners: Sequence[str], root: Path, *, everything: bool = False) -> int:
@@ -140,24 +145,39 @@ def main(runners: Sequence[str], root: Path, *, everything: bool = False) -> int
         prints = None
     failed = False
     ran: dict[str, str] = {}
-    for name in runners:
-        # a record's environment holds the identity of the groups the runner
-        # uses; environment.json is committed, so it keeps the versions alone
-        identity = _record.engine(repo, name, prints) if prints else _checks.UNREADABLE
-        environment = {**base, "groups": identity}
-        records = _record.load(directory, name)
-        if not everything and _record.matching(records, repo, environment):
-            print(f"{name}: unchanged since a passed run", flush=True)  # noqa: T201
-            continue
-        child = subprocess.run(
-            [sys.executable, "-m", "validation", "--one", name, "--groups", identity],
-            cwd=repo,
-            check=False,
-        )
-        ran[name] = identity
-        failed = failed or child.returncode != 0
+    try:
+        for name in runners:
+            # a record's environment holds the identity of the groups the runner
+            # uses; environment.json is committed, so it keeps the versions alone
+            identity = (
+                _record.engine(repo, name, prints) if prints else _checks.UNREADABLE
+            )
+            environment = {**base, "groups": identity}
+            records = _record.load(directory, name)
+            if not everything and _record.matching(records, repo, environment):
+                print(f"{name}: unchanged since a passed run", flush=True)  # noqa: T201
+                continue
+            ran[name] = identity
+            child = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "validation",
+                    "--one",
+                    name,
+                    "--groups",
+                    identity,
+                ],
+                cwd=repo,
+                check=False,
+            )
+            failed = failed or child.returncode != 0
+    finally:
+        # a child given groups saves its pass without an after-check of its own,
+        # so a run cut short must still forget the passes of groups that moved
+        if ran:
+            _drop_moved(repo, ran, prints is not None)
     if ran:
-        _drop_moved(repo, ran, prints is not None)
         _cases.write_json(root / "environment.json", base)
     return 1 if failed else 0
 

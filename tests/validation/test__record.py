@@ -229,3 +229,14 @@ def test_a_record_from_before_the_groups_is_rerun_once(scratch):
         runner="x", depends={}, environment=environment, counts={"pass": 1}, passed=True
     )
     assert matching([old, new], scratch.root, environment) == new
+
+
+def test_forgetting_passes_keeps_the_failures_of_the_identity(root, tmp_path):
+    """Only the passed record under the identity goes; a failure stays."""
+    directory = tmp_path / "records"
+    environment = {**ENVIRONMENT, "groups": "g1"}
+    for passed in (True, False):
+        save(directory, {**_record(root, passed), "environment": environment})
+    record_module.forget_passes(directory, "validation.x.validate_y", "g1")
+    kept = load(directory, "validation.x.validate_y")
+    assert [r["passed"] for r in kept] == [False]

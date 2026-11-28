@@ -281,3 +281,31 @@ def test_no_runners_passes_and_says_so(tmp_path, capfd):
     assert entry.main((), tmp_path / "validation") == 0
     assert "no validation runners" in capfd.readouterr().out
     assert not (tmp_path / "validation" / "environment.json").exists()
+
+
+def test_a_run_cut_short_still_forgets_the_passes_that_moved(root, capfd, monkeypatch):
+    """The groups moved during the first runner, then the second is cut short
+    (Ctrl-C): the first's pass stays recorded for groups that changed, so a
+    revert would match it. It is forgotten and the interrupt still propagates."""
+    (root.parent / "standins" / f"{GROUP_EDITOR}.py").write_text(GROUP_EDITOR_SOURCE)
+    manifest = root.parent / _groups.WHEEL_BUILD / "sq_groups.json"
+    data = json.loads(manifest.read_text())
+    data["groups"][1]["validation"] = [GROUP_EDITOR, GOOD]
+    manifest.write_text(json.dumps(data))
+    real = entry.subprocess.run
+    calls = []
+
+    def cut(*args, **kwargs):
+        # the module's `subprocess` is the global one: count only the runners
+        if "--one" in args[0]:
+            calls.append(args)
+            if len(calls) == 2:
+                raise KeyboardInterrupt
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(entry.subprocess, "run", cut)
+    with pytest.raises(KeyboardInterrupt):
+        entry.main([GROUP_EDITOR, GOOD], root)
+    assert f"{GROUP_EDITOR}: not recorded" in capfd.readouterr().out
+    repo = root.parent.resolve()
+    assert _record.load(_record.record_dir(repo), GROUP_EDITOR) == []
