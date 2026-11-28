@@ -3,9 +3,9 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-27 · Branch: `main` (pushed, level with `origin/main`) ·
-Last commit: `docs: refresh the docs index frontmatter` (`af459f8`) ·
-Checks: passing (`just done`)
+Updated: 2026-11-28 · Branch: `main` (one commit ahead of `origin/main`,
+not pushed) · Last commit: `docs: report what a Bazel build of the engine
+showed` · Checks: passing (`just done`)
 Verify with: `just done` (`just verify` is the release tier)
 
 ## In progress
@@ -14,6 +14,13 @@ None. [verified]
 
 ## Waiting on the user
 
+- The Bazel decision: read `docs/questions/bazel-prototype.md`, a 9-item
+  checklist against today's selection, judged on features, not speed
+  (Tomas, 2026-11-28). It recommends keeping CMake, and moving if today's
+  selection, once the test programs link static libraries, still reruns or
+  misses what Tomas's aim rules out. Only the report and this handoff are
+  on `main` (Tomas, 2026-11-28); the prototype stays on the unmerged,
+  unpushed branch `claude/bazel-prototype-266e9b`. (since 2026-11-28)
 - The audit's first real run, `just audit-groups` (builds a second,
   coverage-instrumented wheel with DuckDB): awaits your go-ahead. Nothing
   claims Python tests or runners since ADR 0073, so it is due before the
@@ -25,11 +32,21 @@ None. [verified]
 
 ## Next up
 
-- **Next: the Bazel prototype** (Tomas, 2026-11-27: one plan at a time):
-  `docs/plans/2026-11-27-bazel-prototype.md`, in its own worktree; ask
-  before installing bazelisk and before any timing.
+- From the Bazel prototype, for the CMake build: give the test programs
+  static libraries of the groups (today object libraries link every `core`
+  object into `test_raw` and `test_crash`, so a `core` edit reruns them;
+  Bazel's archives did not), and diagnose why `validation._ctest` said
+  `core: unchanged` after the `||` swap in `core/parse_version.cpp` changed
+  `test_core`'s bytes, possibly a missed rerun
+  (`docs/questions/bazel-prototype.md`, item 2).
+- A fresh clone fails `tests/docs/test_links.py::test_every_related_path_exists`
+  until `just fetch-mathjax` has run: `docs/architecture/writing.md` lists
+  the git-ignored `docs/_static/mathjax` in `related:`. `just setup` could
+  fetch it, or the entry go.
 - Ideas from the research (`docs/questions/test-selection.md`), none
-  decided: a check that `DEPENDS` matches the headers a group includes, rules
+  decided: a check that `DEPENDS` matches the headers a group includes
+  (Bazel's `layering_check` does it, and found `test_raw` including
+  `core/error.hpp` through `raw`: the report's item 6), rules
   for which group may depend on which, `just affected` (what a change reruns
   and why), a full run at a set cadence compared with the selection.
 - When `pyright-lsp` is installed globally (not yet), turn it off here in
@@ -75,6 +92,17 @@ None. [verified]
 
 ## Dead ends and traps
 
+- Bazel (the prototype, `claude/bazel-prototype-266e9b`): the registry's
+  cpptrace compiles libdwarf (LGPL), so it is built from the submodule;
+  rules_foreign_cc passes `--copt` into CMake's flags, so a define both set
+  clashes (use `--per_file_copt`); apple_support's toolchain needs
+  `--features=external_include_paths` or Catch2's headers fail our
+  warnings, and `--macos_minimum_os=15.0` or libc++ refuses 10.11; rules_cc
+  sets up no macOS toolchain without `BAZEL_USE_LEGACY_MACOS_TOOLCHAIN=1`;
+  two toolchains need `--platform_suffix` or a switch rebuilds everything;
+  a `cc_import(alwayslink)` loses to the same archive linked plainly (use
+  `-force_load`). bazelisk is installed (`brew install bazelisk`, Tomas's
+  yes of 2026-11-27). (2026-11-28)
 - A new source in `engine/src/bindings/`, `engine/extension/src/` or
   `engine/bench/` has no compile flags in clangd until `just tidy-engine`
   reruns. The plugin starts a bare `clangd`: name the binary with `lsof`.
@@ -165,6 +193,16 @@ None. [verified]
 
 ## Just finished
 
+- The Bazel prototype (2026-11-27 and 28, plan
+  `docs/plans/archived/2026-11-27-bazel-prototype.md`): on the branch
+  `claude/bazel-prototype-266e9b`, `c589f90` the groups and their tests
+  (Apple clang, Homebrew LLVM, sanitizers, coverage), `8822816` DuckDB as one
+  CMake step, the one binary and the wheel, then the report
+  `docs/questions/bazel-prototype.md`, rewritten as an 8-item checklist
+  when Tomas dropped speed as a criterion (the timings run before that are
+  left out of it), then a fix of what a whole-branch review
+  found (the module now takes every group object and no test hooks). Not
+  merged, not pushed.
 - The review of ADRs 0074 to 0079 (2026-11-27; Tomas left it to the
   session): each restates the records it supersedes faithfully. Their status
   lines now say they were written on Tomas's decision to consolidate and take
