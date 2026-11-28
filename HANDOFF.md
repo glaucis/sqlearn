@@ -3,10 +3,9 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-28 · Branch: `workflows-and-site` (local only, not
-pushed; `main` is one commit ahead of `origin/main`, `40784ee`) · Checks:
-`just check` and `just test` pass on each commit; `just done` not yet run on
-the branch
+Updated: 2026-11-28 · Branch: `workflows-and-site` (local only, not pushed;
+`main` is one commit ahead of `origin/main`, `40784ee`) · Checks: passing
+(`just done` on the branch, on `b6d0984`)
 
 Verify with: `just done` (`just verify` is the release tier)
 
@@ -23,9 +22,20 @@ Verify with: `just done` (`just verify` is the release tier)
   `verify-mutate`, and `verify-linux`; `.github/workflows/site.yml`. Left:
   the first workflow run and its fixes (Task 5 step 6), Pages turned on (Task
   6 step 6), then `just done`, the plan archived, the merge. The spec now says
-  step 3 is macOS and Linux; Windows is #89. The rulings made while building
-  are in the plan's ledger, `.superpowers/sdd/2026-11-28-workflows-and-site/
-  progress.md` (git-ignored).
+  step 3 is macOS and Linux; Windows is #89. A fresh review of the whole
+  branch found five important problems, fixed (`c90d129`, `b6d0984`); its
+  minor findings, for the first run or after: the build cache's
+  `restore-keys` can restore old build folders after a compiler change
+  (restore them on an exact key only); the tag is checked only in the last
+  job (check it first); `brew install llvm` is unpinned (`llvm@23`, as Mull
+  needs); on Linux `dev` and `tsan` build with GCC, not LLVM as the
+  recipe's comment says; `--map` names a report's other images (libc,
+  libpython) from the reader's own files; `_platform_ok` refuses a legacy
+  manylinux alias and `asset_stem` takes the last tag part; `check-wheel`
+  neither installs the official `duckdb` beside it nor cuts the network; an
+  empty `SQ_LLVM_ROOT` gives `/bin` in the justfile; the local reader can
+  take `build/coverage-*`'s map after `audit-groups`; apt.llvm.org's key has
+  no pinned fingerprint.
 
 ## Waiting on the user
 
