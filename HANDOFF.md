@@ -4,7 +4,8 @@ Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
 Updated: 2026-11-28 · Branch: `main` (pushed, level with `origin/main`) · Last
-commit: `2ba74e8 docs: update the handoff` · Checks: passing (`just done`)
+commit: `048a27e docs: refresh the docs index frontmatter` · Checks: passing
+(`just done`)
 
 Verify with: `just done` (`just verify` is the release tier)
 
@@ -204,10 +205,10 @@ decisions (below) are settled.
 
 ## Just finished
 
-- Task 4 of the tooling fixes (2026-11-28, branch `build-in-project-env`):
-  sqlearn builds in the project's environment, the `build` group holding
-  `[build-system].requires`, so a rebuild compiles only what changed (56 of
-  68 objects missed ccache before; 0 of 1 after).
+- Task 4 of the tooling fixes (2026-11-28, `a490fa0`, merged into `main` and
+  pushed): sqlearn builds in the project's environment, the `build` group
+  holding `[build-system].requires`, so a rebuild compiles only what changed (56
+  of 68 objects missed ccache before; 0 of 1 after).
 
 - The small tooling fixes (2026-11-28, plan
   `docs/plans/2026-11-28-tooling-fixes.md`, merged into `main` and pushed,
