@@ -20,6 +20,12 @@
     },
     {
       "area": "checks/engine_groups",
+      "name": "tests/checks/test_engine_groups.py::test_due_names_the_label_a_change_reruns",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/engine_groups",
       "name": "tests/checks/test_engine_groups.py::test_everything_runs_every_group",
       "outcome": "passed",
       "tier": "fast"
@@ -1359,6 +1365,84 @@
     {
       "area": "validation/__main__",
       "name": "tests/validation/test___main__.py::test_the_fingerprints_are_computed_once_a_run",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_affected",
+      "name": "tests/validation/test__affected.py::test_a_new_file_of_a_per_file_task_is_named_as_added",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_affected",
+      "name": "tests/validation/test__affected.py::test_a_settings_change_is_reported_as_such[lint]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_affected",
+      "name": "tests/validation/test__affected.py::test_a_settings_change_is_reported_as_such[whole]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_affected",
+      "name": "tests/validation/test__affected.py::test_a_tree_with_no_records_says_never_passed_here[lint]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_affected",
+      "name": "tests/validation/test__affected.py::test_a_tree_with_no_records_says_never_passed_here[whole]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_affected",
+      "name": "tests/validation/test__affected.py::test_a_whole_task_names_added_and_removed_files",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_affected",
+      "name": "tests/validation/test__affected.py::test_an_edited_file_is_named[lint]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_affected",
+      "name": "tests/validation/test__affected.py::test_an_edited_file_is_named[whole]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_affected",
+      "name": "tests/validation/test__affected.py::test_an_old_record_without_files_says_its_inputs_changed",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_affected",
+      "name": "tests/validation/test__affected.py::test_an_unchanged_tree_runs_nothing[lint]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_affected",
+      "name": "tests/validation/test__affected.py::test_an_unchanged_tree_runs_nothing[whole]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_affected",
+      "name": "tests/validation/test__affected.py::test_the_printout_gives_each_check_then_its_reasons",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_affected",
+      "name": "tests/validation/test__affected.py::test_the_report_runs_nothing",
       "outcome": "passed",
       "tier": "fast"
     },

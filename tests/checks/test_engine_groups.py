@@ -4,7 +4,7 @@ On a scratch engine of two stand-in groups (``engine_scratch``, the tests'
 conftest), built by the real ``cmake`` and ``ninja``.
 """
 
-from validation import _ctest
+from validation import _checks, _ctest
 
 
 def test_a_change_to_one_groups_file_runs_that_group_only(engine_scratch, capsys):
@@ -62,3 +62,21 @@ def test_a_change_to_a_core_object_raw_does_not_use_leaves_raw_alone(
     assert _ctest.run("dev", scratch.root) == 0
     assert scratch.runs() == ["core"]
     assert "raw: unchanged since a passed run" in capsys.readouterr().out
+
+
+def test_due_names_the_label_a_change_reruns(engine_scratch):
+    """An edited ``raw`` source gives ``raw`` a reason, ``core`` none; no test runs."""
+    scratch = engine_scratch
+    assert _ctest.run("dev", scratch.root) == 0
+    scratch.runs()
+    (scratch.root / "engine" / "src" / "raw" / "lib.cpp").write_text(
+        "int core_used();\nint raw_lib() { return core_used() * 2; }\n"
+    )
+    directory = _checks.record_dir(scratch.root)
+    before = {p.name: p.read_bytes() for p in directory.glob("*")}
+    due = _ctest.due("dev", scratch.root)
+    assert due["raw"] == ["its test program, data or command changed"]
+    assert due["core"] == []
+    assert due["must_not_compile"] == []
+    assert scratch.runs() == []
+    assert {p.name: p.read_bytes() for p in directory.glob("*")} == before

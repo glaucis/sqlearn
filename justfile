@@ -673,6 +673,11 @@ full task:
     fi
     {{ checks }} "{{ task }}" --all
 
+# Print, for each check, whether `just done` would run it and why; runs no check
+[group('check')]
+affected:
+    uv run --locked python -m validation._affected
+
 # Print the tree of HEAD when only the checks' own outputs differ from it, and nothing otherwise
 [group('check')]
 checkable-tree:

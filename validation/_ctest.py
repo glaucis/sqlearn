@@ -5,7 +5,8 @@ The engine's CTest tests carry one label per group (``sq_add_group``,
 ``must_not_compile``, one unit like a group. ``run`` builds a preset (Ninja
 rebuilds only what changed), lists the tests and runs each label whose
 identity no kept record passed, printing ``<label>: unchanged since a passed
-run`` for the rest.
+run`` for the rest. ``due`` builds the same way and says which labels
+``run`` would run and why, running none (``just affected``).
 
 A label's identity is the SHA-256 of the place, the label, and for each of
 its tests:
@@ -471,6 +472,140 @@ def _forget(directory: Path, key: str, failed: dict[str, str]) -> None:
         _checks.write(directory, key, kept)
 
 
+def _prepared(preset: str, root: Path) -> tuple[int, Path, dict[str, list[Test]], str]:
+    """Build `preset` and list its tests by label, saying what stops a run.
+
+    Returns the first failing code (the build's, or 1 for a missing tool, a
+    test with no TIMEOUT or a test no label selects), the build directory,
+    the tests by label and the place; the last two are empty after a
+    failure.
+    """
+    engine = root / "engine"
+    build = engine / "build" / preset
+    missing = [t for t in TOOLS if shutil.which(t) is None]
+    if missing:
+        _say(
+            f"C++ tests: {', '.join(missing)} not on PATH.\n"
+            "Fix: run `just doctor`, then install what it names"
+        )
+        return 1, build, {}, ""
+    code, live = _build(preset, engine, build)
+    if code != 0:
+        _say(f"C++ tests: the {preset} build failed; no test ran, none recorded")
+        return code, build, {}, ""
+    units, loose = _units(_tests(build))
+    if loose:
+        _say(
+            f"C++ tests: {', '.join(sorted(loose))} carry no label, so no "
+            "group would run them.\n"
+            "Fix: add them with sq_add_group, or set_tests_properties(<test> "
+            "PROPERTIES LABELS <group>)"
+        )
+        return 1, build, {}, ""
+    endless = sorted(
+        str(t.get("name"))
+        for tests in units.values()
+        for t in tests
+        if not _property(t, "TIMEOUT")
+    )
+    if endless:
+        _say(
+            f"C++ tests: {', '.join(endless)} carry no TIMEOUT, so a hang "
+            "would stall the run for good.\n"
+            "Fix: register them with sq_test_timeout(<test>) "
+            "(engine/cmake/groups.cmake)"
+        )
+        return 1, build, {}, ""
+    return 0, build, units, _place(live)
+
+
+def passed(directory: Path, key: str) -> set[tuple[str, str]]:
+    """Return each unit and identity a kept record of `key` passed.
+
+    Parameters
+    ----------
+    directory : Path
+        The records' directory.
+    key : str
+        The records' file, without ``.json``.
+
+    Returns
+    -------
+    set of tuple of str
+        Each (unit, identity) pair of every kept record.
+    """
+    return {
+        (unit, sha)
+        for record in _checks.load(directory, key)
+        for unit, sha in record["files"].items()
+    }
+
+
+def reasons(
+    identities: dict[str, str], directory: Path, key: str, changed: str
+) -> dict[str, list[str]]:
+    """Return each unit of `identities` with why it would run, empty for none.
+
+    Parameters
+    ----------
+    identities : dict of str to str
+        Each unit (a label, a Python set) with its identity today.
+    directory : Path
+        The records' directory.
+    key : str
+        The records' file, without ``.json``.
+    changed : str
+        The reason for a unit some record holds under another identity.
+
+    Returns
+    -------
+    dict of str to list of str
+        Each unit with ``[]`` when a kept record passed its identity,
+        ``["never passed here"]`` when no kept record holds it, else
+        ``[changed]``.
+    """
+    done = passed(directory, key)
+    seen = {unit for unit, _ in done}
+    return {
+        unit: []
+        if (unit, sha) in done
+        else (["never passed here"] if unit not in seen else [changed])
+        for unit, sha in identities.items()
+    }
+
+
+def due(preset: str, root: Path) -> dict[str, list[str]]:
+    """Return each label of `preset` with why ``run`` would run it; runs none.
+
+    It builds the preset, since a label's identity holds its program's bytes,
+    and writes no record.
+
+    Parameters
+    ----------
+    preset : str
+        A preset of ``engine/CMakePresets.json``.
+    root : Path
+        The repository's working tree.
+
+    Returns
+    -------
+    dict of str to list of str
+        Each label with its reasons, empty when unchanged since a passed
+        run. When the build or its tests' listing fails, one entry,
+        ``build``, says so: ``run`` would fail there.
+    """
+    root = root.resolve()
+    code, build, units, place = _prepared(preset, root)
+    if code != 0:
+        return {"build": [f"the {preset} build or its tests' listing failed"]}
+    return reasons(
+        _identities(units, build, place),
+        _checks.record_dir(root),
+        f"ctest-{preset}",
+        "its test program, data or command changed",
+    )
+
+
 def run(preset: str, root: Path, *, everything: bool = False) -> int:
     """Build `preset` and run each label whose identity no record passed.
 
@@ -492,57 +627,19 @@ def run(preset: str, root: Path, *, everything: bool = False) -> int:
         TIMEOUT or a test no label selects; else 0.
     """
     root = root.resolve()
-    engine = root / "engine"
-    build = engine / "build" / preset
-    missing = [t for t in TOOLS if shutil.which(t) is None]
-    if missing:
-        _say(
-            f"C++ tests: {', '.join(missing)} not on PATH.\n"
-            "Fix: run `just doctor`, then install what it names"
-        )
-        return 1
-    code, live = _build(preset, engine, build)
+    code, build, units, place = _prepared(preset, root)
     if code != 0:
-        _say(f"C++ tests: the {preset} build failed; no test ran, none recorded")
         return code
-    units, loose = _units(_tests(build))
-    if loose:
-        _say(
-            f"C++ tests: {', '.join(sorted(loose))} carry no label, so no "
-            "group would run them.\n"
-            "Fix: add them with sq_add_group, or set_tests_properties(<test> "
-            "PROPERTIES LABELS <group>)"
-        )
-        return 1
-    endless = sorted(
-        str(t.get("name"))
-        for tests in units.values()
-        for t in tests
-        if not _property(t, "TIMEOUT")
-    )
-    if endless:
-        _say(
-            f"C++ tests: {', '.join(endless)} carry no TIMEOUT, so a hang "
-            "would stall the run for good.\n"
-            "Fix: register them with sq_test_timeout(<test>) "
-            "(engine/cmake/groups.cmake)"
-        )
-        return 1
     key = f"ctest-{preset}"
     directory = _checks.record_dir(root)
-    passed = {
-        (label, sha)
-        for record in _checks.load(directory, key)
-        for label, sha in record["files"].items()
-    }
-    place = _place(live)
+    done = passed(directory, key)
     before = _identities(units, build, place)
     good: dict[str, str] = {}
     failed: dict[str, str] = {}
     ran = []
     first = 0
     for label in sorted(units):
-        if not everything and (label, before[label]) in passed:
+        if not everything and (label, before[label]) in done:
             _say(f"{label}: unchanged since a passed run")
             good[label] = before[label]
             continue

@@ -758,6 +758,83 @@ def changed_files(task: Task, root: Path) -> list[Path]:
     return _changed(task, root, _config(task, root), files)
 
 
+NEVER_PASSED = "never passed here"
+"""Why a task with no record at all would run."""
+
+SETTINGS_CHANGED = "its settings, tools or the C++ module changed"
+"""Why a task none of whose records holds today's configuration would run."""
+
+INPUTS_CHANGED = "its inputs changed"
+"""Why a whole task would run when no file differs from its newest record by
+name: that record holds no files (it predates them), or a submodule moved."""
+
+
+def _differences(before: dict[str, str], now: dict[str, str]) -> list[str]:
+    """Return ``<path>: added|changed|removed`` for each file `now` differs in."""
+    names = sorted({*before, *now})
+    found = []
+    for name in names:
+        if name not in before:
+            found.append(f"{name}: added")
+        elif name not in now:
+            found.append(f"{name}: removed")
+        elif before[name] != now[name]:
+            found.append(f"{name}: changed")
+    return found
+
+
+def why(task: Task, root: Path) -> list[str]:
+    """Return why `run` would run `task` now, empty when it would not.
+
+    It runs no step and writes no record. The steps marked ``always`` decide
+    by records of their own, so they are not this one's to answer.
+
+    Parameters
+    ----------
+    task : Task
+        The task.
+    root : Path
+        The repository's working tree.
+
+    Returns
+    -------
+    list of str
+        ``[NEVER_PASSED]`` with no record of the task, ``[SETTINGS_CHANGED]``
+        when none holds today's configuration; else, for a per-file task,
+        each file it would check as ``<path>: changed``, or ``<path>: added``
+        when no record held it; for a whole task, each file that differs
+        from the newest record under today's configuration as ``<path>:
+        added``, ``changed`` or ``removed``, or ``[INPUTS_CHANGED]`` when no
+        file is named.
+    """
+    root = root.resolve()
+    module = module_identity(task, root)
+    files = _hashes(_listed(task.inputs, root), root)
+    records = load(record_dir(root), task.name)
+    config = _config(task, root, module)
+    todo = (
+        [p.as_posix() for p in _changed(task, root, config, files)]
+        if task.per_file
+        else []
+    )
+    if task.per_file and not todo:
+        return []
+    if not task.per_file and any(
+        r["digest"] == digest(task, root, module) for r in records
+    ):
+        return []
+    if not records:
+        return [NEVER_PASSED]
+    mine = [r for r in records if r["config"] == config]
+    if not mine:
+        return [SETTINGS_CHANGED]
+    if task.per_file:
+        held = {name for r in records for name in r["files"]}
+        return [f"{n}: {'changed' if n in held else 'added'}" for n in todo]
+    newest = mine[-1]["files"]
+    return (_differences(newest, files) if newest else []) or [INPUTS_CHANGED]
+
+
 def _run_steps(
     task: Task, root: Path, files: list[Path] | None, *, everything: bool = False
 ) -> int:
@@ -867,7 +944,7 @@ def run(task_name: str, root: Path, *, everything: bool = False) -> int:
     save(
         directory,
         task.name,
-        Record(digest=whole, config=config, files=files if task.per_file else {}),
+        Record(digest=whole, config=config, files=files),
     )
     return 0
 

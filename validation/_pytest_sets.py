@@ -30,7 +30,8 @@ set none of whose passes finds one fails. The records follow
 fails takes its identity out of every kept record, and a set whose identity
 moved while it ran (taken again after the run) is not recorded. When the
 fingerprints cannot be read, the reason is printed and every set runs, none
-recorded.
+recorded. ``due`` says which sets ``run`` would run and why, running none
+(``just affected``).
 """
 
 import argparse
@@ -243,6 +244,52 @@ def _run_set(paths: Sequence[str], root: Path) -> int:
     return next((c for c in codes if c not in {0, NO_TESTS}), 0)
 
 
+def _manifest(root: Path) -> dict[str, _groups.Group]:
+    """Return the manifest's groups, none when it cannot be read.
+
+    ``_identities`` says why it cannot: the sets are then those of no group.
+    """
+    try:
+        groups, _ = _groups.load(root / _groups.WHEEL_BUILD)
+    except _groups.Unreadable:
+        return {}
+    return groups
+
+
+def due(root: Path) -> dict[str, list[str]]:
+    """Return each Python test set with why ``run`` would run it; runs none.
+
+    It writes no record.
+
+    Parameters
+    ----------
+    root : Path
+        The repository's working tree.
+
+    Returns
+    -------
+    dict of str to list of str
+        Each set with its reasons, empty when unchanged since a passed run.
+        When a test file lies in no set, one entry, ``sets``, says so; when
+        the fingerprints cannot be read, every set runs, for that reason.
+    """
+    root = root.resolve()
+    groups = _manifest(root)
+    try:
+        chosen = sets(groups, root)
+    except ValueError as error:
+        return {"sets": [str(error)]}
+    found = _identities(chosen, groups, root)
+    if found is None:
+        return {name: ["the C++ groups are unreadable"] for name in chosen}
+    return _ctest.reasons(
+        found,
+        _checks.record_dir(root),
+        KEY,
+        "its tests, what they read or the settings changed",
+    )
+
+
 def run(root: Path, *, everything: bool = False) -> int:
     """Run each Python test set whose identity no kept record passed.
 
@@ -260,11 +307,7 @@ def run(root: Path, *, everything: bool = False) -> int:
         included), 1 when a test file lies in no set; else 0.
     """
     root = root.resolve()
-    try:
-        groups, _ = _groups.load(root / _groups.WHEEL_BUILD)
-    except _groups.Unreadable:
-        # _identities says why; the sets are those of no group
-        groups = {}
+    groups = _manifest(root)
     try:
         chosen = sets(groups, root)
     except ValueError as error:
@@ -272,11 +315,7 @@ def run(root: Path, *, everything: bool = False) -> int:
         return 1
     before = _identities(chosen, groups, root)
     directory = _checks.record_dir(root)
-    passed = {
-        (name, sha)
-        for record in _checks.load(directory, KEY)
-        for name, sha in record["files"].items()
-    }
+    passed = _ctest.passed(directory, KEY)
     good: dict[str, str] = {}
     failed: dict[str, str] = {}
     ran = []

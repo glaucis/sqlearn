@@ -157,7 +157,8 @@ upgrade reruns all of the tasks that use it.
   added or removed reruns every `lint` step on every file, the Markdown and the
   spelling included.
 - **Whole** (`links`, `types`, `tidy`, `docs`): the task runs all of it when its
-  digest matches no kept record, and nothing otherwise.
+  digest matches no kept record, and nothing otherwise. Its record also keeps
+  each input file's digest, which only `just affected` reads.
 - **By group** (`test`, `validate`): each C++ group, Python set and runner has
   its own identity and record, and only those whose identity has no passed
   record run (see "Selecting by group").
@@ -181,6 +182,19 @@ Every worktree shares them. Two worktrees recording at once can lose a record,
 which costs a rerun, never a skip; a file that cannot be read counts as
 absent. Deleting the directory makes the next run of each task check
 everything.
+
+**`just affected`** (`validation/_affected.py`) prints, for each check,
+whether `just done` would run it (`runs` or `unchanged`), then each reason
+indented, and runs no check and writes no record. The reasons: `never passed
+here` (no record of the task), `its settings, tools or the C++ module
+changed` (no record under today's settings), or one `<path>: added`,
+`changed` or `removed` per file. A per-file task names the files it would
+check; a whole task names the files that differ from its newest record under
+today's settings, or says `its inputs changed` when none does (a record from
+before whole tasks kept their files, or a submodule's commit moved). `test`
+is one line per C++ label and per Python set (`test: core`, `test: tooling`),
+from their own records: it builds the `dev` preset to know each program's
+bytes, but runs no test. `validate` is not covered.
 
 **`just full <task>`** runs one task all through, whatever its records say,
 and records the pass. `just full validate` is `just validate-all`. `just
