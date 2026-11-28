@@ -384,6 +384,68 @@ def _uptime() -> str:
         return "unknown"
 
 
+@dataclass(frozen=True)
+class Measured:
+    """What one timed child run showed.
+
+    Attributes
+    ----------
+    returncode : int
+        The child's exit code.
+    wall : float
+        Its wall time, in seconds.
+    cores : float
+        User plus system time over the wall time.
+    peak_mb : float
+        Its peak memory, in MB.
+    before, after : str
+        The load (``uptime``) before and after the run.
+    """
+
+    returncode: int
+    wall: float
+    cores: float
+    peak_mb: float
+    before: str
+    after: str
+
+
+def measure(argv: Sequence[str], cwd: Path) -> Measured:
+    """Run `argv` in `cwd` and time it: the one measuring block of every record.
+
+    Parameters
+    ----------
+    argv : sequence of str
+        The command.
+    cwd : Path
+        Its working directory.
+
+    Returns
+    -------
+    Measured
+        Its exit code, wall time, cores, peak memory and the load around it.
+
+    Raises
+    ------
+    OSError
+        The command did not start.
+    """
+    before = _uptime()
+    start = time.perf_counter()
+    child = subprocess.Popen(argv, cwd=cwd)
+    _, status, usage = os.wait4(child.pid, 0)
+    wall = time.perf_counter() - start
+    child.returncode = os.waitstatus_to_exitcode(status)
+    return Measured(
+        returncode=child.returncode,
+        wall=wall,
+        cores=(usage.ru_utime + usage.ru_stime) / wall,
+        peak_mb=usage.ru_maxrss / (1024 * 1024 if sys.platform == "darwin" else 1024),
+        before=before,
+        after=_uptime(),
+    )
+
+
 def run(root: Path, name: str) -> int:
     """Run the benchmark `name`, record it when it succeeds, return its exit code.
 
@@ -422,31 +484,23 @@ def run(root: Path, name: str) -> int:
         groups,
         _library(root),
     )
-    before = _uptime()
-    start = time.perf_counter()
     try:
-        child = subprocess.Popen(item.argv, cwd=root)
+        measured = measure(item.argv, root)
     except OSError as error:
         print(f"{name} did not start: {error}")  # noqa: T201
         return 127
-    _, status, usage = os.wait4(child.pid, 0)
-    wall = time.perf_counter() - start
-    child.returncode = os.waitstatus_to_exitcode(status)
-    after = _uptime()
-    if child.returncode != 0:
-        return child.returncode
-    cores = (usage.ru_utime + usage.ru_stime) / wall
+    if measured.returncode != 0:
+        return measured.returncode
     record = {
         "digest": identity,
         "config": name,
         "files": {},
-        "seconds": wall,
-        "cores": cores,
-        "peak_mb": usage.ru_maxrss
-        / (1024 * 1024 if sys.platform == "darwin" else 1024),
-        "uptime_before": before,
-        "uptime_after": after,
-        "loaded": _load.loaded_after(cores),
+        "seconds": measured.wall,
+        "cores": measured.cores,
+        "peak_mb": measured.peak_mb,
+        "uptime_before": measured.before,
+        "uptime_after": measured.after,
+        "loaded": _load.loaded_after(measured.cores),
     }
     _checks.save(
         _checks.record_dir(root),

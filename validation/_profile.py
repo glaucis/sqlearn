@@ -30,10 +30,8 @@ from __future__ import annotations
 import bisect
 import gzip
 import json
-import os
 import re
 import shutil
-import subprocess
 import sys
 import time
 from collections import Counter
@@ -530,28 +528,23 @@ def run(root: Path, name: str) -> int:
     run_dir.mkdir(parents=True)
     out_file = run_dir / "profile.json.gz"
     program = [str(root / _bench.PROFILE_BINARIES / name)]
-    before = _bench._uptime()
-    start = time.perf_counter()
     try:
-        child = subprocess.Popen(SAMPLER(program, out_file), cwd=root)
+        measured = _bench.measure(SAMPLER(program, out_file), root)
     except OSError as error:
         print(f"{name} did not start: {error}")  # noqa: T201
         shutil.rmtree(run_dir)
         return 1
-    _, status, usage = os.wait4(child.pid, 0)
-    wall = time.perf_counter() - start
-    child.returncode = os.waitstatus_to_exitcode(status)
-    after = _bench._uptime()
-    if child.returncode != 0 or not out_file.is_file():
+    if measured.returncode != 0 or not out_file.is_file():
         why = (
-            f"samply exited with {child.returncode}"
-            if child.returncode != 0
+            f"samply exited with {measured.returncode}"
+            if measured.returncode != 0
             else "samply wrote no profile"
         )
         print(f"{name}: not recorded, {why}.")  # noqa: T201
         shutil.rmtree(run_dir)
         return 1
-    cores = (usage.ru_utime + usage.ru_stime) / wall
+    wall, cores = measured.wall, measured.cores
+    before, after = measured.before, measured.after
     summary = summarise(out_file, wall, before, after)
     previous = _previous(root, name)
     summary_file = run_dir / "summary.json"
