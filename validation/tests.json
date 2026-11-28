@@ -806,14 +806,14 @@
     },
     {
       "area": "engine/sanitizers",
-      "name": "tests/engine/test_sanitizers.py::test_a_canary_passes_only_when_its_sanitizer_stopped_it",
+      "name": "tests/engine/test_sanitizers.py::test_a_canary_passes_only_when_its_sanitizer_failed_it",
       "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "engine/sanitizers",
       "name": "tests/engine/test_sanitizers.py::test_a_flavours_options_go_before_the_users[llvm-dev-ours2]",
-      "outcome": "skipped",
+      "outcome": "passed",
       "tier": "fast"
     },
     {
@@ -850,6 +850,12 @@
       "area": "engine/sanitizers",
       "name": "tests/engine/test_sanitizers.py::test_a_users_option_wins_over_the_flavours",
       "outcome": "skipped",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/sanitizers",
+      "name": "tests/engine/test_sanitizers.py::test_an_environment_entry_without_equals_is_refused",
+      "outcome": "passed",
       "tier": "fast"
     },
     {
@@ -2535,7 +2541,7 @@
     {
       "area": "validation/_layering",
       "name": "tests/validation/test__layering.py::test_the_real_engine_has_no_problems",
-      "outcome": "skipped",
+      "outcome": "passed",
       "tier": "fast"
     },
     {

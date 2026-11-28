@@ -1,9 +1,10 @@
 """The sanitizer presets, their canaries, and the build rules beside them.
 
 Each sanitizer has a preset whose canary, a program with the one fault that
-sanitizer finds, must be stopped by it with its report (`just sanitize` runs
-them). Beside them: ccache asks the compiler behind a shim for its version,
-and a test's data is files, never a directory.
+sanitizer finds, must be failed by it with its report (`just sanitize` runs
+them): most stop it at the fault, LeakSanitizer fails it at exit. Beside
+them: ccache asks the compiler behind a shim for its version, and a test's
+data is files, never a directory.
 """
 
 import json
@@ -103,9 +104,9 @@ def _expect(tmp_path: Path, script: str) -> subprocess.CompletedProcess[str]:
 
 
 @needs_cmake
-def test_a_canary_passes_only_when_its_sanitizer_stopped_it(tmp_path: Path) -> None:
-    """Stopped (a non-zero exit) with the sanitizer's report: the canary passes.
-    A report the program survived, or a stop for another reason, fails it."""
+def test_a_canary_passes_only_when_its_sanitizer_failed_it(tmp_path: Path) -> None:
+    """Failed (a non-zero exit) with the sanitizer's report: the canary passes.
+    A report the program survived, or a failure for another reason, fails it."""
     report = "echo '==1==ERROR: AddressSanitizer: heap-buffer-overflow' >&2"
     assert _expect(tmp_path, f"{report}\nexit 1").returncode == 0
     survived = _expect(tmp_path, f"{report}\nexit 0")
@@ -296,6 +297,29 @@ def test_a_flavours_options_go_before_the_users(
         assert "ENVIRONMENT" not in props, name
         wanted = {f"{k}=string_prepend:{v}:" for k, v in ours.items()}
         assert wanted <= set(props.get("ENVIRONMENT_MODIFICATION", [])), name
+
+
+@needs_cmake
+def test_an_environment_entry_without_equals_is_refused(tmp_path: Path) -> None:
+    """``sq_test_environment`` takes NAME=options: an entry without ``=`` is
+    refused with a Fix: line, not split at -1. hardening.cmake checks the
+    compiler, which a script cannot, so the function alone is run."""
+    source = (CMAKE / "hardening.cmake").read_text()
+    start = source.index("function(sq_test_environment")
+    end = source.index("endfunction()", start) + len("endfunction()")
+    script = tmp_path / "run.cmake"
+    script.write_text(
+        source[start:end] + "\n"
+        'set(SQ_TEST_ENVIRONMENT "TSAN_OPTIONS")\n'
+        "sq_test_environment(test_x)\n"
+    )
+    done = subprocess.run(
+        ["cmake", "-P", str(script)], capture_output=True, text=True, check=False
+    )
+    assert done.returncode != 0
+    text = " ".join(done.stderr.split())
+    assert "TSAN_OPTIONS" in text
+    assert "Fix:" in text
 
 
 def test_a_users_option_wins_over_the_flavours() -> None:

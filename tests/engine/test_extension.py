@@ -29,8 +29,12 @@ def test_every_database_has_the_sqlearn_extension(tmp_path):
 
 
 def test_nothing_downloads_by_itself():
-    """autoinstall_known_extensions is false on a new connection."""
+    """autoinstall_known_extensions is false on a new connection and on the
+    default one."""
     assert duckdb.connect().execute(AUTOINSTALL).fetchone() == (False,)
+    default = duckdb.sql(AUTOINSTALL)
+    assert default is not None
+    assert default.fetchall() == [(False,)]
 
 
 def test_a_user_who_asks_for_downloads_keeps_them():

@@ -4,6 +4,7 @@
 #pragma once
 
 #include "core/error.hpp"
+#include "raw/demangle.hpp"
 
 #include "duckdb/common/exception.hpp"
 
@@ -42,7 +43,7 @@ template <typename Body> decltype(auto) guarded(Body &&body) {
         raise_internal(std::string(e.what()) + "\nWhy: " + e.why() + "\nFix: " + e.fix());
     } catch (const std::exception &e) {
         raise_internal("sqlearn's engine failed with a C++ exception it did not expect (" +
-                       std::string(typeid(e).name()) + "): " + e.what() +
+                       raw::demangle(typeid(e).name()) + "): " + e.what() +
                        "\nWhy: sqlearn's C++ let an exception through that it should have "
                        "handled, which is a bug in sqlearn, not a mistake in your code"
                        "\nFix: please report it at https://github.com/glaucis/sqlearn/issues "

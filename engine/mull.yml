@@ -29,6 +29,8 @@ survivors:
     reason: without the delete a Buffer's memory leaks, which no test can see in Mull's uninstrumented run; LeakSanitizer finds it (the lsan preset and llvm-dev's leak check, just sanitize)
   - mutant: src/raw/buffer.hpp:53:52:cxx_remove_void_call
     reason: without the deleter's call a Buffer's memory leaks, which no test can see in Mull's uninstrumented run; LeakSanitizer finds it (the lsan preset and llvm-dev's leak check, just sanitize)
+  - mutant: src/raw/demangle.cpp:21:9:cxx_remove_void_call
+    reason: without the free the demangled text leaks, which no test can see in Mull's uninstrumented run; LeakSanitizer finds it (the lsan preset and llvm-dev's leak check, just sanitize)
   - mutant: src/raw/fd_writer.cpp:27:19:cxx_lt_to_le
     reason: equivalent under write(2)'s contract; the mutant differs only when write(2) returns 0, and write(2) returns 0 only for a count of 0, which put() never passes (its loop runs while size > 0)
   - mutant: src/raw/fd_writer.cpp:30:19:cxx_le_to_lt

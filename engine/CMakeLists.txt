@@ -188,9 +188,14 @@ sq_add_group(
 # PreconditionError.
 sq_add_group(
   raw
-  SOURCES src/raw/buffer.cpp src/raw/fd_writer.cpp src/raw/fixed_text.cpp src/raw/images.cpp
+  SOURCES
+    src/raw/buffer.cpp
+    src/raw/demangle.cpp
+    src/raw/fd_writer.cpp
+    src/raw/fixed_text.cpp
+    src/raw/images.cpp
   DEPENDS core
-  TESTS tests/raw/test_buffer.cpp tests/raw/test_signal_safe.cpp
+  TESTS tests/raw/test_buffer.cpp tests/raw/test_demangle.cpp tests/raw/test_signal_safe.cpp
   BENCH buffer
 )
 # The crash report: a handler for the fatal signals, written to a local file

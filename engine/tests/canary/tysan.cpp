@@ -13,7 +13,8 @@ float value = 1.0F;
 }
 } // namespace
 
-/// Store an int into a float; TypeSanitizer stops the program.
+/// Store an int into a float; TypeSanitizer reports it and, with the
+/// flavour's halt_on_error=1, fails the program with its report.
 int main() {
     store(reinterpret_cast<int *>(&value));
     std::printf("canary: survived with %f\n", static_cast<double>(value));

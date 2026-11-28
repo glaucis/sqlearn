@@ -208,6 +208,13 @@ function(sq_test_environment test)
   set(changes "")
   foreach(entry IN LISTS SQ_TEST_ENVIRONMENT)
     string(FIND "${entry}" "=" split)
+    if(split LESS 1)
+      message(
+        FATAL_ERROR
+        "SQ_TEST_ENVIRONMENT has the entry \"${entry}\", which is not NAME=options.\n"
+        "Fix: write each entry as a variable's name, then =, then its options (TSAN_OPTIONS=halt_on_error=1)"
+      )
+    endif()
     string(SUBSTRING "${entry}" 0 ${split} name)
     math(EXPR start "${split} + 1")
     string(SUBSTRING "${entry}" ${start} -1 options)

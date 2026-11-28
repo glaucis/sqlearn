@@ -27,8 +27,6 @@ bool check(const std::string &name, const std::string &text) {
     return false;
 }
 
-} // namespace
-
 /// Replay each file named on the command line.
 /// @param argc The number of arguments.
 /// @param argv The program's name, then the files.
@@ -57,6 +55,8 @@ bool replay(int argc, char **argv) {
     }
     return good;
 }
+
+} // namespace
 
 /// Replay the files, never letting an exception out of main.
 /// @param argc The number of arguments.
