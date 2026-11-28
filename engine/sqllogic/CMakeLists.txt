@@ -59,14 +59,14 @@ target_sources(sqlearn_extension PRIVATE $<TARGET_OBJECTS:sq_core>)
 
 # The test: every file the runner takes under engine/extension/test/sql
 # (.test, .test_slow, .test_coverage, at any depth; engine/cmake/
-# sql_tests.cmake), never DuckDB's own suite. Each is a REQUIRED_FILES entry
-# (sq_test_data), so the checks hash it and an edited one reruns the label
-# (validation/_ctest.py); the glob is read again at each configure, which
-# every run of the checks does, so a new file joins it. A file a .test reads
-# at run time (a CSV, a script) must be added to sq_test_data here too, or an
-# edit to it is skipped as unchanged.
+# sql_tests.cmake), never DuckDB's own suite. Every file under that directory
+# (the tests and any data file they read, at any depth) is a REQUIRED_FILES
+# entry (sq_test_data), so the checks hash it and an edit to any reruns the
+# label (validation/_ctest.py); the glob is read again at each configure,
+# which every run of the checks does, so a new file joins it.
 include("${SQ_ENGINE_DIR}/cmake/sql_tests.cmake")
 sq_sql_test_files(sq_sql_tests "${SQ_ENGINE_DIR}/extension/test/sql")
+sq_sql_test_data(sq_sql_test_data_files "${SQ_ENGINE_DIR}/extension/test/sql")
 if(NOT sq_sql_tests)
   message(
     FATAL_ERROR
@@ -87,4 +87,4 @@ add_test(
 )
 set_tests_properties(sqllogic PROPERTIES LABELS sql FAIL_REGULAR_EXPRESSION "No tests ran")
 sq_test_timeout(sqllogic)
-sq_test_data(sqllogic ${sq_sql_tests})
+sq_test_data(sqllogic ${sq_sql_test_data_files})

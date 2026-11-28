@@ -51,10 +51,6 @@ None. [verified]
   `.claude/settings.json`: `"enabledPlugins":
   {"pyright-lsp@claude-plugins-official": false}`; ty and mypy are this
   project's type checkers (Tomas, 2026-11-27).
-- `engine/sqllogic/CMakeLists.txt` gives `sq_test_data(sqllogic ...)` only
-  the `.test` files: add every file under `engine/extension/test` (a
-  `GLOB_RECURSE`), or a data file beside a `.test` reruns the `sql` task
-  while `_ctest` skips the label. Latent: one `.test` file today.
 - #86 and #85: the "can wait" follow-ups of selecting by group and of Phase
   1 step 2's reviews, grouped by kind.
 - Phase 1 step 3: the release tier's workflows, started by hand, and the

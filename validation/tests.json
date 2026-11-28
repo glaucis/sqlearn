@@ -747,7 +747,7 @@
     {
       "area": "engine/sanitizers",
       "name": "tests/engine/test_sanitizers.py::test_a_flavours_options_go_before_the_users[llvm-dev-ours2]",
-      "outcome": "passed",
+      "outcome": "skipped",
       "tier": "fast"
     },
     {
@@ -866,7 +866,7 @@
     },
     {
       "area": "engine/sqllogic",
-      "name": "tests/engine/test_sqllogic.py::test_every_sql_test_file_is_part_of_the_labels_identity",
+      "name": "tests/engine/test_sqllogic.py::test_every_file_under_the_sql_tests_is_part_of_the_labels_identity",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -885,6 +885,12 @@
     {
       "area": "engine/sqllogic",
       "name": "tests/engine/test_sqllogic.py::test_the_sqllogic_preset_builds_the_sql_tests_alone",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/sqllogic",
+      "name": "tests/engine/test_sqllogic.py::test_the_test_data_takes_every_file_under_the_directory",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -2367,7 +2373,7 @@
     {
       "area": "validation/_layering",
       "name": "tests/validation/test__layering.py::test_the_real_engine_has_no_problems",
-      "outcome": "passed",
+      "outcome": "skipped",
       "tier": "fast"
     },
     {
