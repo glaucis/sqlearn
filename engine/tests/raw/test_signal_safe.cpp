@@ -446,7 +446,8 @@ bool enabled(const stack_t &stack) {
 /// @return True when it is off.
 bool disable_signal_stack() {
     stack_t off{};
-    off.ss_size = MINSIGSTKSZ;
+    // glibc 2.34 and later give MINSIGSTKSZ as sysconf(), a long.
+    off.ss_size = static_cast<std::size_t>(MINSIGSTKSZ);
     off.ss_flags = SS_DISABLE;
     return ::sigaltstack(&off, nullptr) == 0;
 }

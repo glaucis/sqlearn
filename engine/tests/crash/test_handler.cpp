@@ -193,7 +193,9 @@ overflow_the_stack(std::size_t depth) {
 extern "C" void previous_handler(int signo) {
     (void)signo;
     constexpr std::string_view said = "the previous handler ran\n";
-    (void)::write(STDERR_FILENO, said.data(), said.size());
+    // Nothing to do if the write fails; glibc marks write warn_unused_result,
+    // which a (void) cast does not quiet under GCC.
+    [[maybe_unused]] const auto written = ::write(STDERR_FILENO, said.data(), said.size());
     exit_child(previous_code);
 }
 
@@ -619,7 +621,8 @@ TEST_CASE("a previous SA_RESETHAND handler runs with the default back", "[crash]
     const auto ending = in_child([&] {
         struct sigaction action{};
         action.sa_handler = resethand_handler;
-        action.sa_flags = SA_RESETHAND;
+        // glibc defines SA_RESETHAND as an unsigned 0x80000000; sa_flags is an int.
+        action.sa_flags = static_cast<int>(SA_RESETHAND);
         sigemptyset(&action.sa_mask);
         ::sigaction(SIGILL, &action, nullptr);
         if (sq::crash::install(dir.path())) {
