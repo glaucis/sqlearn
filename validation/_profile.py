@@ -35,7 +35,7 @@ import shutil
 import sys
 import time
 from collections import Counter
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
@@ -55,8 +55,7 @@ KEEP = 5
 PROFILES = Path("build/profiles")
 """Where the recordings are, relative to the root: one folder for each program."""
 
-_RECORD_KEY = "profile"
-_STAMP = re.compile(r"\d{8}-\d{6}")
+_STAMP = re.compile(r"\d{8}-\d{6}(-\d+)?")
 
 
 def SAMPLER(argv: list[str], out_file: Path) -> list[str]:  # noqa: N802
@@ -86,9 +85,6 @@ def SAMPLER(argv: list[str], out_file: Path) -> list[str]:  # noqa: N802
         "--",
         *argv,
     ]
-
-
-_Sampler = Callable[[list[str], Path], list[str]]
 
 
 @dataclass(frozen=True)
@@ -333,6 +329,8 @@ def summarise(
                     seen.add(name)
                     total_weight[name] += weight
                 stack = stacks["prefix"][stack]
+    if all_weight == 0:
+        raise ValueError(f"{profile} holds no samples with a stack")
     functions = [
         Function(
             name,
@@ -479,27 +477,57 @@ def _stamp() -> str:
     return time.strftime("%Y%m%d-%H%M%S")
 
 
+def _clean_records(root: Path, name: str) -> list[dict[str, Any]]:
+    """Return the clean records whose summary file still exists, oldest first."""
+    records = cast(
+        "list[dict[str, Any]]",
+        _checks.load(_checks.record_dir(root), f"{_bench._PROFILE_KEY}-{name}"),
+    )
+    return [
+        r
+        for r in records
+        if _bench.clean(r) and r.get("summary") and (root / str(r["summary"])).is_file()
+    ]
+
+
 def _previous(root: Path, name: str) -> Summary | None:
-    """Return the summary of the newest clean profile whose file still exists."""
-    for record in reversed(
-        cast(
-            "list[dict[str, Any]]",
-            _checks.load(_checks.record_dir(root), f"{_RECORD_KEY}-{name}"),
-        )
-    ):
-        path = root / str(record.get("summary", ""))
-        if _bench.clean(record) and record.get("summary") and path.is_file():
-            return Summary.from_json(json.loads(path.read_text(encoding="utf-8")))
+    """Return the summary of the newest clean profile that reads, else None."""
+    for record in reversed(_clean_records(root, name)):
+        try:
+            text = (root / str(record["summary"])).read_text(encoding="utf-8")
+            return Summary.from_json(json.loads(text))
+        except (OSError, ValueError, KeyError, TypeError, AttributeError):
+            continue
     return None
 
 
-def _prune(folder: Path) -> None:
-    """Keep the `KEEP` newest recordings: only directories named by ``_stamp``."""
+def _order(path: Path) -> tuple[str, int]:
+    """Sort by the stamp (15 characters), then by the ``-N`` after it."""
+    return (path.name[:15], int(path.name[16:] or 1))
+
+
+def _prune(folder: Path, keep: Path | None = None) -> None:
+    """Keep the `KEEP` newest recordings and `keep`; delete only ours (``_STAMP``)."""
     ours = sorted(
-        p for p in folder.iterdir() if p.is_dir() and _STAMP.fullmatch(p.name)
+        (p for p in folder.iterdir() if p.is_dir() and _STAMP.fullmatch(p.name)),
+        key=_order,
     )
     for old in ours[:-KEEP]:
-        shutil.rmtree(old)
+        if old != keep:
+            shutil.rmtree(old)
+
+
+def _new_run_dir(folder: Path) -> Path:
+    """Make a directory named by ``_stamp``, with ``-2``, ``-3`` after a clash."""
+    stamp = _stamp()
+    for number in range(1, 1000):
+        run_dir = folder / (stamp if number == 1 else f"{stamp}-{number}")
+        try:
+            run_dir.mkdir(parents=True)
+        except FileExistsError:
+            continue
+        return run_dir
+    raise OSError(f"no free directory named {stamp} in {folder}")
 
 
 def run(root: Path, name: str) -> int:
@@ -516,8 +544,9 @@ def run(root: Path, name: str) -> int:
     Returns
     -------
     int
-        0 when recorded; 1 when refused (no samply, a stale build) or the
-        sampler failed (no record is saved); 2 when `name` is no program.
+        0 when recorded; 1 when refused (no samply, a stale build), the
+        sampler failed or its profile could not be read (no record is saved); 2
+        when `name` is no program.
         The recording is in ``build/profiles/<name>/<YYYYMMDD-HHMMSS>/``
         (``profile.json.gz``, its sidecar, ``summary.json``, ``compare.md``),
         and the ``profile-<name>`` record names the summary.
@@ -537,8 +566,7 @@ def run(root: Path, name: str) -> int:
         return 1
     identity = _bench.profile_identity(root, name)
     folder = root / PROFILES / name
-    run_dir = folder / _stamp()
-    run_dir.mkdir(parents=True)
+    run_dir = _new_run_dir(folder)
     out_file = run_dir / "profile.json.gz"
     program = [str(root / _bench.PROFILE_BINARIES / name)]
     try:
@@ -558,13 +586,24 @@ def run(root: Path, name: str) -> int:
         return 1
     wall, cores = measured.wall, measured.cores
     before, after = measured.before, measured.after
-    summary = summarise(out_file, wall, before, after, program=Path(program[0]))
-    previous = _previous(root, name)
     summary_file = run_dir / "summary.json"
-    summary_file.write_text(
-        json.dumps(summary.to_json(), indent=2) + "\n", encoding="utf-8"
-    )
-    (run_dir / "compare.md").write_text(compare(previous, summary), encoding="utf-8")
+    try:
+        summary = summarise(out_file, wall, before, after, program=Path(program[0]))
+        previous = _previous(root, name)
+        summary_file.write_text(
+            json.dumps(summary.to_json(), indent=2) + "\n", encoding="utf-8"
+        )
+        (run_dir / "compare.md").write_text(
+            compare(previous, summary), encoding="utf-8"
+        )
+    except (OSError, ValueError, KeyError, TypeError, IndexError, EOFError) as error:
+        print(  # noqa: T201
+            f"{name}: not summarised, {error!r}.\n"
+            "Fix: update samply (`brew upgrade samply`) if its profile format "
+            "changed, or report it: the recording was removed"
+        )
+        shutil.rmtree(run_dir, ignore_errors=True)
+        return 1
     record = {
         "digest": identity,
         "config": name,
@@ -578,10 +617,14 @@ def run(root: Path, name: str) -> int:
     }
     _checks.save(
         _checks.record_dir(root),
-        f"{_RECORD_KEY}-{name}",
+        f"{_bench._PROFILE_KEY}-{name}",
         cast("_checks.Record", record),
     )
-    _prune(folder)
+    newest_clean = _clean_records(root, name)
+    _prune(
+        folder,
+        (root / str(newest_clean[-1]["summary"])).parent if newest_clean else None,
+    )
     print(  # noqa: T201
         f"{name}: profiled in {wall:.1f} s"
         f"{' (machine loaded: the record stays due)' if record['loaded'] else ''}.\n"

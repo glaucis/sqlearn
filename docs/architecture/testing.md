@@ -633,12 +633,16 @@ total time, each with its owner: sqlearn, DuckDB, standard library, benchmark
 program (the program's own image: its harness and lambdas), Python or system)
 and `compare.md` (the same against the newest clean profile of the program whose
 summary still exists; a function whose self share moved more than 2 points, or
-that is new in the top 30, is listed). The five newest directories are kept, and
-only directories of that name form are ever deleted. The record `profile-<name>`
+that is new in the top 30, or left it having fallen more than 2 points, is
+listed; a previous summary that does not read is skipped). The five newest
+directories are kept, and the newest clean one beyond them; only directories of
+that name form (`-2`, `-3` after it when two runs share a second) are ever
+deleted. The record `profile-<name>`
 (identity of the profile build's binary, seconds, cores, `loaded`, both loads,
 the summary's path) clears the profile's "due" when clean, as a benchmark's
-does. A failed samply, or a stale profile build, saves no record and says why
-(with a `Fix:` line).
+does. A failed samply, a stale profile build, or a recording that cannot be
+summarised saves no record and says why (with a `Fix:` line), and removes the
+directory.
 
 `just bench-queue` (`validation/_queue.py`) runs every due item on one
 go-ahead from Tomas (ADR 0081, ADR 0072). It builds the `release` preset when

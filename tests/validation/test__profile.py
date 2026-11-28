@@ -12,6 +12,7 @@ import gzip
 import json
 import shutil
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -551,3 +552,76 @@ def test_a_name_that_is_no_program_is_refused(scratch, monkeypatch):
     _program(scratch)
     _fake_sampler(monkeypatch)
     assert pr.run(scratch.root, "bench_nothing") == 2
+
+
+def test_a_profile_without_samples_is_refused_by_the_summary(tmp_path):
+    """No sample with a stack is a ValueError, not a division by zero."""
+    data: Any = _one_frame_profile("main", "loop")
+    data["threads"][0]["samples"] = {"length": 1, "stack": [None]}
+    path = tmp_path / "profile.json"
+    path.write_text(json.dumps(data))
+    with pytest.raises(ValueError, match="no samples"):
+        pr.summarise(path, 1.0, "a", "b")
+
+
+@pytest.mark.parametrize("error", [ValueError("bad"), KeyError("data"), OSError("io")])
+def test_an_unreadable_profile_removes_its_directory_and_saves_no_record(
+    scratch, monkeypatch, capsys, error
+):
+    """A summary that cannot be made: exit 1, a Fix line, nothing left behind."""
+    _program(scratch)
+    _fake_sampler(monkeypatch)
+    _clock(monkeypatch)
+
+    def refuse(*args, **kwargs):
+        raise error
+
+    monkeypatch.setattr(pr, "summarise", refuse)
+    assert pr.run(scratch.root, "bench_thing") == 1
+    out = capsys.readouterr().out
+    assert "not summarised" in out
+    assert "Fix:" in out
+    assert _dirs(scratch) == []
+    assert _records(scratch) == []
+
+
+def test_a_corrupt_previous_summary_is_skipped(scratch, monkeypatch):
+    """A previous summary that does not parse is treated as absent."""
+    _program(scratch)
+    _fake_sampler(monkeypatch)
+    _clock(monkeypatch)
+    assert pr.run(scratch.root, "bench_thing") == 0
+    [first] = (scratch.root / "build/profiles/bench_thing").iterdir()
+    (first / "summary.json").write_text("{not json")
+    assert pr.run(scratch.root, "bench_thing") == 0
+    newest = _dirs(scratch)[-1]
+    text = scratch.root / "build/profiles/bench_thing" / newest / "compare.md"
+    assert "No previous clean profile" in text.read_text()
+
+
+def test_two_runs_in_one_second_get_distinct_directories(scratch, monkeypatch):
+    """A second run in the same second does not collide."""
+    _program(scratch)
+    _fake_sampler(monkeypatch)
+    monkeypatch.setattr(pr, "_stamp", lambda: "20261128-120000")
+    assert pr.run(scratch.root, "bench_thing") == 0
+    assert pr.run(scratch.root, "bench_thing") == 0
+    assert pr.run(scratch.root, "bench_thing") == 0
+    assert _dirs(scratch) == [
+        "20261128-120000",
+        "20261128-120000-2",
+        "20261128-120000-3",
+    ]
+
+
+def test_the_newest_clean_recording_is_kept_beyond_five(scratch, monkeypatch):
+    """Loaded runs push the newest clean one out of the five: it stays."""
+    _program(scratch)
+    _fake_sampler(monkeypatch)
+    _clock(monkeypatch)
+    assert pr.run(scratch.root, "bench_thing") == 0
+    monkeypatch.setattr(_load, "now", lambda: 1000.0)
+    for _ in range(6):
+        assert pr.run(scratch.root, "bench_thing") == 0
+    assert _dirs(scratch)[0] == "20261128-120000"
+    assert len(_dirs(scratch)) == 6
