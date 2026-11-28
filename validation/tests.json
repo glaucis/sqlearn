@@ -92,6 +92,12 @@
     },
     {
       "area": "checks/passed_tree",
+      "name": "tests/checks/test_passed_tree.py::test_a_stale_lockfile_stops_done_at_once",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/passed_tree",
       "name": "tests/checks/test_passed_tree.py::test_an_uncommitted_markdown_file_makes_the_tree_uncheckable",
       "outcome": "passed",
       "tier": "fast"
@@ -99,6 +105,18 @@
     {
       "area": "checks/passed_tree",
       "name": "tests/checks/test_passed_tree.py::test_done_warns_of_an_old_sweep_first_even_on_a_passed_tree",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/passed_tree",
+      "name": "tests/checks/test_passed_tree.py::test_the_lockfile_is_checked_before_anything_uv_runs",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/passed_tree",
+      "name": "tests/checks/test_passed_tree.py::test_verify_checks_the_lockfile_before_anything_uv_runs",
       "outcome": "passed",
       "tier": "fast"
     },

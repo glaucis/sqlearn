@@ -736,6 +736,10 @@ done:
     j=(just --justfile '{{ justfile() }}')
     # A compiler update rebuilds the module at the first uv run (its stamp is a cache key).
     "${j[@]}" compiler-stamp
+    # Before anything uv runs: a stale lock would fail there with uv's error, not this check's.
+    code=0
+    "${j[@]}" check-lockfile || code=$?
+    if [ "$code" -ne 0 ]; then exit "$code"; fi
     # The sweep's cadence: a warning only, which changes neither what runs nor the exit.
     "${j[@]}" sweep-stale || true
     tree="$("${j[@]}" checkable-tree)"
@@ -746,7 +750,7 @@ done:
     fi
     # every check runs whatever the others' exit, as each task's steps do, so one failure hides no other's findings
     first=0
-    for check in check-lockfile check-no-devdata format lint links docstrings types tidy test sql validate docs; do
+    for check in check-no-devdata format lint links docstrings types tidy test sql validate docs; do
         code=0
         "${j[@]}" "$check" || code=$?
         if [ "$first" -eq 0 ]; then first=$code; fi
@@ -762,9 +766,11 @@ verify:
     j=(just --justfile '{{ justfile() }}')
     # A compiler update rebuilds the module at the first uv run (its stamp is a cache key).
     "${j[@]}" compiler-stamp
+    # Before anything uv runs: a stale lock would fail there with uv's error, not this check's.
+    "${j[@]}" check-lockfile
     tree="$("${j[@]}" checkable-tree)"
     place="$("${j[@]}" place)"
-    "${j[@]}" check-lockfile check-no-devdata
+    "${j[@]}" check-no-devdata
     for task in format lint links docstrings types tidy test sql validate docs; do
         "${j[@]}" full "$task"
     done

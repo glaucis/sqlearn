@@ -70,8 +70,6 @@ None. [verified]
 - Windows needs its own crash handler (no POSIX signals; the current one
   calls `sigaction`): when the Windows build starts (ADR 0069). macOS and
   Linux only for now (Tomas, 2026-11-26).
-- `just done` runs `just place` before `check-lockfile`, so a stale lock
-  fails with uv's error rather than the named check (fails safe).
 - Open question: free-threaded Python,
   `docs/questions/free-threaded-python.md` (nanobind's stable ABI excludes
   it).

@@ -53,8 +53,17 @@ RELEASE = (
 # place the checks run in is the file `place`, or "here" without one.
 OVERRIDES = (
     "set allow-duplicate-recipes\nimport 'real.just'\n"
-    + "".join(f"\n{name}:\n    @echo {name} >> calls.log\n" for name in RUNS)
-    + "\nplace:\n    @cat place 2>/dev/null || echo here\n"
+    + "".join(
+        f"\n{name}:\n    @echo {name} >> calls.log\n"
+        + (
+            "    @echo check-lockfile >> order.log\n"
+            if name == "check-lockfile"
+            else ""
+        )
+        for name in RUNS
+    )
+    + "\nplace:\n    @echo place >> order.log\n"
+    + "    @cat place 2>/dev/null || echo here\n"
     # The stamp is git-ignored in the real tree; here it would dirty it.
     + "\ncompiler-stamp:\n    @true\n"
     # The sweep's warning, on stdout only: calls.log stays what runs.
@@ -97,11 +106,17 @@ def make_repo(tmp_path):
     git(repo, "config", "commit.gpgsign", "false", env=env)
     shutil.copy(REPO / "justfile", repo / "real.just")
     (repo / "justfile").write_text(OVERRIDES)
-    (repo / ".gitignore").write_text("calls.log\nplace\n")
+    (repo / ".gitignore").write_text("calls.log\norder.log\nplace\n")
     (repo / "a.py").write_text("a = 1\n")
     git(repo, "add", "-A", env=env)
     git(repo, "commit", "-m", "chore: start", env=env)
     return repo, env
+
+
+def order(repo):
+    """Return the lockfile check and `place`, the two that touch uv, in order."""
+    log = repo / "order.log"
+    return log.read_text().split() if log.exists() else []
 
 
 def calls(repo):
@@ -152,13 +167,14 @@ def test_a_failing_check_remembers_nothing(tmp_path):
 
 
 def test_a_remembered_tree_runs_nothing(tmp_path):
-    """A second done on the same tree says it passed and runs no tier."""
+    """A second done on the same tree says it passed and runs no tier but the
+    lockfile check, which comes before anything uv runs."""
     repo, env = make_repo(tmp_path)
     just(repo, "done", env=env)
     (repo / "calls.log").unlink()
     out = just(repo, "done", env=env)
     assert "already passed" in out
-    assert calls(repo) == []
+    assert calls(repo) == ["check-lockfile"]
 
 
 def test_a_passed_tree_in_a_new_place_runs_everything(tmp_path):
@@ -175,7 +191,7 @@ def test_a_passed_tree_in_a_new_place_runs_everything(tmp_path):
     assert remembered(repo, env) == [(tree, "here"), (tree, "elsewhere")]
     (repo / "calls.log").unlink()
     assert "already passed" in just(repo, "done", env=env)
-    assert calls(repo) == []
+    assert calls(repo) == ["check-lockfile"]
 
 
 def test_a_place_changed_while_the_checks_ran_is_not_remembered(tmp_path):
@@ -235,7 +251,7 @@ def test_a_fast_forward_to_a_passed_tree_runs_nothing(tmp_path):
         git(repo, "merge", *flags, "work", env=env)
         (repo / "calls.log").unlink()
         assert "already passed" in just(repo, "done", env=env)
-        assert calls(repo) == []
+        assert calls(repo) == ["check-lockfile"]
 
 
 def test_a_rewritten_results_file_keeps_the_tree_checkable(tmp_path):
@@ -302,3 +318,35 @@ def test_a_failing_sweep_warning_changes_nothing_done_runs(tmp_path):
     assert done.returncode == 0
     assert calls(repo) == list(RUNS)
     assert len(passed(repo, env)) == 1
+
+
+def test_the_lockfile_is_checked_before_anything_uv_runs(tmp_path):
+    """done checks the lockfile before `place`, which runs uv."""
+    repo, env = make_repo(tmp_path)
+    just(repo, "done", env=env)
+    assert order(repo)[:2] == ["check-lockfile", "place"]
+
+
+def test_verify_checks_the_lockfile_before_anything_uv_runs(tmp_path):
+    """verify checks the lockfile before `place`, which runs uv."""
+    repo, env = make_repo(tmp_path)
+    just(repo, "verify", env=env)
+    assert order(repo)[:2] == ["check-lockfile", "place"]
+
+
+def test_a_stale_lockfile_stops_done_at_once(tmp_path):
+    """A failing lockfile check ends done with its code before any other check."""
+    repo, env = make_repo(tmp_path)
+    (repo / "justfile").write_text(
+        OVERRIDES.replace(
+            "@echo check-lockfile >> calls.log",
+            "@echo check-lockfile >> calls.log\n    @exit 1",
+        )
+    )
+    git(repo, "commit", "-qam", "chore: stale lock", env=env)
+    failed = subprocess.run(
+        ["just", "done"], cwd=repo, env=env, capture_output=True, text=True, check=False
+    )
+    assert failed.returncode == 1
+    assert calls(repo) == ["check-lockfile"]
+    assert passed(repo, env) == []
