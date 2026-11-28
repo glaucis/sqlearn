@@ -80,10 +80,28 @@ docs = [
     "sphinx-gallery>=0.22.1",
     "sphinxcontrib-bibtex>=2.7.0",
 ]
+# The build system's requirements, installed in the project's environment,
+# where sqlearn builds (no-build-isolation-package below). Exactly
+# [build-system].requires: the two lists change together
+# (tests/engine/test_build.py).
+build = [
+    "scikit-build-core==1.1.2",
+    "nanobind==3.1.0",
+    "numpy==2.5.4",
+    "setuptools-scm==10.3.4",
+]
 
 [tool.uv]
 # `uv sync` installs every group; none is ever published.
-default-groups = ["test", "lint", "docs"]
+default-groups = ["build", "test", "lint", "docs"]
+# sqlearn builds in the project's environment, not in a new one: an isolated
+# build's environment has a new path each time, so after every commit each
+# object that reads nanobind's or numpy's headers missed ccache. uv installs
+# the build group first (its two-phase install). Locking reads sqlearn's
+# version from its build backend, so it needs the group installed too: the
+# recipes that lock run `just build-tools` first. The wheel is still built in
+# isolation (`just build-package`).
+no-build-isolation-package = ["sqlearn"]
 # The series that wrote the lockfile; an older uv is refused.
 required-version = ">=0.13"
 # The version comes from git, so the installed package is rebuilt when the

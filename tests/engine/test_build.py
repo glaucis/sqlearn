@@ -140,6 +140,49 @@ def test_a_compiler_change_is_a_cache_key_of_the_build(tmp_path):
     assert "clang version 22.0.0" in stamp.read_text()
 
 
+def _recipe(name: str) -> tuple[str, list[str]]:
+    """Return a justfile recipe's header line and its body's lines, stripped."""
+    justfile = (REPO / "justfile").read_text()
+    body = justfile[justfile.index(f"\n{name}:") + 1 :]
+    end = body.find("\n\n")
+    lines = body[: end if end >= 0 else None].splitlines()
+    return lines[0], [x.strip() for x in lines[1:]]
+
+
+def test_sqlearn_builds_in_the_project_environment_with_its_exact_build_pins():
+    """uv builds sqlearn in the project's environment, at a path that does not
+    change, so ccache reuses the binding objects; the build group installed
+    there holds exactly the build system's pins."""
+    import tomllib
+
+    config = tomllib.loads((REPO / "pyproject.toml").read_text())
+    uv = config["tool"]["uv"]
+    assert sorted(config["dependency-groups"].get("build", [])) == sorted(
+        config["build-system"]["requires"]
+    )
+    assert "build" in uv["default-groups"]
+    assert uv.get("no-build-isolation-package") == ["sqlearn"]
+
+
+@pytest.mark.parametrize("recipe", ["check-lockfile", "upgrade-dependencies"])
+def test_a_recipe_that_locks_installs_the_build_tools_first(recipe):
+    """uv reads sqlearn's version from its build backend to lock, and without
+    isolation finds the backend only in the project's environment: a recipe
+    that locks installs the build group first, so it works in an empty one."""
+    header, _ = _recipe(recipe)
+    assert header.split(":", 1)[1].split() == ["build-tools"]
+    _, body = _recipe("build-tools")
+    assert body == ["uv sync --frozen --inexact --only-group build"]
+
+
+def test_the_wheel_is_built_in_isolation():
+    """The wheel is built in a clean environment of its own, never from the
+    project's: --no-config leaves out [tool.uv], so its
+    no-build-isolation-package too."""
+    _, body = _recipe("build-package")
+    assert body == ["uv build --wheel --no-config"]
+
+
 @pytest.mark.parametrize("recipe", ["setup", "done", "verify"])
 def test_the_compiler_is_stamped_before_anything_builds(recipe):
     """setup, done and verify write the stamp first, so the build they start

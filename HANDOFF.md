@@ -12,17 +12,10 @@ Verify with: `just done` (`just verify` is the release tier)
 
 None. [verified] The tooling-fixes plan
 (`docs/plans/2026-11-28-tooling-fixes.md`) stays active, not archived, until its
-Task 4 and its decisions (below) are settled.
+decisions (below) are settled.
 
 ## Waiting on the user
 
-- Task 4 (no build isolation for sqlearn, so the 24 s rebuild after a commit
-  goes): blocked, nothing committed. Without isolation `uv lock` fails:
-  sqlearn's version is dynamic, so resolving needs its metadata built before
-  uv's two-phase install, with no scikit_build_core in the environment.
-  Baseline counted: 56 misses and 11 hits of 67 objects after a cache-key
-  touch. Choose: `[tool.uv.extra-build-dependencies]`,
-  `[tool.uv.dependency-metadata]`, or leave the rebuild. (since 2026-11-28)
 - The plan's "Decisions for Tomas" table (13 #85 items, each with a
   recommendation): none is built until you answer; a yes adds a task. See the
   plan's section of that name; #85's comment of 2026-11-28 lists them.
@@ -40,8 +33,8 @@ Task 4 and its decisions (below) are settled.
 
 - **The preparation before the rewrite, in this order** (Tomas, 2026-11-28:
   he prepares everything before starting, for a clear path):
-  1. **The small tooling fixes** are merged into `main`; what remains is
-     Task 4 and the plan's decisions (both above, waiting on you).
+  1. **The small tooling fixes** are merged into `main`, and Task 4 is done
+     (below); what remains is the plan's decisions (above, waiting on you).
   2. A benchmark and profiling queue: profiling joins `just benchmarks-due`,
      and one command runs the whole queue on Tomas's go-ahead, when the
      machine is idle (ADR 0072 unchanged: nothing runs by itself).
@@ -67,9 +60,6 @@ Task 4 and its decisions (below) are settled.
   (`validation/_cases.py` still imports numpy, pandas, mpmath). numpy leaves
   the runtime once XᵀX and `eigh` are C++ on Accelerate and OpenBLAS (ADR
   0063), with an ADR replacing 0057; Eigen stays out (MPL-2.0, ADR 0066).
-- The engine's rebuild costs about 24 s after any commit: uv's isolated
-  build has a new random path each time, so nanobind and every duckdb-python
-  binding object miss ccache. Task 4's choice (above) decides it.
 - The published validation pages (ADR 0016) are still to be built;
   `docs/validation/index.md` is a placeholder.
 - Windows needs its own crash handler (no POSIX signals; the current one
@@ -122,9 +112,14 @@ Task 4 and its decisions (below) are settled.
   exactly sqlearn's installed version, so a build made outside uv (another
   version) over-runs. clang has no `-fpreprocessed`: `_groups.stripped()`
   uses `-Xclang -dump-raw-tokens`. (2026-11-28)
-- `no-build-isolation-package = ["sqlearn"]` breaks `uv lock`: the dynamic
-  version needs metadata built before uv's two-phase install, with no
-  scikit_build_core there (Task 4 of the tooling-fixes plan). CMake's
+- sqlearn builds without isolation, so `uv lock`, `uv lock --check` and
+  `uv add` need the build group installed: in an empty environment run
+  `just build-tools` first (`check-lockfile` and `upgrade-dependencies` do).
+  `uv build` follows `no-build-isolation-package` too: `just build-package`
+  passes `--no-config` to stay isolated. A plain `uv sync --only-group`
+  uninstalls the rest: `--inexact`. `[tool.uv.dependency-metadata]` for the
+  project itself drops its dependency groups, and
+  `extra-build-dependencies` keeps the random build path. CMake's
   `string(JSON SET)` pretty-prints: the groups manifest escapes by hand
   (`sq_json_string`). (2026-11-28)
 - A session isolated in a worktree refuses compound `git` commands: run
@@ -209,6 +204,11 @@ Task 4 and its decisions (below) are settled.
 
 ## Just finished
 
+- Task 4 of the tooling fixes (2026-11-28, branch `build-in-project-env`):
+  sqlearn builds in the project's environment, the `build` group holding
+  `[build-system].requires`, so a rebuild compiles only what changed (56 of
+  68 objects missed ccache before; 0 of 1 after).
+
 - The small tooling fixes (2026-11-28, plan
   `docs/plans/2026-11-28-tooling-fixes.md`, merged into `main` and pushed,
   `ce3d768..cd40339`): the SQL label hashes every file under
@@ -219,6 +219,6 @@ Task 4 and its decisions (below) are settled.
   `f7fe1b2`, `95bcb54`, `1ce87c9`; progress on #85); the docs (`8cf0d52`);
   a whole-branch review's fixes, a run cut short still forgets moved passes
   and the loose tests' `Fix:` names the wheel rebuild (`b12eb9d`,
-  `5a3e156`). Task 4 is not done (above).
+  `5a3e156`).
 - The docs tagger's frontmatter, its bad `related:` entries fixed
   (`48a444f`).

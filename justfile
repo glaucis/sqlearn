@@ -130,9 +130,14 @@ lint-markdown:
 check-spelling:
     uv run --locked typos
 
+# Install the build group into the project's environment from uv.lock, keeping everything else: locking reads sqlearn's version from its build backend, which builds there, not in isolation
+[group('setup')]
+build-tools:
+    uv sync --frozen --inexact --only-group build
+
 # Check that uv.lock matches pyproject.toml
 [group('check')]
-check-lockfile:
+check-lockfile: build-tools
     uv lock --check
 
 # Run the hook tests
@@ -176,10 +181,10 @@ check-docstring-args *files:
     # a failure with no DOC line at all is an error, not a pass
     if [ $rc -eq 1 ] && ! grep -q 'DOC111' <<<"$out"; then printf '%s\n' "$out"; exit 1; fi
 
-# Build the wheel, sqlearn with its DuckDB inside, into dist/, from the git checkout whose submodules sq_check_pins() reads; the sdist is left to step 3's release work
+# Build the wheel, sqlearn with its DuckDB inside, into dist/, from the git checkout whose submodules sq_check_pins() reads, in a clean environment of its own (--no-config leaves out [tool.uv]'s no-build-isolation-package); the sdist is left to step 3's release work
 [group('build')]
 build-package:
-    uv build --wheel
+    uv build --wheel --no-config
 
 # Configure and build sqlearn's C++ groups and their test programs with a preset (dev, debug, release, profile, llvm-dev) into engine/build/<preset>
 [group('build')]
@@ -494,7 +499,7 @@ api-snapshot:
 
 # Upgrade the locked dependencies, then verify
 [group('maintain')]
-upgrade-dependencies:
+upgrade-dependencies: build-tools
     uv lock --upgrade
     just fetch-inventories
     just verify

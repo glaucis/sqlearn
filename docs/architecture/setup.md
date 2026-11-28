@@ -38,8 +38,18 @@ sqlearn's C++ in one binary, from the submodules under `engine/`. The first
 build took 3 min 36 s here (2026-11-23), and `just setup` on a fresh clone about
 10 minutes with the submodules' fetch. ccache keeps the compiled objects
 (`engine/cmake/ccache.cmake`). `uv run` builds the module again when a commit or
-a file of the engine changes (`[tool.uv] cache-keys` in `pyproject.toml`); after
-a commit that took about 24 s. A compiler update rebuilds it too: `just setup`,
+a file of the engine changes (`[tool.uv] cache-keys` in `pyproject.toml`).
+sqlearn builds in the project's environment, not in an isolated one
+(`no-build-isolation-package`): an isolated build's environment had a new path
+each time, so every object that reads nanobind's or numpy's headers missed
+ccache, 56 of 68 after each commit (about 24 s). Now only what changed
+compiles. uv installs the `build` group, exactly `[build-system].requires`,
+before it builds sqlearn. Locking reads sqlearn's version from its build
+backend, so it needs that group installed: `just check-lockfile` and
+`just upgrade-dependencies` run `just build-tools` first. Before a bare
+`uv lock` or `uv add` in an empty environment, run `just build-tools`. The
+wheel `just build-package` makes is still built in isolation (`--no-config`).
+A compiler update rebuilds the module too: `just setup`,
 `just test`, `just full`, `just done` and `just verify` first run
 `just compiler-stamp`, which writes the compiler's and the SDK's versions to
 `engine/.compiler-stamp` (git-ignored, one of the cache keys) when they changed,
@@ -57,7 +67,7 @@ system's OpenMP library; uv cannot provide it. uv is the only package tool
 
 | Group | Recipes |
 |---|---|
-| setup | `compiler-stamp`, `doctor`, `fetch-mull`, `setup` |
+| setup | `build-tools`, `compiler-stamp`, `doctor`, `fetch-mull`, `setup` |
 | format | `fmt`, `fmt-engine`, `fmt-markdown`, `fmt-python` |
 | check | `check`, `check-docstring-args`, `check-docstrings`, `check-licences`, `check-lockfile`, `check-no-devdata`, `check-secrets`, `check-spelling`, `check-stubs`, `check-types`, `check-types-mypy`, `checkable-tree`, `docstrings`, `done`, `format`, `full`, `headers-alone`, `iwyu-engine`, `links`, `lint`, `lint-markdown`, `lint-python`, `place`, `pre-commit`, `remember-tree`, `tidy`, `tidy-engine`, `types`, `verify` |
 | test | `audit-groups`, `bench`, `bench-engine`, `benchmarks-due`, `coverage-engine`, `fuzz`, `leaks-engine`, `mutate-engine`, `sanitize`, `sql`, `test`, `test-all`, `test-engine`, `test-engine-changed`, `test-hooks`, `test-python-versions`, `test-sql`, `validate`, `validate-all` |

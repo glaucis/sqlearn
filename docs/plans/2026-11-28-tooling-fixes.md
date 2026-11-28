@@ -233,11 +233,11 @@ build, so no `base_dir` covers it.
   `[build-system].requires`, in `default-groups`; `[tool.uv]
   no-build-isolation-package = ["sqlearn"]`.
 
-- [ ] **Step 0: Count the misses today.** Run `ccache -z`, then
+- [x] **Step 0: Count the misses today.** Run `ccache -z`, then
   `touch engine/src/core/version.cpp` (a cache key, so uv rebuilds), then
   `uv run --locked python -c "import duckdb"`, then `ccache -s`. Record the
   miss count in the task's report. It counts objects; it times nothing.
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
   `test_sqlearn_builds_in_the_project_environment_with_its_exact_build_pins`:
 
 ```python
@@ -249,26 +249,34 @@ assert "build" in config["tool"]["uv"]["default-groups"]
 assert config["tool"]["uv"]["no-build-isolation-package"] == ["sqlearn"]
 ```
 
-- [ ] **Step 2: Run it, expect FAIL** (`KeyError: 'build'`).
-- [ ] **Step 3: Add the group and the setting** with a comment saying why
+- [x] **Step 2: Run it, expect FAIL** (`KeyError: 'build'`).
+- [x] **Step 3: Add the group and the setting** with a comment saying why
   (the stable path ccache needs) and that the two lists change together.
   Then `uv lock`. The group pins `numpy==2.5.4`, which the `test` group's
   `>=2.5.4` allows.
-- [ ] **Step 4: Run the test, expect PASS**
-- [ ] **Step 5: Count the misses again** with Step 0's commands, twice. The
+- [x] **Step 4: Run the test, expect PASS**
+- [x] **Step 5: Count the misses again** with Step 0's commands, twice. The
   first rebuild moves into the project environment and may miss. The
   second must miss only the objects whose input changed: the build
   identity's, near zero. If the binding objects still miss, stop and report
   both counts; do not try another fix.
-- [ ] **Step 6: Sync a new environment from empty.** Run
+- [x] **Step 6: Sync a new environment from empty.** Run
   `UV_PROJECT_ENVIRONMENT=.venvs/fresh uv sync --locked` (minutes; ccache
   helps), then `rm -rf .venvs/fresh`. If it fails, stop and report: Tomas
   decides between this and leaving the rebuild.
-- [ ] **Step 7: Update `setup.md`.** The rebuild after a commit now reuses
+- [x] **Step 7: Update `setup.md`.** The rebuild after a commit now reuses
   the compiled objects. Put the two counts in the commit body. A release's
   `uv build` stays isolated.
-- [ ] **Step 8: Remove the HANDOFF item, commit**
+- [x] **Step 8: Remove the HANDOFF item, commit**
   `build(deps): build sqlearn in the project environment`
+
+**As built (Tomas chose it, 2026-11-28):** locking without isolation needs
+the build group installed, so `just build-tools` (`uv sync --frozen
+--inexact --only-group build`) runs before `check-lockfile` and
+`upgrade-dependencies`; `uv build` follows the setting too, so
+`build-package` passes `--no-config`. The first lock was made once with the
+setting off, since the old lockfile had no `build` group. Counts: 56 misses
+of 68 before; 54 of 66 on the first rebuild after, 0 of 1 on the second.
 
 ### Task 5: #86, the over-running fingerprints (items 1, 4)
 
