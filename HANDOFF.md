@@ -4,7 +4,7 @@ Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
 Updated: 2026-11-28 · Branch: `main` (pushed, level with `origin/main`) · Last
-commit: `93b1c45 test: check the engine's stubs again` · Checks: passing
+commit: `d88c16e feat: pin each licence text by its digest` · Checks: passing
 (`just done`)
 
 Verify with: `just done` (`just verify` is the release tier)
@@ -13,9 +13,8 @@ Verify with: `just done` (`just verify` is the release tier)
 
 None. [verified] The tooling-fixes plan
 (`docs/plans/2026-11-28-tooling-fixes.md`) stays active, not archived: Tasks 13
-and 14 are done; 15 to 22 are not started. Task 15 (the test extension) is next,
-its first step finding how DuckDB 2.0.1 builds a loadable extension outside the
-wheel.
+to 19 are done; 20 to 22 are not started. Task 20 (the crash handler's three
+gaps) is next, then 21 (reading a crash report).
 
 ## Waiting on the user
 
@@ -32,7 +31,7 @@ wheel.
 
 - **The preparation before the rewrite, in this order** (Tomas, 2026-11-28:
   he prepares everything before starting, for a clear path):
-  1. **The small tooling fixes**: Tasks 1 to 14 are merged into `main`.
+  1. **The small tooling fixes**: Tasks 1 to 19 are merged into `main`.
      Tomas answered the 13 decisions (2026-11-28, the plan's table and
      #85's comment); the yeses are Tasks 13 to 21, then Task 22 closes the
      plan. Tasks 20 and 21 are the crash handler's (a stack overflow's
@@ -209,6 +208,14 @@ wheel.
   with `COPY`, one probe per subprocess. (2026-11-12)
 
 ## Just finished
+
+- Tasks 15 to 19 of the tooling fixes (2026-11-28): an extension the user
+  installs loads, built from a C file on DuckDB's C API (`1159a23`); our
+  compile lines carry the flavour's levels alone, `-DNDEBUG` where the build
+  type gives it (`f9eebd9`); the bindings' headers build alone with LLVM
+  (`5b04967`); the fuzz corpus is capped at 500 files and 1 MiB, inputs at
+  4,096 bytes (`409e07f`); each licence text is pinned by its SHA-256
+  (`d88c16e`).
 
 - Tasks 13 and 14 of the tooling fixes (2026-11-28): a submodule with local
   edits fails the configure, DuckDB's edits named at its own directory
