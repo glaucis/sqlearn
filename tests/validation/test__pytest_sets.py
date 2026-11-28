@@ -354,3 +354,19 @@ def test_due_names_the_set_a_file_it_reads_reruns(repo):
     }
     assert repo.ran() == set()
     assert _records(repo.root) == before
+
+
+def test_an_unreadable_manifest_is_named_before_any_fix(repo, capsys):
+    """With the manifest gone, a claim outside ``tests/src`` is not a loose
+    file: the output gives why the groups are unreadable, not a Fix: to claim."""
+    (repo.scratch.build / "sq_groups.json").unlink()
+    repo.edit("tests/claimed/test_claimed.py", "def test_c():\n    pass\n")
+    capsys.readouterr()
+    assert repo.run() != 0
+    out = capsys.readouterr().out
+    assert "unreadable" in out
+    assert "sq_groups.json" in out
+    assert "claim them" not in out
+    reasons = _pytest_sets.due(repo.root)
+    assert "sq_groups.json" in " ".join(reasons["sets"])
+    assert "claim them" not in " ".join(reasons["sets"])

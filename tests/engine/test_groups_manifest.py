@@ -6,8 +6,12 @@ benchmarks), so the checks rerun only what a change to a group affects.
 """
 
 import json
+import shutil
+import subprocess
 from pathlib import Path
 from typing import Any
+
+import pytest
 
 from validation import _groups
 
@@ -46,3 +50,28 @@ def test_every_source_directory_is_a_group_or_shared() -> None:
     }
     assert on_disk <= known
     assert manifest["shared"] == ["engine/src/bindings", "engine/extension"]
+
+
+@pytest.mark.skipif(shutil.which("cmake") is None, reason="cmake is not installed")
+def test_a_name_with_a_quote_or_backslash_writes_valid_json(tmp_path: Path) -> None:
+    """The manifest's strings are escaped: a quote or a backslash in a name or
+    a claimed path leaves it valid JSON, and today's names are unchanged."""
+    script = tmp_path / "run.cmake"
+    script.write_text(
+        f'include("{(REPO / "engine/cmake/groups.cmake").as_posix()}")\n'
+        'sq_json_list(plain "tests/src/a" "tests/src/b")\n'
+        'sq_json_list(odd [[a\\b]] [[say "hi"]])\n'
+        'sq_json_string(name [[x"y\\z]])\n'
+        'message(STATUS "plain=${plain}")\n'
+        'message(STATUS "odd=${odd}")\n'
+        'message(STATUS "name=${name}")\n'
+    )
+    done = subprocess.run(
+        ["cmake", "-P", str(script)], capture_output=True, text=True, check=True
+    )
+    found = dict(
+        line.removeprefix("-- ").split("=", 1) for line in done.stdout.splitlines()
+    )
+    assert found["plain"] == '["tests/src/a", "tests/src/b"]'
+    assert json.loads(found["odd"]) == ["a\\b", 'say "hi"']
+    assert json.loads(found["name"]) == 'x"y\\z'

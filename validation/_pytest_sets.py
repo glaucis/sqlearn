@@ -255,19 +255,40 @@ def _run_set(paths: Sequence[str], root: Path) -> int:
 
 def _manifest(
     prints: _groups.Fingerprints | _groups.Unreadable, root: Path
-) -> dict[str, _groups.Group]:
-    """Return the manifest's groups, none when it cannot be read.
+) -> tuple[dict[str, _groups.Group], str | None]:
+    """Return the manifest's groups and why it cannot be read, if it cannot.
+
+    With no groups the sets are those of none, and a claim outside
+    ``tests/src`` would read as a loose file: the reason lets the caller
+    say so instead of asking for a claim.
 
     The fingerprints carry it; when they cannot be read (a missing compile
     database, say) the manifest alone is loaded. ``_identities`` says why
     the fingerprints cannot be read: the sets are then those of no group.
     """
     if not isinstance(prints, _groups.Unreadable):
-        return prints.manifest
+        return prints.manifest, None
     try:
-        return _groups.load(root / _groups.WHEEL_BUILD)[0]
-    except _groups.Unreadable:
-        return {}
+        return _groups.load(root / _groups.WHEEL_BUILD)[0], None
+    except _groups.Unreadable as error:
+        return {}, str(error)
+
+
+def _loose(error: ValueError, why: str | None) -> str:
+    """Return `error`'s text, led by `why` the groups are unreadable if so.
+
+    The ``Fix:`` that asks for a claim in a group's ``PYTHON_TESTS`` cannot be
+    followed while the manifest is unreadable; the unreadable reason replaces
+    it.
+    """
+    if why is None:
+        return str(error)
+    head = str(error).split("\nFix:", 1)[0]
+    return (
+        f"Python tests: the C++ groups are unreadable: {why}\n"
+        f"{head}\nFix: make the manifest readable (build the engine: just "
+        "build-engine dev), then rerun"
+    )
 
 
 def due(root: Path) -> dict[str, list[str]]:
@@ -289,10 +310,11 @@ def due(root: Path) -> dict[str, list[str]]:
     """
     root = root.resolve()
     prints = _read(root)
+    groups, why = _manifest(prints, root)
     try:
-        chosen = sets(_manifest(prints, root), root)
+        chosen = sets(groups, root)
     except ValueError as error:
-        return {"sets": [str(error)]}
+        return {"sets": [_loose(error, why)]}
     found = _identities(chosen, prints, root)
     if found is None:
         return {name: ["the C++ groups are unreadable"] for name in chosen}
@@ -322,10 +344,11 @@ def run(root: Path, *, everything: bool = False) -> int:
     """
     root = root.resolve()
     prints = _read(root)
+    groups, why = _manifest(prints, root)
     try:
-        chosen = sets(_manifest(prints, root), root)
+        chosen = sets(groups, root)
     except ValueError as error:
-        _say(str(error))
+        _say(_loose(error, why))
         return 1
     before = _identities(chosen, prints, root)
     directory = _checks.record_dir(root)

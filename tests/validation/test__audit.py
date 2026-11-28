@@ -152,3 +152,26 @@ def test_a_dependency_of_a_declared_group_is_no_finding():
     )
     found = _audit.findings({"group:b": {"b"}}, {"group:b": seen}, set(), set(), GROUPS)
     assert found == []
+
+
+def test_paths_spelt_differently_overlap():
+    """``a/./b`` and ``a//b/`` are one path, and a sibling is not."""
+    assert _audit._overlap("a/./b", "a//b/")
+    assert _audit._overlap("a/b/../b", "a")
+    assert not _audit._overlap("a/b", "a/bc")
+
+
+def test_a_covered_file_in_no_group_is_named():
+    """A covered file under ``engine/src`` that no group owns, and no shared
+    directory holds, is named; a file that never ran, or a shared one, is not."""
+    export = _export(
+        {
+            "engine/src/stray.cpp": (2, 3),
+            "engine/src/bindings/x.cpp": (1, 1),
+            "engine/src/a/a.cpp": (1, 1),
+            "engine/src/other/never.cpp": (0, 4),
+        }
+    )
+    assert _audit.strays(export, GROUPS, ["engine/src/bindings"]) == [
+        "engine/src/stray.cpp"
+    ]

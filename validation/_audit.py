@@ -32,6 +32,7 @@ import argparse
 import importlib.util
 import json
 import os
+import posixpath
 import shutil
 import subprocess
 import sys
@@ -95,6 +96,46 @@ def ran(export: dict[str, Any], groups: dict[str, _groups.Group]) -> set[str]:
             if owner is not None:
                 found.add(owner)
     return found
+
+
+def strays(
+    export: dict[str, Any],
+    groups: dict[str, _groups.Group],
+    shared_dirs: Sequence[str],
+) -> list[str]:
+    """Return the covered files under ``engine/src`` that belong to no group.
+
+    A file in no group's directory, and in none of `shared_dirs`, ran but
+    no group can be told to rerun it: it is named, in order, as a note.
+
+    Parameters
+    ----------
+    export : dict
+        ``llvm-cov export -summary-only``'s JSON.
+    groups : dict of str to Group
+        The manifest's groups.
+    shared_dirs : sequence of str
+        The manifest's shared directories, relative to the root.
+
+    Returns
+    -------
+    list of str
+        The files, as they appear in `export`, sorted.
+    """
+    found = set()
+    for data in export.get("data", []):
+        for entry in data.get("files", []):
+            regions = entry.get("summary", {}).get("regions", {})
+            name = str(entry.get("filename", ""))
+            path = "/" + name.replace("\\", "/").lstrip("/")
+            if int(regions.get("covered", 0)) <= 0 or "/engine/src/" not in path:
+                continue
+            if _owner(name, groups) is not None:
+                continue
+            if any(f"/{d.strip('/')}/" in path for d in shared_dirs):
+                continue
+            found.add(path.split("/engine/src/", 1)[1])
+    return [f"engine/src/{f}" for f in sorted(found)]
 
 
 def startup(profile: dict[str, Any], groups: dict[str, _groups.Group]) -> set[str]:
@@ -183,8 +224,12 @@ def findings(
 
 
 def _overlap(one: str, other: str) -> bool:
-    """Return whether the paths `one` and `other` are equal or one holds the other."""
-    one, other = one.rstrip("/"), other.rstrip("/")
+    """Return whether the paths `one` and `other` are equal or one holds the other.
+
+    Paths spelt differently (``a/./b``, ``a//b/``) are compared as written
+    normalised.
+    """
+    one, other = posixpath.normpath(one), posixpath.normpath(other)
     return one == other or one.startswith(f"{other}/") or other.startswith(f"{one}/")
 
 
@@ -291,6 +336,7 @@ def run(root: Path) -> int:
         prints = _groups.fingerprints(root, COVERAGE_BUILD)
         groups = prints.manifest
         shared = set(prints.shared_groups)
+        shared_dirs = _groups.load(root / COVERAGE_BUILD)[1]
         module = _module()
     except _groups.Unreadable as error:
         _say(f"The audit cannot read the coverage build: {error}")
@@ -299,6 +345,7 @@ def run(root: Path) -> int:
     python = sys.executable
     declared: dict[str, set[str] | None] = {}
     seen: dict[str, set[str]] = {}
+    stray: set[str] = set()
     failed = []
     try:
         profile, code = _measure(
@@ -331,12 +378,15 @@ def run(root: Path) -> int:
             if code:
                 failed.append(name)
             seen[name] = ran(export, groups)
+            stray.update(strays(export, groups, shared_dirs))
         found = findings(declared, seen, start, shared, groups)
     except (_groups.Unreadable, ValueError, subprocess.CalledProcessError) as error:
         _say(f"The audit could not measure the groups: {error}")
         return 1
     for line in found:
         _say(line)
+    for path in sorted(stray):
+        _say(f"note: {path} ran but belongs to no group and no shared directory")
     for name in failed:
         _say(f"{name}: failed on the coverage wheel, so its measure may be short")
     if not found and not failed:

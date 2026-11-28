@@ -76,11 +76,22 @@ function(sq_test_timeout)
   set_tests_properties(${ARGN} PROPERTIES TIMEOUT ${SQ_TEST_TIMEOUT})
 endfunction()
 
+# Set `out` to `value` as a JSON string, quotes and escapes included: a
+# backslash, a quote, a newline or a tab in it cannot break the manifest.
+function(sq_json_string out value)
+  string(REPLACE "\\" "\\\\" value "${value}")
+  string(REPLACE "\"" "\\\"" value "${value}")
+  string(REPLACE "\n" "\\n" value "${value}")
+  string(REPLACE "\t" "\\t" value "${value}")
+  set(${out} "\"${value}\"" PARENT_SCOPE)
+endfunction()
+
 # Set `out` to the JSON array of the strings after it.
 function(sq_json_list out)
   set(items "")
   foreach(item IN LISTS ARGN)
-    list(APPEND items "\"${item}\"")
+    sq_json_string(quoted "${item}")
+    list(APPEND items "${quoted}")
   endforeach()
   list(JOIN items ", " joined)
   set(${out} "[${joined}]" PARENT_SCOPE)
@@ -152,6 +163,8 @@ function(sq_add_group name)
       )
     endif()
   endforeach()
+  sq_json_string(name_json "${name}")
+  sq_json_string(dir_json "engine/src/${name}")
   sq_json_list(depends_json ${arg_DEPENDS})
   sq_json_list(tests_json ${arg_PYTHON_TESTS})
   sq_json_list(validation_json ${arg_VALIDATION})
@@ -161,7 +174,7 @@ function(sq_add_group name)
     APPEND
     PROPERTY
       SQ_GROUPS_JSON
-        "{\"name\": \"${name}\", \"dir\": \"engine/src/${name}\", \"depends\": ${depends_json}, \"python_tests\": ${tests_json}, \"validation\": ${validation_json}, \"bench\": ${bench_json}}"
+        "{\"name\": ${name_json}, \"dir\": ${dir_json}, \"depends\": ${depends_json}, \"python_tests\": ${tests_json}, \"validation\": ${validation_json}, \"bench\": ${bench_json}}"
   )
   set(raw "")
   if(name STREQUAL "raw")

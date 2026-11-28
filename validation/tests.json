@@ -626,6 +626,12 @@
     },
     {
       "area": "engine/groups_manifest",
+      "name": "tests/engine/test_groups_manifest.py::test_a_name_with_a_quote_or_backslash_writes_valid_json",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/groups_manifest",
       "name": "tests/engine/test_groups_manifest.py::test_every_source_directory_is_a_group_or_shared",
       "outcome": "passed",
       "tier": "fast"
@@ -1514,6 +1520,12 @@
     },
     {
       "area": "validation/_audit",
+      "name": "tests/validation/test__audit.py::test_a_covered_file_in_no_group_is_named",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_audit",
       "name": "tests/validation/test__audit.py::test_a_dependency_of_a_declared_group_is_no_finding",
       "outcome": "passed",
       "tier": "fast"
@@ -1539,6 +1551,12 @@
     {
       "area": "validation/_audit",
       "name": "tests/validation/test__audit.py::test_groups_claiming_one_path_declare_its_set_jointly",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_audit",
+      "name": "tests/validation/test__audit.py::test_paths_spelt_differently_overlap",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -2775,6 +2793,12 @@
     {
       "area": "validation/_pytest_sets",
       "name": "tests/validation/test__pytest_sets.py::test_an_unchanged_tree_runs_no_set",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_pytest_sets",
+      "name": "tests/validation/test__pytest_sets.py::test_an_unreadable_manifest_is_named_before_any_fix",
       "outcome": "passed",
       "tier": "fast"
     },
