@@ -237,6 +237,11 @@ TOOLING_INPUTS = (
     # clangd's settings, which the presets' tests read.
     ".clangd",
     "docs/conf.py",
+    # The site's base, which the site tests read: the README's links, the
+    # version switcher and the root's redirect.
+    "README.md",
+    "docs/_static/switcher.json",
+    "docs/_redirect",
     ".githooks",
     "commitlint.config.mjs",
     # The workflows and their setup action, which the workflow tests read.

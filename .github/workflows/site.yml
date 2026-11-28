@@ -1,0 +1,59 @@
+# The documentation site (spec §3.6): on each push to main, build the Sphinx
+# site with its doctests and publish it on GitHub Pages, at
+# https://glaucis.github.io/sqlearn/dev/. It runs no library tests: the
+# release tier does (release-tier.yml, started by hand).
+name: Site
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # One deploy at a time, and a running one finishes.
+  group: pages
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  UV_PYTHON: "3.12"
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      # The module the docs import is built as the Linux release's is.
+      CC: gcc-14
+      CXX: g++-14
+      SQ_LLVM_ROOT: /usr/lib/llvm-23
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The version comes from git's history and tags.
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+      - run: just links
+      - run: just build-site _site
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

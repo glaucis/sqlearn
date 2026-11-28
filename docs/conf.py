@@ -56,6 +56,9 @@ exclude_patterns = [
 ]
 
 html_theme = "pydata_sphinx_theme"
+# GitHub Pages serves the site's one version, dev, under dev/ (spec §3.6); the
+# root redirects there (docs/_redirect), and 1.0.0's versions go beside it.
+html_baseurl = "https://glaucis.github.io/sqlearn/dev/"
 html_static_path = ["_static"]
 html_theme_options = {
     "header_links_before_dropdown": 7,

@@ -9,7 +9,7 @@ release yet, and anything may still change. Outside contributions wait for a
 contributor licence agreement.
 
 It needs Python 3.12 or newer; see
-[the Python versions page](docs/architecture/python-versions.md).
+[the Python versions page](https://glaucis.github.io/sqlearn/dev/architecture/python-versions.html).
 
 To work on it:
 

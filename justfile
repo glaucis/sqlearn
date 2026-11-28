@@ -610,6 +610,14 @@ build-docs: fetch-mathjax
     uv run --locked sphinx-build -W --keep-going --fresh-env -b html docs docs/_build/html
     uv run --locked sphinx-build -W --keep-going --fresh-env -b doctest docs docs/_build/doctest
 
+# Build the site for GitHub Pages into `out`: the dev site (build-docs, its doctests included) under dev/, and the root's redirect to it (docs/_redirect); the site workflow publishes it
+[group('docs')]
+build-site out: build-docs
+    rm -rf {{ out }}
+    mkdir -p {{ out }}/dev
+    cp -R docs/_build/html/. {{ out }}/dev/
+    cp docs/_redirect/index.html {{ out }}/index.html
+
 # Remove build output, the matrix environments and tool caches
 [group('maintain')]
 clean:
