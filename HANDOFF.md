@@ -40,8 +40,6 @@ None. [verified]
   4. The audit's first run, on Tomas's go-ahead (above), before the first
      group claims Python tests or runners.
   5. Then the rewrite's first group, its plan first.
-- `just test` and `just full` do not run `just compiler-stamp` first, as
-  `done`, `verify`, `affected` and `sweep` do (this predates the branch).
 - `validate` is in neither `just affected` nor `just sweep`: add it when the
   first runner lands.
 - The record helpers `passed` and `reasons` sit in `validation/_ctest.py`,

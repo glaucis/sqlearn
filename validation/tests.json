@@ -320,19 +320,31 @@
     },
     {
       "area": "checks/tasks",
-      "name": "tests/checks/test_tasks.py::test_affected_and_sweep_write_the_compiler_stamp_first[affected]",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "checks/tasks",
-      "name": "tests/checks/test_tasks.py::test_affected_and_sweep_write_the_compiler_stamp_first[sweep]",
-      "outcome": "passed",
-      "tier": "fast"
-    },
-    {
-      "area": "checks/tasks",
       "name": "tests/checks/test_tasks.py::test_every_cache_key_under_engine_reaches_a_fingerprint",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_every_recipe_that_runs_checks_writes_the_compiler_stamp_first[affected]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_every_recipe_that_runs_checks_writes_the_compiler_stamp_first[full]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_every_recipe_that_runs_checks_writes_the_compiler_stamp_first[sweep]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_every_recipe_that_runs_checks_writes_the_compiler_stamp_first[test]",
       "outcome": "passed",
       "tier": "fast"
     },

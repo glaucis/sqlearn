@@ -643,9 +643,9 @@ docstrings:
 types:
     {{ checks }} types
 
-# Run the tests that changed since a passed run: the C++ groups whose program changed (dev), then each Python test set whose identity changed (validation/_pytest_sets.py: the tooling tests, each group's, the unclaimed ones), its fast tests in parallel, the serial ones, the slow tier; tests.json is merged
+# Run the tests that changed since a passed run: the C++ groups whose program changed (dev), then each Python test set whose identity changed (validation/_pytest_sets.py: the tooling tests, each group's, the unclaimed ones), its fast tests in parallel, the serial ones, the slow tier; tests.json is merged. Like done, it writes the compiler stamp first, so a compiler update rebuilds the module before anything is checked
 [group('test')]
-test:
+test: compiler-stamp
     {{ checks }} test
 
 # Run the sqlearn extension's SQL tests (just test-sql) when the extension, our C++, the runner's build, DuckDB's pin or the compiler changed since a passed run
@@ -663,9 +663,9 @@ tidy:
 docs:
     {{ checks }} docs
 
-# Run one check all through, whatever its record says, and record its pass (validation/_checks.py); `validate` runs every runner (validate-all), its records being its own
+# Run one check all through, whatever its record says, and record its pass (validation/_checks.py); `validate` runs every runner (validate-all), its records being its own. Like done, it writes the compiler stamp first, so a compiler update rebuilds the module before anything is checked
 [group('check')]
-full task:
+full task: compiler-stamp
     #!/usr/bin/env bash
     set -euo pipefail
     if [ "{{ task }}" = validate ]; then
