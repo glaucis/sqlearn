@@ -36,7 +36,10 @@ SCRIPTS = Path("validation/benchmarks")
 PROGRAMS = Path("engine/bench")
 """Where the sources of the C++ programs are, relative to the root."""
 
-PROGRAM_BINARIES = Path("engine/build/release/bench")
+PROGRAM_BUILD = Path("engine/build/release")
+"""The release build the programs are built in, relative to the root."""
+
+PROGRAM_BINARIES = PROGRAM_BUILD / "bench"
 """Where ``just bench-engine`` builds the programs, relative to the root."""
 
 _KEY = "bench"
@@ -235,6 +238,36 @@ def due(root: Path) -> list[Due]:
     return out
 
 
+def _out_of_date(root: Path, name: str) -> str | None:
+    """Return why the program `name` is not built as its sources are, or None.
+
+    ``ninja -n`` lists the work the build would do; any means the binary
+    is not what the sources make. Nothing is rebuilt here.
+    """
+    build = root / PROGRAM_BUILD
+    if not build.is_dir():
+        return f"{build} does not exist"
+    try:
+        done = subprocess.run(
+            ["ninja", "-C", str(build), "-n", name],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError as error:
+        return f"ninja could not run: {error}"
+    if done.returncode != 0:
+        return f"ninja could not list its work: {done.stdout.strip()[:200]}"
+    work = [
+        line
+        for line in done.stdout.splitlines()
+        if line and not line.startswith("ninja:")
+    ]
+    if work:
+        return f"{name} is out of date ({work[0]})"
+    return None
+
+
 def _uptime() -> str:
     try:
         return subprocess.run(
@@ -257,7 +290,9 @@ def run(root: Path, name: str) -> int:
     Returns
     -------
     int
-        The benchmark's exit code; 2 when `name` is no benchmark.
+        The benchmark's exit code; 2 when `name` is no benchmark; 1 when it
+        is a C++ program whose build is out of date (it is never rebuilt
+        here).
     """
     prints = _groups.fingerprints(root, _groups.WHEEL_BUILD)
     groups = prints.manifest
@@ -266,6 +301,15 @@ def run(root: Path, name: str) -> int:
         print(f"no benchmark {name}: `just benchmarks-due` lists them")  # noqa: T201
         return 2
     item = chosen[0]
+    if item.program:
+        stale = _out_of_date(root, name)
+        if stale is not None:
+            print(  # noqa: T201
+                f"{name}: not run, {stale}: the binary is not what the "
+                f"sources build.\nFix: just bench {name} (it builds the "
+                "program first)"
+            )
+            return 1
     identity = _identity(
         item,
         prints,

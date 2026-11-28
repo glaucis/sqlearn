@@ -834,3 +834,32 @@ def test_a_task_run_while_the_groups_are_unreadable_records_no_pass(
     assert "grouped: not recorded, the C++ groups are unreadable" in out
     assert "changed while it ran" not in out
     assert _checks.load(_checks.record_dir(scratch), "grouped") == []
+
+
+def test_the_test_tasks_record_keeps_no_files(scratch, monkeypatch):
+    """A whole task ``why`` is never asked about keeps no file hashes."""
+    tasks = dict(_checks.TASKS)
+    tasks["quiet"] = dataclasses.replace(tasks["whole"], name="quiet", explained=False)
+    monkeypatch.setattr(_checks, "TASKS", tasks)
+    assert run("quiet", scratch) == 0
+    assert run("whole", scratch) == 0
+    directory = _checks.record_dir(scratch)
+    assert _checks.load(directory, "quiet")[0]["files"] == {}
+    assert _checks.load(directory, "whole")[0]["files"] != {}
+    assert run("quiet", scratch) == 0
+    assert len(_checks.load(directory, "quiet")) == 1
+
+
+def test_passed_and_reasons_read_records_from_checks(tmp_path):
+    """The record helpers live beside the records they read."""
+    record = _checks.Record(digest="d", config="c", files={"core": "1" * 64})
+    _checks.save(tmp_path, "k", record)
+    assert _checks.passed(tmp_path, "k") == {("core", "1" * 64)}
+    now = {"core": "1" * 64, "raw": "2" * 64}
+    assert _checks.reasons(now, tmp_path, "k", "changed") == {
+        "core": [],
+        "raw": ["never passed here"],
+    }
+    assert _checks.reasons({"core": "3" * 64}, tmp_path, "k", "changed") == {
+        "core": ["changed"]
+    }

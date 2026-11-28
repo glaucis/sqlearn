@@ -103,21 +103,9 @@ def test_a_header_outside_engine_src_counts_for_its_reader(scratch):
     assert _changed(before, scratch.prints()) == {"b"}
 
 
-def test_a_header_in_a_submodule_is_left_to_its_pin(scratch):
+def test_a_header_in_a_submodule_is_left_to_its_pin(scratch, tmp_path):
     """A submodule's files change with its pin, which the shared part holds."""
-    subprocess.run(
-        [
-            "git",
-            "update-index",
-            "--add",
-            "--cacheinfo",
-            f"160000,{'1' * 40},engine/include",
-        ],
-        cwd=scratch.root,
-        check=True,
-    )
-    include = scratch.root / "engine" / "include"
-    include.mkdir()
+    include = _submodule(scratch, tmp_path, "engine/include")
     (include / "dep.hpp").write_text("int dep();\n")
     scratch.write("b/two.cpp", '#include "dep.hpp"\nint two() { return 2; }\n')
     before = scratch.prints()
@@ -155,6 +143,23 @@ def test_a_flag_of_an_entry_in_no_group_changes_the_shared_part(scratch):
     scratch.flags["bindings/module.cpp"] = ["-DSQ_EXTRA=1"]
     scratch.entries()
     assert _changed(before, scratch.prints()) == {"shared"}
+
+
+def test_a_response_files_contents_change_its_entry(scratch):
+    """``@file`` in a compile entry or the link line: its bytes are read."""
+    response = scratch.root / "flags.rsp"
+    response.write_text("-DSQ_A=1\n")
+    scratch.flags["b/two.cpp"] = [f"@{response}"]
+    scratch.entries()
+    before = scratch.prints()
+    response.write_text("-DSQ_A=2\n")
+    assert _changed(before, scratch.prints()) == {"b"}
+    link = scratch.build / "link.rsp"
+    link.write_text("-Wl,-dead_strip\n")
+    scratch.link(f"{scratch.compiler} -bundle -o _duckdb.abi3.so @link.rsp")
+    first = scratch.prints()
+    link.write_text("-Wl,-x\n")
+    assert _changed(first, scratch.prints()) == {"shared"}
 
 
 def test_a_generated_source_or_its_flags_change_the_shared_part(scratch):
@@ -229,7 +234,17 @@ IDENTITY = """#pragma once
 """
 
 
-def test_a_new_commit_alone_changes_no_fingerprint(scratch):
+@pytest.fixture
+def own(monkeypatch):
+    """Set sqlearn's installed version: ``own("0.1.dev5+g1234567")``."""
+
+    def set_version(version):
+        monkeypatch.setattr(_groups, "_own_version", lambda: version)
+
+    return set_version
+
+
+def test_a_new_commit_alone_changes_no_fingerprint(scratch, own):
     """``build_identity.hpp``'s version counts by its release part alone.
 
     Its dev, local and date parts change with each commit, as
@@ -242,19 +257,43 @@ def test_a_new_commit_alone_changes_no_fingerprint(scratch):
         "a/one.cpp", '#include "build_identity.hpp"\nint one() { return 1; }\n'
     )
     scratch.entries()
-    identity.write_text(IDENTITY.format(version="0.1.dev719+ge19d484f4.d20261127"))
+
+    def built(version, text=IDENTITY):
+        own(version)
+        identity.write_text(text.format(version=version))
+        return scratch.prints()
+
+    before = built("0.1.dev719+ge19d484f4.d20261127")
+    assert built("0.1.dev720+gabcdef012") == before
+    assert built("0.1") == before
+    assert _changed(before, built("0.2.dev1+g1234567")) == {"a", "b", "shared"}
+    other = IDENTITY.replace("2.0.1", "2.0.2")
+    assert _changed(before, built("0.1", other)) == {"a", "b", "shared"}
+
+
+def test_another_packages_dev_version_is_kept(scratch, own):
+    """Only sqlearn's own version is cut: another package's changes the part."""
+    own("0.1.dev5+g1234567")
+    scratch.flags["bindings/module.cpp"] = ["-DDEP_VERSION=3.2.dev7+gabcdef012"]
+    scratch.entries()
     before = scratch.prints()
-    identity.write_text(IDENTITY.format(version="0.1.dev720+gabcdef012"))
-    assert scratch.prints() == before
-    identity.write_text(IDENTITY.format(version="0.1"))
-    assert scratch.prints() == before
-    identity.write_text(IDENTITY.format(version="0.2.dev1+g1234567"))
-    assert _changed(before, scratch.prints()) == {"a", "b", "shared"}
-    identity.write_text(IDENTITY.format(version="0.1").replace("2.0.1", "2.0.2"))
-    assert _changed(before, scratch.prints()) == {"a", "b", "shared"}
+    scratch.flags["bindings/module.cpp"] = ["-DDEP_VERSION=3.2.dev8+gabcdef012"]
+    scratch.entries()
+    assert _changed(before, scratch.prints()) == {"shared"}
 
 
-def test_a_new_commit_alone_changes_no_shared_part(scratch):
+def test_a_version_that_cannot_be_read_cuts_nothing(scratch, own):
+    """Without sqlearn's version, a new commit reruns: over-run, never hidden."""
+    own(None)
+    scratch.flags["bindings/module.cpp"] = ["-DEXT_VERSION_SQLEARN=0.1.dev5+g1234567"]
+    scratch.entries()
+    before = scratch.prints()
+    scratch.flags["bindings/module.cpp"] = ["-DEXT_VERSION_SQLEARN=0.1.dev6+g7654321"]
+    scratch.entries()
+    assert _changed(before, scratch.prints()) == {"shared"}
+
+
+def test_a_new_commit_alone_changes_no_shared_part(scratch, own):
     """sqlearn's version in the extension's flags and a generated source.
 
     ``-DEXT_VERSION_SQLEARN`` and DuckDB's generated ``sqlearn_describe.c``
@@ -268,6 +307,7 @@ def test_a_new_commit_alone_changes_no_shared_part(scratch):
     scratch.flags[str(describe)] = []
 
     def built(version):
+        own(version)
         scratch.flags[str(extension)] = [f'-DEXT_VERSION_SQLEARN="{version}"']
         scratch.entries()
         describe.write_text(f'const char *extension_version = "{version}";\n')
@@ -294,20 +334,46 @@ def test_the_link_command_changes_the_shared_part(scratch):
     assert _changed(before, scratch.prints()) == {"shared"}
 
 
-def test_a_pin_build_table_or_compiler_changes_the_shared_part(scratch, monkeypatch):
-    """A submodule's pin, ``[tool.scikit-build]`` and the compiler: shared."""
-    first = scratch.prints()
+def _git(root, *args):
+    """Run git in `root`, as a committer, letting a local path be a submodule."""
     subprocess.run(
         [
             "git",
-            "update-index",
-            "--add",
-            "--cacheinfo",
-            f"160000,{'1' * 40},engine/duckdb",
+            "-c",
+            "user.name=t",
+            "-c",
+            "user.email=t@t",
+            "-c",
+            "protocol.file.allow=always",
+            *args,
         ],
-        cwd=scratch.root,
+        cwd=root,
         check=True,
+        capture_output=True,
     )
+
+
+def _submodule(scratch, tmp_path, path="engine/duckdb"):
+    """Add a submodule of two commits at `path`, checked out at the second."""
+    origin = tmp_path / "origin"
+    origin.mkdir()
+    _git(origin, "init", "-q")
+    for number in (1, 2):
+        (origin / "f.txt").write_text(f"{number}\n")
+        _git(origin, "add", ".")
+        _git(origin, "commit", "-qm", str(number))
+    _git(scratch.root, "submodule", "add", "-q", str(origin), path)
+    return scratch.root / path
+
+
+def test_a_pin_build_table_or_compiler_changes_the_shared_part(
+    scratch, tmp_path, monkeypatch
+):
+    """A submodule's checked-out commit, ``[tool.scikit-build]`` and the
+    compiler: shared."""
+    sub = _submodule(scratch, tmp_path)
+    first = scratch.prints()
+    _git(sub, "checkout", "-q", "HEAD~1")
     second = scratch.prints()
     assert _changed(first, second) == {"shared"}
     pyproject = scratch.root / "pyproject.toml"
@@ -317,6 +383,34 @@ def test_a_pin_build_table_or_compiler_changes_the_shared_part(scratch, monkeypa
     real = _ctest.compiler
     monkeypatch.setattr(_ctest, "compiler", lambda build: real(build) + " (another)")
     assert _changed(third, scratch.prints()) == {"shared"}
+
+
+def test_a_submodule_checked_out_elsewhere_changes_the_shared_part(scratch, tmp_path):
+    """The index still pins the old commit, yet what is built is the new one."""
+    sub = _submodule(scratch, tmp_path)
+    _git(scratch.root, "add", "engine/duckdb")
+    pinned = scratch.prints()
+    _git(sub, "checkout", "-q", "HEAD~1")
+    assert _changed(pinned, scratch.prints()) == {"shared"}
+
+
+def test_a_nested_submodule_checked_out_elsewhere_changes_the_shared_part(
+    scratch, tmp_path
+):
+    """The submodules inside a submodule (DuckDB under duckdb-python) count."""
+    inner = tmp_path / "inner"
+    inner.mkdir()
+    _git(inner, "init", "-q")
+    for number in (1, 2):
+        (inner / "g.txt").write_text(f"{number}\n")
+        _git(inner, "add", ".")
+        _git(inner, "commit", "-qm", str(number))
+    sub = _submodule(scratch, tmp_path)
+    _git(sub, "submodule", "add", "-q", str(inner), "external")
+    _git(sub, "commit", "-qm", "nest")
+    before = scratch.prints()
+    _git(sub / "external", "checkout", "-q", "HEAD~1")
+    assert _changed(before, scratch.prints()) == {"shared"}
 
 
 def test_a_project_table_left_out_keeps_the_shared_part(scratch):

@@ -117,6 +117,11 @@ class Task:
         changes no fingerprint. Unreadable fingerprints print their reason
         and make a digest no record matches, so the task runs and is not
         recorded.
+    explained : bool
+        Whether ``why`` names a whole task's changed files, reading the
+        newest record's ``files``. False for a task ``why`` is never asked
+        about (``test``, answered per C++ label and Python set by
+        ``_affected``): its record keeps no files.
     """
 
     name: str
@@ -127,6 +132,7 @@ class Task:
     layout: tuple[str, ...] = ()
     tools: tuple[tuple[str, ...], ...] = ()
     module: tuple[str, ...] | None = ()
+    explained: bool = True
 
 
 class Record(TypedDict):
@@ -350,6 +356,7 @@ def _table() -> dict[str, Task]:
             name="test",
             inputs=TOOLING_INPUTS,
             config=SETTINGS,
+            explained=False,
             steps=(
                 # Each C++ group whose test program changed since it passed
                 # (validation/_ctest.py), on the sanitized dev build.
@@ -541,8 +548,9 @@ def _combined(
 
 
 UNREADABLE = "unreadable"
-"""How a module identity whose fingerprints could not be read begins: a task
-run under one saves no record."""
+"""How an identity whose fingerprints could not be read begins: a task run
+under one saves no record. A runner's identity (``_record.engine``) is this
+value alone, which no record matches."""
 
 
 def module_identity(task: Task, root: Path) -> str:
@@ -687,6 +695,61 @@ def load(directory: Path, task: str) -> list[Record]:
     if not isinstance(records, list) or not all(_is_record(r) for r in records):
         return []
     return records
+
+
+def passed(directory: Path, key: str) -> set[tuple[str, str]]:
+    """Return each unit and identity a kept record of `key` passed.
+
+    Parameters
+    ----------
+    directory : Path
+        The records' directory.
+    key : str
+        The records' file, without ``.json``.
+
+    Returns
+    -------
+    set of tuple of str
+        Each (unit, identity) pair of every kept record.
+    """
+    return {
+        (unit, sha)
+        for record in load(directory, key)
+        for unit, sha in record["files"].items()
+    }
+
+
+def reasons(
+    identities: dict[str, str], directory: Path, key: str, changed: str
+) -> dict[str, list[str]]:
+    """Return each unit of `identities` with why it would run, empty for none.
+
+    Parameters
+    ----------
+    identities : dict of str to str
+        Each unit (a label, a Python set) with its identity today.
+    directory : Path
+        The records' directory.
+    key : str
+        The records' file, without ``.json``.
+    changed : str
+        The reason for a unit some record holds under another identity.
+
+    Returns
+    -------
+    dict of str to list of str
+        Each unit with ``[]`` when a kept record passed its identity,
+        ``["never passed here"]`` when no kept record holds it, else
+        ``[changed]``.
+    """
+    done = passed(directory, key)
+    seen = {unit for unit, _ in done}
+    return {
+        unit: []
+        if (unit, sha) in done
+        else (["never passed here"] if unit not in seen else [changed])
+        for unit, sha in identities.items()
+    }
 
 
 def save(directory: Path, task: str, record: Record) -> None:
@@ -962,7 +1025,11 @@ def run(task_name: str, root: Path, *, everything: bool = False) -> int:
     save(
         directory,
         task.name,
-        Record(digest=whole, config=config, files=files),
+        Record(
+            digest=whole,
+            config=config,
+            files=files if task.per_file or task.explained else {},
+        ),
     )
     return 0
 

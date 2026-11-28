@@ -23,7 +23,8 @@ The **shared part** is the SHA-256 of:
 
 - every compile entry of no group, its argv normalised: DuckDB's,
   cpptrace's, nanobind's, the bindings', the extension's, so every compile
-  flag that is not a group's counts (spec §5.1);
+  flag that is not a group's counts (spec §5.1), and the bytes of each
+  ``@file`` argument it holds;
 - the text of each generated source and header of the build directory (a
   unity file, say), its places taken out;
 - ``stripped()`` of every C++ file under the shared directories (the
@@ -33,11 +34,12 @@ The **shared part** is the SHA-256 of:
   reads: the bindings read ``core`` and ``crash`` and run
   ``crash::install`` when the module loads, and start-up code is shared
   (spec §5.2), so such a group's change reruns everything;
-- the submodules' pins under ``engine/``, which stand for their files;
+- the commit checked out in each submodule under ``engine/``, nested ones
+  too, which stands for its files;
 - ``pyproject.toml``'s ``[build-system]`` and ``[tool.scikit-build]``
   tables, which pin uv's build environment;
 - the compiler as it is now (``_ctest.compiler``);
-- the module's link command.
+- the module's link command, and the bytes of each ``@file`` argument it holds.
 
 CMake files are never read: what they say reaches the fingerprint only
 through what they make the build do.
@@ -48,7 +50,9 @@ raises ``Unreadable``, whose message is printed as the reason everything
 reruns.
 """
 
+import functools
 import hashlib
+import importlib.metadata
 import json
 import re
 import shlex
@@ -118,23 +122,33 @@ _GAP = re.compile(r"(?:\s+|\[UnClean='.*?'\]|\[\w+\])*", re.DOTALL)
 """
 
 
-_SCM_VERSION = re.compile(
-    r"(?<![\w.])\d+(?:\.\d+)*(?:\.post\d+)?"
-    r"(?:\.dev\d+(?:\+[A-Za-z0-9.]+)?|\+(?:g[0-9a-f]{7,}(?:\.d\d{8})?|d\d{8}))"
-)
-"""A version setuptools-scm gives between releases: ``0.1.dev5+g….d2026….``
-
-sqlearn's reaches the build as ``build_identity.hpp``'s
-``SQ_SQLEARN_VERSION``, the extension's ``-DEXT_VERSION_SQLEARN`` and
-DuckDB's generated ``sqlearn_describe.c``; cut to its release part
-(``release``) wherever the build directory or a compile entry holds it, so a
-new commit alone changes no fingerprint, while a new release does.
-"""
+@functools.cache
+def _own_version() -> str | None:
+    """Return sqlearn's installed version, None when it cannot be read."""
+    try:
+        return importlib.metadata.version("sqlearn")
+    except importlib.metadata.PackageNotFoundError:
+        return None
 
 
 def _versionless(text: str) -> str:
-    """Return `text` with each setuptools-scm version cut to its release."""
-    return _SCM_VERSION.sub(lambda m: release(m[0]), text)
+    """Return `text` with sqlearn's own version cut to its release part.
+
+    sqlearn's version comes from git and changes with every commit (its dev,
+    local and date parts); it reaches the build as ``build_identity.hpp``'s
+    ``SQ_SQLEARN_VERSION``, the extension's ``-DEXT_VERSION_SQLEARN`` and
+    DuckDB's generated ``sqlearn_describe.c``. Cut to its release part
+    (``release``) wherever the build directory or a compile entry holds it, a
+    new commit alone changes no fingerprint, while a new release does. Only
+    that exact string is cut: another package's development version, in a
+    path or a flag, stays and changes the fingerprint. When sqlearn's
+    version cannot be read nothing is cut, so a new commit reruns what it
+    touches (over-running, never hiding a change).
+    """
+    own = _own_version()
+    if own is None:
+        return text
+    return re.sub(rf"(?<![\w.]){re.escape(own)}(?![\w+])", release(own), text)
 
 
 class Unreadable(Exception):  # noqa: N818  (the name Tasks 3 to 7 use)
@@ -397,13 +411,31 @@ def _build_tables(root: Path) -> str:
 
 
 def _pins(root: Path) -> dict[str, str]:
-    """Return each submodule under ``engine/`` with the commit the tree pins."""
+    """Return each submodule under ``engine/``, nested ones too, with its HEAD.
+
+    The commit checked out in each (``git submodule status --recursive``):
+    one checked out elsewhere than the index pins is what the build reads.
+    A tree with no submodule under ``engine/`` has none.
+    """
     try:
-        return _checks._gitlinks(["engine"], root)
+        if not _checks._gitlinks(["engine"], root):
+            return {}
+        out = subprocess.run(
+            ["git", "submodule", "status", "--recursive", "--", "engine"],
+            cwd=root,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout
     except (OSError, subprocess.CalledProcessError) as error:
         raise Unreadable(
-            f"git could not list the pins under engine/: {error}"
+            f"git could not list the submodules under engine/: {error}"
         ) from error
+    pins = {}
+    for line in out.splitlines():
+        commit, _, rest = line[1:].partition(" ")
+        pins[rest.rsplit(" (", 1)[0]] = commit
+    return pins
 
 
 def _normal(text: str, root: Path) -> str:
@@ -422,6 +454,22 @@ def _bytes(path: Path, root: Path) -> str:
     except OSError as error:
         raise Unreadable(f"{path} could not be read: {error}") from error
     return _normal(data.decode("utf-8", errors="surrogateescape"), root)
+
+
+def _responses(argv: Sequence[str], here: Path, root: Path) -> str:
+    """Return the contents of each ``@file`` argument of `argv`, as parts.
+
+    A response file is read by the compiler or the linker, so its bytes
+    count, as ``_ctest._target_parts`` counts them; `here` is where the
+    command runs. Empty for none.
+    """
+    parts = []
+    for arg in argv:
+        if arg.startswith("@") and len(arg) > 1:
+            path = here / arg[1:]
+            held = _bytes(path, root) if path.is_file() else "absent"
+            parts.append(f"\0response\0{_normal(arg, root)}\0{held}")
+    return "".join(parts)
 
 
 def _digest(parts: Iterable[str]) -> str:
@@ -546,8 +594,12 @@ class _Fingerprinter:
 
     def entry(self, compiled: _Compiled) -> str:
         """Return the part of a compile entry: its source and its argv."""
-        argv = _normalised(_ctest._arguments(compiled.entry), self.root)
-        return f"entry\0{self.name(compiled.source)}\0{argv}"
+        argv = _ctest._arguments(compiled.entry)
+        here = Path(str(compiled.entry.get("directory", ".")))
+        return (
+            f"entry\0{self.name(compiled.source)}\0"
+            f"{_normalised(argv, self.root)}{_responses(argv, here, self.root)}"
+        )
 
     def group(self, name: str, seen: tuple[str, ...] = ()) -> str:
         """Return the fingerprint of the group `name`."""
@@ -650,7 +702,10 @@ class _Fingerprinter:
             for arg in _link_command(self.build)
             if not any(marker in arg for marker in markers)
         ]
-        parts.append(f"link\0{_normalised(link, self.root)}")
+        parts.append(
+            f"link\0{_normalised(link, self.root)}"
+            f"{_responses(link, self.build, self.root)}"
+        )
         return _digest(parts)
 
 

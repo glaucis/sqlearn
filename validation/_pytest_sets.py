@@ -318,7 +318,7 @@ def due(root: Path) -> dict[str, list[str]]:
     found = _identities(chosen, prints, root)
     if found is None:
         return {name: ["the C++ groups are unreadable"] for name in chosen}
-    return _ctest.reasons(
+    return _checks.reasons(
         found,
         _checks.record_dir(root),
         KEY,
@@ -352,7 +352,7 @@ def run(root: Path, *, everything: bool = False) -> int:
         return 1
     before = _identities(chosen, prints, root)
     directory = _checks.record_dir(root)
-    passed = _ctest.passed(directory, KEY)
+    passed = _checks.passed(directory, KEY)
     good: dict[str, str] = {}
     failed: dict[str, str] = {}
     ran = []

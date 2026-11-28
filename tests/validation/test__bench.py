@@ -145,3 +145,28 @@ def test_a_program_is_due_again_when_its_binary_changes(scratch):
     assert "bench_thing" not in [i.name for i in _bench.due(scratch.root)]
     binary.write_text("#!/bin/sh\nexit 0\n# rebuilt\n")
     assert "bench_thing" in [i.name for i in _bench.due(scratch.root)]
+
+
+def test_a_stale_bench_program_is_refused_with_a_fix(scratch, capsys):
+    """A program whose build is out of date is not run, nor rebuilt here."""
+    _install(scratch)
+    binary = _program(scratch)
+    (binary.parent.parent / "stale").write_text("")
+    assert _bench.run(scratch.root, "bench_thing") != 0
+    out = capsys.readouterr().out
+    assert "out of date" in out
+    assert "Fix: just bench bench_thing" in out
+    assert _checks.load(_checks.record_dir(scratch.root), "bench-bench_thing") == []
+    (binary.parent.parent / "stale").unlink()
+    assert _bench.run(scratch.root, "bench_thing") == 0
+
+
+def test_a_missing_bench_build_is_refused_with_the_same_fix(scratch, capsys):
+    """No build directory at all: refused, not run."""
+    _install(scratch)
+    binary = _program(scratch)
+    binary.unlink()
+    binary.parent.rmdir()
+    binary.parent.parent.rmdir()
+    assert _bench.run(scratch.root, "bench_thing") != 0
+    assert "Fix: just bench bench_thing" in capsys.readouterr().out

@@ -27,7 +27,7 @@ from collections.abc import Iterable, Sequence
 from pathlib import Path
 from typing import TypedDict
 
-from validation import _groups
+from validation import _checks, _groups
 
 KEPT = 20
 """How many records of each runner are kept, the newest."""
@@ -151,10 +151,6 @@ def digest(paths: Iterable[Path], root: Path) -> dict[str, str]:
     }
 
 
-UNREADABLE = "unreadable"
-"""The identity of a build that could not be read: no record matches it."""
-
-
 def engine(root: Path, runner: str, prints: _groups.Fingerprints | None = None) -> str:
     """Return the digest of the C++ groups `runner` runs with.
 
@@ -163,7 +159,7 @@ def engine(root: Path, runner: str, prints: _groups.Fingerprints | None = None) 
     those they depend on; every group when none does. A change to a comment
     or to a group it does not use leaves it, and so the runner's record,
     alone. When the build cannot be read, the reason is printed and the
-    result is ``UNREADABLE``, which no record matches.
+    result is ``_checks.UNREADABLE``, which no record matches.
 
     Parameters
     ----------
@@ -178,7 +174,7 @@ def engine(root: Path, runner: str, prints: _groups.Fingerprints | None = None) 
     Returns
     -------
     str
-        The identity, or ``UNREADABLE``.
+        The identity, or ``_checks.UNREADABLE``.
     """
     name = runner.rsplit(".", 1)[-1]
     build = _groups.WHEEL_BUILD
@@ -190,17 +186,7 @@ def engine(root: Path, runner: str, prints: _groups.Fingerprints | None = None) 
         return _groups.identity(prints, groups, claimed or None)
     except _groups.Unreadable as error:
         print(f"{runner}: the C++ groups are unreadable: {error}", flush=True)  # noqa: T201
-        return UNREADABLE
-
-
-def environment(
-    base: dict[str, str],
-    root: Path,
-    runner: str,
-    prints: _groups.Fingerprints | None = None,
-) -> dict[str, str]:
-    """Return the environment a record keeps: `base`, with the groups' identity."""
-    return {**base, "groups": engine(root, runner, prints)}
+        return _checks.UNREADABLE
 
 
 def record_dir(root: Path) -> Path:
@@ -232,9 +218,9 @@ def matching(
     Among the records whose environment equals `environment` and whose every
     file is present with the same hash, the newest decides: a failed run
     cancels an earlier pass of the same inputs, so the runner reruns. An
-    environment whose groups could not be read (``UNREADABLE``) matches none.
+    environment whose groups could not be read (``_checks.UNREADABLE``) matches none.
     """
-    if environment.get("groups") == UNREADABLE:
+    if environment.get("groups") == _checks.UNREADABLE:
         return None
     for record in reversed(records):
         if record["environment"] == environment and _unchanged(record["depends"], root):

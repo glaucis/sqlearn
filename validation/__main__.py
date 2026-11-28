@@ -16,7 +16,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from types import ModuleType
 
-from validation import _cases, _groups, _record
+from validation import _cases, _checks, _groups, _record
 
 ROOT = Path(__file__).parent
 
@@ -39,7 +39,7 @@ def run_one(name: str, repo: Path, groups: str | None = None) -> int:
     before it is imported, and those hashes recorded; a file it loaded that
     changed while it ran, or was not there before, or a C++ group it uses that
     changed, saves no record of a pass; nor does a run under groups that could
-    not be read (``_record.UNREADABLE``). Exit 1 when a sqlearn case failed.
+    not be read (``_checks.UNREADABLE``). Exit 1 when a sqlearn case failed.
     `groups` is the identity of the C++ groups the runner uses, which `main`
     took once for every runner; `main` then takes it again after all of them
     and drops the passes of a runner whose groups moved. Run alone (None), the
@@ -47,7 +47,7 @@ def run_one(name: str, repo: Path, groups: str | None = None) -> int:
     """
     before = _record.candidates(repo)
     environment = _cases.environment()
-    environment["groups"] = groups or _record.engine(repo, name)
+    environment["groups"] = groups if groups is not None else _record.engine(repo, name)
     runner = importlib.import_module(name)
     cases = runner.cases()
     _cases.write_json(results_path(runner), {"rules": _cases.RULES, "cases": cases})
@@ -66,7 +66,7 @@ def run_one(name: str, repo: Path, groups: str | None = None) -> int:
     # and cancels an earlier pass of the same inputs. Under groups that could
     # not be read nothing is saved: such a record stands for no build, and a
     # failure under it cancels no pass (``matching`` compares environments)
-    if environment["groups"] == _record.UNREADABLE:
+    if environment["groups"] == _checks.UNREADABLE:
         print(  # noqa: T201
             f"{name}: not recorded, the C++ groups are unreadable", flush=True
         )
@@ -108,7 +108,7 @@ def _drop_moved(repo: Path, ran: dict[str, str], readable: bool) -> None:
         after = None
     directory = _record.record_dir(repo)
     for name, identity in ran.items():
-        now = _record.engine(repo, name, after) if after else _record.UNREADABLE
+        now = _record.engine(repo, name, after) if after else _checks.UNREADABLE
         if now != identity:
             _record.forget_passes(directory, name, identity)
             print(  # noqa: T201
@@ -143,7 +143,7 @@ def main(runners: Sequence[str], root: Path, *, everything: bool = False) -> int
     for name in runners:
         # a record's environment holds the identity of the groups the runner
         # uses; environment.json is committed, so it keeps the versions alone
-        identity = _record.engine(repo, name, prints) if prints else _record.UNREADABLE
+        identity = _record.engine(repo, name, prints) if prints else _checks.UNREADABLE
         environment = {**base, "groups": identity}
         records = _record.load(directory, name)
         if not everything and _record.matching(records, repo, environment):

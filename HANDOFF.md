@@ -42,9 +42,6 @@ None. [verified]
   5. Then the rewrite's first group, its plan first.
 - `validate` is in neither `just affected` nor `just sweep`: add it when the
   first runner lands.
-- The record helpers `passed` and `reasons` sit in `validation/_ctest.py`,
-  and would sit better in `validation/_checks.py`.
-- The `test` task's whole record keeps about 120 KB of `files` nothing reads.
 - When `pyright-lsp` is installed globally (not yet), turn it off here in
   `.claude/settings.json`: `"enabledPlugins":
   {"pyright-lsp@claude-plugins-official": false}`; ty and mypy are this

@@ -534,61 +534,6 @@ def _prepared(
     return 0, build, units, _place(live)
 
 
-def passed(directory: Path, key: str) -> set[tuple[str, str]]:
-    """Return each unit and identity a kept record of `key` passed.
-
-    Parameters
-    ----------
-    directory : Path
-        The records' directory.
-    key : str
-        The records' file, without ``.json``.
-
-    Returns
-    -------
-    set of tuple of str
-        Each (unit, identity) pair of every kept record.
-    """
-    return {
-        (unit, sha)
-        for record in _checks.load(directory, key)
-        for unit, sha in record["files"].items()
-    }
-
-
-def reasons(
-    identities: dict[str, str], directory: Path, key: str, changed: str
-) -> dict[str, list[str]]:
-    """Return each unit of `identities` with why it would run, empty for none.
-
-    Parameters
-    ----------
-    identities : dict of str to str
-        Each unit (a label, a Python set) with its identity today.
-    directory : Path
-        The records' directory.
-    key : str
-        The records' file, without ``.json``.
-    changed : str
-        The reason for a unit some record holds under another identity.
-
-    Returns
-    -------
-    dict of str to list of str
-        Each unit with ``[]`` when a kept record passed its identity,
-        ``["never passed here"]`` when no kept record holds it, else
-        ``[changed]``.
-    """
-    done = passed(directory, key)
-    seen = {unit for unit, _ in done}
-    return {
-        unit: []
-        if (unit, sha) in done
-        else (["never passed here"] if unit not in seen else [changed])
-        for unit, sha in identities.items()
-    }
-
-
 def due(preset: str, root: Path) -> dict[str, list[str]]:
     """Return each label of `preset` with why ``run`` would run it; runs none.
 
@@ -615,7 +560,7 @@ def due(preset: str, root: Path) -> dict[str, list[str]]:
         code, build, units, place = _prepared(preset, root, STDERR)
     if code != 0:
         return {"build": [f"the {preset} build or its tests' listing failed"]}
-    return reasons(
+    return _checks.reasons(
         _identities(units, build, place),
         _checks.record_dir(root),
         f"ctest-{preset}",
@@ -649,7 +594,7 @@ def run(preset: str, root: Path, *, everything: bool = False) -> int:
         return code
     key = f"ctest-{preset}"
     directory = _checks.record_dir(root)
-    done = passed(directory, key)
+    done = _checks.passed(directory, key)
     before = _identities(units, build, place)
     good: dict[str, str] = {}
     failed: dict[str, str] = {}

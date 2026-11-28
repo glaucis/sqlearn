@@ -255,40 +255,58 @@ def test_a_change_to_the_extension_reruns_its_sql_tests(scratch, changed):
     assert calls(env) == [["test-sql "]]
 
 
+def _pin(repo, env, number):
+    """Bump duckdb-python, a real submodule of two commits, to commit `number`.
+
+    The module's fingerprint reads what is checked out (``git submodule
+    status``), so a bump checks the commit out and stages it, as a real one
+    does.
+    """
+    origin = repo.parent / "duckdb-origin"
+    who = ["-c", "user.name=t", "-c", "user.email=t@t"]
+    if not origin.exists():
+        origin.mkdir()
+        git(origin, "init", "-q", env=env)
+        for n in (1, 2):
+            (origin / "f.txt").write_text(f"{n}\n")
+            git(origin, "add", ".", env=env)
+            git(origin, *who, "commit", "-qm", str(n), env=env)
+    commits = subprocess.run(
+        ["git", "rev-list", "--reverse", "HEAD"],
+        cwd=origin,
+        env=env,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.split()
+    sub = repo / "engine" / "duckdb-python"
+    if not sub.exists():
+        git(
+            repo,
+            "-c",
+            "protocol.file.allow=always",
+            "submodule",
+            "add",
+            "-q",
+            str(origin),
+            "engine/duckdb-python",
+            env=env,
+        )
+    git(sub, "checkout", "-q", commits[number - 1], env=env)
+    git(repo, "add", "engine/duckdb-python", env=env)
+
+
 def test_a_duckdb_bump_reruns_the_sql_tests(scratch):
     """A new commit of duckdb-python's gitlink, which pins DuckDB's, reruns
     ``just sql``."""
     repo, env = scratch
-
-    def pin(commit):
-        git(
-            repo,
-            "update-index",
-            "--add",
-            "--cacheinfo",
-            f"160000,{commit},engine/duckdb-python",
-            env=env,
-        )
-
-    pin("1" * 40)
+    _pin(repo, env, 1)
     just(repo, env, "sql")
     assert calls(env) == [["test-sql "]]
     assert "sql: unchanged since a passed run" in just(repo, env, "sql")
-    pin("2" * 40)
+    _pin(repo, env, 2)
     just(repo, env, "sql")
     assert calls(env) == [["test-sql "]]
-
-
-def _pin(repo, env, commit):
-    """Pin duckdb-python's gitlink at `commit` in the scratch index."""
-    git(
-        repo,
-        "update-index",
-        "--add",
-        "--cacheinfo",
-        f"160000,{commit},engine/duckdb-python",
-        env=env,
-    )
 
 
 @pytest.mark.parametrize(
@@ -300,12 +318,12 @@ def test_a_duckdb_bump_reruns_what_runs_on_the_engine(scratch, task, first):
     read its stubs; the docstring checks are keyed the same way. A new commit
     of duckdb-python's gitlink reruns each."""
     repo, env = scratch
-    _pin(repo, env, "1" * 40)
+    _pin(repo, env, 1)
     just(repo, env, task)
     assert calls(env)[0][0] == first
     assert f"{task}: unchanged since a passed run" in just(repo, env, task)
     assert calls(env) == []
-    _pin(repo, env, "2" * 40)
+    _pin(repo, env, 2)
     just(repo, env, task)
     assert calls(env)[0][0] == first
 
@@ -491,13 +509,18 @@ def test_a_cpp_code_edit_while_a_check_runs_is_not_recorded(
         config=(),
         steps=(_checks.Step((sys.executable, "-c", edit)),),
         per_file=False,
-        module=None,
+        module=("core",),
     )
     monkeypatch.setitem(_checks.TASKS, "moves", task)
     capsys.readouterr()
     assert _checks.run("moves", repo) == 0
     assert "moves: not recorded" in capsys.readouterr().out
     assert _checks.load(_checks.record_dir(repo), "moves") == []
+
+
+def test_only_the_test_task_is_left_unexplained():
+    """``why`` is never asked about ``test``: its record keeps no files."""
+    assert {n for n, t in _checks.TASKS.items() if not t.explained} == {"test"}
 
 
 @pytest.mark.parametrize("recipe", ["affected", "sweep", "test", "full"])

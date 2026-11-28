@@ -200,7 +200,7 @@ def test_a_runner_is_named_by_its_modules_last_part(scratch):
 def test_an_unreadable_build_reruns_every_runner(scratch, capsys):
     """No manifest: the reason is printed, and no record matches."""
     (scratch.build / "sq_groups.json").unlink()
-    environment = record_module.environment(dict(ENVIRONMENT), scratch.root, "x")
+    environment = {**ENVIRONMENT, "groups": record_module.engine(scratch.root, "x")}
     assert environment["groups"] == "unreadable"
     assert "sq_groups.json" in capsys.readouterr().out
     record = Record(
@@ -216,7 +216,7 @@ def test_an_unreadable_build_reruns_every_runner(scratch, capsys):
 def test_a_record_from_before_the_groups_is_rerun_once(scratch):
     """A record keeping the old ``engine`` digest is no match; once the runner
     ran again, its new record is."""
-    environment = record_module.environment(dict(ENVIRONMENT), scratch.root, "x")
+    environment = {**ENVIRONMENT, "groups": record_module.engine(scratch.root, "x")}
     old = Record(
         runner="x",
         depends={},
@@ -233,7 +233,7 @@ def test_a_record_from_before_the_groups_is_rerun_once(scratch):
 
 def test_a_records_environment_holds_the_groups_identity(scratch):
     """The environment a record keeps is the base one, with the identity."""
-    environment = record_module.environment(dict(ENVIRONMENT), scratch.root, "x")
+    environment = {**ENVIRONMENT, "groups": record_module.engine(scratch.root, "x")}
     assert environment == {
         **ENVIRONMENT,
         "groups": record_module.engine(scratch.root, "x"),

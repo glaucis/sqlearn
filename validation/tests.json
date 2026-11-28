@@ -386,6 +386,12 @@
     },
     {
       "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_only_the_test_task_is_left_unexplained",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
       "name": "tests/checks/test_tasks.py::test_the_test_task_is_the_cxx_groups_then_the_python_sets",
       "outcome": "passed",
       "tier": "fast"
@@ -1586,6 +1592,12 @@
     },
     {
       "area": "validation/_bench",
+      "name": "tests/validation/test__bench.py::test_a_missing_bench_build_is_refused_with_the_same_fix",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_bench",
       "name": "tests/validation/test__bench.py::test_a_program_a_group_claims_is_listed_by_its_group",
       "outcome": "passed",
       "tier": "fast"
@@ -1599,6 +1611,12 @@
     {
       "area": "validation/_bench",
       "name": "tests/validation/test__bench.py::test_a_recorded_benchmark_is_not_due_until_its_group_changes",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_bench",
+      "name": "tests/validation/test__bench.py::test_a_stale_bench_program_is_refused_with_a_fix",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -1988,6 +2006,12 @@
     },
     {
       "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_passed_and_reasons_read_records_from_checks",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
       "name": "tests/validation/test__checks.py::test_records_are_kept_twenty_and_replaced_atomically",
       "outcome": "passed",
       "tier": "fast"
@@ -2031,6 +2055,12 @@
     {
       "area": "validation/_checks",
       "name": "tests/validation/test__checks.py::test_the_test_task_runs_the_changed_cxx_groups_before_python",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_checks",
+      "name": "tests/validation/test__checks.py::test_the_test_tasks_record_keeps_no_files",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -2264,6 +2294,12 @@
     },
     {
       "area": "validation/_groups",
+      "name": "tests/validation/test__groups.py::test_a_nested_submodule_checked_out_elsewhere_changes_the_shared_part",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_groups",
       "name": "tests/validation/test__groups.py::test_a_new_commit_alone_changes_no_fingerprint",
       "outcome": "passed",
       "tier": "fast"
@@ -2294,7 +2330,31 @@
     },
     {
       "area": "validation/_groups",
+      "name": "tests/validation/test__groups.py::test_a_response_files_contents_change_its_entry",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_groups",
       "name": "tests/validation/test__groups.py::test_a_source_no_compile_entry_lists_is_unreadable",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_groups",
+      "name": "tests/validation/test__groups.py::test_a_submodule_checked_out_elsewhere_changes_the_shared_part",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_groups",
+      "name": "tests/validation/test__groups.py::test_a_version_that_cannot_be_read_cuts_nothing",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_groups",
+      "name": "tests/validation/test__groups.py::test_another_packages_dev_version_is_kept",
       "outcome": "passed",
       "tier": "fast"
     },

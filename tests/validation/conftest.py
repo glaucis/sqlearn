@@ -17,7 +17,16 @@ import pytest
 from validation import _groups
 
 NINJA = """#!/bin/sh
-# Called as: ninja -C <build> -t commands _duckdb, or -t deps <object>.
+# Called as: ninja -C <build> -t commands _duckdb, -t deps <object>, or
+# -n <target> (a dry run: work to do when <build>/stale exists).
+if [ "$3" = -n ]; then
+    if [ -f "$2/stale" ]; then
+        echo "[1/1] Linking CXX executable bench/$4"
+    else
+        echo "ninja: no work to do."
+    fi
+    exit 0
+fi
 if [ "$4" = deps ]; then
     [ -f "$2/deps.txt" ] || exit 1
     cat "$2/deps.txt"
