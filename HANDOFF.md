@@ -3,10 +3,9 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-28 · Branch: `main` (not pushed: ahead of `origin/main` by the
-tooling fixes) · Last commit: `docs: update the handoff` · Checks: passing
-(`just done`)
-Verify with: `just done` (`just verify` is the release tier)
+Updated: 2026-11-28 · Branch: `main` (pushed, level with `origin/main`) · Last
+commit: `docs: update the handoff` · Checks: passing (`just done`) Verify with:
+`just done` (`just verify` is the release tier)
 
 ## In progress
 
@@ -27,7 +26,6 @@ settled. [verified]
 - The plan's "Decisions for Tomas" table (13 #85 items, each with a
   recommendation): none is built until you answer; a yes adds a task. See the
   plan's section of that name.
-- Pushing `main` (the tooling fixes are merged locally, not pushed).
 - The audit's first real run, `just audit-groups` (builds a second,
   coverage-instrumented wheel with DuckDB): awaits your go-ahead. Nothing
   claims Python tests or runners since ADR 0073, so it is due before the
