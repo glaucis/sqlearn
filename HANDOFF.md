@@ -3,16 +3,17 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-28 · Branch: `claude/tooling-fixes` (not pushed; level with
-`main` plus the plan and the fixes) · Last commit: `fix: name the wheel
-rebuild in the loose tests' Fix line` · Checks: passing (`just done`)
+Updated: 2026-11-28 · Branch: `main` (not pushed: ahead of `origin/main` by the
+tooling fixes) · Last commit: `docs: update the handoff` · Checks: passing
+(`just done`)
 Verify with: `just done` (`just verify` is the release tier)
 
 ## In progress
 
-The small tooling fixes, plan `docs/plans/2026-11-28-tooling-fixes.md`, on
-`claude/tooling-fixes`: Tasks 1 to 3 and 5 to 12 done and reviewed, Task 4
-blocked (below). [verified]
+The small tooling fixes, plan `docs/plans/2026-11-28-tooling-fixes.md`, merged
+into `main` (`cd40339`): Tasks 1 to 3 and 5 to 13 done and reviewed, Task 4
+blocked (below). The plan stays active until Task 4 and its decisions are
+settled. [verified]
 
 ## Waiting on the user
 
@@ -26,7 +27,7 @@ blocked (below). [verified]
 - The plan's "Decisions for Tomas" table (13 #85 items, each with a
   recommendation): none is built until you answer; a yes adds a task. See the
   plan's section of that name.
-- Merging `claude/tooling-fixes` into `main`.
+- Pushing `main` (the tooling fixes are merged locally, not pushed).
 - The audit's first real run, `just audit-groups` (builds a second,
   coverage-instrumented wheel with DuckDB): awaits your go-ahead. Nothing
   claims Python tests or runners since ADR 0073, so it is due before the
@@ -40,9 +41,8 @@ blocked (below). [verified]
 
 - **The preparation before the rewrite, in this order** (Tomas, 2026-11-28:
   he prepares everything before starting, for a clear path):
-  1. **The small tooling fixes** are built on `claude/tooling-fixes`; what
-     remains is Task 4 and the plan's decisions (both above, waiting on
-     you), then the merge.
+  1. **The small tooling fixes** are merged into `main`; what remains is
+     Task 4 and the plan's decisions (both above, waiting on you).
   2. A benchmark and profiling queue: profiling joins `just benchmarks-due`,
      and one command runs the whole queue on Tomas's go-ahead, when the
      machine is idle (ADR 0072 unchanged: nothing runs by itself).
