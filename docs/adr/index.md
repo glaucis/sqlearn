@@ -57,6 +57,7 @@ sqlearn's computation in C++, inside its own DuckDB build.
 - [0070: sqlearn is rewritten in C++](0070-sqlearn-is-rewritten-in-cpp.md)
 - [0071: Fused multiply-add only on purpose](0071-fused-multiply-add-only-on-purpose.md)
 - [0072: Benchmarks run on Tomas's go-ahead](0072-benchmarks-run-on-tomass-go-ahead.md)
+- [0081: One go-ahead runs the queue on an idle machine](0081-one-go-ahead-runs-the-queue-on-an-idle-machine.md)
 - [0073: The old Python moves to `old_python/`](0073-the-old-python-moves-to-old-python.md)
 
 ## The API
