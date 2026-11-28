@@ -157,14 +157,26 @@ def sets(groups: dict[str, _groups.Group], root: Path) -> Sets:
     covered = [*tooling, *claimed, LIBRARY]
     loose = [t for t in tests if not any(_under(t, p) for p in covered)]
     if loose:
-        raise ValueError(
-            f"Python tests: {', '.join(loose)} lie in no test set, so would "
-            "never run.\n"
-            f"Fix: move them under {LIBRARY}/, claim them in a group's "
-            "PYTHON_TESTS (sq_add_group), or add their directory to TOOLING "
-            "(validation/_checks.py)"
-        )
+        raise _LooseError(loose)
     return found
+
+
+class _LooseError(ValueError):
+    """Test files in no set: the message is the files, then each remedy."""
+
+    def __init__(self, files: Sequence[str]) -> None:
+        self.head = (
+            f"Python tests: {', '.join(files)} lie in no test set, so would never run."
+        )
+        self.move = f"move them under {LIBRARY}/"
+        self.claim = "claim them in a group's PYTHON_TESTS (sq_add_group)"
+        self.tooling = "add their directory to TOOLING (validation/_checks.py)"
+        super().__init__(self.fix(self.move, self.claim, self.tooling))
+
+    def fix(self, *remedies: str) -> str:
+        """Return the message: the files, then a ``Fix:`` line of `remedies`."""
+        *first, last = remedies
+        return f"{self.head}\nFix: {', '.join(first)}, or {last}"
 
 
 def _shared(paths: Sequence[str]) -> list[str]:
@@ -278,16 +290,18 @@ def _loose(error: ValueError, why: str | None) -> str:
     """Return `error`'s text, led by `why` the groups are unreadable if so.
 
     The ``Fix:`` that asks for a claim in a group's ``PYTHON_TESTS`` cannot be
-    followed while the manifest is unreadable; the unreadable reason replaces
-    it.
+    followed while the manifest is unreadable: the ``Fix:`` then names the
+    wheel's rebuild instead, beside the two remedies that need no manifest.
     """
-    if why is None:
+    if why is None or not isinstance(error, _LooseError):
         return str(error)
-    head = str(error).split("\nFix:", 1)[0]
+    rebuild = (
+        "rebuild the wheel so the manifest is readable "
+        "(uv sync --locked --reinstall-package sqlearn)"
+    )
     return (
         f"Python tests: the C++ groups are unreadable: {why}\n"
-        f"{head}\nFix: make the manifest readable (build the engine: just "
-        "build-engine dev), then rerun"
+        f"{error.fix(rebuild, error.move, error.tooling)}"
     )
 
 

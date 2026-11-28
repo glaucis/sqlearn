@@ -370,3 +370,9 @@ def test_an_unreadable_manifest_is_named_before_any_fix(repo, capsys):
     reasons = _pytest_sets.due(repo.root)
     assert "sq_groups.json" in " ".join(reasons["sets"])
     assert "claim them" not in " ".join(reasons["sets"])
+    # the manifest is the wheel build's: the fix names its rebuild, not the
+    # engine's dev build, and keeps the remedies that need no manifest
+    assert "uv sync --locked --reinstall-package sqlearn" in out
+    assert "build-engine" not in out
+    assert "move them under tests/src/" in out
+    assert "add their directory to TOOLING" in out

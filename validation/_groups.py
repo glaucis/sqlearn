@@ -31,7 +31,7 @@ The **shared part** is the SHA-256 of:
   bindings, the extension) and of every file their entries read in the tree
   outside the groups' directories and the submodules;
 - the fingerprints of the closure of every group whose file a shared entry
-  reads: the bindings read ``core`` and ``crash`` and run
+  reads: the bindings read ``core``, ``crash`` and ``raw`` and run
   ``crash::install`` when the module loads, and start-up code is shared
   (spec §5.2), so such a group's change reruns everything;
 - the commit checked out in each submodule under ``engine/``, nested ones
@@ -61,7 +61,7 @@ import subprocess
 import sys
 import tomllib
 from collections.abc import Iterable, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -198,8 +198,8 @@ class Fingerprints:
 
     shared: str
     groups: dict[str, str]
+    manifest: dict[str, Group]
     shared_groups: frozenset[str] = frozenset()
-    manifest: dict[str, Group] = field(default_factory=dict)
 
 
 def _strings(value: Any, what: str) -> tuple[str, ...]:
@@ -441,7 +441,7 @@ def _pins(root: Path) -> dict[str, str]:
 def _normal(text: str, root: Path) -> str:
     """Return `text` with the checkout's and uv's places taken out.
 
-    A setuptools-scm version is cut to its release (``_versionless``).
+    Only sqlearn's own version is cut, to its release (``_versionless``).
     """
     text = text.replace(str(root), "<root>")
     return _versionless(_BUILD_ENVIRONMENT.sub("<build-environment>", text))
@@ -565,8 +565,8 @@ class _Fingerprinter:
     def text(self, path: Path) -> str:
         """Return ``stripped(path)``, read once a run.
 
-        A file of the build directory is generated: its versions are cut to
-        their release (``_versionless``).
+        A file of the build directory is generated: sqlearn's own version in it
+        is cut to its release (``_versionless``).
         """
         if path not in self.texts:
             text = stripped(path)

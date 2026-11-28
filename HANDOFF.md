@@ -27,9 +27,7 @@ blocked (below). [verified]
 - The plan's "Decisions for Tomas" table (13 #85 items, each with a
   recommendation): none is built until you answer; a yes adds a task. See the
   plan's section of that name.
-- Merging `claude/tooling-fixes` into `main`, and the comments on #85 (what
-  Tasks 9 to 12 fixed, the decisions, the items left with their reasons) and
-  #86 (close it; its item 13 waits for the first runner).
+- Merging `claude/tooling-fixes` into `main`.
 - The audit's first real run, `just audit-groups` (builds a second,
   coverage-instrumented wheel with DuckDB): awaits your go-ahead. Nothing
   claims Python tests or runners since ADR 0073, so it is due before the

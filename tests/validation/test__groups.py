@@ -507,16 +507,20 @@ def test_closure_follows_depends():
 def test_identity_of_no_uses_covers_every_group():
     """``None`` uses every group; a use covers its closure only."""
     groups = {"a": _group("a"), "b": _group("b", ["a"]), "c": _group("c")}
-    prints = _groups.Fingerprints(shared="s", groups={"a": "1", "b": "2", "c": "3"})
+    prints = _groups.Fingerprints(
+        shared="s", groups={"a": "1", "b": "2", "c": "3"}, manifest={}
+    )
     every = _groups.identity(prints, groups, None)
     assert every == _groups.identity(prints, groups, ["a", "b", "c"])
     assert every != _groups.identity(prints, groups, ["b"])
-    c_changed = _groups.Fingerprints(shared="s", groups={"a": "1", "b": "2", "c": "4"})
+    c_changed = _groups.Fingerprints(
+        shared="s", groups={"a": "1", "b": "2", "c": "4"}, manifest={}
+    )
     assert _groups.identity(prints, groups, ["b"]) == _groups.identity(
         c_changed, groups, ["b"]
     )
     assert _groups.identity(c_changed, groups, None) != every
-    shared_changed = _groups.Fingerprints(shared="t", groups=prints.groups)
+    shared_changed = _groups.Fingerprints(shared="t", groups=prints.groups, manifest={})
     assert _groups.identity(shared_changed, groups, ["b"]) != _groups.identity(
         prints, groups, ["b"]
     )

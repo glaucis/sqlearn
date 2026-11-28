@@ -819,13 +819,13 @@
     {
       "area": "engine/sanitizers",
       "name": "tests/engine/test_sanitizers.py::test_a_flavours_options_go_before_the_users[tsan-ours0]",
-      "outcome": "skipped",
+      "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "engine/sanitizers",
       "name": "tests/engine/test_sanitizers.py::test_a_flavours_options_go_before_the_users[tysan-ours1]",
-      "outcome": "skipped",
+      "outcome": "passed",
       "tier": "fast"
     },
     {
@@ -849,7 +849,7 @@
     {
       "area": "engine/sanitizers",
       "name": "tests/engine/test_sanitizers.py::test_a_users_option_wins_over_the_flavours",
-      "outcome": "skipped",
+      "outcome": "passed",
       "tier": "fast"
     },
     {
@@ -879,19 +879,19 @@
     {
       "area": "engine/sanitizers",
       "name": "tests/engine/test_sanitizers.py::test_each_sanitizer_preset_has_its_canaries_alone[lsan-canaries2]",
-      "outcome": "skipped",
+      "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "engine/sanitizers",
       "name": "tests/engine/test_sanitizers.py::test_each_sanitizer_preset_has_its_canaries_alone[tsan-canaries1]",
-      "outcome": "skipped",
+      "outcome": "passed",
       "tier": "fast"
     },
     {
       "area": "engine/sanitizers",
       "name": "tests/engine/test_sanitizers.py::test_each_sanitizer_preset_has_its_canaries_alone[tysan-canaries3]",
-      "outcome": "skipped",
+      "outcome": "passed",
       "tier": "fast"
     },
     {
@@ -927,7 +927,7 @@
     {
       "area": "engine/sanitizers",
       "name": "tests/engine/test_sanitizers.py::test_only_the_crash_group_is_left_out_of_tysan",
-      "outcome": "skipped",
+      "outcome": "passed",
       "tier": "fast"
     },
     {
@@ -1407,6 +1407,12 @@
     {
       "area": "validation/__main__",
       "name": "tests/validation/test___main__.py::test_a_module_written_while_the_runner_ran_is_not_recorded",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/__main__",
+      "name": "tests/validation/test___main__.py::test_a_run_cut_short_still_forgets_the_passes_that_moved",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -3045,6 +3051,12 @@
     {
       "area": "validation/_record",
       "name": "tests/validation/test__record.py::test_an_unreadable_record_file_counts_as_absent",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_record",
+      "name": "tests/validation/test__record.py::test_forgetting_passes_keeps_the_failures_of_the_identity",
       "outcome": "passed",
       "tier": "fast"
     },
