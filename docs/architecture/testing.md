@@ -201,21 +201,22 @@ and records the pass. `just full validate` is `just validate-all`. `just
 verify` runs every task this way.
 
 **`just sweep`** (`validation/_sweep.py`) catches a missed rerun: it takes
-`just affected`'s verdicts first, then runs `just full <task>` for every task
-of the table, in its order, every one even when another fails (minutes to an
-hour; no benchmark). `validate`, with no runner today, and the instant checks,
-which always run, are not part of it. A task the verdicts called unchanged
-that fails in full is a missed rerun: the sweep names it, with `Fix: run just
-affected, find the input the check reads but does not declare, and add it`,
-and exits 1. `test` counts as unchanged only when every `test: <label>` and
-`test: <set>` verdict is. When only tasks the verdicts said would run fail,
-the sweep exits with the first one's code and names no missed rerun. A pass is
-saved as `sweep.json` (`{"tree": ..., "date": ...}`) in `sqlearn-checks/`; the
-tree is `just checkable-tree`'s, or HEAD's when the tree is uncommitted, which
-the sweep says. Its cadence is `CADENCE_DAYS`, 7 days (Tomas, 2026-11-28):
+`just affected`'s verdicts first, then runs `just full <task>` for every task of
+the table, in its order, every one even when another fails (minutes to an hour;
+no benchmark). `validate`, with no runner today, and the instant checks, which
+always run, are not part of it. A task the verdicts called unchanged that fails
+in full is a missed rerun: the sweep names it and exits 1, its `Fix:` line
+saying to run `just affected`, find the input the check reads but does not
+declare, and add it. `test` counts as unchanged only when there is a
+`test: <label>` or `test: <set>` verdict and every one is unchanged. When only
+tasks the verdicts said would run fail, the sweep exits with the first one's
+code and names no missed rerun. A pass is saved as `sweep.json`
+(`{"tree": ..., "date": ...}`) in `sqlearn-checks/`; the tree, read before the
+checks run, is `just checkable-tree`'s, or HEAD's when the tree is uncommitted,
+which the sweep says. Its cadence is `CADENCE_DAYS`, 7 days (Tomas, 2026-11-28):
 when the last sweep is older, or none passed, `just done` prints first, before
-anything else, the shortcut of an already passed tree included, `just
-sweep-stale`'s warning, ending `Fix: run just sweep`. The warning changes
+anything else, the shortcut of an already passed tree included,
+`just sweep-stale`'s warning, ending `Fix: run just sweep`. The warning changes
 neither what runs nor the exit code.
 
 **`validate`** is not in the table of `validation/_checks.py`: it keeps a

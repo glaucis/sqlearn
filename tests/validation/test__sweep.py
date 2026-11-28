@@ -182,3 +182,23 @@ def test_the_tree_is_the_checkable_one_else_heads(tmp_path):
     assert _sweep._tree(root) == (head, True)
     (root / "a.py").write_text("a = 2\n")
     assert _sweep._tree(root) == (head, False)
+
+
+def test_a_test_failure_with_no_test_verdicts_is_no_missed_rerun(sweep, capsys):
+    """With no ``test: ...`` verdict, ``test`` counts as running."""
+    sweep.verdicts = [v for v in sweep.verdicts if not v.check.startswith("test: ")]
+    sweep.codes = {"test": 2}
+    assert _sweep.run(sweep.root) == 2
+    assert "missed rerun" not in capsys.readouterr().out
+
+
+def test_the_tree_is_read_before_any_check_runs(sweep, monkeypatch):
+    """The tree saved is the one read before the checks, the one swept."""
+
+    def tree(root):
+        sweep.ran.append("tree")
+        return (TREE, True)
+
+    monkeypatch.setattr(_sweep, "_tree", tree)
+    assert _sweep.run(sweep.root) == 0
+    assert sweep.ran == ["tree", *TASKS]

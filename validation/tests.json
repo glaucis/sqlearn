@@ -2876,6 +2876,12 @@
     },
     {
       "area": "validation/_sweep",
+      "name": "tests/validation/test__sweep.py::test_a_test_failure_with_no_test_verdicts_is_no_missed_rerun",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_sweep",
       "name": "tests/validation/test__sweep.py::test_an_old_sweep_warns_and_a_recent_one_does_not",
       "outcome": "passed",
       "tier": "fast"
@@ -2895,6 +2901,12 @@
     {
       "area": "validation/_sweep",
       "name": "tests/validation/test__sweep.py::test_every_check_runs_even_after_a_failure",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_sweep",
+      "name": "tests/validation/test__sweep.py::test_the_tree_is_read_before_any_check_runs",
       "outcome": "passed",
       "tier": "fast"
     },

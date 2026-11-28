@@ -296,6 +296,9 @@ def test_a_failing_sweep_warning_changes_nothing_done_runs(tmp_path):
         OVERRIDES.replace("@echo sweep-warning", "@echo sweep-warning\n    @exit 5")
     )
     git(repo, "commit", "-qam", "chore: failing warning", env=env)
-    just(repo, "done", env=env)
+    done = subprocess.run(
+        ["just", "done"], cwd=repo, env=env, capture_output=True, text=True, check=False
+    )
+    assert done.returncode == 0
     assert calls(repo) == list(RUNS)
     assert len(passed(repo, env)) == 1

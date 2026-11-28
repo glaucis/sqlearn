@@ -1,13 +1,14 @@
 """Every check in full, compared with what the selection chose (``just sweep``).
 
-``run`` takes ``validation._affected.report`` first, then runs each task of
-``validation._checks.TASKS`` in full (``just full <task>``), in the table's
-order, every one even when another fails. A task the report called unchanged
-that fails in full is a missed rerun: the selection would have skipped a
-failure. ``test`` counts as unchanged only when every ``test: <label>`` and
-``test: <set>`` verdict is. A pass is remembered in ``sweep.json`` in
-``_checks.record_dir``, with its tree and date; ``stale`` warns when that is
-older than ``CADENCE_DAYS`` or missing, and ``just done`` prints the warning.
+``run`` takes ``validation._affected.report`` and the tree first, then runs
+each task of ``validation._checks.TASKS`` in full (``just full <task>``), in
+the table's order, every one even when another fails. A task the report
+called unchanged that fails in full is a missed rerun: the selection would
+have skipped a failure. ``test`` counts as unchanged only when the report has
+a ``test: <label>`` or ``test: <set>`` verdict and every one is unchanged.
+A pass is remembered in ``sweep.json`` in ``_checks.record_dir``, with the
+tree swept and the date; ``stale`` warns when that is older than
+``CADENCE_DAYS`` or missing, and ``just done`` prints the warning.
 """
 
 import argparse
@@ -46,6 +47,8 @@ def _full(task: str, root: Path) -> int:
 def _tree(root: Path) -> tuple[str, bool]:
     """Return the tree to remember, and whether it is the checkable tree.
 
+    Read before the checks run, so the tree saved is the one swept.
+
     The checkable tree (``just checkable-tree``) when only the checks' own
     outputs differ from HEAD, else HEAD's tree.
     """
@@ -73,7 +76,7 @@ def _unchanged(verdicts: Sequence[_affected.Verdict]) -> dict[str, bool]:
     called = {v.check: not v.runs for v in verdicts}
     tests = [not v.runs for v in verdicts if v.check.startswith("test: ")]
     return {
-        name: all(tests) if name == "test" else called.get(name, False)
+        name: bool(tests) and all(tests) if name == "test" else called.get(name, False)
         for name in _checks.TASKS
     }
 
@@ -93,6 +96,7 @@ def run(root: Path) -> int:
         else the first failing check's code, else 0, the pass then saved.
     """
     unchanged = _unchanged(_affected.report(root))
+    tree, checkable = _tree(root)
     first = 0
     missed = []
     for name in _checks.TASKS:
@@ -117,7 +121,6 @@ def run(root: Path) -> int:
             flush=True,
         )
         return first
-    tree, checkable = _tree(root)
     directory = _checks.record_dir(root)
     directory.mkdir(parents=True, exist_ok=True)
     today = datetime.date.today().isoformat()
