@@ -19,9 +19,9 @@ benchmark queue and Phase 1 step 3 then start from a clean slate.
 **Architecture:** One task per area, each its own commit with its test. The
 first four tasks are `HANDOFF.md`'s items. Tasks 5 to 8 are #86, grouped by
 kind. Tasks 9 to 12 are the #85 items that are small and need no decision.
-Task 13 closes the work. The #85 items that need Tomas's choice are listed
-under "Decisions for Tomas" below. They are not built here until he answers;
-a yes adds a task.
+The #85 items that needed Tomas's choice are under "Decisions for Tomas"
+below, with his answers; Tasks 13 to 21 build the ones he said yes to, and
+Task 22 closes the work.
 
 **Tech Stack:** `just`, uv, pytest, CMake, ccache, Python 3.12, C++23 (two
 small C++ edits).
@@ -75,24 +75,25 @@ body). Issue #85, its items not marked for steps 3 and 4.
 
 ## Decisions for Tomas
 
-None of these is built until Tomas answers. Each line gives the choice and
-a recommendation. A yes adds a task before Task 13.
+Tomas answered each on 2026-11-28, one at a time. A yes adds a task before
+the last one (Tasks 13 to 21); the last, Task 22, closes the work.
 
-| #85 item | The choice | Recommendation |
-| --- | --- | --- |
-| `engine` whole in `TOOLING_INPUTS` | Narrow it to the files the tooling tests read, or keep the minute of over-running | Keep it: a missed file hides a change, the cost is a minute |
-| LLVM path | Detect it (`brew --prefix llvm`, an env override) everywhere, or keep `/opt/homebrew` | Keep it until Linux (step 3); Task 11 fixes `doctor`'s copy |
-| A patched submodule | Fail the configure, or warn | Fail with a `Fix:` line: submodules are never edited |
-| `just check-stubs` | Bring back a test of `_native.pyi`, or wait for the first group | Wait: the rewrite's first group brings `sq.` back |
-| INSTALL then LOAD of a local extension | Build a small test extension, or accept the gap | Accept until a user extension matters (`old_python`'s case is gone) |
-| Duplicate flavour flags | Clear CMake's config flags for our targets (keeping `-DNDEBUG` where it is now), or leave | Leave: harmless, and the fix moves `assert` |
-| Bindings in headers-alone | Configure duckdb-python in a preset, or accept | Accept: the wheel build covers them |
-| Fuzz corpus cap | Pick `-max_len` and a size cap, or none | `-max_len=4096` (today's largest), 1 MB, 500 files |
-| Licence column | Pin each licence file's digest beside its row, or trust the column | Pin: a dependency's relicence is caught |
-| Per-thread `sigaltstack` | Hook DuckDB's thread start, or main thread only | Main thread only for now, written down in the crash docs |
-| Mutation-test the crash group | Add `test_crash` to Mull, or not | Not yet: forking tests under Mull are slow and flaky |
-| SQL tests without a build | Configure the sqllogic tree in the test, or keep the skip | Keep the skip: the `sql` task builds it |
-| Crash handler's image paths (`images.cpp:48`) and a second thread cutting a report (`handler.cpp:290`) | Fix them now (C++, M each), or with the crash group's rewrite | With the rewrite: the crash group is redesigned then |
+| #85 item | The choice | Answer | Task |
+| --- | --- | --- | --- |
+| `engine` whole in `TOOLING_INPUTS` | Narrow it to the files the tooling tests read, or keep the minute of over-running | Keep it: the module's identity reruns the set for most engine edits anyway, and a missed file hides a change | — |
+| LLVM path | Detect it (`brew --prefix llvm`, an env override) everywhere, or keep `/opt/homebrew` | Keep it until Linux (step 3), which designs the detection for the real case | — |
+| A patched submodule | Fail the configure, or warn | Fail, with a `Fix:` line: submodules are never edited | 13 |
+| `just check-stubs` | Bring back a test of `_native.pyi`, or wait for the first group | Bring it back now | 14 |
+| INSTALL then LOAD of a local extension | Build a small test extension, or accept the gap | Build a test extension | 15 |
+| Duplicate flavour flags | Clear CMake's config flags for our targets (keeping `-DNDEBUG` where it is now), or leave | Clear them, `-DNDEBUG` moved into the release flavours, with a test that `assert` stays off there | 16 |
+| Bindings in headers-alone | Configure duckdb-python in a preset, or accept | Add a preset, so `just headers-alone` builds the bindings' headers with LLVM too | 17 |
+| Fuzz corpus cap | Pick `-max_len` and a size cap, or none | `-max_len=4096`, and per target at most 500 files and 1 MB | 18 |
+| Licence column | Pin each licence file's digest beside its row, or trust the column | Pin them: the 27 rows whose text is a file here; the 5 web links stay trusted | 19 |
+| Per-thread `sigaltstack` | Hook DuckDB's thread start, or main thread only | Main thread only, written down in the crash docs; no thread has one today | 20 |
+| Mutation-test the crash group | Add `test_crash` to Mull, or not | Not yet: forking tests under Mull are slow and flaky | — |
+| SQL tests without a build | Configure the sqllogic tree in the test, or keep the skip | Keep the skip: the `sql` task builds it | — |
+| Crash handler's image paths (`images.cpp:48`) and a second thread cutting a report (`handler.cpp:290`) | Fix them now (C++, M each), or with the crash group's rewrite | Fix them now, with Task 20's work on the handler | 20 |
+| (new) Reading a crash report | — | A recipe that symbolises a report and names each frame's owner, sqlearn or DuckDB, and a page on telling the two apart | 21 |
 
 #85 items left as they are, with the reason to note on the issue:
 
@@ -548,9 +549,230 @@ Items 9 to 12 and 14 to 16, with `HANDOFF.md`'s record helpers and the
   `engine/mull.yml` only with a reason the source gives.
 - [ ] **Step 5: Commit** `fix: name a C++ exception by its demangled type`
 
-### Task 13: Close the work
+### Task 13: A submodule with local edits fails the configure
 
-- [ ] **Step 1: Comment on #85.** Say what Tasks 9 to 12 fixed, the
+`sq_check_pins()` (`engine/cmake/pins.cmake`) checks each submodule's
+commit, not its files: an edit left inside one (a debugging `printf` in
+DuckDB) builds into every wheel unseen. Builds write nothing inside the
+submodules (all six were clean after the builds of 2026-11-28), so the
+check cannot refuse a normal build.
+
+**Files:** Modify `engine/cmake/pins.cmake`. Test: `tests/engine/test_pins.py`.
+
+- [ ] **Step 1: Write the failing test**
+  `test_a_submodule_with_local_edits_fails_the_configure`: run the check in
+  CMake's script mode over a scratch git repository standing in for a
+  submodule, at its pinned commit with one tracked file edited. Expect
+  exit 1, the path and `Fix: git -C engine/<path> checkout .` (and
+  `git clean -fd` when the edit is an untracked file) in its output.
+- [ ] **Step 2: Run it, expect FAIL**
+- [ ] **Step 3: After the commit check, run `git -C <dir> status
+  --porcelain`** for each submodule; anything listed is a `FATAL_ERROR`
+  naming the files (the first ten) and the fix.
+- [ ] **Step 4: Run the test and `just build-engine dev`, expect PASS**
+- [ ] **Step 5: Commit** `build: refuse a submodule with local edits`
+
+### Task 14: A test checks the stubs again
+
+Nothing has run `just check-stubs` since its test moved to `old_python/`
+(ADR 0073), so a binding added without `just stubs` leaves `_native.pyi`
+stale for ty, mypy and editors.
+
+**Files:** Test: `tests/engine/test_bindings.py`.
+
+- [ ] **Step 1: Write the test**
+  `test_the_stubs_match_the_engines_module`: run `just check-stubs` from
+  `REPO`; expect exit 0. It is in the tooling set, so an engine edit reruns
+  it.
+- [ ] **Step 2: Show it can fail:** add a parameter to one binding's
+  signature in a scratch edit of `_native.pyi`, run, expect FAIL with the
+  diff; restore.
+- [ ] **Step 3: Commit** `test: check the engine's stubs again`
+
+### Task 15: An extension the user installs loads
+
+ADR 0061 promises that an extension the user installs works, but only a
+missing one is tested
+(`test_a_missing_local_extension_fails_at_its_path_and_nothing_downloads`).
+
+**Files:** Create a test extension under `engine/tests/loadable/` (one SQL
+function, `sqlearn_test_answer()` returning 42), its CMake target. Test:
+`tests/engine/test_extension.py`.
+
+- [ ] **Step 1: Find how DuckDB 2.0.1 builds a loadable extension** against
+  the same DuckDB as the wheel (its `build_loadable_extension` and the
+  metadata footer it appends), without the extension entering the wheel.
+  Write the finding into the task's report before building.
+- [ ] **Step 2: Write the failing test**
+  `test_an_extension_the_user_installs_loads`: with
+  `allow_unsigned_extensions` (the test extension is not signed by DuckDB)
+  and `extension_directory` in `tmp_path`, `INSTALL '<file>'` then
+  `LOAD`, then `SELECT sqlearn_test_answer()` gives `42`, and nothing
+  downloads. It skips, naming the recipe, when the extension is not built.
+- [ ] **Step 3: Build the extension** (a recipe, or a target of an
+  existing preset), run the test, expect PASS.
+- [ ] **Step 4: Write down** in `docs/architecture/testing.md` that a real
+  signed extension is not tested (it needs a download), and why.
+- [ ] **Step 5: Commit** `test: load an extension the user installs`
+
+### Task 16: Our targets take only the flavour's flags
+
+Each compile line of ours carries CMake's build-type flags before the
+flavour's (release: `-O3 -DNDEBUG -O2 -gline-tables-only`; dev:
+`-g -O1 -g`). The later one wins, so the build is right, but the line says
+two things. The flavours rely on CMake's `-DNDEBUG` to turn `assert` off.
+
+**Files:** Modify `engine/cmake/hardening.cmake` (the flavours'
+definitions), the CMake scope of our targets. Test:
+`tests/engine/test_presets.py`.
+
+- [ ] **Step 1: Write the failing tests:**
+  `test_our_compile_lines_carry_one_optimisation_level` (in each built
+  preset's `compile_commands.json`, a unit under `engine/src` has one
+  `-O` and at most one `-g`), and
+  `test_assert_is_off_exactly_where_it_was` (`-DNDEBUG` on our units in the
+  release and profile flavours and the wheel, and on none of the others).
+- [ ] **Step 2: Run, expect the first to FAIL** and the second to pass
+  (today's state, which it pins).
+- [ ] **Step 3: Empty `CMAKE_<LANG>_FLAGS_<CONFIG>` in our directories'
+  scope only.** DuckDB's directories keep theirs (its build is not ours to
+  change). Add `NDEBUG` to the release and profile flavours' definitions.
+- [ ] **Step 4: Run both, expect PASS;** rebuild the wheel (`uv run`), run
+  `just test`.
+- [ ] **Step 5: Commit** `build: give our targets the flavour's flags alone`
+
+### Task 17: `just headers-alone` builds the bindings' headers too
+
+The bindings' headers (`engine/src/bindings/`) build alone only in the
+wheel's build, with Apple clang. A preset that finds DuckDB's,
+duckdb-python's, nanobind's and Python's headers lets `just headers-alone`
+build them with Homebrew LLVM too. Since Task 4, nanobind sits at a fixed
+path in `.venv`.
+
+**Files:** Modify `engine/CMakePresets.json` (or the `llvm-dev` preset's
+cache variables), `engine/cmake/headers_alone.cmake`, the `headers-alone`
+recipe. Test: `tests/engine/test_presets.py`.
+
+- [ ] **Step 1: Write the failing test**
+  `test_headers_alone_builds_the_bindings_headers`: the `headers-alone`
+  build's target holds a unit for each header under `engine/src/bindings/`.
+- [ ] **Step 2: Run it, expect FAIL**
+- [ ] **Step 3: Give the preset the include directories** the wheel's
+  `_duckdb_dependencies` carries, from the same sources (the submodules,
+  `.venv`'s nanobind, the interpreter's headers), and build the bindings'
+  units in `sq_headers_alone`.
+- [ ] **Step 4: Run the test and `just headers-alone`, expect PASS;** make
+  `guard.hpp` lean on a missing include in a scratch edit, expect the
+  recipe to fail; restore.
+- [ ] **Step 5: Commit** `build: build the bindings' headers alone with LLVM`
+
+### Task 18: The fuzz corpus has a cap
+
+Each `just fuzz` merges what it found into the committed corpus, with no
+limit. Today: 98 files, 5,866 bytes, the largest 4,096 bytes. The replay
+test passes each file on its command line, so a large corpus can also pass
+the system's argument limit.
+
+**Files:** Modify the `fuzz` recipe (`justfile`). Test:
+`tests/checks/test_tasks.py`.
+
+- [ ] **Step 1: Write the failing tests:** the recipe passes
+  `-max_len=4096` to every fuzzing run; and, run on a scratch corpus of 501
+  files (or one over 1 MB), the size check fails, naming the target and
+  `Fix:` (merge the corpus into an empty directory with `-merge=1`, which
+  keeps only the inputs that add coverage, and commit that).
+- [ ] **Step 2: Run, expect FAIL**
+- [ ] **Step 3: Add the flag and the check**, after the merge: at most 500
+  files and 1,048,576 bytes per target.
+- [ ] **Step 4: Run the tests, expect PASS**
+- [ ] **Step 5: Commit** `fix: cap the fuzz corpus`
+
+### Task 19: Each licence text is pinned by its digest
+
+`just check-licences` trusts `THIRD_PARTY.md`'s licence column. A library
+relicensed in a submodule bump would pass unseen.
+
+**Files:** Modify `THIRD_PARTY.md` (a digest column), `validation/_licences.py`.
+Test: `tests/validation/test__licences.py`.
+
+- [ ] **Step 1: Write the failing tests:** a row whose licence file's
+  SHA-256 differs from its digest is a problem naming the file and `Fix:`
+  (read the new text, set the row's licence, then its digest); a row whose
+  licence text is a web link needs no digest; a file row without one is a
+  problem.
+- [ ] **Step 2: Run, expect FAIL**
+- [ ] **Step 3: Check the digests in `problems()`;** add the 27 file rows'
+  digests, each file read first to confirm its row's licence.
+- [ ] **Step 4: Run the tests and `just check-licences`, expect PASS**
+- [ ] **Step 5: Commit** `feat: pin each licence text by its digest`
+
+### Task 20: The crash handler's three gaps
+
+Three gaps in `engine/src/crash/` and `engine/src/raw/`:
+
+1. The handler asks for an alternate stack (`SA_ONSTACK`), but no thread
+   has one, so a stack overflow leaves no report. Give the thread that
+   installs the handler (Python's main thread) one; DuckDB's workers stay
+   without (Tomas, 2026-11-28).
+2. `raw::loaded_images` keeps each image's name as dyld's pointer
+   (`images.cpp:48`): an image unloaded before a crash leaves it dangling.
+   Copy each name into the table's fixed storage at install.
+3. A second thread that faults while the first writes the report skips it
+   and runs the previous action, which can end the process mid-report
+   (`handler.cpp:290`). Make it wait, a bounded time and with
+   async-signal-safe calls only, for the report to finish.
+
+**Files:** Modify `engine/src/crash/handler.cpp`, `engine/src/raw/images.cpp`
+and `.hpp` (the stack's memory in the raw layer). Create
+`docs/architecture/crash-reports.md`. Test:
+`engine/tests/crash/test_handler.cpp`, `tests/engine/test_crash_report.py`.
+
+- [ ] **Step 1: Write the failing tests**, each in a forked child as the
+  crash tests are: unbounded recursion on the installing thread leaves a
+  report naming `SIGSEGV`; an image loaded, the handler installed, the image
+  unloaded, then a fault: the report names every image readably; two
+  threads fault at once: one report, complete (its last line written).
+- [ ] **Step 2: Run, expect FAIL**
+- [ ] **Step 3: Fix the three,** one at a time, each test passing before
+  the next.
+- [ ] **Step 4: Write `docs/architecture/crash-reports.md`:** what a report
+  holds, where it goes, that nothing is sent, and the limits: a worker
+  thread's stack overflow, and what no handler can catch (`kill -9`, the
+  system ending the process for memory, power loss).
+- [ ] **Step 5: `just test-engine dev`, `just sanitize`, `just
+  mutate-engine`, expect PASS** (`HANDOFF.md`'s traps: after a new raw
+  file).
+- [ ] **Step 6: Commit** `fix: report stack overflows and keep the report whole`
+
+### Task 21: A crash report can be read, and says whose code crashed
+
+A report holds raw addresses with each image and load address, and says how
+to symbolise them by hand. A recipe does it and names each frame's owner,
+so a DuckDB bug can be told from sqlearn's and reported upstream.
+
+**Files:** Create `validation/_crash_report.py`, a `crash-report` recipe.
+Modify `docs/architecture/crash-reports.md`. Test:
+`tests/validation/test__crash_report.py`.
+
+- [ ] **Step 1: Write the failing tests:** a report (a fixture made by a
+  real crash of the dev build) gives one line per frame with its function,
+  file and line, and its owner: `sqlearn` (`sq::`), `DuckDB`
+  (`duckdb::`), `Python`, or `system`; a report from another build is
+  refused with `Fix:` naming the build it needs.
+- [ ] **Step 2: Run, expect FAIL**
+- [ ] **Step 3: Build it on `atos`** (macOS; `addr2line` on Linux at
+  step 3), checking the report's build line against the installed build.
+- [ ] **Step 4: Add to the page** how to tell whose bug it is: reproduce the
+  SQL in plain DuckDB 2.0.1 (with made-up data, never the user's); a crash
+  there is DuckDB's, to report on DuckDB's tracker and explain to the user;
+  none there is sqlearn's.
+- [ ] **Step 5: Note for step 3** in `HANDOFF.md`: each release keeps its
+  binary's debug symbols, so a user's report can be read.
+- [ ] **Step 6: Commit** `feat: read a crash report and name whose code crashed`
+
+### Task 22: Close the work
+
+- [ ] **Step 1: Comment on #85.** Say what Tasks 9 to 21 fixed, the
   "Decisions for Tomas" with his answers, and the items left with their
   reasons. Leave it open for steps 3 and 4.
 - [ ] **Step 2: Update `HANDOFF.md`.** Move the finished items to "Just

@@ -12,15 +12,11 @@ Verify with: `just done` (`just verify` is the release tier)
 ## In progress
 
 None. [verified] The tooling-fixes plan
-(`docs/plans/2026-11-28-tooling-fixes.md`) stays active, not archived, until its
-decisions (below) are settled.
+(`docs/plans/2026-11-28-tooling-fixes.md`) stays active, not archived: its
+Tasks 13 to 22, from Tomas's answers to its decisions, are not started.
 
 ## Waiting on the user
 
-- The plan's "Decisions for Tomas" table (13 #85 items, each with a
-  recommendation): none is built until you answer; a yes adds a task. See the
-  plan's section of that name; #85's comment of 2026-11-28 lists them.
-  (since 2026-11-28)
 - The audit's first real run, `just audit-groups` (builds a second,
   coverage-instrumented wheel with DuckDB): awaits your go-ahead. Nothing
   claims Python tests or runners since ADR 0073, so it is due before the
@@ -34,8 +30,12 @@ decisions (below) are settled.
 
 - **The preparation before the rewrite, in this order** (Tomas, 2026-11-28:
   he prepares everything before starting, for a clear path):
-  1. **The small tooling fixes** are merged into `main`, and Task 4 is done
-     (below); what remains is the plan's decisions (above, waiting on you).
+  1. **The small tooling fixes**: Tasks 1 to 12 are merged into `main`.
+     Tomas answered the 13 decisions (2026-11-28, the plan's table and
+     #85's comment); the yeses are Tasks 13 to 21, then Task 22 closes the
+     plan. Tasks 20 and 21 are the crash handler's (a stack overflow's
+     report, its two bugs, reading a report and telling sqlearn's crash
+     from DuckDB's).
   2. A benchmark and profiling queue: profiling joins `just benchmarks-due`,
      and one command runs the whole queue on Tomas's go-ahead, when the
      machine is idle (ADR 0072 unchanged: nothing runs by itself).
@@ -54,7 +54,10 @@ decisions (below) are settled.
 - Phase 1 step 3: the release tier's workflows, started by hand, and the
   site's deploy (spec §3.5, §3.6; #4, #6); its plan first, with
   superpowers:writing-plans. Then step 4, the review and the measurements
-  (spec §3.7).
+  (spec §3.7). Step 3 also: detect LLVM's path for Linux (it is
+  `/opt/homebrew` until then, Tomas, 2026-11-28); each release keeps its
+  binary's debug symbols, so a user's crash report can be read; the release
+  wheel stays built in isolation (`just build-package`, `--no-config`).
 - The dependencies the old Python used: numpy (runtime, ADR 0057) and the
   test group's scikit-learn, pandas, polars, optuna, catboost, lightgbm,
   hypothesis, mpmath. Trim them when nothing active uses them
