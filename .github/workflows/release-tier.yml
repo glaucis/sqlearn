@@ -32,7 +32,7 @@ env:
 
 jobs:
   macos-checks:
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 360
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -46,7 +46,7 @@ jobs:
         run: grep -h '^SKIPPED' verify.log >> "$GITHUB_STEP_SUMMARY" || true
 
   macos-engine:
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 360
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -56,7 +56,7 @@ jobs:
       - run: just verify-engine
 
   macos-mutate:
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 360
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -120,7 +120,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [macos-15, ubuntu-24.04, ubuntu-24.04-arm]
+        runner: [macos-26, ubuntu-24.04, ubuntu-24.04-arm]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 240
     steps:

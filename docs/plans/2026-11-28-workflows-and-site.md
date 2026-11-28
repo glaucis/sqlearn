@@ -305,13 +305,13 @@ issue.
 - Produces, in `release-tier.yml`:
   - `on: workflow_dispatch` with one input `tag` (string, optional);
   - `concurrency: release-tier-${{ github.ref }}`;
-  - jobs `macos-checks`, `macos-engine`, `macos-mutate` (`macos-15`, each
+  - jobs `macos-checks`, `macos-engine`, `macos-mutate` (`macos-26`, each
     `timeout-minutes: 360`);
   - `linux` (matrix `ubuntu-24.04`, `ubuntu-24.04-arm`; LLVM 23 from
     apt.llvm.org's signed repository, `SQ_LLVM_ROOT=/usr/lib/llvm-23`);
   - `codeql` (`ubuntu-24.04`, `languages: c-cpp`, `build-mode: manual`,
     building `just build-engine release`; `security-events: write`);
-  - `wheels` (matrix: `macos-15` runs `just build-package`; the two Linux
+  - `wheels` (matrix: `macos-26` runs `just build-package`; the two Linux
     runners run cibuildwheel), each running `just check-wheel` and uploading
     the wheel and `sqlearn-<version>-<platform>.map` as artifacts;
   - `release`: `needs` all the above, `if: inputs.tag != ''`; it refuses a

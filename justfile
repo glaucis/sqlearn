@@ -932,7 +932,7 @@ check-release-assets tag assets:
 release-assets wheel map out:
     uv run --locked --no-install-project python -m validation._wheel --assets {{ wheel }} {{ map }} {{ out }}
 
-# Install the release workflow's macOS tools (GitHub's macos-15 runner): the brew line of just doctor
+# Install the release workflow's macOS tools (GitHub's macos-26 runner, whose Apple clang 21 is the spec's; macos-15's Xcode 16.4 has Apple clang 17, which refuses -Wlifetime-safety): the brew line of just doctor
 [group('release')]
 ci-tools-macos:
     brew install llvm cmake ninja ccache include-what-you-use gitleaks
