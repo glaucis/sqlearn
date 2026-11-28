@@ -118,14 +118,11 @@ TEST_CASE("moving a buffer into itself leaves it as it was", "[raw]") {
     buffer.span().front() = first;
     const auto *const data = buffer.span().data();
 
-#if defined(__clang__)
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wself-move" // the self-move is what is tested
-#endif
+    // GCC's pragma, which clang reads too: both warn of a self-move.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wself-move" // the self-move is what is tested
     buffer = std::move(buffer);
-#if defined(__clang__)
-#pragma clang diagnostic pop
-#endif
+#pragma GCC diagnostic pop
 
     CHECK(buffer.size() == count);
     CHECK(buffer.span().data() == data);

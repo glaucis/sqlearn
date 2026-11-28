@@ -38,10 +38,14 @@ bool replay(int argc, char **argv) {
     bool good = check("1 MiB of digits", std::string(mebibyte, '7'));
     // main's argv is the one place a pointer and a count meet, as raw/'s
     // Buffer is for memory; the span is built once, then indexed safely.
+#if defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunsafe-buffer-usage-in-container"
+#endif
     const std::span<char *> arguments{argv, static_cast<std::size_t>(argc)};
+#if defined(__clang__)
 #pragma clang diagnostic pop
+#endif
     for (const char *path : arguments.subspan(1)) {
         // NOLINTNEXTLINE(bugprone-signed-bitwise): the standard's own flag type
         std::ifstream in{path, std::ios::binary};

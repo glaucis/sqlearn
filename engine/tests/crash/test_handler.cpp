@@ -155,7 +155,7 @@ void set_handler(int signo, void (*handler)(int)) {
 
 /// Write through a null pointer, which the compiler cannot see is null.
 /// The sanitizers are off here, so the store itself faults.
-[[gnu::noinline]] [[clang::no_sanitize("address", "undefined")]] void write_through_null() {
+[[gnu::noinline]] [[gnu::no_sanitize("address", "undefined")]] void write_through_null() {
     static volatile std::uintptr_t zero = 0;
     // The crash under test: an address made from a number, then stored to.
     // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast,performance-no-int-to-ptr,clang-analyzer-core.NullDereference)
@@ -178,7 +178,7 @@ constexpr std::size_t frame_bytes = 1024;
 /// @param depth How deep it is.
 /// @return Never, in practice.
 // NOLINTNEXTLINE(misc-no-recursion): the stack overflow under test
-[[gnu::noinline]] [[clang::no_sanitize("address", "undefined")]] std::size_t
+[[gnu::noinline]] [[gnu::no_sanitize("address", "undefined")]] std::size_t
 overflow_the_stack(std::size_t depth) {
     std::array<volatile char, frame_bytes> pad{};
     pad.at(depth % pad.size()) = 1;
@@ -417,7 +417,7 @@ extern "C" void guard_handler(int signo, siginfo_t *info, void *context) {
 
 /// Store to `target`, past the sanitizers, so the store itself faults.
 /// @param target Where to store.
-[[gnu::noinline]] [[clang::no_sanitize("address", "undefined")]] void store_to(void *target) {
+[[gnu::noinline]] [[gnu::no_sanitize("address", "undefined")]] void store_to(void *target) {
     *static_cast<volatile int *>(target) = 1;
 }
 
