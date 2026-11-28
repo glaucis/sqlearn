@@ -48,21 +48,22 @@ before work is done, and `just verify` is the release tier.
 | A commit | the pre-commit hook: `just pre-commit` over the files committed |
 | A push | none: a push runs no suite |
 | A merge to `main` | the pre-merge-commit hook runs what the pre-commit hook runs; `just done` on `main` runs nothing for a tree that passed |
-| Work is done | `just done`: `check-lockfile`, `check-no-devdata`, then each check on what changed (`format`, `lint`, `links`, `docstrings`, `types`, `tidy`, `test`, `sql`, `validate`, `docs`), then the tree is remembered |
+| Work is done | `just done`: `check-lockfile` (first: a stale lock exits at once, even for a passed tree), `check-no-devdata`, then each check on what changed (`format`, `lint`, `links`, `docstrings`, `types`, `tidy`, `test`, `sql`, `validate`, `docs`), then the tree is remembered |
 | A release | `just verify`: the same two, each check with `just full` (`validate` as `validate-all`), then the C++ tools in full (`sanitize`, `leaks-engine`, `fuzz 60`, `coverage-engine`, `mutate-engine`), `check-licences`, `test-all` (coverage) and `test-python-versions`, by hand before `1.0.0` |
 
 `just done` remembers each tree that passed in `sqlearn-passed`, in the git
 common directory (the 50 newest, shared by worktrees), with the place it passed
 in: `just place`, a hash of the Python, the platform and the machine, as each
 task's digest starts with. The same tree after an OS update, on a new Python or
-on another machine runs again. Only a tree with
-nothing uncommitted counts, so a fast-forward or a `--no-ff` merge of a passed
-tree runs nothing. Markdown is an input like any file (`format`, `lint` and
-`docs` read it): edited and not committed, it leaves no checkable tree, and
-`just done` runs; each task still skips what its records show passed, so that
-costs seconds. `just done` runs every check even when one fails, as a task
-runs every step, so one failure hides no other's findings; it exits with the
-first failure's code, and nothing is remembered.
+on another machine runs again. Only a tree with nothing uncommitted counts, so a
+fast-forward or a `--no-ff` merge of a passed tree runs nothing,
+`check-lockfile` aside: it runs first even for a passed tree, since finding the
+tree reads `just place`, which runs uv. Markdown is an input like any file
+(`format`, `lint` and `docs` read it): edited and not committed, it leaves no
+checkable tree, and `just done` runs; each task still skips what its records
+show passed, so that costs seconds. `just done` runs every check even when one
+fails, as a task runs every step, so one failure hides no other's findings; it
+exits with the first failure's code, and nothing is remembered.
 
 `just checkable-tree` ignores only the files the checks write:
 `validation/**/*.results.json`, `validation/tests.json` and
@@ -146,9 +147,10 @@ them, and a comment or a CMake comment does not. `docs`, `types` and
 `docstrings` take the module's whole identity (the shared part and every group);
 `sql` takes the shared part and `core`'s. This is `Task.module` in
 `validation/_checks.py`. A check records no pass when the module's fingerprints
-moved while it ran. A tool from Homebrew, not `uv.lock` (clang-format,
-clang-tidy, include-what-you-use, and the SDK), counts by its version: an
-upgrade reruns all of the tasks that use it.
+moved while it ran. A check that cannot find a program it runs, or reads a
+corrupt output, names it with a `Fix:` line, not a traceback. A tool from
+Homebrew, not `uv.lock` (clang-format, clang-tidy, include-what-you-use, and the
+SDK), counts by its version: an upgrade reruns all of the tasks that use it.
 
 - **Per file** (`format`, `lint`, `links`, `docstrings`): a file is checked
   again unless a kept record passed it, with the same digest, under today's
@@ -199,7 +201,7 @@ bytes, but runs no test. `validate` is not covered, and the instant checks
 `sql: runs` can overreport: `just test-sql`'s own records for sqllogic decide
 afterwards whether its tests run. What the checks print on the way goes to
 standard error, so standard output holds only the verdicts. Like `just done`,
-it runs `just compiler-stamp` first.
+it runs `just compiler-stamp` first, as `just test` and `just full` do.
 
 **`just full <task>`** runs one task all through, whatever its records say,
 and records the pass. `just full validate` is `just validate-all`. `just
@@ -510,13 +512,15 @@ with `uv run --locked python -m validation._layering`.
   comment that adds or removes a line reruns its group.
 - **The shared part**: every compile entry outside the groups (DuckDB's,
   cpptrace's, nanobind's, the bindings', the extension's), the generated files
-  of the build directory, the submodules' pins, the build tables of
-  `pyproject.toml`, the compiler, the module's link line, and the closure of
-  the groups the bindings read. A change here reruns everything that uses the
-  module. sqlearn's version is cut to its release wherever it appears, so a
-  commit does not change it. When `-M` cannot list a source's headers, Ninja's
-  deps record is used; when neither can be read, or `compile_commands.json` is
-  missing, everything reruns, with a line saying why.
+  of the build directory, the submodules' pins (read from the checked-out
+  HEADs), the build tables of `pyproject.toml`, the compiler, the module's link
+  line (leaving out the group objects, which are in their own fingerprints), and
+  the closure of the groups the bindings read. A change here reruns everything
+  that uses the module. sqlearn's own version is cut to its release wherever it
+  appears, so a commit does not change it (a dependency's version is left
+  whole). When `-M` cannot list a source's headers, Ninja's deps record is used;
+  when neither can be read, or `compile_commands.json` is missing, everything
+  reruns, with a line saying why.
 
 A CMake comment reaches no fingerprint, because CMake files matter only
 through the compile entries, the link graph and the generated files they
@@ -576,15 +580,16 @@ claim is not too small; its first real run awaits Tomas's go-ahead.
 ### Benchmarks
 
 `validation/_bench.py` gives each benchmark (an `engine/bench/` program, and a
-page's script under `validation/benchmarks/`, none today: the old Python's
-are in `old_python/validation/benchmarks/`) an identity of its claimed
-groups, its own files and the shared part. `just benchmarks-due` lists the
-benchmarks whose identity has no recorded run, with the time, cores and peak
-memory of the last run, and runs nothing. `just bench <name>` runs one, after
-Tomas's go-ahead (ADR 0072), builds the release preset only for a `bench_`
-program, and records the identity, the numbers and the load; the page is
-written by hand. The pages `explore-correlations`, `explore-larger-than-memory`
-and `generators-on-many-threads` have no script, so nothing lists them.
+page's script under `validation/benchmarks/`, none today: the old Python's are
+in `old_python/validation/benchmarks/`) an identity of its claimed groups, its
+own files and the shared part. `just benchmarks-due` lists the benchmarks whose
+identity has no recorded run, with the time, cores and peak memory of the last
+run, and runs nothing. `just bench <name>` refuses a program older than its
+sources (with a `Fix:` line), and runs one after Tomas's go-ahead (ADR 0072),
+builds the release preset only for a `bench_` program, and records the identity,
+the numbers and the load; the page is written by hand. The pages
+`explore-correlations`, `explore-larger-than-memory` and
+`generators-on-many-threads` have no script, so nothing lists them.
 
 ## The validation runners
 
@@ -594,7 +599,8 @@ What the validation checks, its results, runners and data:
 `just validate` (`python -m validation`) reruns a runner only when a file it
 depends on changed since it last passed. Each runner runs in its own process,
 writes its `*.results.json` as before, and then saves a record: the SHA-256 of
-every module it imported from the repository (outside `.venv`) and of
+every module it imported from the repository (outside `.venv`, and leaving out
+the selection modules, `validation/_record.SELECTION`) and of
 `uv.lock`, with the environment (`environment.json`'s
 fields: library versions, Python, the OS and its release, the machine, BLAS) and
 the key `groups`: the fingerprints of the groups the runner claims, or of all
@@ -611,7 +617,8 @@ reruns every time, and it cancels any earlier pass of the same inputs.
 When the groups cannot be read (no build, or no manifest), every runner runs and
 none is recorded; a check run then records nothing either.
 `environment.json` is written when any runner ran. A runner records no pass if
-its groups' fingerprints moved while it ran. The code is
+its groups' fingerprints moved while it ran: `main` takes the fingerprints once
+after its runners and forgets the passes of a moved group. The code is
 `validation/_record.py`. A change to a comment or to anything the module is not
 built from (a C++ test, a fuzz input, a benchmark, `engine/sqllogic/`,
 `mull.yml`, a tool's settings, the presets, a CMake comment) keeps every record.

@@ -35,16 +35,16 @@ pre-commit hook's secret check.
 
 `uv sync` builds the package from source: DuckDB, its Python module and
 sqlearn's C++ in one binary, from the submodules under `engine/`. The first
-build took 3 min 36 s here (2026-11-23), and `just setup` on a fresh clone
-about 10 minutes with the submodules' fetch. ccache keeps the compiled objects
-(`engine/cmake/ccache.cmake`). `uv run` builds the module again when a commit
-or a file of the engine changes (`[tool.uv] cache-keys` in `pyproject.toml`);
-after a commit that took about 24 s. A compiler update rebuilds it too: `just
-setup`, `just done` and `just verify` first run `just compiler-stamp`, which
-writes the compiler's and the SDK's versions to `engine/.compiler-stamp`
-(git-ignored, one of the cache keys) when they changed, and only then, since uv
-keys a file on its modification time. A build without the submodules fails at
-configure with the line that fixes it.
+build took 3 min 36 s here (2026-11-23), and `just setup` on a fresh clone about
+10 minutes with the submodules' fetch. ccache keeps the compiled objects
+(`engine/cmake/ccache.cmake`). `uv run` builds the module again when a commit or
+a file of the engine changes (`[tool.uv] cache-keys` in `pyproject.toml`); after
+a commit that took about 24 s. A compiler update rebuilds it too: `just setup`,
+`just test`, `just full`, `just done` and `just verify` first run
+`just compiler-stamp`, which writes the compiler's and the SDK's versions to
+`engine/.compiler-stamp` (git-ignored, one of the cache keys) when they changed,
+and only then, since uv keys a file on its modification time. A build without
+the submodules fails at configure with the line that fixes it.
 
 `libomp` is for LightGBM, a dev dependency whose macOS wheel needs the
 system's OpenMP library; uv cannot provide it. uv is the only package tool

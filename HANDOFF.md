@@ -3,17 +3,33 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-28 · Branch: `main` (pushed, level with `origin/main`) ·
-Last commit: `docs: reflow the sweep paragraph in testing` (`6fdd51d`) ·
-Checks: passing (`just done`); last `just sweep` passed 2026-11-28
+Updated: 2026-11-28 · Branch: `claude/tooling-fixes` (not pushed; level with
+`main` plus the plan and the fixes) · Last commit: `docs: close the tooling
+fixes` · Checks: `just done` as reported in the commit's session, see
+`git log -1`
 Verify with: `just done` (`just verify` is the release tier)
 
 ## In progress
 
-None. [verified]
+The small tooling fixes, plan `docs/plans/2026-11-28-tooling-fixes.md`, on
+`claude/tooling-fixes`: Tasks 1 to 3 and 5 to 12 done and reviewed, Task 4
+blocked (below). [verified]
 
 ## Waiting on the user
 
+- Task 4 (no build isolation for sqlearn, so the 24 s rebuild after a commit
+  goes): blocked, nothing committed. Without isolation `uv lock` fails:
+  sqlearn's version is dynamic, so resolving needs its metadata built before
+  uv's two-phase install, with no scikit_build_core in the environment.
+  Baseline counted: 56 misses and 11 hits of 67 objects after a cache-key
+  touch. Choose: `[tool.uv.extra-build-dependencies]`,
+  `[tool.uv.dependency-metadata]`, or leave the rebuild.
+- The plan's "Decisions for Tomas" table (13 #85 items, each with a
+  recommendation): none is built until you answer; a yes adds a task. See the
+  plan's section of that name.
+- Merging `claude/tooling-fixes` into `main`, and the comments on #85 (what
+  Tasks 9 to 12 fixed, the decisions, the items left with their reasons) and
+  #86 (close it; its item 13 waits for the first runner).
 - The audit's first real run, `just audit-groups` (builds a second,
   coverage-instrumented wheel with DuckDB): awaits your go-ahead. Nothing
   claims Python tests or runners since ADR 0073, so it is due before the
@@ -27,12 +43,9 @@ None. [verified]
 
 - **The preparation before the rewrite, in this order** (Tomas, 2026-11-28:
   he prepares everything before starting, for a clear path):
-  1. **Next: the small tooling fixes**, each an item below: the SQL tests'
-     data files (`engine/sqllogic/CMakeLists.txt`), the 24 s rebuild (uv's
-     build isolation), `just done`'s order (`place` before
-     `check-lockfile`), `just test` and `just full` without
-     `compiler-stamp`, then #85 and #86. Small enough for one plan
-     (superpowers:writing-plans), shown to Tomas before it starts.
+  1. **The small tooling fixes** are built on `claude/tooling-fixes`; what
+     remains is Task 4 and the plan's decisions (both above, waiting on
+     you), then the merge.
   2. A benchmark and profiling queue: profiling joins `just benchmarks-due`,
      and one command runs the whole queue on Tomas's go-ahead, when the
      machine is idle (ADR 0072 unchanged: nothing runs by itself).
@@ -46,8 +59,8 @@ None. [verified]
   `.claude/settings.json`: `"enabledPlugins":
   {"pyright-lsp@claude-plugins-official": false}`; ty and mypy are this
   project's type checkers (Tomas, 2026-11-27).
-- #86 and #85: the "can wait" follow-ups of selecting by group and of Phase
-  1 step 2's reviews, grouped by kind.
+- #86's item 13 (a runner's claims match a module's last name part) waits for
+  the first runner, beside `validate` joining `affected` and `sweep`.
 - Phase 1 step 3: the release tier's workflows, started by hand, and the
   site's deploy (spec §3.5, §3.6; #4, #6); its plan first, with
   superpowers:writing-plans. Then step 4, the review and the measurements
@@ -60,8 +73,7 @@ None. [verified]
   0063), with an ADR replacing 0057; Eigen stays out (MPL-2.0, ADR 0066).
 - The engine's rebuild costs about 24 s after any commit: uv's isolated
   build has a new random path each time, so nanobind and every duckdb-python
-  binding object miss ccache. Fix: no build isolation for sqlearn
-  (`no-build-isolation-package`), or ccache path settings.
+  binding object miss ccache. Task 4's choice (above) decides it.
 - The published validation pages (ADR 0016) are still to be built;
   `docs/validation/index.md` is a placeholder.
 - Windows needs its own crash handler (no POSIX signals; the current one
@@ -190,6 +202,21 @@ None. [verified]
 
 ## Just finished
 
+- The small tooling fixes (2026-11-28, branch `claude/tooling-fixes`,
+  `ce3d768..1ce87c9`, plan `docs/plans/2026-11-28-tooling-fixes.md`): the
+  SQL label hashes every file under `engine/extension/test` (`e71fb01`,
+  `9d0a394`); `just test` and `just full` write the compiler stamp
+  (`6882a40`); `just done` checks the lockfile first (`a76612e`); group
+  objects stay out of the link line's fingerprint (`01829d4`); the selection
+  modules stay out of a runner's identity and `main` fingerprints once after
+  its runners (`6b4f91f`); the group checks name what they could not read,
+  and the manifest escapes quotes (`c7d6369`); group fingerprints hash what
+  the build reads, pins come from the checked-out HEADs, the version cut is
+  sqlearn's own, `_bench run` refuses a stale program (`d52ebfe`,
+  `8a74800`); missing programs and corrupt outputs give `Fix:` lines
+  (`1cbe000`); link options only on targets that link (`f7fe1b2`); setup
+  fetches only the submodules the build uses (`95bcb54`); a C++ exception is
+  named by its demangled type (`1ce87c9`). Task 4 is not done.
 - The selection, strengthened (2026-11-28, ADR 0080): the groups' test
   programs link static libraries, so a `core` edit no longer reruns
   `test_raw` and `test_crash` (`2ea9fcb`, `4a6ef34`); a check that each
