@@ -126,9 +126,13 @@ else()
   # symbol (all of ours: they are hidden) and the debug map, so the map is
   # what names a crash report's frames and tells sqlearn's from DuckDB's
   # (just crash-report, validation/_crash_report.py). Beside the build, never
-  # in the wheel. Linux's linkers write another format: step 3.
+  # in the wheel; the release workflow attaches it to the release. ld64 takes
+  # -map, GNU ld (manylinux's GCC links with it) -Map=, in its own format,
+  # which the reader takes too.
   if(APPLE)
     target_link_options(_duckdb PRIVATE "LINKER:-map,${CMAKE_BINARY_DIR}/_duckdb.map")
+  elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    target_link_options(_duckdb PRIVATE "LINKER:-Map=${CMAKE_BINARY_DIR}/_duckdb.map")
   endif()
 
   # Their headers are system headers to our targets, so our warnings (as

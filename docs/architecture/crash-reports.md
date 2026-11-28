@@ -75,8 +75,19 @@ _platform_strlen (system), and no frame below the crash handler is theirs.
 ```
 
 It needs the build that wrote the report: the report's build line must be
-the installed sqlearn's, or it refuses, naming the build to check out.
-macOS only for now; Linux comes at Phase 1 step 3.
+the installed sqlearn's, or it refuses, naming the build to check out. A
+user's report is read with the map of the release that wrote it instead:
+each release attaches `sqlearn-<version>-<platform>.map` and its build line,
+`sqlearn-<version>-<platform>.map.build`, beside the wheels. Download both
+into one folder, then
+
+```sh
+just crash-report ~/sqlearn-crash-20261128-101500-4242.txt --map ~/sqlearn-1.0.0-macosx_15_0_arm64.map
+```
+
+The reader checks the report's build line against the `.build` file and
+refuses a map of another build, which would name the frames wrongly. It
+reads reports on macOS and on Linux.
 
 **Where the names come from.** The module is linked with nanobind's `-x -S`,
 which drops every local symbol, so none of sqlearn's functions (hidden by
@@ -86,14 +97,15 @@ symbol before it. The link writes a map of the module beside the build
 and the object file it came from. The reader names the module's frames from
 it, and takes their owner from that object: sqlearn's groups and extension,
 DuckDB's library, extensions and Python module, nanobind, cpptrace. Other
-images are named by `atos`, and owned by Python (its library, program or
-extension modules) or the system. A library of the system's shared cache is
+images are named by `atos` on macOS and `addr2line` on Linux, and owned by
+Python (its library, program or extension modules) or the system. ld64 writes
+the map on macOS and GNU ld (manylinux's GCC) on Linux, each in its own
+format; the reader takes both. A library of the system's shared cache is
 named through the reader's own process (`atos -p`), where it sits at the
 same address until the next boot: its file on disk is not the copy that
 ran, and `atos -o` on it gives wrong names. After a reboot those frames may
 go unnamed. The map gives no file and line; a separate debug-symbols file
-(`.dSYM`) would, if that is wanted later. Each release keeps its map, so a
-user's report can be read (Phase 1 step 3).
+(`.dSYM`) would, if that is wanted later.
 
 **Whose bug it is.** The reader skips the crash handler's own frames
 (`sq::crash`, cpptrace, `_sigtramp`) and takes the nearest frame to the

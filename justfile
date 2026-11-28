@@ -527,10 +527,10 @@ check-stubs:
 api-snapshot:
     uv run --locked python tests/public_api.py
 
-# Read a crash report (~/Library/Logs/sqlearn/sqlearn-crash-*.txt): each frame named, from the module's linker map for sqlearn's and DuckDB's and atos for the rest, with whose code it is, and which code most likely crashed (validation/_crash_report.py; macOS, with the build that wrote it)
+# Read a crash report (~/Library/Logs/sqlearn/ on macOS, ~/.local/state/sqlearn/ on Linux): each frame named, from the module's linker map for sqlearn's and DuckDB's and atos (macOS) or addr2line (Linux) for the rest, with whose code it is, and which code most likely crashed (validation/_crash_report.py); with the build that wrote it, or --map <the release's map> (its .build file beside it)
 [group('maintain')]
-crash-report file:
-    uv run --locked python -m validation._crash_report {{ file }}
+crash-report file *flags:
+    uv run --locked python -m validation._crash_report {{ file }} {{ flags }}
 
 # Upgrade the locked dependencies, then verify
 [group('maintain')]

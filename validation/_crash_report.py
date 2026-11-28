@@ -10,9 +10,15 @@ keeps none of sqlearn's (hidden) names in the binary, so ``atos`` alone would
 name a sqlearn frame after the DuckDB symbol before it. The map lists every
 symbol with the object it came from, so a frame's owner is read from that
 object: sqlearn's groups and extension, DuckDB's library and extensions,
-nanobind, cpptrace. Frames of other images are named by ``atos`` and owned by
-Python (its library or program) or the system. macOS only: Linux's map and
-``addr2line`` come at step 3.
+nanobind, cpptrace. ld64's map on macOS, GNU ld's on Linux; both read into
+one ``Map``. Frames of other images are named by ``atos`` on macOS and
+``addr2line`` on Linux, and owned by Python (its library or program) or the
+system.
+
+A user's report is read with the map of the release that wrote it
+(``--map``, a release asset), checked against the build line in the file
+beside it (``<map>.build``); without ``--map``, the build directory's map,
+checked against the sqlearn installed here.
 """
 
 from __future__ import annotations
@@ -99,6 +105,22 @@ SYMBOL = re.compile(r"^0x([0-9A-Fa-f]+)\t0x([0-9A-Fa-f]+)\t\[ *(\d+)\] (.+)$")
 NOT_CODE = ("FDE for:", "CIE", "literal string:", "ltmp")
 """Map entries that name no function: unwind entries, strings, labels."""
 
+GNU_START = "Linker script and memory map"
+"""The line after which GNU ld's map lists the sections; its absence means
+ld64's."""
+
+GNU_SECTION = re.compile(r"^ (\S+)\s+0x([0-9a-fA-F]+)\s+0x([0-9a-fA-F]+)\s+(\S.*)$")
+"""GNU ld's input section on one line: name, address, size, object file."""
+
+GNU_SECTION_NAME = re.compile(r"^ (\.\S+)$")
+"""A long input section's name, alone: its address, size and object follow."""
+
+GNU_SECTION_REST = re.compile(r"^\s+0x([0-9a-fA-F]+)\s+0x([0-9a-fA-F]+)\s+(\S.*)$")
+"""The rest of a long input section's line: address, size, object file."""
+
+GNU_SYMBOL = re.compile(r"^\s+0x([0-9a-fA-F]+)\s+(\S+)$")
+"""A symbol of the input section above it: address, name."""
+
 HANDLER = ("sq::crash::", "cpptrace::", "_sigtramp")
 """The crash handler's own frames, and the system's signal trampoline that
 calls it: on every report's stack, never the crash."""
@@ -152,10 +174,74 @@ def parse(text: str) -> Report:
     )
 
 
+def _gnu_symbols(text: str) -> list[Symbol]:
+    """The code symbols of GNU ld's map `text`.
+
+    A symbol runs to the next one in its input section, the last to the
+    section's end; several names at one address (a constructor's aliases)
+    are one symbol, the first named. Only ``.text`` input sections hold
+    code; the discarded ones come before `GNU_START` and are not read.
+    """
+    symbols: list[Symbol] = []
+    section: tuple[str, int, int, str] | None = None
+    names: list[tuple[int, str]] = []
+    pending = ""
+
+    def flush() -> None:
+        if section is not None and section[0].startswith(".text"):
+            _, start, size, source = section
+            starts = sorted({a for a, _ in names})
+            first = {}
+            for address, name in names:
+                first.setdefault(address, name)
+            for i, address in enumerate(starts):
+                end = starts[i + 1] if i + 1 < len(starts) else start + size
+                if end > address:
+                    symbols.append(
+                        Symbol(address, end - address, first[address], source)
+                    )
+        names.clear()
+
+    for line in text.split(GNU_START, 1)[-1].splitlines():
+        if found := GNU_SYMBOL.match(line):
+            if section is not None:
+                names.append((int(found.group(1), 16), found.group(2)))
+            continue
+        if found := GNU_SECTION_REST.match(line):
+            if pending:
+                flush()
+                section = (
+                    pending,
+                    int(found.group(1), 16),
+                    int(found.group(2), 16),
+                    found.group(3),
+                )
+                pending = ""
+            continue
+        flush()
+        section = None
+        if found := GNU_SECTION.match(line):
+            name, address, size, source = found.groups()
+            section = (name, int(address, 16), int(size, 16), source)
+        elif found := GNU_SECTION_NAME.match(line):
+            pending = found.group(1)
+    flush()
+    return symbols
+
+
 class Map:
-    """The linker's map of the module: its code symbols, by address."""
+    """The linker's map of the module: its code symbols, by address.
+
+    Parameters
+    ----------
+    text : str
+        The map, as ld64 (macOS) or GNU ld (Linux) wrote it.
+    """
 
     def __init__(self, text: str) -> None:
+        if GNU_START in text:
+            self._index(_gnu_symbols(text))
+            return
         objects: dict[int, str] = {}
         symbols: list[Symbol] = []
         part = ""
@@ -179,6 +265,10 @@ class Map:
                     continue
                 source = objects.get(int(found.group(3)), "")
                 symbols.append(Symbol(start, size, found.group(4), source))
+        self._index(symbols)
+
+    def _index(self, symbols: list[Symbol]) -> None:
+        """Keep `symbols` sorted by address, for `symbol_at`."""
         symbols.sort(key=lambda s: s.start)
         self.symbols = symbols
         self._starts = [s.start for s in symbols]
@@ -367,6 +457,31 @@ def _atos(image: str, load: int, addresses: list[int]) -> list[str]:
     return (names + [""] * len(addresses))[: len(addresses)]
 
 
+def _addr2line(image: str, load: int, addresses: list[int]) -> list[str]:
+    """Name `addresses` of `image` with addr2line; an empty name when it cannot.
+
+    addr2line reads the image's file and takes each address as its offset
+    from the load address; it answers two lines per address, the function
+    (``??`` when it knows none) and its file and line.
+    """
+    command = ["addr2line", "-f", "-C", "-e", image]
+    command += [hex(a - load) for a in addresses]
+    try:
+        out = subprocess.run(command, capture_output=True, text=True, check=True).stdout
+    except (OSError, subprocess.CalledProcessError):
+        return ["" for _ in addresses]
+    lines = out.splitlines()[::2]
+    names = ["" if line.strip() == "??" else line.strip() for line in lines]
+    return (names + [""] * len(addresses))[: len(addresses)]
+
+
+def _symbolise(image: str, load: int, addresses: list[int]) -> list[str]:
+    """Name `addresses` of an image other than the module, as this system can."""
+    if sys.platform == "darwin":
+        return _atos(image, load, addresses)
+    return _addr2line(image, load, addresses)
+
+
 def name_frames(report: Report, symbols: Map) -> list[Named]:
     """Name each of `report`'s frames and say whose code it is.
 
@@ -400,7 +515,7 @@ def name_frames(report: Report, symbols: Map) -> list[Named]:
     for i, (owner, name) in found.items():
         out[i] = Named(report.frames[i].label, owner, plain.get(name, name))
     for (image, load), indices in others.items():
-        names = _atos(image, load, [report.frames[i].address for i in indices])
+        names = _symbolise(image, load, [report.frames[i].address for i in indices])
         for i, name in zip(indices, names, strict=True):
             out[i] = Named(report.frames[i].label, owner_of_image(image), name)
     return [
@@ -427,31 +542,32 @@ def main(argv: list[str]) -> int:
     Parameters
     ----------
     argv : list of str
-        The report's path.
+        The report's path, then optionally ``--map`` and a release's map.
 
     Returns
     -------
     int
         0 when it was read, 1 when it could not be (with a ``Fix:`` line).
     """
+    given: Path | None = None
+    if len(argv) == 3 and argv[1] == "--map":
+        given, argv = Path(argv[2]), argv[:1]
     if len(argv) != 1:
-        print("Fix: just crash-report <the report's path>")  # noqa: T201
-        return 1
-    if sys.platform != "darwin":
         print(  # noqa: T201
-            "Reading a report needs macOS's atos and its linker's map; Linux's "
-            "come at Phase 1 step 3.\nFix: read it on macOS, or symbolise each "
-            "address with the addr2line line the report gives"
+            "Fix: just crash-report <the report's path> [--map <the release's map>]"
         )
         return 1
     report = parse(Path(argv[0]).read_text(encoding="utf-8", errors="replace"))
+    if given is not None:
+        return _read_with(report, given)
     here = _installed_build()
     if report.build != here:
         print(  # noqa: T201
             f"The report was written by the build\n  {report.build}\nand this "
             f"one is\n  {here}\nso its addresses name nothing here.\nFix: "
             "check out the commit the report's build names, then uv sync "
-            "--locked, and read it there"
+            "--locked, and read it there; or pass --map with the map of the "
+            "release that wrote it"
         )
         return 1
     map_path = _the_map(Path(__file__).resolve().parents[1])
@@ -462,6 +578,34 @@ def main(argv: list[str]) -> int:
             "--reinstall-package sqlearn, whose link writes it"
         )
         return 1
+    return _show(report, map_path)
+
+
+def _read_with(report: Report, map_path: Path) -> int:
+    """Read `report` with a release's map, if the map is of its build."""
+    beside = map_path.with_name(f"{map_path.name}.build")
+    if not beside.is_file():
+        print(  # noqa: T201
+            f"The map {map_path} has no build line beside it ({beside.name}), "
+            "so whether it is the report's build cannot be checked.\nFix: "
+            f"download {beside.name} from the release the map came from, into "
+            "the map's folder"
+        )
+        return 1
+    built = beside.read_text(encoding="utf-8").strip()
+    if report.build != built:
+        print(  # noqa: T201
+            f"The report was written by the build\n  {report.build}\nand the "
+            f"map is of\n  {built}\nso it would name the frames wrongly.\n"
+            "Fix: pass --map with the map of the release whose build the "
+            "report names"
+        )
+        return 1
+    return _show(report, map_path)
+
+
+def _show(report: Report, map_path: Path) -> int:
+    """Print `report`'s frames named with the map at `map_path`, then the verdict."""
     frames = name_frames(
         report, Map(map_path.read_text(encoding="utf-8", errors="replace"))
     )

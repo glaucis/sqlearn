@@ -242,3 +242,144 @@ def test_no_map_names_the_rebuild_that_writes_it(tmp_path, capsys, monkeypatch):
     out = capsys.readouterr().out
     assert cr.MAP_NAME in out
     assert "Fix: uv sync --reinstall-package sqlearn" in out
+
+
+# The same two symbols as MAP, at the same addresses, as GNU ld (bfd) writes
+# its -Map: a .text input section per function (-ffunction-sections), its
+# object, then the symbols in it; one object's section holds two functions.
+GNU_MAP = """Archive member included to satisfy reference by file (symbol)
+
+Discarded input sections
+
+ .text          0x0000000000000000        0x0 CMakeFiles/sq_core.dir/src/core/gone.cpp.o
+
+Memory Configuration
+
+Name             Origin             Length             Attributes
+*default*        0x0000000000000000 0xffffffffffffffff
+
+Linker script and memory map
+
+.text           0x0000000000000f60     0x1000
+ *(.text.unlikely .text.*_unlikely .text.unlikely.*)
+ .text._ZN2sq4core8describeERKNS0_13BuildIdentityE
+                0x0000000000000f60       0x40 CMakeFiles/sq_core.dir/src/core/version.cpp.o
+                0x0000000000000f60                _ZN2sq4core8describeERKNS0_13BuildIdentityE
+ .text          0x0000000000000fa0       0x20 duckdb-python/duckdb/src/libduckdb_static.a(ub_duckdb_main.cpp.o)
+                0x0000000000000fa0                _ZN6duckdb13ClientContext4LockEv
+ *fill*         0x0000000000000fc0       0x40
+ .text          0x0000000000001000       0x30 duckdb-python/libnanobind-static-abi3.a(common.cpp.o)
+                0x0000000000001000                _ZN8nanobind6detail1aEv
+                0x0000000000001010                _ZN8nanobind6detail1bEv
+
+.rodata         0x0000000000002000       0x10
+ .rodata        0x0000000000002000       0x10 CMakeFiles/sq_core.dir/src/core/version.cpp.o
+                0x0000000000002000                _ZN2sq4core4nameE
+"""  # noqa: E501 (the map's own columns)
+
+
+def _held(symbols: cr.Map) -> list[tuple[int, int, str]]:
+    """Each code symbol's start, size and owner."""
+    return [(s.start, s.size, cr.owner_of_object(s.source)) for s in symbols.symbols]
+
+
+def test_a_gnu_map_names_the_same_frames_as_an_ld64_map():
+    """GNU ld's map gives the code symbols ld64's gives, by address, size and
+    owner; a symbol runs to the next one in its section, the last to the
+    section's end; data sections and discarded ones hold no code."""
+    gnu = cr.Map(GNU_MAP)
+    assert _held(gnu)[:2] == _held(cr.Map(MAP))
+    assert _held(gnu) == [
+        (0xF60, 0x40, "sqlearn"),
+        (0xFA0, 0x20, "DuckDB"),
+        (0x1000, 0x10, "nanobind"),
+        (0x1010, 0x20, "nanobind"),
+    ]
+    assert gnu.symbol_at(0x2000) is None
+
+
+def _release_map(tmp_path: Path, build: str) -> Path:
+    """A downloaded release map and its build line beside it."""
+    path = tmp_path / "sqlearn-0.1-macosx_15_0_arm64.map"
+    path.write_text(MAP)
+    (tmp_path / f"{path.name}.build").write_text(f"{build}\n")
+    return path
+
+
+def test_a_release_map_reads_a_report_of_its_build(tmp_path, capsys):
+    """With --map, the map's build line, not the installed sqlearn's, must
+    be the report's: a user's crash is read with the release's map."""
+    report = tmp_path / "report.txt"
+    report.write_text(REPORT)
+    path = _release_map(tmp_path, BUILD)
+    assert cr.main([str(report), "--map", str(path)]) == 0
+    assert capsys.readouterr().out.startswith(f"SIGSEGV, {BUILD}\n")
+
+
+def test_a_report_from_another_build_than_the_map_is_refused(tmp_path, capsys):
+    """A map of another build names frames wrongly without failing: refused,
+    naming both builds and --map."""
+    report = tmp_path / "report.txt"
+    report.write_text(REPORT)
+    path = _release_map(tmp_path, "sqlearn 0.2, DuckDB 2.0.1 (8d78114e90)")
+    assert cr.main([str(report), "--map", str(path)]) == 1
+    out = capsys.readouterr().out
+    assert BUILD in out
+    assert "sqlearn 0.2, DuckDB 2.0.1 (8d78114e90)" in out
+    assert "Fix:" in out
+    assert "--map" in out
+
+
+def test_a_map_without_its_build_line_is_refused(tmp_path, capsys):
+    """A map with no .build file beside it cannot be checked: refused."""
+    report = tmp_path / "report.txt"
+    report.write_text(REPORT)
+    path = _release_map(tmp_path, BUILD)
+    (tmp_path / f"{path.name}.build").unlink()
+    assert cr.main([str(report), "--map", str(path)]) == 1
+    out = capsys.readouterr().out
+    assert f"{path.name}.build" in out
+    assert "Fix:" in out
+
+
+def test_linux_frames_outside_the_module_go_to_addr2line(monkeypatch):
+    """On Linux an image other than the module is named by addr2line, with
+    each address as its offset from the image's load address, one call per
+    image; its "??" is no name."""
+    calls: list[list[str]] = []
+
+    def run(command, **kwargs):
+        calls.append(command)
+        out = "strlen\n??:0\n??\n??:0\n" if command[0] == "addr2line" else ""
+        return subprocess.CompletedProcess(command, 0, stdout=out, stderr="")
+
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setattr(cr.subprocess, "run", run)
+    report = cr.Report(
+        "SIGSEGV",
+        BUILD,
+        (
+            cr.Frame(
+                "pc", 0x7F0000001234, "/lib/x86_64-linux-gnu/libc.so.6", 0x7F0000000000
+            ),
+            cr.Frame(
+                "#0", 0x7F0000005678, "/lib/x86_64-linux-gnu/libc.so.6", 0x7F0000000000
+            ),
+        ),
+    )
+    frames = cr.name_frames(report, cr.Map(GNU_MAP))
+    assert calls == [
+        [
+            "addr2line",
+            "-f",
+            "-C",
+            "-e",
+            "/lib/x86_64-linux-gnu/libc.so.6",
+            "0x1234",
+            "0x5678",
+        ]
+    ]
+    assert frames == [
+        cr.Named("pc", "system", "strlen"),
+        cr.Named("#0", "system", ""),
+    ]
