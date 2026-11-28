@@ -222,14 +222,13 @@ with no `test: ...` verdict, `test` counts as running. When only checks the
 verdicts said would run fail, the sweep exits with the first one's code and
 names no missed rerun. Like `just done`, it runs `just compiler-stamp` first.
 A pass is saved as `sweep.json` (`{"tree": ..., "date": ...}`, written to a
-temporary file and moved into place) in `sqlearn-checks/`; the tree, read
-before the
-checks run, is `just checkable-tree`'s, or HEAD's when the tree is uncommitted,
-which the sweep says. Its cadence is `CADENCE_DAYS`, 7 days (Tomas, 2026-11-28):
-when the last sweep is older, or none passed, `just done` prints first, before
-anything else, the shortcut of an already passed tree included,
-`just sweep-stale`'s warning, ending `Fix: run just sweep`. The warning changes
-neither what runs nor the exit code.
+temporary file and moved into place) in `sqlearn-checks/`. Its tree is read
+before the checks run: `just checkable-tree`'s, or HEAD's when the tree is
+uncommitted, which the sweep says. Its cadence is `CADENCE_DAYS`, 7 days
+(Tomas, 2026-11-28). When the last sweep is older, or none passed, `just done`
+prints `just sweep-stale`'s warning, ending `Fix: run just sweep`, before
+anything else, even before the shortcut of an already passed tree. The warning
+changes neither what runs nor the exit code.
 
 **`validate`** is not in the table of `validation/_checks.py`: it keeps a
 record for each runner (the validation runners, below).
