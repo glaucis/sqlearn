@@ -728,6 +728,12 @@
     },
     {
       "area": "engine/presets",
+      "name": "tests/engine/test_presets.py::test_link_options_go_only_on_targets_that_link",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "engine/presets",
       "name": "tests/engine/test_presets.py::test_no_preset_sets_fast_math",
       "outcome": "passed",
       "tier": "fast"

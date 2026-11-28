@@ -51,19 +51,70 @@ def test_every_preset_builds_in_its_own_directory() -> None:
         assert binary_dir == "${sourceDir}/build/${presetName}", name
 
 
+def _our_cmake_files() -> list[Path]:
+    """Every CMake file of ours under engine/: git lists only the files this
+    repository tracks, so no submodule's (DuckDB, nanobind, the test libraries)
+    is among them."""
+    listed = subprocess.run(
+        ["git", "ls-files", "-z", "--", "engine"],
+        cwd=REPO,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.split("\0")
+    return sorted(
+        REPO / name
+        for name in listed
+        if name and name.endswith((".cmake", "CMakeLists.txt"))
+    )
+
+
+def _code(text: str) -> str:
+    """Return `text` without its # comments."""
+    return "\n".join(line.split("#", 1)[0] for line in text.splitlines())
+
+
+def _wheel_defines() -> str:
+    """Return pyproject.toml's [tool.scikit-build.cmake.define] table, as text."""
+    text = (REPO / "pyproject.toml").read_text()
+    start = text.index("[tool.scikit-build.cmake.define]")
+    end = text.find("\n[", start + 1)
+    return text[start : end if end != -1 else len(text)]
+
+
 def test_no_preset_sets_fast_math() -> None:
-    """No preset or flag file has a flag that changes floating-point results."""
-    texts = [PRESETS.read_text()]
-    texts += [p.read_text() for p in sorted((ENGINE / "cmake").glob("*.cmake"))]
-    texts.append((ENGINE / "CMakeLists.txt").read_text())
+    """No preset, no CMake file of ours and no define of the wheel's build has a
+    flag that changes floating-point results."""
+    files = _our_cmake_files()
+    assert ENGINE / "extension" / "CMakeLists.txt" in files
+    assert ENGINE / "extension" / "sqlearn_config.cmake" in files
+    assert ENGINE / "tests" / "CMakeLists.txt" in files
+    texts = [PRESETS.read_text(), _wheel_defines()]
+    texts += [p.read_text() for p in files]
     for text in texts:
-        code = "\n".join(line.split("#", 1)[0] for line in text.splitlines())
-        assert not FAST_MATH.search(code)
+        assert not FAST_MATH.search(_code(text))
 
 
 def test_our_sources_never_contract_to_fma() -> None:
-    """Our sources compile with FMA contraction off (spec §3.9)."""
-    assert "-ffp-contract=off" in (ENGINE / "cmake" / "warnings.cmake").read_text()
+    """Our sources compile with FMA contraction off (spec §3.9): warnings.cmake
+    sets it in code, not in a comment, and gives it to every target."""
+    code = _code((ENGINE / "cmake" / "warnings.cmake").read_text())
+    assert re.search(r"set\(\s*SQ_FP_OPTIONS\s+-ffp-contract=off\s*\)", code)
+    function = code[code.index("function(sq_target_warnings") :]
+    assert "${SQ_FP_OPTIONS}" in function.split("endfunction()")[0]
+
+
+def _sq_warnings() -> list[str]:
+    """Return the flags of SQ_WARNINGS in warnings.cmake, the Clang additions
+    too."""
+    code = _code((ENGINE / "cmake" / "warnings.cmake").read_text())
+    flags = re.search(r"set\(\s*SQ_WARNINGS\s+(.*?)\)", code, re.S)
+    assert flags
+    found: list[str] = flags.group(1).split()
+    for added in re.findall(r"list\(APPEND SQ_WARNINGS ([^)]*)\)", code):
+        found += added.split()
+    assert "-Wconversion" in found and "-Werror" in found
+    return found
 
 
 def test_the_wheel_compiles_our_sources_with_the_strict_flags() -> None:
@@ -90,9 +141,10 @@ def test_the_wheel_compiles_our_sources_with_the_strict_flags() -> None:
         "sqlearn_extension.cpp",
     } <= files
     raw = str(ENGINE / "src" / "raw")
+    warnings = _sq_warnings()
     for command in ours:
         flags = command["command"].split()
-        for flag in ("-Wconversion", "-Werror", "-ffp-contract=off"):
+        for flag in (*warnings, "-ffp-contract=off"):
             assert flag in flags, (command["file"], flag)
         in_raw = command["file"].startswith(raw)
         assert ("-Wunsafe-buffer-usage" in flags) != in_raw, command["file"]
@@ -238,3 +290,53 @@ def test_clangd_reads_the_llvm_dev_compile_database() -> None:
     found = re.search(r"^\s*CompilationDatabase:\s*(\S+)\s*$", text, re.MULTILINE)
     assert found is not None
     assert found.group(1) == "engine/build/llvm-dev"
+
+
+def test_link_options_go_only_on_targets_that_link(tmp_path: Path) -> None:
+    """sq_target_flavor gives link options to a program, a shared library and a
+    module, and to no static or object library: a PRIVATE link option does
+    nothing on those (the guard is by type, so an interface library gets none)."""
+    cmake = shutil.which("cmake")
+    if cmake is None:
+        pytest.skip("no cmake here")
+    (tmp_path / "CMakeLists.txt").write_text(
+        f"""cmake_minimum_required(VERSION 3.25)
+project(probe CXX)
+set(SQ_FLAVOR dev CACHE STRING "")
+include({(ENGINE / "cmake" / "hardening.cmake").as_posix()})
+file(WRITE ${{CMAKE_BINARY_DIR}}/main.cpp "int main() {{ return 0; }}")
+file(WRITE ${{CMAKE_BINARY_DIR}}/lib.cpp "int f() {{ return 0; }}")
+add_executable(t_exe ${{CMAKE_BINARY_DIR}}/main.cpp)
+add_library(t_shared SHARED ${{CMAKE_BINARY_DIR}}/lib.cpp)
+add_library(t_module MODULE ${{CMAKE_BINARY_DIR}}/lib.cpp)
+add_library(t_static STATIC ${{CMAKE_BINARY_DIR}}/lib.cpp)
+add_library(t_object OBJECT ${{CMAKE_BINARY_DIR}}/lib.cpp)
+foreach(t t_exe t_shared t_module t_static t_object)
+  sq_target_flavor(${{t}})
+  get_target_property(opts ${{t}} LINK_OPTIONS)
+  get_target_property(iopts ${{t}} INTERFACE_LINK_OPTIONS)
+  message(STATUS "PROBE ${{t}} link=[${{opts}}] interface=[${{iopts}}]")
+endforeach()
+"""
+    )
+    done = subprocess.run(
+        [cmake, "-S", str(tmp_path), "-B", str(tmp_path / "b")],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert done.returncode == 0, done.stderr
+    probes = dict(
+        re.findall(r"PROBE (\w+) (link=\[.*?\] interface=\[.*?\])", done.stdout)
+    )
+    assert set(probes) == {
+        "t_exe",
+        "t_shared",
+        "t_module",
+        "t_static",
+        "t_object",
+    }
+    for linked in ("t_exe", "t_shared", "t_module"):
+        assert "-fsanitize=address" in probes[linked], probes[linked]
+    for unlinked in ("t_static", "t_object"):
+        assert "-fsanitize" not in probes[unlinked], probes[unlinked]

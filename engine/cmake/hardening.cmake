@@ -224,7 +224,13 @@ endfunction()
 function(sq_target_flavor target)
   target_compile_options(${target} PRIVATE ${SQ_FLAVOR_OPTIONS} ${SQ_SANITIZERS})
   target_compile_definitions(${target} PRIVATE ${SQ_HARDENING})
-  target_link_options(${target} PRIVATE ${SQ_SANITIZERS} ${SQ_FLAVOR_LINK_OPTIONS})
+  # Link options mean something only to a target that links: a program, a
+  # shared library or a module. A static or object library is archived, not
+  # linked, and an interface library has no sources.
+  get_target_property(type ${target} TYPE)
+  if(type MATCHES "^(EXECUTABLE|SHARED_LIBRARY|MODULE_LIBRARY)$")
+    target_link_options(${target} PRIVATE ${SQ_SANITIZERS} ${SQ_FLAVOR_LINK_OPTIONS})
+  endif()
 endfunction()
 
 # In a build of our groups alone (SQ_ENGINE_ONLY), the sanitizers and the
