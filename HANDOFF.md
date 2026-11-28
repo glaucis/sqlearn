@@ -4,8 +4,8 @@ Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
 Updated: 2026-11-28 · Branch: `main` (pushed, level with `origin/main`) ·
-Last commit: `docs: record the benchmark queue's merge` · Checks: passing
-(`just done`)
+Last commit: `8984fdb docs: mark main as pushed in the handoff` · Checks:
+passing (`just done`, on `8822141`; later commits touch only this file)
 
 Verify with: `just done` (`just verify` is the release tier)
 
@@ -30,7 +30,9 @@ None. [verified] The benchmark and profiling queue is merged into `main`
 
 - **The preparation before the rewrite, in this order** (Tomas, 2026-11-28:
   he prepares everything before starting, for a clear path):
-  1. ~~The small tooling fixes~~: done (below, "Just finished").
+  1. ~~The small tooling fixes~~: done
+     (`docs/plans/archived/2026-11-28-tooling-fixes.md`; #85 stays open for
+     steps 3 and 4).
   2. ~~The benchmark and profiling queue~~: merged
      (`docs/plans/archived/2026-11-28-benchmark-queue.md`, #88).
   3. **Next:** Phase 1 step 3, then step 4 (below).
@@ -87,7 +89,9 @@ None. [verified] The benchmark and profiling queue is merged into `main`
   from the profile if the numbers mislead; (ii) idle-thread samples may
   inflate `system`; (iii) whether samply's rusage covers the program. samply
   0.13.1 records on macOS without `samply setup`: never run `samply setup`
-  (it codesigns and changes the system).
+  (it codesigns and changes the system). A subagent that commits while its
+  own `just done` runs leaves it "Not remembered": rerun it on the final
+  tree before trusting "Checks: passing".
 - C++ work (2026-11-28): while headers are half changed, build with
   `cmake --build --preset <p>`, not `uv run`, which rebuilds the wheel and
   fails mid-edit. Catch2 here cannot print a `string_view` comparison (it
@@ -233,28 +237,5 @@ None. [verified] The benchmark and profiling queue is merged into `main`
   (fast-forward), `93d69e9..35d42bd`. A benchmark run under load is
   recorded as loaded; profiles join `just benchmarks-due`; samply profiles
   are summarised and compared; `just bench-queue` runs every due item on one
-  go-ahead, on an idle machine only. Not run yet (above).
-- **The tooling fixes, closed** (2026-11-28, plan
-  `docs/plans/archived/2026-11-28-tooling-fixes.md`, all merged into `main`
-  and pushed; #85 stays open for steps 3 and 4, its comments list what each
-  task did):
-  - Tasks 1 to 12 (`ce3d768..cd40339`): the SQL label hashes every file
-    under `engine/extension/test`; `just test` and `just full` write the
-    compiler stamp; `just done` checks the lockfile first; #86's follow-ups
-    (#86 closed); #85's that needed no decision; a whole-branch review's
-    fixes.
-  - Task 4 (`a490fa0`): sqlearn builds in the project environment, so a
-    rebuild after a commit compiles only what changed (2 of 3 objects
-    missed ccache, where 56 of 68 did).
-  - Tasks 13 to 21, Tomas's answers to the 13 decisions: a patched
-    submodule fails the configure (`58aceb1`); the stubs test is back
-    (`93b1c45`); an extension the user installs loads (`1159a23`); our
-    compile lines carry the flavour's levels alone (`f9eebd9`); the
-    bindings' headers build alone with LLVM (`5b04967`); the fuzz corpus is
-    capped (`409e07f`); licence texts are pinned by SHA-256 (`d88c16e`); the
-    crash handler reports a stack overflow on the installing thread, keeps
-    its image names and finishes its report (`40d556e`); `just crash-report`
-    names a report's frames from the module's linker map and says whose
-    code crashed (`36be38c`).
-- #87 opened (2026-11-28): found while running `just sanitize`, outside the
-  tooling fixes (above, "Next up").
+  go-ahead, on an idle machine only. Not run yet (above). Pushed
+  (`8984fdb`).
