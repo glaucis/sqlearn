@@ -405,6 +405,16 @@ bench name:
     case "{{name}}" in bench_*) just build-engine release ;; esac
     uv run --locked python -m validation._bench run {{name}}
 
+# Run every due benchmark and profile in turn, only while the machine is idle (waits up to 30 minutes, then up to 5 before each later item), and report what ran. One go-ahead from Tomas covers the whole queue (ADR 0081, ADR 0072); builds the release and profile presets first, only when an item needs one
+[group('test')]
+bench-queue:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for preset in $(uv run --locked python -m validation._queue presets); do
+        just build-engine "$preset"
+    done
+    uv run --locked python -m validation._queue run
+
 # Profile one C++ benchmark program under samply (profile build) and write build/profiles/<name>/<time>/summary.json and compare.md, keeping the last five; only after Tomas's go-ahead (ADR 0072)
 [group('test')]
 profile name:

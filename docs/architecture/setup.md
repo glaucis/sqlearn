@@ -74,7 +74,7 @@ system's OpenMP library; uv cannot provide it. uv is the only package tool
 | setup | `build-tools`, `compiler-stamp`, `doctor`, `fetch-mull`, `setup` |
 | format | `fmt`, `fmt-engine`, `fmt-markdown`, `fmt-python` |
 | check | `check`, `check-docstring-args`, `check-docstrings`, `check-licences`, `check-lockfile`, `check-no-devdata`, `check-secrets`, `check-spelling`, `check-stubs`, `check-types`, `check-types-mypy`, `checkable-tree`, `docstrings`, `done`, `format`, `full`, `headers-alone`, `iwyu-engine`, `links`, `lint`, `lint-markdown`, `lint-python`, `place`, `pre-commit`, `remember-tree`, `tidy`, `tidy-engine`, `types`, `verify` |
-| test | `audit-groups`, `bench`, `bench-engine`, `benchmarks-due`, `coverage-engine`, `fuzz`, `leaks-engine`, `mutate-engine`, `profile`, `sanitize`, `sql`, `test`, `test-all`, `test-engine`, `test-engine-changed`, `test-hooks`, `test-python-versions`, `test-sql`, `validate`, `validate-all` |
+| test | `audit-groups`, `bench`, `bench-engine`, `bench-queue`, `benchmarks-due`, `coverage-engine`, `fuzz`, `leaks-engine`, `mutate-engine`, `profile`, `sanitize`, `sql`, `test`, `test-all`, `test-engine`, `test-engine-changed`, `test-hooks`, `test-python-versions`, `test-sql`, `validate`, `validate-all` |
 | docs | `build-docs`, `docs`, `fetch-inventories`, `fetch-mathjax` |
 | build | `api-snapshot`, `build-engine`, `build-package`, `stubs` |
 | maintain | `clean`, `crash-report`, `probe-cxx26`, `upgrade-dependencies` |
@@ -92,18 +92,20 @@ third-party libraries' sources keep CMake's defaults whole. `just probe-cxx26`
 prints which C++26 features each compiler here has; rerun it after an Xcode or
 compiler update.
 
-`just audit-groups` audits the C++ groups' claims: it builds the coverage
-wheel (sqlearn's C++ with source-based coverage, DuckDB not) into
-`.venvs/coverage`, measures a bare import, then each Python test set and
-validation runner a group claims, and fails when one ran a group outside its
-declared groups; it is a second DuckDB build, then up to an hour on every
-core. `just benchmarks-due` lists the benchmarks out of date (script or
-measured C++ groups changed since the last run) with their last time, cores
-and memory, and runs none; `just bench <name>` runs one benchmark and records
-its time, cores, memory and load, only after Tomas's go-ahead, which names it,
-its time and its weight
-([ADR 0072](../adr/0072-benchmarks-run-on-tomass-go-ahead.md)); `just profile
-<name>` records one C++ program under samply the same way (see
+`just audit-groups` audits the C++ groups' claims: it builds the coverage wheel
+(sqlearn's C++ with source-based coverage, DuckDB not) into `.venvs/coverage`,
+measures a bare import, then each Python test set and validation runner a group
+claims, and fails when one ran a group outside its declared groups; it is a
+second DuckDB build, then up to an hour on every core. `just benchmarks-due`
+lists the benchmarks out of date (script or measured C++ groups changed since
+the last run) with their last time, cores and memory, and runs none;
+`just bench <name>` runs one benchmark and records its time, cores, memory and
+load, only after Tomas's go-ahead, which names it, its time and its weight
+([ADR 0072](../adr/0072-benchmarks-run-on-tomass-go-ahead.md));
+`just profile <name>` records one C++ program under samply the same way;
+`just bench-queue` runs every due one in turn on an idle machine, on one
+go-ahead
+([ADR 0081](../adr/0081-one-go-ahead-runs-the-queue-on-an-idle-machine.md); see
 [testing](testing.md)).
 
 Which recipe runs when (a commit, a merge, work done, a release) is in
