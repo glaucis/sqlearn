@@ -5,6 +5,7 @@ files, with the groups written by hand, as the manifest would hold them.
 """
 
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -223,3 +224,37 @@ def test_the_command_reports_each_problem_and_fails(tmp_path, capsys):
     assert "Fix: add core to DEPENDS" in capsys.readouterr().out
     _write(tmp_path, {"engine/src/raw/a.cpp": "int a() { return 1; }\n"})
     assert _layering.cli(["--root", str(tmp_path), "--build", str(build)]) == 0
+
+
+def test_a_file_git_ignores_is_not_checked(tmp_path):
+    """In a repository, a git-ignored file is skipped; an untracked one is not."""
+    subprocess.run(["git", "init", "--quiet"], cwd=tmp_path, check=True)
+    _write(
+        tmp_path,
+        {
+            ".gitignore": "engine/src/raw/ignored.cpp\n",
+            "engine/src/raw/ignored.cpp": '#include "crash/h.hpp"\n',
+            "engine/src/raw/new.cpp": '#include "core/x.hpp"\n',
+        },
+    )
+    groups = {"raw": _group("raw"), "core": _group("core"), "crash": _group("crash")}
+    (found,) = _layering.problems(tmp_path, groups, shared=SHARED)
+    assert "engine/src/raw/new.cpp:1" in found
+
+
+def test_an_include_climbing_out_with_dots_is_refused(tmp_path):
+    """``"../core/x.hpp"`` in a group or its tests is refused, with its fix."""
+    _write(
+        tmp_path,
+        {
+            "engine/src/core/x.hpp": "#pragma once\n",
+            "engine/src/raw/a.cpp": '#include "../core/x.hpp"\n',
+            "engine/tests/raw/test_a.cpp": '#include "../../src/raw/a.hpp"\n',
+        },
+    )
+    groups = {"core": _group("core"), "raw": _group("raw")}
+    found = _layering.problems(tmp_path, groups, shared=SHARED)
+    assert len(found) == 2
+    assert 'engine/src/raw/a.cpp:1: #include "../core/x.hpp"' in found[0]
+    assert "engine/tests/raw/test_a.cpp:1" in found[1]
+    assert all("Fix: include by the group's path from engine/src" in f for f in found)

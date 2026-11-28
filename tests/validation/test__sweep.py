@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from validation import _affected, _checks, _sweep
+from validation import _affected, _checks, _ctest, _pytest_sets, _sweep
 from validation._affected import Verdict
 
 TASKS = ("format", "lint", "test", "docs")
@@ -18,6 +18,12 @@ REPO = Path(__file__).resolve().parents[2]
 
 TREE = "0123456789abcdef0123456789abcdef01234567"
 
+LABELS = ("core", "raw")
+"""The stand-in C++ labels."""
+
+SETS = ("tooling",)
+"""The stand-in Python test sets."""
+
 
 def _git(root, *args):
     """Run git in `root`."""
@@ -25,13 +31,28 @@ def _git(root, *args):
 
 
 class Sweep:
-    """Stand-ins for ``report`` and ``just full``, and what ``full`` ran."""
+    """Stand-ins for ``report``, ``just full`` and ``due``, and what ``full`` ran."""
 
     def __init__(self, root):
         self.root = root
         self.verdicts = []
         self.codes = {}
         self.ran = []
+        self.failed = set()
+
+    def _due(self, units, root):
+        """Each of `units`, due when it failed in full: ``run`` forgot it."""
+        assert root == self.root
+        return {k: ["never passed here"] if k in self.failed else [] for k in units}
+
+    def ctest_due(self, preset, root):
+        """The stand-in for ``_ctest.due``."""
+        assert preset == _affected.PRESET
+        return self._due(LABELS, root)
+
+    def pytest_due(self, root):
+        """The stand-in for ``_pytest_sets.due``."""
+        return self._due(SETS, root)
 
     def report(self, root):
         """The stand-in for ``_affected.report``."""
@@ -52,7 +73,7 @@ class Sweep:
         ]
         self.verdicts[2:2] = [
             Verdict(check=f"test: {k}", runs=runs.get(k, False), reasons=())
-            for k in ("core", "tooling")
+            for k in (*LABELS, *SETS)
         ]
 
 
@@ -67,6 +88,8 @@ def sweep(tmp_path, monkeypatch):
     monkeypatch.setattr(_checks, "TASKS", dict.fromkeys(TASKS))
     monkeypatch.setattr(_affected, "report", stand_in.report)
     monkeypatch.setattr(_sweep, "_full", stand_in.full)
+    monkeypatch.setattr(_ctest, "due", stand_in.ctest_due)
+    monkeypatch.setattr(_pytest_sets, "due", stand_in.pytest_due)
     monkeypatch.setattr(_sweep, "_tree", lambda root: (TREE, True))
     return stand_in
 
@@ -94,6 +117,28 @@ def test_a_test_failure_with_every_label_unchanged_is_a_missed_rerun(sweep, caps
     sweep.codes = {"test": 2}
     assert _sweep.run(sweep.root) == 1
     assert "test: a missed rerun" in capsys.readouterr().out
+
+
+def test_a_unit_called_unchanged_that_fails_is_a_missed_rerun(sweep, capsys):
+    """With ``test: core`` due, ``test: raw`` failing in full is named."""
+    sweep.say(core=True)
+    sweep.codes = {"test": 2}
+    sweep.failed = {"raw"}
+    assert _sweep.run(sweep.root) == 1
+    out = capsys.readouterr().out
+    assert "test: raw: a missed rerun" in out
+    assert "test: core" not in out
+    assert f"{_sweep.FIX}\n" in out
+    assert _saved(sweep.root) is None
+
+
+def test_a_failing_unit_that_would_run_is_no_missed_rerun(sweep, capsys):
+    """Only ``test: core``, which the report said would run, fails in full."""
+    sweep.say(core=True)
+    sweep.codes = {"test": 2}
+    sweep.failed = {"core"}
+    assert _sweep.run(sweep.root) == 2
+    assert "missed rerun" not in capsys.readouterr().out
 
 
 def test_a_failure_of_a_check_that_would_run_is_no_missed_rerun(sweep, capsys):

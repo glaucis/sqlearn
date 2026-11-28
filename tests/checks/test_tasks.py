@@ -498,3 +498,23 @@ def test_a_cpp_code_edit_while_a_check_runs_is_not_recorded(
     assert _checks.run("moves", repo) == 0
     assert "moves: not recorded" in capsys.readouterr().out
     assert _checks.load(_checks.record_dir(repo), "moves") == []
+
+
+@pytest.mark.parametrize("recipe", ["affected", "sweep"])
+def test_affected_and_sweep_write_the_compiler_stamp_first(recipe):
+    """``just affected`` and ``just sweep`` run ``compiler-stamp`` first."""
+    dumped = subprocess.run(
+        [
+            "just",
+            "--justfile",
+            str(REPO / "justfile"),
+            "--dump",
+            "--dump-format",
+            "json",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    depends = json.loads(dumped)["recipes"][recipe]["dependencies"]
+    assert [d["recipe"] for d in depends] == ["compiler-stamp"]

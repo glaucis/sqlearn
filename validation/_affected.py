@@ -5,10 +5,13 @@ except ``test``, whose steps keep records of their own: it answers as one
 verdict per C++ label (``validation._ctest.due`` on ``dev``, which builds the
 preset) and per Python test set (``validation._pytest_sets.due``), named
 ``test: <label>`` and ``test: <set>``. No step runs and no record is written.
+What the checks print on the way goes to standard error, so standard output
+holds only the verdicts.
 ``validate``'s runners keep records of their own and are not covered.
 """
 
 import argparse
+import contextlib
 import sys
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -61,11 +64,14 @@ def report(root: Path) -> list[Verdict]:
     verdicts = []
     for name, task in _checks.TASKS.items():
         if name != "test":
-            verdicts.append(_verdict(name, _checks.why(task, root)))
+            with contextlib.redirect_stdout(sys.stderr):
+                reasons = _checks.why(task, root)
+            verdicts.append(_verdict(name, reasons))
             continue
         labels = _ctest.due(PRESET, root)
         verdicts.extend(_verdict(f"test: {k}", labels[k]) for k in sorted(labels))
-        found = _pytest_sets.due(root)
+        with contextlib.redirect_stdout(sys.stderr):
+            found = _pytest_sets.due(root)
         verdicts.extend(_verdict(f"test: {k}", v) for k, v in found.items())
     return verdicts
 

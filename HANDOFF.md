@@ -3,8 +3,9 @@
 Current state of work, maintained by `/handoff`. Git history keeps earlier
 versions.
 
-Updated: 2026-11-28 · Branch: `main` · Last commit: `docs: stay on CMake
-for now, and order the preparation` · Checks: passing (`just done`)
+Updated: 2026-11-28 · Branch: `selection-strengthened` · Last commit: `fix:
+find a missed rerun per test unit in the sweep` · Checks: passing (`just
+done`)
 Verify with: `just done` (`just verify` is the release tier)
 
 ## In progress
@@ -35,6 +36,13 @@ None. [verified]
   4. The audit's first run, on Tomas's go-ahead (above), before the first
      group claims Python tests or runners.
   5. Then the rewrite's first group, its plan first.
+- `just test` and `just full` do not run `just compiler-stamp` first, as
+  `done`, `verify`, `affected` and `sweep` do (this predates the branch).
+- `validate` is in neither `just affected` nor `just sweep`: add it when the
+  first runner lands.
+- The record helpers `passed` and `reasons` sit in `validation/_ctest.py`,
+  and would sit better in `validation/_checks.py`.
+- The `test` task's whole record keeps about 120 KB of `files` nothing reads.
 - When `pyright-lsp` is installed globally (not yet), turn it off here in
   `.claude/settings.json`: `"enabledPlugins":
   {"pyright-lsp@claude-plugins-official": false}`; ty and mypy are this
@@ -186,8 +194,11 @@ None. [verified]
   (`5de91a7`, `465ad02`); `just affected`, what a change reruns and why
   (`eb8f3a3`, `bae1373`); `just sweep`, every check in full compared with
   what the selection chose, every 7 days (Tomas), `just done` warning when
-  it is older (`feat: compare a full run with the selection, with just
-  sweep`).
+  it is older (`c670a08`, `7ade7b4`); then the fixes of a whole-branch
+  review (`fix: find a missed rerun per test unit in the sweep`): the sweep
+  compares `test` unit by unit, `affected` and `sweep` write the compiler
+  stamp first, and the layering check skips git-ignored files and refuses
+  `..` includes.
 - The Bazel decision (2026-11-28): the engine stays on CMake for now,
   ADR 0080, with the signs to look again; the report is answered and in
   `docs/questions/archived/`. A fresh clone no longer fails the `related:`

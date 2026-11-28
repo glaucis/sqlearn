@@ -194,7 +194,12 @@ today's settings, or says `its inputs changed` when none does (a record from
 before whole tasks kept their files, or a submodule's commit moved). `test`
 is one line per C++ label and per Python set (`test: core`, `test: tooling`),
 from their own records: it builds the `dev` preset to know each program's
-bytes, but runs no test. `validate` is not covered.
+bytes, but runs no test. `validate` is not covered, and the instant checks
+(`check-lockfile`, `check-no-devdata`), which always run, are not listed.
+`sql: runs` can overreport: `just test-sql`'s own records for sqllogic decide
+afterwards whether its tests run. What the checks print on the way goes to
+standard error, so standard output holds only the verdicts. Like `just done`,
+it runs `just compiler-stamp` first.
 
 **`just full <task>`** runs one task all through, whatever its records say,
 and records the pass. `just full validate` is `just validate-all`. `just
@@ -207,11 +212,18 @@ no benchmark). `validate`, with no runner today, and the instant checks, which
 always run, are not part of it. A task the verdicts called unchanged that fails
 in full is a missed rerun: the sweep names it and exits 1, its `Fix:` line
 saying to run `just affected`, find the input the check reads but does not
-declare, and add it. `test` counts as unchanged only when there is a
-`test: <label>` or `test: <set>` verdict and every one is unchanged. When only
-tasks the verdicts said would run fail, the sweep exits with the first one's
-code and names no missed rerun. A pass is saved as `sweep.json`
-(`{"tree": ..., "date": ...}`) in `sqlearn-checks/`; the tree, read before the
+declare, and add it. `test` is compared unit by unit: when it fails in full,
+the sweep asks the C++ labels' and the Python sets' records again, and each
+`test: <label>` or `test: <set>` the verdicts called unchanged that is now due
+failed in full (a failed unit is forgotten from the records), so it is named
+as a missed rerun, `test: <unit>`, with the same `Fix:` line. When no unit is
+named but the verdicts called every unit unchanged, `test` is the missed rerun;
+with no `test: ...` verdict, `test` counts as running. When only checks the
+verdicts said would run fail, the sweep exits with the first one's code and
+names no missed rerun. Like `just done`, it runs `just compiler-stamp` first.
+A pass is saved as `sweep.json` (`{"tree": ..., "date": ...}`, written to a
+temporary file and moved into place) in `sqlearn-checks/`; the tree, read
+before the
 checks run, is `just checkable-tree`'s, or HEAD's when the tree is uncommitted,
 which the sweep says. Its cadence is `CADENCE_DAYS`, 7 days (Tomas, 2026-11-28):
 when the last sweep is older, or none passed, `just done` prints first, before
@@ -472,10 +484,14 @@ layers of its own, and refuses, each with a `Fix:` line:
    include (its tests do not count), which makes a change rerun what it
    cannot affect;
 4. a cycle of `DEPENDS`;
-5. an include of a shared directory (`engine/src/bindings`) by a group.
+5. an include of a shared directory (`engine/src/bindings`) by a group;
+6. an include, in a group's files or its tests, whose path starts with `..`:
+   the fix is to include by the group's path from `engine/src`.
 
 An include names a group when its path's first part is a group's name;
-`"..."` and `<...>` count alike, and so does one in a comment. Run it alone
+`"..."` and `<...>` count alike, and so does one in a comment. A group's files
+are those `git ls-files -co --exclude-standard` lists, so a git-ignored file is
+not checked (every file, where the root is not a repository). Run it alone
 with `uv run --locked python -m validation._layering`.
 
 ### The fingerprints
@@ -543,7 +559,7 @@ nothing. `-n auto` and the slow tier work as in "The passes".
 
 | Change | Reruns |
 |---|---|
-| a comment in `engine/cmake/warnings.cmake` | the tooling set, `tidy` and `sql`, which read `engine/cmake/` as text, and `format` on every file (`engine/cmake/` is its configuration); no C++ group's tests, no library or unclaimed Python set, no runner, no docs |
+| a comment in `engine/cmake/warnings.cmake` | the tooling set, `tidy` and `sql`, which read `engine/cmake/` as text, `format` on every file (`engine/cmake/` is its configuration), and `lint` on that file (typos checks every file); no C++ group's tests, no library or unclaimed Python set, no runner, no docs |
 | a comment edited within its line in `engine/src/core/error.cpp` | the tooling set, `tidy`, `format` and `lint` on that file, which read the text; no C++ group's tests (the programs' bytes are the same), no library or unclaimed Python set, no runner, no docs, no `sql` |
 | a comment line added to a `core` source | the tests of `core` and of each group whose program links that object (`raw`, for `error.cpp`), every Python set and runner (all use `core`), `docs`, `types`, `docstrings` and `sql` (the module's fingerprint moved), `tidy`, and `format` and `lint` on that file |
 | a compile flag, a pin, a build table, the compiler | everything that uses the module |

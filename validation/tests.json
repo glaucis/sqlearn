@@ -320,6 +320,18 @@
     },
     {
       "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_affected_and_sweep_write_the_compiler_stamp_first[affected]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
+      "name": "tests/checks/test_tasks.py::test_affected_and_sweep_write_the_compiler_stamp_first[sweep]",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "checks/tasks",
       "name": "tests/checks/test_tasks.py::test_every_cache_key_under_engine_reaches_a_fingerprint",
       "outcome": "passed",
       "tier": "fast"
@@ -1459,6 +1471,12 @@
       "tier": "fast"
     },
     {
+      "area": "validation/_affected",
+      "name": "tests/validation/test__affected.py::test_what_the_checks_print_goes_to_standard_error",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
       "area": "validation/_audit",
       "name": "tests/validation/test__audit.py::test_a_dependency_of_a_declared_group_is_no_finding",
       "outcome": "passed",
@@ -2288,6 +2306,12 @@
     },
     {
       "area": "validation/_layering",
+      "name": "tests/validation/test__layering.py::test_a_file_git_ignores_is_not_checked",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_layering",
       "name": "tests/validation/test__layering.py::test_a_group_including_the_bindings_is_refused",
       "outcome": "passed",
       "tier": "fast"
@@ -2295,6 +2319,12 @@
     {
       "area": "validation/_layering",
       "name": "tests/validation/test__layering.py::test_an_angle_include_counts",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_layering",
+      "name": "tests/validation/test__layering.py::test_an_include_climbing_out_with_dots_is_refused",
       "outcome": "passed",
       "tier": "fast"
     },
@@ -2858,6 +2888,12 @@
     },
     {
       "area": "validation/_sweep",
+      "name": "tests/validation/test__sweep.py::test_a_failing_unit_that_would_run_is_no_missed_rerun",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_sweep",
       "name": "tests/validation/test__sweep.py::test_a_failure_of_a_check_that_would_run_is_no_missed_rerun",
       "outcome": "passed",
       "tier": "fast"
@@ -2877,6 +2913,12 @@
     {
       "area": "validation/_sweep",
       "name": "tests/validation/test__sweep.py::test_a_test_failure_with_no_test_verdicts_is_no_missed_rerun",
+      "outcome": "passed",
+      "tier": "fast"
+    },
+    {
+      "area": "validation/_sweep",
+      "name": "tests/validation/test__sweep.py::test_a_unit_called_unchanged_that_fails_is_a_missed_rerun",
       "outcome": "passed",
       "tier": "fast"
     },

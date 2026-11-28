@@ -195,3 +195,26 @@ def test_the_printout_gives_each_check_then_its_reasons(monkeypatch, capsys):
     assert capsys.readouterr().out == (
         "format: unchanged\nlint: runs\n  a.py: changed\n  b.md: added\n"
     )
+
+
+def test_what_the_checks_print_goes_to_standard_error(monkeypatch, capsys):
+    """Only the verdicts reach standard output; the checks' messages do not."""
+
+    def loud_why(task, root):
+        print("why: a message")  # noqa: T201
+        return []
+
+    def loud_pytest_due(root):
+        print("the C++ groups are unreadable")  # noqa: T201
+        return {"tooling": []}
+
+    monkeypatch.setattr(_checks, "TASKS", {"format": None, "test": None})
+    monkeypatch.setattr(_checks, "why", loud_why)
+    monkeypatch.setattr(_ctest, "due", lambda preset, root: {"core": []})
+    monkeypatch.setattr(_pytest_sets, "due", loud_pytest_due)
+    monkeypatch.setattr(_checks, "_root", lambda: "root")
+    assert _affected.cli([]) == 0
+    out, err = capsys.readouterr()
+    assert out == "format: unchanged\ntest: core: unchanged\ntest: tooling: unchanged\n"
+    assert "why: a message" in err
+    assert "the C++ groups are unreadable" in err

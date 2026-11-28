@@ -18,14 +18,18 @@ rules:
    it cannot affect.
 4. ``DEPENDS`` has no cycle.
 5. No group includes a shared directory (``engine/src/bindings``).
+6. No include of a group or its tests climbs out with ``..``: it names a
+   header by its path from ``engine/src``, so its group can be read.
 
 An include names a group when its path's first part is a group's name, as
 the groups' include root, ``engine/src``, resolves it; ``"..."`` and
 ``<...>`` count alike, and so does an include in a comment, so the check
 fails safe. Includes of the standard library and third parties name no
-group. Run it as ``uv run --locked python -m validation._layering``; the
-``tidy`` task runs it after ``just tidy-engine``, which configures the
-``llvm-dev`` build whose manifest it reads.
+group. A group's files are those git lists, untracked ones included and
+ignored ones left out (every file, outside a repository). Run it as
+``uv run --locked python -m validation._layering``; the ``tidy`` task runs
+it after ``just tidy-engine``, which configures the ``llvm-dev`` build whose
+manifest it reads.
 """
 
 import argparse
@@ -89,8 +93,22 @@ def included(path: Path, groups: Iterable[str]) -> set[str]:
 
 
 def _files(root: Path, directory: str) -> list[Path]:
-    """Return every file under `directory` of `root`, sorted."""
-    return sorted(p for p in (root / directory).rglob("*") if p.is_file())
+    """Return every file under `directory` of `root`, sorted.
+
+    The files git lists, tracked or untracked but not ignored, or every
+    file when `root` is not a repository.
+    """
+    try:
+        listed = subprocess.run(
+            ["git", "ls-files", "-z", "-co", "--exclude-standard", "--", directory],
+            cwd=root,
+            capture_output=True,
+            check=True,
+            text=True,
+        ).stdout.split("\0")
+    except subprocess.CalledProcessError:
+        listed = [p.relative_to(root).as_posix() for p in (root / directory).rglob("*")]
+    return sorted(root / p for p in listed if p and (root / p).is_file())
 
 
 def _cycles(groups: dict[str, _groups.Group]) -> list[list[str]]:
@@ -125,7 +143,9 @@ def problems(
     Returns
     -------
     list of str
-        Each problem, ending with a ``Fix:`` line: the includes refused,
+        Each problem, ending with a ``Fix:`` line: the includes refused
+        (climbing out with ``..``, of a shared directory, of a group not
+        depended on),
         then, group by group, the dependencies to name and the stale ones,
         then the cycles. Empty when every rule holds.
     """
@@ -140,7 +160,15 @@ def problems(
                 first = header.split("/", 1)[0]
                 target = f"{INCLUDE_ROOT}/{header}"
                 inside = [d for d in directories if target.startswith(f"{d}/")]
-                if inside:
+                if header.startswith(".."):
+                    found.append(
+                        f"{where}:{number}: {line}: group {name} includes "
+                        f"{header}, which climbs out with .., so the group it "
+                        "reaches cannot be read.\n"
+                        "Fix: include by the group's path from engine/src "
+                        f'(#include "<group>/<header>")'
+                    )
+                elif inside:
                     found.append(
                         f"{where}:{number}: {line}: group {name} includes "
                         f"{target} of the shared directory {inside[0]}, which "

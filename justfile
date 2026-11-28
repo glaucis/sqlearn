@@ -673,14 +673,14 @@ full task:
     fi
     {{ checks }} "{{ task }}" --all
 
-# Print, for each check, whether `just done` would run it and why; runs no check
+# Print, for each check, whether `just done` would run it and why; runs no check. Like done, it writes the compiler stamp first, so a compiler update rebuilds the module before anything is read
 [group('check')]
-affected:
+affected: compiler-stamp
     uv run --locked python -m validation._affected
 
-# Run every check of just done in full and compare with what the selection chose; minutes to an hour, no benchmark. A check the selection called unchanged that fails is a missed rerun (exit 1); a pass is remembered with its date (validation/_sweep.py)
+# Run every check of just done in full and compare with what the selection chose; minutes to an hour, no benchmark. A check the selection called unchanged that fails is a missed rerun (exit 1); a pass is remembered with its date (validation/_sweep.py). Like done, it writes the compiler stamp first, so a compiler update rebuilds the module before anything is checked
 [group('check')]
-sweep:
+sweep: compiler-stamp
     uv run --locked python -m validation._sweep
 
 # Print a warning when the last passed sweep is older than its cadence (CADENCE_DAYS in validation/_sweep.py) or missing; runs nothing

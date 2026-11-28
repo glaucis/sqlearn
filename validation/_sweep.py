@@ -4,22 +4,29 @@
 each task of ``validation._checks.TASKS`` in full (``just full <task>``), in
 the table's order, every one even when another fails. A task the report
 called unchanged that fails in full is a missed rerun: the selection would
-have skipped a failure. ``test`` counts as unchanged only when the report has
-a ``test: <label>`` or ``test: <set>`` verdict and every one is unchanged.
-A pass is remembered in ``sweep.json`` in ``_checks.record_dir``, with the
-tree swept and the date; ``stale`` warns when that is older than
-``CADENCE_DAYS`` or missing, and ``just done`` prints the warning.
+have skipped a failure. ``test`` is compared unit by unit: when it fails in
+full, ``validation._ctest.due`` and ``validation._pytest_sets.due`` are asked
+again, and a ``test: <label>`` or ``test: <set>`` the report called unchanged
+that is now due failed in full (``run`` forgets a failed unit), a missed
+rerun named as such. When no unit is named but the report called every unit
+unchanged, ``test`` itself is the missed rerun; with no ``test: ...``
+verdict, ``test`` counts as running. A pass is remembered in ``sweep.json``
+in ``_checks.record_dir``, with the tree swept and the date; ``stale`` warns
+when that is older than ``CADENCE_DAYS`` or missing, and ``just done`` prints
+the warning.
 """
 
 import argparse
 import datetime
 import json
+import os
 import subprocess
 import sys
+import tempfile
 from collections.abc import Sequence
 from pathlib import Path
 
-from validation import _affected, _checks
+from validation import _affected, _checks, _ctest, _pytest_sets
 
 CADENCE_DAYS: int = 7
 """How many days a sweep counts as recent. Set by Tomas on 2026-11-28."""
@@ -72,13 +79,48 @@ def _tree(root: Path) -> tuple[str, bool]:
 
 
 def _unchanged(verdicts: Sequence[_affected.Verdict]) -> dict[str, bool]:
-    """Return, for each task, whether the report called it unchanged."""
+    """Return, for each task but ``test``, whether the report called it unchanged.
+
+    A task with no verdict counts as running. ``test`` is compared unit by
+    unit, by ``_missed_units``.
+    """
     called = {v.check: not v.runs for v in verdicts}
-    tests = [not v.runs for v in verdicts if v.check.startswith("test: ")]
-    return {
-        name: bool(tests) and all(tests) if name == "test" else called.get(name, False)
-        for name in _checks.TASKS
-    }
+    return {name: called.get(name, False) for name in _checks.TASKS if name != "test"}
+
+
+def _due_units(root: Path) -> set[str]:
+    """Return each test unit now due, as ``test: <label>`` or ``test: <set>``."""
+    found = _ctest.due(_affected.PRESET, root) | _pytest_sets.due(root)
+    return {f"test: {unit}" for unit, reasons in found.items() if reasons}
+
+
+def _missed_units(verdicts: Sequence[_affected.Verdict], root: Path) -> list[str]:
+    """Return the missed reruns among the test units, after ``test`` failed.
+
+    A unit the report called unchanged that is due after the full run failed
+    in it: ``run`` forgets a failed unit's identity. When none is, but the
+    report called every unit unchanged, the failure is ``test``'s own.
+    """
+    units = [v for v in verdicts if v.check.startswith("test: ")]
+    still = [v.check for v in units if not v.runs]
+    due = _due_units(root)
+    named = [unit for unit in still if unit in due]
+    if named:
+        return named
+    return ["test"] if units and len(still) == len(units) else []
+
+
+def _save(directory: Path, saved: dict[str, str]) -> None:
+    """Write `saved` as ``sweep.json`` in `directory`, never half a file."""
+    directory.mkdir(parents=True, exist_ok=True)
+    handle, temporary = tempfile.mkstemp(dir=directory, suffix=".tmp")
+    try:
+        with os.fdopen(handle, "w", encoding="utf-8") as out:
+            out.write(json.dumps(saved) + "\n")
+        os.replace(temporary, directory / SWEEP)
+    except BaseException:
+        Path(temporary).unlink(missing_ok=True)
+        raise
 
 
 def run(root: Path) -> int:
@@ -95,7 +137,8 @@ def run(root: Path) -> int:
         1 when a check the report called unchanged fails (a missed rerun),
         else the first failing check's code, else 0, the pass then saved.
     """
-    unchanged = _unchanged(_affected.report(root))
+    verdicts = _affected.report(root)
+    unchanged = _unchanged(verdicts)
     tree, checkable = _tree(root)
     first = 0
     missed = []
@@ -104,7 +147,9 @@ def run(root: Path) -> int:
         if code == 0:
             continue
         first = first or code
-        if unchanged[name]:
+        if name == "test":
+            missed += _missed_units(verdicts, root)
+        elif unchanged[name]:
             missed.append(name)
     for name in missed:
         print(  # noqa: T201
@@ -121,12 +166,8 @@ def run(root: Path) -> int:
             flush=True,
         )
         return first
-    directory = _checks.record_dir(root)
-    directory.mkdir(parents=True, exist_ok=True)
     today = datetime.date.today().isoformat()
-    (directory / SWEEP).write_text(
-        json.dumps({"tree": tree, "date": today}) + "\n", encoding="utf-8"
-    )
+    _save(_checks.record_dir(root), {"tree": tree, "date": today})
     if not checkable:
         print(  # noqa: T201
             f"\nThe tree is uncommitted: remembered HEAD's tree {tree} instead.",
