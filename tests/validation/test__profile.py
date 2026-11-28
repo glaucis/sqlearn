@@ -163,11 +163,45 @@ def test_a_summary_round_trips_through_json():
         ("__cxa_throw", "/usr/lib/libc++abi.dylib", "standard library"),
         ("_PyEval_EvalFrameDefault", "/x/Python.framework/Python", "Python"),
         ("_platform_memmove", "/usr/lib/system/libsystem_platform.dylib", "system"),
+        ("main", "/x/build/bench_thing", "benchmark program"),
+        (
+            "ankerl::nanobench::Bench::run()",
+            "/x/build/bench_thing",
+            "benchmark program",
+        ),
+        ("sq::run()", "/x/build/bench_thing", "sqlearn"),
+        ("std::__1::sort<int*>()", "/x/build/bench_thing", "standard library"),
+        ("_platform_memmove", "/x/libsystem_platform.dylib", "system"),
     ],
 )
 def test_owner_reads_the_namespace_then_the_image(name, image, expected):
-    """The namespace decides first, then the image."""
-    assert pr.owner(name, image) == expected
+    """The namespace decides first, then the image; the program's own is its own."""
+    assert pr.owner(name, image, Path("/x/build/bench_thing")) == expected
+
+
+def test_the_program_is_not_owned_without_its_path():
+    """Without the program's path its image is system, not the program's."""
+    assert pr.owner("main", "/x/build/bench_thing") == "system"
+
+
+LAMBDA = "(anonymous namespace)::run()::$_0::operator()() const"
+
+
+def test_a_frame_in_the_programs_own_image_is_the_benchmark_program(tmp_path):
+    """A lambda in the profiled program's image counts under benchmark program."""
+    sidecar = json.loads((DATA / "samply-small.json.syms.json").read_text())
+    sidecar["string_table"][sidecar["string_table"].index(ACCUMULATE)] = LAMBDA
+    (tmp_path / "profile.json.syms.json").write_text(json.dumps(sidecar))
+    shutil.copy(FIXTURE, tmp_path / "profile.json")
+    summary = pr.summarise(
+        tmp_path / "profile.json", 2.0, "a", "b", program=Path("/x/build/loop")
+    )
+    lambda_function = next(f for f in summary.by_self if f.name == LAMBDA)
+    assert lambda_function.owner == "benchmark program"
+    assert summary.owners["benchmark program"] == pytest.approx(54 / 2000, abs=1e-12)
+    assert summary.owners["sqlearn"] == pytest.approx(226 / 2000, abs=1e-12)
+    plain = pr.summarise(tmp_path / "profile.json", 2.0, "a", "b")
+    assert plain.owners["system"] == pytest.approx(63 / 2000, abs=1e-12)
 
 
 def _function(name: str, self_share: float) -> pr.Function:

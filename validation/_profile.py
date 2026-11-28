@@ -167,7 +167,7 @@ def _function_json(function: Function) -> dict[str, Any]:
     }
 
 
-def owner(name: str, image: str) -> str:
+def owner(name: str, image: str, program: Path | None = None) -> str:
     """Return whose code a function is.
 
     Parameters
@@ -176,13 +176,16 @@ def owner(name: str, image: str) -> str:
         The function's demangled name.
     image : str
         The path (or name) of the image it is in.
+    program : Path or None
+        The profiled program; an image with its file name is the program's.
 
     Returns
     -------
     str
         ``sqlearn`` for a name in ``sq::``, ``DuckDB`` in ``duckdb::``,
         ``standard library`` in ``std::`` or in an image named ``libc++*``;
-        otherwise the image's owner (``Python`` or ``system``).
+        otherwise ``benchmark program`` in the program's own image, else the
+        image's owner (``Python`` or ``system``).
     """
     if name.startswith("sq::"):
         return "sqlearn"
@@ -190,6 +193,8 @@ def owner(name: str, image: str) -> str:
         return "DuckDB"
     if name.startswith("std::") or Path(image).name.startswith("libc++"):
         return "standard library"
+    if program is not None and image and Path(image).name == program.name:
+        return "benchmark program"
     return owner_of_image(image)
 
 
@@ -266,7 +271,12 @@ def _frame_names(
 
 
 def summarise(
-    profile: Path, seconds: float, load_before: str, load_after: str
+    profile: Path,
+    seconds: float,
+    load_before: str,
+    load_after: str,
+    *,
+    program: Path | None = None,
 ) -> Summary:
     """Summarise a samply profile.
 
@@ -279,6 +289,9 @@ def summarise(
         The run's wall time.
     load_before, load_after : str
         The load before and after the run (``uptime``'s line).
+    program : Path or None
+        The profiled program: its own frames that are not in ``sq::``,
+        ``duckdb::`` or ``std::`` are owned by ``benchmark program``.
 
     Returns
     -------
@@ -312,7 +325,7 @@ def summarise(
             seen: set[str] = set()
             while stack is not None:
                 name, image = names[stacks["frame"][stack]]
-                owners_of.setdefault(name, owner(name, image))
+                owners_of.setdefault(name, owner(name, image, program))
                 if leaf:
                     self_weight[name] += weight
                     leaf = False
@@ -545,7 +558,7 @@ def run(root: Path, name: str) -> int:
         return 1
     wall, cores = measured.wall, measured.cores
     before, after = measured.before, measured.after
-    summary = summarise(out_file, wall, before, after)
+    summary = summarise(out_file, wall, before, after, program=Path(program[0]))
     previous = _previous(root, name)
     summary_file = run_dir / "summary.json"
     summary_file.write_text(

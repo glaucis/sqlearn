@@ -628,16 +628,17 @@ preset and records one program under samply (`validation/_profile.py`:
 which `just doctor` lists as optional). The recording is in
 `build/profiles/<name>/<YYYYMMDD-HHMMSS>/`: `profile.json.gz` with its
 `.syms.json` sidecar of names, `summary.json` (the wall time, the load before
-and after, each owner's share by self time, the top 30 functions by self and
-by total time, each with its owner: sqlearn, DuckDB, standard library, Python
-or system) and `compare.md` (the same against the newest clean profile of the
-program whose summary still exists; a function whose self share moved more than
-2 points, or that is new in the top 30, is listed). The five newest directories
-are kept, and only directories of that name form are ever deleted. The record
-`profile-<name>` (identity of the profile build's binary, seconds, cores,
-`loaded`, both loads, the summary's path) clears the profile's "due" when
-clean, as a benchmark's does. A failed samply, or a stale profile build, saves
-no record and says why (with a `Fix:` line).
+and after, each owner's share by self time, the top 30 functions by self and by
+total time, each with its owner: sqlearn, DuckDB, standard library, benchmark
+program (the program's own image: its harness and lambdas), Python or system)
+and `compare.md` (the same against the newest clean profile of the program whose
+summary still exists; a function whose self share moved more than 2 points, or
+that is new in the top 30, is listed). The five newest directories are kept, and
+only directories of that name form are ever deleted. The record `profile-<name>`
+(identity of the profile build's binary, seconds, cores, `loaded`, both loads,
+the summary's path) clears the profile's "due" when clean, as a benchmark's
+does. A failed samply, or a stale profile build, saves no record and says why
+(with a `Fix:` line).
 
 `just bench-queue` (`validation/_queue.py`) runs every due item on one
 go-ahead from Tomas (ADR 0081, ADR 0072). It builds the `release` preset when

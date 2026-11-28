@@ -139,8 +139,9 @@ profile, the same way.
 - The summary, `summary.json` beside the recording, holds: the wall time;
   the load before and after; the top 30 functions by self time and by
   total time, each with its share of samples and whose code it is
-  (sqlearn, DuckDB, the standard library, the system), read from its image
-  and symbol names as `just crash-report` does; the share of time per
+  (sqlearn, DuckDB, the standard library, the benchmark program's own code
+  in its image, Python, the system), read from its image and symbol names
+  as `just crash-report` does; the share of time per
   owner; and DuckDB's operators, when present.
 - The record (`profile-<name>`) keeps the identity, the summary's path and
   its headline numbers; the recordings themselves are never committed
