@@ -664,18 +664,22 @@ path in `.venv`.
 cache variables), `engine/cmake/headers_alone.cmake`, the `headers-alone`
 recipe. Test: `tests/engine/test_presets.py`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
   `test_headers_alone_builds_the_bindings_headers`: the `headers-alone`
   build's target holds a unit for each header under `engine/src/bindings/`.
-- [ ] **Step 2: Run it, expect FAIL**
-- [ ] **Step 3: Give the preset the include directories** the wheel's
+- [x] **Step 2: Run it, expect FAIL**
+- [x] **Step 3: Give the preset the include directories** the wheel's
   `_duckdb_dependencies` carries, from the same sources (the submodules,
   `.venv`'s nanobind, the interpreter's headers), and build the bindings'
   units in `sq_headers_alone`.
-- [ ] **Step 4: Run the test and `just headers-alone`, expect PASS;** make
+- [x] **Step 4: Run the test and `just headers-alone`, expect PASS;** make
   `guard.hpp` lean on a missing include in a scratch edit, expect the
   recipe to fail; restore.
-- [ ] **Step 5: Commit** `build: build the bindings' headers alone with LLVM`
+- [x] **Step 5: Commit** `build: build the bindings' headers alone with LLVM`
+
+**As built:** the switch `SQ_HEADERS_ALONE_BINDINGS`, on in llvm-dev alone, so
+no other preset needs `.venv` to configure; a second test compares the
+units' system include directories and definitions with the wheel's.
 
 ### Task 18: The fuzz corpus has a cap
 

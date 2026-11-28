@@ -4,6 +4,7 @@ the flag files they read, turns on fast math."""
 import json
 import platform
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -339,6 +340,59 @@ def test_the_stack_clash_probe_asks_each_compiler_its_own_way(
     found, hardening = _stack_clash_probe(tmp_path, shutil.which(compiler) or "")
     assert found == takes
     assert ("-fstack-clash-protection" in hardening) == takes
+
+
+BINDINGS_DEFINES = re.compile(
+    r"-D(?:DUCKDB_STATIC_BUILD|NB_DOMAIN=\S+|Py_LIMITED_API=\S+)"
+)
+"""The definitions the bindings' headers are compiled with: DuckDB's static
+build, nanobind's domain and Python's stable ABI."""
+
+
+def _bindings_units(database: Path) -> dict[str, list[str]]:
+    """Each headers-alone unit of the bindings in `database`, with its
+    arguments."""
+    if not database.exists():
+        return {}
+    return {
+        Path(c["file"]).name: shlex.split(c["command"])
+        for c in json.loads(database.read_text())
+        if "/headers_alone/bindings/" in c["file"]
+    }
+
+
+def _what_a_unit_sees(arguments: list[str]) -> tuple[set[str], set[str]]:
+    """A unit's system include directories and its bindings' definitions."""
+    systems = {arguments[i + 1] for i, a in enumerate(arguments) if a == "-isystem"}
+    return systems, {a for a in arguments if BINDINGS_DEFINES.fullmatch(a)}
+
+
+def test_headers_alone_builds_the_bindings_headers() -> None:
+    """llvm-dev, the build `just headers-alone` uses, has a unit for each header
+    under engine/src/bindings/, so they build alone with Homebrew LLVM too, not
+    only in the wheel's build with Apple clang."""
+    database = ENGINE / "build" / "llvm-dev" / "compile_commands.json"
+    if not database.exists():
+        pytest.skip("no llvm-dev build here yet: just headers-alone makes one")
+    headers = sorted(p.stem for p in (ENGINE / "src" / "bindings").glob("*.hpp"))
+    assert headers
+    units = sorted(Path(name).stem for name in _bindings_units(database))
+    assert units == headers
+
+
+def test_the_bindings_headers_alone_see_what_the_wheel_gives_them() -> None:
+    """Each bindings unit of llvm-dev sees the system include directories and
+    the definitions the wheel's build gives the same unit, so the two cannot
+    drift apart."""
+    llvm = _bindings_units(ENGINE / "build" / "llvm-dev" / "compile_commands.json")
+    wheels = sorted((REPO / "build").glob("*/compile_commands.json"))
+    if not llvm or not wheels:
+        pytest.skip("needs an llvm-dev build and a wheel build here")
+    wheel = _bindings_units(wheels[0])
+    assert wheel
+    for name, arguments in wheel.items():
+        assert name in llvm, name
+        assert _what_a_unit_sees(llvm[name]) == _what_a_unit_sees(arguments), name
 
 
 def test_clangd_reads_the_llvm_dev_compile_database() -> None:

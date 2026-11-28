@@ -371,11 +371,11 @@ tidy-engine:
 iwyu-engine:
     uv run --locked python -m validation._tidy iwyu
 
-# Build every header under engine/src alone (engine/cmake/headers_alone.cmake) on the llvm-dev preset; the bindings' headers build alone in the wheel's build
+# Build every header under engine/src alone (engine/cmake/headers_alone.cmake) on the llvm-dev preset, the bindings' headers included (they build alone in the wheel's build too)
 [group('check')]
 headers-alone:
     cd engine && cmake --preset llvm-dev
-    cd engine && cmake --build --preset llvm-dev --target sq_headers_alone
+    cd engine && cmake --build --preset llvm-dev --target sq_headers_alone sq_headers_alone_bindings
 
 # Build the release preset and run the C++ benchmarks (nanobench), each printing its table
 [group('test')]

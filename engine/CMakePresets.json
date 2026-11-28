@@ -40,7 +40,8 @@
       "name": "llvm-dev",
       "inherits": "dev",
       "displayName": "llvm-dev: dev with Homebrew LLVM, AddressSanitizer's leak check on",
-      "toolchainFile": "${sourceDir}/cmake/toolchain-llvm.cmake"
+      "toolchainFile": "${sourceDir}/cmake/toolchain-llvm.cmake",
+      "cacheVariables": { "SQ_HEADERS_ALONE_BINDINGS": "ON" }
     },
     {
       "name": "tsan",
